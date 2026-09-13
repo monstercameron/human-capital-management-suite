@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-09-13 (UXAUDIT-024)
+
+- This todo closed with no production change, and that is the finding. The
+  live audit could not reproduce a single RED clause: identity wraps rather
+  than truncating (a 67-character tenant name measured scrollWidth ==
+  clientWidth), the nav groups are native disclosures with no inner
+  scrollbar at all -- scrolling is one thin edge scrollbar on the whole menu,
+  which is what GREEN asks for -- and global search is structurally distinct
+  from menu filtering, fuzzy, ranked and typed across people, workflows,
+  settings and pages.
+
+- Earlier work had fixed the behavior and never written the six tests this
+  todo names. Authoring a suite against behavior that already passes is the
+  one case where a green first run proves nothing, so every test was
+  mutation-verified against a real break in production code: dropping the
+  keyword half of the shared navigation metadata, replacing the native
+  disclosure with a div, weakening the search authorization filter, removing
+  the search scorer's early exit, forking menu filtering off the shared
+  aliases, fabricating a default brand logo, and dropping the global search
+  input's id. Each failed naming the thing it covers, then passed on revert.
+
+- Search authorization is now a property over sixteen role bundles resolved
+  through roleaccess -- the authority product_shell.go actually enforces --
+  rather than through the registry fallback it overrides.
+
+- A latent weakness was found and left in place with coverage rather than
+  papered over: the search catalog injects Help and Settings candidates
+  unconditionally and relies entirely on the authorization filter to strip
+  them. Every real role happens to hold help, so no named-role test can see
+  that reliance; the zero-grant bundle stays first in the security matrix.
+
 ## 2026-09-13 (UXAUDIT-008)
 
 - The People directory keeps a real, dense table down to 761px instead of the
