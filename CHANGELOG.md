@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-09-13 (PROMOUX-010)
+
+- One shared review surface now guards every consequential promotion action
+  through typed content props, keeping the existing <details>/<summary>
+  disclosure byte-for-byte as the zero-JS baseline and using GWC's own
+  ui.Overlay modal primitive for the focus trap rather than hand-rolling it.
+
+- Live before: clicking Start left the submit control 473px below the fold,
+  shifted two sections, collapsed document height from 4984 to 1423, and
+  dropped focus to BODY. There was no Cancel control at all, and Escape did
+  nothing.
+
+- Live after: opening the surface moves nothing outside it (0 sections, 1427
+  to 1427), the surface is position:fixed with max-height 736px and its own
+  scroll, the action bar sits in view with Cancel at 3232px² against Submit
+  at 7101px², and Escape closes it completely and returns focus to the exact
+  trigger that opened it.
+
+- Three passes were sent back and the reasons are worth keeping. The first
+  built the component and wired it to nothing -- Approve and Reject set
+  Confirmation, the Start path set it nowhere, so the live page was
+  unchanged. The second left the surface's own trigger 484px below the fold,
+  within 5px of the original defect. The third focused the page heading,
+  which renders at top 143 already inside the viewport and so could never
+  scroll the trigger into view.
+
+- The fourth pass found why the focus effect had never fired: GWC hooks are
+  positional and attach to the current fiber, and only a ui.CreateElement
+  boundary creates one. The hook had been a plain nested call reached
+  through the page-type switch, so it landed in whatever slot that flat hook
+  sequence happened to reach -- the hazard live.go's own doc comment warns
+  about. Wrapping it as a real element gives it its own fiber, and focus now
+  lands on the trigger with the browser's own scroll-on-focus bringing it
+  into view, no scroll call.
+
+- Residual, named: Start still swaps the page wholesale, which is separate
+  and deliberately untouched. Busy/BusyLabel are real tested props that no
+  caller sets yet; wiring them is filed separately.
+
 ## 2026-09-13 (PROMOUX-009)
 
 - Promotion simulation findings now have a typed identity and deduplicate

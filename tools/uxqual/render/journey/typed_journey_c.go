@@ -390,6 +390,65 @@ func declareJourneyMotion() {
 		gwccss.Raw("flex", "none"),
 		gwccss.Raw("margin-top", ".0625rem"),
 	)
+	// PROMOUX-010: .jn-confirm-surface and .jn-confirm-backdrop are the
+	// ui.Overlay-rendered layer a live client mounts once the <details>
+	// above opens (review_surface.go). They exist only in the browser --
+	// ui.Overlay's server build returns a plain Fragment, so the SSR/test
+	// path keeps rendering .jn-confirm-body exactly as before, in flow --
+	// which is why these rules can use position:fixed freely: they never
+	// touch the no-JS document, only the live one, where they are what
+	// keeps the review contained (RED: "moves unrelated sections") and its
+	// final action reachable (RED: "pushes the final action below the
+	// viewport") regardless of how tall the People and Journeys sections
+	// around it are.
+	declareGlobal(`.jn-confirm-surface`,
+		gwccss.Position.Fixed,
+		gwccss.Top(gwccss.Percent(50)),
+		gwccss.Left(gwccss.Percent(50)),
+		gwccss.Raw("transform", "translate(-50%,-50%)"),
+		gwccss.Raw("width", "min(34rem,calc(100vw - 2rem))"),
+		gwccss.Raw("max-height", "calc(100vh - 2rem)"),
+		gwccss.Raw("overflow-y", "auto"),
+		gwccss.Raw("overscroll-behavior", "contain"),
+		gwccss.Display.Flex,
+		gwccss.FlexDir.Col,
+		gwccss.Bg(gwccss.Var("jn-surface")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("jn-hairline")),
+		gwccss.Rounded(gwccss.VarLength("jn-r2")),
+		gwccss.Padding(gwccss.Rem(1)),
+		gwccss.Raw("box-shadow", "var(--jn-shadow-lift)"),
+		gwccss.Keyframes("jn-slidein", jnSlideinFrames...),
+		gwccss.Animation(gwccss.RawDuration(".18s"), gwccss.Easing("var(--jn-ease)")),
+		gwccss.Raw("animation-fill-mode", "both"),
+	)
+	declareGlobal(`.jn-confirm-backdrop`,
+		gwccss.Position.Fixed,
+		gwccss.Raw("inset", "0"),
+		gwccss.Raw("background", "color-mix(in srgb,var(--jn-ink) 45%,transparent)"),
+	)
+	declareGlobal(`.jn-confirm-actionbar`,
+		gwccss.Position.Sticky,
+		gwccss.Bottom(gwccss.Zero),
+		gwccss.Display.Flex,
+		gwccss.Gap(gwccss.Rem(.625)),
+		gwccss.Raw("justify-content", "flex-end"),
+		gwccss.PaddingY(gwccss.Rem(.625)),
+		gwccss.Raw("margin-top", ".125rem"),
+		gwccss.Bg(gwccss.Var("jn-surface")),
+	)
+	// The cancel control is deliberately ordered and styled to never
+	// outrank the final action beside it (RED: "makes Cancel the most
+	// visually prominent control"): same size, secondary tone, and second
+	// in reading and DOM order, with the submit button -- whatever variant
+	// the caller gave it -- placed after it.
+	declareGlobal(`.jn-confirm-cancel`,
+		gwccss.Raw("order", "0"),
+	)
+	declareGlobal(`.jn-confirm-status`,
+		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
+		gwccss.Raw("min-height", "1em"),
+	)
 	declareGlobal(`.jn-timeline`,
 		gwccss.Display.Flex,
 		gwccss.FlexDir.Col,

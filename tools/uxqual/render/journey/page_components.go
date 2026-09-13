@@ -16,15 +16,28 @@ type pageHeaderProps struct {
 	Title   string
 	Lead    string
 	Actions []ui.Node
+	// HeadingID, when set, names the <h1> and makes it a script-focusable
+	// (tabindex="-1") landmark: PROMOUX-010's residual is that a live
+	// client swapping Page.List for Page.Proposal wholesale (Start) drops
+	// focus to <body> with nothing scrolled into view, so proposalView
+	// sets this and a mount-only effect (proposal_view_focus_wasm.go)
+	// moves focus here the moment the page transition lands. Every other
+	// caller leaves this empty and gets the exact heading it always has.
+	HeadingID string
 }
 
 func pageHeader(props pageHeaderProps) ui.Node {
 	class := strings.TrimSpace("jn-pagehead " + props.Class)
+	headingProps := html.Props{}
+	if props.HeadingID != "" {
+		headingProps.ID = props.HeadingID
+		headingProps.TabIndex = -1
+	}
 	return html.Div(html.Props{Class: class},
 		htmlIf(props.Eyebrow != "", func() ui.Node {
 			return html.P(html.Props{Class: "jn-eyebrow"}, html.Text(props.Eyebrow))
 		}),
-		html.H1(html.Props{}, html.Text(props.Title)),
+		html.H1(headingProps, html.Text(props.Title)),
 		htmlIf(props.Lead != "", func() ui.Node {
 			return html.P(html.Props{Class: "jn-lead"}, html.Text(props.Lead))
 		}),

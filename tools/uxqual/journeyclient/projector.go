@@ -600,11 +600,22 @@ func ProposalForm(values map[string]string, workers []*journeyv1.Worker, selecte
 	if len(optionSet) > 0 {
 		options = optionSet[0]
 	}
-	jobCodes, grades := governedProposalChoices(options, findWorker(workers, worker), values[FieldJobCode])
+	workerObj := findWorker(workers, worker)
+	jobCodes, grades := governedProposalChoices(options, workerObj, values[FieldJobCode])
 	return journey.ProposalForm{
 		Action: ListHref(),
 		Hidden: map[string]string{},
 		Submit: "Propose and simulate",
+		// PROMOUX-010: Start's own final action is guarded by the same
+		// shared review surface Approve and Reject use (actionConfirmation
+		// below feeds those). There is no journey.JourneyCard yet -- this
+		// form is what creates one -- so proposalConfirmation builds the
+		// identical Employee/Placement/Base pay/Effective date vocabulary
+		// from the worker record and the fields as currently filled,
+		// through the same headline/payLine/workerName helpers
+		// actionConfirmation's callers already use elsewhere in this file.
+		Confirmation:     proposalConfirmation(workerObj, options, values[FieldJobCode], values[FieldGrade], values[FieldBase], effective),
+		ConfirmationNote: "The proposal is simulated on submit; nothing is executed until the gate admits it.",
 		Fields: []journey.Field{
 			{
 				ID: FieldWorker, Name: NameWorker, Label: "Worker", Kind: kindSelect, Required: true,
@@ -684,6 +695,17 @@ func focusedProposalForm(values map[string]string, selectedRef string, options *
 	form.Fields[0] = journey.Field{
 		ID: FieldWorker, Name: NameWorker, Kind: kindHidden, Value: strings.TrimSpace(selectedRef),
 	}
+	// ProposalForm above resolved no worker object (it was called with a
+	// nil workers list, since the focused route pins the subject rather
+	// than offering a chooser), so its Confirmation named the generic
+	// "Employee" fallback. worker here is the real record this route was
+	// given, so refine the same review facts with it now that the worker
+	// chooser field above has been replaced by the pinned hidden value.
+	effective := values[FieldEffective]
+	if effective == "" {
+		effective = DefaultEffectiveDate(time.Now())
+	}
+	form.Confirmation = proposalConfirmation(worker, options, values[FieldJobCode], values[FieldGrade], values[FieldBase], effective)
 	return form
 }
 
@@ -1815,6 +1837,38 @@ func actionConfirmation(head journey.JourneyCard) []journey.Fact {
 	}
 	if head.EffectiveDate != "" {
 		facts = append(facts, journey.Fact{Label: "Effective date", Value: head.EffectiveDate})
+	}
+	return facts
+}
+
+// proposalConfirmation builds the Employee/Placement/Base pay/Effective
+// date facts the shared review surface (tools/uxqual/render/journey's
+// reviewSurface) shows for Start, the same four the fields it already
+// carries and the same labels actionConfirmation gives Approve and Reject.
+// It cannot take a journey.JourneyCard the way actionConfirmation does --
+// this form is what creates one, so no journey exists yet -- so it reads
+// the worker record and the fields as currently filled instead, through
+// the same headline/payLine-shaped helpers (headline, formatAmount,
+// formatDate, workerName, workerCurrency) card and promotionSubject
+// already use elsewhere in this file. A field the reader has not reached
+// yet (no job code chosen, no worker resolved) simply omits that fact
+// rather than printing an empty or placeholder value.
+func proposalConfirmation(worker *journeyv1.Worker, options *journeyv1.WorkforceOptions, jobCode, grade, base, effective string) []journey.Fact {
+	name, currentJob, currentGrade, currency := "Employee", "", "", ""
+	if worker != nil {
+		name = nonEmpty(workerName(worker), name)
+		currentJob, currentGrade = worker.GetJobCode(), worker.GetGrade()
+		currency = workerCurrency(worker, options)
+	}
+	facts := []journey.Fact{{Label: "Employee", Value: name}}
+	if placement := headline(currentJob, currentGrade, jobCode, grade); placement != "" {
+		facts = append(facts, journey.Fact{Label: "Placement", Value: placement})
+	}
+	if pay := formatAmount(currency, base); pay != "" {
+		facts = append(facts, journey.Fact{Label: "Base pay", Value: pay})
+	}
+	if date := formatDate(effective); date != "" {
+		facts = append(facts, journey.Fact{Label: "Effective date", Value: date})
 	}
 	return facts
 }

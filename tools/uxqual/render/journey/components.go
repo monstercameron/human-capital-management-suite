@@ -509,6 +509,26 @@ func footer(f Footer) ui.Node {
 // Focused proposal view
 // ----------------------------------------------------------------------
 
+// proposalHeadingID is proposalView's own heading id. It is kept, and stays
+// script-focusable (see pageHeader), for exactly the reason it was added:
+// naming page context for a screen reader on a route change is correct.
+// It is deliberately NOT the mount-focus target below -- live measurement
+// showed the heading already sits inside the viewport at the moment Start
+// lands, so focusing it cannot also scroll anything into view, and RED's
+// below-the-fold clause needs an element that genuinely starts off-screen.
+//
+// proposeReviewID is the id proposalFormSection gives its own reviewSurface
+// for the Start path (see reviewSurfaceDetailsID/reviewSurfaceTriggerID in
+// review_surface.go); proposeReviewTriggerID derives the trigger id through
+// those same functions rather than re-deriving the "-review-trigger" suffix
+// by hand, so the two call sites cannot drift apart.
+const (
+	proposalHeadingID = "proposal-heading"
+	proposeReviewID   = "propose"
+)
+
+var proposeReviewTriggerID = reviewSurfaceTriggerID(proposeReviewID)
+
 func proposalView(p Page, v ProposalView) ui.Node {
 	name := "this employee"
 	if v.Subject != nil && strings.TrimSpace(v.Subject.Name) != "" {
@@ -516,7 +536,8 @@ func proposalView(p Page, v ProposalView) ui.Node {
 	}
 	return html.Div(html.Props{Class: "jn-stack jn-proposal-view"},
 		pageHeader(pageHeaderProps{
-			Class: "jn-proposal-head", Eyebrow: "Career & compensation", Title: "Promote " + name,
+			HeadingID: proposalHeadingID,
+			Class:     "jn-proposal-head", Eyebrow: "Career & compensation", Title: "Promote " + name,
 			Lead: "Build a governed change for this employee. Their current assignment is locked from the authorized worker record; review it before entering the proposed role and pay.",
 			Actions: []ui.Node{
 				htmlIf(v.BackHref != "", func() ui.Node {
@@ -533,6 +554,27 @@ func proposalView(p Page, v ProposalView) ui.Node {
 		htmlIf(!v.Loading, func() ui.Node { return promotionSubjectCard(v.Subject) }),
 		htmlIf(!v.Loading, func() ui.Node { return engineUnavailableCallout(v.EngineAvailable, v.EngineNotice) }),
 		htmlIf(!v.Loading, func() ui.Node { return proposalFormSection(liveOf(p), v.Form, "Promotion details") }),
+		// focusOnMount is a real child element (ui.CreateElement), not a
+		// plain nested call, so its effect gets its own fiber isolated
+		// from LiveComponent's -- see mount_focus.go's own doc comment for
+		// why that distinction is what makes this reliable across a
+		// Page.List<->Page.Proposal transition. It targets the review
+		// surface's own trigger, not the heading above: that is the
+		// element live measurement found genuinely below the fold, and a
+		// programmatic focus scrolls its target into view as a browser
+		// side effect, closing that clause and the lost-focus one
+		// together. It is placed alongside proposalFormSection under the
+		// same !v.Loading gate rather than unconditionally at the top: the
+		// trigger this targets does not exist in the DOM until Loading has
+		// cleared, and this component's effect fires on its OWN first
+		// appearance in the tree, not on proposalView's -- mounting it
+		// unconditionally would fire (and permanently spend, since its
+		// dependency is a compile-time constant) that one mount-effect
+		// during the loading placeholder, before there is anything to
+		// focus.
+		htmlIf(!v.Loading, func() ui.Node {
+			return ui.CreateElement(focusOnMount, focusOnMountProps{TargetID: proposeReviewTriggerID})
+		}),
 	)
 }
 
@@ -833,18 +875,40 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 		submit = "Propose promotion"
 	}
 
+	busy := !f.Disabled && f.Busy
 	btn := html.Props{Class: "jn-btn", Type: submitButtonType(f.OnSubmit),
 		DataAttr: html.DataAttribute{Name: "variant", Value: "primary"}}
-	if f.OnSubmit != nil {
-		btn.OnClick = clickHandler(f.OnSubmit, l.collect(f.Hidden, f.Fields))
-	}
-	foot := []ui.Node{}
 	if f.Disabled {
 		btn.Disabled = true
 		btn.Aria = map[string]string{"describedby": "proposal-disabled"}
-		foot = append(foot, html.Button(btn, html.Text(submit)))
-	} else {
-		foot = append(foot, html.Button(btn, html.Text(submit)),
+	} else if busy {
+		btn.Disabled = true
+		btn.Aria = map[string]string{"busy": "true"}
+	} else if f.OnSubmit != nil {
+		btn.OnClick = clickHandler(f.OnSubmit, l.collect(f.Hidden, f.Fields))
+	}
+	submitBtn := html.Button(btn, html.Text(submit))
+	foot := []ui.Node{}
+	switch {
+	case f.Disabled:
+		foot = append(foot, submitBtn)
+	case len(f.Confirmation) > 0 || f.ConfirmationNote != "":
+		// PROMOUX-010: Start's own final action goes through the same
+		// shared review surface as Approve and Reject, so it keeps the
+		// same compact, contained, keyboard-stable confirmation instead of
+		// submitting straight from the input fields.
+		foot = append(foot, ui.CreateElement(reviewSurface, reviewSurfaceProps{
+			ID:           proposeReviewID,
+			TriggerLabel: "Review and propose",
+			Heading:      "Confirm " + strings.ToLower(submit),
+			Facts:        f.Confirmation,
+			Note:         nonEmpty(f.ConfirmationNote, "The proposal is simulated on submit; nothing is executed until the gate admits it."),
+			Submit:       submitBtn,
+			Busy:         busy,
+			BusyLabel:    f.BusyLabel,
+		}))
+	default:
+		foot = append(foot, submitBtn,
 			html.P(html.Props{Class: "jn-help"},
 				html.Text("The proposal is simulated on submit; nothing is executed until the gate admits it.")))
 	}
@@ -1667,33 +1731,31 @@ func actionCard(l live, a Action) ui.Node {
 		children = append(children, fieldNode(l, f, a.Disabled))
 	}
 
+	busy := !a.Disabled && a.Busy
 	btn := html.Props{Class: "jn-btn", Type: submitButtonType(a.OnSubmit),
 		DataAttr: html.DataAttribute{Name: "variant", Value: variant}}
 	if a.Disabled {
 		btn.Disabled = true
 		btn.Aria = map[string]string{"describedby": reasonID}
+	} else if busy {
+		btn.Disabled = true
+		btn.Aria = map[string]string{"busy": "true"}
 	} else if a.OnSubmit != nil {
 		btn.OnClick = clickHandler(a.OnSubmit, l.collect(a.Hidden, a.Fields))
 	}
 	submit := html.Button(btn, html.Text(a.Label))
 	if !a.Disabled && (len(a.Confirmation) > 0 || a.ConfirmationNote != "") {
-		confirmChildren := []ui.Node{
-			html.P(html.Props{Class: "jn-confirm-title"}, html.Text("Confirm "+strings.ToLower(a.Label))),
-		}
-		if len(a.Confirmation) > 0 {
-			confirmChildren = append(confirmChildren, factsListWithClass(a.Confirmation, "jn-confirm-facts"))
-		}
-		if a.ConfirmationNote != "" {
-			confirmChildren = append(confirmChildren,
-				html.P(html.Props{Class: "jn-confirm-note"}, iconWarning("jn-confirm-icon"), html.Text(a.ConfirmationNote)))
-		}
-		confirmChildren = append(confirmChildren, submit)
-		children = append(children, html.Details(html.Props{Class: "jn-confirm"},
-			html.Summary(html.Props{Class: "jn-btn", DataAttr: html.DataAttribute{Name: "variant", Value: "secondary"}, Raw: map[string]any{"role": "button"}},
-				html.Span(html.Props{Class: "jn-confirm-open-label"}, html.Text("Review and "+strings.ToLower(a.Label))),
-				html.Span(html.Props{Class: "jn-confirm-close-label"}, html.Text("Cancel review"))),
-			html.Div(html.Props{Class: "jn-confirm-body"}, confirmChildren...),
-		))
+		children = append(children, ui.CreateElement(reviewSurface, reviewSurfaceProps{
+			ID:             "action-" + a.ID,
+			TriggerLabel:   "Review and " + strings.ToLower(a.Label),
+			TriggerVariant: variant,
+			Heading:        "Confirm " + strings.ToLower(a.Label),
+			Facts:          a.Confirmation,
+			Note:           a.ConfirmationNote,
+			Submit:         submit,
+			Busy:           busy,
+			BusyLabel:      a.BusyLabel,
+		}))
 	} else {
 		children = append(children, submit)
 	}

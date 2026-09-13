@@ -301,6 +301,21 @@ type ProposalForm struct {
 	Disabled       bool
 	DisabledReason string
 
+	// Confirmation and ConfirmationNote mirror Action's own fields: the
+	// employee/change/date/consequence summary a reader confirms before
+	// this proposal is created. PROMOUX-010: when either is set, Submit
+	// renders behind the same shared review surface actionCard uses for
+	// Approve and Reject, instead of firing directly. Empty means this
+	// caller has not supplied one yet and the form submits directly,
+	// matching every ProposalForm built before PROMOUX-010.
+	Confirmation     []Fact
+	ConfirmationNote string
+	// Busy is true while this proposal's own submission is in flight; see
+	// Action.Busy for what it does once Confirmation makes this form route
+	// through the review surface.
+	Busy      bool
+	BusyLabel string
+
 	// OnSubmit, when set, makes this form a live submission: the renderer
 	// prevents the browser's own POST and calls it with every hidden entry
 	// plus the current value of every field, keyed by Field.Name.
@@ -532,8 +547,17 @@ type Action struct {
 	// Confirmation keeps consequential HR actions two-step without inventing
 	// a second modal state machine: the reader expands a native disclosure,
 	// reviews these exact facts, and only then reaches the submit button.
+	// PROMOUX-010: this is now rendered by the shared reviewSurface, so
+	// Confirmation/ConfirmationNote also carry the busy state below.
 	Confirmation     []Fact
 	ConfirmationNote string
+	// Busy is true while this action's own submission is in flight. The
+	// review surface keeps the action bar mounted and disables the submit
+	// control rather than collapsing, so a second click cannot fire a
+	// duplicate submission. BusyLabel defaults to "Submitting…" when Busy
+	// is true and this is empty.
+	Busy      bool
+	BusyLabel string
 
 	// OnSubmit, when set, makes this action a live call: the renderer
 	// prevents the browser's own POST and calls it with every hidden entry
