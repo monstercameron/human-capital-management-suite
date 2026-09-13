@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-13 (UXAUDIT-014)
+
+- Development persona copy is derived, not written. `loginPersonaDescription`
+  was a hand-written `switch` on persona ID promising payroll reports and
+  hiring requests while no payroll or recruiting destination is admitted
+  anywhere. Each card now names exactly the destinations its own credential
+  reaches, computed from `roleaccess`, which is what a live server enforces.
+
+- `hiring-manager` and `payroll-manager` rendered byte-identical menus
+  despite disjoint role bundles. The payroll slot now carries `worker_self`,
+  its card is headed from the worker's own record, and its token no longer
+  claims a payroll purpose it cannot use.
+
+- Two `test/workspace` tests still expected the `uxqual.wasm` enhancement
+  that is deliberately withheld because it rebuilt the request form without
+  CSRF binding. They now pin whichever posture the build serves, and the
+  native-only page must refuse script execution outright.
+
 ## 2026-09-13 (PROMOUX-012)
 
 - Each journey now carries the viewer's own relationship to it, resolved on

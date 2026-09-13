@@ -560,15 +560,35 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 		now = time.Now
 	}
 	timestamp := now().UTC()
+	// id, workerNumber, access, and purpose are the only facts specific to
+	// this demo-tenant binding; the role bundle each persona is issued comes
+	// from workspace.DevPersonaRoleSets, the one fixture the sign-in page's
+	// derived copy (loginPersonaDescription) and this package's own tests
+	// also read, so a persona's promised copy and its signed roles cannot
+	// drift apart (UXAUDIT-014 REFACTOR).
 	type personaSpec struct {
-		id, workerNumber, access, description, purpose string
-		roles                                          []string
+		id, workerNumber, access, purpose string
 	}
 	specs := []personaSpec{
-		{id: "admin", workerNumber: "HC-21050", access: "HCM administrator", description: "All product areas, people data, workflows, and organization configuration.", purpose: "compensation_review", roles: []string{"hcm_admin", "comp_admin", "intent_author", "promotion_operator"}},
-		{id: "hiring-manager", workerNumber: "HC-21052", access: "Hiring manager", description: "People, organization, insights, and governed workflow workspaces.", purpose: "compensation_review", roles: []string{"hiring_manager", "manager", "intent_author"}},
-		{id: "payroll-manager", workerNumber: "HC-21054", access: "Payroll manager", description: "Payroll-oriented people access, reporting, and assigned workflow workspaces.", purpose: "payroll_processing", roles: []string{"payroll_manager"}},
-		{id: "individual-contributor", workerNumber: "HC-21022", access: "Individual contributor", description: "Personal employment information, own organization context, help, and settings.", purpose: "self_service_view", roles: []string{"worker_self"}},
+		{id: "admin", workerNumber: "HC-21050", access: "HCM administrator", purpose: "compensation_review"},
+		{id: "hiring-manager", workerNumber: "HC-21052", access: "Hiring manager", purpose: "compensation_review"},
+		// payroll-manager is a worker_self persona (dev_persona_roles.go),
+		// same as individual-contributor: no payroll-specific role or page is
+		// admitted anywhere in the registry yet (UXAUDIT-014), so worker_self
+		// -- their own employment record and organization context, nothing
+		// workforce-wide -- is the only bundle that honestly backs this slot.
+		// access is therefore left blank here and derived below from this
+		// worker's own record instead of hand-written, so the label can never
+		// re-assert a capability (a "payroll manager" title, a
+		// "payroll_processing" purpose) the signed worker_self role does not
+		// hold; purpose is the same self_service_view individual-contributor
+		// asserts, the only purpose authz.PolicyTable's worker_self entry
+		// actually grants. Do not restore a payroll-flavoured access label or
+		// purpose without first adding a role bundle that genuinely backs it
+		// -- doing so silently reintroduces the hiring-manager collision RED
+		// found.
+		{id: "payroll-manager", workerNumber: "HC-21054", access: "", purpose: "self_service_view"},
+		{id: "individual-contributor", workerNumber: "HC-21022", access: "Individual contributor", purpose: "self_service_view"},
 	}
 	workers, err := demoworkforce.Plan(pgstore.TenantID(cfg.Tenant))
 	if err != nil {
@@ -584,16 +604,34 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 		if !found || worker.Row.WorkerKey == "" || worker.Row.LegalName == "" || worker.Row.LifecycleStatus != "active" {
 			continue
 		}
+		roles, ok := workspace.DevPersonaRoles(spec.id)
+		if !ok {
+			// No canonical role bundle is named for this persona id: issuing
+			// an unscoped credential would be worse than not offering the
+			// persona at all.
+			continue
+		}
 		token, err := issuer.Issue(trust.Claims{
 			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: worker.Row.WorkerKey, SubjectKind: "human", Tenant: cfg.Tenant,
-			OrganizationScopeID: "org:" + cfg.Tenant + ":people-ops", Roles: spec.roles, Purposes: []string{spec.purpose},
+			OrganizationScopeID: "org:" + cfg.Tenant + ":people-ops", Roles: roles, Purposes: []string{spec.purpose},
 			AuthenticationMethod: "bearer_token", Assurance: "substantial", SessionRef: "session-local-persona-" + spec.id,
 			IssuedAtUnix: timestamp.Add(-time.Minute).Unix(), ExpiresAtUnix: timestamp.Add(8 * time.Hour).Unix(),
 		})
 		if err != nil {
 			continue
 		}
-		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: spec.access, Description: spec.description, Token: token})
+		access := spec.access
+		if access == "" {
+			// Derived from this worker's own record (their real job title),
+			// not hand-written, so a worker_self slot's card can only ever
+			// say what this specific credential actually is. This also gives
+			// the two worker_self personas (payroll-manager, individual-
+			// contributor) an observable difference beyond their names: they
+			// hold identical role bundles, but HC-21054 and HC-21022 are
+			// different workers in different parts of the organization.
+			access = worker.JobTitle + " (self-service)"
+		}
+		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: access, Roles: roles, Token: token})
 	}
 	return personas
 }

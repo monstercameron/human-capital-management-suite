@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/forms"
@@ -112,6 +113,14 @@ type Handler struct {
 // deliberately never rendered; only ID crosses the browser boundary.
 type DevPersona struct {
 	ID, Name, Access, Description, Token string
+	// Roles are the exact roles signed into Token. loginPersonaDescription
+	// derives the persona's sign-in copy from these against the live
+	// productui page registry (UXAUDIT-014), so the rendered promise can
+	// never name a destination the persona's own credential does not admit.
+	// Description is kept only for callers that construct a DevPersona
+	// without roles (e.g. a componentized preview); the sign-in page never
+	// reads it directly.
+	Roles []string
 }
 
 // NewHandler builds the workspace HTTP surface.
@@ -653,18 +662,88 @@ func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem stri
 	h.writeLoginDocument(w, status, doc, stylesheet)
 }
 
+// loginPersonaDescription derives the persona's sign-in copy from the same
+// effective-capability projection that decides its rendered navigation menu
+// and its route admission (UXAUDIT-014 REFACTOR). A promise here is
+// therefore never able to outrun what the persona's own signed roles admit:
+// naming a page this function did not compute from that projection is not
+// possible, so a future page that loses its admission, or a persona whose
+// roles no longer reach it, silently correct the copy instead of leaving it
+// to drift into an overpromise that only a manual review would catch.
+//
+// UXAUDIT-014 REFACTOR (two projections disagreeing): this used to reflect
+// productui.PageVisible on the theory that a tenant-configured
+// roleaccess.Store override can only ever widen a role's reach beyond that
+// floor, never narrow it, so describing the floor could understate but never
+// overstate real capability. That theory was live-verified false: for
+// worker_self on PageInsights, productui.PageVisible's workforce bucket
+// denies (it omits "worker_self" from the role list PageInsights checks),
+// while roleaccess.DefaultPagePermissions grants worker_self View on
+// "insights" explicitly. serveProduct (product_shell.go) always prefers the
+// roleaccess-derived allowance whenever a snapshot carries any page
+// permissions at all, and productShellDocumentForRouteQuery's loading shell
+// builds its navigation the same way (ApplyPagePermissions, when
+// config.PagePermissions is non-empty, replaces ApplyRoleVisibility's
+// productui.PageVisible projection). Every real deployment bootstraps a
+// roleaccessstore.Store and seeds it from roleaccess.DefaultPagePermissions
+// the first time a tenant has none (internal/data/roleaccessstore.Store.
+// Bootstrap), so roleaccess's effective permissions -- not
+// productui.PageVisible -- are what a signed-in worker_self persona actually
+// sees on the live menu and can actually open. Describing the productui
+// floor therefore understated a real, always-on capability instead of
+// merely describing a conservative one. This function now derives from
+// roleaccess.DefaultPagePermissions (through roleaccess.EffectivePagePermissions
+// and roleaccess.CanPageAction), the same primitives serveProduct calls,
+// evaluated against the registry's own default state -- these dev personas
+// carry no per-tenant roleaccess.Assignment or PagePermission override, so
+// DefaultPagePermissions is exactly the snapshot they resolve against.
 func loginPersonaDescription(persona DevPersona) string {
-	switch persona.ID {
-	case "admin":
-		return "Review people data, approve compensation changes, and manage workspace settings."
-	case "hiring-manager":
-		return "Review hiring and organization requests, and follow up on team changes."
-	case "payroll-manager":
-		return "Review payroll information, reports, and assigned workflow requests."
-	case "individual-contributor":
-		return "View your employment details, personal tasks, and organization information."
+	labels := admittedDestinationLabels(persona.Roles)
+	if len(labels) == 0 {
+		return "No workspace product area beyond Help and Settings is available to this role yet."
+	}
+	return "Reaches " + joinWithAnd(labels) + "."
+}
+
+// admittedDestinationLabels lists the top-level product destinations
+// (Admitted, PrimaryNav pages) that roles can reach, in registry order.
+// Home, Help, and Settings are every signed-in identity's baseline -- naming
+// them would not distinguish one persona's promise from another's, so they
+// are left out of the list a description names explicitly.
+//
+// Visibility is decided by roleaccess's effective page permissions, not
+// productui.PageVisible -- see loginPersonaDescription's doc comment for why
+// that is the projection serveProduct and the rendered menu actually honor.
+func admittedDestinationLabels(roles []string) []string {
+	permissions := roleaccess.EffectivePagePermissions(roleaccess.Snapshot{PagePermissions: roleaccess.DefaultPagePermissions()}, roles)
+	var labels []string
+	for _, definition := range productui.PageDefinitions() {
+		if !definition.Admitted || !definition.PrimaryNav {
+			continue
+		}
+		switch definition.ID {
+		case productui.PageHome, productui.PageHelp, productui.PageSettings:
+			continue
+		}
+		if roleaccess.CanPageAction(permissions, string(definition.ID), roleaccess.ActionView) {
+			labels = append(labels, definition.Label)
+		}
+	}
+	return labels
+}
+
+// joinWithAnd renders a label list as prose: "A", "A and B", or
+// "A, B, and C".
+func joinWithAnd(labels []string) string {
+	switch len(labels) {
+	case 0:
+		return ""
+	case 1:
+		return labels[0]
+	case 2:
+		return labels[0] + " and " + labels[1]
 	default:
-		return persona.Description
+		return strings.Join(labels[:len(labels)-1], ", ") + ", and " + labels[len(labels)-1]
 	}
 }
 
