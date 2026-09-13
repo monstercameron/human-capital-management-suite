@@ -64,6 +64,13 @@ const (
 	// either spelling is a click that silently does nothing.
 	ActionProposeFor   = "propose-for"
 	ActionCreateWorker = "create-worker"
+	// ActionWithdraw, ActionCancel and ActionEditProposal are PROMOUX-013's
+	// three typed interventions. Withdraw and Cancel are the same governed
+	// capability at different stages (see actions' own doc comment);
+	// EditProposal is Cancel-then-repropose.
+	ActionWithdraw     = "withdraw"
+	ActionCancel       = "cancel"
+	ActionEditProposal = "edit-proposal"
 )
 
 // Proposal form field identifiers (Page.Values is keyed by these) and the
@@ -92,6 +99,31 @@ const (
 	FieldApproveReason = "approve-reason"
 	FieldRejectReason  = "reject-reason"
 	NameDecisionReason = "reason"
+
+	// FieldWithdrawReason and FieldCancelReason are the two typed-
+	// intervention reason fields (PROMOUX-013). Separate ids for the same
+	// reason a decision's own two reason fields are separate: a reason typed
+	// into one must not silently carry into the other.
+	FieldWithdrawReason    = "withdraw-reason"
+	FieldCancelReason      = "cancel-reason"
+	NameInterventionReason = "reason"
+
+	// FieldEdit* are EditProposal's own editable fields, seeded from the
+	// journey's current values so the reader corrects a real form rather
+	// than starting blank. NameEdit* are the request field names.
+	FieldEditJobCode        = "edit-job"
+	FieldEditGrade          = "edit-grade"
+	FieldEditBase           = "edit-base"
+	FieldEditEffective      = "edit-effective"
+	FieldEditBusinessReason = "edit-business-reason"
+	FieldEditReason         = "edit-reason"
+
+	NameEditJobCode        = "target_job_code"
+	NameEditGrade          = "target_grade"
+	NameEditBase           = "proposed_base"
+	NameEditEffective      = "effective_date"
+	NameEditBusinessReason = "business_reason"
+	NameEditReason         = "reason"
 )
 
 // New-employee form field identifiers (Page.Values is keyed by these) and
@@ -1244,8 +1276,27 @@ func valueOr(values map[string]string, id, fallback string) string {
 	return fallback
 }
 
-// DetailPage projects one journey.
+// DetailPage projects one journey. It offers no typed intervention (PROMOUX-013's
+// Withdraw/Cancel/EditProposal): see [DetailPageWithInterventions] for the
+// production path App.show actually drives; every caller here that has not
+// yet read the two PreviewJourneyIntervention answers (every test written
+// before PROMOUX-013, and any embedding that has not wired the two extra
+// reads) still gets a working detail page, exactly as before.
 func DetailPage(cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string) journey.Page {
+	return DetailPageWithInterventions(cfg, detail, notice, values, nil, nil)
+}
+
+// DetailPageWithInterventions is DetailPage plus PROMOUX-013's two typed-
+// intervention previews (WITHDRAW, CANCEL; EditProposal has no preview kind
+// of its own -- see interventionActions' own doc comment). Either or both
+// may be nil (the call has not answered yet, or failed): the Withdraw/
+// Cancel/EditProposal actions still render in that case, gated purely by
+// the journey's own stage, with a shorter consequence note than the
+// server's own worded preview would supply.
+func DetailPageWithInterventions(
+	cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string,
+	withdrawPreview, cancelPreview *journeyv1.PreviewJourneyInterventionResponse,
+) journey.Page {
 	summary := detail.GetJourney()
 	head := card(cfg, summary)
 	title := "Promotion journey · " + Brand
@@ -1253,7 +1304,7 @@ func DetailPage(cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Not
 		title = name + " · Promotion journey · " + Brand
 	}
 	p := chrome(cfg, title, notice, values, true)
-	detailActions := actions(head, detail.GetApprover(), detail.GetWorkItems())
+	detailActions := actions(head, detail.GetApprover(), detail.GetWorkItems(), withdrawPreview, cancelPreview)
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("journeys", "update") && !cfg.CanPageAction("work", "update") {
 		detailActions = nil
 	}
@@ -1821,12 +1872,13 @@ func effectiveWindow(j *journeyv1.Journey) *journey.EffectiveWindow {
 // this projection must not do is offer a decision on a journey that has none
 // (a completed journey's approval work item is closed) or hide the reason an
 // action is unavailable.
-func actions(head journey.JourneyCard, approver string, workItems []*journeyv1.WorkItem) []journey.Action {
+func actions(head journey.JourneyCard, approver string, workItems []*journeyv1.WorkItem, withdrawPreview, cancelPreview *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
 	href := DetailHref(head.IntentID)
 	confirm := actionConfirmation(head)
+	var out []journey.Action
 	switch head.Stage {
 	case stageProposed:
-		return []journey.Action{{
+		out = []journey.Action{{
 			ID: ActionExecute, Label: "Start approval workflow", Variant: "primary",
 			Description:      "Review the proposal, then start its approval workflow. Required approvals and final checks still apply; starting does not record the promotion.",
 			Action:           href,
@@ -1835,7 +1887,7 @@ func actions(head journey.JourneyCard, approver string, workItems []*journeyv1.W
 			ConfirmationNote: "Starting sends the proposal through its required approvals. It does not record the promotion yet.",
 		}}
 	case stageBlocked:
-		return []journey.Action{{
+		out = []journey.Action{{
 			ID: ActionExecute, Label: "Start approval workflow", Variant: "primary",
 			Description: "Start the approval workflow after the proposal passes its required checks.",
 			Action:      href,
@@ -1846,14 +1898,15 @@ func actions(head journey.JourneyCard, approver string, workItems []*journeyv1.W
 		}}
 	case stageAwaitingApproval, stageFinanceApproval, stageManagerApproval, stageReapproval:
 		if !hasActionableApproval(workItems) {
-			return []journey.Action{{
+			out = []journey.Action{{
 				ID: ActionApprove, Label: "Preparing approval", Variant: "primary",
 				Description: "The workflow is creating and routing the durable approval work item.",
 				Action:      href, Hidden: map[string]string{}, Disabled: true,
 				DisabledReason: "This page will enable the decision as soon as the assigned work item is durable and actionable.",
 			}}
+			break
 		}
-		return []journey.Action{
+		out = []journey.Action{
 			{
 				ID: ActionApprove, Label: "Approve", Variant: "primary",
 				Description:      "Claims and completes the current approval work item and resumes the workflow. Another approval or the effective-date wait may follow.",
@@ -1886,11 +1939,191 @@ func actions(head journey.JourneyCard, approver string, workItems []*journeyv1.W
 			},
 		}
 	default:
-		// COMPLETED, REJECTED, FAILED and anything unrecognised are
-		// terminal: there is nothing to offer, and offering a disabled
-		// button would imply there might be.
-		return nil
+		// COMPLETED, REJECTED, FAILED, RECORDED and anything unrecognised
+		// are terminal for the ordinary lifecycle actions: nothing above is
+		// offered. Withdraw/Cancel/EditProposal below still render, as
+		// Disabled actions naming the terminal reason -- GREEN's own
+		// "unavailable stages explain why", not merely "actions disappear".
 	}
+	if head.IntentID == "" {
+		// No journey has actually loaded (the route names one whose answer
+		// has not arrived, or arrived as a refusal): there is nothing to
+		// withdraw, cancel or edit yet, and offering those actions -- even
+		// as disabled ones -- over an identity this page does not hold
+		// would be inventing a fact.
+		return out
+	}
+	return interventionActions(out, head, withdrawPreview, cancelPreview)
+}
+
+// PROMOUX-013's own reason references (internal/intent/app/journey_
+// intervention.go), reproduced here as the stable keys the mapping below
+// switches on. This package cannot import that kernel package (it is
+// compiled into the browser/wasm client), so the two are kept in agreement
+// by inspection rather than by sharing code across that boundary; a value
+// this package does not recognize renders as the generic fallback rather
+// than panicking or guessing.
+const (
+	reasonAlreadyTerminal  = "journey.intervention.unavailable.already_terminal"
+	reasonAlreadyStarted   = "journey.intervention.unavailable.already_started"
+	reasonNotYetStarted    = "journey.intervention.unavailable.not_yet_started"
+	reasonAlreadyCommitted = "journey.intervention.unavailable.already_committed"
+)
+
+// InterventionAvailability mirrors internal/intent/app's own
+// interventionUnavailableAtStage: a pure function of the stage this page was
+// already authorized to read (InspectJourney's own authorization boundary
+// covers this projection too, so computing this client-side discloses
+// nothing a viewer was not already entitled to see), returning the exact
+// same reason reference the server's PreviewJourneyIntervention would.
+// Every non-eligible stage maps to exactly one reference, so the same stage
+// always produces the same text -- the disclosure-by-value property
+// PROMOUX-001/PROMOUX-004 established: presence alone leaks nothing, because
+// there is nothing conditional on who is asking.
+//
+// It is exported, and kind/stage are plain strings rather than this
+// package's own typed constants, for exactly one reason:
+// internal/intent/app's own test suite imports this function to prove the
+// two implementations agree over the full cross product of every wire
+// JourneyStage and JourneyInterventionKind
+// (TestTodo_PROMOUX_013_ClientServerAvailabilityAgreement). Nothing in this
+// package's own production code calls it any differently than the
+// unexported form did.
+func InterventionAvailability(kind string, stage string) (reasonRef string, available bool) {
+	terminal := stage == stageCompleted || stage == stageRejected || stage == stageFailed || stage == stageRecorded
+	unstarted := stage == stageProposed || stage == stageBlocked
+	committed := stage == stageExecuted || stage == stageObservingEffects
+	if terminal {
+		return reasonAlreadyTerminal, false
+	}
+	switch kind {
+	case ActionWithdraw:
+		if !unstarted {
+			return reasonAlreadyStarted, false
+		}
+	case ActionCancel:
+		if unstarted {
+			return reasonNotYetStarted, false
+		}
+		if committed {
+			return reasonAlreadyCommitted, false
+		}
+	}
+	return "", true
+}
+
+// interventionReasonText is the one place a reason reference becomes prose.
+// It is total (every reference this package can produce has an entry) and
+// pure (the same reference always renders the same sentence), which is what
+// makes the disclosure-by-value property checkable: two differently-staged
+// journeys that happen to share a reference render byte-identical text.
+func interventionReasonText(ref string) string {
+	switch ref {
+	case reasonAlreadyTerminal:
+		return "This proposal has already reached a terminal outcome. There is nothing left to withdraw, cancel or edit."
+	case reasonAlreadyStarted:
+		return "This proposal has already started its approval workflow. Use Cancel instead of Withdraw."
+	case reasonNotYetStarted:
+		return "This proposal has not started its approval workflow yet. Use Withdraw instead of Cancel."
+	case reasonAlreadyCommitted:
+		return "The governed execution has already run. This can no longer be cancelled or edited."
+	default:
+		return "This action is not available for this proposal right now."
+	}
+}
+
+// interventionActions appends PROMOUX-013's Withdraw, Cancel and EditProposal
+// actions to base, in that order, for every stage they are legally offered
+// at -- always offered as a Disabled action naming why when the current
+// stage is not eligible, per GREEN's "unavailable stages explain why"
+// clause, never simply omitted (an omitted action and a denied one must not
+// be told apart by a viewer who is authorized to see this page at all).
+// consequence, when non-nil, supplies the server's own worded preview
+// (PreviewJourneyIntervention); its absence (a preview call that has not
+// yet answered, or failed) still allows the review surface to open with the
+// same reused reviewSurface component and a shorter fact list, because the
+// facts required to identify what will be stopped -- the employee, the
+// change, the effective date -- never depended on that call succeeding.
+func interventionActions(base []journey.Action, head journey.JourneyCard, withdraw, cancel *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
+	href := DetailHref(head.IntentID)
+	facts := actionConfirmation(head)
+
+	appendOne := func(kind, actionID, label, variant, description string, preview *journeyv1.PreviewJourneyInterventionResponse, reasonField, reasonName string, extraFields []journey.Field) {
+		reasonRef, available := InterventionAvailability(kind, head.Stage)
+		if !available {
+			base = append(base, journey.Action{
+				ID: actionID, Label: label, Variant: variant, Description: description,
+				Action: href, Hidden: map[string]string{}, Disabled: true,
+				DisabledReason: interventionReasonText(reasonRef),
+			})
+			return
+		}
+		note := ""
+		if preview != nil {
+			note = preview.GetConsequenceSummary()
+		}
+		if note == "" {
+			note = description
+		}
+		fields := append([]journey.Field{{
+			ID: reasonField, Name: reasonName, Label: "Reason", Kind: kindTextarea, Required: true,
+			Placeholder: "Why is this being done?",
+			Help:        "Required. Retained as evidence on the governed record.",
+		}}, extraFields...)
+		base = append(base, journey.Action{
+			ID: actionID, Label: label, Variant: variant, Description: description,
+			Action: href, Hidden: map[string]string{}, Fields: fields,
+			Confirmation:     facts,
+			ConfirmationNote: note,
+		})
+	}
+
+	appendOne(ActionWithdraw, ActionWithdraw, "Withdraw", "secondary",
+		"Stops this proposal before any approval has been recorded. No business effect has occurred.",
+		withdraw, FieldWithdrawReason, NameInterventionReason, nil)
+	appendOne(ActionCancel, ActionCancel, "Request cancellation", "secondary",
+		"Asks the engine to stop at its next safe point. If the safe point has already passed, the promotion completes instead.",
+		cancel, FieldCancelReason, NameInterventionReason, nil)
+
+	// EditProposal has no PreviewJourneyIntervention kind of its own (it is
+	// Cancel-then-repropose): it is available whenever either WITHDRAW or
+	// CANCEL is, and its refusal reason is whichever of the two actually
+	// applies -- "already terminal" is checked first because it is the
+	// strongest, most specific fact when it holds.
+	withdrawRef, withdrawOK := InterventionAvailability(ActionWithdraw, head.Stage)
+	cancelRef, cancelOK := InterventionAvailability(ActionCancel, head.Stage)
+	editAvailable := withdrawOK || cancelOK
+	if !editAvailable {
+		editRef := withdrawRef
+		if editRef == "" || editRef != reasonAlreadyTerminal && cancelRef == reasonAlreadyTerminal {
+			editRef = cancelRef
+		}
+		base = append(base, journey.Action{
+			ID: ActionEditProposal, Label: "Edit proposal", Variant: "secondary",
+			Description: "Corrects the target role, base pay, effective date or business reason.",
+			Action:      href, Hidden: map[string]string{}, Disabled: true,
+			DisabledReason: interventionReasonText(editRef),
+		})
+	} else {
+		base = append(base, journey.Action{
+			ID: ActionEditProposal, Label: "Edit proposal", Variant: "secondary",
+			Description: "Corrects the target role, base pay, effective date or business reason. " +
+				"This cancels the current proposal and creates a corrected successor; any recorded approval no longer applies.",
+			Action: href, Hidden: map[string]string{},
+			Fields: []journey.Field{
+				{ID: FieldEditJobCode, Name: NameEditJobCode, Label: "Target job code", Kind: kindText, Value: head.Headline, Required: true},
+				{ID: FieldEditGrade, Name: NameEditGrade, Label: "Target grade", Kind: kindText, Required: true},
+				{ID: FieldEditBase, Name: NameEditBase, Label: "Proposed base pay", Kind: kindText, Value: head.PayLine, Required: true},
+				{ID: FieldEditEffective, Name: NameEditEffective, Label: "Effective date", Kind: kindDate, Value: head.EffectiveDate, Required: true},
+				{ID: FieldEditBusinessReason, Name: NameEditBusinessReason, Label: "Business reason", Kind: kindTextarea, Required: true},
+				{ID: FieldEditReason, Name: NameEditReason, Label: "Reason for this edit", Kind: kindTextarea, Required: true,
+					Help: "Required. Retained as evidence on the governed record."},
+			},
+			Confirmation:     facts,
+			ConfirmationNote: "Editing cancels this proposal and creates a corrected successor. Any recorded approval is left with the original and does not carry over.",
+		})
+	}
+	return base
 }
 
 func actionConfirmation(head journey.JourneyCard) []journey.Fact {

@@ -159,6 +159,34 @@ message EvidenceRef {
   string digest = 3;
 }
 
+// InterventionOutcome is the shared, closed disposition a governed
+// intent- or workflow-level intervention (edit, supersede, withdraw,
+// cancel, pause, resume, retry, ...) resolves to. It exists so that
+// different governed-write surfaces report the same finite outcome
+// vocabulary rather than each inventing its own: PROMOUX-013's journey
+// interventions use it today, and EP-WF-002's workflow interventions
+// (pause/resume/cancel/retry) are designed to adopt it rather than publish
+// a second, parallel vocabulary for the same four-way (plus denial)
+// question of what an intervention actually did.
+enum InterventionOutcome {
+  INTERVENTION_OUTCOME_UNSPECIFIED = 0;
+  // INTERVENTION_OUTCOME_APPLIED: the intervention's effect is durable now.
+  INTERVENTION_OUTCOME_APPLIED = 1;
+  // INTERVENTION_OUTCOME_PENDING_SAFE_POINT: nothing durable moved yet; the
+  // runtime has not reached a point where this intervention can be decided.
+  INTERVENTION_OUTCOME_PENDING_SAFE_POINT = 2;
+  // INTERVENTION_OUTCOME_DENIED: the caller is not authorized to request
+  // this intervention.
+  INTERVENTION_OUTCOME_DENIED = 3;
+  // INTERVENTION_OUTCOME_TOO_LATE: the underlying effect already committed;
+  // the intervention cannot reverse it.
+  INTERVENTION_OUTCOME_TOO_LATE = 4;
+  // INTERVENTION_OUTCOME_REPAIR_REQUIRED: neither cleanly applied nor
+  // cleanly refused; governed repair is required to reach a consistent
+  // terminal state.
+  INTERVENTION_OUTCOME_REPAIR_REQUIRED = 5;
+}
+
 // ErrorCode is the canonical owned error condition. Transport status codes
 // (gRPC status, HTTP status) are projections of this value, never the source
 // of truth. See planning/specs/http-grpc-endpoint-contract.md canonical error

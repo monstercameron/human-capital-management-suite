@@ -16,6 +16,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	intentapproval "github.com/monstercameron/human-capital-management-suite/internal/intent/approval"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
@@ -71,6 +72,17 @@ func (e *journeyEngine) Execute(ctx context.Context, intentID string) (workspace
 	if got.GetIntent().GetDefinition().GetIntentTypeId() != promotion.IntentType {
 		return workspace.JourneyDetail{}, fmt.Errorf("%w: %s is not a promotion journey",
 			workspace.ErrJourneyUnknown, intentID)
+	}
+	// PROMOUX-013: the same terminal-RequestState guard [journeyEngine.Decide]
+	// applies, stated over the wire enum since this method reads the proto
+	// form rather than the kernel Instance.
+	switch got.GetIntent().GetLifecycle().GetRequest() {
+	case intentsv1.RequestState_REQUEST_STATE_CANCELLED, intentsv1.RequestState_REQUEST_STATE_SUPERSEDED,
+		intentsv1.RequestState_REQUEST_STATE_REJECTED, intentsv1.RequestState_REQUEST_STATE_WITHDRAWN,
+		intentsv1.RequestState_REQUEST_STATE_CLOSED:
+		return workspace.JourneyDetail{}, fmt.Errorf(
+			"%w: this journey's proposal has been %s and can no longer be executed",
+			workspace.ErrJourneyStage, strings.ToLower(got.GetIntent().GetLifecycle().GetRequest().String()))
 	}
 	simulated, simErr := e.resimulateDetailed(ctx, intentID)
 	if simErr != nil {
@@ -261,6 +273,22 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 	if def.Ref.TypeID != promotion.IntentType {
 		return workspace.JourneyDetail{}, fmt.Errorf("%w: %s is not a promotion journey",
 			workspace.ErrJourneyUnknown, intentID)
+	}
+	// PROMOUX-013: a decision against an intent CancelIntent has already
+	// moved to a terminal RequestState must never silently complete the
+	// approval WorkItem and resume the driver -- that is exactly the
+	// material-approval invalidation this todo's GREEN clause names.
+	// CancelIntent's own kernel transition stops here, at the intent's own
+	// dimension tuple; nothing upstream of this method otherwise consults
+	// it before claiming and completing a WorkItem, discovered by running
+	// TestTodo_PROMOUX_013_Integration/EditInvalidatesAMidFlightApproval
+	// against real PostgreSQL.
+	switch inst.Lifecycle.Request {
+	case lifecycle.RequestCancelled, lifecycle.RequestSuperseded, lifecycle.RequestRejected,
+		lifecycle.RequestWithdrawn, lifecycle.RequestClosed:
+		return workspace.JourneyDetail{}, fmt.Errorf(
+			"%w: this journey's proposal has been %s and can no longer be decided",
+			workspace.ErrJourneyStage, strings.ToLower(string(inst.Lifecycle.Request)))
 	}
 	if gateErr := e.svc.authorizeExecution(principal, def); gateErr != nil {
 		return workspace.JourneyDetail{}, journeyError(gateErr)

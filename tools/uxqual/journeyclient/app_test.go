@@ -27,28 +27,37 @@ import (
 type fakeService struct {
 	mu sync.Mutex
 
-	list       []*journeyv1.Journey
-	listErr    error
-	detail     *journeyv1.JourneyDetail
-	detailErr  error
-	proposed   *journeyv1.Journey
-	proposeErr error
-	executed   *journeyv1.JourneyDetail
-	executeErr error
-	decided    *journeyv1.JourneyDetail
-	decideErr  error
-	watchErr   error
-	workers    []*journeyv1.Worker
-	workforce  *journeyv1.WorkforceOptions
-	workersErr error
-	created    *journeyv1.Worker
-	createErr  error
+	list         []*journeyv1.Journey
+	listErr      error
+	detail       *journeyv1.JourneyDetail
+	detailErr    error
+	proposed     *journeyv1.Journey
+	proposeErr   error
+	executed     *journeyv1.JourneyDetail
+	executeErr   error
+	decided      *journeyv1.JourneyDetail
+	decideErr    error
+	edited       *journeyv1.EditProposalResponse
+	editErr      error
+	preview      *journeyv1.PreviewJourneyInterventionResponse
+	previewErr   error
+	intervened   *journeyv1.RequestJourneyInterventionResponse
+	interveneErr error
+	watchErr     error
+	workers      []*journeyv1.Worker
+	workforce    *journeyv1.WorkforceOptions
+	workersErr   error
+	created      *journeyv1.Worker
+	createErr    error
 
 	calls        []string
 	proposeReq   *journeyv1.ProposeJourneyRequest
 	decideReq    *journeyv1.DecideJourneyRequest
 	inspectReq   *journeyv1.InspectJourneyRequest
 	executeReq   *journeyv1.ExecuteJourneyRequest
+	editReq      *journeyv1.EditProposalRequest
+	previewReqs  []*journeyv1.PreviewJourneyInterventionRequest
+	interveneReq *journeyv1.RequestJourneyInterventionRequest
 	createReq    *journeyv1.CreateWorkerRequest
 	watchReqs    []*journeyv1.WatchJourneyRequest
 	streams      []*fakeStream
@@ -138,6 +147,39 @@ func (f *fakeService) DecideJourney(_ context.Context, in *journeyv1.DecideJourn
 		return nil, f.decideErr
 	}
 	return &journeyv1.DecideJourneyResponse{Detail: f.decided}, nil
+}
+
+func (f *fakeService) EditProposal(_ context.Context, in *journeyv1.EditProposalRequest) (*journeyv1.EditProposalResponse, error) {
+	f.mu.Lock()
+	f.editReq = in
+	f.mu.Unlock()
+	f.record("EditProposal")
+	if f.editErr != nil {
+		return nil, f.editErr
+	}
+	return f.edited, nil
+}
+
+func (f *fakeService) PreviewJourneyIntervention(_ context.Context, in *journeyv1.PreviewJourneyInterventionRequest) (*journeyv1.PreviewJourneyInterventionResponse, error) {
+	f.mu.Lock()
+	f.previewReqs = append(f.previewReqs, in)
+	f.mu.Unlock()
+	f.record("PreviewJourneyIntervention")
+	if f.previewErr != nil {
+		return nil, f.previewErr
+	}
+	return f.preview, nil
+}
+
+func (f *fakeService) RequestJourneyIntervention(_ context.Context, in *journeyv1.RequestJourneyInterventionRequest) (*journeyv1.RequestJourneyInterventionResponse, error) {
+	f.mu.Lock()
+	f.interveneReq = in
+	f.mu.Unlock()
+	f.record("RequestJourneyIntervention")
+	if f.interveneErr != nil {
+		return nil, f.interveneErr
+	}
+	return f.intervened, nil
 }
 
 // ListWorkers answers with the fake cell's current population.
@@ -675,8 +717,16 @@ func TestApproveCompletesTheJourney(t *testing.T) {
 	if p.Detail.Ledger == nil {
 		t.Error("the completed journey shows no ledger fact")
 	}
-	if len(p.Detail.Actions) != 0 {
-		t.Error("a completed journey still offers decisions")
+	for _, a := range p.Detail.Actions {
+		if a.ID == ActionApprove || a.ID == ActionReject || a.ID == ActionExecute {
+			t.Errorf("a completed journey still offers a decision: %+v", a)
+		}
+		// PROMOUX-013: Withdraw/Cancel/EditProposal still render on a
+		// terminal journey, but only as Disabled actions explaining why --
+		// never as something the reader could actually submit.
+		if !a.Disabled {
+			t.Errorf("action %q is not disabled on a terminal (COMPLETED) journey: %+v", a.ID, a)
+		}
 	}
 }
 

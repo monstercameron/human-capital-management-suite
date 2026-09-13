@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
@@ -142,6 +143,51 @@ func toPlacement(p workspace.JourneyPlacement) *journeyv1.Placement {
 	}
 }
 
+// fromInterventionKind maps the wire intervention kind onto the port's own
+// closed set. An unrecognized or unspecified value maps to the empty
+// string, which the port's own validation (never this conversion) refuses.
+func fromInterventionKind(k journeyv1.JourneyInterventionKind) workspace.JourneyInterventionKind {
+	switch k {
+	case journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_WITHDRAW:
+		return workspace.JourneyInterventionWithdraw
+	case journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL:
+		return workspace.JourneyInterventionCancel
+	default:
+		return ""
+	}
+}
+
+// toInterventionOutcome maps the port's own outcome vocabulary onto the
+// shared hcmnext.common.v1.InterventionOutcome wire enum. An unrecognized
+// port value maps to UNSPECIFIED rather than being guessed at.
+func toInterventionOutcome(o workspace.JourneyInterventionOutcome) commonv1.InterventionOutcome {
+	switch o {
+	case workspace.InterventionApplied:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_APPLIED
+	case workspace.InterventionPendingSafePoint:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_PENDING_SAFE_POINT
+	case workspace.InterventionDenied:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_DENIED
+	case workspace.InterventionTooLate:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_TOO_LATE
+	case workspace.InterventionRepairRequired:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_REPAIR_REQUIRED
+	default:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_UNSPECIFIED
+	}
+}
+
+// toInterventionPreview renders one [workspace.JourneyInterventionPreview].
+func toInterventionPreview(p workspace.JourneyInterventionPreview) *journeyv1.PreviewJourneyInterventionResponse {
+	return &journeyv1.PreviewJourneyInterventionResponse{
+		Available:                p.Available,
+		UnavailableReasonRef:     p.UnavailableReasonRef,
+		ConsequenceSummary:       p.ConsequenceSummary,
+		LikelyOutcome:            toInterventionOutcome(p.LikelyOutcome),
+		CurrentGovernanceVersion: p.CurrentGovernanceVersion,
+	}
+}
+
 // fromPlacement is [toPlacement]'s inverse. A nil message is the zero
 // placement, so a request that omits the field is not a decoding failure.
 func fromPlacement(p *journeyv1.Placement) workspace.JourneyPlacement {
@@ -183,6 +229,7 @@ func toJourney(s workspace.JourneySummary, diagAuthorized bool) *journeyv1.Journ
 		ProposalRevisionId: s.ProposalRevisionID,
 		CreatedAt:          toTimestamp(s.CreatedAt),
 		UpdatedAt:          toTimestamp(s.UpdatedAt),
+		GovernanceVersion:  s.GovernanceVersion,
 	}
 	if diagAuthorized {
 		out.CorrelationId = s.CorrelationID

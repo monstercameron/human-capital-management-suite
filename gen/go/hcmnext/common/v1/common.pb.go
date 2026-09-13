@@ -247,6 +247,83 @@ func (EffectiveTimeRangeKind) EnumDescriptor() ([]byte, []int) {
 	return file_hcmnext_common_v1_common_proto_rawDescGZIP(), []int{3}
 }
 
+// InterventionOutcome is the shared, closed disposition a governed
+// intent- or workflow-level intervention (edit, supersede, withdraw,
+// cancel, pause, resume, retry, ...) resolves to. It exists so that
+// different governed-write surfaces report the same finite outcome
+// vocabulary rather than each inventing its own: PROMOUX-013's journey
+// interventions use it today, and EP-WF-002's workflow interventions
+// (pause/resume/cancel/retry) are designed to adopt it rather than publish
+// a second, parallel vocabulary for the same four-way (plus denial)
+// question of what an intervention actually did.
+type InterventionOutcome int32
+
+const (
+	InterventionOutcome_INTERVENTION_OUTCOME_UNSPECIFIED InterventionOutcome = 0
+	// INTERVENTION_OUTCOME_APPLIED: the intervention's effect is durable now.
+	InterventionOutcome_INTERVENTION_OUTCOME_APPLIED InterventionOutcome = 1
+	// INTERVENTION_OUTCOME_PENDING_SAFE_POINT: nothing durable moved yet; the
+	// runtime has not reached a point where this intervention can be decided.
+	InterventionOutcome_INTERVENTION_OUTCOME_PENDING_SAFE_POINT InterventionOutcome = 2
+	// INTERVENTION_OUTCOME_DENIED: the caller is not authorized to request
+	// this intervention.
+	InterventionOutcome_INTERVENTION_OUTCOME_DENIED InterventionOutcome = 3
+	// INTERVENTION_OUTCOME_TOO_LATE: the underlying effect already committed;
+	// the intervention cannot reverse it.
+	InterventionOutcome_INTERVENTION_OUTCOME_TOO_LATE InterventionOutcome = 4
+	// INTERVENTION_OUTCOME_REPAIR_REQUIRED: neither cleanly applied nor
+	// cleanly refused; governed repair is required to reach a consistent
+	// terminal state.
+	InterventionOutcome_INTERVENTION_OUTCOME_REPAIR_REQUIRED InterventionOutcome = 5
+)
+
+// Enum value maps for InterventionOutcome.
+var (
+	InterventionOutcome_name = map[int32]string{
+		0: "INTERVENTION_OUTCOME_UNSPECIFIED",
+		1: "INTERVENTION_OUTCOME_APPLIED",
+		2: "INTERVENTION_OUTCOME_PENDING_SAFE_POINT",
+		3: "INTERVENTION_OUTCOME_DENIED",
+		4: "INTERVENTION_OUTCOME_TOO_LATE",
+		5: "INTERVENTION_OUTCOME_REPAIR_REQUIRED",
+	}
+	InterventionOutcome_value = map[string]int32{
+		"INTERVENTION_OUTCOME_UNSPECIFIED":        0,
+		"INTERVENTION_OUTCOME_APPLIED":            1,
+		"INTERVENTION_OUTCOME_PENDING_SAFE_POINT": 2,
+		"INTERVENTION_OUTCOME_DENIED":             3,
+		"INTERVENTION_OUTCOME_TOO_LATE":           4,
+		"INTERVENTION_OUTCOME_REPAIR_REQUIRED":    5,
+	}
+)
+
+func (x InterventionOutcome) Enum() *InterventionOutcome {
+	p := new(InterventionOutcome)
+	*p = x
+	return p
+}
+
+func (x InterventionOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (InterventionOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_hcmnext_common_v1_common_proto_enumTypes[4].Descriptor()
+}
+
+func (InterventionOutcome) Type() protoreflect.EnumType {
+	return &file_hcmnext_common_v1_common_proto_enumTypes[4]
+}
+
+func (x InterventionOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use InterventionOutcome.Descriptor instead.
+func (InterventionOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_hcmnext_common_v1_common_proto_rawDescGZIP(), []int{4}
+}
+
 // ErrorCode is the canonical owned error condition. Transport status codes
 // (gRPC status, HTTP status) are projections of this value, never the source
 // of truth. See planning/specs/http-grpc-endpoint-contract.md canonical error
@@ -308,11 +385,11 @@ func (x ErrorCode) String() string {
 }
 
 func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_hcmnext_common_v1_common_proto_enumTypes[4].Descriptor()
+	return file_hcmnext_common_v1_common_proto_enumTypes[5].Descriptor()
 }
 
 func (ErrorCode) Type() protoreflect.EnumType {
-	return &file_hcmnext_common_v1_common_proto_enumTypes[4]
+	return &file_hcmnext_common_v1_common_proto_enumTypes[5]
 }
 
 func (x ErrorCode) Number() protoreflect.EnumNumber {
@@ -321,7 +398,7 @@ func (x ErrorCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ErrorCode.Descriptor instead.
 func (ErrorCode) EnumDescriptor() ([]byte, []int) {
-	return file_hcmnext_common_v1_common_proto_rawDescGZIP(), []int{4}
+	return file_hcmnext_common_v1_common_proto_rawDescGZIP(), []int{5}
 }
 
 // EntityRef identifies one entity of a declared kind within one tenant.
@@ -1456,7 +1533,14 @@ const file_hcmnext_common_v1_common_proto_rawDesc = "" +
 	"\x16EffectiveTimeRangeKind\x12)\n" +
 	"%EFFECTIVE_TIME_RANGE_KIND_UNSPECIFIED\x10\x00\x12%\n" +
 	"!EFFECTIVE_TIME_RANGE_KIND_INSTANT\x10\x01\x12(\n" +
-	"$EFFECTIVE_TIME_RANGE_KIND_LOCAL_DATE\x10\x02*\xe0\x02\n" +
+	"$EFFECTIVE_TIME_RANGE_KIND_LOCAL_DATE\x10\x02*\xf8\x01\n" +
+	"\x13InterventionOutcome\x12$\n" +
+	" INTERVENTION_OUTCOME_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cINTERVENTION_OUTCOME_APPLIED\x10\x01\x12+\n" +
+	"'INTERVENTION_OUTCOME_PENDING_SAFE_POINT\x10\x02\x12\x1f\n" +
+	"\x1bINTERVENTION_OUTCOME_DENIED\x10\x03\x12!\n" +
+	"\x1dINTERVENTION_OUTCOME_TOO_LATE\x10\x04\x12(\n" +
+	"$INTERVENTION_OUTCOME_REPAIR_REQUIRED\x10\x05*\xe0\x02\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bERROR_CODE_INVALID_ARGUMENT\x10\x01\x12\x1e\n" +
@@ -1483,45 +1567,46 @@ func file_hcmnext_common_v1_common_proto_rawDescGZIP() []byte {
 	return file_hcmnext_common_v1_common_proto_rawDescData
 }
 
-var file_hcmnext_common_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_hcmnext_common_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
 var file_hcmnext_common_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_hcmnext_common_v1_common_proto_goTypes = []any{
 	(Presence)(0),                 // 0: hcmnext.common.v1.Presence
 	(DecimalSign)(0),              // 1: hcmnext.common.v1.DecimalSign
 	(DisambiguationRule)(0),       // 2: hcmnext.common.v1.DisambiguationRule
 	(EffectiveTimeRangeKind)(0),   // 3: hcmnext.common.v1.EffectiveTimeRangeKind
-	(ErrorCode)(0),                // 4: hcmnext.common.v1.ErrorCode
-	(*EntityRef)(nil),             // 5: hcmnext.common.v1.EntityRef
-	(*ResourceKey)(nil),           // 6: hcmnext.common.v1.ResourceKey
-	(*RevisionToken)(nil),         // 7: hcmnext.common.v1.RevisionToken
-	(*Decimal)(nil),               // 8: hcmnext.common.v1.Decimal
-	(*Money)(nil),                 // 9: hcmnext.common.v1.Money
-	(*LocalDate)(nil),             // 10: hcmnext.common.v1.LocalDate
-	(*TimePoint)(nil),             // 11: hcmnext.common.v1.TimePoint
-	(*EffectiveTimeRange)(nil),    // 12: hcmnext.common.v1.EffectiveTimeRange
-	(*ScopeContext)(nil),          // 13: hcmnext.common.v1.ScopeContext
-	(*PageRequest)(nil),           // 14: hcmnext.common.v1.PageRequest
-	(*PageResponse)(nil),          // 15: hcmnext.common.v1.PageResponse
-	(*VersionRef)(nil),            // 16: hcmnext.common.v1.VersionRef
-	(*EvidenceRef)(nil),           // 17: hcmnext.common.v1.EvidenceRef
-	(*FieldViolation)(nil),        // 18: hcmnext.common.v1.FieldViolation
-	(*ErrorDetail)(nil),           // 19: hcmnext.common.v1.ErrorDetail
-	(*timestamppb.Timestamp)(nil), // 20: google.protobuf.Timestamp
+	(InterventionOutcome)(0),      // 4: hcmnext.common.v1.InterventionOutcome
+	(ErrorCode)(0),                // 5: hcmnext.common.v1.ErrorCode
+	(*EntityRef)(nil),             // 6: hcmnext.common.v1.EntityRef
+	(*ResourceKey)(nil),           // 7: hcmnext.common.v1.ResourceKey
+	(*RevisionToken)(nil),         // 8: hcmnext.common.v1.RevisionToken
+	(*Decimal)(nil),               // 9: hcmnext.common.v1.Decimal
+	(*Money)(nil),                 // 10: hcmnext.common.v1.Money
+	(*LocalDate)(nil),             // 11: hcmnext.common.v1.LocalDate
+	(*TimePoint)(nil),             // 12: hcmnext.common.v1.TimePoint
+	(*EffectiveTimeRange)(nil),    // 13: hcmnext.common.v1.EffectiveTimeRange
+	(*ScopeContext)(nil),          // 14: hcmnext.common.v1.ScopeContext
+	(*PageRequest)(nil),           // 15: hcmnext.common.v1.PageRequest
+	(*PageResponse)(nil),          // 16: hcmnext.common.v1.PageResponse
+	(*VersionRef)(nil),            // 17: hcmnext.common.v1.VersionRef
+	(*EvidenceRef)(nil),           // 18: hcmnext.common.v1.EvidenceRef
+	(*FieldViolation)(nil),        // 19: hcmnext.common.v1.FieldViolation
+	(*ErrorDetail)(nil),           // 20: hcmnext.common.v1.ErrorDetail
+	(*timestamppb.Timestamp)(nil), // 21: google.protobuf.Timestamp
 }
 var file_hcmnext_common_v1_common_proto_depIdxs = []int32{
-	5,  // 0: hcmnext.common.v1.RevisionToken.entity:type_name -> hcmnext.common.v1.EntityRef
-	20, // 1: hcmnext.common.v1.RevisionToken.issued_at:type_name -> google.protobuf.Timestamp
+	6,  // 0: hcmnext.common.v1.RevisionToken.entity:type_name -> hcmnext.common.v1.EntityRef
+	21, // 1: hcmnext.common.v1.RevisionToken.issued_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: hcmnext.common.v1.Decimal.sign:type_name -> hcmnext.common.v1.DecimalSign
-	8,  // 3: hcmnext.common.v1.Money.amount:type_name -> hcmnext.common.v1.Decimal
-	20, // 4: hcmnext.common.v1.TimePoint.instant:type_name -> google.protobuf.Timestamp
-	10, // 5: hcmnext.common.v1.TimePoint.local_date:type_name -> hcmnext.common.v1.LocalDate
+	9,  // 3: hcmnext.common.v1.Money.amount:type_name -> hcmnext.common.v1.Decimal
+	21, // 4: hcmnext.common.v1.TimePoint.instant:type_name -> google.protobuf.Timestamp
+	11, // 5: hcmnext.common.v1.TimePoint.local_date:type_name -> hcmnext.common.v1.LocalDate
 	3,  // 6: hcmnext.common.v1.EffectiveTimeRange.kind:type_name -> hcmnext.common.v1.EffectiveTimeRangeKind
-	11, // 7: hcmnext.common.v1.EffectiveTimeRange.start_inclusive:type_name -> hcmnext.common.v1.TimePoint
-	11, // 8: hcmnext.common.v1.EffectiveTimeRange.end_exclusive:type_name -> hcmnext.common.v1.TimePoint
+	12, // 7: hcmnext.common.v1.EffectiveTimeRange.start_inclusive:type_name -> hcmnext.common.v1.TimePoint
+	12, // 8: hcmnext.common.v1.EffectiveTimeRange.end_exclusive:type_name -> hcmnext.common.v1.TimePoint
 	2,  // 9: hcmnext.common.v1.EffectiveTimeRange.disambiguation:type_name -> hcmnext.common.v1.DisambiguationRule
-	4,  // 10: hcmnext.common.v1.ErrorDetail.code:type_name -> hcmnext.common.v1.ErrorCode
-	18, // 11: hcmnext.common.v1.ErrorDetail.field_violations:type_name -> hcmnext.common.v1.FieldViolation
-	17, // 12: hcmnext.common.v1.ErrorDetail.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	5,  // 10: hcmnext.common.v1.ErrorDetail.code:type_name -> hcmnext.common.v1.ErrorCode
+	19, // 11: hcmnext.common.v1.ErrorDetail.field_violations:type_name -> hcmnext.common.v1.FieldViolation
+	18, // 12: hcmnext.common.v1.ErrorDetail.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
 	13, // [13:13] is the sub-list for method output_type
 	13, // [13:13] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
@@ -1543,7 +1628,7 @@ func file_hcmnext_common_v1_common_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_common_v1_common_proto_rawDesc), len(file_hcmnext_common_v1_common_proto_rawDesc)),
-			NumEnums:      5,
+			NumEnums:      6,
 			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,

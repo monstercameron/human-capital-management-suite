@@ -405,6 +405,91 @@ func (s *server) DecideJourney(ctx context.Context, req *journeyv1.DecideJourney
 	return &journeyv1.DecideJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
 }
 
+// EditProposal forwards to workspace.JourneyEngine.EditProposal, which is
+// SupersedeIntent scoped to journeys. Governed write.
+func (s *server) EditProposal(ctx context.Context, req *journeyv1.EditProposalRequest) (*journeyv1.EditProposalResponse, error) {
+	principal, inv, ctxErr := trustedContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+	if err := s.requirePageAction(ctx, principal, inv, "journeys", roleaccess.ActionUpdate); err != nil {
+		return nil, err
+	}
+	eng, depErr := s.engine(principal, inv, "edit_proposal")
+	if depErr != nil {
+		return nil, depErr
+	}
+
+	target := fromPlacement(req.GetTarget())
+	successor, superseded, err := eng.EditProposal(ctx, req.GetIntentId(), req.GetExpectedInstanceVersion(),
+		req.GetIdempotencyKey(), req.GetReason(), workspace.EditProposalInput{
+			TargetJobCode:    target.JobCode,
+			TargetGrade:      target.Grade,
+			TargetPositionID: target.PositionID,
+			ProposedBase:     req.GetProposedBase(),
+			EffectiveDate:    req.GetEffectiveDate(),
+			BusinessReason:   req.GetBusinessReason(),
+		})
+	if err != nil {
+		return nil, ownedError(err, principal, inv, "edit_proposal")
+	}
+	return &journeyv1.EditProposalResponse{
+		Journey:            toJourney(successor, s.diagnosticsAuthorized(ctx, principal)),
+		SupersededIntentId: superseded,
+	}, nil
+}
+
+// PreviewJourneyIntervention forwards to
+// workspace.JourneyEngine.PreviewIntervention. READ_ONLY.
+func (s *server) PreviewJourneyIntervention(ctx context.Context, req *journeyv1.PreviewJourneyInterventionRequest) (*journeyv1.PreviewJourneyInterventionResponse, error) {
+	principal, inv, ctxErr := trustedContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+	eng, depErr := s.engine(principal, inv, "preview_intervention")
+	if depErr != nil {
+		return nil, depErr
+	}
+
+	preview, err := eng.PreviewIntervention(ctx, req.GetIntentId(), fromInterventionKind(req.GetKind()))
+	if err != nil {
+		return nil, ownedError(err, principal, inv, "preview_intervention")
+	}
+	return toInterventionPreview(preview), nil
+}
+
+// RequestJourneyIntervention forwards to
+// workspace.JourneyEngine.RequestIntervention, which is CancelIntent scoped
+// to journeys. Governed write.
+func (s *server) RequestJourneyIntervention(ctx context.Context, req *journeyv1.RequestJourneyInterventionRequest) (*journeyv1.RequestJourneyInterventionResponse, error) {
+	principal, inv, ctxErr := trustedContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+	if err := s.requirePageAction(ctx, principal, inv, "journeys", roleaccess.ActionUpdate); err != nil {
+		return nil, err
+	}
+	eng, depErr := s.engine(principal, inv, "request_intervention")
+	if depErr != nil {
+		return nil, depErr
+	}
+
+	result, err := eng.RequestIntervention(ctx, req.GetIntentId(), workspace.JourneyInterventionRequest{
+		Kind:                    fromInterventionKind(req.GetKind()),
+		ExpectedInstanceVersion: req.GetExpectedInstanceVersion(),
+		IdempotencyKey:          req.GetIdempotencyKey(),
+		Reason:                  req.GetReason(),
+	})
+	if err != nil {
+		return nil, ownedError(err, principal, inv, "request_intervention")
+	}
+	return &journeyv1.RequestJourneyInterventionResponse{
+		Journey:             toJourney(result.Journey, s.diagnosticsAuthorized(ctx, principal)),
+		Outcome:             toInterventionOutcome(result.Outcome),
+		RetainedEvidenceRef: result.RetainedEvidenceRef,
+	}, nil
+}
+
 // ListWorkers forwards to workspace.JourneyEngine.ListWorkers. READ_ONLY.
 func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
 	principal, inv, ctxErr := trustedContext(ctx)

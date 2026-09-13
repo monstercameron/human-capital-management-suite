@@ -423,6 +423,7 @@ func TestJourneyServicePublishesTwentyUnaryMethodsAndOneServerStream(t *testing.
 	wantUnary := map[string]bool{
 		"ListJourneys": true, "ProposeJourney": true, "ProposePromotion": true,
 		"InspectJourney": true, "ExecuteJourney": true, "DecideJourney": true,
+		"EditProposal": true, "PreviewJourneyIntervention": true, "RequestJourneyIntervention": true,
 		"ListWorkers": true, "CreateWorker": true,
 		"GetProductPreferences": true, "SaveUserPreferences": true,
 		"SaveTenantAppearance": true, "SaveOrganizationVisibility": true, "RecordWorkflowUse": true,

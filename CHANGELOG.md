@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-09-13 (PROMOUX-013)
+
+- Governed edit, withdraw and cancel paths now exist end to end. Three RPCs
+  were added to JourneyService, because DecideJourney carried only an
+  approve/reject boolean with no room for any of them, plus a shared
+  intervention-outcome enum and the intent's own governance version, which
+  nothing on this wire exposed before.
+
+- SupersedeIntent turned out to be structurally unusable for journeys: a
+  journey's intent never durably leaves DRAFT, and neither the promotion
+  definition nor the kernel profile has a DRAFT-to-SUPERSEDED edge. Edit
+  therefore composes the existing CancelIntent with an ordinary Propose,
+  which makes "invalidate material approvals" literally true rather than
+  asserted -- the original carries the approval and is what gets cancelled.
+
+- Three real defects surfaced by running the code. SupersedeIntent minted
+  and durably appended the successor before validating the original's own
+  transition, so a refused or raced supersede left an orphaned successor --
+  a genuine partial write. Decide and Execute checked no terminal state, so
+  a journey cancelled mid-flight could still be decided or executed. And
+  promotionguard.Release was dead code, so a cancelled-then-reproposed
+  journey would have refused itself as a duplicate.
+
+- The race test asserts durable state rather than return codes: eight
+  concurrent goroutines against one journey, then exactly one successor if
+  an edit won and zero if a withdraw won. That is what would have caught
+  the orphaned successor directly.
+
+- The client mirrors the server's stage-availability rule so availability
+  cannot go stale between watch pushes. An untested mirror drifts silently,
+  so a test now runs both implementations across all 15 stages by 2 kinds,
+  reading the enum name maps rather than a hardcoded list, so a new stage
+  fails the test instead of being skipped.
+
+- Withdraw, Cancel and Edit render at every stage, disabled with a named
+  reason when unavailable rather than omitted -- an omitted action is
+  indistinguishable from one that does not exist.
+
 ## 2026-09-13 (WF-DISC-012, SELECT-001)
 
 - Workflow maturity is now gated on generated evidence instead of trusted

@@ -898,5 +898,6 @@ func journeySummaryFromProto(msg *intentsv1.IntentInstance) (workspace.JourneySu
 	if ts := msg.GetLastTransitionAt(); ts != nil {
 		summary.UpdatedAt = ts.AsTime().UTC()
 	}
+	summary.GovernanceVersion = msg.GetInstanceVersion()
 	return summary, nil
 }

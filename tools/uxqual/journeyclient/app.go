@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
@@ -83,6 +85,16 @@ type App struct {
 	listLoaded  bool
 	detail      *journeyv1.JourneyDetail
 	cancelWatch context.CancelFunc
+	// withdrawPreview and cancelPreview are PROMOUX-013's own consequence
+	// previews for the journey now on screen, read once when the detail is
+	// first loaded (loadDetail). They are best-effort: a refusal or
+	// transport error leaves the corresponding field nil, which
+	// DetailPageWithInterventions reads as "no server-worded preview yet"
+	// rather than as a second notice on top of whatever InspectJourney
+	// already reported. They are not refreshed on every watch tick; see
+	// PROMOUX-013's report for that known staleness window.
+	withdrawPreview *journeyv1.PreviewJourneyInterventionResponse
+	cancelPreview   *journeyv1.PreviewJourneyInterventionResponse
 	// workerErrors are the last CreateWorker refusal's field violations,
 	// keyed by request field name. They are cleared by the next attempt, so
 	// a form never shows an error the reader has already answered.
@@ -417,6 +429,12 @@ func (a *App) Submit(actionID string, values map[string]string) {
 		a.decide(ctx, generation, route.IntentID, true, values[NameDecisionReason])
 	case ActionReject:
 		a.decide(ctx, generation, route.IntentID, false, values[NameDecisionReason])
+	case ActionWithdraw:
+		a.intervene(ctx, generation, route.IntentID, journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_WITHDRAW, values[NameInterventionReason])
+	case ActionCancel:
+		a.intervene(ctx, generation, route.IntentID, journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL, values[NameInterventionReason])
+	case ActionEditProposal:
+		a.editProposal(ctx, generation, route.IntentID, values)
 	default:
 		// An action id the projection does not emit is a projection bug, and
 		// the reader should see that their click did nothing rather than
@@ -506,9 +524,56 @@ func (a *App) loadDetail(ctx context.Context, generation int, intentID string) {
 			a.show(routeReadNotice(err))
 			return
 		}
+		a.loadInterventionPreviews(ctx, generation, intentID)
 		a.applyDetail(generation, resp.GetDetail(), nil)
 		a.startWatch(generation, intentID, resp.GetDetail().GetDetailDigest())
 	})
+}
+
+// loadInterventionPreviews reads PROMOUX-013's two typed-intervention
+// previews (WITHDRAW, CANCEL) for intentID, concurrently, and records
+// whatever answered. EditProposal has no preview kind of its own -- see
+// interventionActions' own doc comment for why its availability is derived
+// from these same two answers instead. A refusal or transport error on
+// either leaves that field nil rather than producing a second notice on top
+// of whatever the caller already showed: the corresponding action still
+// renders, gated by the journey's own stage, only without the server's own
+// worded consequence text.
+func (a *App) loadInterventionPreviews(ctx context.Context, generation int, intentID string) {
+	if intentID == "" {
+		return
+	}
+	var (
+		wg               sync.WaitGroup
+		withdraw, cancel *journeyv1.PreviewJourneyInterventionResponse
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		resp, err := a.svc.PreviewJourneyIntervention(ctx, &journeyv1.PreviewJourneyInterventionRequest{
+			IntentId: intentID, Kind: journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_WITHDRAW,
+		})
+		if err == nil {
+			withdraw = resp
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		resp, err := a.svc.PreviewJourneyIntervention(ctx, &journeyv1.PreviewJourneyInterventionRequest{
+			IntentId: intentID, Kind: journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL,
+		})
+		if err == nil {
+			cancel = resp
+		}
+	}()
+	wg.Wait()
+	if a.stale(generation) {
+		return
+	}
+	a.mu.Lock()
+	a.withdrawPreview = withdraw
+	a.cancelPreview = cancel
+	a.mu.Unlock()
 }
 
 // routeReadNotice deliberately gives unknown, stale, and unauthorized
@@ -851,6 +916,160 @@ func approvalNotice(detail *journeyv1.JourneyDetail) *journey.Notice {
 	}
 }
 
+// currentGovernanceVersion is the loaded journey's own optimistic-
+// concurrency version -- unrelated to the workflow instance version shown
+// elsewhere on the page -- which RequestJourneyIntervention and
+// EditProposal both require as expected_instance_version. It comes from the
+// already-loaded detail, never from a caller-supplied value: presenting a
+// stale one is refused by the engine's own compare-and-swap, which is the
+// correctness boundary, not this client's guess.
+func (a *App) currentGovernanceVersion(intentID string) uint64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.detail.GetJourney().GetIntentId() != intentID {
+		return 0
+	}
+	return a.detail.GetJourney().GetGovernanceVersion()
+}
+
+// intervene runs PROMOUX-013's typed WITHDRAW or CANCEL intervention. Both
+// kinds are the identical governed call (internal/intent/app/journey_
+// intervention.go's own doc comment: RequestIntervention forwards to
+// CancelIntent either way); kind only selects the wording shown here and
+// which stage the projector offered the action at.
+func (a *App) intervene(ctx context.Context, generation int, intentID string, kind journeyv1.JourneyInterventionKind, reason string) {
+	if intentID == "" {
+		return
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		a.show(refusal("Say why", "A withdrawal or cancellation is retained as evidence on the governed record, so it needs a reason."))
+		return
+	}
+	verb := "Withdrawing"
+	if kind == journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL {
+		verb = "Requesting cancellation for"
+	}
+	a.show(busy(verb + " this proposal."))
+	a.runTask(ctx, taskmux.Spec{Key: "journey:intervene:" + intentID, Priority: taskmux.Interactive, Duplicate: taskmux.KeepExisting}, func(ctx context.Context) {
+		resp, err := a.svc.RequestJourneyIntervention(ctx, &journeyv1.RequestJourneyInterventionRequest{
+			IntentId: intentID, Kind: kind, Reason: reason,
+			ExpectedInstanceVersion: a.currentGovernanceVersion(intentID),
+			IdempotencyKey:          uuid.NewString(),
+		})
+		if a.stale(generation) {
+			return
+		}
+		if err != nil {
+			a.show(NoticeFromError(err))
+			return
+		}
+		a.show(interventionNotice(resp.GetOutcome(), resp.GetRetainedEvidenceRef()))
+		a.reloadDetail(ctx, generation, intentID)
+	})
+}
+
+// interventionNotice reports only what RequestJourneyIntervention's own
+// typed outcome says -- never "cancelled" for a disposition that was
+// actually deferred to a safe point that has not been reached yet, which
+// would be exactly RED's own falsification concern restated for this
+// surface.
+func interventionNotice(outcome commonv1.InterventionOutcome, evidenceRef string) *journey.Notice {
+	suffix := ""
+	if evidenceRef != "" {
+		suffix = " Evidence: " + evidenceRef + "."
+	}
+	switch outcome {
+	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_APPLIED:
+		return &journey.Notice{Tone: toneSuccess, Title: "Stopped", Detail: "The proposal was cancelled." + suffix}
+	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_PENDING_SAFE_POINT:
+		return &journey.Notice{Tone: toneInfo, Title: "Cancellation requested", Detail: "The workflow has not reached a safe point yet; nothing has changed. It will be evaluated again as the workflow proceeds." + suffix}
+	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_TOO_LATE:
+		return &journey.Notice{Tone: toneWarning, Title: "Too late", Detail: "The business effect already committed before this request reached the engine. This cannot be reversed." + suffix}
+	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_REPAIR_REQUIRED:
+		return &journey.Notice{Tone: toneDanger, Title: "Repair required", Detail: "The workflow reached neither a clean stop nor a completion. Governed repair is required." + suffix}
+	default:
+		return &journey.Notice{Tone: toneWarning, Title: "Outcome unclear", Detail: "The engine did not report a recognized outcome for this request." + suffix}
+	}
+}
+
+// editProposal runs PROMOUX-013's EditProposal: it cancels the original and
+// mints a corrected successor. On success the reader is navigated to the
+// successor, exactly as a fresh Propose navigates to its own new journey --
+// the edit is a distinct governed intent, not an in-place change to the one
+// on screen.
+func (a *App) editProposal(ctx context.Context, generation int, intentID string, values map[string]string) {
+	if intentID == "" {
+		return
+	}
+	reason := strings.TrimSpace(values[NameEditReason])
+	if reason == "" {
+		a.show(refusal("Say why", "An edit is retained as evidence on the governed record, so it needs a reason."))
+		return
+	}
+	missing := make([]string, 0, 5)
+	for _, field := range []struct {
+		label, value string
+	}{
+		{"target job code", strings.TrimSpace(values[NameEditJobCode])},
+		{"target grade", strings.TrimSpace(values[NameEditGrade])},
+		{"proposed base pay", strings.TrimSpace(values[NameEditBase])},
+		{"effective date", strings.TrimSpace(values[NameEditEffective])},
+		{"business reason", strings.TrimSpace(values[NameEditBusinessReason])},
+	} {
+		if field.value == "" {
+			missing = append(missing, field.label)
+		}
+	}
+	if len(missing) > 0 {
+		a.show(refusal("Complete the required fields", "Add "+strings.Join(missing, ", ")+" before submitting this edit."))
+		return
+	}
+
+	a.show(busy("Cancelling the original proposal and creating the corrected successor."))
+	a.runTask(ctx, taskmux.Spec{Key: "journey:edit:" + intentID, Priority: taskmux.Interactive, Duplicate: taskmux.KeepExisting}, func(ctx context.Context) {
+		resp, err := a.svc.EditProposal(ctx, &journeyv1.EditProposalRequest{
+			IntentId: intentID, Reason: reason,
+			ExpectedInstanceVersion: a.currentGovernanceVersion(intentID),
+			IdempotencyKey:          uuid.NewString(),
+			Target: &journeyv1.Placement{
+				JobCode: strings.TrimSpace(values[NameEditJobCode]),
+				Grade:   strings.TrimSpace(values[NameEditGrade]),
+			},
+			ProposedBase:   strings.TrimSpace(values[NameEditBase]),
+			EffectiveDate:  strings.TrimSpace(values[NameEditEffective]),
+			BusinessReason: strings.TrimSpace(values[NameEditBusinessReason]),
+		})
+		if a.stale(generation) {
+			return
+		}
+		if err != nil {
+			a.show(NoticeFromError(err))
+			return
+		}
+		a.Navigate(DetailHref(resp.GetJourney().GetIntentId()))
+	})
+}
+
+// reloadDetail re-reads the journey after a governed write that does not
+// itself return a JourneyDetail (RequestJourneyIntervention answers with
+// only the journey summary and the outcome), so the page's findings,
+// timeline and work items are the engine's own post-write state rather than
+// stale pre-write ones sitting under a fresh notice.
+func (a *App) reloadDetail(ctx context.Context, generation int, intentID string) {
+	resp, err := a.svc.InspectJourney(ctx, &journeyv1.InspectJourneyRequest{IntentId: intentID})
+	if a.stale(generation) || err != nil {
+		return
+	}
+	a.loadInterventionPreviews(ctx, generation, intentID)
+	a.mu.Lock()
+	if a.generation == generation && a.route.Kind == RouteDetail {
+		a.detail = resp.GetDetail()
+	}
+	a.mu.Unlock()
+	a.show(a.currentNotice())
+}
+
 // ---------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------
@@ -885,6 +1104,7 @@ func (a *App) stale(generation int) bool {
 func (a *App) show(notice *journey.Notice) {
 	a.mu.Lock()
 	route, detail := a.route, a.detail
+	withdrawPreview, cancelPreview := a.withdrawPreview, a.cancelPreview
 	data := ListData{
 		Journeys:     a.list,
 		Workers:      a.workers,
@@ -897,7 +1117,7 @@ func (a *App) show(notice *journey.Notice) {
 	values := a.store.Values()
 	var page journey.Page
 	if route.Kind == RouteDetail && detail.GetJourney().GetIntentId() == route.IntentID {
-		page = DetailPage(a.cfg, detail, notice, values)
+		page = DetailPageWithInterventions(a.cfg, detail, notice, values, withdrawPreview, cancelPreview)
 	} else if route.Kind == RouteDetail {
 		// The route names a journey whose answer has not arrived (or whose
 		// answer was a refusal). The chrome, the notice and the navigation

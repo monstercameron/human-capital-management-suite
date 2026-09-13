@@ -531,17 +531,40 @@ func TestDetailPageStepTimesComeFromTheTimeline(t *testing.T) {
 	}
 }
 
+// findAction returns the one action carrying id, or fails the test: a test
+// that indexed into Actions positionally would silently start asserting on
+// the wrong action the moment PROMOUX-013's three interventions were
+// inserted at a new position, which is exactly the fragility this helper
+// removes.
+func findAction(t *testing.T, actions []journey.Action, id string) journey.Action {
+	t.Helper()
+	for _, a := range actions {
+		if a.ID == id {
+			return a
+		}
+	}
+	t.Fatalf("no action %q among %+v", id, actions)
+	return journey.Action{}
+}
+
+// wantInterventionIDs is the three ids [interventionActions] always appends
+// once a real journey has loaded, present or absent from the count checks
+// below by name rather than by number so they read as what they are: a
+// fixed, always-offered trio, never accidentally miscounted with the
+// lifecycle actions that vary by stage.
+var wantInterventionIDs = []string{ActionWithdraw, ActionCancel, ActionEditProposal}
+
 func TestDetailPageActionsPerStage(t *testing.T) {
 	cfg := testConfig()
 
 	t.Run("proposed offers execution", func(t *testing.T) {
 		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil)
 		actions := p.Detail.Actions
-		if len(actions) != 1 {
-			t.Fatalf("actions = %d, want 1", len(actions))
+		if len(actions) != 1+len(wantInterventionIDs) {
+			t.Fatalf("actions = %d, want %d (execute plus the three interventions)", len(actions), 1+len(wantInterventionIDs))
 		}
-		a := actions[0]
-		if a.ID != ActionExecute || a.Variant != "primary" || a.Disabled {
+		a := findAction(t, actions, ActionExecute)
+		if a.Variant != "primary" || a.Disabled {
 			t.Errorf("action = %+v, want an enabled primary execute", a)
 		}
 		if a.Label != "Start approval workflow" {
@@ -553,15 +576,28 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		if len(a.Confirmation) == 0 || a.ConfirmationNote == "" {
 			t.Error("execute bypasses its review-and-confirm summary")
 		}
+		// An unstarted proposal: Withdraw is offered live, Cancel and Edit
+		// are not yet (nothing has started to cancel), Edit is available
+		// (an unstarted proposal is still correctable).
+		if w := findAction(t, actions, ActionWithdraw); w.Disabled {
+			t.Errorf("Withdraw is disabled on an unstarted proposal: %+v", w)
+		}
+		if c := findAction(t, actions, ActionCancel); !c.Disabled || c.DisabledReason == "" {
+			t.Errorf("Cancel is offered (or offers no reason) on an unstarted proposal: %+v", c)
+		}
+		if e := findAction(t, actions, ActionEditProposal); e.Disabled {
+			t.Errorf("EditProposal is disabled on an unstarted (still correctable) proposal: %+v", e)
+		}
 	})
 
 	t.Run("blocked refuses execution with a reason", func(t *testing.T) {
 		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED), nil, nil)
 		actions := p.Detail.Actions
-		if len(actions) != 1 || actions[0].ID != ActionExecute {
-			t.Fatalf("actions = %+v, want one execute", actions)
+		if len(actions) != 1+len(wantInterventionIDs) {
+			t.Fatalf("actions = %+v, want execute plus the three interventions", actions)
 		}
-		if !actions[0].Disabled || actions[0].DisabledReason == "" {
+		execute := findAction(t, actions, ActionExecute)
+		if !execute.Disabled || execute.DisabledReason == "" {
 			t.Error("execution is offered on a blocked journey with no stated reason")
 		}
 	})
@@ -569,17 +605,18 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 	t.Run("awaiting approval offers both decisions", func(t *testing.T) {
 		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL), nil, nil)
 		actions := p.Detail.Actions
-		if len(actions) != 2 {
-			t.Fatalf("actions = %d, want 2", len(actions))
+		if len(actions) != 2+len(wantInterventionIDs) {
+			t.Fatalf("actions = %d, want %d (approve, reject, plus the three interventions)", len(actions), 2+len(wantInterventionIDs))
 		}
-		approve, reject := actions[0], actions[1]
-		if approve.ID != ActionApprove || approve.Variant != "primary" {
-			t.Errorf("first action = %+v, want a primary approve", approve)
+		approve := findAction(t, actions, ActionApprove)
+		reject := findAction(t, actions, ActionReject)
+		if approve.Variant != "primary" {
+			t.Errorf("approve = %+v, want primary", approve)
 		}
-		if reject.ID != ActionReject || reject.Variant != "danger" {
-			t.Errorf("second action = %+v, want a danger reject", reject)
+		if reject.Variant != "danger" {
+			t.Errorf("reject = %+v, want danger", reject)
 		}
-		for _, a := range actions {
+		for _, a := range []journey.Action{approve, reject} {
 			if a.ActsAs != testApprover {
 				t.Errorf("action %q ActsAs = %q, want the routed approver %q", a.ID, a.ActsAs, testApprover)
 			}
@@ -596,32 +633,105 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		if reject.Fields[0].ID != FieldRejectReason || !reject.Fields[0].Required {
 			t.Errorf("the rejection reason = %+v, want %s and required", reject.Fields[0], FieldRejectReason)
 		}
+		// Mid-flight, with an approval underway: Withdraw is no longer
+		// offered live, Cancel and Edit are (this is exactly the
+		// EditInvalidatesAMidFlightApproval scenario PROMOUX-013's own
+		// integration test proved end to end against real PostgreSQL).
+		if w := findAction(t, actions, ActionWithdraw); !w.Disabled || w.DisabledReason == "" {
+			t.Errorf("Withdraw is offered (or offers no reason) once approval has started: %+v", w)
+		}
+		if c := findAction(t, actions, ActionCancel); c.Disabled {
+			t.Errorf("Cancel is disabled during an eligible wait: %+v", c)
+		}
+		if e := findAction(t, actions, ActionEditProposal); e.Disabled {
+			t.Errorf("EditProposal is disabled while Cancel is still available: %+v", e)
+		}
 	})
 
 	t.Run("awaiting approval waits for the durable work item", func(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL)
 		detail.WorkItems = nil
 		actions := DetailPage(cfg, detail, nil, nil).Detail.Actions
-		if len(actions) != 1 || actions[0].ID != ActionApprove || !actions[0].Disabled || actions[0].Label != "Preparing approval" {
+		approve := findAction(t, actions, ActionApprove)
+		if !approve.Disabled || approve.Label != "Preparing approval" {
+			t.Fatalf("approve before durable routing = %+v", approve)
+		}
+		if len(actions) != 1+len(wantInterventionIDs) {
 			t.Fatalf("actions before durable routing = %+v", actions)
 		}
 	})
 
+	// These stages offer none of the ordinary lifecycle actions (execute,
+	// approve, reject): PROMOUX-013 added Withdraw/Cancel/EditProposal,
+	// which behave differently across the three groups below, so "offers
+	// nothing" is no longer one true sentence for every stage in this list
+	// -- it is checked per group instead.
 	for _, stage := range []journeyv1.JourneyStage{
 		journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE,
 		journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION,
+		journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED,
+	} {
+		t.Run(stageOf(stage)+" offers no lifecycle action but an eligible cancel/edit", func(t *testing.T) {
+			p := DetailPage(cfg, testDetail(t, stage), nil, nil)
+			actions := p.Detail.Actions
+			for _, id := range []string{ActionExecute, ActionApprove, ActionReject} {
+				for _, a := range actions {
+					if a.ID == id {
+						t.Errorf("stage %s unexpectedly offers %q", stageOf(stage), id)
+					}
+				}
+			}
+			if len(actions) != len(wantInterventionIDs) {
+				t.Fatalf("actions = %+v, want exactly the three interventions", actions)
+			}
+			if w := findAction(t, actions, ActionWithdraw); !w.Disabled || w.DisabledReason == "" {
+				t.Errorf("Withdraw is offered (or offers no reason) at %s: %+v", stageOf(stage), w)
+			}
+			if c := findAction(t, actions, ActionCancel); c.Disabled {
+				t.Errorf("Cancel is disabled during an eligible wait at %s: %+v", stageOf(stage), c)
+			}
+			if e := findAction(t, actions, ActionEditProposal); e.Disabled {
+				t.Errorf("EditProposal is disabled while Cancel is still available at %s: %+v", stageOf(stage), e)
+			}
+		})
+	}
+
+	for _, stage := range []journeyv1.JourneyStage{
 		journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED,
 		journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS,
+	} {
+		t.Run(stageOf(stage)+" has already committed: all three interventions explain why", func(t *testing.T) {
+			p := DetailPage(cfg, testDetail(t, stage), nil, nil)
+			actions := p.Detail.Actions
+			if len(actions) != len(wantInterventionIDs) {
+				t.Fatalf("actions = %+v, want exactly the three interventions, all disabled", actions)
+			}
+			for _, id := range wantInterventionIDs {
+				a := findAction(t, actions, id)
+				if !a.Disabled || a.DisabledReason == "" {
+					t.Errorf("%q is offered (or offers no reason) once execution has committed at %s: %+v", id, stageOf(stage), a)
+				}
+			}
+		})
+	}
+
+	for _, stage := range []journeyv1.JourneyStage{
 		journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED,
-		journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED,
 		journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED,
 		journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED,
 		journeyv1.JourneyStage_JOURNEY_STAGE_FAILED,
 	} {
-		t.Run(stageOf(stage)+" offers nothing", func(t *testing.T) {
+		t.Run(stageOf(stage)+" is terminal: all three interventions explain why, identically", func(t *testing.T) {
 			p := DetailPage(cfg, testDetail(t, stage), nil, nil)
-			if len(p.Detail.Actions) != 0 {
-				t.Errorf("actions = %+v, want none on a terminal journey", p.Detail.Actions)
+			actions := p.Detail.Actions
+			if len(actions) != len(wantInterventionIDs) {
+				t.Fatalf("actions = %+v, want exactly the three interventions, all disabled", actions)
+			}
+			for _, id := range wantInterventionIDs {
+				a := findAction(t, actions, id)
+				if !a.Disabled || a.DisabledReason != interventionReasonText(reasonAlreadyTerminal) {
+					t.Errorf("%q at a terminal stage %s = %+v, want disabled with the byte-identical already-terminal text", id, stageOf(stage), a)
+				}
 			}
 		})
 	}
@@ -816,11 +926,14 @@ func TestDetailPageApprovalActionsForEveryApprovalStage(t *testing.T) {
 	} {
 		t.Run(stageOf(stage), func(t *testing.T) {
 			p := DetailPage(testConfig(), testDetail(t, stage), nil, nil)
-			if len(p.Detail.Actions) != 2 {
-				t.Fatalf("actions = %d, want approve and reject", len(p.Detail.Actions))
+			actions := p.Detail.Actions
+			if len(actions) != 2+len(wantInterventionIDs) {
+				t.Fatalf("actions = %d, want approve, reject, plus the three interventions", len(actions))
 			}
-			if p.Detail.Actions[0].ID != ActionApprove || p.Detail.Actions[1].ID != ActionReject {
-				t.Fatalf("actions = %+v, want approve and reject", p.Detail.Actions)
+			findAction(t, actions, ActionApprove)
+			findAction(t, actions, ActionReject)
+			for _, id := range wantInterventionIDs {
+				findAction(t, actions, id)
 			}
 		})
 	}

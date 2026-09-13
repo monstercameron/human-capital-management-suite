@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 652e625c8f9906f22f0f073acb48c107300d17eabf2f61e9198d8c13f4cf1518
-- Package count: 793
-- Within-module edge count: 1844
+- Source graph: f6d4f4531297444a1d8425c3f4df15bd1ae61e731e36c4f239261beee9068938
+- Package count: 794
+- Within-module edge count: 1845
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -773,6 +773,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/oraclestrength`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/performance`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/pilotjurisdiction`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/pilotprovider`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/plancontradiction`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/productslice`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/progress`
@@ -948,4 +949,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`8eeccecc9acf1c37ad62540ab6b8927245d0244d80f1c4955c23f4bb4f4f6427`
+`b7ceb524decc6a61f45d92e8c8d1735e7e1cef0c436efc405f4d0da216384e74`
