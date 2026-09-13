@@ -105,7 +105,13 @@ func TestAuthorizationResolvedNavigationDoesNotInventHiddenPages(t *testing.T) {
 	}
 }
 
-func TestExperienceStudioLivesUnderAuthorizedAdminNavigation(t *testing.T) {
+// TestExperienceStudioIsOmittedFromAuthorizedAdminNavigation replaces the
+// prior expectation (RED for UXAUDIT-011) that Studio nested under Admin's
+// menu. The registry's admission gate now keeps any page without a genuine
+// capability -- Studio included -- out of navigation entirely; omission
+// from the menu is not deletion of the route, so it still resolves
+// directly and still explains why it is unavailable.
+func TestExperienceStudioIsOmittedFromAuthorizedAdminNavigation(t *testing.T) {
 	doc, err := Render(testView(PageHome))
 	if err != nil {
 		t.Fatal(err)
@@ -113,19 +119,23 @@ func TestExperienceStudioLivesUnderAuthorizedAdminNavigation(t *testing.T) {
 	if strings.Contains(doc, "Customize workspace") {
 		t.Fatal("vertical-slice customization control escaped into the production header")
 	}
-	if !strings.Contains(doc, `class="subnav"`) || !strings.Contains(doc, `>Experience Studio</span>`) {
-		t.Fatal("Experience Studio is not nested under the authorized Admin menu")
+	if strings.Contains(doc, `>Experience Studio</span>`) {
+		t.Fatal("Experience Studio still claims a menu slot under Admin")
+	}
+	navigation := findElementByID(mustParse(t, doc), "workspace-navigation")
+	if linkForRoute(navigation, "/workspace/app/studio") != nil {
+		t.Fatal("Experience Studio still renders a navigation link")
 	}
 
 	doc, err = Render(testView(PageStudio))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if primaryNavAriaCurrentCount(doc) != 1 || !strings.Contains(doc, `class="nav-group current"`) {
-		t.Fatal("Studio must identify its active leaf and expanded Admin group")
+	if primaryNavAriaCurrentCount(doc) != 0 || strings.Contains(doc, `class="nav-group current"`) {
+		t.Fatal("an unadmitted route falsely claimed an active navigation leaf")
 	}
-	if !strings.Contains(doc, `aria-current="page">Experience Studio</span>`) {
-		t.Fatal("Studio breadcrumb must mark its own current leaf beside the navigation marker")
+	if !strings.Contains(doc, "Custom page editing is not enabled") {
+		t.Fatal("Studio route no longer explains its unavailable state directly")
 	}
 }
 

@@ -148,28 +148,28 @@ func TestTodo_WEB_238_Security(t *testing.T) {
 // Integration: the compatibility surface participates
 // in admin navigation — the Admin submenu carries it as
 // its last child, so registry and navigation agree.
+// UXAUDIT-011 requires navigation availability to derive from the page
+// registry's admission gate rather than ParentNav wiring alone. Assistive
+// tech keeps its ParentNav wiring to Admin -- registry identity and
+// direct-route access are unchanged -- but declares no admitted
+// capability, so the Admin submenu must not carry it as a child.
 func TestTodo_WEB_238_Integration(t *testing.T) {
 	_, items := projectNavigation(testView(PageAdmin))
 	admin, ok := projectedNavigationItem(items, PageAdmin)
 	if !ok {
 		t.Fatal("Admin navigation group is missing")
 	}
-	found := false
 	for _, child := range admin.Children {
-		if child.Page != PageAssistiveTech {
-			continue
-		}
-		found = true
-		href := child.Href
-		if index := strings.Index(href, "?"); index >= 0 {
-			href = href[:index]
-		}
-		if _, ok := LookupRoute(href); !ok {
-			t.Fatal("compatibility submenu href leaves the page registry")
+		if child.Page == PageAssistiveTech {
+			t.Fatalf("Admin submenu still carries the unadmitted compatibility surface: %+v", admin)
 		}
 	}
-	if !found {
-		t.Fatalf("Admin submenu carries no compatibility surface: %+v", admin)
+	definition, ok := LookupPage(PageAssistiveTech)
+	if !ok || definition.ParentNav != PageAdmin || definition.Admitted {
+		t.Fatalf("assistive tech registry entry changed unexpectedly: %+v", definition)
+	}
+	if _, ok := LookupRoute(definition.Route); !ok {
+		t.Fatal("assistive tech route no longer resolves through the page registry")
 	}
 }
 

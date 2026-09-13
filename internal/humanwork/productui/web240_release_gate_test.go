@@ -146,28 +146,28 @@ func TestTodo_WEB_240_Security(t *testing.T) {
 // Integration: the release gate participates in admin
 // navigation — the Admin submenu carries it, so
 // registry and navigation agree.
+// UXAUDIT-011 requires navigation availability to derive from the page
+// registry's admission gate rather than ParentNav wiring alone. The
+// release gate keeps its ParentNav wiring to Admin -- registry identity
+// and direct-route access are unchanged -- but declares no admitted
+// capability, so the Admin submenu must not carry it as a child.
 func TestTodo_WEB_240_Integration(t *testing.T) {
 	_, items := projectNavigation(testView(PageAdmin))
 	admin, ok := projectedNavigationItem(items, PageAdmin)
 	if !ok {
 		t.Fatal("Admin navigation group is missing")
 	}
-	found := false
 	for _, child := range admin.Children {
-		if child.Page != PageReleaseGate {
-			continue
-		}
-		found = true
-		href := child.Href
-		if index := strings.Index(href, "?"); index >= 0 {
-			href = href[:index]
-		}
-		if _, ok := LookupRoute(href); !ok {
-			t.Fatal("release gate submenu href leaves the page registry")
+		if child.Page == PageReleaseGate {
+			t.Fatalf("Admin submenu still carries the unadmitted release gate: %+v", admin)
 		}
 	}
-	if !found {
-		t.Fatalf("Admin submenu carries no release gate: %+v", admin)
+	definition, ok := LookupPage(PageReleaseGate)
+	if !ok || definition.ParentNav != PageAdmin || definition.Admitted {
+		t.Fatalf("release gate registry entry changed unexpectedly: %+v", definition)
+	}
+	if _, ok := LookupRoute(definition.Route); !ok {
+		t.Fatal("release gate route no longer resolves through the page registry")
 	}
 }
 

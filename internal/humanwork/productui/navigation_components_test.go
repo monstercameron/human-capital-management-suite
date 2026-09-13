@@ -15,9 +15,22 @@ func TestNavigationRegistryBuildsReusableSubmenus(t *testing.T) {
 	if !work.Active || len(work.Children) != 2 || work.Children[0].Label != "Work queue" || work.Children[1].Label != "Work History" {
 		t.Fatalf("My Work submenu = %+v", work)
 	}
+	// UXAUDIT-011: Studio and the ten other unbuilt admin fallback surfaces
+	// (Policy Studio, Policy simulation, Configuration center, Integration
+	// operations, Reconciliation workbench, Privacy telemetry, Performance
+	// budgets, Browser matrix, Assistive tech, Disaster recovery, Release
+	// gate) keep their ParentNav wiring to Admin but declare no admitted
+	// capability, so only the four real admin destinations remain.
 	admin, ok := projectedNavigationItem(items, PageAdmin)
-	if !ok || len(admin.Children) != 17 || admin.Children[1].Page != PageWorkerIDs || admin.Children[2].Page != PageRoles || admin.Children[3].Page != PageOrganizationVisibility || admin.Children[4].Page != PageAppearance || admin.Children[5].Page != PageStudio || admin.Children[6].Page != PagePolicyStudio || admin.Children[7].Page != PagePolicySimulation || admin.Children[8].Page != PageConfigurationCenter || admin.Children[9].Page != PageIntegrationOperations || admin.Children[10].Page != PageReconciliationWorkbench || admin.Children[11].Page != PagePrivacyTelemetry || admin.Children[12].Page != PagePerformanceBudgets || admin.Children[13].Page != PageBrowserMatrix || admin.Children[14].Page != PageAssistiveTech || admin.Children[15].Page != PageDisasterRecovery || admin.Children[16].Page != PageReleaseGate {
+	if !ok || len(admin.Children) != 5 || admin.Children[1].Page != PageWorkerIDs || admin.Children[2].Page != PageRoles || admin.Children[3].Page != PageOrganizationVisibility || admin.Children[4].Page != PageAppearance {
 		t.Fatalf("Admin submenu = %+v, present=%t", admin, ok)
+	}
+	for _, unadmitted := range []PageID{PageStudio, PagePolicyStudio, PagePolicySimulation, PageConfigurationCenter, PageIntegrationOperations, PageReconciliationWorkbench, PagePrivacyTelemetry, PagePerformanceBudgets, PageBrowserMatrix, PageAssistiveTech, PageDisasterRecovery, PageReleaseGate} {
+		for _, child := range admin.Children {
+			if child.Page == unadmitted {
+				t.Fatalf("Admin submenu still carries unadmitted page %s", unadmitted)
+			}
+		}
 	}
 }
 
@@ -42,8 +55,12 @@ func TestMenuFilterKeepsOnlyMatchingHierarchy(t *testing.T) {
 func TestUXBLIND025MenuFilterPreservesSupportNavigation(t *testing.T) {
 	view := ApplyRequest(testView(PageSettings), PageRequest{MenuQuery: "pe"})
 	favorites, items := projectNavigation(view)
-	if len(favorites) != 0 || len(items) != 2 || items[0].Page != PagePeople || items[1].Page != PageAdmin {
-		t.Fatalf("short prefix should resolve People first: favorites=%+v items=%+v", favorites, items)
+	// UXAUDIT-011 removed the unbuilt "Performance budgets" admin fallback
+	// surface, which was the only reason the "pe" prefix used to also
+	// resolve Admin (a word-prefix match on "Performance"). Only the real,
+	// admitted People destination starts with "pe" now.
+	if len(favorites) != 0 || len(items) != 1 || items[0].Page != PagePeople {
+		t.Fatalf("short prefix should resolve People: favorites=%+v items=%+v", favorites, items)
 	}
 	props := navigationSidebarProps(view)
 	if len(props.Support) != 2 || props.Support[0].Page != PageHelp || props.Support[1].Page != PageSettings {

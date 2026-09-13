@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-09-12 (UXAUDIT-011)
+
+- Experience Studio no longer appears in primary navigation, and the fix is a
+  registry rule rather than a special case for that one route -- which the todo
+  forbids explicitly. `PageDefinition` gained an admission flag whose zero value
+  is false, and both navigation-building loops gate on it. Studio's registry row
+  is otherwise untouched; navigation code names no specific route anywhere.
+
+  The default being not-navigable is the load-bearing part. The opposite default
+  silently readmits every future unbuilt page, which is how this defect arose in
+  the first place.
+
+- The rule generalized rather than special-casing one page, which was the point
+  of forbidding a route exception: eleven further registry entries backed by no
+  real service -- Policy Studio, Policy simulation, Configuration center,
+  Integration operations, Reconciliation workbench, Privacy telemetry,
+  Performance budgets, Browser matrix, Assistive tech, Disaster recovery and
+  Release gate -- are excluded by the same predicate, proven generically rather
+  than by name.
+
+- Omission from a menu is not authorization, and the change moves nothing across
+  that boundary. The route still answers for an authorized role with its
+  existing explanatory unavailable state, and unauthorized roles are still
+  refused by the same visibility check as before, independently of admission.
+
+- Verified against the running server: primary navigation went from 14
+  destinations to 13, the only removal being Experience Studio, with nothing
+  added and every other destination intact.
+
+- Seven pre-existing tests were updated, each because it encoded the defect
+  rather than a contract -- including four that asserted unbuilt stub pages
+  _should_ nest under Admin. Those four contracts are about their named tests
+  returning deterministic authorization-filtered results, not about navigation
+  placement, so inverting the nav assertion does not weaken them.
+
 ## 2026-09-12 (PROMOUX-011)
 
 - Every committed promotion transition now emits one authority-filtered

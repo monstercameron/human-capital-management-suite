@@ -30,7 +30,18 @@ type PageDefinition struct {
 	PrimaryNav  bool
 	ParentNav   PageID
 	RenderOrder int
-	render      func(View) ui.Node
+	// Admitted declares that a genuinely usable, released capability stands
+	// behind this page: PrimaryNav and ParentNav wire a route into the menu
+	// tree, but only an admitted page may actually render as a navigation
+	// destination there. The zero value is false, so a page nobody has
+	// explicitly admitted never claims a menu slot even if it declares
+	// PrimaryNav or ParentNav -- a future contributor who wires a new
+	// governed-service fallback into the tree cannot reintroduce this
+	// defect by omission. Admitted never gates direct route access; that
+	// remains PageVisible's job. It only controls whether the registry
+	// presents the destination as a first-class menu item.
+	Admitted bool
+	render   func(View) ui.Node
 }
 
 const RoleHCMAdmin = "hcm_admin"
@@ -83,13 +94,13 @@ func hasProductRole(roles []string, wanted string) bool {
 
 func registeredPages() []PageDefinition {
 	return []PageDefinition{
-		{ID: PageHome, Route: "/workspace/app/home", Label: "Home", Icon: "home", Title: "Home", Subtitle: "Review live requests and keep your work moving.", LabelKey: "page.home.label", TitleKey: "page.home.title", SubtitleKey: "page.home.subtitle", SearchTerms: []string{"dashboard", "overview", "landing", "start"}, PrimaryNav: true, RenderOrder: 10, render: homePage},
-		{ID: PageMyself, Route: "/workspace/app/myself", Label: "Myself", Icon: "people", Title: "Myself", Subtitle: "Your employment, organization, payroll, and workflow information.", LabelKey: "page.myself.label", TitleKey: "page.myself.title", SubtitleKey: "page.myself.subtitle", SearchTerms: []string{"me", "my profile", "self service", "employment", "payroll", "compensation", "salary", "payslip", "personal information"}, PrimaryNav: true, RenderOrder: 12, render: myselfPage},
-		{ID: PageJourneys, Route: "/workspace/app/journeys", Label: "Journeys", Icon: "journeys", Title: "Journeys", Subtitle: "Start, follow, and complete governed employee workflows.", LabelKey: "page.journeys.label", TitleKey: "page.journeys.title", SubtitleKey: "page.journeys.subtitle", SearchTerms: []string{"workflow", "promotion", "request", "approval", "lifecycle"}, PrimaryNav: true, RenderOrder: 15, render: journeysPage},
-		{ID: PageWork, Route: "/workspace/app/work", Label: "My Work", Icon: "work", Title: "My Work", Subtitle: "Live promotion journeys that need attention.", LabelKey: "page.work.label", TitleKey: "page.work.title", SubtitleKey: "page.work.subtitle", SearchTerms: []string{"tasks", "inbox", "queue", "assigned", "pending", "approvals"}, PrimaryNav: true, RenderOrder: 20, render: workPage},
-		{ID: PageHistory, Route: "/workspace/app/history", Label: "Work History", Icon: "history", Title: "Workflow History", Subtitle: "Review completed, rejected, and failed workflow records.", LabelKey: "page.history.label", TitleKey: "page.history.title", SubtitleKey: "page.history.subtitle", SearchTerms: []string{"past", "completed", "rejected", "failed", "audit", "records"}, ParentNav: PageWork, RenderOrder: 25, render: historyPage},
-		{ID: PagePeople, Route: "/workspace/app/people", Label: "People", Icon: "people", Title: "People", Subtitle: "People you're authorized to view across the organization.", LabelKey: "page.people.label", TitleKey: "page.people.title", SubtitleKey: "page.people.subtitle", SearchTerms: []string{"employees", "workers", "directory", "profiles", "staff", "team", "colleagues"}, PrimaryNav: true, RenderOrder: 30, render: peoplePage},
-		{ID: PagePerson, Route: "/workspace/app/person", Label: "Person", Icon: "people", Title: "Person profile", Subtitle: "Worker facts and available governed workflows.", LabelKey: "page.person.label", TitleKey: "page.person.title", SubtitleKey: "page.person.subtitle", SearchTerms: []string{"employee", "worker", "profile", "employment"}, RenderOrder: 35, render: personPage},
+		{ID: PageHome, Route: "/workspace/app/home", Label: "Home", Icon: "home", Title: "Home", Subtitle: "Review live requests and keep your work moving.", LabelKey: "page.home.label", TitleKey: "page.home.title", SubtitleKey: "page.home.subtitle", SearchTerms: []string{"dashboard", "overview", "landing", "start"}, PrimaryNav: true, RenderOrder: 10, Admitted: true, render: homePage},
+		{ID: PageMyself, Route: "/workspace/app/myself", Label: "Myself", Icon: "people", Title: "Myself", Subtitle: "Your employment, organization, payroll, and workflow information.", LabelKey: "page.myself.label", TitleKey: "page.myself.title", SubtitleKey: "page.myself.subtitle", SearchTerms: []string{"me", "my profile", "self service", "employment", "payroll", "compensation", "salary", "payslip", "personal information"}, PrimaryNav: true, RenderOrder: 12, Admitted: true, render: myselfPage},
+		{ID: PageJourneys, Route: "/workspace/app/journeys", Label: "Journeys", Icon: "journeys", Title: "Journeys", Subtitle: "Start, follow, and complete governed employee workflows.", LabelKey: "page.journeys.label", TitleKey: "page.journeys.title", SubtitleKey: "page.journeys.subtitle", SearchTerms: []string{"workflow", "promotion", "request", "approval", "lifecycle"}, PrimaryNav: true, RenderOrder: 15, Admitted: true, render: journeysPage},
+		{ID: PageWork, Route: "/workspace/app/work", Label: "My Work", Icon: "work", Title: "My Work", Subtitle: "Live promotion journeys that need attention.", LabelKey: "page.work.label", TitleKey: "page.work.title", SubtitleKey: "page.work.subtitle", SearchTerms: []string{"tasks", "inbox", "queue", "assigned", "pending", "approvals"}, PrimaryNav: true, RenderOrder: 20, Admitted: true, render: workPage},
+		{ID: PageHistory, Route: "/workspace/app/history", Label: "Work History", Icon: "history", Title: "Workflow History", Subtitle: "Review completed, rejected, and failed workflow records.", LabelKey: "page.history.label", TitleKey: "page.history.title", SubtitleKey: "page.history.subtitle", SearchTerms: []string{"past", "completed", "rejected", "failed", "audit", "records"}, ParentNav: PageWork, RenderOrder: 25, Admitted: true, render: historyPage},
+		{ID: PagePeople, Route: "/workspace/app/people", Label: "People", Icon: "people", Title: "People", Subtitle: "People you're authorized to view across the organization.", LabelKey: "page.people.label", TitleKey: "page.people.title", SubtitleKey: "page.people.subtitle", SearchTerms: []string{"employees", "workers", "directory", "profiles", "staff", "team", "colleagues"}, PrimaryNav: true, RenderOrder: 30, Admitted: true, render: peoplePage},
+		{ID: PagePerson, Route: "/workspace/app/person", Label: "Person", Icon: "people", Title: "Person profile", Subtitle: "Worker facts and available governed workflows.", LabelKey: "page.person.label", TitleKey: "page.person.title", SubtitleKey: "page.person.subtitle", SearchTerms: []string{"employee", "worker", "profile", "employment"}, RenderOrder: 35, Admitted: true, render: personPage},
 		{ID: PageHeadcount, Route: "/workspace/app/headcount", Label: "Headcount", Icon: "people", Title: "Headcount requests", Subtitle: "Request headcount through the governed requisition service.", LabelKey: "page.headcount.label", TitleKey: "page.headcount.title", SubtitleKey: "page.headcount.subtitle", SearchTerms: []string{"headcount", "head count", "requisition", "hiring", "open roles"}, RenderOrder: 36, render: headcountPage},
 		{ID: PagePosition, Route: "/workspace/app/position", Label: "Positions", Icon: "people", Title: "Position requests", Subtitle: "Request positions through the governed position service.", LabelKey: "page.position.label", TitleKey: "page.position.title", SubtitleKey: "page.position.subtitle", SearchTerms: []string{"positions", "roles", "job requisition", "openings", "vacancies"}, RenderOrder: 37, render: positionPage},
 		{ID: PageRequisition, Route: "/workspace/app/requisition", Label: "Requisitions", Icon: "people", Title: "Requisition workspace", Subtitle: "Track requisitions through the governed requisition service.", LabelKey: "page.requisition.label", TitleKey: "page.requisition.title", SubtitleKey: "page.requisition.subtitle", SearchTerms: []string{"requisitions", "hiring workspace", "openings", "candidates", "interviews"}, RenderOrder: 38, render: requisitionPage},
@@ -114,16 +125,21 @@ func registeredPages() []PageDefinition {
 		{ID: PageLeaveEvidence, Route: "/workspace/app/time/leave-evidence", Label: "Leave evidence", Icon: "people", Title: "Restricted leave-evidence tasks", Subtitle: "Complete restricted evidence through the governed leave service.", LabelKey: "page.leave_evidence.label", TitleKey: "page.leave_evidence.title", SubtitleKey: "page.leave_evidence.subtitle", SearchTerms: []string{"evidence", "restricted", "documents", "tasks", "leave"}, RenderOrder: 57, render: leaveEvidencePage},
 		{ID: PageLeaveTimeline, Route: "/workspace/app/time/leave-timeline", Label: "Leave timeline", Icon: "people", Title: "Leave-status timeline", Subtitle: "Follow a leave case through the governed leave service.", LabelKey: "page.leave_timeline.label", TitleKey: "page.leave_timeline.title", SubtitleKey: "page.leave_timeline.subtitle", SearchTerms: []string{"timeline", "status", "history", "case", "leave"}, RenderOrder: 58, render: leaveTimelinePage},
 		{ID: PageReturnToWork, Route: "/workspace/app/time/return-to-work", Label: "Return to work", Icon: "people", Title: "Return-to-work planning", Subtitle: "Plan a return from leave through the governed leave service.", LabelKey: "page.return_to_work.label", TitleKey: "page.return_to_work.title", SubtitleKey: "page.return_to_work.subtitle", SearchTerms: []string{"return", "back to work", "plan", "recovery", "leave"}, RenderOrder: 59, render: returnToWorkPage},
-		{ID: PageOrganization, Route: "/workspace/app/organization", Label: "Organization", Icon: "organization", Title: "Organization", Subtitle: "See where each visible employee sits in the organization.", LabelKey: "page.organization.label", TitleKey: "page.organization.title", SubtitleKey: "page.organization.subtitle", SearchTerms: []string{"org chart", "departments", "teams", "structure", "hierarchy", "reporting"}, PrimaryNav: true, RenderOrder: 60, render: organizationPage},
-		{ID: PageInsights, Route: "/workspace/app/insights", Label: "Insights", Icon: "insights", Title: "Insights", Subtitle: "Operational counts derived from live journey states.", LabelKey: "page.insights.label", TitleKey: "page.insights.title", SubtitleKey: "page.insights.subtitle", SearchTerms: []string{"analytics", "reports", "metrics", "trends", "workforce data"}, PrimaryNav: true, RenderOrder: 61, render: insightsPage},
-		{ID: PageAdmin, Route: "/workspace/app/admin", Label: "Admin", Icon: "admin", Title: "Admin", Subtitle: "Published service capabilities and configuration availability.", LabelKey: "page.admin.label", TitleKey: "page.admin.title", SubtitleKey: "page.admin.subtitle", SearchTerms: []string{"administration", "configuration", "system", "capabilities", "manage"}, PrimaryNav: true, RenderOrder: 62, render: adminPage},
-		{ID: PageWorkerIDs, Route: "/workspace/app/admin/worker-ids", Label: "Worker IDs", Icon: "people", Title: "Worker ID rules", Subtitle: "Configure how this organization issues unique worker numbers.", LabelKey: "page.worker_ids.label", TitleKey: "page.worker_ids.title", SubtitleKey: "page.worker_ids.subtitle", SearchTerms: []string{"worker number", "personnel number", "prefix", "sequence", "identifier", "numbering"}, ParentNav: PageAdmin, RenderOrder: 63, render: workerIDsPage},
-		{ID: PageRoles, Route: "/workspace/app/admin/roles", Label: "Roles & access", Icon: "admin", Title: "Roles & access", Subtitle: "Create roles and assign one or more roles across the workforce.", LabelKey: "page.roles.label", TitleKey: "page.roles.title", SubtitleKey: "page.roles.subtitle", SearchTerms: []string{"authorization", "roles", "permissions", "workforce access", "assignment", "rbac"}, ParentNav: PageAdmin, RenderOrder: 64, render: rolesPage},
-		{ID: PageOrganizationVisibility, Route: "/workspace/app/admin/organization-visibility", Label: "Organization visibility", Icon: "organization", Title: "Organization visibility", Subtitle: "Control which organization units each role can discover.", LabelKey: "page.organization_visibility.label", TitleKey: "page.organization_visibility.title", SubtitleKey: "page.organization_visibility.subtitle", SearchTerms: []string{"org chart access", "directory visibility", "role visibility", "allowlist", "denylist", "own team", "organization units"}, ParentNav: PageAdmin, RenderOrder: 65, render: organizationVisibilityPage},
-		{ID: PageAppearance, Route: "/workspace/app/appearance", Label: "Brand & appearance", Icon: "palette", Title: "Brand & appearance", Subtitle: "Shape a consistent workspace identity with governed, accessible theme choices.", LabelKey: "page.appearance.label", TitleKey: "page.appearance.title", SubtitleKey: "page.appearance.subtitle", SearchTerms: []string{"branding", "theme", "colors", "logo", "dark mode", "styling", "shapes", "glyphs"}, ParentNav: PageAdmin, RenderOrder: 66, render: appearancePage},
+		{ID: PageOrganization, Route: "/workspace/app/organization", Label: "Organization", Icon: "organization", Title: "Organization", Subtitle: "See where each visible employee sits in the organization.", LabelKey: "page.organization.label", TitleKey: "page.organization.title", SubtitleKey: "page.organization.subtitle", SearchTerms: []string{"org chart", "departments", "teams", "structure", "hierarchy", "reporting"}, PrimaryNav: true, RenderOrder: 60, Admitted: true, render: organizationPage},
+		{ID: PageInsights, Route: "/workspace/app/insights", Label: "Insights", Icon: "insights", Title: "Insights", Subtitle: "Operational counts derived from live journey states.", LabelKey: "page.insights.label", TitleKey: "page.insights.title", SubtitleKey: "page.insights.subtitle", SearchTerms: []string{"analytics", "reports", "metrics", "trends", "workforce data"}, PrimaryNav: true, RenderOrder: 61, Admitted: true, render: insightsPage},
+		{ID: PageAdmin, Route: "/workspace/app/admin", Label: "Admin", Icon: "admin", Title: "Admin", Subtitle: "Published service capabilities and configuration availability.", LabelKey: "page.admin.label", TitleKey: "page.admin.title", SubtitleKey: "page.admin.subtitle", SearchTerms: []string{"administration", "configuration", "system", "capabilities", "manage"}, PrimaryNav: true, RenderOrder: 62, Admitted: true, render: adminPage},
+		{ID: PageWorkerIDs, Route: "/workspace/app/admin/worker-ids", Label: "Worker IDs", Icon: "people", Title: "Worker ID rules", Subtitle: "Configure how this organization issues unique worker numbers.", LabelKey: "page.worker_ids.label", TitleKey: "page.worker_ids.title", SubtitleKey: "page.worker_ids.subtitle", SearchTerms: []string{"worker number", "personnel number", "prefix", "sequence", "identifier", "numbering"}, ParentNav: PageAdmin, RenderOrder: 63, Admitted: true, render: workerIDsPage},
+		{ID: PageRoles, Route: "/workspace/app/admin/roles", Label: "Roles & access", Icon: "admin", Title: "Roles & access", Subtitle: "Create roles and assign one or more roles across the workforce.", LabelKey: "page.roles.label", TitleKey: "page.roles.title", SubtitleKey: "page.roles.subtitle", SearchTerms: []string{"authorization", "roles", "permissions", "workforce access", "assignment", "rbac"}, ParentNav: PageAdmin, RenderOrder: 64, Admitted: true, render: rolesPage},
+		{ID: PageOrganizationVisibility, Route: "/workspace/app/admin/organization-visibility", Label: "Organization visibility", Icon: "organization", Title: "Organization visibility", Subtitle: "Control which organization units each role can discover.", LabelKey: "page.organization_visibility.label", TitleKey: "page.organization_visibility.title", SubtitleKey: "page.organization_visibility.subtitle", SearchTerms: []string{"org chart access", "directory visibility", "role visibility", "allowlist", "denylist", "own team", "organization units"}, ParentNav: PageAdmin, RenderOrder: 65, Admitted: true, render: organizationVisibilityPage},
+		{ID: PageAppearance, Route: "/workspace/app/appearance", Label: "Brand & appearance", Icon: "palette", Title: "Brand & appearance", Subtitle: "Shape a consistent workspace identity with governed, accessible theme choices.", LabelKey: "page.appearance.label", TitleKey: "page.appearance.title", SubtitleKey: "page.appearance.subtitle", SearchTerms: []string{"branding", "theme", "colors", "logo", "dark mode", "styling", "shapes", "glyphs"}, ParentNav: PageAdmin, RenderOrder: 66, Admitted: true, render: appearancePage},
+		// UXAUDIT-011: Experience Studio keeps its ParentNav wiring and
+		// registered route -- direct navigation still renders its honest
+		// "not available" state -- but it is deliberately left Admitted:
+		// false (the zero value). No governed page-builder service backs
+		// it, so it must not claim a menu slot under Admin.
 		{ID: PageStudio, Route: "/workspace/app/studio", Label: "Experience Studio", Icon: "studio", Title: "Experience Studio", Subtitle: "Customer page configuration requires its governed service.", LabelKey: "page.studio.label", TitleKey: "page.studio.title", SubtitleKey: "page.studio.subtitle", SearchTerms: []string{"custom pages", "layout", "builder", "designer", "experience", "configuration"}, ParentNav: PageAdmin, RenderOrder: 70, render: studioPage},
-		{ID: PageHelp, Route: "/workspace/app/help", Label: "Help", Icon: "help", Title: "Help center", Subtitle: "Guidance for the live promotion workflow.", LabelKey: "page.help.label", TitleKey: "page.help.title", SubtitleKey: "page.help.subtitle", SearchTerms: []string{"support", "guidance", "documentation", "docs", "assistance"}, RenderOrder: 80, render: helpPage},
-		{ID: PageSettings, Route: "/workspace/app/settings", Label: "Settings", Icon: "settings", Title: "Settings", Subtitle: "Current authenticated session and available preferences.", LabelKey: "page.settings.label", TitleKey: "page.settings.title", SubtitleKey: "page.settings.subtitle", SearchTerms: []string{"preferences", "locale", "language", "accessibility", "account", "session"}, RenderOrder: 90, render: settingsPage},
+		{ID: PageHelp, Route: "/workspace/app/help", Label: "Help", Icon: "help", Title: "Help center", Subtitle: "Guidance for the live promotion workflow.", LabelKey: "page.help.label", TitleKey: "page.help.title", SubtitleKey: "page.help.subtitle", SearchTerms: []string{"support", "guidance", "documentation", "docs", "assistance"}, RenderOrder: 80, Admitted: true, render: helpPage},
+		{ID: PageSettings, Route: "/workspace/app/settings", Label: "Settings", Icon: "settings", Title: "Settings", Subtitle: "Current authenticated session and available preferences.", LabelKey: "page.settings.label", TitleKey: "page.settings.title", SubtitleKey: "page.settings.subtitle", SearchTerms: []string{"preferences", "locale", "language", "accessibility", "account", "session"}, RenderOrder: 90, Admitted: true, render: settingsPage},
 		// Post-settings extension range: unpublished fallback
 		// surfaces land here in delivery order so the governed
 		// tail above never renumbers.
@@ -420,7 +436,7 @@ func validateAuthorizedNavigationItem(item AuthorizedNavigationItem, primary boo
 		return fmt.Errorf("productui: navigation projection exceeds item limit")
 	}
 	definition, ok := definitions[item.Page]
-	if !ok || !item.Authorized || item.Count < 0 || len(item.Keywords) > maxAuthorizedNavigationKeywords {
+	if !ok || !definition.Admitted || !item.Authorized || item.Count < 0 || len(item.Keywords) > maxAuthorizedNavigationKeywords {
 		return fmt.Errorf("productui: malformed navigation projection item")
 	}
 	if !validNavigationText(item.Label, true) || !validNavigationText(item.LabelKey, true) || !validNavigationText(item.Icon, true) ||
@@ -503,12 +519,30 @@ func navigationOverviewLabelKey(page PageID) string {
 	}
 }
 
+// navigationPrimaryEligible reports whether definition may appear as a
+// top-level primary navigation destination. PrimaryNav, admission, and
+// per-role visibility all gate independently and the zero value of
+// Admitted is false, so a page the registry has not explicitly admitted
+// never reaches navigation, even if it declares PrimaryNav.
+func navigationPrimaryEligible(definition PageDefinition, visible func(PageID) bool) bool {
+	return definition.PrimaryNav && definition.Admitted && (visible == nil || visible(definition.ID))
+}
+
+// navigationChildEligible is navigationPrimaryEligible's counterpart for a
+// page nested under a ParentNav group. The same admission gate applies: a
+// ParentNav wire alone (the mechanism Experience Studio and every other
+// unpublished fallback surface already carries) is never sufficient on its
+// own to claim a menu slot.
+func navigationChildEligible(definition PageDefinition, visible func(PageID) bool) bool {
+	return definition.ParentNav != "" && definition.Admitted && (visible == nil || visible(definition.ID))
+}
+
 func navigationFor(locale LocaleContext, visible func(PageID) bool) []NavItem {
 	pages := registeredPages()
 	items := make([]NavItem, 0, len(pages))
 	indexes := make(map[PageID]int)
 	for _, definition := range pages {
-		if !definition.PrimaryNav || visible != nil && !visible(definition.ID) {
+		if !navigationPrimaryEligible(definition, visible) {
 			continue
 		}
 		item := navigationItemFromDefinition(definition, locale)
@@ -516,7 +550,7 @@ func navigationFor(locale LocaleContext, visible func(PageID) bool) []NavItem {
 		indexes[definition.ID] = len(items) - 1
 	}
 	for _, definition := range pages {
-		if definition.ParentNav == "" || visible != nil && !visible(definition.ID) {
+		if !navigationChildEligible(definition, visible) {
 			continue
 		}
 		index, ok := indexes[definition.ParentNav]
