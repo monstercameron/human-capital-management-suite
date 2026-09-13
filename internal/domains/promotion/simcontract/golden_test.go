@@ -14,7 +14,15 @@ import (
 // canonical encoding changed on purpose.
 func TestTodo_PROMO_004_Golden(t *testing.T) {
 	t.Run("promotion", func(t *testing.T) {
-		const wantDigest = "sha256:b2c30198c0cca663be8b2fd7e363919dc43360d37cbff8c22e9ee419e0018fd8"
+		// Re-pinned for PROMOUX-009: canonicalBody now digests each
+		// finding's Owner and CorroboratedBy alongside Code/Severity/
+		// Field/Message, so adding those two fields to the encoding moved
+		// this digest even though the fixture's one finding is not a
+		// duplicate and dedup is a no-op on it. Verified by dumping and
+		// reading the actual computed value (`go test -run
+		// TestTodo_PROMO_004_Golden/promotion -v`) before pinning it here,
+		// per this repository's golden-repin discipline.
+		const wantDigest = "sha256:a5c04d903e0c5e2524e5b3b9a64eeff056a3c7d641a6421225dd0391738da64e"
 		result, err := simcontract.Assemble(promotionFixtureInput(t))
 		if err != nil {
 			t.Fatalf("Assemble: %v", err)

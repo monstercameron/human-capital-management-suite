@@ -16,6 +16,7 @@ package promotion
 // TestTodo_PROMOUX_005_Golden pins ManagementImpact's canonical encoding.
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -411,7 +412,7 @@ func TestTodo_PROMOUX_005_Security(t *testing.T) {
 	if len(unauthorizedFindings) != 1 || len(nonexistentFindings) != 1 {
 		t.Fatalf("findings = %+v / %+v, want exactly one each", unauthorizedFindings, nonexistentFindings)
 	}
-	if unauthorizedFindings[0] != nonexistentFindings[0] {
+	if !reflect.DeepEqual(unauthorizedFindings[0], nonexistentFindings[0]) {
 		t.Fatalf("unauthorized finding %+v != nonexistent finding %+v: this is an enumeration channel", unauthorizedFindings[0], nonexistentFindings[0])
 	}
 	if unauthorizedFindings[0].Code != CodeTargetManagerNotFound {

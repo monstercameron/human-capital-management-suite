@@ -46,7 +46,12 @@ type SimulationResult struct {
 	// Findings are the business-rule findings the candidate's preflight
 	// produced, in the same vocabulary
 	// [github.com/monstercameron/human-capital-management-suite/internal/domains/promotion.PreflightResult]
-	// uses.
+	// uses -- canonicalized by [Assemble]: findings sharing a
+	// [github.com/monstercameron/human-capital-management-suite/internal/domains/promotion.FindingIdentity]
+	// are deduplicated per
+	// [github.com/monstercameron/human-capital-management-suite/internal/domains/promotion.DeduplicateFindings]
+	// before this contract is digested, so this slice is always the
+	// deterministic, deduplicated set (PROMOUX-009).
 	Findings []promotion.Finding
 	// Refusals are the typed effect refusals PROMO-002/003 produced, if any.
 	Refusals []simassign.Refusal
@@ -148,7 +153,16 @@ func Assemble(in AssembleInput) (SimulationResult, error) {
 			Rules:                 clone(in.Revalidation.Rules),
 			ControlSnapshotDigest: in.Revalidation.ControlSnapshotDigest,
 		},
-		Findings: clone(in.Findings),
+		// Findings are canonicalized here, before Status is derived and
+		// before the digest is computed, which is deliberate: this is the
+		// simulation-contract boundary PROMOUX-009 canonicalizes at, and it
+		// sits strictly before both. Deduplicating after digesting (or
+		// worse, after [Persist.Store]) would let a caller mint a digest
+		// over undeduplicated findings -- exactly the "digest that changes
+		// depending on how many times a rule fired" bug this todo exists to
+		// close -- and [Persist] never re-derives anything from what it is
+		// handed, so it must already be canonical when it arrives.
+		Findings: promotion.DeduplicateFindings(clone(in.Findings)),
 		Refusals: clone(in.Refusals),
 	}
 	r.Status = deriveStatus(r.Findings, r.Refusals)
@@ -381,7 +395,9 @@ func (r SimulationResult) canonicalBody() ([]byte, error) {
 		w.String("finding.code", f.Code).
 			String("finding.severity", f.Severity.String()).
 			String("finding.field", f.Field).
-			String("finding.message", f.Message)
+			String("finding.message", f.Message).
+			String("finding.owner", f.Owner).
+			SortedStrings("finding.corroborated_by", f.CorroboratedBy)
 	}
 	w.Count("refusals", len(r.Refusals))
 	for _, ref := range r.Refusals {

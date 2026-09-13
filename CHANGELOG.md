@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-09-13 (PROMOUX-009)
+
+- Promotion simulation findings now have a typed identity and deduplicate
+  before presentation. Nothing deduplicated before: `sortFindings` is a
+  total order that collapses nothing, `Assemble` did a straight clone, and
+  eight append sites fed findings with no coordination. Findings also had no
+  owner at all, though it is part of the identity GREEN asks for.
+
+- Identity is (Code, Field, Severity). Code belongs in it: it is a small
+  closed vocabulary of rule-assigned constants, not a display string.
+  Message stays out -- it is the freeform field REFACTOR's "never on
+  rendered strings" is about -- so the same rule firing twice with different
+  wording collapses, picking the canonical message deterministically.
+
+- Owner sits outside identity on purpose. Two owners reporting the same
+  observation are corroboration, not two observations, so they collapse to
+  one row that records every contributing owner; a same-owner repeat
+  collapses with no corroboration recorded.
+
+- Dedup runs inside Assemble, upstream of status derivation and the digest,
+  so the digest cannot vary with how many times a rule happened to fire and
+  the reloaded count is exactly the assembled one.
+
+- A first implementation was rejected for defining identity as (Field,
+  Severity) alone, which silently discarded distinct observations rather
+  than duplicates. checkCompensation raises both
+  compensation.proposed_amount_invalid and compensation.not_a_raise on
+  proposed.base at BLOCKING for one proposal carrying a present-but-zero
+  proposed base, since the early return guards only !currentOK || !proposedOK.
+  Those collapsed into one and the lexicographically smaller code won, so a
+  reviewer was told the amount was not a raise and never told it was
+  invalid. The same collision exists on target.grade and on
+  proposed.base.currency, and nothing keeps such pairs mutually exclusive as
+  rules are added.
+
+- The regression test drives the real rule engine rather than a hand-built
+  literal, and asserts the fixture still reproduces both codes before
+  asserting both survive, so it cannot quietly go vacuous. The property test
+  was rebuilt for the same trap: it had passed under the broken identity
+  because its generator only ever produced genuine duplicates.
+
 ## 2026-09-13 (PROMOUX-008)
 
 - The Technical details disclosure had no authorization check at all. Both

@@ -131,11 +131,28 @@ func (s Severity) String() string {
 
 // Finding is one typed preflight result. Message is an operator-facing
 // sentence; Code is the stable identity that rules, tests and UIs key on.
+//
+// Owner and CorroboratedBy exist for PROMOUX-009's canonicalization: Owner
+// names the subsystem that sourced this finding (never caller-forged; a rule
+// engine sets it once, at construction), and CorroboratedBy carries every
+// other distinct owner that independently reported the same observation once
+// [DeduplicateFindings] has folded a group of findings that share a
+// [FindingIdentity] into one. A Finding built without going through dedup
+// (every finding this package's own rules produce today) simply carries an
+// empty Owner and a nil CorroboratedBy, which is the correct answer for "was
+// this ever corroborated": no, and it does not need to be for the finding to
+// be usable -- Owner is metadata about provenance, never part of what makes a
+// finding valid. See [Finding.Identity].
 type Finding struct {
 	Code     string
 	Severity Severity
 	Field    string
 	Message  string
+	Owner    string
+	// CorroboratedBy lists every distinct owner, other than Owner, that
+	// independently reported this same observation. It is sorted and nil
+	// unless dedup found more than one distinct owner for the identity.
+	CorroboratedBy []string
 }
 
 // Status is the typed preflight verdict required by INTENT-004.
