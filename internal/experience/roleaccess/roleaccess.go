@@ -302,12 +302,27 @@ func DefaultRoles() []Role {
 	}
 }
 
+// PageJourneyDiagnostics is PROMOUX-008's authorized diagnostics disclosure:
+// the raw entity refs, digests, workflow instance/node internals and
+// evidence references a promotion journey's ordinary business review must
+// never carry. It is a page id like any other in [DefaultPagePermissions],
+// gated the same way (View), but it names a disclosure within the Journeys
+// and My Work pages rather than a navigable route of its own, so it is
+// deliberately absent from [PageVisible]-style navigation registries.
+// hcm_admin and comp_admin already hold it through their blanket grant
+// below; promotion_operator holds it explicitly because operating the
+// governed promotion machinery is exactly the job diagnosing it serves.
+// Every other role -- including the manager or HR partner who can approve a
+// promotion -- has no grant, and CanPageAction denies by default rather
+// than falling back to any other page's permission.
+const PageJourneyDiagnostics = "journey-diagnostics"
+
 // DefaultPagePermissions preserves the existing role experience while making
 // it explicit and editable. The employee self-service role demonstrates the
 // important read-only case: it can view Insights but cannot create, update, or
 // delete reports there.
 func DefaultPagePermissions() []PagePermission {
-	pages := []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "insights", "admin", "worker-ids", "roles", "organization-visibility", "appearance", "studio", "help", "settings"}
+	pages := []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "insights", "admin", "worker-ids", "roles", "organization-visibility", "appearance", "studio", "help", "settings", PageJourneyDiagnostics}
 	result := make([]PagePermission, 0, len(pages)*2+64)
 	grant := func(role, page string, create, update, delete bool) {
 		result = append(result, PagePermission{RoleID: role, PageID: page, View: true, Create: create, Update: update, Delete: delete})
@@ -330,5 +345,6 @@ func DefaultPagePermissions() []PagePermission {
 		grant("intent_author", page, page == "journeys", page == "settings", false)
 		grant("promotion_operator", page, false, page == "journeys" || page == "work" || page == "settings", false)
 	}
+	grant("promotion_operator", PageJourneyDiagnostics, false, false, false)
 	return result
 }

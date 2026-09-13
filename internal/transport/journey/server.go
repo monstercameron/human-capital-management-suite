@@ -300,9 +300,10 @@ func (s *server) ListJourneys(ctx context.Context, _ *journeyv1.ListJourneysRequ
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "list")
 	}
+	diagAuthorized := s.diagnosticsAuthorized(ctx, principal)
 	resp := &journeyv1.ListJourneysResponse{}
-	for _, s := range summaries {
-		resp.Journeys = append(resp.Journeys, toJourney(s))
+	for _, summary := range summaries {
+		resp.Journeys = append(resp.Journeys, toJourney(summary, diagAuthorized))
 	}
 	return resp, nil
 }
@@ -335,7 +336,7 @@ func (s *server) ProposeJourney(ctx context.Context, req *journeyv1.ProposeJourn
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "propose")
 	}
-	return &journeyv1.ProposeJourneyResponse{Journey: toJourney(summary)}, nil
+	return &journeyv1.ProposeJourneyResponse{Journey: toJourney(summary, s.diagnosticsAuthorized(ctx, principal))}, nil
 }
 
 // InspectJourney forwards to workspace.JourneyEngine.Inspect. READ_ONLY.
@@ -353,7 +354,7 @@ func (s *server) InspectJourney(ctx context.Context, req *journeyv1.InspectJourn
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "inspect")
 	}
-	return &journeyv1.InspectJourneyResponse{Detail: toDetail(detail)}, nil
+	return &journeyv1.InspectJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
 }
 
 // ExecuteJourney forwards to workspace.JourneyEngine.Execute, which runs
@@ -375,7 +376,7 @@ func (s *server) ExecuteJourney(ctx context.Context, req *journeyv1.ExecuteJourn
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "execute")
 	}
-	return &journeyv1.ExecuteJourneyResponse{Detail: toDetail(detail)}, nil
+	return &journeyv1.ExecuteJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
 }
 
 // DecideJourney forwards to workspace.JourneyEngine.Decide, which claims and
@@ -401,7 +402,7 @@ func (s *server) DecideJourney(ctx context.Context, req *journeyv1.DecideJourney
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "decide")
 	}
-	return &journeyv1.DecideJourneyResponse{Detail: toDetail(detail)}, nil
+	return &journeyv1.DecideJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
 }
 
 // ListWorkers forwards to workspace.JourneyEngine.ListWorkers. READ_ONLY.

@@ -275,6 +275,15 @@ type JourneyCard struct {
 	Updated   string
 	// InstanceID is empty before execution.
 	InstanceID string
+	// DiagnosticsAuthorized is PROMOUX-008's authorized-diagnostics verdict
+	// for the signed-in viewer, computed server-side and carried down with
+	// the page permissions this cell already hands the client -- never
+	// guessed from whether WorkerRef, IntentID or InstanceID happen to be
+	// set. It is the only thing that gates the card's and the hero's
+	// Technical details disclosure: an unauthorized viewer's disclosure is
+	// absent regardless of what this journey's underlying state is, so its
+	// presence, count and layout carry no information about that state.
+	DiagnosticsAuthorized bool
 
 	// OnOpen, when set, opens this journey in the live client instead of
 	// letting the browser follow Href.

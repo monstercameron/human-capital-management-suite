@@ -343,7 +343,7 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 		if j == nil {
 			continue
 		}
-		cards = append(cards, card(j))
+		cards = append(cards, card(cfg, j))
 	}
 	// UXAUDIT-017: Journeys is a lifecycle tracker grouped by subject and
 	// status, not the flat list this loop just built in server-recency
@@ -447,22 +447,25 @@ func nonEmpty(value, fallback string) string {
 }
 
 // card is one journey as the list shows it and as the detail header repeats
-// it.
-func card(j *journeyv1.Journey) journey.JourneyCard {
+// it. cfg supplies PROMOUX-008's diagnostics authorization: a server-derived
+// verdict from the same page permissions the shell island already carries,
+// never a client guess drawn from whether the wire fields happen to be set.
+func card(cfg Config, j *journeyv1.Journey) journey.JourneyCard {
 	stage := stageOf(j.GetStage())
 	return journey.JourneyCard{
-		IntentID:      j.GetIntentId(),
-		Href:          DetailHref(j.GetIntentId()),
-		WorkerName:    j.GetWorkerName(),
-		WorkerRef:     j.GetWorkerRef(),
-		Headline:      headline(j.GetCurrent().GetJobCode(), j.GetCurrent().GetGrade(), j.GetTarget().GetJobCode(), j.GetTarget().GetGrade()),
-		PayLine:       payLine(j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()),
-		EffectiveDate: formatDate(j.GetEffectiveDate()),
-		Stage:         stage,
-		StageLabel:    stageLabel(stage),
-		StageTone:     stageTone(stage),
-		Updated:       formatTime(j.GetUpdatedAt()),
-		InstanceID:    j.GetInstanceId(),
+		IntentID:              j.GetIntentId(),
+		Href:                  DetailHref(j.GetIntentId()),
+		WorkerName:            j.GetWorkerName(),
+		WorkerRef:             j.GetWorkerRef(),
+		Headline:              headline(j.GetCurrent().GetJobCode(), j.GetCurrent().GetGrade(), j.GetTarget().GetJobCode(), j.GetTarget().GetGrade()),
+		PayLine:               payLine(j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()),
+		EffectiveDate:         formatDate(j.GetEffectiveDate()),
+		Stage:                 stage,
+		StageLabel:            stageLabel(stage),
+		StageTone:             stageTone(stage),
+		Updated:               formatTime(j.GetUpdatedAt()),
+		InstanceID:            j.GetInstanceId(),
+		DiagnosticsAuthorized: cfg.CanPageAction(diagnosticsPageID, "view"),
 	}
 }
 
@@ -1222,7 +1225,7 @@ func valueOr(values map[string]string, id, fallback string) string {
 // DetailPage projects one journey.
 func DetailPage(cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string) journey.Page {
 	summary := detail.GetJourney()
-	head := card(summary)
+	head := card(cfg, summary)
 	title := "Promotion journey · " + Brand
 	if name := summary.GetWorkerName(); name != "" {
 		title = name + " · Promotion journey · " + Brand

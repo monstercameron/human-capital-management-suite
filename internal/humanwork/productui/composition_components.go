@@ -1,6 +1,9 @@
 package productui
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -111,6 +114,82 @@ func factRows(facts []FactProps) []ui.Node {
 		))
 	}
 	return children
+}
+
+// TechnicalDetailItem is one raw identifier in PROMOUX-008's authorized
+// diagnostics disclosure: a label and its full, uncensored value. The
+// component renders the value redacted (see maskIdentifier) and copies the
+// full value to the clipboard on request, so an authorized viewer can act
+// on the identifier without a shoulder-surfer or a screen share reading it
+// off the page.
+type TechnicalDetailItem struct {
+	Label string
+	Value string
+}
+
+// TechnicalDetailsProps is the whole disclosure. Available is the single
+// gate: it must come from a server-derived authorization decision (see
+// View.Can(PageJourneyDiagnostics, "view")), never from whether Items
+// happens to be empty, so an unauthorized viewer's page and an authorized
+// viewer's page whose journey has nothing to disclose yet cannot be told
+// apart by the disclosure's presence, count or layout -- only Available
+// distinguishes "not shown because not authorized" from "shown, but there
+// is nothing to list."
+type TechnicalDetailsProps struct {
+	I18nProps
+	Available bool
+	Items     []TechnicalDetailItem
+}
+
+// maskIdentifier redacts a raw identifier for on-screen display: everything
+// but its last four characters becomes a bullet. The full value still
+// travels to the copy control, which is the authorized viewer's actual
+// entitlement; masking only reduces what a passerby reads off the screen.
+func maskIdentifier(value string) string {
+	const visible = 4
+	if len(value) <= visible {
+		return strings.Repeat("•", len(value))
+	}
+	return "••••" + value[len(value)-visible:]
+}
+
+// TechnicalDetails renders GREEN's authorized Technical details disclosure
+// as a collapsed <details>, present at all only when Available -- the
+// presence-channel closure PROMOUX-008 requires. Diagnostics.Available
+// false renders the same empty, hidden placeholder
+// PromotionValidationDiagnosticsPanel uses for the same reason: an absent
+// section that still occupies no visible or structural difference a viewer
+// could read as "this journey has something to disclose."
+func TechnicalDetails(props TechnicalDetailsProps) ui.Node {
+	if !props.Available {
+		return html.Div(html.Props{Hidden: true, Class: "technical-details-empty"})
+	}
+	rows := make([]ui.Node, 0, len(props.Items))
+	for i, item := range props.Items {
+		if strings.TrimSpace(item.Value) == "" {
+			continue
+		}
+		valueID := "technical-detail-value-" + strconv.Itoa(i)
+		rows = append(rows, html.Div(html.Props{Class: "technical-detail-row"},
+			html.Span(html.Props{Class: "technical-detail-label"}, ui.Text(item.Label)),
+			html.Input(html.Props{ID: valueID, Type: "text", ReadOnly: true, Class: "technical-detail-value", Value: maskIdentifier(item.Value)}),
+			html.Button(html.Props{
+				Type:  "button",
+				Class: "technical-detail-copy",
+				Aria:  map[string]string{"label": props.Text("work.copy_value") + ": " + item.Label},
+				OnClick: ui.UseEvent(func(ui.MouseEvent) {
+					copyToClipboard(item.Value)
+				}),
+			}, ui.Text(props.Text("work.copy_value"))),
+		))
+	}
+	if len(rows) == 0 {
+		return html.Div(html.Props{Hidden: true, Class: "technical-details-empty"})
+	}
+	return html.Details(html.Props{Class: "technical-details", Dir: string(props.Locale.Direction)},
+		html.Summary(html.Props{}, ui.Text(props.Text("work.technical_details"))),
+		html.Div(html.Props{Class: "technical-details-body"}, rows...),
+	)
 }
 
 func MetricGrid(metrics []MetricProps) ui.Node {

@@ -166,7 +166,9 @@ func TestWatchJourneyEmitsTheCurrentDetailImmediately(t *testing.T) {
 	engine := newFakeEngine()
 	client := dialJourneyClient(startTestServer(t, watchDeps(engine)))
 
-	watch := openWatch(t, testContext(t), client, &journeyv1.WatchJourneyRequest{IntentId: fixtureIntentID})
+	// assertDetailIsWhole checks PROMOUX-008's diagnostics-authorized-only
+	// sections, so this stream opens as the authorized fixture identity.
+	watch := openWatch(t, authorizedContext(t), client, &journeyv1.WatchJourneyRequest{IntentId: fixtureIntentID})
 	assertDetailIsWhole(t, watch.recv(5*time.Second).GetDetail())
 
 	engine.mu.Lock()

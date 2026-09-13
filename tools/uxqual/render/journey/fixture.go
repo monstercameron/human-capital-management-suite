@@ -67,6 +67,12 @@ func fixtureSubject() JourneyCard {
 		StageTone:     toneWarning,
 		Updated:       "12 May 2026, 09:12 UTC",
 		InstanceID:    fixtureInstanceID,
+		// fixturePrincipal is signed in with a role this fixture treats as
+		// PROMOUX-008 diagnostics-authorized, so the reference page exercises
+		// every section a renderer test walks, per this file's own doc
+		// comment. fixture_test.go and components_test.go cover the
+		// unauthorized shape directly.
+		DiagnosticsAuthorized: true,
 	}
 }
 

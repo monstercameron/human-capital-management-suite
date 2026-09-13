@@ -11,10 +11,16 @@ import (
 type PageID string
 
 const (
-	PageHome                    PageID = "home"
-	PageMyself                  PageID = "myself"
-	PageJourneys                PageID = "journeys"
-	PageWork                    PageID = "work"
+	PageHome     PageID = "home"
+	PageMyself   PageID = "myself"
+	PageJourneys PageID = "journeys"
+	PageWork     PageID = "work"
+	// PageJourneyDiagnostics is not a navigable route: it names PROMOUX-008's
+	// authorized diagnostics disclosure (raw identifiers such as a journey's
+	// work-item id) within the Journeys and My Work pages. It shares its
+	// wire id with roleaccess.PageJourneyDiagnostics so a single role grant
+	// governs both surfaces.
+	PageJourneyDiagnostics      PageID = "journey-diagnostics"
 	PageHistory                 PageID = "history"
 	PagePeople                  PageID = "people"
 	PagePerson                  PageID = "person"

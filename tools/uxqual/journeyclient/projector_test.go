@@ -56,6 +56,23 @@ func testConfig() Config {
 	}
 }
 
+// testDiagnosticsAuthorizedConfig is testConfig plus PROMOUX-008 diagnostics
+// authorization, for the handful of tests whose whole point is that every
+// projected section reaches the renderer -- not testConfig itself, because
+// a non-empty PagePermissions also flips DetailPage's unrelated back-compat
+// default for its own action-visibility check (CanPageAction("journeys" /
+// "work", "update")), which every other action-focused test here still
+// relies on being permissive by default.
+func testDiagnosticsAuthorizedConfig() Config {
+	cfg := testConfig()
+	cfg.PagePermissions = []PagePermission{
+		{RoleID: "hr.business_partner", PageID: diagnosticsPageID, View: true},
+		{RoleID: "hr.business_partner", PageID: "journeys", View: true, Update: true},
+		{RoleID: "hr.business_partner", PageID: "work", View: true, Update: true},
+	}
+	return cfg
+}
+
 func testJourney(t *testing.T, stage journeyv1.JourneyStage) *journeyv1.Journey {
 	t.Helper()
 	j := &journeyv1.Journey{
@@ -909,7 +926,7 @@ func TestProjectionPassesRawStringsToTheRenderer(t *testing.T) {
 // TestProjectedPagesRender is the end-to-end shape check: both projections
 // go through the real renderer without error and carry their own facts.
 func TestProjectedPagesRender(t *testing.T) {
-	cfg := testConfig()
+	cfg := testDiagnosticsAuthorizedConfig()
 
 	list, err := journey.RenderToString(ListPage(cfg, ListData{
 		Journeys: []*journeyv1.Journey{testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL)},

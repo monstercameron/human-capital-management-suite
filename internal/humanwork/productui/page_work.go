@@ -113,9 +113,30 @@ func workPreviewProps(view View, item WorkItem) WorkPreviewProps {
 			{Label: view.Locale.Text("work.effective_date"), Value: valueOrUnavailableFor(view.Locale, item.EffectiveDate)},
 			{Label: view.Locale.Text("work.current_base"), Value: money(view.Locale, item.CurrentBase)},
 			{Label: view.Locale.Text("work.proposed_base"), Value: money(view.Locale, item.ProposedBase)},
-			{Label: view.Locale.Text("work.journey_id"), Value: item.ID},
 		},
-		Action: ActionLinkProps{Label: view.Locale.Text("work.open_journey"), Href: item.Href, Class: "button primary full", Navigate: view.Navigate},
+		// PROMOUX-008: the journey id is a work-item UUID -- RED names it by
+		// name -- so it no longer sits in the plain Facts list every viewer
+		// of this page reads. It is authorized diagnostics-only.
+		Diagnostics: workTechnicalDetails(view, item),
+		Action:      ActionLinkProps{Label: view.Locale.Text("work.open_journey"), Href: item.Href, Class: "button primary full", Navigate: view.Navigate},
+	}
+}
+
+// workTechnicalDetails is PROMOUX-008's authorized-only disclosure for the
+// selected work item's journey id. Available is view.Can's server-derived
+// verdict, never item.ID's presence: item.ID is always set for a real
+// selection (workPreviewProps already returned the Empty variant above when
+// it is not), so gating on Available alone is what keeps two viewers at the
+// same authority level -- one selecting a journey, one not having reached
+// this function at all because their queue is empty -- indistinguishable in
+// disclosure shape; the only thing that varies is view.Can's answer.
+func workTechnicalDetails(view View, item WorkItem) TechnicalDetailsProps {
+	if !view.Can(PageJourneyDiagnostics, "view") {
+		return TechnicalDetailsProps{}
+	}
+	return TechnicalDetailsProps{
+		Available: true,
+		Items:     []TechnicalDetailItem{{Label: view.Locale.Text("work.journey_id"), Value: item.ID}},
 	}
 }
 

@@ -105,6 +105,11 @@ type WorkPreviewProps struct {
 	Disposition ApprovalDispositionCardProps
 	FactsTitle  string
 	Facts       []FactProps
+	// Diagnostics is PROMOUX-008's authorized-only journey id disclosure.
+	// The raw identifier no longer travels in Facts (GREEN: an ordinary
+	// reviewer sees no work-item UUID); it lives only here, gated by
+	// Diagnostics.Available.
+	Diagnostics TechnicalDetailsProps
 	Action      ActionLinkProps
 	EmptyTitle  string
 	EmptyDetail string
@@ -264,6 +269,12 @@ func WorkPreview(props WorkPreviewProps) ui.Node {
 	if props.Disposition.Show {
 		children = append(children, ui.CreateElement(ApprovalDispositionCard, props.Disposition))
 	}
-	children = append(children, html.Div(html.Props{Class: "facts"}, facts...), provenance, ui.CreateElement(ActionLink, props.Action))
+	diagnostics := props.Diagnostics
+	diagnostics.I18nProps = props.I18nProps
+	children = append(children,
+		html.Div(html.Props{Class: "facts"}, facts...),
+		ui.CreateElement(TechnicalDetails, diagnostics),
+		provenance, ui.CreateElement(ActionLink, props.Action),
+	)
 	return html.Aside(html.Props{Class: "surface work-preview", Aria: map[string]string{"label": props.Text("work.selected_summary")}}, children...)
 }

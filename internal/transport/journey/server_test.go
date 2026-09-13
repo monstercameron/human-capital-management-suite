@@ -26,6 +26,20 @@ func testContext(t *testing.T) context.Context {
 	return withToken(ctx, fixtureManagerToken)
 }
 
+// authorizedContext is testContext's counterpart carrying the fixture
+// appearance-admin token (comp_admin), which PROMOUX-008's diagnostics gate
+// treats as authorized. It exists for tests whose whole point is that the
+// wire conversion is total -- a fully populated port value comes back whole
+// -- rather than a test of the diagnostics-authorization boundary itself,
+// which has its own dedicated PROMOUX-008 tests exercising the ordinary
+// fixtureManagerToken as the unauthorized case.
+func authorizedContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	return withToken(ctx, fixtureAppearanceAdminToken)
+}
+
 // TestJourneyServiceRPCsForwardToTheEnginePort drives every RPC through a
 // real gRPC client against a fake engine and asserts both directions: that
 // the request reached the port as the port's own plain Go types, and that
@@ -88,7 +102,12 @@ func TestJourneyServiceRPCsForwardToTheEnginePort(t *testing.T) {
 	})
 
 	t.Run("InspectJourney", func(t *testing.T) {
-		resp, err := client.InspectJourney(ctx, &journeyv1.InspectJourneyRequest{IntentId: fixtureIntentID})
+		// assertDetailIsWhole checks the diagnostic-only sections PROMOUX-008
+		// withholds from an unauthorized caller, so this call -- proving the
+		// port's answer forwards whole, not proving who may see it -- uses
+		// the authorized fixture identity. The gate itself is
+		// TestTodo_PROMOUX_008_Security's job.
+		resp, err := client.InspectJourney(authorizedContext(t), &journeyv1.InspectJourneyRequest{IntentId: fixtureIntentID})
 		if err != nil {
 			t.Fatalf("InspectJourney: %v", err)
 		}
@@ -102,7 +121,7 @@ func TestJourneyServiceRPCsForwardToTheEnginePort(t *testing.T) {
 	})
 
 	t.Run("ExecuteJourney", func(t *testing.T) {
-		resp, err := client.ExecuteJourney(ctx, &journeyv1.ExecuteJourneyRequest{IntentId: fixtureIntentID})
+		resp, err := client.ExecuteJourney(authorizedContext(t), &journeyv1.ExecuteJourneyRequest{IntentId: fixtureIntentID})
 		if err != nil {
 			t.Fatalf("ExecuteJourney: %v", err)
 		}
@@ -116,7 +135,7 @@ func TestJourneyServiceRPCsForwardToTheEnginePort(t *testing.T) {
 	})
 
 	t.Run("DecideJourney", func(t *testing.T) {
-		resp, err := client.DecideJourney(ctx, &journeyv1.DecideJourneyRequest{
+		resp, err := client.DecideJourney(authorizedContext(t), &journeyv1.DecideJourneyRequest{
 			IntentId: fixtureIntentID,
 			Approve:  true,
 			Reason:   "scope and impact confirmed",
@@ -134,7 +153,7 @@ func TestJourneyServiceRPCsForwardToTheEnginePort(t *testing.T) {
 	})
 
 	t.Run("WatchJourney emits immediately when the client holds nothing", func(t *testing.T) {
-		stream, err := client.WatchJourney(ctx, &journeyv1.WatchJourneyRequest{IntentId: fixtureIntentID})
+		stream, err := client.WatchJourney(authorizedContext(t), &journeyv1.WatchJourneyRequest{IntentId: fixtureIntentID})
 		if err != nil {
 			t.Fatalf("WatchJourney: %v", err)
 		}

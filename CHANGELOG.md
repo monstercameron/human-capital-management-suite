@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-09-13 (PROMOUX-008)
+
+- The Technical details disclosure had no authorization check at all. Both
+  render sites gated on `WorkerRef != "" || InstanceID != ""` -- data
+  presence -- so every viewer who could see a journey card received the
+  worker entity ref and the instance UUID. Diagnostics is now a first-class
+  page id, `journey-diagnostics`, granted to hcm_admin/comp_admin and
+  explicitly to promotion_operator, and to nobody else: managers and HR
+  partners who can approve a promotion still cannot read its machinery.
+
+- The identifiers are withheld from the payload, not just the view. An
+  unauthorized caller no longer receives material digests, correlation ids,
+  instance ids, the whole Instance message, planned writes, ledger entries,
+  evidence ids, nodes, transitions or work-item ids on any journey RPC.
+  Worker ref and intent id are deliberately kept -- they are the routing
+  keys the profile link and the journey's own address need.
+
+- Presence was its own leak. Because the disclosure appeared exactly when
+  internals existed, a viewer could infer "this journey has an instance"
+  from the summary alone; gating only the contents would have left that
+  open. Presence now derives from a server-computed authorization verdict,
+  so unauthorized viewers see no disclosure at all, uniformly. The detail
+  page's workflow, outcome and evidence panels -- which had rendered
+  unconditionally whenever they held content -- are gated the same way.
+
+- My Work rendered a raw work-item UUID in its default view on a page with
+  no disclosure of any kind. It now appears only inside the authorized one.
+
+- The server gate fails closed: a nil role-access store, an empty permission
+  table and a missing grant all deny. That is deliberately unlike the
+  existing permissive rolling-upgrade default, because this authority never
+  existed before and a permissive default would have handed it to everyone.
+
+- Authorized viewers see redacted values (`••••0020`) with per-row copy
+  controls that write the full value to the clipboard.
+
 ## 2026-09-13 (UXAUDIT-024)
 
 - This todo closed with no production change, and that is the finding. The

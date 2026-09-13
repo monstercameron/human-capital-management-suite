@@ -158,10 +158,18 @@ func fromPlacement(p *journeyv1.Placement) workspace.JourneyPlacement {
 // canonical text encoding (values.EntityRef.String), which is empty for a
 // reference the kernel would not accept - an invalid reference must not be
 // re-rendered into a shape a client could echo back as if it were valid.
-func toJourney(s workspace.JourneySummary) *journeyv1.Journey {
-	return &journeyv1.Journey{
+// WorkerRef and IntentId always travel: both are routing keys ordinary
+// business navigation needs (the person profile link, this journey's own
+// address), never displayed as diagnostic content on their own. diagAuthor-
+// ized (PROMOUX-008) instead gates the fields with no business rendering
+// path at all -- the material/plan digest, the correlation id, and the
+// workflow instance identity -- by omitting them from the wire message
+// itself for a principal [server.diagnosticsAuthorized] denies, so an
+// unauthorized viewer never has them to withhold from the view; they are
+// simply not in the payload.
+func toJourney(s workspace.JourneySummary, diagAuthorized bool) *journeyv1.Journey {
+	out := &journeyv1.Journey{
 		IntentId:           s.IntentID,
-		CorrelationId:      s.CorrelationID,
 		WorkerRef:          s.Worker.String(),
 		WorkerName:         s.WorkerName,
 		Current:            toPlacement(s.Current),
@@ -173,12 +181,16 @@ func toJourney(s workspace.JourneySummary) *journeyv1.Journey {
 		BusinessReason:     s.BusinessReason,
 		Stage:              stageToProto(s.Stage),
 		ProposalRevisionId: s.ProposalRevisionID,
-		MaterialDigest:     s.MaterialDigest,
-		InstanceId:         s.InstanceID,
-		InstanceVersion:    s.InstanceVersion,
 		CreatedAt:          toTimestamp(s.CreatedAt),
 		UpdatedAt:          toTimestamp(s.UpdatedAt),
 	}
+	if diagAuthorized {
+		out.CorrelationId = s.CorrelationID
+		out.MaterialDigest = s.MaterialDigest
+		out.InstanceId = s.InstanceID
+		out.InstanceVersion = s.InstanceVersion
+	}
+	return out
 }
 
 // toFinding renders one simulation finding.
@@ -187,9 +199,13 @@ func toFinding(f workspace.JourneyFinding) *journeyv1.Finding {
 }
 
 // toInstance renders the workflow instance, or nil when the journey has not
-// been executed.
-func toInstance(i *workspace.JourneyInstance) *journeyv1.Instance {
-	if i == nil {
+// been executed or the caller is not [server.diagnosticsAuthorized]. The
+// instance is diagnostic-only end to end (no page has ever rendered its
+// fields for a business purpose), so an unauthorized caller gets nil
+// regardless of whether the journey actually has one -- the same absent
+// shape either way, never a hint that distinguishes the two.
+func toInstance(i *workspace.JourneyInstance, diagAuthorized bool) *journeyv1.Instance {
+	if i == nil || !diagAuthorized {
 		return nil
 	}
 	return &journeyv1.Instance{
@@ -228,9 +244,21 @@ func toNode(n workspace.JourneyNode) *journeyv1.NodeExecution {
 // identifiers travel as their canonical strings because
 // definitions/architecture/dependency-roles.yaml does not admit
 // internal/transport as an import root for github.com/google/uuid.
-func toWorkItem(w workitem.WorkItem) *journeyv1.WorkItem {
+//
+// WorkItemId is withheld unless diagAuthorized: PROMOUX-008 names "work-item
+// UUIDs" as an internal the ordinary approver never needs, and no RPC this
+// service exposes accepts a work item id back as input (DecideJourney acts
+// on the intent id) -- so it is pure diagnostic identity, while every other
+// field here (status, owner, claim, deadline) is what the approval
+// disposition card actually renders and must keep carrying regardless of
+// diagnostics authority.
+func toWorkItem(w workitem.WorkItem, diagAuthorized bool) *journeyv1.WorkItem {
+	workItemID := ""
+	if diagAuthorized {
+		workItemID = w.WorkItemID.String()
+	}
 	return &journeyv1.WorkItem{
-		WorkItemId:     w.WorkItemID.String(),
+		WorkItemId:     workItemID,
 		Kind:           string(w.Kind),
 		Status:         string(w.Status),
 		WorkType:       w.WorkType,
@@ -293,26 +321,46 @@ func toTimelineEvent(e workspace.JourneyEvent) *journeyv1.TimelineEvent {
 // toDetail renders the whole detail and stamps its change-detection digest.
 // The digest is computed last, over the finished message, so it covers every
 // field the page can see.
-func toDetail(d workspace.JourneyDetail) *journeyv1.JourneyDetail {
+//
+// diagAuthorized (PROMOUX-008) is the one boolean [server.diagnosticsAuthor
+// ized] computes for the caller; it decides which of the two projections
+// over this single, already-fetched d a caller receives. Timeline is the
+// business projection -- already human-readable history, sent unconditionally
+// to every caller who could reach InspectJourney at all. PlannedWrites (raw
+// SET operations), Instance (workflow/instance internals), Nodes (node
+// executions and trace ids) and Ledger (the stream key, schema ref and
+// digest of the terminal write) and EvidenceIds are the diagnostic
+// projection: every one of them is withheld -- nil or empty, never merely
+// hidden -- for a caller this todo does not authorize, because nothing this
+// service or any page built on it renders from them for an ordinary
+// reviewer. WorkItems is not part of either list: it stays populated either
+// way because the approval disposition an ordinary approver needs comes
+// from it (see toWorkItem); only its WorkItemId is diagnostic-only and is
+// blanked per item instead.
+func toDetail(d workspace.JourneyDetail, diagAuthorized bool) *journeyv1.JourneyDetail {
 	out := &journeyv1.JourneyDetail{
-		Journey:       toJourney(d.Summary),
-		PlannedWrites: append([]string(nil), d.PlannedWrites...),
-		Instance:      toInstance(d.Instance),
-		Ledger:        toLedger(d.Ledger),
-		EvidenceIds:   append([]string(nil), d.EvidenceIDs...),
-		Approver:      d.Approver,
+		Journey:  toJourney(d.Summary, diagAuthorized),
+		Instance: toInstance(d.Instance, diagAuthorized),
+		Approver: d.Approver,
+	}
+	if diagAuthorized {
+		out.PlannedWrites = append([]string(nil), d.PlannedWrites...)
+		out.Ledger = toLedger(d.Ledger)
+		out.EvidenceIds = append([]string(nil), d.EvidenceIDs...)
 	}
 	for _, f := range d.Findings {
 		out.Findings = append(out.Findings, toFinding(f))
 	}
-	for _, n := range d.Nodes {
-		out.Nodes = append(out.Nodes, toNode(n))
+	if diagAuthorized {
+		for _, n := range d.Nodes {
+			out.Nodes = append(out.Nodes, toNode(n))
+		}
+		for _, t := range d.Transitions {
+			out.Transitions = append(out.Transitions, toTransition(t))
+		}
 	}
 	for _, w := range d.WorkItems {
-		out.WorkItems = append(out.WorkItems, toWorkItem(w))
-	}
-	for _, t := range d.Transitions {
-		out.Transitions = append(out.Transitions, toTransition(t))
+		out.WorkItems = append(out.WorkItems, toWorkItem(w, diagAuthorized))
 	}
 	for _, e := range d.Timeline {
 		out.Timeline = append(out.Timeline, toTimelineEvent(e))

@@ -108,7 +108,7 @@ func TestJourneyNextActionsPrecedeSupportingDetails(t *testing.T) {
 }
 
 func TestJourneyHeroTechnicalIdentifiersAreCollapsed(t *testing.T) {
-	markup, err := ui.RenderToString(heroSection(JourneyCard{WorkerName: "Jane", WorkerRef: "worker-test", IntentID: "intent-test", InstanceID: "instance-test", EffectiveDate: "date-test", Updated: "updated-test"}))
+	markup, err := ui.RenderToString(heroSection(JourneyCard{WorkerName: "Jane", WorkerRef: "worker-test", IntentID: "intent-test", InstanceID: "instance-test", EffectiveDate: "date-test", Updated: "updated-test", DiagnosticsAuthorized: true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,10 +116,18 @@ func TestJourneyHeroTechnicalIdentifiersAreCollapsed(t *testing.T) {
 		t.Fatal("technical identifiers need a closed native disclosure")
 	}
 	start, end := strings.Index(markup, "<details"), strings.Index(markup, "</details>")
+	// PROMOUX-008: the disclosure redacts every identifier it shows
+	// (maskIdentifier), so the raw values never appear in the markup at
+	// all -- only their masked form, and only inside the disclosure.
 	for _, identifier := range []string{"worker-test", "intent-test", "instance-test"} {
-		at := strings.Index(markup, identifier)
+		if strings.Contains(markup, identifier) {
+			t.Fatalf("raw identifier %q must not appear in the markup at all; the disclosure must redact it", identifier)
+		}
+	}
+	for _, masked := range []string{maskIdentifier("worker-test"), maskIdentifier("intent-test"), maskIdentifier("instance-test")} {
+		at := strings.Index(markup, masked)
 		if at < start || at > end {
-			t.Fatalf("identifier outside disclosure: %s", identifier)
+			t.Fatalf("redacted identifier outside disclosure: %s", masked)
 		}
 	}
 	for _, value := range []string{"date-test", "updated-test"} {

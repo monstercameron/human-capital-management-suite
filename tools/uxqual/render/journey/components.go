@@ -734,19 +734,74 @@ func journeyCard(j JourneyCard) ui.Node {
 			metaItem("Effective", j.EffectiveDate, false),
 			metaItem("Updated", j.Updated, false),
 		),
-		htmlIf(j.WorkerRef != "" || j.InstanceID != "", func() ui.Node {
-			return html.Details(html.Props{Class: "jn-journey-technical"},
-				html.Summary(html.Props{}, html.Text("Technical details")),
-				html.P(html.Props{Class: "jn-meta"},
-					metaItem("Worker", j.WorkerRef, true),
-					metaItem("Instance", j.InstanceID, true),
-				),
-			)
+		technicalDetailsSection(j.DiagnosticsAuthorized, []technicalDetail{
+			{Label: "Worker", Value: j.WorkerRef},
+			{Label: "Instance", Value: j.InstanceID},
 		}),
 		html.P(html.Props{Class: "jn-journey-foot", Aria: map[string]string{"hidden": "true"}},
 			html.Text("Open journey"), iconArrowRight("jn-journey-arrow"),
 		),
 	)
+}
+
+// technicalDetail is one raw identifier PROMOUX-008's authorized Technical
+// details disclosure may show.
+type technicalDetail struct {
+	Label string
+	Value string
+}
+
+// technicalDetailsSection renders PROMOUX-008's authorized diagnostics
+// disclosure. It exists in the markup at all only when authorized is true --
+// never because a value happens to be non-empty -- so two viewers this
+// package treats as equally unauthorized get byte-identical markup here
+// (both nil) regardless of whether the underlying journey has an instance,
+// a worker reference, or nothing at all; presence, count and layout carry
+// no signal about the journey's real state to a viewer who is not
+// authorized to know it. Each present value is redacted on screen
+// (maskIdentifier) and carries its own copy control so an authorized viewer
+// can still act on the full value without it being legible on screen or in
+// a shared screen.
+func technicalDetailsSection(authorized bool, items []technicalDetail) ui.Node {
+	if !authorized {
+		return nil
+	}
+	rows := make([]ui.Node, 0, len(items))
+	for _, item := range items {
+		if item.Value == "" {
+			continue
+		}
+		value := item.Value
+		rows = append(rows, html.Div(html.Props{Class: "jn-tech-row"},
+			html.Span(html.Props{Class: "jn-meta-key"}, html.Text(item.Label+" ")),
+			html.Span(html.Props{Class: "jn-meta-value jn-mono"}, html.Text(maskIdentifier(value))),
+			html.Button(html.Props{
+				Type:    "button",
+				Class:   "jn-copy-btn",
+				Aria:    map[string]string{"label": "Copy " + item.Label + " value"},
+				OnClick: activate(func() { copyToClipboard(value) }),
+			}, html.Text("Copy")),
+		))
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	return html.Details(html.Props{Class: "jn-journey-technical"},
+		html.Summary(html.Props{}, html.Text("Technical details")),
+		html.Div(html.Props{Class: "jn-meta jn-tech-body"}, rows...),
+	)
+}
+
+// maskIdentifier redacts a raw identifier for on-screen display, keeping
+// only its last four characters legible. The full value still reaches the
+// copy control: masking narrows what a passerby or a shared screen shows,
+// not what the authorized viewer can actually use.
+func maskIdentifier(value string) string {
+	const visible = 4
+	if len(value) <= visible {
+		return strings.Repeat("•", len(value))
+	}
+	return "••••" + value[len(value)-visible:]
 }
 
 func emptyState(message string) ui.Node {
@@ -986,9 +1041,20 @@ func detailView(p Page, v DetailView) ui.Node {
 		html.Div(html.Props{Class: "jn-columns"},
 			html.Div(html.Props{Class: "jn-col"},
 				preflightSection(v),
-				workflowSection(v),
-				outcomeSection(v.Ledger),
-				evidenceSection(v.Evidence),
+				// PROMOUX-008: the workflow/outcome/evidence panels are the
+				// diagnostic evidence projection over this same detail --
+				// raw node executions, the terminal ledger write and its
+				// digest, evidence references -- never something an
+				// ordinary approver reads a decision from (that comes from
+				// actionsSection and v.Actions above, computed
+				// independently). They render only for a diagnostics-
+				// authorized viewer, gated on that verdict rather than on
+				// whether the sections happen to have content, so an
+				// unauthorized viewer's page carries neither the panels nor
+				// a hint that they exist.
+				htmlIf(v.Journey.DiagnosticsAuthorized, func() ui.Node { return workflowSection(v) }),
+				htmlIf(v.Journey.DiagnosticsAuthorized, func() ui.Node { return outcomeSection(v.Ledger) }),
+				htmlIf(v.Journey.DiagnosticsAuthorized, func() ui.Node { return evidenceSection(v.Evidence) }),
 			),
 			html.Aside(html.Props{Class: "jn-col jn-rail", Aria: map[string]string{"label": "Actions and history"}},
 				timelineSection(v.Timeline),
@@ -1039,13 +1105,10 @@ func heroSection(j JourneyCard) ui.Node {
 			metaItem("Effective", j.EffectiveDate, false),
 			metaItem("Updated", j.Updated, false),
 		),
-		htmlIf(j.WorkerRef != "" || j.IntentID != "" || j.InstanceID != "", func() ui.Node {
-			return html.Details(html.Props{Class: "jn-journey-technical"},
-				html.Summary(html.Props{}, html.Text("Technical details")),
-				html.P(html.Props{Class: "jn-meta"},
-					metaItem("Worker", j.WorkerRef, true),
-					metaItem("Intent", j.IntentID, true),
-					metaItem("Instance", j.InstanceID, true)))
+		technicalDetailsSection(j.DiagnosticsAuthorized, []technicalDetail{
+			{Label: "Worker", Value: j.WorkerRef},
+			{Label: "Intent", Value: j.IntentID},
+			{Label: "Instance", Value: j.InstanceID},
 		}),
 	)
 }

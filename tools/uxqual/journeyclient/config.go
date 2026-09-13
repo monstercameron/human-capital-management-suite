@@ -151,6 +151,12 @@ func ParseConfig(data []byte) (Config, error) {
 
 // DefaultJourneysPath is the page's own address when the island did not name
 // one. It mirrors internal/humanwork/workspace.PathJourney.
+// diagnosticsPageID names PROMOUX-008's authorized diagnostics disclosure to
+// CanPageAction. It shares its wire id with roleaccess.PageJourneyDiagnostics
+// and productui.PageJourneyDiagnostics so one role grant governs every
+// surface that shows it.
+const diagnosticsPageID = "journey-diagnostics"
+
 const DefaultJourneysPath = "/workspace/journey"
 
 // WorkspacePath is the server-rendered Promotion workspace, which the
