@@ -272,7 +272,13 @@ func declareloadingProxyStylesStyles() {
 		gwccss.Display.Flex,
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Px(14)),
-		gwccss.MinHeight(gwccss.Px(76)),
+		// UXAUDIT-012: this proxy stands in for .work-row (typed_styles.go),
+		// which declares the same 86px min-height. They were 76px/86px
+		// before this fix -- a 10px-per-row layout shift on every Home,
+		// Work and Journeys cold load. Keep these two in lockstep; see
+		// TestTodo_UXAUDIT_012's geometry assertion, which fails if they
+		// drift apart again.
+		gwccss.MinHeight(gwccss.Px(86)),
 		gwccss.PaddingY(gwccss.Px(14)), gwccss.PaddingX(gwccss.Zero),
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("divider")),
 	)
@@ -311,12 +317,18 @@ func declareloadingProxyStylesStyles() {
 		gwccss.GridCols(gwccss.Fr(1.4), gwccss.Fr(1), gwccss.Fr(1), gwccss.Fr(.7)),
 		gwccss.Gap(gwccss.Px(20)),
 		gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(67)),
+		// UXAUDIT-012: this proxy stands in for .people-row (typed_styles.go),
+		// which declares the same 65px min-height. They were 67px/65px
+		// before this fix -- a 2px-per-row layout shift on every People
+		// cold load. Keep these two in lockstep; see TestTodo_UXAUDIT_012's
+		// geometry assertion, which fails if they drift apart again.
+		gwccss.MinHeight(gwccss.Px(65)),
 		gwccss.PaddingY(gwccss.Px(12)), gwccss.PaddingX(gwccss.Px(20)),
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("divider")),
 	)
 	declareGlobal(".loading-table-head",
-		gwccss.MinHeight(gwccss.Px(46)),
+		// Matches .people-columns' 44px min-height for the same reason.
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
 	declareGlobal(".loading-bar-row",

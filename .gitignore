@@ -122,3 +122,6 @@ go-build[0-9]*/
 # internal/trust/secrets is source (the custody-port resolver), not secret material;
 # the **/secrets/ rule above must not hide it.
 !internal/trust/secrets/
+
+# Stray wasm build output if journeywasm is run without -out
+/journeywasm
