@@ -152,7 +152,7 @@ func TestTodo_WEB_030_Conformance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`aria-busy="true"`, `aria-live="polite"`, `class="sr-only route-announcer"`, `id="main-content"`, "Autorisierte Daten werden aus der Live-Zelle geladen"} {
+	for _, want := range []string{`aria-busy="true"`, `aria-live="polite"`, `class="sr-only route-announcer"`, `id="main-content"`, "Ihre Arbeitsbereichsdaten werden geladen"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("destination loading projection missing %q", want)
 		}

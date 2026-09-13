@@ -534,7 +534,7 @@ func NewView(page PageID, tenant, principal, scope string) View {
 	}
 	view := View{
 		Page: page, Tenant: tenant,
-		Principal: principal, Scope: scope, Source: "JourneyService",
+		Principal: principal, Scope: scope, Source: "Workforce directory",
 		Locale: ResolveProductLocale(""), Accessibility: DefaultAccessibilityPreferences(),
 	}
 	return ApplyLocale(view, view.Locale)

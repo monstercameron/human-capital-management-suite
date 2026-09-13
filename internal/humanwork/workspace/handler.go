@@ -207,7 +207,7 @@ func Routes() []Route {
 	return []Route{
 		{
 			Path: PathProductPrefix + "{page}", Method: http.MethodGet,
-			Description: "Serve the authenticated Go/WASM product shell backed by canonical JourneyService RPCs.",
+			Description: "Serve the signed-in workspace shell and the workforce data it is authorized to show.",
 			EffectClass: effectClassReadOnly,
 		},
 		{

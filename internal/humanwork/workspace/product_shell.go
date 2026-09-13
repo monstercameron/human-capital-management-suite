@@ -124,7 +124,7 @@ func productShellDocumentForRouteQuery(config JourneyConfig, bundleBuilt bool, l
 		// "Compensation Review" persist as a global scope badge on every
 		// page, unrelated pages included. NewView has no other authorized-
 		// scope fact to offer, so this passes the honest empty value and
-		// lets ResolvePageIdentity's own "Authenticated scope" fallback
+		// lets ResolvePageIdentity's own "Workspace access" fallback
 		// stand in rather than mislabeling a purpose as a scope. The
 		// purpose itself still reaches the one place GREEN says it belongs:
 		// the Promotion journey experience's own masthead

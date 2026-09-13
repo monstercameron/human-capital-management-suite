@@ -29,7 +29,7 @@ func insightsPage(view View) ui.Node {
 		},
 		Attention: AttentionPanelProps{
 			Title: "Operational attention", CountLabel: "Needs attention", CountValue: fmt.Sprint(attention),
-			Description: "This is a limited workflow summary of current visible states. Trend, benchmark, certification, and broader workforce reporting are not available in this cell.",
+			Description: view.Locale.Text("insights.attention_description"),
 			Action:      action,
 		},
 	})
