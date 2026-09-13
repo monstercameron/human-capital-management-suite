@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-09-12 (UXAUDIT-006)
+
+- User-facing copy no longer names the implementation. Page subtitles, empty
+  states, loading states and error reasons that referred to a journey service, a
+  worker projection, an authenticated cell, a canonical gRPC service or a
+  server-enforced boundary now describe the task instead, in all three locales --
+  a German sentence containing the service name is still a violation.
+
+  The footer that read "Live source · JourneyService" now reads "Live source ·
+  Workforce directory", from the single value that also feeds the Settings page's
+  data-source fact.
+
+- The durable part is a vocabulary guard, not the individual replacements.
+  Without one, the next subtitle to mention a worker projection reintroduces the
+  defect silently and this work gets done twice. A documented banned list is
+  scanned against every page rendered in every locale, and the guard proves
+  itself non-vacuous by first scanning a deliberately seeded banned string and
+  requiring a hit.
+
+- Hardcoded strings moved into the locale catalog rather than being reworded in
+  place, which is what the todo asks for: several literals living directly in
+  page renderers became catalog keys.
+
+- Empty and loading states now give a next step where they previously just
+  reported absence -- the organization empty state tells the reader to ask an
+  administrator to check their access, and an unavailable admin surface tells
+  them to refresh.
+
+- Verified against the running server: nine pages fetched with script and style
+  elements stripped are clean of the banned vocabulary in visible text. The only
+  remaining occurrence anywhere in the served documents is inside a WebSocket
+  tunnel URL in a JSON config island -- a transport endpoint, not copy.
+
 ## 2026-09-12 (PROMOUX-007)
 
 - A rejected promotion value now produces a field-linked, localized message

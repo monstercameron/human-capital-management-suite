@@ -106,7 +106,11 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// on the server-resolved authority projection. That removal changes
 	// this stable-chrome byte pin even though the fixture carries no
 	// authority projection at all, so it was re-pinned to the new bytes.
-	const want = "8d9b47c37154ec8961fea748dd1d8b1547f0476c5b83b018005b77b5e0d9f386"
+	// UXAUDIT-006 reworded the header's "Authenticated scope" fallback to
+	// "Workspace access" (task language, not an internal-sounding label),
+	// which also touches this fixture's stable chrome, so it is re-pinned
+	// again.
+	const want = "340e44a67707c19bdc409aeefe114b2133fa9854e03638fb9782bb4acabf3395"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

@@ -41,7 +41,7 @@ func TestTodo_WEB_068(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := web063BodyText(t, doc)
-	for _, want := range []string{"did not respond", "publishes no page-configuration service"} {
+	for _, want := range []string{"connection didn't respond", "Page configuration isn't available"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("admin page shows no unavailability reason for %q", want)
 		}

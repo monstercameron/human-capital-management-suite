@@ -30,7 +30,7 @@ func TestLoadingProxyUsesPageShapedAccessibleShells(t *testing.T) {
 			}
 			for _, want := range []string{
 				`class="app-shell is-loading"`, `id="main-content"`, `aria-busy="true"`,
-				`aria-live="polite"`, "Loading authorized data from the live cell", shape,
+				`aria-live="polite"`, "Loading your workspace data", shape,
 				`aria-hidden="true"`, "loading-progress",
 			} {
 				if !strings.Contains(out, want) {

@@ -82,8 +82,10 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// Closed launcher omits active-option references and does not claim modality.
 	// UXAUDIT-007 removed the page-identity header's unconditional
 	// "Acting as yourself" span; re-pinned for the same reason as
-	// TestTodo_WEB_037_Golden.
-	const want = "f83788e7c607068c235501403866f3f875561c5d954711c97f42df700392a317"
+	// TestTodo_WEB_037_Golden. UXAUDIT-006 reworded the header's
+	// "Authenticated scope" fallback to "Workspace access"; re-pinned again
+	// for the same reason as TestTodo_WEB_037_Golden's second pin.
+	const want = "cc94dddff3a893688e235bf45e4a90ae933253ff0ceeeb493381c91d512f2387"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

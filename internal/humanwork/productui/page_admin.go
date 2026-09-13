@@ -22,9 +22,9 @@ func adminPage(view View) ui.Node {
 		journeyState, journeyTone = "Unavailable", "warning"
 		journeyAvailability = ActionState{Availability: ActionUnavailable, Reason: view.Locale.Text("admin.journeys_unavailable_reason")}
 	}
-	// The studio cell publishes no configuration service: the action is
-	// unavailable with its reason and no live link, never a live link
-	// to something unavailable.
+	// This organization has no page-configuration capability published yet:
+	// the action is unavailable with its reason and no live link, never a
+	// live link to something unavailable.
 	studioAvailability := ActionState{Availability: ActionUnavailable, Reason: view.Locale.Text("admin.studio_unavailable_reason")}
 	capabilities := []adminCapability{
 		{
@@ -44,11 +44,11 @@ func adminPage(view View) ui.Node {
 			actionLabel: "Configure appearance →",
 		},
 		{
-			page: PageJourneys, title: "Journey service", description: "Promotion journeys and visible workers are loaded through the canonical gRPC service.", state: journeyState, tone: journeyTone, availability: journeyAvailability,
+			page: PageJourneys, title: "Journey service", description: view.Locale.Text("admin.journey_card_description"), state: journeyState, tone: journeyTone, availability: journeyAvailability,
 			actionLabel: "Open details →",
 		},
 		{
-			page: PageStudio, title: "Experience configuration", description: "No page-configuration service is published by this cell.", state: "Unavailable", tone: "warning", availability: studioAvailability,
+			page: PageStudio, title: "Experience configuration", description: view.Locale.Text("admin.studio_card_description"), state: "Unavailable", tone: "warning", availability: studioAvailability,
 			actionLabel: "Open details →",
 		},
 	}
@@ -74,7 +74,7 @@ func adminPage(view View) ui.Node {
 	}
 	return ui.CreateElement(AdminPage, AdminPageProps{
 		Hero: AdminHeroProps{
-			Eyebrow: "LIVE CELL", Title: valueOrUnavailable(view.Tenant), Description: "This page reports only services the authenticated cell has actually exposed.",
+			Eyebrow: view.Locale.Text("admin.hero_eyebrow"), Title: valueOrUnavailable(view.Tenant), Description: view.Locale.Text("admin.hero_description"),
 		},
 		Capabilities: cards,
 	})

@@ -184,7 +184,7 @@ func TestProductShellUsesTheRouteShapedLoadingProxyBeforeWASMStarts(t *testing.T
 	}
 	for _, want := range []string{
 		`class="app-shell is-loading"`, `class="loading-proxy loading-proxy-history"`,
-		`aria-busy="true"`, "Loading authorized data from the live cell", "Harborcare Demo",
+		`aria-busy="true"`, "Loading your workspace data", "Harborcare Demo",
 	} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("initial product shell missing %q", want)

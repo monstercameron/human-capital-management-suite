@@ -30,7 +30,7 @@ func TestOrganizationMetadataRemainsVisibleWithoutOrganizationGroups(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(doc, "Business metadata") || !strings.Contains(doc, "No organization members returned") {
+	if !strings.Contains(doc, "Business metadata") || !strings.Contains(doc, "No organization members to show") {
 		t.Fatal("empty organization view did not preserve business metadata and its honest empty state")
 	}
 }

@@ -130,7 +130,10 @@ func launcherHrefs(root *xhtml.Node) []string {
 }
 
 // web040GoldenDigest is pinned from the GREEN implementation run.
-const web040GoldenDigest = "6b5582e0a87b624743bf454e7719af76ee813e151f12ff5a653b2c457c21a8b4"
+// UXAUDIT-006 reworded page.people.subtitle -- rendered here as the launcher's
+// "start:people" quick-action description -- to task language that no longer
+// names the governed journey service; re-pinned to the new bytes.
+const web040GoldenDigest = "18a77a993dccbcf60e086f647e3ad645315cb201ccbf2b15f1c1889fb22ca146"
 
 func TestTodo_WEB_040_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))
