@@ -139,6 +139,7 @@ migrationfiles:
   - 00285_ledger_011_payload_disposition.sql
   - 00286_promoux002_active_promotion_guard.sql
   - 00287_promoux004_position_slot_guard.sql
+  - 00288_promoux011_transition_sequence.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding
