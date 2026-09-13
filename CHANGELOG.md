@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-09-13 (SELECT-002)
+
+- The pilot provider topology exists, as a deliberate placeholder. No real
+  provider is recorded anywhere in this repository -- WEDGE-001 selected a
+  problem, not a partner -- so rather than assert edition, quota and
+  data-processing facts about a real vendor inside a signed manifest, the
+  placeholder is made structurally impossible to mistake for fact.
+
+- No real company is named as the provider. The vendor id carries a
+  mandatory PLACEHOLDER-UNVERIFIED suffix that validation enforces, and the
+  display name says "not a real vendor" inline. Real vendor names appear
+  only as a citation of the integration spec's own wording.
+
+- It provably cannot satisfy a real selection gate, by value rather than by
+  flag: flipping the status alone still fails, because the vendor-id suffix
+  and the empty confirmation fields keep it failing. Only a fully
+  consistent swap of status, real vendor id and complete confirmation
+  passes.
+
+- The fault matrix covers the integration spec's nine error-taxonomy
+  classes exactly once each with distinct actions and evidence refs, tested
+  for exactness rather than non-emptiness. Sandbox fidelity is declared
+  synthetic-fixture-only, stating plainly that no vendor sandbox exists.
+
+- Provider neutrality is enforced by a scan of the live internal tree
+  rather than asserted, and its limitation is stated in the test itself: it
+  proves no current direct reference outside the adapter boundary, not that
+  no code could branch on provider identity indirectly.
+
 ## 2026-09-13 (PROMOUX-013)
 
 - Governed edit, withdraw and cancel paths now exist end to end. Three RPCs
