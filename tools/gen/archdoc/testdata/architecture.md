@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 5ad37a6e81c77a2a21aedd80ba32c4b21e5d763a843da116532891b597094cca
-- Package count: 795
-- Within-module edge count: 1846
+- Source graph: 6a1774281e572a9ce3a2e136f7a8374dd5efef5423639646f5a27b34b8d161b4
+- Package count: 801
+- Within-module edge count: 1861
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -736,11 +736,14 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/authoritygate`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/boundarytests`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/featurecoverage`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/pilotblueprint`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/pilotcommercial`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/pilotjurisdiction`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/pilotprovider`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/plancheck`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/productslice`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/scopeceiling`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/threatregister`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/todogovernance`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/todoregistry`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/workflowmaturity`
@@ -773,6 +776,8 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/oraclespecificity`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/oraclestrength`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/performance`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/pilotblueprint`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/pilotcommercial`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/pilotjurisdiction`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/pilotprovider`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/plancontradiction`
@@ -790,6 +795,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/terminology`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/threatmodel`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/threatmodel/cmd/threatmodel`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/threatregister`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/todogovernance`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/todoregistry`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/traceability`
@@ -950,4 +956,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`0cb14bccd9701b6e469122f8a374911f66d474d25fdc23e0a359ece5ab19ee16`
+`a71e0811a3941259af5e67035d8a1df1a7b0ab61a2eb6f96d7fc957d881986b4`

@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-09-13 (THREAT-001, CUSTOMER-001, COMMERCIAL-001)
+
+- The Phase 1 threat register blocks release today, and that is its point.
+  THR-07 (ambiguous effect, critical) is unmitigated because the
+  observe-before-retry mechanism has not been built, and it carries no
+  accepting owner because none has been designated. Rather than fabricate
+  an accountable party, the field is required-and-empty: validation reports
+  exactly one violation and the release decision reports blocked. Someone
+  must accept that residual risk, or the mitigation must be built.
+
+- Threat identity dedupes on asset, boundary and attack class, never on a
+  free-text id, and a shared mitigation must declare exactly the union of
+  edges that name it -- no drop, no over-claim. Real data exercises that: one
+  mitigation is genuinely shared between a stale-authorization threat and a
+  replay threat.
+
+- The design-partner blueprint reports BLOCKED across all ten workstreams
+  when instantiated today, naming why: no partner has been selected, the
+  provider is a placeholder, and the jurisdiction profile has no reviewer.
+  A blueprint reporting ready would have been the defect its own RED names.
+  It is not rigged to fail -- confirmed facts report ready, stale facts
+  report unknown -- so a permanent blocked is distinguishable from a broken
+  instantiator.
+
+- The commercial freeze promises nothing that has not been selected. No SLO,
+  because the ceiling's SLO slot is empty; no provider, because the
+  placeholder cannot satisfy a real selection gate; California only as
+  pending review, because its profile is unreviewed. Each is derived from
+  live registries on every run rather than asserted, so a future selection
+  changes what may be promised automatically.
+
+- Replay and repair are never billed, enforced in the billing computation
+  rather than declared in prose. The first fixture proving it was masked by
+  key-based deduplication and had to be strengthened so the event-kind check
+  fires independently.
+
+- Recorded, not patched: internal/commercial's hardcoded P1A manifest digest
+  no longer matches the live manifest. That is its own drift to repair; the
+  freeze binds to the scope ceiling's digest instead.
+
 ## 2026-09-13 (SELECT-002)
 
 - The pilot provider topology exists, as a deliberate placeholder. No real
