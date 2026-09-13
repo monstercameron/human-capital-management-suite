@@ -10,12 +10,13 @@ import (
 )
 
 func organizationPage(view View) ui.Node {
+	relationships := newOrganizationRelationshipIndex(view)
 	members := map[string][]OwnershipNodeProps{}
 	locations := map[string]bool{}
 	payZones := map[string]bool{}
-	for _, person := range view.People {
+	for index, person := range relationships.people {
 		team := valueOrUnavailable(person.Team)
-		members[team] = append(members[team], ownershipPerson(view, person))
+		members[team] = append(members[team], relationships.annotate(view, index))
 		if value := strings.TrimSpace(person.Location); value != "" {
 			locations[value] = true
 		}
@@ -42,7 +43,8 @@ func organizationPage(view View) ui.Node {
 		ViewLabel: view.Locale.Text("organization.view_label"), TreeActive: view.OrganizationView == organizationViewTree,
 		FlatAction: ActionLinkProps{Label: view.Locale.Text("organization.view_flat"), Href: statefulHref(view, PageOrganization, "org_view", organizationViewFlat), Class: "organization-view-option", Navigate: view.Navigate},
 		TreeAction: ActionLinkProps{Label: view.Locale.Text("organization.view_tree"), Href: statefulHref(view, PageOrganization, "org_view", organizationViewTree), Class: "organization-view-option", Navigate: view.Navigate},
-		Tree:       ownershipTree(view),
+		Tree:       relationships.tree(view),
+		TreeLabel:  view.Locale.Text("organization.tree_label"),
 		Metadata: BusinessMetadataProps{
 			Title: view.Locale.Text("organization.metadata_title"), Description: view.Locale.Text("organization.metadata_description"),
 			Items: []BusinessMetadataItemProps{
@@ -72,68 +74,196 @@ func normalizeOrganizationView(value string) string {
 	return organizationViewFlat
 }
 
-func ownershipTree(view View) []OwnershipNodeProps {
+// organizationRelationshipIndex is the ONE authorized relationship
+// projection, resolved once per render, that the flat organization list, the
+// organization tree, and (via ownershipTree) the Myself subtree all read --
+// UXAUDIT-004's REFACTOR clause. It replaces the previous
+// Person.Manager-display-name matching entirely: nesting and per-person
+// manager summaries both come from org.ResolveManagerRelationships through
+// organization_relationships.go, never from a name.
+type organizationRelationshipIndex struct {
+	people      []Person
+	placements  []organizationPlacement
+	parentOf    []int // -1 for a root; index into people otherwise.
+	children    map[int][]int
+	indexByName map[string]int // person.ID -> index into people, for annotate lookups.
+}
+
+// newOrganizationRelationshipIndex resolves every visible person's
+// authorized direct-manager hop and turns it into a placement: nested under
+// a specific, visible parent, or a root, genuine or explained. See
+// organizationPlacementFor for the exhaustive mapping and
+// breakOwnershipCycles for why a mutual reporting cycle can never nest.
+func newOrganizationRelationshipIndex(view View) organizationRelationshipIndex {
 	people := append([]Person(nil), view.People...)
 	sort.SliceStable(people, func(i, j int) bool { return strings.ToLower(people[i].Name) < strings.ToLower(people[j].Name) })
-	byName := make(map[string]int, len(people))
-	nameCount := make(map[string]int, len(people))
+
+	byWorkerID := make(map[string]int, len(people))
+	visibleWorkerID := make(map[string]bool, len(people))
+	indexByName := make(map[string]int, len(people))
 	for index, person := range people {
-		name := strings.ToLower(strings.TrimSpace(person.Name))
-		byName[name] = index
-		nameCount[name]++
-	}
-	children := make(map[int][]int)
-	roots := make([]int, 0)
-	for index, person := range people {
-		name := strings.ToLower(strings.TrimSpace(person.Manager))
-		manager, ok := byName[name]
-		if !ok || name == "" || nameCount[name] != 1 || manager == index {
-			roots = append(roots, index)
+		if person.ID != "" {
+			indexByName[person.ID] = index
+		}
+		if person.WorkerID == "" {
 			continue
 		}
-		children[manager] = append(children[manager], index)
+		byWorkerID[person.WorkerID] = index
+		visibleWorkerID[person.WorkerID] = true
 	}
-	visiting, emitted := map[int]bool{}, map[int]bool{}
-	var build func(int) OwnershipNodeProps
-	build = func(index int) OwnershipNodeProps {
-		person := people[index]
-		node := ownershipPerson(view, person)
-		if visiting[index] {
-			return node
-		}
-		visiting[index], emitted[index] = true, true
-		for _, child := range children[index] {
-			if !visiting[child] {
-				node.Reports = append(node.Reports, build(child))
+
+	placements := make([]organizationPlacement, len(people))
+	parentOf := make([]int, len(people))
+	for index := range parentOf {
+		parentOf[index] = -1
+	}
+	for index, person := range people {
+		placement := organizationPlacementFor(buildOrganizationRelationship(person), visibleWorkerID)
+		if placement.nested {
+			if managerIndex, ok := byWorkerID[placement.managerID]; ok && managerIndex != index {
+				parentOf[index] = managerIndex
+			} else {
+				// The disclosed manager id does not resolve to a visible, distinct
+				// person after all (e.g. it names the worker itself) -- fall back
+				// to an explained root rather than ever nesting a worker under
+				// itself or an id nothing here can point to.
+				placement = organizationPlacement{explanation: "organization.relationship_undetermined"}
 			}
 		}
-		delete(visiting, index)
-		node.ReportsLabel = organizationCountLabel(view, "organization.reports_count", len(node.Reports))
-		return node
+		placements[index] = placement
+	}
+	breakOwnershipCycles(parentOf, placements)
+
+	children := make(map[int][]int, len(people))
+	for index, parent := range parentOf {
+		if parent != -1 {
+			children[parent] = append(children[parent], index)
+		}
+	}
+	return organizationRelationshipIndex{people: people, placements: placements, parentOf: parentOf, children: children, indexByName: indexByName}
+}
+
+// annotate renders one person's shared organization-node fields -- identity,
+// selection, and the manager summary or explanation clause 3 (flat/tree
+// parity) requires -- without any nesting. The flat organization list uses
+// this directly; tree renders it too and additionally nests and levels it.
+func (idx organizationRelationshipIndex) annotate(view View, index int) OwnershipNodeProps {
+	person := idx.people[index]
+	node := ownershipPerson(view, person)
+	placement := idx.placements[index]
+	if placement.explanation != "" {
+		node.Explanation = view.Locale.Text(placement.explanation)
+	} else if placement.nested {
+		node.ManagerSummary = fmt.Sprintf(view.Locale.Text("organization.reports_to"), idx.people[idx.parentOf[index]].Name)
+	}
+	return node
+}
+
+// buildFrom renders index's own node at the given display level, recursing
+// into its visible reports. It powers both tree (every root at Level 1) and
+// findAndReroot (Myself's chosen person at Level 1, re-rooting their own
+// subtree rather than the whole organization).
+func (idx organizationRelationshipIndex) buildFrom(view View, index, level int) OwnershipNodeProps {
+	node := idx.annotate(view, index)
+	node.Level = level
+	for _, child := range idx.children[index] {
+		node.Reports = append(node.Reports, idx.buildFrom(view, child, level+1))
+	}
+	node.ReportsLabel = organizationCountLabel(view, "organization.reports_count", len(node.Reports))
+	return node
+}
+
+// tree builds the reporting-line forest: every person renders exactly once,
+// either nested under the visible parent org.ResolveManagerRelationships
+// actually reports, or as a root -- a genuine top of the organization needs
+// no explanation, and everything else renders as a root WITH an honest
+// explanation. Nothing is ever silently reparented or dropped.
+func (idx organizationRelationshipIndex) tree(view View) []OwnershipNodeProps {
+	roots := make([]int, 0, len(idx.people))
+	for index, parent := range idx.parentOf {
+		if parent == -1 {
+			roots = append(roots, index)
+		}
 	}
 	result := make([]OwnershipNodeProps, 0, len(roots))
 	for _, root := range roots {
-		result = append(result, build(root))
-	}
-	// Corrupt cycles remain visible as extra roots; admitted people are never
-	// silently dropped just because a reporting relationship is malformed.
-	for index := range people {
-		if !emitted[index] {
-			result = append(result, build(index))
-		}
+		result = append(result, idx.buildFrom(view, root, 1))
 	}
 	return result
 }
 
+// findAndReroot returns personID's own node from the forest, with Level
+// renumbered so personID becomes the display root (Level 1) of its own
+// subtree -- what Myself needs (see myselfOwnershipSubtree in page_myself.go).
+func (idx organizationRelationshipIndex) findAndReroot(view View, personID string) (OwnershipNodeProps, bool) {
+	index, ok := idx.indexByName[personID]
+	if !ok {
+		return OwnershipNodeProps{}, false
+	}
+	return idx.buildFrom(view, index, 1), true
+}
+
+// ownershipTree is the organization page's own forest -- kept as a thin
+// wrapper so existing call sites and tests naming it need not change.
+func ownershipTree(view View) []OwnershipNodeProps {
+	return newOrganizationRelationshipIndex(view).tree(view)
+}
+
+// breakOwnershipCycles forces every node on a nesting cycle to an explained
+// root. organizationHopFacts resolves each worker's own hop independently, so
+// two people whose manager relationships point at each other can each
+// resolve successfully in isolation; without this pass they would nest
+// inside one another, which is exactly the invented hierarchy UXAUDIT-004
+// forbids. A node found on a cycle is never left nested, in either direction.
+func breakOwnershipCycles(parentOf []int, placements []organizationPlacement) {
+	const (
+		white = iota
+		gray
+		black
+	)
+	color := make([]int, len(parentOf))
+	var mark func(int)
+	mark = func(node int) {
+		if color[node] != white {
+			return
+		}
+		color[node] = gray
+		if parent := parentOf[node]; parent != -1 {
+			switch color[parent] {
+			case white:
+				mark(parent)
+			case gray:
+				for cursor := node; ; {
+					next := parentOf[cursor]
+					placements[cursor] = organizationPlacement{explanation: "organization.relationship_cycle"}
+					parentOf[cursor] = -1
+					if cursor == parent {
+						break
+					}
+					cursor = next
+				}
+			}
+		}
+		color[node] = black
+	}
+	for index := range parentOf {
+		mark(index)
+	}
+}
+
 func ownershipPerson(view View, person Person) OwnershipNodeProps {
 	current := person.ID != "" && person.ID == view.Viewer.PersonID
+	selected := person.ID != "" && person.ID == view.SelectedPerson
 	href := ""
 	if PageVisible(PagePerson, view.Roles) {
 		href = statefulHref(view, PagePerson, "person", person.ID)
 	} else if current {
 		href = statefulHref(view, PageMyself)
 	}
-	return OwnershipNodeProps{Name: person.Name, WorkerNumber: person.WorkerNumber, Role: person.Role, Team: person.Team, Initials: person.Initials, PhotoURL: person.PhotoURL, Href: href, Navigate: view.Navigate, Current: current}
+	return OwnershipNodeProps{
+		ID: person.ID, Name: person.Name, WorkerNumber: person.WorkerNumber, Role: person.Role, Team: person.Team,
+		Initials: person.Initials, PhotoURL: person.PhotoURL, Href: href, Navigate: view.Navigate, Current: current, Selected: selected,
+	}
 }
 
 func organizationCountLabel(view View, key string, count int) string {

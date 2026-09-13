@@ -244,6 +244,22 @@ type Person struct {
 	HireDate              string
 	Source                string
 	CreatedAt             string
+	// ManagerID is the manager's own WorkerID (the raw canonical worker
+	// identity workforce.WorkerRow.WorkerID carries, distinct from Manager --
+	// a display name -- and from ID/WorkerRef, the public routing reference).
+	// UXAUDIT-004: this, not the Manager display name, is what
+	// org.ResolveManagerRelationships resolves against, so reporting-line
+	// nesting agrees with the authorized manager edge rather than a name
+	// match that a shared or ambiguous name silently breaks. Empty means no
+	// manager relationship is on record for this worker.
+	ManagerID string
+	// ManagerRelationshipWithheld is set when the manager relationship exists
+	// but this viewer's authorization does not disclose it. UXAUDIT-004 wires
+	// this end to end (org.ResolveManagerRelationships reports the withheld
+	// hop as an explained root, never a fabricated placement); no upstream
+	// production adapter sets it true yet, which is called out as a boundary
+	// rather than claimed as covered.
+	ManagerRelationshipWithheld bool
 	// normalized is an immutable client-side search/sort index populated once
 	// when a workforce projection arrives. Keeping it beside the projection
 	// avoids allocating lower-cased copies for every filter and sort render.

@@ -1403,15 +1403,26 @@ func declareorganizationHierarchyStylesStyles() {
 		gwccss.Raw("overflow-wrap", "anywhere"),
 	)
 	declareGlobal(".ownership-card .row-main strong", gwccss.Raw("overflow-wrap", "anywhere"))
-	declareGlobal(".ownership-reports>summary",
-		gwccss.Raw("cursor", "pointer"), gwccss.MinHeight(gwccss.Px(44)),
+	declareGlobal(".ownership-card.selected",
+		gwccss.Raw("outline", "2px solid var(--accent)"), gwccss.Raw("outline-offset", "1px"),
+	)
+	declareGlobal(".ownership-manager-summary,.ownership-explanation",
+		gwccss.Display.Block,
+		gwccss.TextColor(gwccss.Var("muted")),
+	)
+	declareGlobal(".ownership-toggle",
+		gwccss.Display.InlineFlex, gwccss.Items.Center,
+		gwccss.Raw("justify-content", "center"),
+		gwccss.Raw("cursor", "pointer"), gwccss.MinHeight(gwccss.Px(44)), gwccss.MinWidth(gwccss.Px(44)),
 		gwccss.Padding(gwccss.Px(10)), gwccss.TextColor(gwccss.Var("accent")),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Border(gwccss.Px(0), gwccss.Var("line")),
+		gwccss.Bg(gwccss.Transparent),
 	)
-	declareGlobal(".ownership-reports>summary:hover,.organization-unit-disclosure>summary:hover",
+	declareGlobal(".ownership-toggle:hover,.organization-unit-disclosure>summary:hover",
 		gwccss.Bg(gwccss.Var("hcm-hover-surface")),
 	)
-	declareGlobal(".ownership-reports>summary:focus-visible,.organization-unit-disclosure>summary:focus-visible",
+	declareGlobal(".ownership-toggle:focus-visible,.organization-unit-disclosure>summary:focus-visible",
 		gwccss.Raw("outline", "2px solid var(--accent)"), gwccss.Raw("outline-offset", "-3px"),
 	)
 	declareGlobal(".ownership-count",

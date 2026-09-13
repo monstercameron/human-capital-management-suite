@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-09-13 (UXAUDIT-004)
+
+- Reporting lines are a real tree now. The root cause was worse than the todo's
+  wording suggested: nesting was computed by **matching manager display-name
+  text**, so two people sharing a name collapsed together and a rename silently
+  rebuilt the hierarchy. Nesting now derives from the authorized relationship
+  projection, keyed on the manager's actual worker id.
+
+- Agreement between visual nesting and manager edges is proven generically, not
+  by example -- a renderer that indents by array order passes any hand-built
+  tree. Two hundred seeded random populations require every nested node's parent
+  to equal ground truth and every worker to appear exactly once.
+
+- Hierarchy is never invented. A manager outside the visible population, a
+  withheld relationship, and a reporting-line cycle each render as a root
+  carrying a distinct explanation -- never reparented under something else,
+  never silently dropped. The status mapping is exhaustive, and an unresolved
+  relationship cannot become a false root.
+
+- Verified against the running server. Before: the reporting-lines view exposed
+  no tree semantics whatsoever -- no tree role, no treeitem, no level -- so
+  assistive technology saw disclosure widgets rather than a hierarchy. After:
+  one tree, 64 tree items, 19 groups, and every node's declared level checked
+  against an independently counted ancestor depth with zero mismatches.
+
+- One organization-node component now serves the flat list, the tree and the
+  Myself subtree, which shows the viewer and their own reports rather than the
+  whole company.
+
 ## 2026-09-13 (UXAUDIT-003)
 
 - The global launcher performs actions instead of duplicating navigation. It had
