@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-09-13 (PROMOUX-014)
+
+- A promotion waiting on its effective date now explains itself. Before, the
+  card said only "Waiting for effective date" with a bare date: no instant,
+  no timezone, no owner, no scheduled action, no explanation. All five are
+  now server-sourced -- the instant and timezone from the durable pending
+  timer paired with the workflow's own zone id, the owner from the latest
+  completed approval work item, and the scheduled action read from the
+  compiled workflow definition's real FIRED route rather than written as
+  prose.
+
+- The proposer is deliberately not shown as owner. That would need
+  IntentInstance.Initiator, which has no wire slot on the journey messages,
+  so it is named as not carried rather than approximated with something
+  plausible.
+
+- A local-dev clock driver can now advance a same-day fixture through END.
+  There was no such mechanism at all before, so the supported local-dev
+  profile could not exercise terminal recording without waiting on
+  wall-clock time.
+
+- The fence is structural rather than a runtime refusal. The driver lives
+  behind a devtools build tag: the default stub never imports the timer's
+  Fire path, so the capability is absent from the ordinary binary, from CI
+  and from the amd64 cross-compile. Profile gating is defence in depth on
+  top, fail-closed and exact-match, and an unexported ready field leaves a
+  hand-constructed driver literal inert.
+
+- Live verification of the rendered panel was blocked three ways and the
+  reasons are recorded on the todo: browser-pane sign-in is origin-refused,
+  the journey workspace runs under a fixed dev identity whose scope cannot
+  open any of the three waiting journeys, and the Connect RPC is reachable
+  only through the tunnel. The integration test against real PostgreSQL is
+  what proves the server attaches these facts.
+
 ## 2026-09-13 (PROMOUX-010)
 
 - One shared review surface now guards every consequential promotion action

@@ -433,6 +433,18 @@ func (e *journeyEngine) Inspect(ctx context.Context, intentID string) (workspace
 	}
 	detail.EvidenceIDs = e.evidenceIDsFor(intentID, detail.Summary.InstanceID)
 	detail.Timeline = journeyTimeline(detail)
+
+	// PROMOUX-014: a journey parked on the effective-date wait explains
+	// itself -- see wait_explain.go for why Findings is the vessel and what
+	// each fact sources from.
+	if detail.Summary.Stage == workspace.JourneyStageWaitingEffectiveDate && record.instance != nil {
+		tenantID := e.svc.tenantUUID(principal.Tenant())
+		waitTimer, waitErr := journeyWaitTimer(ctx, tx, tenantID, record.instance.InstanceID)
+		if waitErr != nil {
+			return workspace.JourneyDetail{}, waitErr
+		}
+		detail.Findings = append(detail.Findings, journeyWaitFindings(waitTimer, detail.WorkItems)...)
+	}
 	return detail, nil
 }
 
