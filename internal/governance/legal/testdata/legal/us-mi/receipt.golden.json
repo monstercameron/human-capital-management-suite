@@ -1,0 +1,573 @@
+{
+  "legal_context_digest": "5234ae8b7a9a03b01e15b64883c6445de0fd04280893a3ff91b2ce890503aaa6",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "MI",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-mi-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "MI",
+          "Locality": ""
+        }
+      },
+      "Digest": "b93338eae410f3991d9f25ba02ea0d1fc533432e943a6dff4f5944a56bfbd332",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-mi-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay change notice: Provide written notice to employee of any change in compensation, hours, or pay frequency; timestamp delivery and store in employee record.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MI",
+        "Locality": ""
+      },
+      "PackID": "us-mi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mi-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mi-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-mi-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-mi-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "c6abecff3bfeac4d6a5d7f2e33a4d323526d39a1b719c17b30884a2b3ded5988"
+    },
+    {
+      "Type": 3,
+      "ID": "us-mi-retention",
+      "Description": "retain  for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No maximum retention period specified in statute; employers may retain longer for litigation defense or internal records management.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MI",
+        "Locality": ""
+      },
+      "PackID": "us-mi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mi-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mi-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "9c4d49d31c239977b613d732a912586ea232ac9faa1dadb7d2dda0c7f1e7dbff"
+    },
+    {
+      "Type": 4,
+      "ID": "us-mi-leave-interaction",
+      "Description": "accrued paid sick leave: Paid sick leave: Disable manual override of statutory accrual calculation for employers subject to ESTA.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Paid sick leave: Disable manual override of statutory accrual calculation for employers subject to ESTA.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MI",
+        "Locality": ""
+      },
+      "PackID": "us-mi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mi-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mi-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-mi-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "f251ca021d9331d80ac40e7e90567e0eae626344c7a05c4f08e030904e84779a"
+    },
+    {
+      "Type": 5,
+      "ID": "us-mi-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay change notice: Provide written notice to employee of any change in compensation, hours, or pay frequency; timestamp delivery and store in employee record.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MI",
+        "Locality": ""
+      },
+      "PackID": "us-mi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mi-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mi-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "26faa8c502f02e51c0fd83ba6b1a9d95c4ebedb737359a2ffe0705c4d8931971"
+    },
+    {
+      "Type": 8,
+      "ID": "us-mi-non-compete",
+      "Description": "Non-compete/non-solicit storage: Store execution date, employee name, reasonableness attributes (duration, geography, scope). Flag any non-compete with duration \u003e2 years or nationwide scope for legal review; do not auto-enforce.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Non-compete/non-solicit storage: Store execution date, employee name, reasonableness attributes (duration, geography, scope).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MI",
+        "Locality": ""
+      },
+      "PackID": "us-mi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mi-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mi-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-mi-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-mi-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "2beb7fe3c5c22114b5aa679a3dba3ae76c3ddfeb4ce6e143deb92011c5fc706c"
+    },
+    {
+      "Type": 11,
+      "ID": "us-mi-wage-floor",
+      "Description": "HOURLY floor of 13.73 USD for , indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Minimum wage compliance: Default non-exempt classification; verify hourly rate against Michigan minimum wage ($13.73 in 2026, indexed annually after October 1, 2027).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MI",
+        "Locality": ""
+      },
+      "PackID": "us-mi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mi-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mi-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-mi-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "d2c1a3163bd42dfa58576955f0aeca57ae0bde11e5c09e3edc55ab421561c66d"
+    },
+    {
+      "Type": 15,
+      "ID": "us-mi-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Personnel file access: Implement access-tracking for employee file inspections (limit to 2/calendar year).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MI",
+        "Locality": ""
+      },
+      "PackID": "us-mi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mi-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mi-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "701f06345b23dc2d29a16aa54de83c98dbf751f9305c057c12325a2db39d3fe9"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-mi-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Final pay timing on discharge: Trigger immediate payment calculation on termination; if amount cannot be determined by close of business, schedule payment for next regular payday with documented reason.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-mi-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Termination in retaliation for filing workers' compensation claim or unemployment claim.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-mi-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No Michigan state statute regulating private-sector drug testing: Employers have wide flexibility to test before hiring (pre-employment), after accidents (post-accident), on reasonable suspicion of impairment, or in...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-mi-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/michigan.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Breach notification: If unencrypted PII (SSN, account numbers, sensitive identity data) is accessed, flag for legal review and track notification timing (must be without unreasonable delay).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MI",
+            "Locality": ""
+          },
+          "PackID": "us-mi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-mi-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/michigan.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay change notice: Provide written notice to employee of any change in compensation, hours, or pay frequency; timestamp delivery and store in employee record.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MI",
+            "Locality": ""
+          },
+          "PackID": "us-mi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-mi-retention",
+          "Description": "retain  for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/michigan.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "No maximum retention period specified in statute; employers may retain longer for litigation defense or internal records management.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-mi-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MI",
+            "Locality": ""
+          },
+          "PackID": "us-mi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-mi-leave-interaction",
+          "Description": "accrued paid sick leave: Paid sick leave: Disable manual override of statutory accrual calculation for employers subject to ESTA.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/michigan.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Paid sick leave: Disable manual override of statutory accrual calculation for employers subject to ESTA.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MI",
+            "Locality": ""
+          },
+          "PackID": "us-mi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-mi-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/michigan.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay change notice: Provide written notice to employee of any change in compensation, hours, or pay frequency; timestamp delivery and store in employee record.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-mi-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MI",
+            "Locality": ""
+          },
+          "PackID": "us-mi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-mi-non-compete",
+          "Description": "Non-compete/non-solicit storage: Store execution date, employee name, reasonableness attributes (duration, geography, scope). Flag any non-compete with duration \u003e2 years or nationwide scope for legal review; do not auto-enforce.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/michigan.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Non-compete/non-solicit storage: Store execution date, employee name, reasonableness attributes (duration, geography, scope).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MI",
+            "Locality": ""
+          },
+          "PackID": "us-mi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-mi-wage-floor",
+          "Description": "HOURLY floor of 13.73 USD for , indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/michigan.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Minimum wage compliance: Default non-exempt classification; verify hourly rate against Michigan minimum wage ($13.73 in 2026, indexed annually after October 1, 2027).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-mi-wage-floor"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MI",
+            "Locality": ""
+          },
+          "PackID": "us-mi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-mi-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/michigan.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Personnel file access: Implement access-tracking for employee file inspections (limit to 2/calendar year).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-mi-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "abf75a99b6e572e5ef1eb80a52f2bcc54c7d522d522254d88568ffeeec18020c",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "YagNoY/E6HmXZqEAgntlda515hbkBCsPzOOgYCGhAJ2KH2iMWiv0R4CtvEt66lJPbtOwbTbT54FQ00NJbGaeAg=="
+  }
+}

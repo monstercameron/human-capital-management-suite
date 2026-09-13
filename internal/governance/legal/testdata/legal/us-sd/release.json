@@ -1,0 +1,277 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-sd-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "SD",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-sd-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-dakota.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Wage record retention (SDCL 60-12-17): System must retain promotion records (effective date, wage change, justification) for minimum 3 years (federal FLSA standard; state \"reasonable period\" aligns with this).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-sd-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-dakota.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay frequency: Monthly or regular agreed payday (SDCL 60-11-9); employer must designate and communicate payday at hire.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "MONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-sd-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-dakota.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Final pay post-promotion (SDCL 60-11-10): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid by next regular payday.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay post-promotion (SDCL 60-11-10): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid by next regular payday. Employee may demand written immediate payment (due within 5 days). If employee returns all property, no holdback permitted."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-sd-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-dakota.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Non-compete review (SDCL 53-9-11): On promotion, check if employee subject to non-compete or non-solicit.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete review (SDCL 53-9-11): On promotion, check if employee subject to non-compete or non-solicit. If non-compete exists, verify:"
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-sd-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-dakota.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Minimum wage compliance (SDCL 60-11-3): On promotion or base-pay change, verify wage meets $11.85/hour (2026 rate; indexed annually).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "11.85",
+            "currency": "USD"
+          },
+          "worker_class": "tipped employees",
+          "basis": "HOURLY",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-sd-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-dakota.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Equal Pay compliance (SDCL 60-12-15): On promotion or base-pay change within same location, system should flag if new wage for one gender differs materially from peer rates for comparable work; require manager...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "gender",
+            "age"
+          ],
+          "comparator_standard": "comparable work",
+          "documentation_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-sd-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-dakota.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Workers' compensation retaliation check (SDCL 62-1-16): If promotion follows any workers' compensation claim filing, document business justification for promotion/wage change to mitigate retaliation risk.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-sd-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-dakota.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Data Breach Notification (SDCL 22-40-20):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/south-dakota.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "a4e58bf8632b4a8240f063493e5162a35f6030398de3587868e1b0af2701bdbf",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "c71917157c4c6b5d18cee7405b88db1b2737909a82c0a9fd740c81af8e93af664a525f4bf76d083be28e77109c96bfaba7f8c2043b6ecd626b071e3693a1ee07"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "a4e58bf8632b4a8240f063493e5162a35f6030398de3587868e1b0af2701bdbf",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-sd-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-sd-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for SD; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-sd-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sd-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sd-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sd-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sd-pay-equity-review",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sd-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sd-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sd-wage-floor",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "81ef5a309501b6e0e4f56620e14a6723cd908d2633f1d4251b2367c6af840ddb",
+      "prev_digest": "",
+      "digest": "926a61e872538548481b92bf9d4cf14af95f538b1ccc9b318a53193177736813",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "ba82753a6fd45e43959ec35105e6254589354074754542775a2f3f2cde61b3d77971e2d346e39cb45d9270e36f5c7f1de64de49b6c4459783fcb89e0ec4b5f02"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "aec85adaa3aa6c373418493f3f6c2f6051cb05854f4a1ac6ee40b5444dad1186",
+      "prev_digest": "926a61e872538548481b92bf9d4cf14af95f538b1ccc9b318a53193177736813",
+      "digest": "7e10de05ad5058a1368c29c0dc445df166a7e6dd64cc306c14e57cf100a83fcc",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "85e09daa6574b4b7338ed736d5f2cfbe6ac0fd61d05e13849f8728096137271c84652c8312ef8813d86feaa5655498b5f511bf2971cde7b4a5a4fbcb92cb270e"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "a4e58bf8632b4a8240f063493e5162a35f6030398de3587868e1b0af2701bdbf",
+      "prev_digest": "7e10de05ad5058a1368c29c0dc445df166a7e6dd64cc306c14e57cf100a83fcc",
+      "digest": "cecf3b6b519e57363811797d6e78c0cd7f0b8ae2e41514708e3f506299b29c9d",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "a78ae3435ec0e15db166792060f7698bd5c135c15867856f9f825dcfb4d5056bfc2cbf58462e5d82efe6c3ec9bc887b8a1f790228bf322cb5d586dce2ac4d507"
+      }
+    }
+  ]
+}

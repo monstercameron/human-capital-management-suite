@@ -1,0 +1,464 @@
+{
+  "legal_context_digest": "ccccc18e7363a0c9e2adda7687ef4214267d5db0b1799bc660967b8dc7b70f14",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "TN",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-tn-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "TN",
+          "Locality": ""
+        }
+      },
+      "Digest": "05abcaffc096a950b662ef58f9525292ad886683db36c72ed81c58cb7b9b9c2c",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-tn-retention",
+      "Description": "retain wage_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 50-2-103",
+        "Note": "Records retention (§ 50-2-103): Retain promotion documents (wage change, effective date, justification) per employer record policy (verify whether 3 years or employer-set); support labor commissioner inspection.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "TN",
+        "Locality": ""
+      },
+      "PackID": "us-tn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-tn-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-tn-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "dc97a6a8c2322bcdce977804daef19f0773c603609fb88b7275c76e4d689f011"
+    },
+    {
+      "Type": 4,
+      "ID": "us-tn-leave-interaction",
+      "Description": "accrued paid sick leave: No state-mandated paid sick or family leave: Federal FMLA (50+ employees, unpaid) is the statutory floor; Tennessee preempts local ordinances that impose wage/benefit mandates (§ 50-2-112).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 50-2-112",
+        "Note": "No state-mandated paid sick or family leave: Federal FMLA (50+ employees, unpaid) is the statutory floor; Tennessee preempts local ordinances that impose wage/benefit mandates (§ 50-2-112).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "TN",
+        "Locality": ""
+      },
+      "PackID": "us-tn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-tn-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-tn-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-tn-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "fdebdb07a2cba0f042eabef6e81951abc527923325d552ec3eb6850a68b6c227"
+    },
+    {
+      "Type": 5,
+      "ID": "us-tn-pay-frequency",
+      "Description": "minimum frequency MONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 50-2-103",
+        "Note": "Pay frequency verification (§ 50-2-103): On promotion, verify payday remains regular (daily through monthly).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "TN",
+        "Locality": ""
+      },
+      "PackID": "us-tn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-tn-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-tn-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "10a340d7d8f233d8d1bf1bbba5e2ca6bcc8e4863a1a2507045c57ab8b5e18d4c"
+    },
+    {
+      "Type": 8,
+      "ID": "us-tn-non-compete",
+      "Description": "Non-competes: Enforced under common law reasonableness test (time, scope, geography, legitimate business interest). Healthcare providers subject to statutory cap: 2 years maximum, 10-mile radius or county restriction (§ 63-1-148).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 63-1-148",
+        "Note": "Non-competes: Enforced under common law reasonableness test (time, scope, geography, legitimate business interest).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "TN",
+        "Locality": ""
+      },
+      "PackID": "us-tn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-tn-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-tn-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-tn-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-tn-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "c32a310eaf1d6d1eff1c4a0c66efa598096f67917a430a9a490f9c08b02e65d6"
+    },
+    {
+      "Type": 13,
+      "ID": "us-tn-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay statement content: No state-mandated itemized format; federal FLSA requirements apply.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "TN",
+        "Locality": ""
+      },
+      "PackID": "us-tn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-tn-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-tn-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "e53e2e5f942168a76f9f85605fdea9ac762436b6cd1b1b96dccd8c69c5cef4c8"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-tn-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 50-2-103",
+        "Note": "Final pay timing: On termination, all wages due by next regular payday or 21 days after discharge/resignation, whichever is later (§ 50-2-103).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 9,
+      "ID": "us-tn-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 50-1-703",
+        "Note": "E-Verify compliance verification (§ 50-1-703, 35+ FTE employers): On promotion, confirm employee's I-9/E-Verify status remains valid; flag if verification window approaching renewal (3-year/1-year reverification may be...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-tn-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 50-1-601",
+        "Note": "Plant closure notice: Employers with 50–99 employees must notify affected employees and the state when reducing 50+ employees due to closing or relocation \u003e50 miles (§ 50-1-601 et seq.; no penalty, notification-only).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-tn-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 50-1-304",
+        "Note": "Whistleblower retaliation check (§ 50-1-304): If employee recently reported illegal activity, flag promotion timing and ensure timing does not appear retaliatory and cannot be inferred as discharge threat.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-tn-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks SEPARATION_FILING for TN, and no item in tennessee.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-tn-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 50-9-101",
+        "Note": "Drug testing (§ 50-9-101 et seq., Drug-Free Workplace Program):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-tn-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/tennessee.md",
+        "Section": "§ 47-18-2107",
+        "Note": "Data breach notification (§ 47-18-2107, Release of Personal Consumer Information):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "TN",
+            "Locality": ""
+          },
+          "PackID": "us-tn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-tn-retention",
+          "Description": "retain wage_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/tennessee.md",
+            "Section": "§ 50-2-103",
+            "Note": "Records retention (§ 50-2-103): Retain promotion documents (wage change, effective date, justification) per employer record policy (verify whether 3 years or employer-set); support labor commissioner inspection.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-tn-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "TN",
+            "Locality": ""
+          },
+          "PackID": "us-tn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-tn-leave-interaction",
+          "Description": "accrued paid sick leave: No state-mandated paid sick or family leave: Federal FMLA (50+ employees, unpaid) is the statutory floor; Tennessee preempts local ordinances that impose wage/benefit mandates (§ 50-2-112).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/tennessee.md",
+            "Section": "§ 50-2-112",
+            "Note": "No state-mandated paid sick or family leave: Federal FMLA (50+ employees, unpaid) is the statutory floor; Tennessee preempts local ordinances that impose wage/benefit mandates (§ 50-2-112).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "TN",
+            "Locality": ""
+          },
+          "PackID": "us-tn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-tn-pay-frequency",
+          "Description": "minimum frequency MONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/tennessee.md",
+            "Section": "§ 50-2-103",
+            "Note": "Pay frequency verification (§ 50-2-103): On promotion, verify payday remains regular (daily through monthly).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-tn-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "TN",
+            "Locality": ""
+          },
+          "PackID": "us-tn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-tn-non-compete",
+          "Description": "Non-competes: Enforced under common law reasonableness test (time, scope, geography, legitimate business interest). Healthcare providers subject to statutory cap: 2 years maximum, 10-mile radius or county restriction (§ 63-1-148).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/tennessee.md",
+            "Section": "§ 63-1-148",
+            "Note": "Non-competes: Enforced under common law reasonableness test (time, scope, geography, legitimate business interest).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "TN",
+            "Locality": ""
+          },
+          "PackID": "us-tn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-tn-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/tennessee.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay statement content: No state-mandated itemized format; federal FLSA requirements apply.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "8da9b6263eeeac5a910d63aca9779368daf39eeb52b127c55927728a473b6f47",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "/ofT/ZVG+DYUhyFIlQ65LVIo0+IHmXB7J1/FPhqKsv6XhdQgH96KmIZhUBxZSyCLpSswfYO2eZDvUckR+1rkBA=="
+  }
+}

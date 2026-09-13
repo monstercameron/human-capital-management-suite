@@ -1,0 +1,324 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-nm-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "NM",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-nm-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 50-4-2",
+          "note": "Base-pay change notice and timing (§ 50-4-2, § 50-4-3): For any wage increase, employer may implement immediately (no statutory advance notice required).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "channel": "written",
+          "content_fields": [
+            "effective_date"
+          ]
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-nm-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 50-4-9",
+          "note": "Record retention (§ 50-4-9): System must retain promotion records (wage change documentation, effective date, justification) for minimum 1 year; support labor commissioner inspection rights.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 1,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-nm-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 50-17-1",
+          "note": "Paid sick leave interaction (§ 50-17-1 et seq.): On promotion + pay change, if employee uses sick leave concurrently, system must not reduce post-leave wage below pre-promotion level.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Paid sick leave interaction (§ 50-17-1 et seq.): On promotion + pay change, if employee uses sick leave concurrently, system must not reduce post-leave wage below pre-promotion level. Sick leave accrual continues during paid leave (verify if employer policy dictates pro-rata accrual)."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-nm-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 50-4-2",
+          "note": "Pay frequency/payday notice (§ 50-4-2): On any promotion or base-pay change, system must flag if payday changes.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-nm-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 50-4-4",
+          "note": "Final pay on separation during/after promotion: If termination occurs following promotion, ensure all wages earned at promoted rate from effective date forward are paid within 5 days (fixed wages) or 10 days (other...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay on separation during/after promotion: If termination occurs following promotion, ensure all wages earned at promoted rate from effective date forward are paid within 5 days (fixed wages) or 10 days (other compensation) of discharge per § 50-4-4."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-nm-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 50-4A-1",
+          "note": "Non-compete enforceability check (§ 50-4A-1): On promotion to healthcare practitioner role, system must: (a) Identify if employee subject to non-compete; (b) If yes, flag as unenforceable per § 50-4A-1 (applies to all...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforceability check (§ 50-4A-1): On promotion to healthcare practitioner role, system must: (a) Identify if employee subject to non-compete; (b) If yes, flag as unenforceable per § 50-4A-1 (applies to all listed healthcare roles); (c) Document non-solicitation clause (≤1 year) and liquidated damages as enforceable alternatives; (d) On promotion, check if new role changes healthcare-practitioner status and update enforceability status."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-nm-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 50-4-22",
+          "note": "Statewide minimum wage $12.00/hour: Local ordinances in Santa Fe ($15.00), Albuquerque ($12.00), Las Cruces ($13.01), and Bernalillo County ($12.00) set higher minimums; employers must pay the highest applicable rate...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "12.00",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-nm-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 28-23-1",
+          "note": "Fair Pay for Women Act compliance (§ 28-23-1 et seq.): On promotion or base-pay change, system should flag if new wage for one gender differs \u003e15% from peer rates for equal work within same establishment; require...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "gender",
+            "age"
+          ],
+          "comparator_standard": "equal work",
+          "employer_size_floor": 4,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-nm-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Retaliation prohibited for asserting a claim under the Act.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-nm-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 26-2B",
+          "note": "Medical marijuana legalized (Lynn and Erin Compassionate Use Act, § 26-2B); no employer accommodation required for lawful off-duty use (see Section 7).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_status": [
+            "medical_cannabis_patient"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-nm-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-mexico.md",
+          "section": "§ 57-12C-1",
+          "note": "Data Breach Notification (§ 57-12C-1 et seq.):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/new-mexico.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "30ee8289e2f5d712aa4ffdd1f7b6e99cfc329695da70a1287d2650419c125124",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "f135d4eab25a962bb6721e10c39516eb75987f8f9f872f99f8ae66a92f1e2b8bf7343ee0de2403da99a83407ccb508f60bb7923b4d120be4e6faf131a781ea0a"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "30ee8289e2f5d712aa4ffdd1f7b6e99cfc329695da70a1287d2650419c125124",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-nm-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nm-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nm-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nm-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nm-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nm-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks NOTICE '?' for NM; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for NM; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-nm-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nm-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nm-leave-interaction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nm-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "57a30840e41146b66d7a1913cad4dd023c02bd97df06b82c7c651d09ae1172c3",
+      "prev_digest": "",
+      "digest": "e9ec10da6ca8de35037cd335e62330c50034082a683a979c6e4026c181bcf6a2",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "b8f890af9c24a2fc738a915780da105f8848890db2fd52d2b851b1b3ab3e213e621f8a1eb2521d3753921f6b126075ea1efd6c28350cfdff6ee38a1ba86e9c07"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "0f7a57e6bb07b1b7c1964b73b52429ed4f05b63ccdb350884082d26b62c49585",
+      "prev_digest": "e9ec10da6ca8de35037cd335e62330c50034082a683a979c6e4026c181bcf6a2",
+      "digest": "98d899d105b65b2e5aff7337427fb13b1e6aa9835415128b333644b1dc64b140",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "25ebcb7a34c4ea8b14c698d17caf3870ab811ad98c1f6f4f0341926a0d1420788f80f4a530bd575814f8139f426aba24cd910d2ec2dc7343f8aec5c19a3a660b"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "30ee8289e2f5d712aa4ffdd1f7b6e99cfc329695da70a1287d2650419c125124",
+      "prev_digest": "98d899d105b65b2e5aff7337427fb13b1e6aa9835415128b333644b1dc64b140",
+      "digest": "38688edb33a2e6b18d1b4b0c3925fb606bf1fa3b764e626b5c212df56ce54022",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "3a8b335414b21e44eadf5b88cd264c1fbcf1f7b50c02c05cf752f152aa0e7d8193780eaad19f4777a23e1a7fec467cd8be85f4bd238910bd2da0440bf572f006"
+      }
+    }
+  ]
+}

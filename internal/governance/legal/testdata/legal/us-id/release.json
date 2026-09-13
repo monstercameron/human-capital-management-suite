@@ -1,0 +1,271 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-id-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "ID",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-id-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/idaho.md",
+          "section": "Idaho Code § 45-610",
+          "note": "Three-year record retention: Idaho Code § 45-610 requires employers maintain employment records for 3 years from date of separation; must provide wage information and notice of wage reductions to employees.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-id-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/idaho.md",
+          "section": "Idaho Code § 45-610",
+          "note": "Three-year record retention: Idaho Code § 45-610 requires employers maintain employment records for 3 years from date of separation; must provide wage information and notice of wage reductions to employees.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-id-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/idaho.md",
+          "section": "Idaho Code § 45-606",
+          "note": "Idaho Code § 45-606 does not mandate a specific pay frequency (weekly, bi-weekly, monthly); employers may set frequency by agreement, but must pay consistently and in accordance with wage payment rules.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "BIWEEKLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-id-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/idaho.md",
+          "section": "Idaho Code § 45-606",
+          "note": "Final pay timing strict (10 days or regular payday): Idaho Code § 45-606 requires wages by the earlier of the next regular payday or 10 days after termination; employee request for early payment triggers 48-hour...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing strict (10 days or regular payday): Idaho Code § 45-606 requires wages by the earlier of the next regular payday or 10 days after termination; employee request for early payment triggers 48-hour deadline (weekends/holidays excluded)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-id-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/idaho.md",
+          "section": "Idaho Code §§ 44-2701",
+          "note": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope; must protect legitimate business interests; violations of restraint doctrine may result in unenforceability."
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-id-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/idaho.md",
+          "section": "Idaho Code § 45-609",
+          "note": "Wage deductions restricted: Deductions only permitted if required by law or with written employee authorization (Idaho Code § 45-609); must provide itemized statement of deductions; unpaid wages accrue 15-day penalty...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "deductions"
+          ],
+          "consent_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-id-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/idaho.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Public policy exception: Termination in violation of established public policy (e.g., retaliation for filing a workers' compensation claim, fulfilling jury duty, or reporting illegal activity) may create liability.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim",
+            "jury_duty"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-id-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/idaho.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No state-level statute regulating private-sector drug testing: Idaho does not restrict private employers' ability to conduct pre-employment, reasonable-suspicion, or post-accident drug testing.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "post_accident"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-id-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/idaho.md",
+          "section": "Idaho Code § 28-51-105",
+          "note": "Data breach notification required: Idaho Code § 28-51-105 mandates notification \"without unreasonable delay\" if personal data accessed/misused; state agencies must notify AG within 24 hours.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/idaho.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "ca77fecad32576de5ceb23751cae96b53f7f8db34698876ce0f573398ac7fd74",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "b82f9b06b596557194a4bade0fc896fd7379bab31b78116c62dd8e48c0cf2015d20e5d01c071165ee4eb423e59e6765d337ed9d0e2d92d2a33be6de4727a8107"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "ca77fecad32576de5ceb23751cae96b53f7f8db34698876ce0f573398ac7fd74",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-id-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-id-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-id-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days, channel are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-id-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for ID; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-id-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-id-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-id-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "a34841f73240012fbf9b4b4884f6f3c48b0120f9fe26064736adb9f526774669",
+      "prev_digest": "",
+      "digest": "00dacce8d9f7baa19acadc1dc59fac7cdd5b2f573f8a56598d8391077e266697",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "8ce7e7e5a0ebe8ea23a83e433608748c3b0bb4753d5c352643aad73ec15cd97dc7e08a0e518686409d60acac70ef1613bf20ed95de650597158e3c136b4ba60d"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "1c47ab026fc59e4a2ea36a68066ad525d8c60a445349a487bb8fc68c1ae0e0ed",
+      "prev_digest": "00dacce8d9f7baa19acadc1dc59fac7cdd5b2f573f8a56598d8391077e266697",
+      "digest": "bcdc10617b614d3cdd1ff8149ecdddb82b493952605741ad00504e6bbf1bd969",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "f4ad401872c54ab30f085e2001ea3c0069515e15cf02b357a5c15ba62772658530841008b8dcfc89275bdaaf3637f5d9a051d4c6b56e446d57f1839d0581060f"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "ca77fecad32576de5ceb23751cae96b53f7f8db34698876ce0f573398ac7fd74",
+      "prev_digest": "bcdc10617b614d3cdd1ff8149ecdddb82b493952605741ad00504e6bbf1bd969",
+      "digest": "17b5bcb9eb73d71149f4e2c5af4ce0f14771920a1cbb9d177f3f264a4bc63569",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "82ab6eeb65872693a742286912ef9a6a1361ca3293884454a603eee16b86349d5d6c843e6d712b6d52c2f5dfaaa5c7c8f1ba63adb69c946185d0d8198e325508"
+      }
+    }
+  ]
+}

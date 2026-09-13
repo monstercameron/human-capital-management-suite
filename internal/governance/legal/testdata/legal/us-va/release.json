@@ -1,0 +1,368 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-va-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "VA",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-va-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "Va. Code § 40.1-29",
+          "note": "Va. Code § 40.1-29: Written notice of wages, pay periods, and deductions required.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "channel": "written"
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-va-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-28.7:12",
+          "note": "Salary history inquiry block (§ 40.1-28.7:12, effective September 3, 2026):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-va-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-29",
+          "note": "Payroll record retention (§ 40.1-29):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "payroll_records"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-va-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-29",
+          "note": "Pay frequency and final pay (§ 40.1-29): Hourly = biweekly or twice monthly; salaried = monthly; final pay on or before next regular payday; treble damages for knowing wage violations.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "BIWEEKLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-va-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-29",
+          "note": "Pay frequency and final pay (§ 40.1-29): Hourly = biweekly or twice monthly; salaried = monthly; final pay on or before next regular payday; treble damages for knowing wage violations.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Pay frequency and final pay (§ 40.1-29): Hourly = biweekly or twice monthly; salaried = monthly; final pay on or before next regular payday; treble damages for knowing wage violations."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-va-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-28.7:12",
+          "note": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per subsequent; private right of action within 1 year (§ 40.1-28.7:12)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-va-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-28.7:8",
+          "note": "Non-compete enforceability check and void (§ 40.1-28.7:8; SB 1218):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforceability check and void (§ 40.1-28.7:8; SB 1218):"
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-va-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-28.10",
+          "note": "Minimum wage floor check (§ 40.1-28.10): On any pay change (promotion, base raise, role change), verify new rate ≥ current state minimum ($12.77 for 2026–2027; $13.75 for 2027–2028; $15.00 for 2028–2029; then...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "12.77",
+            "currency": "USD"
+          },
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-va-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-28.6",
+          "note": "Equal pay audit and justification (§ 40.1-28.6):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-va-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-29",
+          "note": "Pay statement content (§ 40.1-29):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-va-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-28.7:7",
+          "note": "§ 40.1-28.7:7: Misclassification enforcement by Department of Labor, Department of Revenue, Workers' Compensation Commission; penalties include back wages, reclassification, civil actions.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "test_description": "§ 40.1-28.7:7: Misclassification enforcement by Department of Labor, Department of Revenue, Workers' Compensation Commission; penalties include back wages, reclassification, civil actions.",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-va-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 40.1-28.7:9",
+          "note": "§ 40.1-28.7:9 (Wage Discussion Protection, 2022): Employer cannot discharge, discipline, threaten, discriminate against, or retaliate against employee for inquiring about, discussing, or disclosing own wages, other...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-va-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 19.2-392.4",
+          "note": "Ban-the-box for public employers only: § 19.2-392.4 restricts public employers from inquiring about expunged records; marijuana possession inquiry prohibited (§ 19.2-389.3).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-va-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/virginia.md",
+          "section": "§ 18.2-186.6",
+          "note": "Breach notification (§ 18.2-186.6):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/virginia.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "44af7797476303a1f3e38cc0e0bc4245826932608424faf14e3a733f33316323",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "68c6f88ffdb357545c93f2887ff8947fae51bb90a38f5b37bc6e3b928282b81650739b10bbd8385a3d470898113823436de01750f779df5bde3bb67747bbd20c"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "44af7797476303a1f3e38cc0e0bc4245826932608424faf14e3a733f33316323",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-va-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-va-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-va-classification",
+        "severity": "BLOCKING",
+        "note": "required field(s) dimension are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-va-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-va-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-va-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_bases, comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-va-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-va-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-va-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for VA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PERSONNEL_FILE '?' for VA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-va-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-va-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-va-wage-floor",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "52a9ae6c2301d78312e3278f1edfa90ff29023094644e67255d2fdebdca89955",
+      "prev_digest": "",
+      "digest": "dd18a853f897069b93f8c2c9c8f7ed8fa8e47f6425e8bba3fed300d7b3b63542",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "cee1ff7c001232ff3c4aebc6d12a088ef66feccf4eb719887fc6cb3aa5aadbca663518551317848232971475dd913516f9daedfd05d934811b9405a2b8a5c906"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "8a41581490b2aa69e7b6edee1b7aff0c257267930c2b291b4bd7024af3efd375",
+      "prev_digest": "dd18a853f897069b93f8c2c9c8f7ed8fa8e47f6425e8bba3fed300d7b3b63542",
+      "digest": "dbd222e059061fa80fa73314a93a107d76d4a6730c4a8ca0c032ed3f5442d4c5",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "ab287c57cf1e157214e38bfd57ecbc447b5dd0dcd73ee6f3a810e2ed9e0ca0d459969f647405f9256681e23e3d48ab9a91f1e7e521b59df2c77b5beb4209ca0b"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "44af7797476303a1f3e38cc0e0bc4245826932608424faf14e3a733f33316323",
+      "prev_digest": "dbd222e059061fa80fa73314a93a107d76d4a6730c4a8ca0c032ed3f5442d4c5",
+      "digest": "ca5756cec58f8e2dca3dea82ab1f9f1813e6904543e72da2e605379e8ee7f3a0",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "d65b68ae852f1fd39df6d122b79485220008e01b490a07a3e00712669326ff23e97e68f73f6f194604a8b99fb396beafc118575525eacccf5a6c1001d3252b06"
+      }
+    }
+  ]
+}

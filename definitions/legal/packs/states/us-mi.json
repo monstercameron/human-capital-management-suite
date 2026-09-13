@@ -85,7 +85,22 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing on discharge: Trigger immediate payment calculation on termination; if amount cannot be determined by close of business, schedule payment for next regular payday with documented reason."
+        "deadline_description": "Final pay timing on discharge: Trigger immediate payment calculation on termination; if amount cannot be determined by close of business, schedule payment for next regular payday with documented reason. Flag any delay beyond that date."
+      }
+    },
+    {
+      "kind": "NON_COMPETE",
+      "id": "us-mi-non-compete",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/michigan.md",
+        "section": "(statutory section not stated in the research file)",
+        "note": "Non-compete/non-solicit storage: Store execution date, employee name, reasonableness attributes (duration, geography, scope).",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "VERIFY"
+      },
+      "body": {
+        "recheck_on_pay_change": true,
+        "rule": "Non-compete/non-solicit storage: Store execution date, employee name, reasonableness attributes (duration, geography, scope). Flag any non-compete with duration >2 years or nationwide scope for legal review; do not auto-enforce."
       }
     },
     {

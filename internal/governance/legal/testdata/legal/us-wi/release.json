@@ -1,0 +1,375 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-wi-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "WI",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-wi-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "Under Wis. Stat. § 103.13",
+          "note": "Personnel records: Under Wis. Stat. § 103.13, any record maintained by employer that identifies employee and affects employment decisions (e.g., qualifications, discipline, compensation) is a personnel record.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "personnel_records"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-wi-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "§ 109.03",
+          "note": "Final pay timing: regular payday or 24 hours on business separation: Employers must pay all wages on next regularly scheduled payday, or within 24 hours if employment ends due to merger, liquidation, relocation, or...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing: regular payday or 24 hours on business separation: Employers must pay all wages on next regularly scheduled payday, or within 24 hours if employment ends due to merger, liquidation, relocation, or business closure (§ 109.03)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-wi-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "§ 103.465",
+          "note": "Non-compete enforceability under reasonableness test: Governed by § 103.465; courts enforce if duration, geography, and scope are reasonable; blue-pencil doctrine applies (Runzheimer, 2015 WI 45).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforceability under reasonableness test: Governed by § 103.465; courts enforce if duration, geography, and scope are reasonable; blue-pencil doctrine applies (Runzheimer, 2015 WI 45)."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-wi-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "§ 109.07",
+          "note": "Mass Layoff Notice (§ 109.07): For employers 50+, flag mass layoff (25% workforce or 25+ employees) or business closure (25+ employees) and enforce 60-day notice requirement; validate recipient list (affected...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Mass Layoff Notice (§ 109.07): For employers 50+, flag mass layoff (25% workforce or 25+ employees) or business closure (25+ employees) and enforce 60-day notice requirement; validate recipient list (affected...",
+          "employee_threshold": 25,
+          "notice_days": 60
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-wi-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "§ 111.31–111.395",
+          "note": "Wisconsin Fair Employment Act (WFEA) (§ 111.31–111.395) prohibits discrimination \"because of sex\" and other classes; no explicit \"equal pay for equal work\" statute separate from sex discrimination.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex"
+          ],
+          "comparator_standard": "equal work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-wi-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay statement itemization: Ensure pay stubs show hours, rate, and deduction reasons (not coded without explanation).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "deductions",
+            "hours_worked",
+            "pay_rate"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-wi-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "§ 103.13",
+          "note": "Personnel file access twice per calendar year within 7 working days: Employees may inspect records (§ 103.13); corrections/disputes recorded in file.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "response_days": 7,
+          "day_basis": "BUSINESS",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-wi-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Discharge in retaliation for workers' compensation claim or unemployment claim filing.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-wi-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Discharge in retaliation for workers' compensation claim or unemployment claim filing.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recipient_authority": "state unemployment insurance agency",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-wi-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No Wisconsin state statute regulating private-sector pre-employment or post-accident drug testing.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "post_accident"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-wi-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks BREACH_NOTIFICATION for WI, and no item in wisconsin.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [
+      {
+        "kind": "WAGE_FLOOR",
+        "scope": "LOCALITY_ONLY",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "Wis. Stat. § 104.001(2); § 103.10(1m); AB 748",
+          "note": "state preemption of locality rules of this kind, per the rule-pack contract's section 6.4",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "scope": "LOCALITY_ONLY",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "Wis. Stat. § 104.001(2); § 103.10(1m); AB 748",
+          "note": "state preemption of locality rules of this kind, per the rule-pack contract's section 6.4",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "scope": "LOCALITY_ONLY",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "Wis. Stat. § 104.001(2); § 103.10(1m); AB 748",
+          "note": "state preemption of locality rules of this kind, per the rule-pack contract's section 6.4",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "scope": "LOCALITY_ONLY",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wisconsin.md",
+          "section": "Wis. Stat. § 104.001(2); § 103.10(1m); AB 748",
+          "note": "state preemption of locality rules of this kind, per the rule-pack contract's section 6.4",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        }
+      }
+    ],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/wisconsin.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "67445f53f27f8cdd4b1a5b406d97c97468d54f9921329007a236f86a0514478d",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "7b334e54be99335536b294d00dbac9273f307ded7213a76850cc1158d2ae174521ab1b355d6068316a21ca3fe7da51fed8965f24d9357503a4f7aa2aa2a23f0b"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "67445f53f27f8cdd4b1a5b406d97c97468d54f9921329007a236f86a0514478d",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-wi-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wi-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wi-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wi-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wi-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for WI; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for WI; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-wi-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wi-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wi-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wi-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wi-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wi-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "8a60badbb360be623a9326d1b8213ddcb217ae221d26b33b2c5538bd9ce30ee3",
+      "prev_digest": "",
+      "digest": "887fefc07e7f81380001de4f18d3569168217af9d4929602beb5c5819702363d",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "1b7873a009ea549fdd577877ddeb6e2dd1097d57aecb962097e33284096c28820a34520d4b99652e69b26da6d0ffaf2f10c8780bc5de8dab023f1e8d1e2e1705"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "febe6650f7424df1dddbcbcab51d5399036a28c0e827cc4a990cf495db53d784",
+      "prev_digest": "887fefc07e7f81380001de4f18d3569168217af9d4929602beb5c5819702363d",
+      "digest": "f4ac9ccabbc5140000fa4b9d46c0080ab615bad63da0bb77b5bc4f9d88d09851",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "f54c5eeda846749f7754d4687d447986d01ca50529aa98f812d3bad8ddadb0f46440e9538e5f708a30e095b4b96743af49896fe3dc23a09dc6f82afe0c289100"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "67445f53f27f8cdd4b1a5b406d97c97468d54f9921329007a236f86a0514478d",
+      "prev_digest": "f4ac9ccabbc5140000fa4b9d46c0080ab615bad63da0bb77b5bc4f9d88d09851",
+      "digest": "f0a25a4207a6f611c38fa34cd6a48b919fb1a899d884d12dcb74c523a4684a17",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "da2217b92241eeb3b16104e8d63fda9f96b42a40c24977c09c78684c77bf1c2766dbe17d31a6d193ed3eea15dbe9192027b6ca0c47322b75c684aab30666a609"
+      }
+    }
+  ]
+}

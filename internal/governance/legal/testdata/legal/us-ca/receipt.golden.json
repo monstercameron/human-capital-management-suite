@@ -1,0 +1,878 @@
+{
+  "legal_context_digest": "c179a54d98ec0c868fc4b3fa0e45b104fc6cb294798f86b827dce8984533a9b0",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "CA",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ca-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "CA",
+          "Locality": ""
+        }
+      },
+      "Digest": "f6bf255f1c09417ccce5ad1d6a29b0cb8e4e448e1c77ea8ca0b8fd8929a380f2",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-ca-notice",
+      "Description": "employer_to_worker notice after the effective date within 7 day(s), channel=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 2810.5",
+        "Note": "Wage notice (§ 2810.5): Upon hire, system must generate/display/send notice.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ca-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-ca-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "fb4d9ef84d6c1fba9f6ef2a2f66da1af6696dcd7766939ac8646699979fab021"
+    },
+    {
+      "Type": 3,
+      "ID": "us-ca-retention",
+      "Description": "retain wage_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 226",
+        "Note": "Pay statement accuracy (§ 226): System must generate itemized statements with all 9 required fields, retain 3-year copies, and track deduction authorization (written employee consent).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "c971372e9ba6a0ec3f3d2c6308027847b6a1aa9370af8ae84898a46c6fcfa4af"
+    },
+    {
+      "Type": 4,
+      "ID": "us-ca-leave-interaction",
+      "Description": "accrued paid time off: Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72 hours on resignation or immediately on discharge, and track payment date to flag 30-day maximum penalty exposure.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§§ 201–203",
+        "Note": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ca-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "8d86a7acb14ba88953decaaaf84b2d34c606e42acf14f913183c528d161fbc9e"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ca-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 204",
+        "Note": "Pay frequency: § 204 requires wages at least semimonthly on designated paydays; exceptions exist for certain professions.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "69d0e1c3a734c746e9e9f8dfae9fd201e1a35d3ee844bc43c53af3565c684bc5"
+    },
+    {
+      "Type": 7,
+      "ID": "us-ca-pay-transparency",
+      "Description": "internal_promotion: Pay scale disclosure (§ 432.3): System must store current pay scale per position, surface in job posting export, and provide on employee request within 30 days or face liability.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 432.3",
+        "Note": "Pay scale disclosure (§ 432.3): System must store current pay scale per position, surface in job posting export, and provide on employee request within 30 days or face liability.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-ca-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "f5767fe35320dc857ba41661568c71c299ce99f7beb9dd8939a1755d71cb8091"
+    },
+    {
+      "Type": 8,
+      "ID": "us-ca-non-compete",
+      "Description": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation workflows.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 16600",
+        "Note": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ca-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-ca-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "153d669bb058bbd6a1e50557e8ff62c7aa9302e4260dbe0e000561900735682a"
+    },
+    {
+      "Type": 11,
+      "ID": "us-ca-wage-floor",
+      "Description": "HOURLY floor of 16.90 USD for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 1182.12",
+        "Note": "Minimum wage complexity: Three-tier system (general § 1182.12: $16.90/2026; fast-food § 1474: $20/hour; healthcare § 1182.14: $21–$25/hour by facility type); plus 20+ local ordinances with higher floors.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ca-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "d95e1ad0f53eaf8fac7451e96bcf68e8bde3bef0f44186d4c3052bf82531afac"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ca-pay-equity-review",
+      "Description": "pay-equity review against substantially similar work for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "Labor Code § 1197.5",
+        "Note": "Equal pay: Labor Code § 1197.5 (California Equal Pay Act) prohibits paying employees at lower wage rates based on sex for substantially similar work (skill, effort, responsibility, working conditions).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ca-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "f3ab81d702def84d73e9488213d9218620cd6af2fbec7aabc623cc3be3b1cb00"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ca-pay-statement",
+      "Description": "pay statement delivered ELECTRONIC must carry deductions, pay_rate",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 226",
+        "Note": "Pay statement accuracy (§ 226): System must generate itemized statements with all 9 required fields, retain 3-year copies, and track deduction authorization (written employee consent).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "522db114857d160b1b291a95e7c44f4f687f813b49d76d4b5d564980750e5bff"
+    },
+    {
+      "Type": 14,
+      "ID": "us-ca-classification",
+      "Description": "CONTRACTOR test: AB 5 ABC test presumes employee: All three prongs (A: no control, B: outside usual business, C: independent trade) must be satisfied to classify as contractor; failure on any = employee.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "AB 5",
+        "Note": "AB 5 ABC test presumes employee: All three prongs (A: no control, B: outside usual business, C: independent trade) must be satisfied to classify as contractor; failure on any = employee.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ca-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "c0205a9029daaf51db33009962fda084e7e650567dab351311a476d29f99452a"
+    },
+    {
+      "Type": 15,
+      "ID": "us-ca-personnel-file",
+      "Description": "personnel-file request answered within 30  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 1198.5",
+        "Note": "Personnel file access (§ 1198.5): On employee request, system must flag 30-day deadline (extendable to 35 with agreement) to provide inspection/copies or $750 penalty risk.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CA",
+        "Locality": ""
+      },
+      "PackID": "us-ca-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ca-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ca-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "f0ddcb7db05a5e19bd8d1b54f4cf582255e5c021e9cc50abb86a84b3ee4f1e08"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-ca-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 432.3",
+        "Note": "Pay transparency mandatory: § 432.3 bans salary history questions, requires pay scale disclosure in job postings (15+ employees), mandates 3-year wage/job title record retention, and Gov.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-ca-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§§ 201–203",
+        "Note": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-ca-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "Labor Code §§ 1400–1408",
+        "Note": "Cal-WARN notice (Labor Code §§ 1400–1408): California Worker Adjustment and Retraining Notification Act requires 60-day written notice of mass layoff (50+ employees in 30 days), plant closure, or relocation to:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ca-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "Labor Code § 2810.5",
+        "Note": "California is at-will employment (no state restriction on at-will doctrine).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ca-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "§ 230–230.1",
+        "Note": "Cannabis/domestic violence/victim leave: System must flag eligibility for AB 2188 cannabis use non-discrimination (no testing unless federal-funding job or CDL), AB 2499 victim-of-violence leave (runs concurrent with...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ca-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "Civil Code § 1798.150",
+        "Note": "Business obligations: Covered employers must provide privacy notice at or before collection, honor access/deletion/opt-out/correction requests within 45 days (or 90 days if unverifiable request; verify: CPPA guidance on...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 22,
+      "ID": "us-ca-monitoring-consent",
+      "Reason": "the transaction touches no data category this rule covers",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/california.md",
+        "Section": "Civil Code § 1798.100",
+        "Note": "Biometric information: Civil Code § 1798.100 et seq. does not expressly restrict biometric collection, but employers using facial recognition or fingerprint/iris scanning for time-tracking, access control, or...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-ca-notice",
+          "Description": "employer_to_worker notice after the effective date within 7 day(s), channel=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "§ 2810.5",
+            "Note": "Wage notice (§ 2810.5): Upon hire, system must generate/display/send notice.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ca-retention",
+          "Description": "retain wage_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "§ 226",
+            "Note": "Pay statement accuracy (§ 226): System must generate itemized statements with all 9 required fields, retain 3-year copies, and track deduction authorization (written employee consent).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ca-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-ca-leave-interaction",
+          "Description": "accrued paid time off: Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72 hours on resignation or immediately on discharge, and track payment date to flag 30-day maximum penalty exposure.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "§§ 201–203",
+            "Note": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ca-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "§ 204",
+            "Note": "Pay frequency: § 204 requires wages at least semimonthly on designated paydays; exceptions exist for certain professions.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ca-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-ca-pay-transparency",
+          "Description": "internal_promotion: Pay scale disclosure (§ 432.3): System must store current pay scale per position, surface in job posting export, and provide on employee request within 30 days or face liability.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "§ 432.3",
+            "Note": "Pay scale disclosure (§ 432.3): System must store current pay scale per position, surface in job posting export, and provide on employee request within 30 days or face liability.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-ca-non-compete",
+          "Description": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation workflows.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "§ 16600",
+            "Note": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-ca-wage-floor",
+          "Description": "HOURLY floor of 16.90 USD for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "§ 1182.12",
+            "Note": "Minimum wage complexity: Three-tier system (general § 1182.12: $16.90/2026; fast-food § 1474: $20/hour; healthcare § 1182.14: $21–$25/hour by facility type); plus 20+ local ordinances with higher floors.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ca-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ca-pay-equity-review",
+          "Description": "pay-equity review against substantially similar work for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "Labor Code § 1197.5",
+            "Note": "Equal pay: Labor Code § 1197.5 (California Equal Pay Act) prohibits paying employees at lower wage rates based on sex for substantially similar work (skill, effort, responsibility, working conditions).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ca-pay-statement",
+          "Description": "pay statement delivered ELECTRONIC must carry deductions, pay_rate",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "§ 226",
+            "Note": "Pay statement accuracy (§ 226): System must generate itemized statements with all 9 required fields, retain 3-year copies, and track deduction authorization (written employee consent).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-ca-classification",
+          "Description": "CONTRACTOR test: AB 5 ABC test presumes employee: All three prongs (A: no control, B: outside usual business, C: independent trade) must be satisfied to classify as contractor; failure on any = employee.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "AB 5",
+            "Note": "AB 5 ABC test presumes employee: All three prongs (A: no control, B: outside usual business, C: independent trade) must be satisfied to classify as contractor; failure on any = employee.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CA",
+            "Locality": ""
+          },
+          "PackID": "us-ca-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-ca-personnel-file",
+          "Description": "personnel-file request answered within 30  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/california.md",
+            "Section": "§ 1198.5",
+            "Note": "Personnel file access (§ 1198.5): On employee request, system must flag 30-day deadline (extendable to 35 with agreement) to provide inspection/copies or $750 penalty risk.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ca-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "abb28c61eebff27788986b12758b9d7bfac28682dad39386e61600f601ba6da0",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "aDQnRNP8V1mJPxYidMPyYywJb8M3orGv36K9ARSAnL9auLVERPDwaqFZaCnoXFdcQCGo2AGCl6XN30LTiUyhDg=="
+  }
+}

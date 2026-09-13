@@ -1,4 +1,4 @@
-// Package extract turns the fifty state employment-law research files under
+// Package extract turns the fifty-one state employment-law research files under
 // planning/research/state-employment-law into checked-in rule-pack
 // definition files under definitions/legal/packs/states.
 //
@@ -30,7 +30,7 @@
 // Every step is a pure function of file bytes: the contract file supplies the
 // matrix, the research file supplies the evidence, and nothing consults a
 // clock, a network, a map iteration order or the filesystem beyond reading
-// those inputs. Regenerating the fifty files therefore produces byte-identical
+// those inputs. Regenerating the fifty-one files therefore produces byte-identical
 // output, which is what TestTodo_LEGAL_011_Golden asserts.
 //
 // # What the output is not

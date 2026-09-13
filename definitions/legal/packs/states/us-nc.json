@@ -30,6 +30,8 @@
       },
       "body": {
         "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
+        "timing_days": 1,
         "channel": "written",
         "content_fields": ["pay_rate", "payday"]
       }
@@ -76,7 +78,7 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "interaction_rule": "School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level."
+        "interaction_rule": "School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level. Leave accrual continues unaffected by promotion."
       }
     },
     {
@@ -106,6 +108,21 @@
       "body": {
         "trigger": "termination_any",
         "deadline_description": "Final pay on termination (§ 95-25.6): If termination occurs after promotion, ensure all wages at promoted rate due on \"next regular payday\" for discharge period."
+      }
+    },
+    {
+      "kind": "NON_COMPETE",
+      "id": "us-nc-non-compete",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/north-carolina.md",
+        "section": "§ 75-4",
+        "note": "Non-competes (§ 75-4): Must be written, signed, reasonable in time/territory; enforced narrowly against drafter.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "recheck_on_pay_change": true,
+        "rule": "Non-competes (§ 75-4): Must be written, signed, reasonable in time/territory; enforced narrowly against drafter."
       }
     },
     {

@@ -30,6 +30,7 @@
       },
       "body": {
         "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
         "timing_days": 10,
         "channel": "written",
         "content_fields": ["pay_rate", "effective_date"]
@@ -77,7 +78,7 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "interaction_rule": "Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date."
+        "interaction_rule": "Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date. Notice includes: new salary ($60,000/year), new pay basis (salaried), new payday (if changed), new position title (Manager), effective date, and statement: \"Accrued ESST balance ($1,200) carries over to new role; accrual continues at equivalent rate. Non-compete per Minn. Stat. § 181.988 is void; no re-signing required.\""
       }
     },
     {
@@ -104,7 +105,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Compensation timing and effective date: Final paycheck (if termination) follows § 181.13/181.14 (within 24 hours or next payday, depending on quit vs."
+        "deadline_description": "Compensation timing and effective date: Final paycheck (if termination) follows § 181.13/181.14 (within 24 hours or next payday, depending on quit vs. discharge). Promotion pay increase typically effective on promotion date or next paycheck; system should verify that pay increase is reflected in first full pay period post-effective date. Do not delay pay increase to future pay period without documented business reason (e.g., payroll system lag); timely payment is required."
       }
     },
     {
@@ -119,7 +120,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay-range posting (if promotion creates new or changed role): If promotion creates a new title or materially changes the role and employer has 30+ employees, system must flag that any new job posting for that role must..."
+        "required_disclosure": "Pay-range posting (if promotion creates new or changed role): If promotion creates a new title or materially changes the role and employer has 30+ employees, system must flag that any new job posting for that role must include salary range per § 181.173 (effective 2025-01-01, enacted by the 2024 Omnibus Labor and Industry Policy Bill, SF 3852). Correction (2026-09-03 contradiction closure): § 181.9414 was repealed effective 2021 (2020 Minn. Stat., amended 1Sp2021 c.10 art.3 s.22) and is not the pay-range posting statute; the operative citation is § 181.173, consistent with the Summary and § 4 above. \"Salary range\" = employer's reasonable estimate of hourly rate or annual salary for the position. If new title is not posted externally, no posting requirement. Recommendations: (1) integrate salary-range requirement into job-posting workflow; (2) flag roles that have never had a salary range posted; (3) require range to be entered before job posting goes live."
       }
     },
     {
@@ -134,7 +135,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete."
+        "rule": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete. System should generate compliance note: \"Non-compete per Minn. Stat. § 181.988 is void unless related to sale of business or business dissolution. No non-compete enforcement on role change or promotion. Do not require employee to re-sign non-compete.\" If system encounters a non-compete flag on employee record during promotion, escalate to legal for review; do not proceed with re-signing."
       }
     },
     {
@@ -143,12 +144,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/minnesota.md",
         "section": "USC § 2101",
-        "note": "WARN notification (federal and state): Minnesota has no state-specific WARN act separate from federal WARN Act (29 USC § 2101 et seq.).",
+        "note": "WARN notification (federal and state): Minnesota has no state-specific WARN act separate from federal WARN Act (29 USC § 2101 et seq.). Federal WARN requires 60-day advance notice for plant closings (permanent...",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "note": "WARN notification (federal and state): Minnesota has no state-specific WARN act separate from federal WARN Act (29 USC § 2101 et seq.).",
+        "note": "WARN notification (federal and state): Minnesota has no state-specific WARN act separate from federal WARN Act (29 USC § 2101 et seq.). Federal WARN requires 60-day advance notice for plant closings (permanent...",
         "employee_threshold": 50,
         "notice_days": 60
       }
@@ -222,7 +223,7 @@
       },
       "body": {
         "dimension": "OVERTIME_THRESHOLD",
-        "test_description": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption...",
+        "test_description": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption criteria are met (executive, administrative, professional duties test—not merely salary-based); (2) require manager attestation that role duties meet exemption standard; (3) document duties change in personnel file; (4) do not rely on salary alone for exemption. Conversely, if promotion moves exempt to non-exempt, recalculate overtime eligibility. System should flag if classification change lacks documented duties justification.",
         "standard": "REQUIRED"
       }
     },

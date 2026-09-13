@@ -1,0 +1,228 @@
+{
+  "legal_context_digest": "75c4d92498eebde2f69cfb8779e3fe19e884c604d9f6003f1fcd42b91ed9a4fb",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "MS",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ms-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "MS",
+          "Locality": ""
+        }
+      },
+      "Digest": "c7fe76c147d0cce59d4c4d04830d3423722ad96d5190c22255e2efa3952f0794",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 5,
+      "ID": "us-ms-pay-frequency",
+      "Description": "minimum frequency BIWEEKLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/mississippi.md",
+        "Section": "Miss. Code § 71-1-35",
+        "Note": "Validation error: \"Manufacturers and public service corporations with 50+ employees must pay wages at least bi-weekly per Miss. Code § 71-1-35.\"",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MS",
+        "Locality": ""
+      },
+      "PackID": "us-ms-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ms-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ms-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "b57e3e488779e7b71b02a44bc7626b3a67023d0d266a37e5511c6c741f9129dc"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ms-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases sex",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/mississippi.md",
+        "Section": "Miss. Code § 71-17-5",
+        "Note": "Notice: \"Miss.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MS",
+        "Locality": ""
+      },
+      "PackID": "us-ms-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ms-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ms-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ms-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "d578d8185d6284f14f47302772af2eff62f7b3a1ec3154f742bfa70a6b46a450"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 9,
+      "ID": "us-ms-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/mississippi.md",
+        "Section": "Miss. Code § 71-11-3",
+        "Note": "E-Verify mandatory for ALL employers: Miss. Code § 71-11-3 (Mississippi Employment Protection Act) requires every employer, regardless of size, to verify work eligibility via E-Verify; this is the strictest state...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ms-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/mississippi.md",
+        "Section": "Miss. Code § 13-5-35",
+        "Note": "Jury Duty Leave: Miss. Code § 13-5-35 (Employment Protections for Jurors) protects employees from compulsory use of paid leave for jury service.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ms-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/mississippi.md",
+        "Section": "Miss. Code § 41-137-13",
+        "Note": "Notice: \"Miss.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ms-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/mississippi.md",
+        "Section": "Miss. Code § 75-24-29",
+        "Note": "Data breach notification without unreasonable delay: Miss. Code § 75-24-29 requires notice in \"most expedient time possible and without unreasonable delay\"; no specific day count; no private right of action.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MS",
+            "Locality": ""
+          },
+          "PackID": "us-ms-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ms-pay-frequency",
+          "Description": "minimum frequency BIWEEKLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/mississippi.md",
+            "Section": "Miss. Code § 71-1-35",
+            "Note": "Validation error: \"Manufacturers and public service corporations with 50+ employees must pay wages at least bi-weekly per Miss. Code § 71-1-35.\"",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ms-pay-frequency"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MS",
+            "Locality": ""
+          },
+          "PackID": "us-ms-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ms-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases sex",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/mississippi.md",
+            "Section": "Miss. Code § 71-17-5",
+            "Note": "Notice: \"Miss.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "7159336a5b8fa5bd029f65332af12f4117ecfc38bfda186666abb4c5ce45b679",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "jIojh0uyIGlkyuC7m5t1gf3gPLUeD9JM5QgM7aTprGsI/dNX0uJKIXq7sqUoVwgqvnFJDkwpOb8xESDZG3PCDg=="
+  }
+}

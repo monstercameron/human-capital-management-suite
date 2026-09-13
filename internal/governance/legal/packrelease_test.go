@@ -374,7 +374,7 @@ func TestTodo_LEGAL_010_Property(t *testing.T) {
 // unreviewed change to the section 3.2 field list, the framing, or the field
 // order breaks it.
 func TestTodo_LEGAL_010_Golden(t *testing.T) {
-	const wantDigest = "a38c082ca20fd605c18726a059262e89ef5fdbbdf8a4f55e9fa0bbe5f67086fb"
+	const wantDigest = "8a60badbb360be623a9326d1b8213ddcb217ae221d26b33b2c5538bd9ce30ee3"
 	release := draftRelease(t, "WI", 0x2a)
 	if release.Digest != release.ComputeDigest() {
 		t.Fatal("signed digest disagrees with the recomputed digest")
@@ -705,7 +705,7 @@ func TestPackDefinitionTreeLoads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("walking %s: %v", dir, err)
 	}
-	if count != 52 {
-		t.Errorf("loaded %d definition files, want 52 (50 state drafts + 2 seed fixtures)", count)
+	if count != 53 {
+		t.Errorf("loaded %d definition files, want 53 (51 jurisdiction drafts + 2 seed fixtures)", count)
 	}
 }

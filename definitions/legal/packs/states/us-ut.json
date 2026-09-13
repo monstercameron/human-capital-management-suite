@@ -60,7 +60,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on separation during/after promotion (§ 34-28-5): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid within 24 hours (involuntary) or next..."
+        "deadline_description": "Final pay on separation during/after promotion (§ 34-28-5): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid within 24 hours (involuntary) or next payday (voluntary). Do not forgive accrued final-pay penalty if promotion occurred."
       }
     },
     {
@@ -75,7 +75,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete."
+        "rule": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete. If entered before May 10, 2016, verify enforceability; if after May 10, 2016, cap at 1 year from promotion date is implicit (termination occurs later). If non-compete, document cap and void status if exceeded. If non-solicit exists, verify reasonableness; document in system."
       }
     },
     {
@@ -138,7 +138,7 @@
       },
       "body": {
         "protected_activities": ["whistleblower_report"],
-        "disposition": "FLAG",
+        "disposition": "BLOCK",
         "standard": "REQUIRED"
       }
     },

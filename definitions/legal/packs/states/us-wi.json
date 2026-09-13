@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/wisconsin.md",
         "section": "Under Wis. Stat. § 103.13",
-        "note": "Personnel records: Under Wis.",
+        "note": "Personnel records: Under Wis. Stat. § 103.13, any record maintained by employer that identifies employee and affects employment decisions (e.g., qualifications, discipline, compensation) is a personnel record.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -44,7 +44,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing: regular payday or 24 hours on business separation: Employers must pay all wages on next regularly scheduled payday, or within 24 hours if employment ends due to merger, liquidation, relocation, or..."
+        "deadline_description": "Final pay timing: regular payday or 24 hours on business separation: Employers must pay all wages on next regularly scheduled payday, or within 24 hours if employment ends due to merger, liquidation, relocation, or business closure (§ 109.03)."
       }
     },
     {

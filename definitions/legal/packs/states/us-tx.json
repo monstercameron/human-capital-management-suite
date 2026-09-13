@@ -44,7 +44,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on termination during promotion period (§ 61.014): If termination occurs within 6 days of promotion effective date, ensure final check includes promoted wage rate for days worked at that rate; discharge..."
+        "deadline_description": "Final pay on termination during promotion period (§ 61.014): If termination occurs within 6 days of promotion effective date, ensure final check includes promoted wage rate for days worked at that rate; discharge deadline is 6 days, resignation deadline is next regular payday."
       }
     },
     {
@@ -59,7 +59,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying..."
+        "rule": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying agreement); (b) does promotion change job duties, location, or scope in a way that affects enforceability? If healthcare practitioner (effective 2025-09-01), apply 1-year/5-mile/buyout caps or non-compete is unenforceable post-Sept-1-2025."
       }
     },
     {

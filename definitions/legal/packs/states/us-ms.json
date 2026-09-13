@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 71-1-35",
-        "note": "Validation error: \"Manufacturers and public service corporations with 50+ employees must pay wages at least bi-weekly per Miss.",
+        "note": "Validation error: \"Manufacturers and public service corporations with 50+ employees must pay wages at least bi-weekly per Miss. Code § 71-1-35.\"",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -38,13 +38,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 71-11-3",
-        "note": "E-Verify mandatory for ALL employers: Miss.",
+        "note": "E-Verify mandatory for ALL employers: Miss. Code § 71-11-3 (Mississippi Employment Protection Act) requires every employer, regardless of size, to verify work eligibility via E-Verify; this is the strictest state...",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "required_on_new_hire_only": true,
-        "note": "E-Verify mandatory for ALL employers: Miss."
+        "note": "E-Verify mandatory for ALL employers: Miss. Code § 71-11-3 (Mississippi Employment Protection Act) requires every employer, regardless of size, to verify work eligibility via E-Verify; this is the strictest state..."
       }
     },
     {
@@ -70,7 +70,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 13-5-35",
-        "note": "Jury Duty Leave: Miss.",
+        "note": "Jury Duty Leave: Miss. Code § 13-5-35 (Employment Protections for Jurors) protects employees from compulsory use of paid leave for jury service.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -104,7 +104,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 75-24-29",
-        "note": "Data breach notification without unreasonable delay: Miss.",
+        "note": "Data breach notification without unreasonable delay: Miss. Code § 75-24-29 requires notice in \"most expedient time possible and without unreasonable delay\"; no specific day count; no private right of action.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

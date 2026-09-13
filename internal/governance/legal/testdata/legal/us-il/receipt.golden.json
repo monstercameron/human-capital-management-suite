@@ -1,0 +1,833 @@
+{
+  "legal_context_digest": "56419bd05b15f8bbf8dc4e48c98323dfda679b11265adaf3bba2c435cdf72b7d",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "IL",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-il-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "IL",
+          "Locality": ""
+        }
+      },
+      "Digest": "0457d4f78a6fdaf6da8c0d71f0a064bf54f073f198535f930f0bfa1282d91803",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-il-notice",
+      "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 115/3",
+        "Note": "Pay rate change notice (820 ILCS 115/3): Employer must provide written notice of any change in pay rate, basis, payday, or wage deductions at least one pay period in advance (or as agreed).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-il-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-il-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "a07862c3c7c837290ae5df15fc154feb5eb07d2ad698ea401a362afcfb144c01"
+    },
+    {
+      "Type": 3,
+      "ID": "us-il-retention",
+      "Description": "retain  for 5 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "§ 115/9",
+        "Note": "Pay stub accuracy (§ 115/9): System must generate pay stub on each pay cycle showing gross, deductions (itemized), net, hours (if hourly), rate of pay, pay period dates, employer name/address.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "6c30bd8e6594a3688c7d3c0bfd6ea61269bb389ac65fdbc80c70e67d8a470f06"
+    },
+    {
+      "Type": 4,
+      "ID": "us-il-leave-interaction",
+      "Description": "paid leave: Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed. Display accrual balance before and after role change. On termination, calculate and include payout of unused paid leave in final pay calculation.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 192",
+        "Note": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-il-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "8a6f2e4a4f94c87854c48c98b78abd4c8bfd86927468fa182a5187afb46d00c6"
+    },
+    {
+      "Type": 5,
+      "ID": "us-il-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 115",
+        "Note": "Wage payment and final pay (820 ILCS 115): Wages must be paid at least semimonthly on designated paydays; final pay (including accrued vacation) due immediately on termination or upon employee's written notice of...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "1e342224da7d9f63409ce58df520fe1f83c28e759eafa8e3ead056b8e835f7a1"
+    },
+    {
+      "Type": 7,
+      "ID": "us-il-pay-transparency",
+      "Description": "internal_promotion: Pay transparency and Equal Pay Act (820 ILCS 112): Effective Jan 1, 2025 (PA 103-0539), employers with 15+ employees must include pay scale in job postings, cannot screen applicants by salary history, must disclose pay range before offer, and extend equal pay protections to race-based discrimination; Equal Pay Registration Certificate required for 100+ employees.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 112",
+        "Note": "Pay transparency and Equal Pay Act (820 ILCS 112): Effective Jan 1, 2025 (PA 103-0539), employers with 15+ employees must include pay scale in job postings, cannot screen applicants by salary history, must disclose pay...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-il-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "94d8ca8f64f920f0f6f5d26b6eef8016bcaf4795de96f7dc169ffcea97411159"
+    },
+    {
+      "Type": 8,
+      "ID": "us-il-non-compete",
+      "Description": "Non-compete/non-solicit voidance review (820 ILCS 90): On any employee with non-compete or non-solicit clause, system must:",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 90",
+        "Note": "Non-compete/non-solicit voidance review (820 ILCS 90): On any employee with non-compete or non-solicit clause, system must:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-il-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-il-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "4ad871df8d062eef13821729a89fe2798a72621299adbac2a340628d835d5321"
+    },
+    {
+      "Type": 11,
+      "ID": "us-il-wage-floor",
+      "Description": "HOURLY floor of 15.00 USD for , indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "Illinois § 105",
+        "Note": "Minimum wage: Illinois § 105 (Minimum Wage Law) requires $15.00/hour effective Jan 1, 2025; indexed annually thereafter.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-il-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "a2b0a77baf7dfc4c6e6c6d83c0bf27ffdf6febf37fce487a156ca0a55043c018"
+    },
+    {
+      "Type": 12,
+      "ID": "us-il-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 175",
+        "Note": "820 ILCS 175 (Day and Temporary Labor Services Act) 2023–2024 amendments: HB 2862 (2023) added an \"equal pay for equal work\" (including equivalent benefits) requirement for temporary laborers assigned to one client...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-il-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "66273d12e81cd73498268740db9d5e1b34799df5eb4b396086df077b1d9643f4"
+    },
+    {
+      "Type": 13,
+      "ID": "us-il-pay-statement",
+      "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, hours_worked, pay_rate, pay_period, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "§ 115/9",
+        "Note": "Pay stub accuracy (§ 115/9): System must generate pay stub on each pay cycle showing gross, deductions (itemized), net, hours (if hourly), rate of pay, pay period dates, employer name/address.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "af2677eec46f217dceabfda94e1f4a62473fba1d1b07db6e874d40dc4b1a0b53"
+    },
+    {
+      "Type": 15,
+      "ID": "us-il-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 40",
+        "Note": "Personnel file access requests (820 ILCS 40): On employee request, system must flag 7-business-day deadline to provide inspection/copies.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IL",
+        "Locality": ""
+      },
+      "PackID": "us-il-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-il-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-il-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "85362e93206551d8fd175855ecb67910ebde6b72dcd93349009bca73b7731f55"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-il-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 70",
+        "Note": "820 ILCS 70 (Employee Credit Privacy Act): Prohibits employers from (1) ordering a credit report on an employee/applicant, (2) inquiring about credit history, or (3) refusing to hire, discharging, or otherwise...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-il-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 192",
+        "Note": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-il-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 65",
+        "Note": "Separation notice (Illinois WARN, 820 ILCS 65): Mass layoffs affecting 50+ employees in 30 days require 60-day notice to affected workers, state, and local officials; coal mining and electric generation operations...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-il-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 112",
+        "Note": "Equal Pay Act (820 ILCS 112): Prohibits sex-based wage discrimination; PA 103-0539 extends protection to race-based discrimination (pay cannot differ based on race for substantially similar work requiring comparable...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-il-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "820 ILCS 65",
+        "Note": "Separation notice (Illinois WARN, 820 ILCS 65): Mass layoffs affecting 50+ employees in 30 days require 60-day notice to affected workers, state, and local officials; coal mining and electric generation operations...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-il-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Drug testing: No state prohibition on pre-employment or post-offer drug testing; employer testing is permitted if employer has written drug-free workplace policy.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-il-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Notify employees of data breaches within reasonable time (no specific statutory timeline; best practice is 30–60 days)",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 21,
+      "ID": "us-il-automated-decision",
+      "Reason": "no model scored, ranked or recommended the subject",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks AUTOMATED_DECISION for IL, and no item in illinois.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 22,
+      "ID": "us-il-monitoring-consent",
+      "Reason": "the transaction touches no data category this rule covers",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/illinois.md",
+        "Section": "740 ILCS 14",
+        "Note": "Biometric data consent (BIPA, 740 ILCS 14): If system collects biometric data (fingerprint clock, facial recognition, etc.) for time-tracking or access control, obtain separate written consent before collection.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-il-notice",
+          "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "820 ILCS 115/3",
+            "Note": "Pay rate change notice (820 ILCS 115/3): Employer must provide written notice of any change in pay rate, basis, payday, or wage deductions at least one pay period in advance (or as agreed).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-il-retention",
+          "Description": "retain  for 5 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "§ 115/9",
+            "Note": "Pay stub accuracy (§ 115/9): System must generate pay stub on each pay cycle showing gross, deductions (itemized), net, hours (if hourly), rate of pay, pay period dates, employer name/address.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-il-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-il-leave-interaction",
+          "Description": "paid leave: Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed. Display accrual balance before and after role change. On termination, calculate and include payout of unused paid leave in final pay calculation.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "820 ILCS 192",
+            "Note": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-il-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "820 ILCS 115",
+            "Note": "Wage payment and final pay (820 ILCS 115): Wages must be paid at least semimonthly on designated paydays; final pay (including accrued vacation) due immediately on termination or upon employee's written notice of...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-il-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-il-pay-transparency",
+          "Description": "internal_promotion: Pay transparency and Equal Pay Act (820 ILCS 112): Effective Jan 1, 2025 (PA 103-0539), employers with 15+ employees must include pay scale in job postings, cannot screen applicants by salary history, must disclose pay range before offer, and extend equal pay protections to race-based discrimination; Equal Pay Registration Certificate required for 100+ employees.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "820 ILCS 112",
+            "Note": "Pay transparency and Equal Pay Act (820 ILCS 112): Effective Jan 1, 2025 (PA 103-0539), employers with 15+ employees must include pay scale in job postings, cannot screen applicants by salary history, must disclose pay...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-il-non-compete",
+          "Description": "Non-compete/non-solicit voidance review (820 ILCS 90): On any employee with non-compete or non-solicit clause, system must:",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "820 ILCS 90",
+            "Note": "Non-compete/non-solicit voidance review (820 ILCS 90): On any employee with non-compete or non-solicit clause, system must:",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-il-wage-floor",
+          "Description": "HOURLY floor of 15.00 USD for , indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "Illinois § 105",
+            "Note": "Minimum wage: Illinois § 105 (Minimum Wage Law) requires $15.00/hour effective Jan 1, 2025; indexed annually thereafter.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-il-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-il-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "820 ILCS 175",
+            "Note": "820 ILCS 175 (Day and Temporary Labor Services Act) 2023–2024 amendments: HB 2862 (2023) added an \"equal pay for equal work\" (including equivalent benefits) requirement for temporary laborers assigned to one client...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-il-pay-statement",
+          "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, hours_worked, pay_rate, pay_period, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "§ 115/9",
+            "Note": "Pay stub accuracy (§ 115/9): System must generate pay stub on each pay cycle showing gross, deductions (itemized), net, hours (if hourly), rate of pay, pay period dates, employer name/address.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IL",
+            "Locality": ""
+          },
+          "PackID": "us-il-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-il-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/illinois.md",
+            "Section": "820 ILCS 40",
+            "Note": "Personnel file access requests (820 ILCS 40): On employee request, system must flag 7-business-day deadline to provide inspection/copies.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-il-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "0fe3d7782872497fadecd3be3321b63395aa934ea4ec1529059a304a6404e007",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "2Qa6rEob07TmbsZKaW8f76EjwWEClQqA3F/lU7FEOVQcTmfH9HFdzybNgfZODIwojBoIwdZb6bYrKNGocJ4dAQ=="
+  }
+}

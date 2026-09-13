@@ -1,0 +1,514 @@
+{
+  "legal_context_digest": "393dc500b114fdd6d9b591e447f84201020afc3bffd11392015f292a4c09dfe7",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "AZ",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-az-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "AZ",
+          "Locality": ""
+        }
+      },
+      "Digest": "abbf1c369dabfa79642fb1820878804fa075d417a0f4a473331dc54152b36c9a",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-az-retention",
+      "Description": "retain payroll_records for 0 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-364",
+        "Note": "Payroll record retention (A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AZ",
+        "Locality": ""
+      },
+      "PackID": "us-az-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-az-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-az-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "0cb9dc7e7f2a1bf1680ecb1baeb109924403394220f6f7fd86a69fbe9a51f2a0"
+    },
+    {
+      "Type": 4,
+      "ID": "us-az-leave-interaction",
+      "Description": "accrued paid sick leave: Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S. § 23-373)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-373",
+        "Note": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AZ",
+        "Locality": ""
+      },
+      "PackID": "us-az-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-az-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-az-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-az-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "41990e4e55849b8af02db32f5a0945e37dba8ba28e1cd86c9a3b6a5f4662b273"
+    },
+    {
+      "Type": 5,
+      "ID": "us-az-pay-frequency",
+      "Description": "minimum frequency MONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-351",
+        "Note": "Pay frequency (A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AZ",
+        "Locality": ""
+      },
+      "PackID": "us-az-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-az-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-az-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "e8b66be8f1e68f31fd21963307cbd2b7bb7e23dbaa2c191b43bc345cb6e05502"
+    },
+    {
+      "Type": 11,
+      "ID": "us-az-wage-floor",
+      "Description": " floor of  for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-363",
+        "Note": "Minimum wage (A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AZ",
+        "Locality": ""
+      },
+      "PackID": "us-az-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-az-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-az-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-az-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "e0a2ded43a0ec2a125d6caa93b62b72a7d7ad6bc262193af1c1a696c936e7c8c"
+    },
+    {
+      "Type": 12,
+      "ID": "us-az-pay-equity-review",
+      "Description": "pay-equity review against  for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-341",
+        "Note": "Equal pay statute (A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AZ",
+        "Locality": ""
+      },
+      "PackID": "us-az-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-az-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-az-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-az-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "55b4a5a8c6ebc8561ce20abd484dc3e0c4e7cec1fce4e7242cefdadb4c61b819"
+    },
+    {
+      "Type": 13,
+      "ID": "us-az-pay-statement",
+      "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, hours_worked, pay_rate, pay_period, employer_identification [RECOMMENDED, not a statutory requirement]",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-364",
+        "Note": "Pay statement content: No detailed state requirement.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AZ",
+        "Locality": ""
+      },
+      "PackID": "us-az-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-az-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-az-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "6ea567d62a56ea9fb76e623872f0ffee5403bbbe7b98067c7ba2f6636f989107"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-az-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-353",
+        "Note": "Model a 7-day working-day deadline for final wage payment upon discharge, or link to next regular payday if sooner (A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 9,
+      "ID": "us-az-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-214",
+        "Note": "E-Verify mandate: A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-az-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-373",
+        "Note": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 17,
+      "ID": "us-az-job-security",
+      "Reason": "the transaction is not an adverse change (no pay decrease, demotion or separation)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 23-1501",
+        "Note": "At-will employment: Arizona recognizes pure at-will employment codified in A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-az-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 36-2813",
+        "Note": "Medical marijuana employment protections: Employers cannot discriminate against registered cardholders or penalize based on positive test result unless employee was impaired or used marijuana on premises during work...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-az-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arizona.md",
+        "Section": "A.R.S. § 18-551",
+        "Note": "Data breach notification (A.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AZ",
+            "Locality": ""
+          },
+          "PackID": "us-az-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-az-retention",
+          "Description": "retain payroll_records for 0 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arizona.md",
+            "Section": "A.R.S. § 23-364",
+            "Note": "Payroll record retention (A.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-az-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AZ",
+            "Locality": ""
+          },
+          "PackID": "us-az-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-az-leave-interaction",
+          "Description": "accrued paid sick leave: Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S. § 23-373)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arizona.md",
+            "Section": "A.R.S. § 23-373",
+            "Note": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AZ",
+            "Locality": ""
+          },
+          "PackID": "us-az-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-az-pay-frequency",
+          "Description": "minimum frequency MONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arizona.md",
+            "Section": "A.R.S. § 23-351",
+            "Note": "Pay frequency (A.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-az-pay-frequency"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AZ",
+            "Locality": ""
+          },
+          "PackID": "us-az-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-az-wage-floor",
+          "Description": " floor of  for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arizona.md",
+            "Section": "A.R.S. § 23-363",
+            "Note": "Minimum wage (A.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AZ",
+            "Locality": ""
+          },
+          "PackID": "us-az-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-az-pay-equity-review",
+          "Description": "pay-equity review against  for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arizona.md",
+            "Section": "A.R.S. § 23-341",
+            "Note": "Equal pay statute (A.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AZ",
+            "Locality": ""
+          },
+          "PackID": "us-az-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-az-pay-statement",
+          "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, hours_worked, pay_rate, pay_period, employer_identification [RECOMMENDED, not a statutory requirement]",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arizona.md",
+            "Section": "A.R.S. § 23-364",
+            "Note": "Pay statement content: No detailed state requirement.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "3d3cf5633f36371c07dda2b67507a0a4a0f7553cb4a0d2e6c25b4f06e49e03f1",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "6i4te8mOapFtlxdof+jdmh+ZGwx7jy6Nv0fgYtlK33iRNjT7MB8eWgWXtoJDhkCrvt7MM1+wjLJIllK08TFmDg=="
+  }
+}

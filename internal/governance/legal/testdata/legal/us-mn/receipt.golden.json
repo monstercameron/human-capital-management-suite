@@ -1,0 +1,866 @@
+{
+  "legal_context_digest": "2c72c6e9abed475c37198babb88592d9b75f2e1cfd30ad8d39d146ea6468f83b",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "MN",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-mn-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "MN",
+          "Locality": ""
+        }
+      },
+      "Digest": "613255bfeffe008061321988fc0ecb8d072dbb735de81e046d45e3661ce9e73a",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-mn-notice",
+      "Description": "employer_to_worker notice before the effective date within 10 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 181.032",
+        "Note": "Pre-effective-date notice (P1A trigger): § 181.032 requires written notice of pay rate or pay-basis change prior to the date the change takes effect (not after, not concurrent).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-mn-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-mn-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "bf8390b5c4a1cab32adcbb79621cb9e6431a01f929d7a9876a3f9fccb8fc635c"
+    },
+    {
+      "Type": 3,
+      "ID": "us-mn-retention",
+      "Description": "retain payroll_records for 1 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§§ 181.960–181.966",
+        "Note": "Personnel file access: §§ 181.960–181.966 grant current and former employees right to review personnel records at reasonable times within 30 calendar days of written request (extendable to 35 days by written mutual...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "a69038455d2b93da844cc153c06396a9740c5765f4d5474a2a8d28ddb22eab1e"
+    },
+    {
+      "Type": 4,
+      "ID": "us-mn-leave-interaction",
+      "Description": ": Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date. Notice includes: new salary ($60,000/year), new pay basis (salaried), new payday (if changed), new position title (Manager), effective date, and statement: \"Accrued ESST balance ($1,200) carries over to new role; accrual continues at equivalent rate. Non-compete per Minn. Stat. § 181.988 is void; no re-signing required.\"",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "Minn. Stat. § 181.988",
+        "Note": "Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-mn-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "0b92e7022d89cad2ab4f8fa09e5aebca71fa064132e425d0dec368fc56dc1095"
+    },
+    {
+      "Type": 5,
+      "ID": "us-mn-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 181.101",
+        "Note": "Pay frequency (§ 181.101): Payment required at least once every 31 days on designated payday.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "79768e746427ea7ec87cff4da01b2f3e793b54bc782c8edd4095e0f117a74dd2"
+    },
+    {
+      "Type": 7,
+      "ID": "us-mn-pay-transparency",
+      "Description": "internal_promotion: Pay-range posting (if promotion creates new or changed role): If promotion creates a new title or materially changes the role and employer has 30+ employees, system must flag that any new job posting for that role must include salary range per § 181.173 (effective 2025-01-01, enacted by the 2024 Omnibus Labor and Industry Policy Bill, SF 3852). Correction (2026-09-03 contradiction closure): § 181.9414 was repealed effective 2021 (2020 Minn. Stat., amended 1Sp2021 c.10 art.3 s.22) and is not the pay-range posting statute; the operative citation is § 181.173, consistent with the Summary and § 4 above. \"Salary range\" = employer's reasonable estimate of hourly rate or annual salary for the position. If new title is not posted externally, no posting requirement. Recommendations: (1) integrate salary-range requirement into job-posting workflow; (2) flag roles that have never had a salary range posted; (3) require range to be entered before job posting goes live.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 181.173",
+        "Note": "Pay-range posting (if promotion creates new or changed role): If promotion creates a new title or materially changes the role and employer has 30+ employees, system must flag that any new job posting for that role must...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-mn-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "ca954389155db379de211fe64779263a9e7be455c011608640c5a9d58db93e9c"
+    },
+    {
+      "Type": 8,
+      "ID": "us-mn-non-compete",
+      "Description": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete. System should generate compliance note: \"Non-compete per Minn. Stat. § 181.988 is void unless related to sale of business or business dissolution. No non-compete enforcement on role change or promotion. Do not require employee to re-sign non-compete.\" If system encounters a non-compete flag on employee record during promotion, escalate to legal for review; do not proceed with re-signing.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "Minn. Stat. § 181.988",
+        "Note": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-mn-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-mn-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "38c2e6779c225d6b23b687f7cda9352b2a55bed4b31026a357d29647e66726c5"
+    },
+    {
+      "Type": 11,
+      "ID": "us-mn-wage-floor",
+      "Description": "HOURLY floor of 11.41 USD for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 177.24–177.25",
+        "Note": "Minimum wage and overtime (§ 177.24–177.25): Statewide $11.41/hour (Jan 1, 2026); Minneapolis $16.37/hour; St.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-mn-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "e893097efb2b82256c217b16127ace7144f412a16ea08d746beebaf8f58b820f"
+    },
+    {
+      "Type": 12,
+      "ID": "us-mn-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 181.67",
+        "Note": "Equal pay statute: § 181.67 (Equal Pay for Equal Work Law) prohibits employers from paying employees of one sex less than employees of the opposite sex for equal work on jobs requiring equal skill, effort, and...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-mn-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "938b25f316a352cb1b82a17c82e07d37f02d0fa2ec4d40209e5c71bf0e43e740"
+    },
+    {
+      "Type": 13,
+      "ID": "us-mn-pay-statement",
+      "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, hours_worked, pay_period, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 181.101",
+        "Note": "Pay frequency (§ 181.101): Payment required at least once every 31 days on designated payday.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "eab923f8aae0295f46a5cabc00ca2eb3fc3af328c6093d56b1fb1ce3ef513c28"
+    },
+    {
+      "Type": 14,
+      "ID": "us-mn-classification",
+      "Description": "OVERTIME_THRESHOLD test: Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption criteria are met (executive, administrative, professional duties test—not merely salary-based); (2) require manager attestation that role duties meet exemption standard; (3) document duties change in personnel file; (4) do not rely on salary alone for exemption. Conversely, if promotion moves exempt to non-exempt, recalculate overtime eligibility. System should flag if classification change lacks documented duties justification.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 177.25",
+        "Note": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-mn-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "1735b49d03b9e0823ddb27eafc959d52c1a1d9409069149a64e717ee11ac419a"
+    },
+    {
+      "Type": 15,
+      "ID": "us-mn-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 177.25",
+        "Note": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MN",
+        "Locality": ""
+      },
+      "PackID": "us-mn-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mn-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mn-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "e65ce3561612d86a9bae85fc45349968660da2d11c96ccaf5beb8f4261ef4653"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-mn-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 363A.08",
+        "Note": "Salary history field restriction: Do not store, query, or reference employee's prior salary history in promotion/pay-change workflow (§ 363A.08).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-mn-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 181.13/181.14",
+        "Note": "Compensation timing and effective date: Final paycheck (if termination) follows § 181.13/181.14 (within 24 hours or next payday, depending on quit vs.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-mn-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "USC § 2101",
+        "Note": "WARN notification (federal and state): Minnesota has no state-specific WARN act separate from federal WARN Act (29 USC § 2101 et seq.). Federal WARN requires 60-day advance notice for plant closings (permanent...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-mn-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 181.172",
+        "Note": "Wage disclosure: Record promotion/pay change in system; inform employee that their pay rate may be disclosed to coworkers (§ 181.172 protects such disclosure from retaliation).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-mn-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 181.950–181.957",
+        "Note": "Drug testing (§ 181.950–181.957): Limited to safety-sensitive positions only (impairment would threaten health/safety).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-mn-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/minnesota.md",
+        "Section": "§ 325E.61",
+        "Note": "Breach notification: § 325E.61 requires any person/business conducting business in Minnesota (even if data stored elsewhere) that owns or licenses \"personal information\" of Minnesota residents to notify affected...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-mn-notice",
+          "Description": "employer_to_worker notice before the effective date within 10 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "§ 181.032",
+            "Note": "Pre-effective-date notice (P1A trigger): § 181.032 requires written notice of pay rate or pay-basis change prior to the date the change takes effect (not after, not concurrent).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-mn-retention",
+          "Description": "retain payroll_records for 1 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "§§ 181.960–181.966",
+            "Note": "Personnel file access: §§ 181.960–181.966 grant current and former employees right to review personnel records at reasonable times within 30 calendar days of written request (extendable to 35 days by written mutual...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-mn-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-mn-leave-interaction",
+          "Description": ": Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date. Notice includes: new salary ($60,000/year), new pay basis (salaried), new payday (if changed), new position title (Manager), effective date, and statement: \"Accrued ESST balance ($1,200) carries over to new role; accrual continues at equivalent rate. Non-compete per Minn. Stat. § 181.988 is void; no re-signing required.\"",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "Minn. Stat. § 181.988",
+            "Note": "Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-mn-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "§ 181.101",
+            "Note": "Pay frequency (§ 181.101): Payment required at least once every 31 days on designated payday.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-mn-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-mn-pay-transparency",
+          "Description": "internal_promotion: Pay-range posting (if promotion creates new or changed role): If promotion creates a new title or materially changes the role and employer has 30+ employees, system must flag that any new job posting for that role must include salary range per § 181.173 (effective 2025-01-01, enacted by the 2024 Omnibus Labor and Industry Policy Bill, SF 3852). Correction (2026-09-03 contradiction closure): § 181.9414 was repealed effective 2021 (2020 Minn. Stat., amended 1Sp2021 c.10 art.3 s.22) and is not the pay-range posting statute; the operative citation is § 181.173, consistent with the Summary and § 4 above. \"Salary range\" = employer's reasonable estimate of hourly rate or annual salary for the position. If new title is not posted externally, no posting requirement. Recommendations: (1) integrate salary-range requirement into job-posting workflow; (2) flag roles that have never had a salary range posted; (3) require range to be entered before job posting goes live.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "§ 181.173",
+            "Note": "Pay-range posting (if promotion creates new or changed role): If promotion creates a new title or materially changes the role and employer has 30+ employees, system must flag that any new job posting for that role must...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-mn-non-compete",
+          "Description": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete. System should generate compliance note: \"Non-compete per Minn. Stat. § 181.988 is void unless related to sale of business or business dissolution. No non-compete enforcement on role change or promotion. Do not require employee to re-sign non-compete.\" If system encounters a non-compete flag on employee record during promotion, escalate to legal for review; do not proceed with re-signing.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "Minn. Stat. § 181.988",
+            "Note": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-mn-wage-floor",
+          "Description": "HOURLY floor of 11.41 USD for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "§ 177.24–177.25",
+            "Note": "Minimum wage and overtime (§ 177.24–177.25): Statewide $11.41/hour (Jan 1, 2026); Minneapolis $16.37/hour; St.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-mn-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-mn-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "§ 181.67",
+            "Note": "Equal pay statute: § 181.67 (Equal Pay for Equal Work Law) prohibits employers from paying employees of one sex less than employees of the opposite sex for equal work on jobs requiring equal skill, effort, and...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-mn-pay-statement",
+          "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, hours_worked, pay_period, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "§ 181.101",
+            "Note": "Pay frequency (§ 181.101): Payment required at least once every 31 days on designated payday.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-mn-classification",
+          "Description": "OVERTIME_THRESHOLD test: Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption criteria are met (executive, administrative, professional duties test—not merely salary-based); (2) require manager attestation that role duties meet exemption standard; (3) document duties change in personnel file; (4) do not rely on salary alone for exemption. Conversely, if promotion moves exempt to non-exempt, recalculate overtime eligibility. System should flag if classification change lacks documented duties justification.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "§ 177.25",
+            "Note": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MN",
+            "Locality": ""
+          },
+          "PackID": "us-mn-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-mn-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/minnesota.md",
+            "Section": "§ 177.25",
+            "Note": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-mn-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "2c2fc87153ae13db6e4c34742b9c500f089a6dda8febc37d89986914610b1ece",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "jTWxyqd68cEO5hP/27w979eucQ7wgxKM3o11ipcpKXH/DUDw9QT96Q7lSFfM3luNmAqPShLi2vNEYlydd2EUDw=="
+  }
+}

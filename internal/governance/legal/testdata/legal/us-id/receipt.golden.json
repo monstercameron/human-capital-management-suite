@@ -1,0 +1,435 @@
+{
+  "legal_context_digest": "a69d21c4dee9ecd8daa85c94e7196a8e53016361cd7c2cc9d56d72a484b3e6c0",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "ID",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-id-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "ID",
+          "Locality": ""
+        }
+      },
+      "Digest": "ca77fecad32576de5ceb23751cae96b53f7f8db34698876ce0f573398ac7fd74",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-id-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/idaho.md",
+        "Section": "Idaho Code § 45-610",
+        "Note": "Three-year record retention: Idaho Code § 45-610 requires employers maintain employment records for 3 years from date of separation; must provide wage information and notice of wage reductions to employees.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ID",
+        "Locality": ""
+      },
+      "PackID": "us-id-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-id-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-id-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-id-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-id-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "0de25aa729d2c29295081558e8c419839eb08c5c5f3ebc6dda576f49ce774654"
+    },
+    {
+      "Type": 3,
+      "ID": "us-id-retention",
+      "Description": "retain wage_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/idaho.md",
+        "Section": "Idaho Code § 45-610",
+        "Note": "Three-year record retention: Idaho Code § 45-610 requires employers maintain employment records for 3 years from date of separation; must provide wage information and notice of wage reductions to employees.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ID",
+        "Locality": ""
+      },
+      "PackID": "us-id-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-id-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-id-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "ded7cac0f8bfeacaa117cdaadfaaaecf7c9932d1dfd3c82cf12605de932ba538"
+    },
+    {
+      "Type": 5,
+      "ID": "us-id-pay-frequency",
+      "Description": "minimum frequency BIWEEKLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/idaho.md",
+        "Section": "Idaho Code § 45-606",
+        "Note": "Idaho Code § 45-606 does not mandate a specific pay frequency (weekly, bi-weekly, monthly); employers may set frequency by agreement, but must pay consistently and in accordance with wage payment rules.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ID",
+        "Locality": ""
+      },
+      "PackID": "us-id-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-id-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-id-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "9112e9302d5961cb15fd94878f619875d91dfdb48b267f0b39a8014e4debb7b8"
+    },
+    {
+      "Type": 8,
+      "ID": "us-id-non-compete",
+      "Description": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope; must protect legitimate business interests; violations of restraint doctrine may result in unenforceability.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/idaho.md",
+        "Section": "Idaho Code §§ 44-2701",
+        "Note": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ID",
+        "Locality": ""
+      },
+      "PackID": "us-id-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-id-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-id-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-id-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-id-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "bb5c11920fc6ae7db7e0018254959145d618eab761bb064b9bac4f57e7330493"
+    },
+    {
+      "Type": 13,
+      "ID": "us-id-pay-statement",
+      "Description": "pay statement delivered  must carry deductions",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/idaho.md",
+        "Section": "Idaho Code § 45-609",
+        "Note": "Wage deductions restricted: Deductions only permitted if required by law or with written employee authorization (Idaho Code § 45-609); must provide itemized statement of deductions; unpaid wages accrue 15-day penalty...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ID",
+        "Locality": ""
+      },
+      "PackID": "us-id-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-id-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-id-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "9e448e6ec3af72a3f02d08c259c5dd94f2c6466a5d0c0250f068f564f499984d"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-id-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/idaho.md",
+        "Section": "Idaho Code § 45-606",
+        "Note": "Final pay timing strict (10 days or regular payday): Idaho Code § 45-606 requires wages by the earlier of the next regular payday or 10 days after termination; employee request for early payment triggers 48-hour...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-id-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/idaho.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Public policy exception: Termination in violation of established public policy (e.g., retaliation for filing a workers' compensation claim, fulfilling jury duty, or reporting illegal activity) may create liability.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-id-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/idaho.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No state-level statute regulating private-sector drug testing: Idaho does not restrict private employers' ability to conduct pre-employment, reasonable-suspicion, or post-accident drug testing.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-id-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/idaho.md",
+        "Section": "Idaho Code § 28-51-105",
+        "Note": "Data breach notification required: Idaho Code § 28-51-105 mandates notification \"without unreasonable delay\" if personal data accessed/misused; state agencies must notify AG within 24 hours.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ID",
+            "Locality": ""
+          },
+          "PackID": "us-id-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-id-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/idaho.md",
+            "Section": "Idaho Code § 45-610",
+            "Note": "Three-year record retention: Idaho Code § 45-610 requires employers maintain employment records for 3 years from date of separation; must provide wage information and notice of wage reductions to employees.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ID",
+            "Locality": ""
+          },
+          "PackID": "us-id-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-id-retention",
+          "Description": "retain wage_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/idaho.md",
+            "Section": "Idaho Code § 45-610",
+            "Note": "Three-year record retention: Idaho Code § 45-610 requires employers maintain employment records for 3 years from date of separation; must provide wage information and notice of wage reductions to employees.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-id-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ID",
+            "Locality": ""
+          },
+          "PackID": "us-id-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-id-pay-frequency",
+          "Description": "minimum frequency BIWEEKLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/idaho.md",
+            "Section": "Idaho Code § 45-606",
+            "Note": "Idaho Code § 45-606 does not mandate a specific pay frequency (weekly, bi-weekly, monthly); employers may set frequency by agreement, but must pay consistently and in accordance with wage payment rules.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-id-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ID",
+            "Locality": ""
+          },
+          "PackID": "us-id-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-id-non-compete",
+          "Description": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope; must protect legitimate business interests; violations of restraint doctrine may result in unenforceability.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/idaho.md",
+            "Section": "Idaho Code §§ 44-2701",
+            "Note": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ID",
+            "Locality": ""
+          },
+          "PackID": "us-id-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-id-pay-statement",
+          "Description": "pay statement delivered  must carry deductions",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/idaho.md",
+            "Section": "Idaho Code § 45-609",
+            "Note": "Wage deductions restricted: Deductions only permitted if required by law or with written employee authorization (Idaho Code § 45-609); must provide itemized statement of deductions; unpaid wages accrue 15-day penalty...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "b21da77eacc154818bc46ebaba7ee29b5eb2e28055fe7c3644b7631a09879549",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "DamMxo+uJ8JvWJofTF74FNHxhpcd52P5yGODDL+3WrTBskdFxoeDTBrv1WGG0epllcsnm8PsfYArq1xOxZGUAA=="
+  }
+}

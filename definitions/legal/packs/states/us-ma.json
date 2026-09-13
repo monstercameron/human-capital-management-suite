@@ -61,7 +61,7 @@
       },
       "body": {
         "leave_type": "paid leave",
-        "interaction_rule": "Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L."
+        "interaction_rule": "Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L. c. 175M § 2). Weekly benefit: 80% of the portion of average weekly wage at or below 50% of the state average weekly wage, plus 50% of the portion above, capped (cap $1,170.64 in 2025; verify 2026)."
       }
     },
     {
@@ -90,7 +90,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Treble damages flag: Any delay in final pay triggers automatic exposure to 3x damages plus attorney fees (M.G.L."
+        "deadline_description": "Treble damages flag: Any delay in final pay triggers automatic exposure to 3x damages plus attorney fees (M.G.L. c. 149 § 150); platform should block final pay submission if amount is incomplete."
       }
     },
     {
@@ -120,7 +120,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete/non-solicit: If non-compete exists, platform must verify garden leave payment (50% salary, pro-rata) and track restricted period; flag any restriction without garden leave as likely unenforceable post-M.G.L."
+        "rule": "Non-compete/non-solicit: If non-compete exists, platform must verify garden leave payment (50% salary, pro-rata) and track restricted period; flag any restriction without garden leave as likely unenforceable post-M.G.L. c. 149 § 24L amendment; require documentation of 10+ business days for legal review."
       }
     },
     {

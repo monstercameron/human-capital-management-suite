@@ -60,7 +60,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Wage Payment Act governs pay frequency and final pay: K.S.A."
+        "deadline_description": "Wage Payment Act governs pay frequency and final pay: K.S.A. 44-313 to 44-327 require regular pay intervals (at least semimonthly) and timely final payment on separation; notice of pay-rate changes required before work is performed (K.S.A. 44-320, K.A.R. 49-20-1)."
       }
     },
     {
@@ -69,13 +69,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/kansas.md",
         "section": "SB 241",
-        "note": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (_Weber v.",
+        "note": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman) — K.S.A.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (_Weber v."
+        "rule": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman) — K.S.A. 50-163 does not reach them. 2025 SB 241 (eff. 2025-07-01) amended K.S.A. 50-163 to presume enforceable two categories of non-solicitation covenant (employee non-solicits protecting confidential/trade-secret information or ≤2 years; customer non-solicits limited to material-contact customers and ≤2 years) and to require reformation of overbroad ones."
       }
     },
     {
@@ -90,7 +90,7 @@
       },
       "body": {
         "dimension": "CONTRACTOR",
-        "test_description": "Contractor vs.",
+        "test_description": "Contractor vs. Employee Classification: Kansas recognizes the ABC test for unemployment insurance purposes (K.S.A. § 44-701 et seq.) similar to other states. Control over work methods, provision of tools, integration into the business, and permanence determine status. Misclassification exposes employers to wage-and-hour audits and unemployment insurance liabilities.",
         "standard": "REQUIRED"
       }
     },
@@ -99,13 +99,12 @@
       "id": "us-ks-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/kansas.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Kansas is an at-will employment state.",
+        "section": "U.S.C. § 1681",
+        "note": "Sex-offender registry checks (permitted, especially for positions involving children or vulnerable populations).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_activities": ["whistleblower_report"],
         "standard": "REQUIRED"
       }
     },

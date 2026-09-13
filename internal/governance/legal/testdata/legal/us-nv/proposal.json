@@ -1,0 +1,28 @@
+{
+  "WorkerID": "worker-canonical",
+  "LegalEntityID": "legal-entity-1",
+  "EffectiveDate": "2026-07-01",
+  "CurrentBasePay": "60000.00/HALF_EVEN USD",
+  "NewBasePay": "90000.00/HALF_EVEN USD",
+  "PayFrequency": "SEMIMONTHLY",
+  "IsInternalPromotion": true,
+  "CollectsSalaryHistory": false,
+  "OnProtectedLeave": true,
+  "HasExistingNonCompete": true,
+  "IsNewHire": false,
+  "SeparationConcurrent": false,
+  "WorkforceReductionCount": 0,
+  "LeaveProgramBalances": [
+    "accrued paid sick leave"
+  ],
+  "RoleChanged": true,
+  "HoursChanged": false,
+  "PayBasisChanged": false,
+  "IsDemotion": false,
+  "RecordedProtectedActivities": null,
+  "RoleBecomesSafetySensitive": false,
+  "DrugTestOrdered": false,
+  "BreachIncidentOpened": false,
+  "AutomatedDecisionApplied": false,
+  "DataCategoriesTouched": null
+}

@@ -40,13 +40,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
         "section": "Ala. Code § 8-1-190",
-        "note": "Non-compete and non-solicit agreements enforceable under Ala.",
+        "note": "Non-compete and non-solicit agreements enforceable under Ala. Code § 8-1-190 et seq. (effective 2016): 2-year presumption for non-competes, 18-month presumption for non-solicits.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete and non-solicit agreements enforceable under Ala."
+        "rule": "Non-compete and non-solicit agreements enforceable under Ala. Code § 8-1-190 et seq. (effective 2016): 2-year presumption for non-competes, 18-month presumption for non-solicits."
       }
     },
     {
@@ -70,11 +70,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
         "section": "Ala. Code § 25-1-30",
-        "note": "Equal Pay Audit Trail: Capture job classifications, skills, effort, responsibility, and working conditions for each promotion or pay change; enable proof of \"substantially similar work\" evaluation (Ala.",
+        "note": "Equal Pay Audit Trail: Capture job classifications, skills, effort, responsibility, and working conditions for each promotion or pay change; enable proof of \"substantially similar work\" evaluation and document the sex...",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_bases": ["sex", "race"],
         "comparator_standard": "substantially similar work",
         "documentation_required": true,
         "standard": "REQUIRED"
@@ -86,12 +87,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
         "section": "Ala. Code § 25-5-11.1",
-        "note": "Workers' compensation retaliation protection (Ala.",
+        "note": "Workers' Compensation Termination Restriction: Flag if termination reason is workers' compensation claim or safety report; block or require manager acknowledgment if \"solely because\" reason detected (Ala.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_activities": ["workers_compensation_claim"],
+        "protected_activities": ["workers_compensation_claim", "safety_report"],
+        "lookback_days": 730,
         "disposition": "BLOCK",
         "standard": "REQUIRED"
       }

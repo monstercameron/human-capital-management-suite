@@ -1,0 +1,185 @@
+{
+  "legal_context_digest": "88a1896f387889008eddd1a73b2c2ce8f8b2ac23977e6af93695336f564aac52",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "LA",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-la-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "LA",
+          "Locality": ""
+        }
+      },
+      "Digest": "7a151d1100f9ce9cd81bf5f56dffb5992b6a109cffe9c4113348112ac63c765a",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 8,
+      "ID": "us-la-non-compete",
+      "Description": "Flag noncompete enforceability if the employer uses noncompete agreements: verify 2-year cap, reasonableness, and physician-specific amendments if applicable",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/louisiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Flag noncompete enforceability if the employer uses noncompete agreements: verify 2-year cap, reasonableness, and physician-specific amendments if applicable",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "LA",
+        "Locality": ""
+      },
+      "PackID": "us-la-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-la-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-la-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-la-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-la-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "422a2ce5f1b985e1f7d5cecd43019b1bcd16b0a1acd40bbefdc07adc53186584"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-la-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/louisiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Calculate final pay (all earned wages including overtime through last day, plus accrued leave if applicable) within 15 days of termination or on the next regular payday (La.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-la-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/louisiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Track retaliation risks (e.g., termination within 90 days of jury duty, voting, workers' compensation claim, FMLA use, protected complaint, or environmental whistleblower report under La. R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-la-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/louisiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "File Unemployment Insurance Separation Notice with LWC (administrative requirement)",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-la-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/louisiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "If the employer requires drug testing, ensure procedures are documented and notices are posted (La.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-la-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/louisiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Database Security Breach Notification (La.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "LA",
+            "Locality": ""
+          },
+          "PackID": "us-la-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-la-non-compete",
+          "Description": "Flag noncompete enforceability if the employer uses noncompete agreements: verify 2-year cap, reasonableness, and physician-specific amendments if applicable",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/louisiana.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Flag noncompete enforceability if the employer uses noncompete agreements: verify 2-year cap, reasonableness, and physician-specific amendments if applicable",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "13007fd386193101bbec02a9629113baf8b6f14eca4f737f6c8b6d31ce4658ed",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "iGCFwacx05lLY0H8H+77ntzOp/l9d5tlR4QW7MClKavOQezY9tyXUba2r/yaxcMe9cG6r2cq0SbHP6WCyVAYDA=="
+  }
+}

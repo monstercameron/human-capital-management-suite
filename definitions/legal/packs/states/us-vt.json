@@ -75,7 +75,7 @@
       },
       "body": {
         "leave_type": "paid family and medical leave",
-        "interaction_rule": "Parental and Family Leave: Unpaid; 10+ employees for parental (birth/adoption, 1 year); 15+ employees for family (serious illness, bereavement up to 2 weeks)."
+        "interaction_rule": "Parental and Family Leave: Unpaid; 10+ employees for parental (birth/adoption, 1 year); 15+ employees for family (serious illness, bereavement up to 2 weeks). Act 32 (2025) expanded definitions and coverage. Short-term family leave: ≤24 hours/year for school/medical appointments (21 V.S.A. §§ 470–474, § 472a)."
       }
     },
     {
@@ -104,7 +104,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Promotion timing and final pay: If separation occurs during or shortly after promotion, ensure final paycheck includes all wages at promoted rate from effective date."
+        "deadline_description": "Promotion timing and final pay: If separation occurs during or shortly after promotion, ensure final paycheck includes all wages at promoted rate from effective date. No hold-back permitted; all wages due within 72 hours of discharge (21 V.S.A. § 342a)."
       }
     },
     {
@@ -119,7 +119,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay transparency mandate: Act 155 (2024, effective 2025-07-01) requires employers with 5+ employees to disclose wage/salary range in Vermont job postings; applies to salary, hourly, commission (with statement), and..."
+        "required_disclosure": "Pay transparency mandate: Act 155 (2024, effective 2025-07-01) requires employers with 5+ employees to disclose wage/salary range in Vermont job postings; applies to salary, hourly, commission (with statement), and tipped positions (21 V.S.A. § 495n)."
       }
     },
     {

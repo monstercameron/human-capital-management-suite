@@ -56,7 +56,7 @@ func buildBody(
 	case legal.ObligationTypeLeaveInteraction:
 		body.LeaveType = leaveProgram(text)
 		if found {
-			body.InteractionRule = note
+			body.InteractionRule = text
 		}
 
 	case legal.ObligationTypePayFrequency:
@@ -71,15 +71,15 @@ func buildBody(
 		// the statute might, which is a narrowing of the platform's licence,
 		// not a broadening of the legal claim.
 		body.Trigger = "termination_any"
-		body.DeadlineDescription = deadlineDescription(note, found)
+		body.DeadlineDescription = deadlineDescription(text, found)
 
 	case legal.ObligationTypePayTransparency:
 		body.Trigger = "internal_promotion"
-		body.RequiredDisclosure = deadlineDescription(note, found)
+		body.RequiredDisclosure = deadlineDescription(text, found)
 
 	case legal.ObligationTypeNonCompete:
 		body.RecheckOnPayChange = true
-		body.Rule = deadlineDescription(note, found)
+		body.Rule = deadlineDescription(text, found)
 
 	case legal.ObligationTypeEVerify:
 		body.RequiredOnNewHireOnly = true
@@ -120,7 +120,7 @@ func buildBody(
 	case legal.ObligationTypeClassification:
 		body.Dimension = classificationDimension(text)
 		if found {
-			body.TestDescription = note
+			body.TestDescription = text
 		}
 		if amount := ExtractMoney(text); amount != "" {
 			body.SalaryThreshold = &legal.MoneyJSON{Amount: amount, Currency: "USD"}
@@ -133,6 +133,10 @@ func buildBody(
 	case legal.ObligationTypeAntiRetaliation:
 		body.ProtectedActivities = protectedActivities(text)
 		body.LookbackDays, _ = ExtractDays(text)
+		if body.LookbackDays == 0 {
+			// A limitations period stated in years is the same window in days.
+			body.LookbackDays = ExtractYears(text) * 365
+		}
 		body.Disposition = retaliationDisposition(text)
 
 	case legal.ObligationTypeJobSecurity:
@@ -214,15 +218,37 @@ func ExtractAffectedCount(text string) int {
 
 func noticeDirection(text string) string {
 	lowered := strings.ToLower(text)
+	// A negated notice duty states an absence, not a direction: "no
+	// statutory advance notice required" must not read as BEFORE.
+	switch {
+	case strings.Contains(lowered, "no advance notice"),
+		strings.Contains(lowered, "no statutory advance notice"),
+		strings.Contains(lowered, "no notice requirement"),
+		strings.Contains(lowered, "no requirement to provide"),
+		strings.Contains(lowered, "does not require advance notice"),
+		strings.Contains(lowered, "not required to provide notice"),
+		strings.Contains(lowered, "without advance notice"):
+		return ""
+	}
 	switch {
 	case strings.Contains(lowered, "before any change"),
 		strings.Contains(lowered, "before the change"),
 		strings.Contains(lowered, "prior to the change"),
+		strings.Contains(lowered, "prior to"),
 		strings.Contains(lowered, "advance notice"),
-		strings.Contains(lowered, "in advance of"):
+		strings.Contains(lowered, "in advance of"),
+		strings.Contains(lowered, "in advance"),
+		strings.Contains(lowered, "days before"),
+		strings.Contains(lowered, "before the employee"),
+		strings.Contains(lowered, "before reduction"),
+		strings.Contains(lowered, "before a reduction"),
+		strings.Contains(lowered, "before the effective date"),
+		strings.Contains(lowered, "preceding the effective date"),
+		strings.Contains(lowered, "no later than"):
 		return "BEFORE"
 	case strings.Contains(lowered, "within"), strings.Contains(lowered, "after the change"),
-		strings.Contains(lowered, "following the change"):
+		strings.Contains(lowered, "following the change"),
+		strings.Contains(lowered, "days after"):
 		return "AFTER"
 	default:
 		return ""
@@ -310,6 +336,8 @@ func recordClass(text string) string {
 		return "wage_records"
 	case strings.Contains(lowered, "personnel"):
 		return "personnel_records"
+	case strings.Contains(lowered, "employment record"), strings.Contains(lowered, "employee record"):
+		return "employment_records"
 	default:
 		return ""
 	}
@@ -504,7 +532,8 @@ func retaliationDisposition(text string) string {
 	lowered := strings.ToLower(text)
 	switch {
 	case strings.Contains(lowered, "block"), strings.Contains(lowered, "prohibit"),
-		strings.Contains(lowered, "may not"), strings.Contains(lowered, "cannot"):
+		strings.Contains(lowered, "may not"), strings.Contains(lowered, "cannot"),
+		strings.Contains(lowered, "unlawful"), strings.Contains(lowered, "shall not"):
 		return "BLOCK"
 	case strings.Contains(lowered, "flag"), strings.Contains(lowered, "review"),
 		strings.Contains(lowered, "acknowledg"):

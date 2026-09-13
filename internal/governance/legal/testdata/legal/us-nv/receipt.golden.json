@@ -1,0 +1,854 @@
+{
+  "legal_context_digest": "14db9128f62b5e7747517a87402ffe099b079e4e1178bd361e5932956a8a4a5c",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "NV",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-nv-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "NV",
+          "Locality": ""
+        }
+      },
+      "Digest": "a085ac1b58b8f6db81f62e7278d227ce3a945840b5c97c40f312826d543837a7",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-nv-notice",
+      "Description": "employer_to_worker notice before the effective date within 7 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 608.100",
+        "Note": "Decrease notice: Any pay decrease requires written notice at least 7 days before the employee works at the lower rate (NRS 608.100).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nv-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-nv-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "fcde5d006fba398bb2b1f2388ab98af9051cb1d25b5965f7c01e3a418c28f2cc"
+    },
+    {
+      "Type": 3,
+      "ID": "us-nv-retention",
+      "Description": "retain wage_records for 2 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 608.115",
+        "Note": "Model wage-rate history recording: capture promotion date, previous and new rates, and position for 2-year retention (NRS 608.115).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "1f7fcac43a100cc3b74fd47212fd370ba731224edd11fe6c095a89732ad73886"
+    },
+    {
+      "Type": 4,
+      "ID": "us-nv-leave-interaction",
+      "Description": "paid leave: Paid leave (NRS 608.0197): promotion does not reset accrual; earned leave carries forward.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 608.0197",
+        "Note": "Paid leave (NRS 608.0197): promotion does not reset accrual; earned leave carries forward.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-nv-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "13e2b0a9fea928f9f76e037c50f9da56fcba486c348606b20ea7b56f9b56ffad"
+    },
+    {
+      "Type": 5,
+      "ID": "us-nv-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 608.060",
+        "Note": "Pay frequency: Wages are due semimonthly (15th and last day of month) by law (NRS 608.060).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "3202274c3e1bdd98af72fb170629026ef73d5d2a616803cc7f81e8ed8da3e78e"
+    },
+    {
+      "Type": 7,
+      "ID": "us-nv-pay-transparency",
+      "Description": "internal_promotion: After the interview, notify the promotee of the wage or salary range for the new position (NRS 613.133 requirement).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 613.133",
+        "Note": "After the interview, notify the promotee of the wage or salary range for the new position (NRS 613.133 requirement).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-nv-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "c154b96d1bf500a0d14c3aa784fcb75d192ac5deaa5e1a67f35b968bc90e4d1f"
+    },
+    {
+      "Type": 8,
+      "ID": "us-nv-non-compete",
+      "Description": "Non-compete enforceability: if the promoted employee is hourly, non-competes are void (NRS 613.195); if salary, non-competes are generally unenforceable unless sale-of-business exception applies.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 613.195",
+        "Note": "Non-compete enforceability: if the promoted employee is hourly, non-competes are void (NRS 613.195); if salary, non-competes are generally unenforceable unless sale-of-business exception applies.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nv-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-nv-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "f67f3cfde97061583da8ff11c0d78a69e10a416d53ee7197231d41d0de496a2b"
+    },
+    {
+      "Type": 11,
+      "ID": "us-nv-wage-floor",
+      "Description": "HOURLY floor of 12.00 USD for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 608.250",
+        "Note": "Minimum wage is $12.00/hour flat (constitutional amendment effective 2024, NRS 608.250); overtime applies at 8-hour daily or 40-hour weekly threshold (1.5x rate) for employees under 1.5x minimum wage (NRS 608.018).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-nv-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "3e41095ca2790f79cd4149ed225edb68fecef75ac1c8af3dddf5f8f14535e7b1"
+    },
+    {
+      "Type": 12,
+      "ID": "us-nv-pay-equity-review",
+      "Description": "pay-equity review against  for bases sex",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 613.330",
+        "Note": "Equal pay compliance: Verify the new rate does not create unlawful pay disparity based on sex or other protected class (NRS 613.330 general anti-discrimination rule).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nv-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "1a8eb8690870fa128927ec3510e79303e4000b2c5deaad5c319e293fdf35f160"
+    },
+    {
+      "Type": 13,
+      "ID": "us-nv-pay-statement",
+      "Description": "pay statement delivered ELECTRONIC must carry gross_wages, net_wages, deductions, hours_worked, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 608.115",
+        "Note": "Pay statement requirements: Employers must provide an itemized statement showing gross pay, net pay, deductions (with reason and authorization for each), and hours worked per period (NRS 608.115).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "2a1707f5e743d4e3318abc377a366e5cc6f310c9f266796f71bf2d8c2005e9e2"
+    },
+    {
+      "Type": 14,
+      "ID": "us-nv-classification",
+      "Description": "CONTRACTOR test: Independent contractor presumption (NRS 608.0155): A person is presumed to be an independent contractor if:",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 608.0155",
+        "Note": "Independent contractor presumption (NRS 608.0155): A person is presumed to be an independent contractor if:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-nv-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "fd1d98d42bd3e20c8038a679012c17b9a3002ad2958733f5440ea01a17686446"
+    },
+    {
+      "Type": 15,
+      "ID": "us-nv-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 613.4353",
+        "Note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NV",
+        "Locality": ""
+      },
+      "PackID": "us-nv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nv-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nv-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "49d6bae65a667693bff849f38c8b86e3b2828ffa7b3e90e7a0a026e5ae2d79a2"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-nv-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 613.133",
+        "Note": "If the promotion involves a pay change, verify the new pay does not rely on prior salary history (NRS 613.133 prohibition).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-nv-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 613.4353",
+        "Note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-nv-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 613.4353",
+        "Note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-nv-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 613.330",
+        "Note": "Wage transparency ban: employers cannot enforce pay-secrecy policies; discussion of wages is protected (NRS 613.330).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-nv-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nevada.md",
+        "Section": "NRS 603",
+        "Note": "Nevada privacy law (NRS 603A): Nevada does not have a comprehensive state privacy law parallel to CCPA.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-nv-notice",
+          "Description": "employer_to_worker notice before the effective date within 7 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 608.100",
+            "Note": "Decrease notice: Any pay decrease requires written notice at least 7 days before the employee works at the lower rate (NRS 608.100).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-nv-retention",
+          "Description": "retain wage_records for 2 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 608.115",
+            "Note": "Model wage-rate history recording: capture promotion date, previous and new rates, and position for 2-year retention (NRS 608.115).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-nv-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-nv-leave-interaction",
+          "Description": "paid leave: Paid leave (NRS 608.0197): promotion does not reset accrual; earned leave carries forward.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 608.0197",
+            "Note": "Paid leave (NRS 608.0197): promotion does not reset accrual; earned leave carries forward.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-nv-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 608.060",
+            "Note": "Pay frequency: Wages are due semimonthly (15th and last day of month) by law (NRS 608.060).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-nv-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-nv-pay-transparency",
+          "Description": "internal_promotion: After the interview, notify the promotee of the wage or salary range for the new position (NRS 613.133 requirement).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 613.133",
+            "Note": "After the interview, notify the promotee of the wage or salary range for the new position (NRS 613.133 requirement).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-nv-non-compete",
+          "Description": "Non-compete enforceability: if the promoted employee is hourly, non-competes are void (NRS 613.195); if salary, non-competes are generally unenforceable unless sale-of-business exception applies.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 613.195",
+            "Note": "Non-compete enforceability: if the promoted employee is hourly, non-competes are void (NRS 613.195); if salary, non-competes are generally unenforceable unless sale-of-business exception applies.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-nv-wage-floor",
+          "Description": "HOURLY floor of 12.00 USD for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 608.250",
+            "Note": "Minimum wage is $12.00/hour flat (constitutional amendment effective 2024, NRS 608.250); overtime applies at 8-hour daily or 40-hour weekly threshold (1.5x rate) for employees under 1.5x minimum wage (NRS 608.018).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-nv-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-nv-pay-equity-review",
+          "Description": "pay-equity review against  for bases sex",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 613.330",
+            "Note": "Equal pay compliance: Verify the new rate does not create unlawful pay disparity based on sex or other protected class (NRS 613.330 general anti-discrimination rule).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-nv-pay-statement",
+          "Description": "pay statement delivered ELECTRONIC must carry gross_wages, net_wages, deductions, hours_worked, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 608.115",
+            "Note": "Pay statement requirements: Employers must provide an itemized statement showing gross pay, net pay, deductions (with reason and authorization for each), and hours worked per period (NRS 608.115).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-nv-classification",
+          "Description": "CONTRACTOR test: Independent contractor presumption (NRS 608.0155): A person is presumed to be an independent contractor if:",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 608.0155",
+            "Note": "Independent contractor presumption (NRS 608.0155): A person is presumed to be an independent contractor if:",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NV",
+            "Locality": ""
+          },
+          "PackID": "us-nv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-nv-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nevada.md",
+            "Section": "NRS 613.4353",
+            "Note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-nv-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "ca2bb1d82595692e7fed53df2c0ef9cf72b89b42b3404e79d7d82d7baf3ccfba",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "9X3ZBFvp8kzxQ9pYXBm1aoErA7f+isp3wyqm9mOxBQ/3OErUVJ7z8Ot/ne4/4cakXFgBjbHgDm8HR3rnoFAXAw=="
+  }
+}

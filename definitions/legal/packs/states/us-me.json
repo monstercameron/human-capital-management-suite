@@ -77,7 +77,7 @@
       },
       "body": {
         "leave_type": "accrued paid time off",
-        "interaction_rule": "Vacation and paid leave payouts (26 M.R.S."
+        "interaction_rule": "Vacation and paid leave payouts (26 M.R.S. § 626): Accrued paid leave and vacation must be paid on termination; 2023 amendment clarifies payout timing. Earned paid leave (EPL) accrues per § 637."
       }
     },
     {
@@ -106,7 +106,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Pay frequency and final pay (26 M.R.S."
+        "deadline_description": "Pay frequency and final pay (26 M.R.S. § 621-A, § 626): Wages paid at least weekly; final paycheck due on next regular payday unless employee resigns without notice or is discharged (verify timing for discharge final pay)."
       }
     },
     {
@@ -121,7 +121,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete restrictions (26 M.R.S."
+        "rule": "Non-compete restrictions (26 M.R.S. § 599-A, § 599-B): Non-competes enforceable only if employee earns at least 400% of federal poverty level (approximately $62,920 annually for single filer in 2026) OR negotiated individually; employees earning at or below threshold cannot be required to sign non-competes; must provide notice 3 business days before signing; 1-year duration after start of employment or 6 months after signing, whichever is longer; maximum 2-year term; reasonable scope and duration required."
       }
     },
     {
@@ -201,7 +201,7 @@
       },
       "body": {
         "dimension": "OVERTIME_THRESHOLD",
-        "test_description": "Minimum wage and overtime (26 M.R.S.",
+        "test_description": "Minimum wage and overtime (26 M.R.S. § 664, § 665): State minimum wage $14.65/hour in 2025, $15.10/hour in 2026 (indexed to federal minimum + 1.1x or federal, whichever higher); tip credit $7.33/hour in 2025 (half of minimum wage); overtime 1.5x for hours over 40/week (no daily overtime trigger); salaried exemption threshold $43,951/year in 2025 (3,000x minimum wage).",
         "salary_threshold": {
           "amount": "14.65",
           "currency": "USD"

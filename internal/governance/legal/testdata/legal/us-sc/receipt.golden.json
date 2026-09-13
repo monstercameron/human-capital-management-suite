@@ -1,0 +1,459 @@
+{
+  "legal_context_digest": "7b3fd4aa1c433d296c074493f4936278f924b9f697a2316b7137a4443daa851f",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "SC",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-sc-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "SC",
+          "Locality": ""
+        }
+      },
+      "Digest": "fe771128189e35e6333f9d8ee5cf9823a730fa1cd9ac1dd9f6578528cf30571b",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-sc-notice",
+      "Description": "employer_to_worker notice before the effective date within 7 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "§ 41-10-30",
+        "Note": "Seven-day written notice before wage change (§ 41-10-30): Any increase or decrease in base wage, bonus structure, or commission rate requires seven calendar days' written advance notice before effective date.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SC",
+        "Locality": ""
+      },
+      "PackID": "us-sc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sc-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sc-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-sc-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-sc-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "5adae8d9f55f911fbac9d52524effc9b065f1a49a4dc8fef2ebb66fd53c3ae6a"
+    },
+    {
+      "Type": 3,
+      "ID": "us-sc-retention",
+      "Description": "retain wage_records for 0 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "§ 41-10-30(C)",
+        "Note": "Personnel file documentation (§ 41-10-30(C), three-year retention): Record promotion decision, wage change, effective date, business rationale, and seven-day notice delivery in personnel file; retain for three years.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SC",
+        "Locality": ""
+      },
+      "PackID": "us-sc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sc-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sc-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "1568b361668c894628ec303484dcc4257706653412ce5896db8e6a5facc93f9e"
+    },
+    {
+      "Type": 5,
+      "ID": "us-sc-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "§ 41-10-40",
+        "Note": "Pay frequency (§ 41-10-40, § 41-10-30):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SC",
+        "Locality": ""
+      },
+      "PackID": "us-sc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sc-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sc-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "91622d2fe994bc394daf58b9ae9ed7f4a9af4ad585b9749ec1224769b422781b"
+    },
+    {
+      "Type": 8,
+      "ID": "us-sc-non-compete",
+      "Description": "Non-compete enforceability: Common law; must be written, signed, reasonable in time/territory; strictly construed against drafter; no blue-pencil modification.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Non-compete enforceability: Common law; must be written, signed, reasonable in time/territory; strictly construed against drafter; no blue-pencil modification.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SC",
+        "Locality": ""
+      },
+      "PackID": "us-sc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sc-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sc-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-sc-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-sc-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "986ad90a239556b86480f3e877bb8f8bb5e2dc7a25e7a39fdae64f1a221182f8"
+    },
+    {
+      "Type": 13,
+      "ID": "us-sc-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Direct deposit permitted if employees receive earnings statements and at least one free withdrawal per deposit period.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SC",
+        "Locality": ""
+      },
+      "PackID": "us-sc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sc-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sc-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "9dc19d0cdb5110a13fa58b0c816eaeaab13565fca9f521267b317c551b73510a"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-sc-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "§ 41-10-50",
+        "Note": "Final pay timing: § 41-10-50 requires payment of all wages within 48 hours of separation or next regular payday (not exceeding 30 days).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 9,
+      "ID": "us-sc-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "§ 41-8-20(B)",
+        "Note": "E-Verify status verification (§ 41-8-20(B)): Before processing promotion or base-pay increase, verify employee's work authorization status in E-Verify or I-9 file is current and no legal hold/revocation is in place...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-sc-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "§ 41-1-80",
+        "Note": "Workers' compensation retaliation check (§ 41-1-80): If employee recently filed workers' compensation claim, injury report, or participated in related proceeding, flag promotion timing to ensure no retaliation...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 17,
+      "ID": "us-sc-job-security",
+      "Reason": "the transaction is not an adverse change (no pay decrease, demotion or separation)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "§ 41-1-110",
+        "Note": "Handbook disclaimer enforcement (§ 41-1-110): If handbook contains job-security language or cause-for-termination clause, verify disclaimer is conspicuously underlined capital letters on first page and signed by...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-sc-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "§ 41-1-15",
+        "Note": "Drug testing (§ 41-1-15):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-sc-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+        "Section": "§ 39-1-90",
+        "Note": "Data breach notification (§ 39-1-90):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SC",
+            "Locality": ""
+          },
+          "PackID": "us-sc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-sc-notice",
+          "Description": "employer_to_worker notice before the effective date within 7 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+            "Section": "§ 41-10-30",
+            "Note": "Seven-day written notice before wage change (§ 41-10-30): Any increase or decrease in base wage, bonus structure, or commission rate requires seven calendar days' written advance notice before effective date.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SC",
+            "Locality": ""
+          },
+          "PackID": "us-sc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-sc-retention",
+          "Description": "retain wage_records for 0 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+            "Section": "§ 41-10-30(C)",
+            "Note": "Personnel file documentation (§ 41-10-30(C), three-year retention): Record promotion decision, wage change, effective date, business rationale, and seven-day notice delivery in personnel file; retain for three years.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-sc-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SC",
+            "Locality": ""
+          },
+          "PackID": "us-sc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-sc-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+            "Section": "§ 41-10-40",
+            "Note": "Pay frequency (§ 41-10-40, § 41-10-30):",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-sc-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SC",
+            "Locality": ""
+          },
+          "PackID": "us-sc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-sc-non-compete",
+          "Description": "Non-compete enforceability: Common law; must be written, signed, reasonable in time/territory; strictly construed against drafter; no blue-pencil modification.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Non-compete enforceability: Common law; must be written, signed, reasonable in time/territory; strictly construed against drafter; no blue-pencil modification.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SC",
+            "Locality": ""
+          },
+          "PackID": "us-sc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-sc-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-carolina.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Direct deposit permitted if employees receive earnings statements and at least one free withdrawal per deposit period.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "2745c0a99f37cb78293c19abea85fca096b94a3a87e830aa3dba8d2377614ae9",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "80sxLL57FqjYdvAcU9WzA3RgH5xflD5ghlQOnPF/jReozKhhGaN6J8oArxiTVWBcVMiukWDzBCXD5Yf6nTzqDQ=="
+  }
+}

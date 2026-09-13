@@ -1,0 +1,304 @@
+{
+  "legal_context_digest": "82c9441e624ecfc27c55aa221cdb2e9ac4b846e99b752e7edd316e3ca00eaa46",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "AL",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-al-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "AL",
+          "Locality": ""
+        }
+      },
+      "Digest": "d3eb306e27e079e8617f56f039bd02fe54a596f744d1fbf9282e18ed54d357f7",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-al-retention",
+      "Description": "retain wage_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 25-1-30",
+        "Note": "Clarke-Figures Equal Pay Act (Ala.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AL",
+        "Locality": ""
+      },
+      "PackID": "us-al-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-al-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-al-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "f4e58ba3f7c3f5166dada7da03e4b3456ca3d9510d7728a2ba3eb84ca11c7323"
+    },
+    {
+      "Type": 8,
+      "ID": "us-al-non-compete",
+      "Description": "Non-compete and non-solicit agreements enforceable under Ala. Code § 8-1-190 et seq. (effective 2016): 2-year presumption for non-competes, 18-month presumption for non-solicits.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 8-1-190",
+        "Note": "Non-compete and non-solicit agreements enforceable under Ala. Code § 8-1-190 et seq. (effective 2016): 2-year presumption for non-competes, 18-month presumption for non-solicits.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AL",
+        "Locality": ""
+      },
+      "PackID": "us-al-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-al-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-al-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-al-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-al-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "dde728beddf3a00b01775de268cb1a6f7b875584208407f9a5da194913aceefd"
+    },
+    {
+      "Type": 12,
+      "ID": "us-al-pay-equity-review",
+      "Description": "pay-equity review against substantially similar work for bases sex, race",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 25-1-30",
+        "Note": "Equal Pay Audit Trail: Capture job classifications, skills, effort, responsibility, and working conditions for each promotion or pay change; enable proof of \"substantially similar work\" evaluation and document the sex...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AL",
+        "Locality": ""
+      },
+      "PackID": "us-al-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-al-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-al-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-al-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "9b24a9a8984e63b2ed44a86e631936b61bc686e927ea8bc50cdf896a6664d7f7"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 9,
+      "ID": "us-al-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 31-13-15",
+        "Note": "E-Verify Compliance: All new-hire records must confirm E-Verify case opened within 3 business days of hire date; no employer-size exceptions (Ala.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-al-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 25-5-11.1",
+        "Note": "Workers' Compensation Termination Restriction: Flag if termination reason is workers' compensation claim or safety report; block or require manager acknowledgment if \"solely because\" reason detected (Ala.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-al-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 25-5-330",
+        "Note": "Permitted.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-al-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 8-38-5",
+        "Note": "Breach Notification (Biometric): 45-day notification deadline for breaches exposing biometric data with name (Ala.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AL",
+            "Locality": ""
+          },
+          "PackID": "us-al-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-al-retention",
+          "Description": "retain wage_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alabama.md",
+            "Section": "Ala. Code § 25-1-30",
+            "Note": "Clarke-Figures Equal Pay Act (Ala.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-al-retention"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AL",
+            "Locality": ""
+          },
+          "PackID": "us-al-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-al-non-compete",
+          "Description": "Non-compete and non-solicit agreements enforceable under Ala. Code § 8-1-190 et seq. (effective 2016): 2-year presumption for non-competes, 18-month presumption for non-solicits.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alabama.md",
+            "Section": "Ala. Code § 8-1-190",
+            "Note": "Non-compete and non-solicit agreements enforceable under Ala. Code § 8-1-190 et seq. (effective 2016): 2-year presumption for non-competes, 18-month presumption for non-solicits.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AL",
+            "Locality": ""
+          },
+          "PackID": "us-al-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-al-pay-equity-review",
+          "Description": "pay-equity review against substantially similar work for bases sex, race",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alabama.md",
+            "Section": "Ala. Code § 25-1-30",
+            "Note": "Equal Pay Audit Trail: Capture job classifications, skills, effort, responsibility, and working conditions for each promotion or pay change; enable proof of \"substantially similar work\" evaluation and document the sex...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "2975a1f01cd4ccd0961d7460ee3659006aff01f875775a4a36f625a6b454944e",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "EjqYzeOs3mXzeShkdiiSoQhj8wBx/jWraewABQI3QnVJV9czEJ4B2R79SyZbUuN61uP7pSQEWuqd9VevPb8mDA=="
+  }
+}

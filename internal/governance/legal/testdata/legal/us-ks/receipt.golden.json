@@ -1,0 +1,392 @@
+{
+  "legal_context_digest": "fffd6a66b57a24b1675175560aba1a01f83ffa5ac1ea48fb09cfe6dde9d522a2",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "KS",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ks-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "KS",
+          "Locality": ""
+        }
+      },
+      "Digest": "40795db36d4227acb99315a42ca253f022a99a552ab14f002fe2708f5ffc6f27",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-ks-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kansas.md",
+        "Section": "U.S.C. § 211",
+        "Note": "Record Retention and Notice: K.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "KS",
+        "Locality": ""
+      },
+      "PackID": "us-ks-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ks-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ks-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ks-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-ks-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "530ddd22178e2cc30d5dfef3c5dbbf31b33fa6875a9c9d0fa8cf8e9b7160778b"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ks-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kansas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Wage Payment Act governs pay frequency and final pay: K.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "KS",
+        "Locality": ""
+      },
+      "PackID": "us-ks-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ks-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ks-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "61e09e0a289e709a97250d649b38b5a3519a9f3a77293dc59452ed5295b1c852"
+    },
+    {
+      "Type": 8,
+      "ID": "us-ks-non-compete",
+      "Description": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman) — K.S.A. 50-163 does not reach them. 2025 SB 241 (eff. 2025-07-01) amended K.S.A. 50-163 to presume enforceable two categories of non-solicitation covenant (employee non-solicits protecting confidential/trade-secret information or ≤2 years; customer non-solicits limited to material-contact customers and ≤2 years) and to require reformation of overbroad ones.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kansas.md",
+        "Section": "SB 241",
+        "Note": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman) — K.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "KS",
+        "Locality": ""
+      },
+      "PackID": "us-ks-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ks-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ks-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ks-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-ks-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "4562c50aaec8be7194e280334c4a65a76264082374cffe35ddf4e41b1761220b"
+    },
+    {
+      "Type": 14,
+      "ID": "us-ks-classification",
+      "Description": "CONTRACTOR test: Contractor vs. Employee Classification: Kansas recognizes the ABC test for unemployment insurance purposes (K.S.A. § 44-701 et seq.) similar to other states. Control over work methods, provision of tools, integration into the business, and permanence determine status. Misclassification exposes employers to wage-and-hour audits and unemployment insurance liabilities.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kansas.md",
+        "Section": "K.S.A. § 44-701",
+        "Note": "Contractor vs.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "KS",
+        "Locality": ""
+      },
+      "PackID": "us-ks-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ks-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ks-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ks-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "8ae0bd6801aeb86bb26756f28dde8d6abebac8afec55384a36de17ca82cadab0"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-ks-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kansas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Wage Payment Act governs pay frequency and final pay: K.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ks-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kansas.md",
+        "Section": "U.S.C. § 1681",
+        "Note": "Sex-offender registry checks (permitted, especially for positions involving children or vulnerable populations).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-ks-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kansas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No mini-WARN act: Federal WARN Act applies (60 days for mass layoffs affecting 50+ in 30 days); Kansas has no state-level mass-separation notice requirement.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ks-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kansas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Drug Testing: No Kansas statute prohibits pre-employment drug testing.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ks-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kansas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Data breach notification: K.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "KS",
+            "Locality": ""
+          },
+          "PackID": "us-ks-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-ks-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/kansas.md",
+            "Section": "U.S.C. § 211",
+            "Note": "Record Retention and Notice: K.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "KS",
+            "Locality": ""
+          },
+          "PackID": "us-ks-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ks-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/kansas.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Wage Payment Act governs pay frequency and final pay: K.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ks-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "KS",
+            "Locality": ""
+          },
+          "PackID": "us-ks-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-ks-non-compete",
+          "Description": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman) — K.S.A. 50-163 does not reach them. 2025 SB 241 (eff. 2025-07-01) amended K.S.A. 50-163 to presume enforceable two categories of non-solicitation covenant (employee non-solicits protecting confidential/trade-secret information or ≤2 years; customer non-solicits limited to material-contact customers and ≤2 years) and to require reformation of overbroad ones.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/kansas.md",
+            "Section": "SB 241",
+            "Note": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman) — K.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "KS",
+            "Locality": ""
+          },
+          "PackID": "us-ks-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-ks-classification",
+          "Description": "CONTRACTOR test: Contractor vs. Employee Classification: Kansas recognizes the ABC test for unemployment insurance purposes (K.S.A. § 44-701 et seq.) similar to other states. Control over work methods, provision of tools, integration into the business, and permanence determine status. Misclassification exposes employers to wage-and-hour audits and unemployment insurance liabilities.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/kansas.md",
+            "Section": "K.S.A. § 44-701",
+            "Note": "Contractor vs.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "18ea24812189af72814184316d639454ddc8ef2013c18d98718e255ba5e3226b",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "BofrrfEXxxD+usMhSfIeNbAjffYdfFTh4nggNnkdhr6ZmbyFSPUt8w4WPfSABoUV9TQv4LNZ9awKRMwJ0MlsBA=="
+  }
+}

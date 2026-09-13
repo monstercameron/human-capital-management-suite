@@ -1,0 +1,353 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-mt-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "MT",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-mt-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Written Notice at Hire: Montana has no required written notice to the employee at hire about at-will status or wage-theft prevention; no state form mandated.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "channel": "written"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-mt-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "MCA § 30-14-1704",
+          "note": "Record Format: No state requirement for paper vs.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-mt-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "MCA § 39-3-204",
+          "note": "Pay frequency: 10-day maximum hold: MCA § 39-3-204 caps wage withholding at 10 business days after wages are earned and due; no frequency mandate (weekly, biweekly, semi-monthly all allowed).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-mt-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "MCA § 39-3-205",
+          "note": "Final pay timing: MCA § 39-3-205 requires immediate payment on involuntary termination unless the employer has a written policy extending to the next payday or 15 days, whichever is sooner.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing: MCA § 39-3-205 requires immediate payment on involuntary termination unless the employer has a written policy extending to the next payday or 15 days, whichever is sooner. Resignations allow next regular payday or 15 days from separation, whichever is sooner. Special rule: if alleged theft is involved, wages may be withheld if employee consents in writing or employer reports to law enforcement within 7 business days; if no charges within 30 days, wages must be paid in full."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-mt-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "MCA § 28-2-703",
+          "note": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file. Montana generally voids noncompete agreements for employment; only enforce in narrow goodwill-sale or partnership-dissolution contexts. Do not enforce an employment noncompete without legal review and current case law confirmation. If an employee opposes noncompete enforcement and the employer terminates for the opposition, risk of wrongful-discharge and retaliation claims is high."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-mt-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "MCA § 39-3-404",
+          "note": "Minimum wage ties to CPI-U annually: MCA § 39-3-404; as of 2026-01-01, $10.85/hour (adjusted annually by inflation, rounded to nearest $0.05).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "10.85",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-mt-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Deductions and Pay Statements: Montana follows federal FLSA rules; only deductions required by law, court order, or written employee authorization are permitted.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "gross_wages",
+            "net_wages",
+            "deductions",
+            "hours_worked",
+            "pay_rate",
+            "pay_period",
+            "employer_identification"
+          ],
+          "consent_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-mt-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "MCA § 49-2-303",
+          "note": "Discrimination and Protected Classes (MCA § 49-2-303): Ensure pay changes and terminations do not violate discrimination statutes.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "discrimination_complaint"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "JOB_SECURITY",
+        "id": "us-mt-job-security",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "§ 39-2-912",
+          "note": "If the employer has written internal procedures for appealing a discharge (other than those in § 39-2-912), the employee must exhaust them before suing for wrongful discharge.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-mt-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks SEPARATION_FILING for MT, and no item in montana.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-mt-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "MCA § 39-2-205",
+          "note": "Drug Testing (MCA § 39-2-205 to 39-2-211, Workforce Drug and Alcohol Testing Act): Permitted, but only for employees in qualifying positions:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-mt-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/montana.md",
+          "section": "MCA § 30-14-1704",
+          "note": "Data Breach and Personal Information (MCA § 30-14-1704): If employee personal data (SSN, financial account, driver's license, etc.) is breached or exposed in a security incident, trigger notification to affected...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "subject_deadline_days": 5,
+          "day_basis": "BUSINESS",
+          "standard": "RECOMMENDED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/montana.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "85a1d22f7e8869fa91ab1ac168d37a9827d92d98e5138b51a58af3c4375fbe8c",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "a0f84999083d947fb7c993d7a41ed6267fd5e4792bca85cfb4107dd9e885586739c6197b70a4e39bad6f3200c7bab49fbed1f32858273fc969a793f53ee07f04"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "85a1d22f7e8869fa91ab1ac168d37a9827d92d98e5138b51a58af3c4375fbe8c",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-mt-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mt-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mt-job-security",
+        "severity": "BLOCKING",
+        "note": "required field(s) standard_kind are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mt-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mt-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mt-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) record_class, duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mt-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks NOTICE '?' for MT; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for MT; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for MT; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-mt-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mt-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mt-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mt-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mt-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "e0ae4021f91f53540adb8f3328330f5d88c9c9000853d2c53f33bd05414212b6",
+      "prev_digest": "",
+      "digest": "45a352887df2517b1902907a289bb0110b57db318fe7b9cf956419bfdd0195dc",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "68c80cce10b8a7f18194bba0ee3aee939fd8b73a3113f864070bd0defa49fa652d6f059c0aee208fdf6359f81f017efdcd24f96b8038251bf3a4cb30659c5204"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "f12e8e8ecddf13e9f25aa799bfdeee4d0cf798d6aaf85aad0ee1ccbc3e8b4cae",
+      "prev_digest": "45a352887df2517b1902907a289bb0110b57db318fe7b9cf956419bfdd0195dc",
+      "digest": "4d6cb655125219f507f23788766a969c3ee02e72afab174bb8b49d7f9fdf6c07",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "1d7b36e9a39a31327e76042ab7df8684782c24afd7ac316386cd01cc4f6549dffb8cbc1a44fdfb9f06a49939401e12e0e850902521abca513c12309cd4e4bc0f"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "85a1d22f7e8869fa91ab1ac168d37a9827d92d98e5138b51a58af3c4375fbe8c",
+      "prev_digest": "4d6cb655125219f507f23788766a969c3ee02e72afab174bb8b49d7f9fdf6c07",
+      "digest": "24ef526e04efd6ffaa78cd6c04424dd65e601d4ab77a512baf53ce0cc12e9be2",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "22558e4b85224ab914c0f5c341ead0e1d000927d548bed9ffec30bd3fdd2020b23c12686aab96d727b803839c1e538d03805c80ec28a799c48beca0eeeecc90f"
+      }
+    }
+  ]
+}

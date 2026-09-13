@@ -74,7 +74,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing strict (10 days or regular payday): Idaho Code § 45-606 requires wages by the earlier of the next regular payday or 10 days after termination; employee request for early payment triggers 48-hour..."
+        "deadline_description": "Final pay timing strict (10 days or regular payday): Idaho Code § 45-606 requires wages by the earlier of the next regular payday or 10 days after termination; employee request for early payment triggers 48-hour deadline (weekends/holidays excluded)."
       }
     },
     {
@@ -89,7 +89,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope..."
+        "rule": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope; must protect legitimate business interests; violations of restraint doctrine may result in unenforceability."
       }
     },
     {

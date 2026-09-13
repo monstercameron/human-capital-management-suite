@@ -9,7 +9,7 @@ type State struct {
 	File string
 }
 
-// States is the fifty rows of the contract's section 5, each with the
+// States is the fifty-one rows of the contract's section 5, each with the
 // research file its citations point back to.
 var States = []State{
 	{"AK", "Alaska", "alaska.md"},
@@ -19,6 +19,7 @@ var States = []State{
 	{"CA", "California", "california.md"},
 	{"CO", "Colorado", "colorado.md"},
 	{"CT", "Connecticut", "connecticut.md"},
+	{"DC", "District of Columbia", "district-of-columbia.md"},
 	{"DE", "Delaware", "delaware.md"},
 	{"FL", "Florida", "florida.md"},
 	{"GA", "Georgia", "georgia.md"},

@@ -1,0 +1,759 @@
+{
+  "legal_context_digest": "4badd77ef9d9679d09342415cf5f93e3570c80104180361152960fdcca00b89e",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "MA",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ma-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "MA",
+          "Locality": ""
+        }
+      },
+      "Digest": "ec479e726285d9c595f78913e2d9b6de3afc1773e9d52ed3f6de5478cd74687d",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-ma-retention",
+      "Description": "retain personnel_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "§ 52C",
+        "Note": "Personnel record access (c.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "8e373b57b4600e3eaa8708b867ffd425150f988d1e21a0fce82fce9c41d31205"
+    },
+    {
+      "Type": 4,
+      "ID": "us-ma-leave-interaction",
+      "Description": "paid leave: Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L. c. 175M § 2). Weekly benefit: 80% of the portion of average weekly wage at or below 50% of the state average weekly wage, plus 50% of the portion above, capped (cap $1,170.64 in 2025; verify 2026).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "M § 2",
+        "Note": "Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ma-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "6a161e3c62eb6795b16722fac035778b34a491543bd64eb1af33362e8eba6e7d"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ma-pay-frequency",
+      "Description": "minimum frequency WEEKLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "§ 148",
+        "Note": "Wages must be paid on a regular, designated payday, at least weekly (M.G.L.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "ccbfedf7025a59e02cffe7d096d7f79cbf991242068d6c79fd96c0a5fac483a9"
+    },
+    {
+      "Type": 7,
+      "ID": "us-ma-pay-transparency",
+      "Description": "internal_promotion: Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "§ 105F",
+        "Note": "Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-ma-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "33a55b38f76f10f62541af5d9025e614f53e6129592096d3ea5d62b1189f1d80"
+    },
+    {
+      "Type": 8,
+      "ID": "us-ma-non-compete",
+      "Description": "Non-compete/non-solicit: If non-compete exists, platform must verify garden leave payment (50% salary, pro-rata) and track restricted period; flag any restriction without garden leave as likely unenforceable post-M.G.L. c. 149 § 24L amendment; require documentation of 10+ business days for legal review.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "§ 24L",
+        "Note": "Non-compete/non-solicit: If non-compete exists, platform must verify garden leave payment (50% salary, pro-rata) and track restricted period; flag any restriction without garden leave as likely unenforceable post-M.G.L.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ma-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-ma-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "1370bd7f903bb5b564a11bd2664d198e508edff0dc396827a48fd21a658238e8"
+    },
+    {
+      "Type": 10,
+      "ID": "us-ma-mini-warn",
+      "Description": "0+ affected within 0 day(s) requires 0 day(s) notice",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "A §§ 71A–71B",
+        "Note": "No state mini-WARN: Massachusetts has no enforceable mini-WARN act with statutory penalties.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-mini-warn",
+        "Kind": 6,
+        "NonRemovable": true,
+        "Description": "timer: mini-WARN notice deadline",
+        "LifecycleStep": "EXECUTE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-mini-warn",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "timer: mini-WARN notice deadline",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "c18f5e92511e02c2d683e5c6e934358b22a6e6cbcbf9225e8b725c099f5ac19c"
+    },
+    {
+      "Type": 11,
+      "ID": "us-ma-wage-floor",
+      "Description": "HOURLY floor of 15.00 USD for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "§ 1",
+        "Note": "Minimum wage is $15.00/hour (unchanged since January 1, 2023; M.G.L.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ma-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "c0f3ff9bf90afcb4b0518286011019854a19aac593b3bdcb0fe6067bf1501b7d"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ma-pay-equity-review",
+      "Description": "pay-equity review against comparable work for bases gender",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "§ 105A",
+        "Note": "Employers cannot pay employees less than others of a different gender for comparable work in the same workplace (M.G.L.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ma-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "760c44960155fdf705e6190f2969f1334901ba689cb3e37a93dd699722eefe42"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ma-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Federal FLSA requires itemized pay stubs; no specific Massachusetts statute mandates detailed pay stub format beyond federal requirements.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "02d0d5fe5b8028d9a244b25b4627f25b2d61defbcbf5bd2b623961e2c07a2ac3"
+    },
+    {
+      "Type": 15,
+      "ID": "us-ma-personnel-file",
+      "Description": "personnel-file request answered within 10  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "§ 52C",
+        "Note": "Personnel record access (c.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MA",
+        "Locality": ""
+      },
+      "PackID": "us-ma-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ma-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ma-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "2ba20b6b98f4a59b31d623570fa5d50a47fd6a339058fd8a0bda5fc8815eb441"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-ma-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "§ 105A",
+        "Note": "Salary history ban: Employers may not inquire about or consider an applicant's previous wage/salary history unless voluntarily disclosed by the candidate (M.G.L.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-ma-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "§ 150",
+        "Note": "Treble damages flag: Any delay in final pay triggers automatic exposure to 3x damages plus attorney fees (M.G.L.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ma-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "PFML pay and benefits interaction: Document that pay changes during leave do not affect job restoration upon return (same or equivalent position, same status, pay, benefits, seniority); flag if promotion occurs during...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ma-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No state-level statute regulating private-sector drug testing scope; federal law (pre-employment, reasonable suspicion, post-accident, DOT rules) and FCRA apply if using third-party testing vendors.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ma-retention",
+          "Description": "retain personnel_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "§ 52C",
+            "Note": "Personnel record access (c.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ma-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-ma-leave-interaction",
+          "Description": "paid leave: Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L. c. 175M § 2). Weekly benefit: 80% of the portion of average weekly wage at or below 50% of the state average weekly wage, plus 50% of the portion above, capped (cap $1,170.64 in 2025; verify 2026).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "M § 2",
+            "Note": "Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ma-pay-frequency",
+          "Description": "minimum frequency WEEKLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "§ 148",
+            "Note": "Wages must be paid on a regular, designated payday, at least weekly (M.G.L.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ma-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-ma-pay-transparency",
+          "Description": "internal_promotion: Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "§ 105F",
+            "Note": "Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-ma-non-compete",
+          "Description": "Non-compete/non-solicit: If non-compete exists, platform must verify garden leave payment (50% salary, pro-rata) and track restricted period; flag any restriction without garden leave as likely unenforceable post-M.G.L. c. 149 § 24L amendment; require documentation of 10+ business days for legal review.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "§ 24L",
+            "Note": "Non-compete/non-solicit: If non-compete exists, platform must verify garden leave payment (50% salary, pro-rata) and track restricted period; flag any restriction without garden leave as likely unenforceable post-M.G.L.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 10,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 10,
+          "ID": "us-ma-mini-warn",
+          "Description": "0+ affected within 0 day(s) requires 0 day(s) notice",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "A §§ 71A–71B",
+            "Note": "No state mini-WARN: Massachusetts has no enforceable mini-WARN act with statutory penalties.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ma-mini-warn"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-ma-wage-floor",
+          "Description": "HOURLY floor of 15.00 USD for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "§ 1",
+            "Note": "Minimum wage is $15.00/hour (unchanged since January 1, 2023; M.G.L.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ma-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ma-pay-equity-review",
+          "Description": "pay-equity review against comparable work for bases gender",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "§ 105A",
+            "Note": "Employers cannot pay employees less than others of a different gender for comparable work in the same workplace (M.G.L.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ma-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Federal FLSA requires itemized pay stubs; no specific Massachusetts statute mandates detailed pay stub format beyond federal requirements.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MA",
+            "Locality": ""
+          },
+          "PackID": "us-ma-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-ma-personnel-file",
+          "Description": "personnel-file request answered within 10  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/massachusetts.md",
+            "Section": "§ 52C",
+            "Note": "Personnel record access (c.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ma-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "518622a22060156cf86964c735754cca2cf251c506c8958eb368c8328b427d51",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "rHU8NI4/nSckmetaEkmYhOw7y1AsK8WBbwAu9DNfZltgAtEzyWKfAnr4yhQ9lQOcyb8VzM6eXpqHLXenwDjoBQ=="
+  }
+}

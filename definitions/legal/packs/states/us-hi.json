@@ -119,7 +119,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay transparency mandate (HRS § 378-2.3 as amended by Act 203, effective 1/1/24): Employers with 50+ employees must disclose reasonably expected wage/hourly rate or salary range in all job postings (internal and..."
+        "required_disclosure": "Pay transparency mandate (HRS § 378-2.3 as amended by Act 203, effective 1/1/24): Employers with 50+ employees must disclose reasonably expected wage/hourly rate or salary range in all job postings (internal and external)."
       }
     },
     {
@@ -134,7 +134,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete/non-solicit: Store contract date, business protective purpose (trade secret, customer list, confidential info), duration, geography, scope; flag technology worker exemption if applicable; post-employment..."
+        "rule": "Non-compete/non-solicit: Store contract date, business protective purpose (trade secret, customer list, confidential info), duration, geography, scope; flag technology worker exemption if applicable; post-employment covenants require clear protective purpose."
       }
     },
     {

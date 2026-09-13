@@ -1,0 +1,797 @@
+{
+  "legal_context_digest": "d16923af5bdb18bf42008689d93af934aebb3f4188ca29ed90ba4d610ca37715",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "ME",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-me-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "ME",
+          "Locality": ""
+        }
+      },
+      "Digest": "791f740ef51164f0720232c2973cffad391f5ca8bad138f192a8e4930b55a375",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-me-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 621-A",
+        "Note": "At hiring, employer must provide written notice of: rate of remuneration, hours of work, payday schedule, how wages will be paid, and a summary of leave policies (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-me-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-me-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "a847f3874854937687c270126cc80790f84a5ed387d9c186a4b0722311571a42"
+    },
+    {
+      "Type": 3,
+      "ID": "us-me-retention",
+      "Description": "retain payroll_records for 6 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 630-A",
+        "Note": "Records retention and access (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "176c209525b716767294c9882d5403f151bd6049bebcf44960c1d27b0b9f0d0f"
+    },
+    {
+      "Type": 4,
+      "ID": "us-me-leave-interaction",
+      "Description": "accrued paid time off: Vacation and paid leave payouts (26 M.R.S. § 626): Accrued paid leave and vacation must be paid on termination; 2023 amendment clarifies payout timing. Earned paid leave (EPL) accrues per § 637.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 626",
+        "Note": "Vacation and paid leave payouts (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-me-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "1f84387fcdddbacc5a6efb2bcd7b892254e727bb1970ffa76ed66e70336f172a"
+    },
+    {
+      "Type": 5,
+      "ID": "us-me-pay-frequency",
+      "Description": "minimum frequency WEEKLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 621-A",
+        "Note": "Pay frequency and final pay (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "61e98bc7c061ea04343a7d9857565dd8409861c5c36845b4abaf596f96e68cde"
+    },
+    {
+      "Type": 8,
+      "ID": "us-me-non-compete",
+      "Description": "Non-compete restrictions (26 M.R.S. § 599-A, § 599-B): Non-competes enforceable only if employee earns at least 400% of federal poverty level (approximately $62,920 annually for single filer in 2026) OR negotiated individually; employees earning at or below threshold cannot be required to sign non-competes; must provide notice 3 business days before signing; 1-year duration after start of employment or 6 months after signing, whichever is longer; maximum 2-year term; reasonable scope and duration required.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 599-A",
+        "Note": "Non-compete restrictions (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-me-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-me-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "0bf2528f3355b3c44d169189becefe5b724e955011de74e6c6a1e2052f2f4e33"
+    },
+    {
+      "Type": 11,
+      "ID": "us-me-wage-floor",
+      "Description": "HOURLY floor of 14.65 USD for , indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 664",
+        "Note": "Minimum wage and overtime (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-me-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "f05e91140dd9f29b1f2eaed6b74d81bad7023e61a010bf8d5963044f93ec6c36"
+    },
+    {
+      "Type": 12,
+      "ID": "us-me-pay-equity-review",
+      "Description": "pay-equity review against  for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 628-A",
+        "Note": "Salary history ban and equal pay (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-me-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "6108ff30061784693f5fe226b5d82da957d9bbe8feac5283e349f55157a34427"
+    },
+    {
+      "Type": 13,
+      "ID": "us-me-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 630-A",
+        "Note": "Pay statement requirements (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "7dd7eae24d694fa47454388fd6bd5483041212ebb7d0bfaee9adf5672cc8e323"
+    },
+    {
+      "Type": 14,
+      "ID": "us-me-classification",
+      "Description": "OVERTIME_THRESHOLD test: Minimum wage and overtime (26 M.R.S. § 664, § 665): State minimum wage $14.65/hour in 2025, $15.10/hour in 2026 (indexed to federal minimum + 1.1x or federal, whichever higher); tip credit $7.33/hour in 2025 (half of minimum wage); overtime 1.5x for hours over 40/week (no daily overtime trigger); salaried exemption threshold $43,951/year in 2025 (3,000x minimum wage).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 664",
+        "Note": "Minimum wage and overtime (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-me-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "fea6155b9f7eed53d5217f0293d30c6f9ecf2ed9355e5cef234f303ce4244d41"
+    },
+    {
+      "Type": 15,
+      "ID": "us-me-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 630-A",
+        "Note": "Records retention and access (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ME",
+        "Locality": ""
+      },
+      "PackID": "us-me-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-me-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-me-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "8d05d74f0fcbae7a3a78579929def58584c7b8036332803d3a01b0fcd8f31e06"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-me-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 628-A",
+        "Note": "Salary history ban and equal pay (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-me-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 621-A",
+        "Note": "Pay frequency and final pay (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-me-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 635",
+        "Note": "Severance for plant closings (26 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-me-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "§ 626-B",
+        "Note": "Pay transparency protection: Employees have right to discuss wages with coworkers without retaliation (implied under § 626-B public policy exception).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-me-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "Statute § 683",
+        "Note": "Statute § 683: Maine law does not mandate drug testing but permits it under certain conditions if job-related and conducted consistently.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-me-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maine.md",
+        "Section": "M.R.S. § 1348",
+        "Note": "Breach notification law (10 M.R.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-me-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 621-A",
+            "Note": "At hiring, employer must provide written notice of: rate of remuneration, hours of work, payday schedule, how wages will be paid, and a summary of leave policies (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-me-retention",
+          "Description": "retain payroll_records for 6 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 630-A",
+            "Note": "Records retention and access (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-me-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-me-leave-interaction",
+          "Description": "accrued paid time off: Vacation and paid leave payouts (26 M.R.S. § 626): Accrued paid leave and vacation must be paid on termination; 2023 amendment clarifies payout timing. Earned paid leave (EPL) accrues per § 637.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 626",
+            "Note": "Vacation and paid leave payouts (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-me-pay-frequency",
+          "Description": "minimum frequency WEEKLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 621-A",
+            "Note": "Pay frequency and final pay (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-me-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-me-non-compete",
+          "Description": "Non-compete restrictions (26 M.R.S. § 599-A, § 599-B): Non-competes enforceable only if employee earns at least 400% of federal poverty level (approximately $62,920 annually for single filer in 2026) OR negotiated individually; employees earning at or below threshold cannot be required to sign non-competes; must provide notice 3 business days before signing; 1-year duration after start of employment or 6 months after signing, whichever is longer; maximum 2-year term; reasonable scope and duration required.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 599-A",
+            "Note": "Non-compete restrictions (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-me-wage-floor",
+          "Description": "HOURLY floor of 14.65 USD for , indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 664",
+            "Note": "Minimum wage and overtime (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-me-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-me-pay-equity-review",
+          "Description": "pay-equity review against  for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 628-A",
+            "Note": "Salary history ban and equal pay (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-me-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 630-A",
+            "Note": "Pay statement requirements (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-me-classification",
+          "Description": "OVERTIME_THRESHOLD test: Minimum wage and overtime (26 M.R.S. § 664, § 665): State minimum wage $14.65/hour in 2025, $15.10/hour in 2026 (indexed to federal minimum + 1.1x or federal, whichever higher); tip credit $7.33/hour in 2025 (half of minimum wage); overtime 1.5x for hours over 40/week (no daily overtime trigger); salaried exemption threshold $43,951/year in 2025 (3,000x minimum wage).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 664",
+            "Note": "Minimum wage and overtime (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ME",
+            "Locality": ""
+          },
+          "PackID": "us-me-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-me-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maine.md",
+            "Section": "M.R.S. § 630-A",
+            "Note": "Records retention and access (26 M.R.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-me-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "d1045edd23fbc21c6c7cac3b1ed769267537d44e5ec6301ce1ba2cf8de3cc4e9",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "W5gCKUARoLE5y74UPABoBokT+cwfX1w/+FNiZ9oyc69K2WBMgT50hBMDTIYRv3EgYCkGFS9jh3ZPMo7HLmUFAw=="
+  }
+}

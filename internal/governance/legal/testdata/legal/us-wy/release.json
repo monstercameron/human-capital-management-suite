@@ -1,0 +1,277 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-wy-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "WY",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-wy-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "Wyo. Stat. § 27-4-101",
+          "note": "Wage record retention (Wyo.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 2,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-wy-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "Wyo. Stat. § 27-4-101",
+          "note": "Semimonthly pay frequency: Wyo. Stat. § 27-4-101 requires semimonthly payment for industrial/factory operations; itemized pay stub showing all deductions; other employers may set own schedules.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-wy-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "Wyo. Stat. § 27-4-104",
+          "note": "Final pay timing post-promotion (Wyo.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing post-promotion (Wyo. Stat. § 27-4-104): If termination occurs post-promotion, all wages earned at promoted rate from effective date forward due by next regular payday or employer's usual payment schedule. No statutory acceleration."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-wy-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "SF 107",
+          "note": "Non-compete voidness check (SF 107, effective 2025-07-01): On promotion, check if employee subject to non-compete.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete voidness check (SF 107, effective 2025-07-01): On promotion, check if employee subject to non-compete. If non-executive (and not in sale/trade-secret carve-out), mark as void and unenforceable under SF 107. Document in system that non-compete cannot be enforced post-promotion."
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-wy-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "Wyo. Stat. § 27-4-302",
+          "note": "Equal pay flag (Wyo.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "age"
+          ],
+          "comparator_standard": "comparable work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-wy-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "Wyo. Stat. § 27-4-101(b)",
+          "note": "Itemized pay stub (Wyo.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "deductions",
+            "pay_rate"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-wy-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "Wyo. Stat. § 27-14-101",
+          "note": "Workers' compensation retaliation (Wyo.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim"
+          ],
+          "disposition": "FLAG",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "JOB_SECURITY",
+        "id": "us-wy-job-security",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Handbook implied contract (Trabing v. Kinko's, 2002): If promotion involves change to termination procedures or at-will status, verify handbook has clear, conspicuous at-will disclaimer to preserve at-will employment.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard_kind": "HANDBOOK_DISCLAIMER",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-wy-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks DRUG_TESTING for WY, and no item in wyoming.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-wy-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/wyoming.md",
+          "section": "Wyo. Stat. § 40-12-501",
+          "note": "Data breach notification (Wyo.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/wyoming.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "c9b15b73649281f7b3b30183f8d7d91bd8448ef578e1a1817c27a8ccea039860",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "b645bc3f2e3da6d7dd8652c541b5e56fc3d12b83ef63e32a0191df7b21545c74942da56aaebcccf8bed98b698ba9f9997aa599ba4778b2bb40f9c92a6e706f01"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "c9b15b73649281f7b3b30183f8d7d91bd8448ef578e1a1817c27a8ccea039860",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-wy-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wy-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wy-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wy-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wy-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wy-job-security",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "c57e83b47cca5e12999415ffdb50489a3a38562e8a3d1d83ea9c94f34a8a22bd",
+      "prev_digest": "",
+      "digest": "48d56b0df6dc7c649ab0098f4a122d7899d3e4e222c48f0dd25c3d8cb36cac69",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "985452a3c71608246074b64d77b2f1723c721b9e26a26c796efa3beda8eb4d88221c53dc2559f1aee0c58edbca24d94dcd6f65f629cfd3bbe96215207a917709"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "d99e7cdf2e7cb01b40d0c23c2c5f4c946f255a08638d54ffefc67620a23350c3",
+      "prev_digest": "48d56b0df6dc7c649ab0098f4a122d7899d3e4e222c48f0dd25c3d8cb36cac69",
+      "digest": "bd4d4168c5d0826e85c16e7a8478c1530462784ffb01b49e831fbc2c79a3eac0",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "1672d301e557ae494be6c7b53d8aed236d80a53b731e2c27e9160606fb65f4a9f0d6d7ddfe3dd3ad683cdb0933bef86f97f975de4efbf31ea86f7038c3fe700d"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "c9b15b73649281f7b3b30183f8d7d91bd8448ef578e1a1817c27a8ccea039860",
+      "prev_digest": "bd4d4168c5d0826e85c16e7a8478c1530462784ffb01b49e831fbc2c79a3eac0",
+      "digest": "0e05eef3281923c74ebe5be25338d9886a0d9d0114f156209ffc1d1dc9331bee",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "0ea70ddd875442062c7f95a1034fbb379b0d89c40b144c64c4613b5a15891bb6895b16d6d74c349b40af85fec00f60ed3ef80e31a03dd5affb09193e5ca93f05"
+      }
+    }
+  ]
+}

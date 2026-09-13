@@ -211,6 +211,8 @@ func ReadsRecommendation(text string) bool { return recommendationRE.MatchString
 
 var (
 	dayRE             = regexp.MustCompile(`(?i)\b(\d{1,3})[- ](calendar |business |working |)days?\b`)
+	wordDayRE         = regexp.MustCompile(`(?i)\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|twenty-one|twenty-eight|twenty-four|twenty-seven|forty-five|sixty-five|ninety-six)[- ](calendar |business |working |)days?\b`)
+	hourRE            = regexp.MustCompile(`(?i)\b(\d{1,3})[- ]hours?\b`)
 	yearRE            = regexp.MustCompile(`(?i)\b(\d{1,2})[- ]?(?:\+\s*)?years?\b`)
 	moneyRE           = regexp.MustCompile(`\$\s?(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)`)
 	countRE           = regexp.MustCompile(`\b(\d{1,4})\+?\s*(?:or more\s*)?(?:employees|workers)\b`)
@@ -218,24 +220,51 @@ var (
 	annotationCountRE = regexp.MustCompile(`^(\d+)\+?$`)
 )
 
-// ExtractDays returns the first day count and its basis, or (0, "").
-func ExtractDays(text string) (int, string) {
-	m := dayRE.FindStringSubmatch(text)
-	if m == nil {
-		return 0, ""
-	}
-	n, err := strconv.Atoi(m[1])
-	if err != nil {
-		return 0, ""
-	}
-	switch strings.TrimSpace(strings.ToLower(m[2])) {
+// dayWords maps the number words the research corpus uses for day counts.
+var dayWords = map[string]int{
+	"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+	"eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+	"thirteen": 13, "fourteen": 14, "fifteen": 15, "twenty": 20,
+	"twenty-one": 21, "twenty-four": 24, "twenty-seven": 27,
+	"twenty-eight": 28, "thirty": 30, "forty": 40, "forty-five": 45,
+	"fifty": 50, "sixty": 60, "sixty-five": 65, "seventy": 70,
+	"eighty": 80, "ninety": 90, "ninety-six": 96,
+}
+
+func dayBasis(qualifier string) string {
+	switch strings.TrimSpace(strings.ToLower(qualifier)) {
 	case "business", "working":
-		return n, "BUSINESS"
+		return "BUSINESS"
 	case "calendar":
-		return n, "CALENDAR"
+		return "CALENDAR"
 	default:
-		return n, ""
+		return ""
 	}
+}
+
+// ExtractDays returns the first day count and its basis, or (0, ""). A count
+// stated in words ("seven calendar days' notice") or hours ("24 hours'
+// notice") converts to days — rounding a partial day up, the narrower
+// reading for the platform.
+func ExtractDays(text string) (int, string) {
+	if m := dayRE.FindStringSubmatch(text); m != nil {
+		n, err := strconv.Atoi(m[1])
+		if err == nil {
+			return n, dayBasis(m[2])
+		}
+	}
+	if m := wordDayRE.FindStringSubmatch(text); m != nil {
+		if n, ok := dayWords[strings.ToLower(m[1])]; ok {
+			return n, dayBasis(m[2])
+		}
+	}
+	if m := hourRE.FindStringSubmatch(text); m != nil &&
+		strings.Contains(strings.ToLower(text), "notice") {
+		if n, err := strconv.Atoi(m[1]); err == nil && n > 0 {
+			return (n + 23) / 24, ""
+		}
+	}
+	return 0, ""
 }
 
 // ExtractYears returns the first year count, or 0.
@@ -308,13 +337,53 @@ func ExtractAnnotationCount(annotation string) int {
 	return n
 }
 
+// legalAbbrev is the set of tokens whose trailing period is an abbreviation,
+// not a sentence break: "Ala. Code § 25-1-30" must not cut a citation note in
+// half at "Ala.".
+var legalAbbrev = map[string]bool{
+	"ala": true, "ann": true, "app": true, "ariz": true, "ark": true,
+	"cal": true, "civ": true, "colo": true, "conn": true, "del": true,
+	"fig": true, "fla": true, "ga": true, "gen": true, "haw": true,
+	"idaho": true, "ill": true, "ind": true, "iowa": true, "kan": true,
+	"ky": true, "la": true, "lab": true, "mass": true, "md": true,
+	"me": true, "mich": true, "minn": true, "miss": true, "mo": true,
+	"mont": true, "n": true, "neb": true, "nev": true, "no": true,
+	"nos": true, "okla": true, "or": true, "ore": true, "pa": true,
+	"rev": true, "s": true, "seq": true, "stat": true, "tenn": true,
+	"tex": true, "u": true, "utah": true, "v": true, "va": true,
+	"vt": true, "w": true, "wash": true, "wis": true, "wyo": true,
+}
+
+// sentenceBreakAt reports whether the ". " at s[idx:idx+2] ends a sentence.
+// A period closing a legal citation abbreviation does not.
+func sentenceBreakAt(s string, idx int) bool {
+	word := s[:idx]
+	if cut := strings.LastIndexAny(word, " \t"); cut >= 0 {
+		word = word[cut+1:]
+	}
+	word = strings.TrimRight(word, ".,;:)]")
+	return !legalAbbrev[strings.ToLower(word)]
+}
+
 // Summarize trims an item's text down to a citation note: the first sentence,
 // capped so a definition file stays readable. It is a excerpt of the
 // repository's own research prose, never of a statute.
 func Summarize(text string, max int) string {
 	s := strings.TrimSpace(text)
-	if idx := strings.Index(s, ". "); idx > 0 && idx < max {
-		s = s[:idx+1]
+	for idx := 0; ; {
+		next := strings.Index(s[idx:], ". ")
+		if next < 0 {
+			break
+		}
+		idx += next
+		if idx > 0 && idx < max && sentenceBreakAt(s, idx) {
+			s = s[:idx+1]
+			break
+		}
+		idx += 2
+		if idx >= len(s) {
+			break
+		}
 	}
 	if len(s) > max {
 		cut := strings.LastIndex(s[:max], " ")

@@ -1,0 +1,249 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-nd-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "ND",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-nd-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-dakota.md",
+          "section": "NDCC § 34-14-04",
+          "note": "Wage record retention (NDCC § 34-14-04): System must retain promotion records (wage change, effective date, justification) for minimum 2 years; support Department of Labor inspection rights.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 2,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-nd-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-dakota.md",
+          "section": "NDCC § 34-14-02",
+          "note": "Pay frequency: Regular paydays required; semimonthly or monthly common; must be consistent and predictable (NDCC § 34-14-02).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-nd-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-dakota.md",
+          "section": "NDCC § 34-14-03",
+          "note": "Final pay on separation during/after promotion (NDCC § 34-14-03): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid by next regular payday or within 15...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay on separation during/after promotion (NDCC § 34-14-03): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid by next regular payday or within 15 days of separation (whichever comes first). Include unused accrued leave unless narrow forfeiture exception met (employer informed at hire, employee voluntarily resigned, met tenure/notice conditions)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-nd-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-dakota.md",
+          "section": "NDCC § 9-08-06",
+          "note": "Non-compete/non-solicit review (NDCC § 9-08-06): On promotion, check if employee subject to non-compete or non-solicit.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete/non-solicit review (NDCC § 9-08-06): On promotion, check if employee subject to non-compete or non-solicit. If non-compete, note as unenforceable and void per statute. If non-solicit exists, verify reasonableness in duration, geography, and scope; document in system."
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-nd-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-dakota.md",
+          "section": "NDCC § 34-06.1",
+          "note": "Equal Pay compliance (NDCC § 34-06.1): On promotion or base-pay change within same establishment, system should flag if new wage for one gender differs materially from peer rates for comparable work; require manager...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "gender",
+            "age"
+          ],
+          "comparator_standard": "comparable work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-nd-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-dakota.md",
+          "section": "NDCC § 34-01-20",
+          "note": "Whistleblower protection check (NDCC § 34-01-20): If promotion follows any protected whistleblower activity (good-faith report of unlawful conduct), flag for legal review to ensure retaliation risk is mitigated.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "whistleblower_report"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-nd-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-dakota.md",
+          "section": "NDCC § 34-11.1",
+          "note": "Drug testing (NDCC § 34-11.1):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-nd-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-dakota.md",
+          "section": "NDCC § 51-30",
+          "note": "Data Breach Notification (NDCC § 51-30):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/north-dakota.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "f9a1ef36fa3a5a886b1c10efbbd773aefb37451c63c7eeb8a8849ab8ce8b782c",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "63a9f5cedddf1cbe735d1514d9dd1f94e9f9695dc5a57bef1b16de4a178805b4ba2571596e2aa05d4d303e99e817887a87930423046217fe1bf31805b5089605"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "f9a1ef36fa3a5a886b1c10efbbd773aefb37451c63c7eeb8a8849ab8ce8b782c",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-nd-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nd-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nd-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for ND; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-nd-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nd-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nd-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "1b62fd078d32c197c6ba8f4e7321ce93e35f97efa94f2f667a93b21e547bb10f",
+      "prev_digest": "",
+      "digest": "23044685a86e8790b4cf6c7b25b20e453e176ae320861b31145f3283584ec42c",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "d1aba8bba3e36bd409a7adcef8f7bcaa5b69e780cedc35ccbb2daa611b8475afd118cb8f7a6ac177e150f5fc430dea0daeabdc89c216d845849052fa54d8a503"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "d65e72eade48b1d75e0ead327c590fdb6aa1e19dbb01a96f310848e55c59fc1a",
+      "prev_digest": "23044685a86e8790b4cf6c7b25b20e453e176ae320861b31145f3283584ec42c",
+      "digest": "0fd50689735d9cfd1b1e69c183e8f6c4a8ddade7d28e52e69ed6e9332bca27a0",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "931483768049a362f82cf34df32439c172ed452fd18cec6f3699217f29a0939fa66ac0cb10736d0747fbb60da38eae98f636e14585e6895f01ccb208f3f29006"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "f9a1ef36fa3a5a886b1c10efbbd773aefb37451c63c7eeb8a8849ab8ce8b782c",
+      "prev_digest": "0fd50689735d9cfd1b1e69c183e8f6c4a8ddade7d28e52e69ed6e9332bca27a0",
+      "digest": "ee2d4d89b92052e0def917e077e3e821d6c45eabbd843a463b784b6dd5c9e7a5",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "8fde2641cecfd39fb279612a2525361df8a1789907099ec0fea9eff116f7f2420a7b0ce23f9cd8fc63e4e46ec433f1345185a9d00eacd599bb9735291c239a0e"
+      }
+    }
+  ]
+}

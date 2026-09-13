@@ -30,6 +30,7 @@
       },
       "body": {
         "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
         "channel": "written",
         "content_fields": ["payday", "pay_frequency"]
       }
@@ -75,7 +76,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Earned Leave Accrual and Termination (§ 34:11D-1): Track accrued sick leave (1 hour per 30 hours worked, 40-hour max per year)."
+        "interaction_rule": "Earned Leave Accrual and Termination (§ 34:11D-1): Track accrued sick leave (1 hour per 30 hours worked, 40-hour max per year). On termination, automatic payout of accrued balance unless written policy limits compensation exists and was provided at hire. On promotion within same employer, leave balance carries forward."
       }
     },
     {
@@ -117,7 +118,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure."
+        "required_disclosure": "Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure. On internal promotion posting, ensure reasonable-notice requirement met (10+ employees threshold)."
       }
     },
     {
@@ -191,6 +192,7 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "lookback_days": 2190,
         "standard": "REQUIRED"
       }
     },

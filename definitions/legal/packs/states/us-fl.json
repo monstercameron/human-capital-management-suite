@@ -24,13 +24,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/florida.md",
         "section": "Fla. Stat. § 542.335",
-        "note": "Non-compete and non-solicit: Enforceable under Fla.",
+        "note": "Non-compete and non-solicit: Enforceable under Fla. Stat. § 542.335 if in writing, protect a legitimate business interest, and reasonable in time/geography/scope.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete and non-solicit: Enforceable under Fla."
+        "rule": "Non-compete and non-solicit: Enforceable under Fla. Stat. § 542.335 if in writing, protect a legitimate business interest, and reasonable in time/geography/scope. CHOICE Act (eff. July 1, 2025) strengthened enforcement for non-competes but left non-solicits unchanged."
       }
     },
     {
@@ -70,6 +70,22 @@
       }
     },
     {
+      "kind": "PAY_EQUITY_REVIEW",
+      "id": "us-fl-pay-equity-review",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/florida.md",
+        "section": "Fla. Stat. § 448.07",
+        "note": "Equal pay law: Fla. Stat. § 448.07 prohibits employers from discriminating based on sex in wages.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "protected_bases": ["sex", "age"],
+        "comparator_standard": "equal work",
+        "standard": "REQUIRED"
+      }
+    },
+    {
       "kind": "ANTI_RETALIATION",
       "id": "us-fl-anti-retaliation",
       "citation": {
@@ -85,6 +101,7 @@
           "whistleblower_report",
           "jury_duty"
         ],
+        "disposition": "BLOCK",
         "standard": "REQUIRED"
       }
     },

@@ -1,0 +1,331 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-oh-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "OH",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-oh-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Record retention (RC 4111.08): System must retain promotion documentation (offer, effective date, wage-change justification, HR approval, equal-pay analysis if conducted) for ≥3 years to support compliance with...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-oh-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate. Sick-leave accrual continues during paid leave; no reduction in accrual on promotion (verify if employer policy allows selective accrual adjustments)."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-oh-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay frequency and payday change (RC 4113.15): System must flag if promotion/pay change coincides with payday change.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-oh-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Final pay compliance on separation (RC 4113.15): If termination occurs within promotion period, ensure all wages at promoted rate paid within 15 days of separation (or on next regular payday if sooner); capture in...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay compliance on separation (RC 4113.15): If termination occurs within promotion period, ensure all wages at promoted rate paid within 15 days of separation (or on next regular payday if sooner); capture in system. Failure to pay subjects employer to liquidated damages (greater of 6% unpaid wages or $200) plus attorneys' fees."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-oh-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Ohio mini-WARN Act (RC 4113.31, effective Sept 29, 2025): 60-day advance notice to state/local officials + employees required for plant closing or layoff of 50+ at one site if employer has 100+ total employees or...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "note": "Ohio mini-WARN Act (RC 4113.31, effective Sept 29, 2025): 60-day advance notice to state/local officials + employees required for plant closing or layoff of 50+ at one site if employer has 100+ total employees or...",
+          "notice_days": 60
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-oh-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "Ohio Constitution Art. II § 34a",
+          "note": "Minimum wage $11.00/hour (2026, indexed annually per Ohio Constitution Art.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "11.00",
+            "currency": "USD"
+          },
+          "worker_class": "tipped employees",
+          "basis": "HOURLY",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-oh-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Equal-pay statute compliance (RC 4111.17): On promotion or pay change, system should flag if new wage for one gender deviates substantially from peer rates for equal work.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "gender",
+            "race",
+            "national_origin",
+            "religion",
+            "age"
+          ],
+          "comparator_standard": "equal work",
+          "standard": "RECOMMENDED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-oh-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "HB 106",
+          "note": "Pay-statement compliance (HB 106 RC 4113.14, effective 4/9/2025): On promotion effective mid-pay-period, system must ensure pay stub issued on next regular payday itemizes both pre- and post-promotion wages separately...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "pay_rate"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-oh-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "U.S.C. § 2000gg",
+          "note": "Federal Pregnant Workers Fairness Act (PWFA, 42 U.S.C.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-oh-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "R.C. 3796.28",
+          "note": "Medical marijuana (Ohio Medical Marijuana Control Program, R.C.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_status": [
+            "medical_cannabis_patient"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-oh-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/ohio.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Data breach notification (RC 1349.19):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/ohio.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "448c06430770ed75c9e3f054c515be031a00da4f9c9d005bbb9cecfabe8f4741",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "6d8b1629fad6d4612f837d0eb5d50045e4853f01c623724a57ebdaa2596421b19f0fbc617383a513bb2cd60f16f09e1a61b83ea6571b43d3cdf6c0bbe6ef2d0a"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "448c06430770ed75c9e3f054c515be031a00da4f9c9d005bbb9cecfabe8f4741",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-oh-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-oh-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-oh-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-oh-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-oh-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-oh-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-oh-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-oh-leave-interaction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-oh-mini-warn",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-oh-pay-equity-review",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-oh-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-oh-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "19c7f314fca8bf45bd8853e152d465a57750decb78195efb37c4e9737996d539",
+      "prev_digest": "",
+      "digest": "a582d85e03f96561e9c993081276a8ee7a8737621a9450adb244956bee88e7c9",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "5ecfca87ef79bbde6c80f5e272595a34e09ac51356a71b38f18531636aec2c2bb6b711fc523ac6bc03f2b16a521cc8356840aa3655494d549e26c962af9ffa00"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "a5dfc3da6d34c6717fdaff7cc4acf48c0966dcab4e8ce61c145108c78f3f605a",
+      "prev_digest": "a582d85e03f96561e9c993081276a8ee7a8737621a9450adb244956bee88e7c9",
+      "digest": "4e540bf5b923c68f86612f355a2e536954991e1a2853693cca21a43c03589076",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "83349622500c85e921589ecf5e4c7d1ec204c1110dcc68732d62cd0c1122c9e5fdd0646c94cfeaa3523a518b09b3004164a547d2ba1f9b23a2695f305e8cdb03"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "448c06430770ed75c9e3f054c515be031a00da4f9c9d005bbb9cecfabe8f4741",
+      "prev_digest": "4e540bf5b923c68f86612f355a2e536954991e1a2853693cca21a43c03589076",
+      "digest": "69550943edd174b1846bfdf6e7fa62b353d915fb595a738c2d96cfb6b19b0dd3",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "ec0aa1608876ece11144054fd129e5a8785748034ad595d000cd5f6364bf84dbdc11f7225532490ee0b85285e74705b633ec3c64fbcb0f54754c1d9a7140cc06"
+      }
+    }
+  ]
+}

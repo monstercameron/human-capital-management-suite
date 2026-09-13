@@ -30,7 +30,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Calculate final pay (all earned wages including overtime through last day, plus accrued leave if applicable) within 15 days of termination or on the next regular payday (La."
+        "deadline_description": "Calculate final pay (all earned wages including overtime through last day, plus accrued leave if applicable) within 15 days of termination or on the next regular payday (La. R.S. 23:631)"
       }
     },
     {
@@ -54,7 +54,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/louisiana.md",
         "section": "(statutory section not stated in the research file)",
-        "note": "Track retaliation risks (e.g., termination within 90 days of jury duty, voting, workers' compensation claim, FMLA use, protected complaint, or environmental whistleblower report under La.",
+        "note": "Track retaliation risks (e.g., termination within 90 days of jury duty, voting, workers' compensation claim, FMLA use, protected complaint, or environmental whistleblower report under La. R.S.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },

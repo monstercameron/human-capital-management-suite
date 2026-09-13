@@ -1,0 +1,404 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-me-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "ME",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-me-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 621-A",
+          "note": "At hiring, employer must provide written notice of: rate of remuneration, hours of work, payday schedule, how wages will be paid, and a summary of leave policies (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "channel": "written",
+          "content_fields": [
+            "payday"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-me-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 628-A",
+          "note": "Salary history ban and equal pay (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-me-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 630-A",
+          "note": "Records retention and access (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_years": 6,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-me-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 626",
+          "note": "Vacation and paid leave payouts (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "accrued paid time off",
+          "interaction_rule": "Vacation and paid leave payouts (26 M.R.S. § 626): Accrued paid leave and vacation must be paid on termination; 2023 amendment clarifies payout timing. Earned paid leave (EPL) accrues per § 637."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-me-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 621-A",
+          "note": "Pay frequency and final pay (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "WEEKLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-me-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 621-A",
+          "note": "Pay frequency and final pay (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Pay frequency and final pay (26 M.R.S. § 621-A, § 626): Wages paid at least weekly; final paycheck due on next regular payday unless employee resigns without notice or is discharged (verify timing for discharge final pay)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-me-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 599-A",
+          "note": "Non-compete restrictions (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete restrictions (26 M.R.S. § 599-A, § 599-B): Non-competes enforceable only if employee earns at least 400% of federal poverty level (approximately $62,920 annually for single filer in 2026) OR negotiated individually; employees earning at or below threshold cannot be required to sign non-competes; must provide notice 3 business days before signing; 1-year duration after start of employment or 6 months after signing, whichever is longer; maximum 2-year term; reasonable scope and duration required."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-me-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 635",
+          "note": "Severance for plant closings (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Severance for plant closings (26 M.R.S.",
+          "employee_threshold": 100,
+          "notice_days": 90
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-me-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 664",
+          "note": "Minimum wage and overtime (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "14.65",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-me-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 628-A",
+          "note": "Salary history ban and equal pay (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "age"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-me-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 630-A",
+          "note": "Pay statement requirements (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-me-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 664",
+          "note": "Minimum wage and overtime (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "dimension": "OVERTIME_THRESHOLD",
+          "test_description": "Minimum wage and overtime (26 M.R.S. § 664, § 665): State minimum wage $14.65/hour in 2025, $15.10/hour in 2026 (indexed to federal minimum + 1.1x or federal, whichever higher); tip credit $7.33/hour in 2025 (half of minimum wage); overtime 1.5x for hours over 40/week (no daily overtime trigger); salaried exemption threshold $43,951/year in 2025 (3,000x minimum wage).",
+          "salary_threshold": {
+            "amount": "14.65",
+            "currency": "USD"
+          },
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-me-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 630-A",
+          "note": "Records retention and access (26 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "copy_fee_permitted": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-me-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "§ 626-B",
+          "note": "Pay transparency protection: Employees have right to discuss wages with coworkers without retaliation (implied under § 626-B public policy exception).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-me-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "Statute § 683",
+          "note": "Statute § 683: Maine law does not mandate drug testing but permits it under certain conditions if job-related and conducted consistently.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-me-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maine.md",
+          "section": "M.R.S. § 1348",
+          "note": "Breach notification law (10 M.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/maine.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "791f740ef51164f0720232c2973cffad391f5ca8bad138f192a8e4930b55a375",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "50bdd2e8230760e2e81c6d380d15833a1f17a803ff7c63a7e5820724587bc51c9c5a84497cddc68dcc69c42f4b8ddb3934b2d7cc14f8aaa09128d18585a91903"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "791f740ef51164f0720232c2973cffad391f5ca8bad138f192a8e4930b55a375",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-me-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-me-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-me-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-me-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-me-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-me-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-me-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks NOTICE '?' for ME; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-me-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-me-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-me-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-me-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "ac1e987f53978ce239284b8e4f24efeb0cd322d7f59efc72e9f73381d0277178",
+      "prev_digest": "",
+      "digest": "33732c80d9c5217e7b76d9fdb5c3a07e2d7156b1450a50018e2afc3f9f9253d9",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "f50c0805b501c7926403803425db6920b87cdb95326fcd49e7520152eb378fcea4c13731913731e6bb54a59179613e04e779fa1375bf49e08725ef3181af1904"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "2f5c5d1a78d87df6654e3b59761ba2776c48015524d7dd326160f97bdfb6cb96",
+      "prev_digest": "33732c80d9c5217e7b76d9fdb5c3a07e2d7156b1450a50018e2afc3f9f9253d9",
+      "digest": "d586646954496815deb01f14c73bf162a35186f3850081d320a3733ab9bbf3ed",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "dbd9acbdec8ac86e5dbc77ab223ee2c0366d5a8d429ea4f5b16ef098a52193307527260696f47dd83ee79d63ec3f719c1fbf232f2b4e4360ffa9d3022a62b10f"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "791f740ef51164f0720232c2973cffad391f5ca8bad138f192a8e4930b55a375",
+      "prev_digest": "d586646954496815deb01f14c73bf162a35186f3850081d320a3733ab9bbf3ed",
+      "digest": "e10bf51ef902e7685c8c63509ceca52cf1b860821a70350f14fb78174dd2d4e7",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "d5969e468e44cae407396aaa659337dafc00f831b1e1f89078261d2e0471443818b9282e4c0d5e63f98c70df10f245b77b5f9e00b16f061e02d910df4e750208"
+      }
+    }
+  ]
+}

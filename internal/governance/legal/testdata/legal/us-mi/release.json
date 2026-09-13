@@ -1,0 +1,360 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-mi-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "MI",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-mi-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay change notice: Provide written notice to employee of any change in compensation, hours, or pay frequency; timestamp delivery and store in employee record.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "channel": "written",
+          "content_fields": [
+            "pay_frequency"
+          ]
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-mi-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No maximum retention period specified in statute; employers may retain longer for litigation defense or internal records management.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-mi-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Paid sick leave: Disable manual override of statutory accrual calculation for employers subject to ESTA.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Paid sick leave: Disable manual override of statutory accrual calculation for employers subject to ESTA."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-mi-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay change notice: Provide written notice to employee of any change in compensation, hours, or pay frequency; timestamp delivery and store in employee record.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-mi-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Final pay timing on discharge: Trigger immediate payment calculation on termination; if amount cannot be determined by close of business, schedule payment for next regular payday with documented reason.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing on discharge: Trigger immediate payment calculation on termination; if amount cannot be determined by close of business, schedule payment for next regular payday with documented reason. Flag any delay beyond that date."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-mi-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Non-compete/non-solicit storage: Store execution date, employee name, reasonableness attributes (duration, geography, scope).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete/non-solicit storage: Store execution date, employee name, reasonableness attributes (duration, geography, scope). Flag any non-compete with duration \u003e2 years or nationwide scope for legal review; do not auto-enforce."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-mi-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Minimum wage compliance: Default non-exempt classification; verify hourly rate against Michigan minimum wage ($13.73 in 2026, indexed annually after October 1, 2027).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "13.73",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-mi-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Personnel file access: Implement access-tracking for employee file inspections (limit to 2/calendar year).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-mi-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Termination in retaliation for filing workers' compensation claim or unemployment claim.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-mi-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No Michigan state statute regulating private-sector drug testing: Employers have wide flexibility to test before hiring (pre-employment), after accidents (post-accident), on reasonable suspicion of impairment, or in...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "reasonable_suspicion",
+            "post_accident",
+            "random",
+            "safety_sensitive_role"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-mi-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/michigan.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Breach notification: If unencrypted PII (SSN, account numbers, sensitive identity data) is accessed, flag for legal review and track notification timing (must be without unreasonable delay).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/michigan.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "b93338eae410f3991d9f25ba02ea0d1fc533432e943a6dff4f5944a56bfbd332",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "f1d6b4dd1fb5c71494097b6038bbf54f1e700caec53655ab7be880fe899995086df7d4b5fd562d6db04be2358354b5fe5f51224036bf8fe054c0b876ff8aef08"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "b93338eae410f3991d9f25ba02ea0d1fc533432e943a6dff4f5944a56bfbd332",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-mi-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mi-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mi-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mi-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mi-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mi-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) record_class, duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for MI; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for MI; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for MI; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-mi-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-leave-interaction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mi-wage-floor",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "6e4a8b049e25206d7bc073750be8bf6b51fdcb1c6a99bc41f9bbe12db1759420",
+      "prev_digest": "",
+      "digest": "3086c52416e9042f9da2eff3e0b0894f079a155ff973905ef7e5550f3d2090f7",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "9d779dd7b0c98a10bbdfb525fec9ffe301ade66119c0037e0ef79244107d627651eafae7d36cb0861cfa8629941ba1923fb65057653e93549c0fafb7c1f08d08"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "a3be4cb6135d23814ed38fab9fbcb5e369fc30b45030f3c3c8f02332be5373fe",
+      "prev_digest": "3086c52416e9042f9da2eff3e0b0894f079a155ff973905ef7e5550f3d2090f7",
+      "digest": "759972876ccce28bac512f295c68bd5229b7582a8b45e12955d7204668b350ee",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "90cf6598a11d3fac71dac5cf36215e42086cf1716dc4bf5465913f6b88abfeb894d03886a5ec18e8cf6e3fe97e1f7f37f9e8765011eb9176913b613e8835e70d"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "b93338eae410f3991d9f25ba02ea0d1fc533432e943a6dff4f5944a56bfbd332",
+      "prev_digest": "759972876ccce28bac512f295c68bd5229b7582a8b45e12955d7204668b350ee",
+      "digest": "8be9bd52e9f5bf6c11b24975765551d0c60cba3429d20d39bf0d89964e8b6bfb",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "ea21b65e5882c4ea1a6791641ecaf9e7c69ca4ce53853e0eed13729a953f6ce86dea19a1287d97e5e4fcf92b4d4f4a09be7c572c838fcf6155e83ab638ee1b04"
+      }
+    }
+  ]
+}

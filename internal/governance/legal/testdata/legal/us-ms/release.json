@@ -1,0 +1,209 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ms-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "MS",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ms-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/mississippi.md",
+          "section": "Miss. Code § 71-1-35",
+          "note": "Validation error: \"Manufacturers and public service corporations with 50+ employees must pay wages at least bi-weekly per Miss. Code § 71-1-35.\"",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "BIWEEKLY"
+        }
+      },
+      {
+        "kind": "E_VERIFY",
+        "id": "us-ms-e-verify",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/mississippi.md",
+          "section": "Miss. Code § 71-11-3",
+          "note": "E-Verify mandatory for ALL employers: Miss. Code § 71-11-3 (Mississippi Employment Protection Act) requires every employer, regardless of size, to verify work eligibility via E-Verify; this is the strictest state...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_on_new_hire_only": true,
+          "note": "E-Verify mandatory for ALL employers: Miss. Code § 71-11-3 (Mississippi Employment Protection Act) requires every employer, regardless of size, to verify work eligibility via E-Verify; this is the strictest state..."
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ms-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/mississippi.md",
+          "section": "Miss. Code § 71-17-5",
+          "note": "Notice: \"Miss.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex"
+          ],
+          "comparator_standard": "equal work",
+          "documentation_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ms-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/mississippi.md",
+          "section": "Miss. Code § 13-5-35",
+          "note": "Jury Duty Leave: Miss. Code § 13-5-35 (Employment Protections for Jurors) protects employees from compulsory use of paid leave for jury service.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "jury_duty",
+            "protected_leave_request"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ms-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/mississippi.md",
+          "section": "Miss. Code § 41-137-13",
+          "note": "Notice: \"Miss.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_status": [
+            "medical_cannabis_patient",
+            "lawful_off_duty_cannabis_use"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ms-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/mississippi.md",
+          "section": "Miss. Code § 75-24-29",
+          "note": "Data breach notification without unreasonable delay: Miss. Code § 75-24-29 requires notice in \"most expedient time possible and without unreasonable delay\"; no specific day count; no private right of action.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/mississippi.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "c7fe76c147d0cce59d4c4d04830d3423722ad96d5190c22255e2efa3952f0794",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "5d2210634e0d8c42dcc95f2b6428b985650de76a222cad8076509f7dfb2b7d862b62169e57675561a64d344b2471de57161d9f077df79fab24779fb1e8cf040e"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "c7fe76c147d0cce59d4c4d04830d3423722ad96d5190c22255e2efa3952f0794",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ms-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ms-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ms-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ms-e-verify",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "f284e38c569eee75965ff146958e0c11f97a00b443fcaddde34c879dee973924",
+      "prev_digest": "",
+      "digest": "29ba47ee570952d43dc2db33d5b24a4ad34a040e00425499c5c671378edf38c2",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "51ae2187f19a524edf650fcfdf4b18289dd12ae0f87c72d75cc7b455a93f6831db70ebfb9c0b69b720482a952993781d9ffc2382ce8e71de85853a95b5a3cb0b"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "96a36a681ab6d77f03a85c8d77623a53bba866b97b7d116d79fa842a32f88507",
+      "prev_digest": "29ba47ee570952d43dc2db33d5b24a4ad34a040e00425499c5c671378edf38c2",
+      "digest": "b1e0b231d43862130577554e2a5fde355d4b8fa67e8536a67b74433f4b70718e",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "ee5e2f6ea3f33bbf71eea0c75de08f637617bb0799c27c65d0f5d502f89b1b621558777edf6ab4e31ecc0b8df708eb762cc87f7c89d4eb9ae04bb93445893b0e"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "c7fe76c147d0cce59d4c4d04830d3423722ad96d5190c22255e2efa3952f0794",
+      "prev_digest": "b1e0b231d43862130577554e2a5fde355d4b8fa67e8536a67b74433f4b70718e",
+      "digest": "08ce95a7ffa8b61a866faf262136fb385cd2de46ee9fbfe0966f7016aa607561",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "dff8102dc81b239eb6bfd93bf471a4817af14b5edf0b6fc56038c9d7004dbac04842f339e33a1116b66a18be3702110ec2b26804e6c688a884bcba8ce9ed3407"
+      }
+    }
+  ]
+}

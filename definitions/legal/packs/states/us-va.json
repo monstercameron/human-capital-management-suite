@@ -24,13 +24,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/virginia.md",
         "section": "Va. Code § 40.1-29",
-        "note": "Va.",
+        "note": "Va. Code § 40.1-29: Written notice of wages, pay periods, and deductions required.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "who": "employer_to_worker",
-        "timing_direction": "BEFORE",
         "channel": "written"
       }
     },
@@ -104,7 +103,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per..."
+        "required_disclosure": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per subsequent; private right of action within 1 year (§ 40.1-28.7:12)."
       }
     },
     {

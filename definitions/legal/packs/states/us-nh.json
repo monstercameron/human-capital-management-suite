@@ -75,7 +75,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on separation (RSA 275:44): If termination occurs during or shortly after promotion, ensure final paycheck includes all wages earned at promoted rate from effective date forward."
+        "deadline_description": "Final pay on separation (RSA 275:44): If termination occurs during or shortly after promotion, ensure final paycheck includes all wages earned at promoted rate from effective date forward. No hold-back allowed; all wages due within 72 hours of discharge."
       }
     },
     {
@@ -90,7 +90,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any..."
+        "rule": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any existing non-compete clause as VOID and unenforceable; mark in system as unenforceable; (c) If employee is physician or dentist, flag all non-compete clauses (regardless of wage) as likely VOID per RSA 329:31-a; (d) On promotion affecting wage, recalculate threshold and update enforceability status (e.g., promotion across $14.50 threshold may activate enforceability)."
       }
     },
     {

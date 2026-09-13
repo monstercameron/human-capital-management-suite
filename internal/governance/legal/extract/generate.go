@@ -11,7 +11,7 @@ import (
 )
 
 // StatesDir is the subdirectory of definitions/legal/packs that holds the
-// fifty extracted state drafts. The two LEGAL-001 seed fixtures live beside
+// fifty-one extracted state drafts. The two LEGAL-001 seed fixtures live beside
 // it under seed/, because a hand-authored fixture and a mechanically
 // extracted draft are different artifacts with different provenance.
 const StatesDir = "states"
@@ -64,7 +64,7 @@ func DefinitionFileName(code string) string {
 
 // WriteAll writes generated files under root, creating the directory as
 // needed. It writes a file only when its bytes differ, so a regeneration that
-// changes nothing leaves fifty untouched timestamps.
+// changes nothing leaves fifty-one untouched timestamps.
 func WriteAll(root string, files []GeneratedFile) error {
 	for _, f := range files {
 		abs := filepath.Join(root, filepath.FromSlash(f.RelPath))

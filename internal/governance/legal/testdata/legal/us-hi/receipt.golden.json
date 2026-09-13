@@ -1,0 +1,797 @@
+{
+  "legal_context_digest": "3b91920de017cc74cf02136bab342fcbb857d7b132879aa87559d293bffec2a4",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "HI",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-hi-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "HI",
+          "Locality": ""
+        }
+      },
+      "Digest": "c858eca84492fa37472154c51202c358799ddec6543046142b35bffd9ffbfd0b",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-hi-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS §388-2",
+        "Note": "At time of hiring, employer should provide written notice of rate of pay, hours of work, pay frequency, and wage policies (best practice; no explicit statute, but HRS §388-2 requires semi-monthly pay).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-hi-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-hi-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "f63e2b128bec97f6dcac014e51721920115f6b110430a099ebeaf691da3e059f"
+    },
+    {
+      "Type": 3,
+      "ID": "us-hi-retention",
+      "Description": "retain payroll_records for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS §388-4",
+        "Note": "Payroll records retention (HRS §388-4):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "22e36591206783e7df154c6221b63290194354519ee2c96e208823f5b00c83a6"
+    },
+    {
+      "Type": 4,
+      "ID": "us-hi-leave-interaction",
+      "Description": "paid family and medical leave: Hawaii Family Leave Law (HFLL) (HRS §378-71a, verify exact section):",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS §378-71a",
+        "Note": "Hawaii Family Leave Law (HFLL) (HRS §378-71a, verify exact section):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-hi-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "d1c8e9fb2a71e2fd8d81075e9c908b6211014dd6e56530d7d3e973bfc066f528"
+    },
+    {
+      "Type": 5,
+      "ID": "us-hi-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS §388-2",
+        "Note": "Final pay timing: At discharge, all earned wages due at time of discharge or no later than next working day; semi-monthly pay required (HRS §388-2, §388-3).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "9d8ad52581b0b4292034a38b810ec8c2fbcc15f4df6f60367b1347ec670854fe"
+    },
+    {
+      "Type": 7,
+      "ID": "us-hi-pay-transparency",
+      "Description": "internal_promotion: Pay transparency mandate (HRS § 378-2.3 as amended by Act 203, effective 1/1/24): Employers with 50+ employees must disclose reasonably expected wage/hourly rate or salary range in all job postings (internal and external).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS § 378-2.3",
+        "Note": "Pay transparency mandate (HRS § 378-2.3 as amended by Act 203, effective 1/1/24): Employers with 50+ employees must disclose reasonably expected wage/hourly rate or salary range in all job postings (internal and...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-hi-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "234ccae943a6dcd0a4a722cb1605c8a047c5e378919e8cfb4b43568cbe3b2408"
+    },
+    {
+      "Type": 8,
+      "ID": "us-hi-non-compete",
+      "Description": "Non-compete/non-solicit: Store contract date, business protective purpose (trade secret, customer list, confidential info), duration, geography, scope; flag technology worker exemption if applicable; post-employment covenants require clear protective purpose.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Non-compete/non-solicit: Store contract date, business protective purpose (trade secret, customer list, confidential info), duration, geography, scope; flag technology worker exemption if applicable; post-employment...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-hi-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-hi-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "195218a256bcb770a2cee00b5aa0dc9a8e146800f5a09e876996fbda4b32242c"
+    },
+    {
+      "Type": 11,
+      "ID": "us-hi-wage-floor",
+      "Description": "HOURLY floor of 16.00 USD for , indexation=SCHEDULE",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS §387-2",
+        "Note": "Minimum wage and scheduled increases: Hawaii minimum wage is $16.00/hour (2026), increasing to $18.00/hour on January 1, 2028 (HRS §387-2); no subminimum allowed for minors or any class of worker.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-hi-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "fbb9a593c6986dcdb57d4ac7ebb1fcb5a0f55d461044970998fdc2809c38adad"
+    },
+    {
+      "Type": 12,
+      "ID": "us-hi-pay-equity-review",
+      "Description": "pay-equity review against  for bases ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS § 378-71",
+        "Note": "Equal pay statute (HRS § 378-71, verify exact section number):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-hi-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "dcd978fff39318b4b4fe8da059c11b5b953b348c3ae8f10503e60910cdf9379f"
+    },
+    {
+      "Type": 13,
+      "ID": "us-hi-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS §388-6",
+        "Note": "Pay statement requirements (HRS §388-6):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "27ff79c1ed27cea43092320757e9ddbc32a1660ac071444b5e50ea0b50e9bce5"
+    },
+    {
+      "Type": 15,
+      "ID": "us-hi-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS § 89-16.5",
+        "Note": "Hawaii has no general statute giving private-sector employees a right to inspect or copy their own personnel file.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "HI",
+        "Locality": ""
+      },
+      "PackID": "us-hi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-hi-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-hi-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "ba2ad8dcf12b4ae1792a7c6d509a878ab765a705d6d9f26ddb85f3955995b016"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-hi-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS § 378-2.4",
+        "Note": "Salary history ban (HRS § 378-2.4, effective 1/1/19): Employers prohibited from inquiring about or relying on applicant's prior salary history; applies to all employers.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-hi-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS §388-2",
+        "Note": "Final pay timing: At discharge, all earned wages due at time of discharge or no later than next working day; semi-monthly pay required (HRS §388-2, §388-3).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-hi-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "HRS §394B",
+        "Note": "Mini-WARN (HRS §394B): Employers with 50+ employees must provide 60 days' notice of divestiture, closing, partial closing, or relocation; severance required; failure to provide notice = back pay/benefits for up to 60...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-hi-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "§ 378-62",
+        "Note": "Whistleblower protections and violation of public policy (e.g., refusing illegal act); verify scope and specific statute (§ 378-62 whistleblower, verify).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-hi-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No Hawaii statute regulates private-sector drug testing; federal law governs (DOT rules for transportation).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-hi-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/hawaii.md",
+        "Section": "Chapter 487N",
+        "Note": "Hawaii Revised Statutes Chapter 487N addresses data breach notification and personal information security (primarily consumer data; verify whether employee data specifically covered).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-hi-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "HRS §388-2",
+            "Note": "At time of hiring, employer should provide written notice of rate of pay, hours of work, pay frequency, and wage policies (best practice; no explicit statute, but HRS §388-2 requires semi-monthly pay).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-hi-retention",
+          "Description": "retain payroll_records for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "HRS §388-4",
+            "Note": "Payroll records retention (HRS §388-4):",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-hi-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-hi-leave-interaction",
+          "Description": "paid family and medical leave: Hawaii Family Leave Law (HFLL) (HRS §378-71a, verify exact section):",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "HRS §378-71a",
+            "Note": "Hawaii Family Leave Law (HFLL) (HRS §378-71a, verify exact section):",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-hi-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "HRS §388-2",
+            "Note": "Final pay timing: At discharge, all earned wages due at time of discharge or no later than next working day; semi-monthly pay required (HRS §388-2, §388-3).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-hi-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-hi-pay-transparency",
+          "Description": "internal_promotion: Pay transparency mandate (HRS § 378-2.3 as amended by Act 203, effective 1/1/24): Employers with 50+ employees must disclose reasonably expected wage/hourly rate or salary range in all job postings (internal and external).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "HRS § 378-2.3",
+            "Note": "Pay transparency mandate (HRS § 378-2.3 as amended by Act 203, effective 1/1/24): Employers with 50+ employees must disclose reasonably expected wage/hourly rate or salary range in all job postings (internal and...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-hi-non-compete",
+          "Description": "Non-compete/non-solicit: Store contract date, business protective purpose (trade secret, customer list, confidential info), duration, geography, scope; flag technology worker exemption if applicable; post-employment covenants require clear protective purpose.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Non-compete/non-solicit: Store contract date, business protective purpose (trade secret, customer list, confidential info), duration, geography, scope; flag technology worker exemption if applicable; post-employment...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-hi-wage-floor",
+          "Description": "HOURLY floor of 16.00 USD for , indexation=SCHEDULE",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "HRS §387-2",
+            "Note": "Minimum wage and scheduled increases: Hawaii minimum wage is $16.00/hour (2026), increasing to $18.00/hour on January 1, 2028 (HRS §387-2); no subminimum allowed for minors or any class of worker.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-hi-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-hi-pay-equity-review",
+          "Description": "pay-equity review against  for bases ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "HRS § 378-71",
+            "Note": "Equal pay statute (HRS § 378-71, verify exact section number):",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-hi-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "HRS §388-6",
+            "Note": "Pay statement requirements (HRS §388-6):",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "HI",
+            "Locality": ""
+          },
+          "PackID": "us-hi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-hi-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/hawaii.md",
+            "Section": "HRS § 89-16.5",
+            "Note": "Hawaii has no general statute giving private-sector employees a right to inspect or copy their own personnel file.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-hi-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "8697676fb49ddcb595e4fa7cb8eaaa0c4e70af47816d65b61a7b2ce3357ca8f9",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "7J1INqFu+6Z3ksf2D/ATVkaJ9dz4zg2yGLEObBGZ8ByzOn2/p73zEsBkRMengaHACJT7EA6X2Cr6gK1WokjzDQ=="
+  }
+}

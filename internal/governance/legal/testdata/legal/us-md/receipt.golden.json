@@ -1,0 +1,797 @@
+{
+  "legal_context_digest": "9ee22e00d9694e8e0d70546f89202136a9b7f1d9b63a9032451b105188ad55c7",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "MD",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-md-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "MD",
+          "Locality": ""
+        }
+      },
+      "Digest": "7920d5813a1c5966409aeeb65e903b349f35885664ac34edbfccc1e04648abf6",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-md-notice",
+      "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "Empl. § 3-504(a)",
+        "Note": "Md. Code, Lab. \u0026 Empl.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-md-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-md-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "6cecc192752f974927773edd61fc8193f6c2d1fb46f76d575eb12f3f5f5e6acf"
+    },
+    {
+      "Type": 3,
+      "ID": "us-md-retention",
+      "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "Empl. § 3-424",
+        "Note": "Md. Code, Lab. \u0026 Empl.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "64dfc423d5f35914a0598d339dcce975a7d78206a5ad310e0a9250940da7cc82"
+    },
+    {
+      "Type": 4,
+      "ID": "us-md-leave-interaction",
+      "Description": ": Earned leave accrual (§ 3-1301, § 3-424): Track accrued HWFA leave (1 hour per 30 hours worked, max 40/year for large employers, unpaid for small employers). On termination, if no written leave-payout policy exists, automatic payout of accrued balance. On promotion within same employer, leave balance carries forward.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 3-1301",
+        "Note": "Earned leave accrual (§ 3-1301, § 3-424): Track accrued HWFA leave (1 hour per 30 hours worked, max 40/year for large employers, unpaid for small employers).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-md-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "2051e4c57880e03013f42326e2efa6df83106531a163a09d94f802fd5aab53eb"
+    },
+    {
+      "Type": 5,
+      "ID": "us-md-pay-frequency",
+      "Description": "minimum frequency BIWEEKLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 3-502",
+        "Note": "§ 3-502: Employers must pay at least every 2 weeks (biweekly) or twice monthly.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "92fcc9595aac3d5aeb309b6ed56313688576d23ea7378b3c57f85085898264c3"
+    },
+    {
+      "Type": 7,
+      "ID": "us-md-pay-transparency",
+      "Description": "internal_promotion: Pay transparency notice (§ 3-304.2): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty. On offer extension, timestamp wage range disclosure.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 3-304.2",
+        "Note": "Pay transparency notice (§ 3-304.2): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-md-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "c5b161f84da54f3a2a9374f9af20fd52e26b5e9b21dec5dd6a97d33b40adf641"
+    },
+    {
+      "Type": 8,
+      "ID": "us-md-non-compete",
+      "Description": "Non-compete enforceability check (§ 3-716): On hiring or role change, if employee earns ≤$22.50/hour (or $46,800 annually), flag any non-compete clause as unenforceable; mark as void. Healthcare/veterinary workers: void all non-competes regardless of wage.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 3-716",
+        "Note": "Non-compete enforceability check (§ 3-716): On hiring or role change, if employee earns ≤$22.50/hour (or $46,800 annually), flag any non-compete clause as unenforceable; mark as void.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-md-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-md-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "547169f8ebec83dee734fd7ab5103f16726d744fe48de16ae12f81aea77666e8"
+    },
+    {
+      "Type": 11,
+      "ID": "us-md-wage-floor",
+      "Description": "HOURLY floor of 22.50 USD for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 3-716",
+        "Note": "Non-compete restrictions: Non-competes unenforceable for employees earning ≤150% of state minimum wage ($22.50/hour; $46,800 annually); banned for healthcare workers earning ≤$350,000 and veterinary professionals...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-md-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "dfaba9ba36d552dfde8bdaa6b84800e57dd4d4d7bd876bcc40c3d92d57be788e"
+    },
+    {
+      "Type": 12,
+      "ID": "us-md-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 3-304",
+        "Note": "Equal pay audit flag (§ 3-304): On promotion + base-pay change, system should flag if new rate differs significantly from peer rates for \"equal work\" (comparable role in same establishment/county); require manager...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-md-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "307b2ec4950a494061372a2f80ea1bcdb454f3afbd5c050300ef944e90984d69"
+    },
+    {
+      "Type": 13,
+      "ID": "us-md-pay-statement",
+      "Description": "pay statement delivered  must carry net_wages, deductions, hours_worked, pay_rate, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 3-424",
+        "Note": "No Maryland statute mandates itemized pay stubs; federal FLSA rules apply.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "8a38191186e139869e68481d9b61eccda3aa062505ee5ba572944cb7309236a9"
+    },
+    {
+      "Type": 15,
+      "ID": "us-md-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Personnel records (performance reviews, disciplinary notes, hire/termination documentation) may be retained indefinitely unless employee disputes information; disputed items must be accompanied by employee's written...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MD",
+        "Locality": ""
+      },
+      "PackID": "us-md-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-md-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-md-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "e58889a9498e599e80114d420c87ec97ebfb51e9422410140fe7648ca82e06ce"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-md-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 3-304.1",
+        "Note": "Salary history inquiry block (§ 3-304.1): Disable or flag any form field attempting to request prior salary/wages from external candidates; log any such queries as compliance risk.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-md-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks FINAL_PAY_DEADLINE for MD, and no item in maryland.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-md-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 11-301",
+        "Note": "Mini-WARN trigger (§ 11-301): If planned layoff affects 25% or 15+ employees over 3 months and employer has 50+ employees, auto-flag and require 60-day notice scheduling; notify state Dislocated Worker Unit.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-md-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "§ 3-304.1",
+        "Note": "Salary history ban: Employers cannot inquire about prospective employees' wage history unless voluntarily disclosed (§ 3-304.1); retaliation against candidates who refuse is prohibited.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-md-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No state-level statute regulating private-sector drug testing; federal law (pre-employment, reasonable suspicion, post-accident) and federal DOT rules apply.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-md-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/maryland.md",
+        "Section": "Com. Law § 14-3501",
+        "Note": "Md. Code, Com.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-md-notice",
+          "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "Empl. § 3-504(a)",
+            "Note": "Md. Code, Lab. \u0026 Empl.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-md-retention",
+          "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "Empl. § 3-424",
+            "Note": "Md. Code, Lab. \u0026 Empl.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-md-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-md-leave-interaction",
+          "Description": ": Earned leave accrual (§ 3-1301, § 3-424): Track accrued HWFA leave (1 hour per 30 hours worked, max 40/year for large employers, unpaid for small employers). On termination, if no written leave-payout policy exists, automatic payout of accrued balance. On promotion within same employer, leave balance carries forward.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "§ 3-1301",
+            "Note": "Earned leave accrual (§ 3-1301, § 3-424): Track accrued HWFA leave (1 hour per 30 hours worked, max 40/year for large employers, unpaid for small employers).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-md-pay-frequency",
+          "Description": "minimum frequency BIWEEKLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "§ 3-502",
+            "Note": "§ 3-502: Employers must pay at least every 2 weeks (biweekly) or twice monthly.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-md-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-md-pay-transparency",
+          "Description": "internal_promotion: Pay transparency notice (§ 3-304.2): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty. On offer extension, timestamp wage range disclosure.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "§ 3-304.2",
+            "Note": "Pay transparency notice (§ 3-304.2): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-md-non-compete",
+          "Description": "Non-compete enforceability check (§ 3-716): On hiring or role change, if employee earns ≤$22.50/hour (or $46,800 annually), flag any non-compete clause as unenforceable; mark as void. Healthcare/veterinary workers: void all non-competes regardless of wage.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "§ 3-716",
+            "Note": "Non-compete enforceability check (§ 3-716): On hiring or role change, if employee earns ≤$22.50/hour (or $46,800 annually), flag any non-compete clause as unenforceable; mark as void.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-md-wage-floor",
+          "Description": "HOURLY floor of 22.50 USD for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "§ 3-716",
+            "Note": "Non-compete restrictions: Non-competes unenforceable for employees earning ≤150% of state minimum wage ($22.50/hour; $46,800 annually); banned for healthcare workers earning ≤$350,000 and veterinary professionals...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-md-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-md-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "§ 3-304",
+            "Note": "Equal pay audit flag (§ 3-304): On promotion + base-pay change, system should flag if new rate differs significantly from peer rates for \"equal work\" (comparable role in same establishment/county); require manager...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-md-pay-statement",
+          "Description": "pay statement delivered  must carry net_wages, deductions, hours_worked, pay_rate, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "§ 3-424",
+            "Note": "No Maryland statute mandates itemized pay stubs; federal FLSA rules apply.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MD",
+            "Locality": ""
+          },
+          "PackID": "us-md-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-md-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/maryland.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Personnel records (performance reviews, disciplinary notes, hire/termination documentation) may be retained indefinitely unless employee disputes information; disputed items must be accompanied by employee's written...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-md-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "514f4a40510917253178d6b1a98829229e256135e5c5b6765fcde36f8d5f1290",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "aAqjHEhATRmi1qkrB2lEFGJN1GJp/wVt7sIXAn+doW5CpzsY1xwiLwU+kCYtpriKhQJc+r9dfIemeY3iH2eZBw=="
+  }
+}

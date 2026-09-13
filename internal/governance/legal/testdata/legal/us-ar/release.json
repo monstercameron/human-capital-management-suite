@@ -1,0 +1,283 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ar-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "AR",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-ar-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arkansas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Employee records retention: Personnel files must be retained 5 years post-separation (state agency standard); federal FLSA requires 3 years for payroll records.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_years": 5,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ar-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arkansas.md",
+          "section": "Ark. Code § 11-4-401",
+          "note": "Semi-monthly pay frequency required for most employees; corporations with $500k+ annual income may pay exempt management once per month (Ark.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ar-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arkansas.md",
+          "section": "Ark. Code § 11-4-405",
+          "note": "Final pay due within 7 days of termination if employee requests it, or by next regular payday (Ark.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay due within 7 days of termination if employee requests it, or by next regular payday (Ark. Code § 11-4-405)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-ar-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arkansas.md",
+          "section": "Ark. Code § 4-75-101",
+          "note": "Verify non-compete is ancillary to employment and limited in time/scope (Ark.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Verify non-compete is ancillary to employment and limited in time/scope (Ark. Code § 4-75-101)."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-ar-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arkansas.md",
+          "section": "Ark. Code § 11-4-211",
+          "note": "Minimum wage: $11.00/hour for employers with 4+ employees (Ark.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "11.00",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ar-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arkansas.md",
+          "section": "Ark. Code § 11-4-405",
+          "note": "Sex-based wage discrimination prohibited for employers of any size (Ark.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "age"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ar-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arkansas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks ANTI_RETALIATION for AR, and no item in arkansas.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ar-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arkansas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "### Drug Testing",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ar-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arkansas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "### Breach Notification",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/arkansas.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "7a9bdff5bb28c9fc15de78b1ee7405a7abdf6967cca36a0701357547e6bc1105",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "d066e18d6637415aab6fa266dfa5b8751f4ca9972a650ea1cfc7d10dadbca2df7106d058c15ccf36e259ecc57197061fc21a1d0c96a6d2d1a0e933c8d092b203"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "7a9bdff5bb28c9fc15de78b1ee7405a7abdf6967cca36a0701357547e6bc1105",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ar-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ar-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ar-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ar-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ar-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for AR; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ar-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ar-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ar-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ar-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ar-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "dc61b6f767b57ec11df2e60d964d1ea7aac0be092ca223ea0caf7c3c4635809b",
+      "prev_digest": "",
+      "digest": "79f1ccf62371a7b580fc19b537e32c654cafdbae3092225e8c3318d634dc276b",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "2d02a41f95cfb569cd854f6b1066fbcf7aaed6b28fcf267768c0c25758d55c6f15e757dcfbebc1a26a6453beba01505b039589947e5d3fd26d4e878344f85a02"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "06ac11b62d45214df06380ed1a3b59c620c79e00ff5c84e98363e598a84eb78f",
+      "prev_digest": "79f1ccf62371a7b580fc19b537e32c654cafdbae3092225e8c3318d634dc276b",
+      "digest": "d115392c48aa45dc566b92475410478c3681ad31c469d452d0997541db71fb18",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "df2e3f9b9ade200d18845c3eb79d11156ffae592a716f9ec6fc3e710dd2d1f1482d3e0d94328aad718c962e7ef3663ba4348346b3809c6074000f7bf788e8908"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "7a9bdff5bb28c9fc15de78b1ee7405a7abdf6967cca36a0701357547e6bc1105",
+      "prev_digest": "d115392c48aa45dc566b92475410478c3681ad31c469d452d0997541db71fb18",
+      "digest": "72cc456e4abb8e28e8f526f6fc449dc6b071e6b67e8d899b076c1def4f014bb7",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "654512385e3a433319a1dc08a3e3490a8777c7c4b0fd211c037b0afc3dd8360d8abae0cdc82df918207e316f4283a35e601ea3bfc7128f5b50d89478b12f4202"
+      }
+    }
+  ]
+}

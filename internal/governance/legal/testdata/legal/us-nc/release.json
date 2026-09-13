@@ -1,0 +1,351 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-nc-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "NC",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-nc-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "§ 95-25.13",
+          "note": "Written notice at hire or change (§ 95-25.13): Employer must provide written notice of pay rate and paydays at hire; 24 hours' notice required before reduction in wages or wage benefits (amended 2021; verify exact...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "timing_days": 1,
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "payday"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-nc-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Salary history: No statewide private-sector restriction exists (corrected 2026-09-03 — there is no \"2024 ban\"; only Executive Order 93 (2019) binds state agencies).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-nc-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "§ 95-25.15",
+          "note": "Records retention (§ 95-25.15): Retain promotion documents (wage change, effective date, justification, business rationale) per employer record policy (verify whether 3 years or employer-set); support labor...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-nc-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "§ 95-28.3",
+          "note": "School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "interaction_rule": "School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level. Leave accrual continues unaffected by promotion."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-nc-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "§ 95-25.6",
+          "note": "Pay frequency verification (§ 95-25.6): On promotion, verify payday remains regular (daily through monthly).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "MONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-nc-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "§ 95-25.6",
+          "note": "Final pay on termination (§ 95-25.6): If termination occurs after promotion, ensure all wages at promoted rate due on \"next regular payday\" for discharge period.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay on termination (§ 95-25.6): If termination occurs after promotion, ensure all wages at promoted rate due on \"next regular payday\" for discharge period."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-nc-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "§ 75-4",
+          "note": "Non-competes (§ 75-4): Must be written, signed, reasonable in time/territory; enforced narrowly against drafter.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-competes (§ 75-4): Must be written, signed, reasonable in time/territory; enforced narrowly against drafter."
+        }
+      },
+      {
+        "kind": "E_VERIFY",
+        "id": "us-nc-e-verify",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "HB 36",
+          "note": "E-Verify mandate: Private employers with 25+ employees must use E-Verify for new hires (verified within 3 business days; HB 36, effective July 1, 2013).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_on_new_hire_only": true,
+          "note": "E-Verify mandate: Private employers with 25+ employees must use E-Verify for new hires (verified within 3 business days; HB 36, effective July 1, 2013).",
+          "employee_threshold": 25
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-nc-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay statement content: No state-mandated itemized pay-stub format; federal FLSA requirements apply.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-nc-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "§ 95-240",
+          "note": "REDA retaliation check (§ 95-240 et seq.): If employee recently filed wage-and-hour, OSHA, or workers' compensation complaint, flag promotion timing to ensure retaliation cannot be inferred (timing shortly before...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-nc-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "§ 95-230",
+          "note": "Drug testing (§ 95-230 et seq., Controlled Substance Examination Regulation):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-nc-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/north-carolina.md",
+          "section": "§ 75-65",
+          "note": "Data breach notification (§ 75-65, Identity Theft Protection Act):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "credit_monitoring_required": true,
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/north-carolina.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "3f2d6d7d0ed7c91e47cc72aeed603ace82c233b8986ea38a6d8d82289f73bcdd",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "f81bf15b603c25fcd2fb6567d2742665009568bc89eb85439cc004ddecccc12279d003c97d9b0f208909fbd1866b215f9511591276b86f8297cee045e391c008"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "3f2d6d7d0ed7c91e47cc72aeed603ace82c233b8986ea38a6d8d82289f73bcdd",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-nc-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nc-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nc-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nc-leave-interaction",
+        "severity": "BLOCKING",
+        "note": "required field(s) leave_type are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nc-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks FIELD_RESTRICTION '?' for NC; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for NC; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for NC; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-nc-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nc-e-verify",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nc-field-restriction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nc-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nc-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nc-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nc-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "7d552a39a6278da8f17d49b7a55f1ebe213272ab1097ab402fd431bf2eb7bca4",
+      "prev_digest": "",
+      "digest": "5f36a12e126d34edbe45989ca47303786c6f9ae6b9d5b8c038fe00a104f3042c",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "fcf0f33fa93a120dc7c6d7618b19d51d80cb68c7e0992002ef743a7c06a96fc9635167945d3fbb096ed9a87553ed112f590a4a0e9bbb73584f590fd21019f10b"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "2ccb4d7afa323d11c3f98c93c74aa3a0f6a2c42b4a34d8656f8aa5f32cb4b0b4",
+      "prev_digest": "5f36a12e126d34edbe45989ca47303786c6f9ae6b9d5b8c038fe00a104f3042c",
+      "digest": "c039ebe718a4dbd8e2e950fb79b06ad9fabd6c78970645d4a4b5811f54c1954f",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "e4b394641b3c85b4c04c6f528368023ad5397782008809b275085ff80858785d178f3093bfcef7d83adefaf16e852df7b786455c1995cb0370e8b08fa962b20d"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "3f2d6d7d0ed7c91e47cc72aeed603ace82c233b8986ea38a6d8d82289f73bcdd",
+      "prev_digest": "c039ebe718a4dbd8e2e950fb79b06ad9fabd6c78970645d4a4b5811f54c1954f",
+      "digest": "9c2b7d11349d4ee2f592f144bc37c4714df259ef2596f72d9336aefc4428ca91",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "5e9c86f9000441923eb864ddb06ebc5457c0c404c13a0410fa0fd8b92149d8027a2ed134c7166b3644dc27e73d55206926e60b8753bdbfd7ece7bfbbb5c30d03"
+      }
+    }
+  ]
+}

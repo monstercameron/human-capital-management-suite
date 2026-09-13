@@ -1,0 +1,564 @@
+{
+  "legal_context_digest": "b83557353100d5f72ae14b43b7ae932a78f5129b7df4bb9a25d89126f8c02498",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "IA",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ia-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "IA",
+          "Locality": ""
+        }
+      },
+      "Digest": "5ec660c99b133f3dd19354b21ac20caf850c6ee31488d14061c2a3c0d0b18f32",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-ia-notice",
+      "Description": "employer_to_worker notice before the effective date within 3 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "Iowa Code § 91A.3",
+        "Note": "Pay-rate change notice required: Iowa Code § 91A.3 requires written notice of any change in pay rate at least 3 days before the change becomes effective.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IA",
+        "Locality": ""
+      },
+      "PackID": "us-ia-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ia-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ia-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ia-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-ia-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "f34fa2eb7464002428c417b43d186d647d4d80218442c15b7b5a7ca846fff485"
+    },
+    {
+      "Type": 3,
+      "ID": "us-ia-retention",
+      "Description": "retain wage_records for 4 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "§ 91A.6",
+        "Note": "Record Retention: Maintain all pay-rate-change notices, promotion records, and wage data for 4 years per § 91A.6.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IA",
+        "Locality": ""
+      },
+      "PackID": "us-ia-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ia-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ia-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "7803030bbd942da978ed3d1958054db47af511a01f62aada35961d0f3e1ac814"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ia-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "Iowa Code § 91A.3",
+        "Note": "Pay Frequency and Wage Notices: Iowa Code § 91A.3 does not mandate a specific pay frequency, but employers must establish regular paydays and notify employees in writing (at time of hiring and before any change) of:",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IA",
+        "Locality": ""
+      },
+      "PackID": "us-ia-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ia-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ia-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "59eb4a0554283bfd4333e904637526ab669eb498bae0f8ef51eebad39459f065"
+    },
+    {
+      "Type": 10,
+      "ID": "us-ia-mini-warn",
+      "Description": "0+ affected within 0 day(s) requires 0 day(s) notice",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "§ 84C",
+        "Note": "Iowa WARN (§ 84C) - Layoff Scenario: If the system models a future layoff:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IA",
+        "Locality": ""
+      },
+      "PackID": "us-ia-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ia-mini-warn",
+        "Kind": 6,
+        "NonRemovable": true,
+        "Description": "timer: mini-WARN notice deadline",
+        "LifecycleStep": "EXECUTE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ia-mini-warn",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "timer: mini-WARN notice deadline",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "29701eca853a2f418856e620c0869d109e2be2b6dca57a5515f0851e328a3479"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ia-pay-equity-review",
+      "Description": "pay-equity review against  for bases ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "§ 91D.2",
+        "Note": "Equal Pay Compliance (§ 91D.2): When entering a promotion or pay change:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IA",
+        "Locality": ""
+      },
+      "PackID": "us-ia-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ia-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ia-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ia-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "846448f8959e6ed112105b249e8ce56f665bbb520b8f48268051f69686ec3353"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ia-pay-statement",
+      "Description": "pay statement delivered  must carry gross_wages, deductions, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "Iowa Code § 91A.8",
+        "Note": "Failure to pay final wages timely triggers liquidated damages under Iowa Code § 91A.8: the employee may recover double the amount of unpaid wages plus attorney fees and costs.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IA",
+        "Locality": ""
+      },
+      "PackID": "us-ia-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ia-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ia-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "508fb70d16bac1f231863c7aa92d641a71ecd34f5aa301c695799d9a1e055208"
+    },
+    {
+      "Type": 15,
+      "ID": "us-ia-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "§ 91B.1",
+        "Note": "Personnel-File Access (§ 91B.1): Model a 3-business-day response window for employee requests to access their personnel file (which includes pay history, promotions, performance notes).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IA",
+        "Locality": ""
+      },
+      "PackID": "us-ia-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ia-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ia-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "8402ab6fd9a7cd8b2e865b80bc33d546337cddb25efde7fbd33c25ab5257fd71"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-ia-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "Iowa Code § 91A.4",
+        "Note": "Final pay timing mandated: Iowa Code § 91A.4 requires final wages paid by the next regular payday or within 5 days, whichever occurs first; fail to comply invokes civil penalty.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ia-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "SF 418",
+        "Note": "Protected Classes under Chapter 216: Iowa Code Chapter 216 (Civil Rights Act) protects employees from discrimination based on sex, race, color, creed, national origin, disability, and age.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-ia-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Separation and Termination Records: Employers should retain separation notices, final-pay records, and related documentation as part of the 4-year payroll-retention cycle.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ia-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "Iowa Code § 730.5",
+        "Note": "Drug and Alcohol Testing: Iowa Code § 730.5 permits drug and alcohol testing of employees and applicants under specified conditions:",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ia-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/iowa.md",
+        "Section": "§ 715C.1",
+        "Note": "Breach Notification (§ 715C.1): If a personnel-file or wage-record breach occurs:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IA",
+            "Locality": ""
+          },
+          "PackID": "us-ia-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-ia-notice",
+          "Description": "employer_to_worker notice before the effective date within 3 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/iowa.md",
+            "Section": "Iowa Code § 91A.3",
+            "Note": "Pay-rate change notice required: Iowa Code § 91A.3 requires written notice of any change in pay rate at least 3 days before the change becomes effective.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IA",
+            "Locality": ""
+          },
+          "PackID": "us-ia-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ia-retention",
+          "Description": "retain wage_records for 4 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/iowa.md",
+            "Section": "§ 91A.6",
+            "Note": "Record Retention: Maintain all pay-rate-change notices, promotion records, and wage data for 4 years per § 91A.6.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ia-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IA",
+            "Locality": ""
+          },
+          "PackID": "us-ia-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ia-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/iowa.md",
+            "Section": "Iowa Code § 91A.3",
+            "Note": "Pay Frequency and Wage Notices: Iowa Code § 91A.3 does not mandate a specific pay frequency, but employers must establish regular paydays and notify employees in writing (at time of hiring and before any change) of:",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ia-pay-frequency"
+    },
+    {
+      "Kind": 10,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IA",
+            "Locality": ""
+          },
+          "PackID": "us-ia-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 10,
+          "ID": "us-ia-mini-warn",
+          "Description": "0+ affected within 0 day(s) requires 0 day(s) notice",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/iowa.md",
+            "Section": "§ 84C",
+            "Note": "Iowa WARN (§ 84C) - Layoff Scenario: If the system models a future layoff:",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ia-mini-warn"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IA",
+            "Locality": ""
+          },
+          "PackID": "us-ia-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ia-pay-equity-review",
+          "Description": "pay-equity review against  for bases ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/iowa.md",
+            "Section": "§ 91D.2",
+            "Note": "Equal Pay Compliance (§ 91D.2): When entering a promotion or pay change:",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IA",
+            "Locality": ""
+          },
+          "PackID": "us-ia-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ia-pay-statement",
+          "Description": "pay statement delivered  must carry gross_wages, deductions, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/iowa.md",
+            "Section": "Iowa Code § 91A.8",
+            "Note": "Failure to pay final wages timely triggers liquidated damages under Iowa Code § 91A.8: the employee may recover double the amount of unpaid wages plus attorney fees and costs.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IA",
+            "Locality": ""
+          },
+          "PackID": "us-ia-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-ia-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/iowa.md",
+            "Section": "§ 91B.1",
+            "Note": "Personnel-File Access (§ 91B.1): Model a 3-business-day response window for employee requests to access their personnel file (which includes pay history, promotions, performance notes).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ia-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "7fec26f5b1078baa725276302755b0588beaeca6c882b2d3906d5e30a98239f7",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "Px14fk/TkKZDXe7M0aioYgYAcVgFWqs9sNZKHtIuu/OQVa8WJrok8UCyV5rsuSui9aXVCCW6pvbk86cOAAlXAQ=="
+  }
+}

@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-09-13 (LEGAL-ST series)
+
+- All fifty-one jurisdiction RulePacks now exist, are reviewed, and are
+  published: the fifty states plus a newly researched District of Columbia.
+  Every `LEGAL-ST-*-001` todo in section 20 is ticked with evidence.
+
+- Honest release status is the deliverable. No pack pretends to
+  `VENDOR_BASELINE`: every jurisdiction has research gaps (`?` matrix cells or
+  fields the corpus never states), so each release publishes at
+  `REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION` carrying BLOCKING review findings
+  that enumerate exactly which cells remain unresolved — per contract section
+  5, a pack may not release while any flow-consumed kind is `?`.
+
+- A shared per-state harness (`legal_st_test.go` plus one `legal_st_<cc>_test.go`
+  per jurisdiction) audits each generated pack against its todo's GREEN
+  contract, drives it through the real draft/sign/review/publish pipeline, and
+  pins `release.json`, `proposal.json` and `receipt.golden.json` under
+  `testdata/legal/us-<cc>/`. AL and DC run PRIMARY+GOLDEN+CONFORMANCE; the
+  other forty-nine also run MUTATION.
+
+- DC is greenfield corpus work, not a copy: `district-of-columbia.md` was
+  authored in the twelve-section research format (minimum wage $17.95/hr from
+  2025-07-01, WTPAA hire notice, wage-transparency postings, ASSLA/UPLA leave,
+  the sub-$150k non-compete ban, next-working-day final pay), the section 5
+  matrix grew to fifty-one rows, and the separation-filing and locality
+  registries each gained a District entry rather than treating it as a locality
+  of Maryland or Virginia.
+
+- Extraction fixes found while auditing the fifty existing packs: continuation
+  lines and legal abbreviations now bind fuller citation text, corpus rows that
+  stated a real statute but whose matrix cell was `F` were corrected F→Y
+  (AZ/FL `PAY_EQUITY`; MI/NE/NC/SC `NON_COMPETE`), and the `LEGAL-010`
+  PackRelease digest plus the PERFOPT-003 extraction golden were repinned to
+  the reviewed output. Matrix edits were made only where the research file
+  carries the cited statute — no invented law.
+
 ## 2026-09-13 (UXAUDIT-004)
 
 - Reporting lines are a real tree now. The root cause was worse than the todo's

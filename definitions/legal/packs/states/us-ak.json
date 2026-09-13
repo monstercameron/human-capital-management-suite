@@ -30,6 +30,7 @@
       },
       "body": {
         "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
         "channel": "written",
         "content_fields": ["pay_rate", "payday", "effective_date"]
       }
@@ -62,7 +63,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers < 15 FTE) or 56 hours (employers ≥ 15 FTE)."
+        "interaction_rule": "Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers < 15 FTE) or 56 hours (employers ≥ 15 FTE). All accrued leave carries over year to year; rehire within 6 months requires reinstatement of previous balance. Not paid out on termination unless employer has a voluntary policy (AS §§ 23.10.066–.067)."
       }
     },
     {
@@ -141,7 +142,7 @@
       },
       "body": {
         "dimension": "CONTRACTOR",
-        "test_description": "Contractor classification test (ABC test): Alaska Statute § 23.20.525(a)(8)(A–C) applies the ABC test for unemployment-insurance and workers'-compensation purposes.",
+        "test_description": "Contractor classification test (ABC test): Alaska Statute § 23.20.525(a)(8)(A–C) applies the ABC test for unemployment-insurance and workers'-compensation purposes. All three prongs must be satisfied to classify a worker as an independent contractor; failure to meet any prong results in employee classification (presumption of employment). The three prongs are:",
         "standard": "REQUIRED"
       }
     },

@@ -1,0 +1,452 @@
+{
+  "legal_context_digest": "a6588a7002d5bd1c82f64aad00353dbd0c2456717c2ab0d49e3658e5f2be19df",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "WI",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-wi-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "WI",
+          "Locality": ""
+        }
+      },
+      "Digest": "67445f53f27f8cdd4b1a5b406d97c97468d54f9921329007a236f86a0514478d",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-wi-retention",
+      "Description": "retain personnel_records for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "Under Wis. Stat. § 103.13",
+        "Note": "Personnel records: Under Wis. Stat. § 103.13, any record maintained by employer that identifies employee and affects employment decisions (e.g., qualifications, discipline, compensation) is a personnel record.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WI",
+        "Locality": ""
+      },
+      "PackID": "us-wi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wi-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wi-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "bbb692df14a1151c90a2c8008c7a24dcbaaea177bbe0814d270e391fdebc21f4"
+    },
+    {
+      "Type": 8,
+      "ID": "us-wi-non-compete",
+      "Description": "Non-compete enforceability under reasonableness test: Governed by § 103.465; courts enforce if duration, geography, and scope are reasonable; blue-pencil doctrine applies (Runzheimer, 2015 WI 45).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "§ 103.465",
+        "Note": "Non-compete enforceability under reasonableness test: Governed by § 103.465; courts enforce if duration, geography, and scope are reasonable; blue-pencil doctrine applies (Runzheimer, 2015 WI 45).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WI",
+        "Locality": ""
+      },
+      "PackID": "us-wi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wi-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wi-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-wi-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-wi-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "51268c2de52397f1d14789089b07d260b314b2bc5ff84246e58748c603188f3d"
+    },
+    {
+      "Type": 12,
+      "ID": "us-wi-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases sex",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "§ 111.31–111.395",
+        "Note": "Wisconsin Fair Employment Act (WFEA) (§ 111.31–111.395) prohibits discrimination \"because of sex\" and other classes; no explicit \"equal pay for equal work\" statute separate from sex discrimination.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WI",
+        "Locality": ""
+      },
+      "PackID": "us-wi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wi-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wi-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-wi-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "ca2940766370d287bf035c3012e821cf1d0c6fbac57891afcafefddf403de471"
+    },
+    {
+      "Type": 13,
+      "ID": "us-wi-pay-statement",
+      "Description": "pay statement delivered  must carry deductions, hours_worked, pay_rate",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay statement itemization: Ensure pay stubs show hours, rate, and deduction reasons (not coded without explanation).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WI",
+        "Locality": ""
+      },
+      "PackID": "us-wi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wi-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wi-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "65c023394634d56ee95129631534ba2f0a82736694d6e684435bc90e7bd7464b"
+    },
+    {
+      "Type": 15,
+      "ID": "us-wi-personnel-file",
+      "Description": "personnel-file request answered within 7 business day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "§ 103.13",
+        "Note": "Personnel file access twice per calendar year within 7 working days: Employees may inspect records (§ 103.13); corrections/disputes recorded in file.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WI",
+        "Locality": ""
+      },
+      "PackID": "us-wi-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wi-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wi-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "280c00301ce52b639e7d6fa4b13e018b850af0b1bd977309d443c46673d44ea9"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-wi-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "§ 109.03",
+        "Note": "Final pay timing: regular payday or 24 hours on business separation: Employers must pay all wages on next regularly scheduled payday, or within 24 hours if employment ends due to merger, liquidation, relocation, or...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-wi-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "§ 109.07",
+        "Note": "Mass Layoff Notice (§ 109.07): For employers 50+, flag mass layoff (25% workforce or 25+ employees) or business closure (25+ employees) and enforce 60-day notice requirement; validate recipient list (affected...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-wi-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Discharge in retaliation for workers' compensation claim or unemployment claim filing.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-wi-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Discharge in retaliation for workers' compensation claim or unemployment claim filing.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-wi-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No Wisconsin state statute regulating private-sector pre-employment or post-accident drug testing.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-wi-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks BREACH_NOTIFICATION for WI, and no item in wisconsin.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WI",
+            "Locality": ""
+          },
+          "PackID": "us-wi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-wi-retention",
+          "Description": "retain personnel_records for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+            "Section": "Under Wis. Stat. § 103.13",
+            "Note": "Personnel records: Under Wis. Stat. § 103.13, any record maintained by employer that identifies employee and affects employment decisions (e.g., qualifications, discipline, compensation) is a personnel record.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-wi-retention"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WI",
+            "Locality": ""
+          },
+          "PackID": "us-wi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-wi-non-compete",
+          "Description": "Non-compete enforceability under reasonableness test: Governed by § 103.465; courts enforce if duration, geography, and scope are reasonable; blue-pencil doctrine applies (Runzheimer, 2015 WI 45).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+            "Section": "§ 103.465",
+            "Note": "Non-compete enforceability under reasonableness test: Governed by § 103.465; courts enforce if duration, geography, and scope are reasonable; blue-pencil doctrine applies (Runzheimer, 2015 WI 45).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WI",
+            "Locality": ""
+          },
+          "PackID": "us-wi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-wi-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases sex",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+            "Section": "§ 111.31–111.395",
+            "Note": "Wisconsin Fair Employment Act (WFEA) (§ 111.31–111.395) prohibits discrimination \"because of sex\" and other classes; no explicit \"equal pay for equal work\" statute separate from sex discrimination.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WI",
+            "Locality": ""
+          },
+          "PackID": "us-wi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-wi-pay-statement",
+          "Description": "pay statement delivered  must carry deductions, hours_worked, pay_rate",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay statement itemization: Ensure pay stubs show hours, rate, and deduction reasons (not coded without explanation).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WI",
+            "Locality": ""
+          },
+          "PackID": "us-wi-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-wi-personnel-file",
+          "Description": "personnel-file request answered within 7 business day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wisconsin.md",
+            "Section": "§ 103.13",
+            "Note": "Personnel file access twice per calendar year within 7 working days: Employees may inspect records (§ 103.13); corrections/disputes recorded in file.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-wi-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "2cce025c62fe78bce5fa6e6af099eebe6ad1dad874bce3c59e1e57cb55816005",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "p47sORDWECIyXB6L/rOdG8pbBuyKo3ZGupaHn/D86xkOsVkU7hNMkcgIKTUgEAz1G7zApgRfKI5m8CqbVXxdAw=="
+  }
+}

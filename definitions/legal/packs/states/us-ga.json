@@ -45,7 +45,7 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "interaction_rule": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued..."
+        "interaction_rule": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued leave balance at termination, (5) final paycheck delivery date/method, (6) any severance agreement, release, or non-compete signed. Retain all documents for 4 years after termination per payroll-record rules (O.C.G.A. § 34-4-5)."
       }
     },
     {
@@ -74,7 +74,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued..."
+        "rule": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued leave balance at termination, (5) final paycheck delivery date/method, (6) any severance agreement, release, or non-compete signed. Retain all documents for 4 years after termination per payroll-record rules (O.C.G.A. § 34-4-5)."
       }
     },
     {
@@ -155,6 +155,7 @@
       "body": {
         "form_name": "DOL-402A",
         "recipient_authority": "state department of labor",
+        "deadline_days": 2,
         "standard": "REQUIRED"
       }
     },

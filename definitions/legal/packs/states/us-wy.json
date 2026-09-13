@@ -40,7 +40,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/wyoming.md",
         "section": "Wyo. Stat. § 27-4-101",
-        "note": "Semimonthly pay frequency: Wyo.",
+        "note": "Semimonthly pay frequency: Wyo. Stat. § 27-4-101 requires semimonthly payment for industrial/factory operations; itemized pay stub showing all deductions; other employers may set own schedules.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -60,7 +60,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing post-promotion (Wyo."
+        "deadline_description": "Final pay timing post-promotion (Wyo. Stat. § 27-4-104): If termination occurs post-promotion, all wages earned at promoted rate from effective date forward due by next regular payday or employer's usual payment schedule. No statutory acceleration."
       }
     },
     {
@@ -75,7 +75,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete voidness check (SF 107, effective 2025-07-01): On promotion, check if employee subject to non-compete."
+        "rule": "Non-compete voidness check (SF 107, effective 2025-07-01): On promotion, check if employee subject to non-compete. If non-executive (and not in sale/trade-secret carve-out), mark as void and unenforceable under SF 107. Document in system that non-compete cannot be enforced post-promotion."
       }
     },
     {
@@ -131,7 +131,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/wyoming.md",
         "section": "(statutory section not stated in the research file)",
-        "note": "Handbook implied contract (Trabing v.",
+        "note": "Handbook implied contract (Trabing v. Kinko's, 2002): If promotion involves change to termination procedures or at-will status, verify handbook has clear, conspicuous at-will disclaimer to preserve at-will employment.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },

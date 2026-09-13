@@ -1,0 +1,733 @@
+{
+  "legal_context_digest": "68b4e359fca3c711338a820f72c89fa4574ce00f6abc83dbf70e311f1843f714",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "NY",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ny-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "NY",
+          "Locality": ""
+        }
+      },
+      "Digest": "9c35da4d780c7792e9edbb28726cf72486c269542f1112d4bb4f6f6611f60e40",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-ny-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "§ 194-b",
+        "Note": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NY",
+        "Locality": ""
+      },
+      "PackID": "us-ny-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ny-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ny-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ny-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-ny-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "78ae6276bf66b1e4e42bab65eabbca55a646b78c864a157790a252ff248eee2f"
+    },
+    {
+      "Type": 3,
+      "ID": "us-ny-retention",
+      "Description": "retain personnel_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "Labor Law § 210-b",
+        "Note": "No general state statute currently mandates employee access to personnel files.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NY",
+        "Locality": ""
+      },
+      "PackID": "us-ny-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ny-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ny-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "580d7b7657e7b170366f482f51d22d04057eeb7165d3e601cf170dfa88c5cc4d"
+    },
+    {
+      "Type": 4,
+      "ID": "us-ny-leave-interaction",
+      "Description": "accrued paid sick leave: Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max). On promotion, carry accrued balance forward; do not forfeit. On termination, pay out accrued balance at regular rate unless written accrual-limit policy was provided at hire (system should flag if no policy exists).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "§ 196-b",
+        "Note": "Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NY",
+        "Locality": ""
+      },
+      "PackID": "us-ny-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ny-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ny-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ny-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "c8140d1be4c0b82a27b7e2cf5e678e8aff03f41a2b9eb07bd1ab53fe88204a20"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ny-pay-frequency",
+      "Description": "minimum frequency WEEKLY for manual workers",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Manual workers: must be paid weekly.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NY",
+        "Locality": ""
+      },
+      "PackID": "us-ny-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ny-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ny-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "204883cd23e9bafe75fc595275f297b1ab13bf7fd17bfc71037a6cbffbc6d949"
+    },
+    {
+      "Type": 7,
+      "ID": "us-ny-pay-transparency",
+      "Description": "internal_promotion: Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting). Block posting if range field empty. Timestamp posting date for compliance audit. For internal promotion to 4+ employee organization, include wage range in promotion notice and track disclosure timing.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "§ 194-b",
+        "Note": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NY",
+        "Locality": ""
+      },
+      "PackID": "us-ny-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ny-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ny-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-ny-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "a6ed69d5a5f8a23d167f1abc7896dde40308d3e6f80e6db6248bec30369310f4"
+    },
+    {
+      "Type": 11,
+      "ID": "us-ny-wage-floor",
+      "Description": "HOURLY floor of 17.00 USD for , indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "Labor Law § 652",
+        "Note": "Regional minimum wage tiers (Labor Law § 652, effective 2026): NYC/Long Island/Westchester $17.00/hour; rest of state $16.00/hour; frequent annual increases by CPI-W.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NY",
+        "Locality": ""
+      },
+      "PackID": "us-ny-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ny-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ny-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ny-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "f19697247c9ef4fa826fdcecd989b8be37dbbd2c4bc15eebb235f4eefaafd47c"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ny-pay-equity-review",
+      "Description": "pay-equity review against substantially similar work for bases age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "§ 194",
+        "Note": "Equal Pay Audit Flag (§ 194): On promotion + base-pay change, system should identify peer employees performing \"substantially similar work\" in same geographic area (county minimum, employer scope optimal) and flag if...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NY",
+        "Locality": ""
+      },
+      "PackID": "us-ny-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ny-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ny-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ny-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "f8fedc34563242ae57d518e96c907c103464b7c1ebf15896bfa63bb384a1a7f4"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ny-pay-statement",
+      "Description": "pay statement delivered  must carry pay_rate",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "§ 195(2)",
+        "Note": "Pay Rate Change Notice (§ 195(2)): If promotion involves pay decrease, generate mandatory 7-day advance written notice with new rate, frequency, and effective date.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NY",
+        "Locality": ""
+      },
+      "PackID": "us-ny-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ny-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ny-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "cc18de74823087ac8f3d719528e056a6cb10e2f42d6c2eb29a4aa367ce1ec735"
+    },
+    {
+      "Type": 15,
+      "ID": "us-ny-personnel-file",
+      "Description": "personnel-file request answered within 5 business day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "Labor Law § 210-b",
+        "Note": "No general state statute currently mandates employee access to personnel files.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NY",
+        "Locality": ""
+      },
+      "PackID": "us-ny-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ny-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ny-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "c8a93777e10249d5ac2ce2f600d62be5c09ed05e9a5f8092c277057d36b25116"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-ny-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "§ 194-a",
+        "Note": "Salary history ban (§ 194-a): Cannot inquire about prior wages; retaliation for refusal prohibited.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-ny-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "§ 195(4)",
+        "Note": "§ 195(4) requires records retention for 6 years covering hours, rates, deductions, and final pay.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-ny-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "WARN Act Trigger (Labor Law Art.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ny-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "§ 195(1)",
+        "Note": "Wage Theft Prevention Act Compliance (§ 195(1), § 198): Log all pay-rate changes and link to written notice delivery.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ny-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "Executive Law § 201-d",
+        "Note": "Cannabis: Employers cannot take adverse action based solely on detection of cannabis metabolites from lawful off-duty use (Executive Law § 201-d, as amended); may test for on-the-job impairment or reasonable suspicion.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ny-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks BREACH_NOTIFICATION for NY, and no item in new-york.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 22,
+      "ID": "us-ny-monitoring-consent",
+      "Reason": "the transaction touches no data category this rule covers",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-york.md",
+        "Section": "§ 203-e",
+        "Note": "Reproductive Health and Electronic Monitoring Notices: Ensure employee handbook includes § 203-e (reproductive health nondiscrimination) and § 201-i (electronic monitoring) notices; update as of January 2, 2025.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NY",
+            "Locality": ""
+          },
+          "PackID": "us-ny-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-ny-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-york.md",
+            "Section": "§ 194-b",
+            "Note": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NY",
+            "Locality": ""
+          },
+          "PackID": "us-ny-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ny-retention",
+          "Description": "retain personnel_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-york.md",
+            "Section": "Labor Law § 210-b",
+            "Note": "No general state statute currently mandates employee access to personnel files.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ny-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NY",
+            "Locality": ""
+          },
+          "PackID": "us-ny-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-ny-leave-interaction",
+          "Description": "accrued paid sick leave: Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max). On promotion, carry accrued balance forward; do not forfeit. On termination, pay out accrued balance at regular rate unless written accrual-limit policy was provided at hire (system should flag if no policy exists).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-york.md",
+            "Section": "§ 196-b",
+            "Note": "Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NY",
+            "Locality": ""
+          },
+          "PackID": "us-ny-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ny-pay-frequency",
+          "Description": "minimum frequency WEEKLY for manual workers",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-york.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Manual workers: must be paid weekly.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ny-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NY",
+            "Locality": ""
+          },
+          "PackID": "us-ny-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-ny-pay-transparency",
+          "Description": "internal_promotion: Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting). Block posting if range field empty. Timestamp posting date for compliance audit. For internal promotion to 4+ employee organization, include wage range in promotion notice and track disclosure timing.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-york.md",
+            "Section": "§ 194-b",
+            "Note": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NY",
+            "Locality": ""
+          },
+          "PackID": "us-ny-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-ny-wage-floor",
+          "Description": "HOURLY floor of 17.00 USD for , indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-york.md",
+            "Section": "Labor Law § 652",
+            "Note": "Regional minimum wage tiers (Labor Law § 652, effective 2026): NYC/Long Island/Westchester $17.00/hour; rest of state $16.00/hour; frequent annual increases by CPI-W.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ny-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NY",
+            "Locality": ""
+          },
+          "PackID": "us-ny-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ny-pay-equity-review",
+          "Description": "pay-equity review against substantially similar work for bases age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-york.md",
+            "Section": "§ 194",
+            "Note": "Equal Pay Audit Flag (§ 194): On promotion + base-pay change, system should identify peer employees performing \"substantially similar work\" in same geographic area (county minimum, employer scope optimal) and flag if...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NY",
+            "Locality": ""
+          },
+          "PackID": "us-ny-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ny-pay-statement",
+          "Description": "pay statement delivered  must carry pay_rate",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-york.md",
+            "Section": "§ 195(2)",
+            "Note": "Pay Rate Change Notice (§ 195(2)): If promotion involves pay decrease, generate mandatory 7-day advance written notice with new rate, frequency, and effective date.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NY",
+            "Locality": ""
+          },
+          "PackID": "us-ny-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-ny-personnel-file",
+          "Description": "personnel-file request answered within 5 business day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-york.md",
+            "Section": "Labor Law § 210-b",
+            "Note": "No general state statute currently mandates employee access to personnel files.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ny-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "744ec1b810cce1406bff5514e30c85e0ca70da8c18cda95993128f7294fb8ddc",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "MAlw4ZP5/RwfEdop4AJHuZMjmbrobMERPVBGb0DNzMfY2j9VDeBvrawRXhAtsUYlcc7ozY4UCdoxOpHr673uCA=="
+  }
+}

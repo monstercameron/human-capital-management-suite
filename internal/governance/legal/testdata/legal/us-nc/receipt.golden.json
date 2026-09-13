@@ -1,0 +1,528 @@
+{
+  "legal_context_digest": "7ad010c7a6189ed60ba06066d5a24ef1845c17c7492e6eae82dccb8cb9fd9725",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "NC",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-nc-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "NC",
+          "Locality": ""
+        }
+      },
+      "Digest": "3f2d6d7d0ed7c91e47cc72aeed603ace82c233b8986ea38a6d8d82289f73bcdd",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-nc-notice",
+      "Description": "employer_to_worker notice before the effective date within 1 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "§ 95-25.13",
+        "Note": "Written notice at hire or change (§ 95-25.13): Employer must provide written notice of pay rate and paydays at hire; 24 hours' notice required before reduction in wages or wage benefits (amended 2021; verify exact...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NC",
+        "Locality": ""
+      },
+      "PackID": "us-nc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nc-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nc-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nc-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-nc-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "ebfc001ab05f90c3c0f8f3c89a2146a8e5d61d7f25bdc2e058796f02e17c8022"
+    },
+    {
+      "Type": 3,
+      "ID": "us-nc-retention",
+      "Description": "retain wage_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "§ 95-25.15",
+        "Note": "Records retention (§ 95-25.15): Retain promotion documents (wage change, effective date, justification, business rationale) per employer record policy (verify whether 3 years or employer-set); support labor...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NC",
+        "Locality": ""
+      },
+      "PackID": "us-nc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nc-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nc-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "d8f0fd08af4fe057ae670cd6fe0294423fd91e39be13742f6e7a5ae6a289cb2d"
+    },
+    {
+      "Type": 4,
+      "ID": "us-nc-leave-interaction",
+      "Description": ": School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level. Leave accrual continues unaffected by promotion.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "§ 95-28.3",
+        "Note": "School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NC",
+        "Locality": ""
+      },
+      "PackID": "us-nc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nc-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nc-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-nc-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "98778d484d6ed86b4fab8a460a13fd476fa5bd326b4835143fa123aa881bd032"
+    },
+    {
+      "Type": 5,
+      "ID": "us-nc-pay-frequency",
+      "Description": "minimum frequency MONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "§ 95-25.6",
+        "Note": "Pay frequency verification (§ 95-25.6): On promotion, verify payday remains regular (daily through monthly).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NC",
+        "Locality": ""
+      },
+      "PackID": "us-nc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nc-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nc-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "0106278adf3b3f208a0c0e2b16baee1908d205791beb8d6df4f6de848352ea6b"
+    },
+    {
+      "Type": 8,
+      "ID": "us-nc-non-compete",
+      "Description": "Non-competes (§ 75-4): Must be written, signed, reasonable in time/territory; enforced narrowly against drafter.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "§ 75-4",
+        "Note": "Non-competes (§ 75-4): Must be written, signed, reasonable in time/territory; enforced narrowly against drafter.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NC",
+        "Locality": ""
+      },
+      "PackID": "us-nc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nc-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nc-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nc-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-nc-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "d796cb9e912ede16a231a7e4bdda2a1b3ee0b176dcf52a7d355315eb7d6f2e7b"
+    },
+    {
+      "Type": 13,
+      "ID": "us-nc-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay statement content: No state-mandated itemized pay-stub format; federal FLSA requirements apply.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NC",
+        "Locality": ""
+      },
+      "PackID": "us-nc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nc-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nc-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "faab3e3e21a420624e002805b6c17b6b2d33a3c756ae8c68dcb0e60b3ddd4ebd"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-nc-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Salary history: No statewide private-sector restriction exists (corrected 2026-09-03 — there is no \"2024 ban\"; only Executive Order 93 (2019) binds state agencies).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-nc-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "§ 95-25.6",
+        "Note": "Final pay on termination (§ 95-25.6): If termination occurs after promotion, ensure all wages at promoted rate due on \"next regular payday\" for discharge period.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 9,
+      "ID": "us-nc-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "HB 36",
+        "Note": "E-Verify mandate: Private employers with 25+ employees must use E-Verify for new hires (verified within 3 business days; HB 36, effective July 1, 2013).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-nc-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "§ 95-240",
+        "Note": "REDA retaliation check (§ 95-240 et seq.): If employee recently filed wage-and-hour, OSHA, or workers' compensation complaint, flag promotion timing to ensure retaliation cannot be inferred (timing shortly before...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-nc-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "§ 95-230",
+        "Note": "Drug testing (§ 95-230 et seq., Controlled Substance Examination Regulation):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-nc-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+        "Section": "§ 75-65",
+        "Note": "Data breach notification (§ 75-65, Identity Theft Protection Act):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NC",
+            "Locality": ""
+          },
+          "PackID": "us-nc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-nc-notice",
+          "Description": "employer_to_worker notice before the effective date within 1 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+            "Section": "§ 95-25.13",
+            "Note": "Written notice at hire or change (§ 95-25.13): Employer must provide written notice of pay rate and paydays at hire; 24 hours' notice required before reduction in wages or wage benefits (amended 2021; verify exact...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NC",
+            "Locality": ""
+          },
+          "PackID": "us-nc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-nc-retention",
+          "Description": "retain wage_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+            "Section": "§ 95-25.15",
+            "Note": "Records retention (§ 95-25.15): Retain promotion documents (wage change, effective date, justification, business rationale) per employer record policy (verify whether 3 years or employer-set); support labor...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-nc-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NC",
+            "Locality": ""
+          },
+          "PackID": "us-nc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-nc-leave-interaction",
+          "Description": ": School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level. Leave accrual continues unaffected by promotion.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+            "Section": "§ 95-28.3",
+            "Note": "School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NC",
+            "Locality": ""
+          },
+          "PackID": "us-nc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-nc-pay-frequency",
+          "Description": "minimum frequency MONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+            "Section": "§ 95-25.6",
+            "Note": "Pay frequency verification (§ 95-25.6): On promotion, verify payday remains regular (daily through monthly).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-nc-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NC",
+            "Locality": ""
+          },
+          "PackID": "us-nc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-nc-non-compete",
+          "Description": "Non-competes (§ 75-4): Must be written, signed, reasonable in time/territory; enforced narrowly against drafter.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+            "Section": "§ 75-4",
+            "Note": "Non-competes (§ 75-4): Must be written, signed, reasonable in time/territory; enforced narrowly against drafter.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NC",
+            "Locality": ""
+          },
+          "PackID": "us-nc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-nc-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-carolina.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay statement content: No state-mandated itemized pay-stub format; federal FLSA requirements apply.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "32d733ddab1ae6e4fce54f35e7ccb764eb49a544c64d7c18d6bc4594a010d248",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "DJcklrugIcpjulztGK9POoT7Z2OYiyC0xrqnfuQInGhmCE0IKqaq/rUf3sI2l+xfjrXLakOkpW2t6KwXztnWDg=="
+  }
+}

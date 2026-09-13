@@ -1,0 +1,340 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-pa-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "PA",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-pa-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "P.S. § 260",
+          "note": "WPCL Compliance (43 P.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "channel": "written",
+          "content_fields": [
+            "pay_rate"
+          ]
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-pa-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "P.S. § 260",
+          "note": "Payroll record retention (43 P.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "payroll_records"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-pa-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "P.S. § 260.3",
+          "note": "Pay frequency and timing (43 P.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-pa-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "P.S. § 260.3",
+          "note": "Final Pay Timing (43 P.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final Pay Timing (43 P.S. § 260.3): Schedule final paycheck by next regular payday following termination; include all wages due (including accrued paid time off per local ordinance if applicable)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-pa-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Non-competes enforceable under common law (reasonableness standard); Fair Contracting for Health Care Practitioners Act (Act 74, eff.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-competes enforceable under common law (reasonableness standard); Fair Contracting for Health Care Practitioners Act (Act 74, eff. Jan 1, 2025): Prohibits non-competes for healthcare practitioners lasting \u003e1 year or covering dismissals."
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-pa-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "P.S. § 336.1",
+          "note": "Equal Pay Audit Flag (43 P.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "age"
+          ],
+          "comparator_standard": "equal work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-pa-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "Pa. Code § 231.36",
+          "note": "Pay statement content (34 Pa. Code § 231.36):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-pa-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "P.S. § 1321–1324",
+          "note": "Personnel file access (Pennsylvania Personnel Files Act, 43 P.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-pa-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "Pa Cons Stat § 4563",
+          "note": "Jury Duty Protection (42 Pa Cons Stat § 4563): Employers with 15+ employees (or 40+ manufacturing) may not penalize employees for jury service; no pay-during-service required but no retaliation for participation.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "jury_duty"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-pa-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No state-level statute regulating private-sector drug testing; federal law (pre-employment, reasonable suspicion, post-accident) and DOT rules apply.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "reasonable_suspicion",
+            "post_accident"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-pa-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/pennsylvania.md",
+          "section": "P.S. § 2301",
+          "note": "Data breach notification (Pennsylvania Breach of Personal Information Notification Act, 73 P.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/pennsylvania.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "fbf01a92635a11a0180d528cbe524400c71306067bf1287a463b72621d453fee",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "1d5d182030d079fc8ee1b51679b7c9ef21fdad47345f8dbce92a237ec311e22c5611eb17287d1a6aa7695e4385e279023bf36d905ffb9b5e6f793337967d9804"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "fbf01a92635a11a0180d528cbe524400c71306067bf1287a463b72621d453fee",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-pa-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-pa-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-pa-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-pa-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-pa-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-pa-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-pa-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for PA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for PA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for PA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-pa-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-pa-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-pa-pay-equity-review",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-pa-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-pa-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-pa-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "867f1fa7f57f2fb0a996acc1e85c71ab5419e3a78b1b29baa65318c06659f284",
+      "prev_digest": "",
+      "digest": "0fb73c82168d9eb5f40204d7ebe632e4ed1be5c358e02cdd8fb780a991091746",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "8caef9505c025d9eb59b0b6df7c42410c7efd5ceca95db1218249e3169a420d76dca86235c2f4d18d82f053f14e5ae2311e86107dad0417b63eaec478d988803"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "9fed36883a905819911779f032ba69bbe2b4d12de6e5847dab6e92a82815f5f5",
+      "prev_digest": "0fb73c82168d9eb5f40204d7ebe632e4ed1be5c358e02cdd8fb780a991091746",
+      "digest": "b3bfbe7d63d617acee797cef40e46dfa046a748430959f51fc18f887d4e6cc8a",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "b6c4b0ea5117f9389717ba629f1c9811c3d31974f2b213ef919c068dc6bc0cd1de4683fb4df7811e6696c3ddc9fc75dd5729b184e439dc89ec9dd1c159300b01"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "fbf01a92635a11a0180d528cbe524400c71306067bf1287a463b72621d453fee",
+      "prev_digest": "b3bfbe7d63d617acee797cef40e46dfa046a748430959f51fc18f887d4e6cc8a",
+      "digest": "d86ca94bfb7bd3e4ca69e0c2aecf4c6792e6cb44a04b87debdfd7c30f7d60d74",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "73fbd748312039d415d33824a5df09bc93a74ed08f6411dbf0f12ea77cb3ae033da522b446ca78626ed1705dfa169bcc188aeb1a65d03a00d42b88dcd3bf4b0c"
+      }
+    }
+  ]
+}

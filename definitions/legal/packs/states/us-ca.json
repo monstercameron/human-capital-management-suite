@@ -77,7 +77,7 @@
       },
       "body": {
         "leave_type": "accrued paid time off",
-        "interaction_rule": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72..."
+        "interaction_rule": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72 hours on resignation or immediately on discharge, and track payment date to flag 30-day maximum penalty exposure."
       }
     },
     {
@@ -106,7 +106,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72..."
+        "deadline_description": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72 hours on resignation or immediately on discharge, and track payment date to flag 30-day maximum penalty exposure."
       }
     },
     {
@@ -136,7 +136,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation..."
+        "rule": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation workflows."
       }
     },
     {
@@ -289,7 +289,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "Civil Code § 1798.100",
-        "note": "Biometric information: Civil Code § 1798.100 et seq.",
+        "note": "Biometric information: Civil Code § 1798.100 et seq. does not expressly restrict biometric collection, but employers using facial recognition or fingerprint/iris scanning for time-tracking, access control, or...",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },

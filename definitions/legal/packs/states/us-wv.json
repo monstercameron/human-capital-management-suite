@@ -24,12 +24,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/west-virginia.md",
         "section": "W. Va. Code § 21-5-9(4)",
-        "note": "W.",
+        "note": "W. Va. Code § 21-5-9(4) specifies that when an employer changes an employee's rate of pay, pay period, place or method of payment, time of payment, or any other term of employment, the employer shall furnish written...",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
         "channel": "written",
         "content_fields": ["pay_rate", "effective_date"]
       }
@@ -130,7 +131,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/west-virginia.md",
         "section": "W. Va. Code § 21-3-22",
-        "note": "Correction (2026-09-03 contradiction closure): W.",
+        "note": "Correction (2026-09-03 contradiction closure): W. Va. Code § 21-3-22 is part of the state's public-improvement construction-safety program (Article 3, workplace-safety enforcement); it is not a personnel-records...",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -144,7 +145,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/west-virginia.md",
         "section": "W. Va. Code § 16B-17-1",
-        "note": "W.",
+        "note": "W. Va. Code § 16B-17-1 et seq. (recodified 2024 from former Chapter 5, Article 11) protects employees from discrimination and retaliation based on:",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

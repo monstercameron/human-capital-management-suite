@@ -1,0 +1,348 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-wv-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "WV",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-wv-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "W. Va. Code § 21-5-9(4)",
+          "note": "W. Va. Code § 21-5-9(4) specifies that when an employer changes an employee's rate of pay, pay period, place or method of payment, time of payment, or any other term of employment, the employer shall furnish written...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "effective_date"
+          ]
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-wv-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "§ 21-1B-4",
+          "note": "Does the employer maintain I-9 and employment-verification records per § 21-1B-4, and what is the retention protocol?",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {}
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-wv-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "Enforce § 21-5-3",
+          "note": "Enforce § 21-5-3 semi-monthly requirement: Ensure the new pay schedule pays wages at least twice per calendar month with no more than 19 days between paydays.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-wv-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "§ 21-5-3",
+          "note": "Semi-monthly pay requirement: Employers must pay wages at least twice per month with no more than 19 days between paydays (§ 21-5-3); final pay must be due on or before the next regular payday (§ 21-5-4).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Semi-monthly pay requirement: Employers must pay wages at least twice per month with no more than 19 days between paydays (§ 21-5-3); final pay must be due on or before the next regular payday (§ 21-5-4)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-wv-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "§ 47-11E-2",
+          "note": "For physicians (§ 47-11E-2): non-competes are void and unenforceable upon termination by employer; limit enforcement to 1 year/30 miles if employee terminates voluntarily.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "For physicians (§ 47-11E-2): non-competes are void and unenforceable upon termination by employer; limit enforcement to 1 year/30 miles if employee terminates voluntarily."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-wv-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "W. Va. Code § 21-5C-2",
+          "note": "Minimum wage for 6+ employees: $8.75/hour for employers with six or more non-exempt employees (W.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "8.75",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-wv-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "§ 21-5B",
+          "note": "Has the employer reviewed pay equity by gender/race for comparable roles (§ 21-5B compliance)?",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "gender",
+            "race"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-wv-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "W. Va. Code § 21-3-22",
+          "note": "Correction (2026-09-03 contradiction closure): W. Va. Code § 21-3-22 is part of the state's public-improvement construction-safety program (Article 3, workplace-safety enforcement); it is not a personnel-records...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "RECOMMENDED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-wv-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "W. Va. Code § 16B-17-1",
+          "note": "W. Va. Code § 16B-17-1 et seq. (recodified 2024 from former Chapter 5, Article 11) protects employees from discrimination and retaliation based on:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-wv-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "File a separation notice with the West Virginia Department of Unemployment Insurance within 10 days of separation.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recipient_authority": "state unemployment insurance agency",
+          "deadline_days": 10,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-wv-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "§ 21-3E",
+          "note": "Does the employer have a written drug-free workplace policy compliant with the Safer Workplace Act (§ 21-3E)?",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-wv-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/west-virginia.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Data Privacy Law: West Virginia has no comprehensive state data-privacy statute equivalent to CCPA or GDPR.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/west-virginia.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "464cd8f8c21a3e1c8518b1576a320bccb1e1e9db83b12a69948e491f5adb5137",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "3cc08905ccc32caa7b13605ae586af5770b96811ab3774a4ef65a9acd6f0809ab8bc0588813e63fd73eeb5d22d53150097e8e2ceb0e4489fab68378c301f0804"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "464cd8f8c21a3e1c8518b1576a320bccb1e1e9db83b12a69948e491f5adb5137",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-wv-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wv-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wv-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wv-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wv-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wv-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wv-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) record_class, duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wv-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wv-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for WV; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PERSONNEL_FILE '?' for WV; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-wv-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wv-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wv-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wv-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "125db43dfbf1a957f5ed1cb74812d2b9a1aab6e48d94f16d7b5e0d8eb6ffbef1",
+      "prev_digest": "",
+      "digest": "e12b30b7b85565165a4e6f1e2c1a6a4afacd597f4d50e77795338e1f9a0639f6",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "fb520d6e5328682728bab0e1bd3c2467f0159ac7cefcb5c91789e11fc7d564a60b3b960ae5a85cc5e80ab2469e06594262121af68278ae5507e5a567ea9d4805"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "6daf08261d574b3c11d629d420e021f68237538fb75fac486ec928f0cd9c4ce8",
+      "prev_digest": "e12b30b7b85565165a4e6f1e2c1a6a4afacd597f4d50e77795338e1f9a0639f6",
+      "digest": "a4974a0a917534a9ec95b3c803301633c4a9f544ba988a2c366fcc8d325ee4e9",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "1634ddc98874eb8c7b7d6504ef3bb103f031131df6deb602aa35f69af0293fcdca6fcf6f30e78e34ff617e352be7befed96ad942307c5a39deefbb64b0744502"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "464cd8f8c21a3e1c8518b1576a320bccb1e1e9db83b12a69948e491f5adb5137",
+      "prev_digest": "a4974a0a917534a9ec95b3c803301633c4a9f544ba988a2c366fcc8d325ee4e9",
+      "digest": "8b430f75e5eafd881ca8e4775f37a5d6924c0d2d2922dba0560be82ca5c43cc2",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "2b8f6bb3b6c09de715bb2be9a4ee7058d3dd3395aba0fed6f42740660f1bd98232cc576796583f70c61537c334c0fab9f27eef71af2ab2062d60359ded46c001"
+      }
+    }
+  ]
+}

@@ -1,0 +1,597 @@
+{
+  "legal_context_digest": "e65993a56fd8e5fbeb8002b26185be7101846ee677a135a173f00401d59c456c",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "VT",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-vt-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "VT",
+          "Locality": ""
+        }
+      },
+      "Digest": "8b42735b687a07a1b71e9a0c52f61c3d780d386d8aace9b9f62b24f08e2b05e4",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-vt-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 342",
+        "Note": "Pay rate change notice (21 V.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VT",
+        "Locality": ""
+      },
+      "PackID": "us-vt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-vt-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-vt-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-vt-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-vt-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "eecdec81e0d26d16b5849807ab4a4d6ce2bfa15b18a8616df70ab9bf71bca901"
+    },
+    {
+      "Type": 3,
+      "ID": "us-vt-retention",
+      "Description": "retain wage_records for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 342",
+        "Note": "21 V.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VT",
+        "Locality": ""
+      },
+      "PackID": "us-vt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-vt-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-vt-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "b156454907ad8ce3ad8b1d07ea7e9a3c7885e4b04553bdc49b3edac75888a751"
+    },
+    {
+      "Type": 4,
+      "ID": "us-vt-leave-interaction",
+      "Description": "paid family and medical leave: Parental and Family Leave: Unpaid; 10+ employees for parental (birth/adoption, 1 year); 15+ employees for family (serious illness, bereavement up to 2 weeks). Act 32 (2025) expanded definitions and coverage. Short-term family leave: ≤24 hours/year for school/medical appointments (21 V.S.A. §§ 470–474, § 472a).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. §§ 470–474",
+        "Note": "Parental and Family Leave: Unpaid; 10+ employees for parental (birth/adoption, 1 year); 15+ employees for family (serious illness, bereavement up to 2 weeks).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VT",
+        "Locality": ""
+      },
+      "PackID": "us-vt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-vt-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-vt-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-vt-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "872d55f09949aafb1d0c82c54e0e243b0225f2559a87dd5253049e3a8e786d0f"
+    },
+    {
+      "Type": 5,
+      "ID": "us-vt-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 342",
+        "Note": "Pay frequency and final pay: Weekly or biweekly payment required by default; semimonthly/monthly with written notice (21 V.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VT",
+        "Locality": ""
+      },
+      "PackID": "us-vt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-vt-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-vt-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "0e13aeb88c14d930c37fd58d7610f85cf8a551f17f32774577c06c67dc185a52"
+    },
+    {
+      "Type": 7,
+      "ID": "us-vt-pay-transparency",
+      "Description": "internal_promotion: Pay transparency mandate: Act 155 (2024, effective 2025-07-01) requires employers with 5+ employees to disclose wage/salary range in Vermont job postings; applies to salary, hourly, commission (with statement), and tipped positions (21 V.S.A. § 495n).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 495n",
+        "Note": "Pay transparency mandate: Act 155 (2024, effective 2025-07-01) requires employers with 5+ employees to disclose wage/salary range in Vermont job postings; applies to salary, hourly, commission (with statement), and...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VT",
+        "Locality": ""
+      },
+      "PackID": "us-vt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-vt-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-vt-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-vt-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "ca6119bab1e21d3929adbf50b6c6634eff31bc6638c1b3d0626a15b1314c7d7c"
+    },
+    {
+      "Type": 11,
+      "ID": "us-vt-wage-floor",
+      "Description": "HOURLY floor of 14.42 USD for tipped employees, indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 384",
+        "Note": "Minimum wage $14.42/hour (2026): Indexed annually by the lower of 5% or CPI change (21 V.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VT",
+        "Locality": ""
+      },
+      "PackID": "us-vt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-vt-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-vt-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-vt-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "4b87660cf31332965153bda1036362098d9f72d58f04d2155a6453d6b0a1c8e6"
+    },
+    {
+      "Type": 12,
+      "ID": "us-vt-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 495",
+        "Note": "Equal pay audit (21 V.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VT",
+        "Locality": ""
+      },
+      "PackID": "us-vt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-vt-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-vt-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-vt-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "9fec277d22214d3efa992ebf705dcb248add70bd918060404008626a430dcfde"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-vt-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 495m",
+        "Note": "Salary history inquiry prohibition (21 V.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-vt-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 342a",
+        "Note": "Promotion timing and final pay: If separation occurs during or shortly after promotion, ensure final paycheck includes all wages at promoted rate from effective date.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-vt-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Applies to employers with 50+ employees.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-vt-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 495(c)",
+        "Note": "Wage discussion protection (21 V.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-vt-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. §§ 512–514",
+        "Note": "Drug testing: Strict limits; random/company-wide testing prohibited except when required by federal law.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-vt-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/vermont.md",
+        "Section": "V.S.A. § 2435",
+        "Note": "Breach notification: 45-day notice requirement post-discovery for employee data breaches; attorney general notification within 14 days (9 V.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VT",
+            "Locality": ""
+          },
+          "PackID": "us-vt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-vt-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/vermont.md",
+            "Section": "V.S.A. § 342",
+            "Note": "Pay rate change notice (21 V.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VT",
+            "Locality": ""
+          },
+          "PackID": "us-vt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-vt-retention",
+          "Description": "retain wage_records for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/vermont.md",
+            "Section": "V.S.A. § 342",
+            "Note": "21 V.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-vt-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VT",
+            "Locality": ""
+          },
+          "PackID": "us-vt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-vt-leave-interaction",
+          "Description": "paid family and medical leave: Parental and Family Leave: Unpaid; 10+ employees for parental (birth/adoption, 1 year); 15+ employees for family (serious illness, bereavement up to 2 weeks). Act 32 (2025) expanded definitions and coverage. Short-term family leave: ≤24 hours/year for school/medical appointments (21 V.S.A. §§ 470–474, § 472a).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/vermont.md",
+            "Section": "V.S.A. §§ 470–474",
+            "Note": "Parental and Family Leave: Unpaid; 10+ employees for parental (birth/adoption, 1 year); 15+ employees for family (serious illness, bereavement up to 2 weeks).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VT",
+            "Locality": ""
+          },
+          "PackID": "us-vt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-vt-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/vermont.md",
+            "Section": "V.S.A. § 342",
+            "Note": "Pay frequency and final pay: Weekly or biweekly payment required by default; semimonthly/monthly with written notice (21 V.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-vt-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VT",
+            "Locality": ""
+          },
+          "PackID": "us-vt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-vt-pay-transparency",
+          "Description": "internal_promotion: Pay transparency mandate: Act 155 (2024, effective 2025-07-01) requires employers with 5+ employees to disclose wage/salary range in Vermont job postings; applies to salary, hourly, commission (with statement), and tipped positions (21 V.S.A. § 495n).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/vermont.md",
+            "Section": "V.S.A. § 495n",
+            "Note": "Pay transparency mandate: Act 155 (2024, effective 2025-07-01) requires employers with 5+ employees to disclose wage/salary range in Vermont job postings; applies to salary, hourly, commission (with statement), and...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VT",
+            "Locality": ""
+          },
+          "PackID": "us-vt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-vt-wage-floor",
+          "Description": "HOURLY floor of 14.42 USD for tipped employees, indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/vermont.md",
+            "Section": "V.S.A. § 384",
+            "Note": "Minimum wage $14.42/hour (2026): Indexed annually by the lower of 5% or CPI change (21 V.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-vt-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VT",
+            "Locality": ""
+          },
+          "PackID": "us-vt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-vt-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/vermont.md",
+            "Section": "V.S.A. § 495",
+            "Note": "Equal pay audit (21 V.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "f8dde6818b60cb788d279936daea685f1818af640f41b58926246068f4cb35ca",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "q77DGFLqFfswYxXVgnCotg6B+ilVLqXgdvbg5j3TezYi1wP7bMhzX7/RonToK3X0NudFkusn8MtPb6HLMTBCBw=="
+  }
+}

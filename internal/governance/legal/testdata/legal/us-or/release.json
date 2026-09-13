@@ -1,0 +1,394 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-or-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "OR",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-or-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "ORS 659",
+          "note": "Salary History Block (ORS 659A.357): Disable any form field requesting prior salary from external candidate; log as compliance risk if manager attempts inquiry.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-or-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "OFLA/PLO Continuity: On promotion during active leave, employee retains job protection and pay protection under OFLA (bereavement, pregnancy disability, sick-child) or PLO (12-week leave); role may change but leave...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-or-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "ORS 653.601",
+          "note": "Sick Time Carryover (ORS 653.601–661): On promotion within same employer, sick time accrual carries forward; do not reset.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "interaction_rule": "Sick Time Carryover (ORS 653.601–661): On promotion within same employer, sick time accrual carries forward; do not reset. On cross-company transfer: verify if accrual owed as lump-sum payout per prior employer policy or carries to new employer."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-or-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Regular payday must be established in advance.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-or-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "ORS 652.140",
+          "note": "Final Pay Timing Trigger (ORS 652.140): On termination action, auto-calculate deadline based on discharge type (end of next business day), resignation notice status (48+ hours = immediate, \u003c48 hours = 5 days or next...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final Pay Timing Trigger (ORS 652.140): On termination action, auto-calculate deadline based on discharge type (end of next business day), resignation notice status (48+ hours = immediate, \u003c48 hours = 5 days or next payday). Notify employee and payroll."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-or-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "ORS 653.295",
+          "note": "Non-Compete Threshold Recheck (ORS 653.295): On promotion, if new salary crosses $116,427 threshold, auto-flag: if employee lacks signed NCA with 2-week pre-hire notice and garden-leave clause, mark as unenforceable...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-Compete Threshold Recheck (ORS 653.295): On promotion, if new salary crosses $116,427 threshold, auto-flag: if employee lacks signed NCA with 2-week pre-hire notice and garden-leave clause, mark as unenforceable going forward. If promotion happens, require garden-leave adjustment if NCA exists."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-or-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "ORS 285",
+          "note": "ORS 285A.510 and 285A.516 address WARN compliance notification (no additional state notice requirement beyond federal).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "note": "ORS 285A.510 and 285A.516 address WARN compliance notification (no additional state notice requirement beyond federal)."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-or-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Three-tier minimum wage system: Portland metro $16.80/hr, standard $15.55/hr, nonurban $14.55/hr (effective July 1, 2026; indexed annually by CPI).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "16.80",
+            "currency": "USD"
+          },
+          "basis": "ANNUAL",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-or-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "ORS 652.220",
+          "note": "Equal Pay Audit Flag (ORS 652.220): On promotion + base-pay change, if new rate differs \u003e15% from peer rates for \"comparable character\" work (same role/department/location), flag for manager justification or HR override...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "age"
+          ],
+          "documentation_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-or-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "ORS 652.610",
+          "note": "Pay Statement Update (ORS 652.610, SB 906): On any pay rate change (promotion or otherwise), system must generate itemized statement showing new rate, effective date, deductions breakdown.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "deductions",
+            "pay_rate"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-or-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Employees have right to inspect and copy records during work hours.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-or-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "ORS 659",
+          "note": "Wage Discussion Protection (ORS 659A.355): Do not retaliate against or restrict employee discussion of wages; log if manager reports such discussion as \"misconduct.\"",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-or-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Employers may test for cannabis use; positive test not protected (no medical marijuana cardholder exception under state law for employment).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_status": [
+            "medical_cannabis_patient",
+            "lawful_off_duty_cannabis_use"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-or-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oregon.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks BREACH_NOTIFICATION for OR, and no item in oregon.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/oregon.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "2587ba537bc273b06deecdc5506671b21799bcd4ea568d174733b4f301ff0447",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "2b8468c607f4fca81d2034fdf8167efabcd2284732f5bc97dfa25ece6d3de27c6d838234808165da6b265b4592d4cd2a34c3defc0c431497195f02fdc23ef00f"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "2587ba537bc273b06deecdc5506671b21799bcd4ea568d174733b4f301ff0447",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-or-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-or-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-or-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-or-leave-interaction",
+        "severity": "BLOCKING",
+        "note": "required field(s) leave_type are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-or-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-or-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-or-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-or-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-or-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) record_class, duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for OR; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-or-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-or-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-or-leave-interaction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-or-mini-warn",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-or-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-or-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-or-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-or-wage-floor",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "54d91e66739e95fbf9f44a2fcf209c076c6d42bfb8741d371615877b10f72ab8",
+      "prev_digest": "",
+      "digest": "8e5b18561cff358a518017700c56aeb5e283efe887ca09fa437b1472b547a46b",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "bd30fc797ce5aa9f7266a76a311b00ff48b5051ecf73baf7c737c973d87f2191e72fedebd6be3d5b72bd42c9f295d3493e966536f54cb481cdbc9f40eac4ec0b"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "5ad3fa510ebf3666ecc5600bff2ff6efc0bbc623d3fec10cb59a920c8525ab5c",
+      "prev_digest": "8e5b18561cff358a518017700c56aeb5e283efe887ca09fa437b1472b547a46b",
+      "digest": "ac2f82ac97dcc9383653e8df89094d0c464189e69b194b16a56772aaaa2f70fb",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "22dbed7a2ca2dc7d69f761903f1c8b20e5a8874d9dd24251b2528f85bc5e134eb28c910ab054336f37c3c772f79c176b345d4a67f365e96d2cfb116dff9e2308"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "2587ba537bc273b06deecdc5506671b21799bcd4ea568d174733b4f301ff0447",
+      "prev_digest": "ac2f82ac97dcc9383653e8df89094d0c464189e69b194b16a56772aaaa2f70fb",
+      "digest": "ea521dbd27eb7fcb9d6f8fa0d08cee8669f820de178a32152a60730469473b2f",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "aa1d304bb62803ef3ef6d4c6d0230c335271f26f0eaa57a5abf4d60e4e7761d8a3c644f2472013be6b91cda60873174e2c2402912b9190a648cf7fc77c9d6a08"
+      }
+    }
+  ]
+}

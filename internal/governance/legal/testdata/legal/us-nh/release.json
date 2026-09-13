@@ -1,0 +1,383 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-nh-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "NH",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-nh-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay rate change notice (RSA 275:49): On any base-pay change (increase or decrease), generate automated written notice stating new rate and effective date.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "effective_date"
+          ]
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-nh-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Personnel file retention and access (RSA 275:56): For employers with 15+ employees, system must: (a) Retain all personnel and payroll records for 1 year minimum; (b) Flag records for deletion after 1-year threshold if...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_years": 1,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-nh-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay rate change notice required: Employers must provide written notice of any wage, salary, or pay schedule changes prior to the effective date and obtain employee signature (RSA 275:49).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-nh-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Final pay on separation (RSA 275:44): If termination occurs during or shortly after promotion, ensure final paycheck includes all wages earned at promoted rate from effective date forward.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay on separation (RSA 275:44): If termination occurs during or shortly after promotion, ensure final paycheck includes all wages earned at promoted rate from effective date forward. No hold-back allowed; all wages due within 72 hours of discharge."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-nh-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any existing non-compete clause as VOID and unenforceable; mark in system as unenforceable; (c) If employee is physician or dentist, flag all non-compete clauses (regardless of wage) as likely VOID per RSA 329:31-a; (d) On promotion affecting wage, recalculate threshold and update enforceability status (e.g., promotion across $14.50 threshold may activate enforceability)."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-nh-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Federal WARN compliance: State-level notification requirement mirrors federal WARN Act for employers with 100+ employees planning mass layoffs or plant closings; 60 days' advance notice required (RSA 275-F).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "note": "Federal WARN compliance: State-level notification requirement mirrors federal WARN Act for employers with 100+ employees planning mass layoffs or plant closings; 60 days' advance notice required (RSA 275-F).",
+          "employee_threshold": 100,
+          "notice_days": 60
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-nh-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Equal pay audit flag (RSA 275:37): On promotion + base-pay change, system should flag if new rate differs \u003e15% from peer rates for equal work in same establishment (same employer).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_bases": [
+            "age"
+          ],
+          "comparator_standard": "equal work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-nh-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No state-mandated itemized pay stub format; federal FLSA requirements apply (employer should document hours, wage rate, deductions, net pay per RSA 275:56 record-retention obligation).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "net_wages",
+            "deductions",
+            "hours_worked",
+            "pay_rate",
+            "employer_identification"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-nh-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Non-compete disclosure (RSA 275:70): If non-compete exists and enforceable, ensure copy provided to employee prior to offer acceptance (or upon hiring if not at offer stage).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-nh-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Wage discussion protection (RSA 275:41-b): Do not restrict or flag employee discussions of wages/benefits.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-nh-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No state law restricting private-sector drug testing.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "post_accident",
+            "random"
+          ],
+          "standard": "RECOMMENDED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-nh-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-hampshire.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "RSA 359-C:20: Any person or business in New Hampshire that owns or licenses computerized data containing personal information must notify affected individuals \"as soon as possible\" and \"without unreasonable delay\" when...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/new-hampshire.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "a69946305f83caee4ed0de9aca73b1071aa4bb74d18763cb3621e0388eaff563",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "3c5dbb0cd72d1cb04e52adcea220d6a4ae888315e36edc6229b2043e062678caadf93db98f439eefb6c3107a8cab3cb8dfe4bed699b4203f27b6f2bbbaf71d0e"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "a69946305f83caee4ed0de9aca73b1071aa4bb74d18763cb3621e0388eaff563",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-nh-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nh-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nh-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nh-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nh-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nh-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for NH; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for NH; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-nh-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-mini-warn",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-pay-equity-review",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nh-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "70f716f9a9cfb51bb6fc651939f6f17f8ff4e804cddb358c9c791b8e02dc73dc",
+      "prev_digest": "",
+      "digest": "8e96299fa39ccce84f0654c3c3712c5e4d07f11bc93b95e87a55f6454033349d",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "33f102ea47bc831bb4b0df47682256349824e492941ed774cae00248d29e1fc02627a8aa2aca096af55200491bb274e32f48575f368ec01b94bc8653d3175b07"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "5a3bdef3cb13bec50ac4802e0f0d8cf47a6da0cf7893c6a8012619b4c8cb31a7",
+      "prev_digest": "8e96299fa39ccce84f0654c3c3712c5e4d07f11bc93b95e87a55f6454033349d",
+      "digest": "b636c017f2f117c7040d41e101d6d7c4b7c9cf2d07e52435aea3f67898c6e410",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "40116554e867cb3527f95b1be2dc0ca5c1733a1ec6f63ac93aba5853d9771778928923a9519547b81c92ea76677ae7b3934a8087c38d4a57ace629eb6113b809"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "a69946305f83caee4ed0de9aca73b1071aa4bb74d18763cb3621e0388eaff563",
+      "prev_digest": "b636c017f2f117c7040d41e101d6d7c4b7c9cf2d07e52435aea3f67898c6e410",
+      "digest": "a0dbabc6efa0874ae5acfbd14f0d5d9fc5c14e4235db01894bb30cb3820f87ef",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "428cfcd1e24d9b013b1aa106c5e5af5cdd441e3e9664bd967aec6b6bffab56b2fc122869e9671e8e4ef66695b925376f7f40842a8043e2e97af997ca569dbf07"
+      }
+    }
+  ]
+}

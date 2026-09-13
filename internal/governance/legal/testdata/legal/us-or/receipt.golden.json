@@ -1,0 +1,702 @@
+{
+  "legal_context_digest": "3f5375bc4ad4fb43087e7fa633ba3893620b9843586d8df4dedcd37fe6b2551e",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "OR",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-or-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "OR",
+          "Locality": ""
+        }
+      },
+      "Digest": "2587ba537bc273b06deecdc5506671b21799bcd4ea568d174733b4f301ff0447",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-or-retention",
+      "Description": "retain  for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "OFLA/PLO Continuity: On promotion during active leave, employee retains job protection and pay protection under OFLA (bereavement, pregnancy disability, sick-child) or PLO (12-week leave); role may change but leave...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OR",
+        "Locality": ""
+      },
+      "PackID": "us-or-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-or-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-or-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "8d6ea25ef3b738659a7088cbd8d3cbcf1a99f17d2ab15cb5c6d30ba9ba2c6c0f"
+    },
+    {
+      "Type": 4,
+      "ID": "us-or-leave-interaction",
+      "Description": ": Sick Time Carryover (ORS 653.601–661): On promotion within same employer, sick time accrual carries forward; do not reset. On cross-company transfer: verify if accrual owed as lump-sum payout per prior employer policy or carries to new employer.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "ORS 653.601",
+        "Note": "Sick Time Carryover (ORS 653.601–661): On promotion within same employer, sick time accrual carries forward; do not reset.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OR",
+        "Locality": ""
+      },
+      "PackID": "us-or-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-or-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-or-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-or-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "cac670604d9550dd1efcc6e7e444f20f1a08ba0e30e48e6d67fe0bcfb6473475"
+    },
+    {
+      "Type": 5,
+      "ID": "us-or-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Regular payday must be established in advance.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OR",
+        "Locality": ""
+      },
+      "PackID": "us-or-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-or-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-or-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "d643000b19501c9de0242e588c624b558e4b04e0e3b25453a1eaebe7e6a7c242"
+    },
+    {
+      "Type": 8,
+      "ID": "us-or-non-compete",
+      "Description": "Non-Compete Threshold Recheck (ORS 653.295): On promotion, if new salary crosses $116,427 threshold, auto-flag: if employee lacks signed NCA with 2-week pre-hire notice and garden-leave clause, mark as unenforceable going forward. If promotion happens, require garden-leave adjustment if NCA exists.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "ORS 653.295",
+        "Note": "Non-Compete Threshold Recheck (ORS 653.295): On promotion, if new salary crosses $116,427 threshold, auto-flag: if employee lacks signed NCA with 2-week pre-hire notice and garden-leave clause, mark as unenforceable...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OR",
+        "Locality": ""
+      },
+      "PackID": "us-or-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-or-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-or-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-or-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-or-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "60aeddf3521a0e75162410ae2f20f508d1ecb69779e75d252ab9ebefab83e58a"
+    },
+    {
+      "Type": 10,
+      "ID": "us-or-mini-warn",
+      "Description": "0+ affected within 0 day(s) requires 0 day(s) notice",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "ORS 285",
+        "Note": "ORS 285A.510 and 285A.516 address WARN compliance notification (no additional state notice requirement beyond federal).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OR",
+        "Locality": ""
+      },
+      "PackID": "us-or-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-or-mini-warn",
+        "Kind": 6,
+        "NonRemovable": true,
+        "Description": "timer: mini-WARN notice deadline",
+        "LifecycleStep": "EXECUTE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-or-mini-warn",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "timer: mini-WARN notice deadline",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "418df58bb7c8db82ad1c46ead15241c07efef7722a9fb99d4660a2a5db8fe075"
+    },
+    {
+      "Type": 11,
+      "ID": "us-or-wage-floor",
+      "Description": "ANNUAL floor of 16.80 USD for , indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Three-tier minimum wage system: Portland metro $16.80/hr, standard $15.55/hr, nonurban $14.55/hr (effective July 1, 2026; indexed annually by CPI).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OR",
+        "Locality": ""
+      },
+      "PackID": "us-or-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-or-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-or-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-or-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "d5a9416c455cbaa28a930905e1ae8e1be8dca9027fcc84dc64b99b457e16f58b"
+    },
+    {
+      "Type": 12,
+      "ID": "us-or-pay-equity-review",
+      "Description": "pay-equity review against  for bases age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "ORS 652.220",
+        "Note": "Equal Pay Audit Flag (ORS 652.220): On promotion + base-pay change, if new rate differs \u003e15% from peer rates for \"comparable character\" work (same role/department/location), flag for manager justification or HR override...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OR",
+        "Locality": ""
+      },
+      "PackID": "us-or-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-or-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-or-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-or-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "d612301ef66c3320f31f30da309141a93cea8f3cef43fc9ce66c59b36bdb332e"
+    },
+    {
+      "Type": 13,
+      "ID": "us-or-pay-statement",
+      "Description": "pay statement delivered  must carry deductions, pay_rate",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "ORS 652.610",
+        "Note": "Pay Statement Update (ORS 652.610, SB 906): On any pay rate change (promotion or otherwise), system must generate itemized statement showing new rate, effective date, deductions breakdown.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OR",
+        "Locality": ""
+      },
+      "PackID": "us-or-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-or-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-or-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "476ce20c86efdf8ead31144269842e97f5b0b2619578fd5bc278b2060646c851"
+    },
+    {
+      "Type": 15,
+      "ID": "us-or-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Employees have right to inspect and copy records during work hours.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OR",
+        "Locality": ""
+      },
+      "PackID": "us-or-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-or-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-or-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "98e5a6a81509b7f7888008d4145f8f5c45a1a8ab241e0681d90c1d5941fb367d"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-or-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "ORS 659",
+        "Note": "Salary History Block (ORS 659A.357): Disable any form field requesting prior salary from external candidate; log as compliance risk if manager attempts inquiry.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-or-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "ORS 652.140",
+        "Note": "Final Pay Timing Trigger (ORS 652.140): On termination action, auto-calculate deadline based on discharge type (end of next business day), resignation notice status (48+ hours = immediate, \u003c48 hours = 5 days or next...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-or-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "ORS 659",
+        "Note": "Wage Discussion Protection (ORS 659A.355): Do not retaliate against or restrict employee discussion of wages; log if manager reports such discussion as \"misconduct.\"",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-or-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Employers may test for cannabis use; positive test not protected (no medical marijuana cardholder exception under state law for employment).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-or-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oregon.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks BREACH_NOTIFICATION for OR, and no item in oregon.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OR",
+            "Locality": ""
+          },
+          "PackID": "us-or-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-or-retention",
+          "Description": "retain  for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oregon.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "OFLA/PLO Continuity: On promotion during active leave, employee retains job protection and pay protection under OFLA (bereavement, pregnancy disability, sick-child) or PLO (12-week leave); role may change but leave...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-or-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OR",
+            "Locality": ""
+          },
+          "PackID": "us-or-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-or-leave-interaction",
+          "Description": ": Sick Time Carryover (ORS 653.601–661): On promotion within same employer, sick time accrual carries forward; do not reset. On cross-company transfer: verify if accrual owed as lump-sum payout per prior employer policy or carries to new employer.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oregon.md",
+            "Section": "ORS 653.601",
+            "Note": "Sick Time Carryover (ORS 653.601–661): On promotion within same employer, sick time accrual carries forward; do not reset.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OR",
+            "Locality": ""
+          },
+          "PackID": "us-or-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-or-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oregon.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Regular payday must be established in advance.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-or-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OR",
+            "Locality": ""
+          },
+          "PackID": "us-or-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-or-non-compete",
+          "Description": "Non-Compete Threshold Recheck (ORS 653.295): On promotion, if new salary crosses $116,427 threshold, auto-flag: if employee lacks signed NCA with 2-week pre-hire notice and garden-leave clause, mark as unenforceable going forward. If promotion happens, require garden-leave adjustment if NCA exists.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oregon.md",
+            "Section": "ORS 653.295",
+            "Note": "Non-Compete Threshold Recheck (ORS 653.295): On promotion, if new salary crosses $116,427 threshold, auto-flag: if employee lacks signed NCA with 2-week pre-hire notice and garden-leave clause, mark as unenforceable...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 10,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OR",
+            "Locality": ""
+          },
+          "PackID": "us-or-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 10,
+          "ID": "us-or-mini-warn",
+          "Description": "0+ affected within 0 day(s) requires 0 day(s) notice",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oregon.md",
+            "Section": "ORS 285",
+            "Note": "ORS 285A.510 and 285A.516 address WARN compliance notification (no additional state notice requirement beyond federal).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-or-mini-warn"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OR",
+            "Locality": ""
+          },
+          "PackID": "us-or-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-or-wage-floor",
+          "Description": "ANNUAL floor of 16.80 USD for , indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oregon.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Three-tier minimum wage system: Portland metro $16.80/hr, standard $15.55/hr, nonurban $14.55/hr (effective July 1, 2026; indexed annually by CPI).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-or-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OR",
+            "Locality": ""
+          },
+          "PackID": "us-or-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-or-pay-equity-review",
+          "Description": "pay-equity review against  for bases age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oregon.md",
+            "Section": "ORS 652.220",
+            "Note": "Equal Pay Audit Flag (ORS 652.220): On promotion + base-pay change, if new rate differs \u003e15% from peer rates for \"comparable character\" work (same role/department/location), flag for manager justification or HR override...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OR",
+            "Locality": ""
+          },
+          "PackID": "us-or-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-or-pay-statement",
+          "Description": "pay statement delivered  must carry deductions, pay_rate",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oregon.md",
+            "Section": "ORS 652.610",
+            "Note": "Pay Statement Update (ORS 652.610, SB 906): On any pay rate change (promotion or otherwise), system must generate itemized statement showing new rate, effective date, deductions breakdown.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OR",
+            "Locality": ""
+          },
+          "PackID": "us-or-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-or-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oregon.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Employees have right to inspect and copy records during work hours.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-or-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "c7e39e8e77943d3174bc2b48accffe11bf54526e352c698b3dd78230e11aef55",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "r7O++KtKlQGAaRRmT6jBb7FpDjs2jvx9oTiTSQVzSm2sUG/FKXkI1rBctv98I2gh5vZaGBavql94IDEIKtOoAw=="
+  }
+}

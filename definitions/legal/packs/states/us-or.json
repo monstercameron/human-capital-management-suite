@@ -56,7 +56,7 @@
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "interaction_rule": "Sick Time Carryover (ORS 653.601–661): On promotion within same employer, sick time accrual carries forward; do not reset."
+        "interaction_rule": "Sick Time Carryover (ORS 653.601–661): On promotion within same employer, sick time accrual carries forward; do not reset. On cross-company transfer: verify if accrual owed as lump-sum payout per prior employer policy or carries to new employer."
       }
     },
     {
@@ -83,7 +83,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final Pay Timing Trigger (ORS 652.140): On termination action, auto-calculate deadline based on discharge type (end of next business day), resignation notice status (48+ hours = immediate, <48 hours = 5 days or next..."
+        "deadline_description": "Final Pay Timing Trigger (ORS 652.140): On termination action, auto-calculate deadline based on discharge type (end of next business day), resignation notice status (48+ hours = immediate, <48 hours = 5 days or next payday). Notify employee and payroll."
       }
     },
     {
@@ -98,7 +98,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-Compete Threshold Recheck (ORS 653.295): On promotion, if new salary crosses $116,427 threshold, auto-flag: if employee lacks signed NCA with 2-week pre-hire notice and garden-leave clause, mark as unenforceable..."
+        "rule": "Non-Compete Threshold Recheck (ORS 653.295): On promotion, if new salary crosses $116,427 threshold, auto-flag: if employee lacks signed NCA with 2-week pre-hire notice and garden-leave clause, mark as unenforceable going forward. If promotion happens, require garden-leave adjustment if NCA exists."
       }
     },
     {

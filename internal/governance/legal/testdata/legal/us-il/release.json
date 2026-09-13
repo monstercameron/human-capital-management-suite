@@ -1,0 +1,468 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-il-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "IL",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-il-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 115/3",
+          "note": "Pay rate change notice (820 ILCS 115/3): Employer must provide written notice of any change in pay rate, basis, payday, or wage deductions at least one pay period in advance (or as agreed).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "payday"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-il-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 70",
+          "note": "820 ILCS 70 (Employee Credit Privacy Act): Prohibits employers from (1) ordering a credit report on an employee/applicant, (2) inquiring about credit history, or (3) refusing to hire, discharging, or otherwise...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "credit_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-il-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "§ 115/9",
+          "note": "Pay stub accuracy (§ 115/9): System must generate pay stub on each pay cycle showing gross, deductions (itemized), net, hours (if hourly), rate of pay, pay period dates, employer name/address.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "duration_years": 5,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-il-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 192",
+          "note": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "paid leave",
+          "interaction_rule": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed. Display accrual balance before and after role change. On termination, calculate and include payout of unused paid leave in final pay calculation."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-il-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 115",
+          "note": "Wage payment and final pay (820 ILCS 115): Wages must be paid at least semimonthly on designated paydays; final pay (including accrued vacation) due immediately on termination or upon employee's written notice of...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-il-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 192",
+          "note": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed. Display accrual balance before and after role change. On termination, calculate and include payout of unused paid leave in final pay calculation."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-il-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 112",
+          "note": "Pay transparency and Equal Pay Act (820 ILCS 112): Effective Jan 1, 2025 (PA 103-0539), employers with 15+ employees must include pay scale in job postings, cannot screen applicants by salary history, must disclose pay...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay transparency and Equal Pay Act (820 ILCS 112): Effective Jan 1, 2025 (PA 103-0539), employers with 15+ employees must include pay scale in job postings, cannot screen applicants by salary history, must disclose pay range before offer, and extend equal pay protections to race-based discrimination; Equal Pay Registration Certificate required for 100+ employees."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-il-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 90",
+          "note": "Non-compete/non-solicit voidance review (820 ILCS 90): On any employee with non-compete or non-solicit clause, system must:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete/non-solicit voidance review (820 ILCS 90): On any employee with non-compete or non-solicit clause, system must:"
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-il-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 65",
+          "note": "Separation notice (Illinois WARN, 820 ILCS 65): Mass layoffs affecting 50+ employees in 30 days require 60-day notice to affected workers, state, and local officials; coal mining and electric generation operations...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Separation notice (Illinois WARN, 820 ILCS 65): Mass layoffs affecting 50+ employees in 30 days require 60-day notice to affected workers, state, and local officials; coal mining and electric generation operations...",
+          "employee_threshold": 50,
+          "notice_days": 30
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-il-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "Illinois § 105",
+          "note": "Minimum wage: Illinois § 105 (Minimum Wage Law) requires $15.00/hour effective Jan 1, 2025; indexed annually thereafter.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "15.00",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-il-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 175",
+          "note": "820 ILCS 175 (Day and Temporary Labor Services Act) 2023–2024 amendments: HB 2862 (2023) added an \"equal pay for equal work\" (including equivalent benefits) requirement for temporary laborers assigned to one client...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "comparator_standard": "equal work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-il-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "§ 115/9",
+          "note": "Pay stub accuracy (§ 115/9): System must generate pay stub on each pay cycle showing gross, deductions (itemized), net, hours (if hourly), rate of pay, pay period dates, employer name/address.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "gross_wages",
+            "net_wages",
+            "deductions",
+            "hours_worked",
+            "pay_rate",
+            "pay_period",
+            "employer_identification"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-il-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 40",
+          "note": "Personnel file access requests (820 ILCS 40): On employee request, system must flag 7-business-day deadline to provide inspection/copies.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-il-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 112",
+          "note": "Equal Pay Act (820 ILCS 112): Prohibits sex-based wage discrimination; PA 103-0539 extends protection to race-based discrimination (pay cannot differ based on race for substantially similar work requiring comparable...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-il-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "820 ILCS 65",
+          "note": "Separation notice (Illinois WARN, 820 ILCS 65): Mass layoffs affecting 50+ employees in 30 days require 60-day notice to affected workers, state, and local officials; coal mining and electric generation operations...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "deadline_days": 30,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-il-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Drug testing: No state prohibition on pre-employment or post-offer drug testing; employer testing is permitted if employer has written drug-free workplace policy.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-il-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Notify employees of data breaches within reasonable time (no specific statutory timeline; best practice is 30–60 days)",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "subject_deadline_days": 60,
+          "standard": "RECOMMENDED"
+        }
+      },
+      {
+        "kind": "AUTOMATED_DECISION",
+        "id": "us-il-automated-decision",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks AUTOMATED_DECISION for IL, and no item in illinois.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "MONITORING_CONSENT",
+        "id": "us-il-monitoring-consent",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/illinois.md",
+          "section": "740 ILCS 14",
+          "note": "Biometric data consent (BIPA, 740 ILCS 14): If system collects biometric data (fingerprint clock, facial recognition, etc.) for time-tracking or access control, obtain separate written consent before collection.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "data_categories": [
+            "biometric_identifiers"
+          ],
+          "consent_form": "WRITTEN",
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/illinois.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "0457d4f78a6fdaf6da8c0d71f0a064bf54f073f198535f930f0bfa1282d91803",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "227b13f4c80bd065e2eb070256b97788a81f2d118e5a1b8414522b7c9f5af605c6d2925d32e1c2e8d197001a62b2c4fce26b6cfea1af0efcb089cae3d9e6960d"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "0457d4f78a6fdaf6da8c0d71f0a064bf54f073f198535f930f0bfa1282d91803",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-il-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-il-automated-decision",
+        "severity": "BLOCKING",
+        "note": "required field(s) covered_uses are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-il-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-il-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-il-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-il-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-il-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-il-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) record_class are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-il-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-il-automated-decision",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-il-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-il-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-il-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-il-wage-floor",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "17bbd7df25b46e77c58008aa19a77afbbe53e7a5552f5e44080c462e82c14156",
+      "prev_digest": "",
+      "digest": "5462c0405f20d56cf0ee28cb29c3efef97bff173f02e2983f628aa6b98b14ec8",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "d6a6b9d2899ad2d30d2a31080c0fdb33a939182689d9d0bf9ed0a5a532f008a9586c3bca41e903a2e1a0ba155b0ee881b40427759e0082b876af1ddf9660830f"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "0341e56579c547b8eff150825a07594ac4221fb9ef4ca284ea7d7279bc334d1d",
+      "prev_digest": "5462c0405f20d56cf0ee28cb29c3efef97bff173f02e2983f628aa6b98b14ec8",
+      "digest": "1fa69ca496fdaec71745d6397fc3c77b6c18db7d11d46c73371e3afd7695cedd",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "ce2392cb75d3e1a45994aa86fc07b9c6f8c7f5b63b50d9729c75dc22c8bc9a43da18ff061118c69ab444c945c5f65a09735e1ca363f5e07810d637c250d21d06"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "0457d4f78a6fdaf6da8c0d71f0a064bf54f073f198535f930f0bfa1282d91803",
+      "prev_digest": "1fa69ca496fdaec71745d6397fc3c77b6c18db7d11d46c73371e3afd7695cedd",
+      "digest": "c4206c01d98ac4d232bdb10ec5c08229e42350848e00b48a6c1563e5a12129b0",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "ad20b9eea9b7ae8b14572436a9b65733ca7e498bbf857325686368e82b9016fefb89fbaab729de36fe08a727164978cbe4bfff91430037f49c0ed44a0c0b0f00"
+      }
+    }
+  ]
+}

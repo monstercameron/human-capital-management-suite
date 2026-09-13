@@ -1,0 +1,428 @@
+{
+  "legal_context_digest": "40de2bca686abc6a637285f92618691422c187b3a34195fcc6b51f5612aebbac",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "OK",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ok-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "OK",
+          "Locality": ""
+        }
+      },
+      "Digest": "50dfc197ebb33a265107d257615206de1c52fef852b83e0e38185b24f58b0fc0",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-ok-retention",
+      "Description": "retain wage_records for 1 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+        "Section": "§ 165.4",
+        "Note": "Record retention (§ 165.4): System must retain promotion records (effective date, wage amount, justification, approval) for minimum 1 year to support labor commissioner inspection rights.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OK",
+        "Locality": ""
+      },
+      "PackID": "us-ok-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ok-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ok-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "46ed80a5647dd5f50b8774376a415115fe676f021abab71180f840691ddc70b3"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ok-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+        "Section": "§ 165.2",
+        "Note": "Pay frequency/payday notification (§ 165.2): On promotion or base-pay change, flag if payday changes.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OK",
+        "Locality": ""
+      },
+      "PackID": "us-ok-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ok-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ok-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "1fdc1ff25249207e66852e119573de48e988f3e3a642775701a90231eff87bb0"
+    },
+    {
+      "Type": 8,
+      "ID": "us-ok-non-compete",
+      "Description": "Non-compete enforceability check (15 O.S. § 219A, § 219B): On promotion to customer-facing or high-access role, if employee subject to non-compete, flag as unenforceable per § 219A; document non-solicitation clause (if present) and whether it meets strict-compliance standard (established customers only, reasonable duration/scope).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+        "Section": "O.S. § 219A",
+        "Note": "Non-compete enforceability check (15 O.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OK",
+        "Locality": ""
+      },
+      "PackID": "us-ok-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ok-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ok-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ok-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-ok-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "5b88ebef7370f965bb3a1bb3d32a09fa7529b2500338dee4038d7d57db355a66"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ok-pay-equity-review",
+      "Description": "pay-equity review against comparable work for bases sex, gender, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+        "Section": "O.S. § 198.1",
+        "Note": "Equal pay statute compliance (40 O.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OK",
+        "Locality": ""
+      },
+      "PackID": "us-ok-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ok-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ok-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ok-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "39e3ce7d4e75a7c0b71893991c426139da68809f105cb241193a7d74c511a684"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ok-pay-statement",
+      "Description": "pay statement delivered  must carry net_wages, deductions, hours_worked, pay_rate",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+        "Section": "§ 165.4",
+        "Note": "Pay statement content: No state-mandated itemized format; federal FLSA requirements and § 165.4 record-keeping obligations apply (should document hours, wage rate, deductions, net pay).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OK",
+        "Locality": ""
+      },
+      "PackID": "us-ok-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ok-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ok-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "8cfeed77a3601e6b9660ec86bf7656879442b26726f500f7c68d650115920150"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-ok-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+        "Section": "§ 165.3",
+        "Note": "Final pay on separation during/after promotion: If termination follows promotion, ensure promoted-rate wages from effective date forward are paid by next regular payday per § 165.3; wages not paid face 2% daily...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ok-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+        "Section": "A O.S. § 7",
+        "Note": "Workers' compensation interaction (85A O.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ok-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+        "Section": "O.S. § 427.8",
+        "Note": "Medical marijuana (63 O.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ok-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+        "Section": "§ 161",
+        "Note": "No state-specific employee data privacy law analogous to CCPA; general data breach notification (§ 161 et seq.) applies.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OK",
+            "Locality": ""
+          },
+          "PackID": "us-ok-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ok-retention",
+          "Description": "retain wage_records for 1 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+            "Section": "§ 165.4",
+            "Note": "Record retention (§ 165.4): System must retain promotion records (effective date, wage amount, justification, approval) for minimum 1 year to support labor commissioner inspection rights.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ok-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OK",
+            "Locality": ""
+          },
+          "PackID": "us-ok-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ok-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+            "Section": "§ 165.2",
+            "Note": "Pay frequency/payday notification (§ 165.2): On promotion or base-pay change, flag if payday changes.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ok-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OK",
+            "Locality": ""
+          },
+          "PackID": "us-ok-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-ok-non-compete",
+          "Description": "Non-compete enforceability check (15 O.S. § 219A, § 219B): On promotion to customer-facing or high-access role, if employee subject to non-compete, flag as unenforceable per § 219A; document non-solicitation clause (if present) and whether it meets strict-compliance standard (established customers only, reasonable duration/scope).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+            "Section": "O.S. § 219A",
+            "Note": "Non-compete enforceability check (15 O.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OK",
+            "Locality": ""
+          },
+          "PackID": "us-ok-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ok-pay-equity-review",
+          "Description": "pay-equity review against comparable work for bases sex, gender, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+            "Section": "O.S. § 198.1",
+            "Note": "Equal pay statute compliance (40 O.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OK",
+            "Locality": ""
+          },
+          "PackID": "us-ok-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ok-pay-statement",
+          "Description": "pay statement delivered  must carry net_wages, deductions, hours_worked, pay_rate",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/oklahoma.md",
+            "Section": "§ 165.4",
+            "Note": "Pay statement content: No state-mandated itemized format; federal FLSA requirements and § 165.4 record-keeping obligations apply (should document hours, wage rate, deductions, net pay).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "5c6b38972dc9926c469bd75649fd4e047b8c44a5efdefffcc5d9580298dc6d8c",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "yuHkxKWSvKSlMbUOqV55KE3LP+dog9IWcjo18sPkYkerLAjYfg10+NRPjop9eIq4h/J/A90IIYOrWPqaGBCmCw=="
+  }
+}

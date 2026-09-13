@@ -51,7 +51,7 @@ func TestTodo_LEGAL_TOOL_007_Golden(t *testing.T) {
 			t.Fatalf("golden %s = %+v, want ban=%t floor=%d", state, row, expected.ban, expected.floor)
 		}
 	}
-	if len(b.Carveouts.States) != 50 || b.Carveouts.Digest() == "" {
+	if len(b.Carveouts.States) != 51 || b.Carveouts.Digest() == "" {
 		t.Fatalf("carveout golden metadata = rows %d digest %q", len(b.Carveouts.States), b.Carveouts.Digest())
 	}
 }
@@ -105,7 +105,7 @@ func TestTodo_LEGAL_TOOL_008_Golden(t *testing.T) {
 
 func TestTodo_LEGAL_TOOL_008_Conformance(t *testing.T) {
 	b := loadFixture(t)
-	if len(b.SeparationFiling.States) != 50 || b.SeparationFiling.Digest() == "" {
+	if len(b.SeparationFiling.States) != 51 || b.SeparationFiling.Digest() == "" {
 		t.Fatalf("separation registry rows/digest = %d/%q", len(b.SeparationFiling.States), b.SeparationFiling.Digest())
 	}
 	for _, row := range b.SeparationFiling.States {
@@ -169,7 +169,7 @@ func TestTodo_LEGAL_TOOL_009_Golden(t *testing.T) {
 
 func TestTodo_LEGAL_TOOL_009_Conformance(t *testing.T) {
 	b := loadFixture(t)
-	if len(b.LocalityOverlays.States) != 50 || b.LocalityOverlays.Digest() == "" {
+	if len(b.LocalityOverlays.States) != 51 || b.LocalityOverlays.Digest() == "" {
 		t.Fatalf("locality registry rows/digest = %d/%q", len(b.LocalityOverlays.States), b.LocalityOverlays.Digest())
 	}
 	for _, row := range b.LocalityOverlays.States {

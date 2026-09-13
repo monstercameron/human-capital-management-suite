@@ -90,7 +90,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-competes: Enforced under common law reasonableness test (time, scope, geography, legitimate business interest)."
+        "rule": "Non-competes: Enforced under common law reasonableness test (time, scope, geography, legitimate business interest). Healthcare providers subject to statutory cap: 2 years maximum, 10-mile radius or county restriction (§ 63-1-148)."
       }
     },
     {

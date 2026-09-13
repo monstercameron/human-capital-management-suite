@@ -57,7 +57,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid leave obligations: 48 hours paid sick leave per year (Healthy Families and Workplaces Act, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (family members..."
+        "interaction_rule": "Paid leave obligations: 48 hours paid sick leave per year (Healthy Families and Workplaces Act, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (family members, newborn, or personal medical condition; employer or private plan required); premiums 0.88% in 2026 with $184,500 annual wage cap."
       }
     },
     {
@@ -84,7 +84,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on involuntary termination: Compensation for labor earned, vested, determinable, and unpaid at discharge is due immediately (CRS § 8-4-109)."
+        "deadline_description": "Final pay on involuntary termination: Compensation for labor earned, vested, determinable, and unpaid at discharge is due immediately (CRS § 8-4-109). If payroll department is not operational or accessible on the day of discharge, wages are due within 6 hours of the next business day's start. If wages remain unclaimed after 60 days, employer must mail to employee's last-known address. Willful violation can result in treble damages; automatic penalties can double wages owed."
       }
     },
     {
@@ -114,7 +114,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-competes are void unless the employee earns at or above the \"highly compensated worker\" threshold (verify current amount; SB 25-083, Aug 6, 2025) AND the restriction is no broader than necessary to protect trade..."
+        "rule": "Non-competes are void unless the employee earns at or above the \"highly compensated worker\" threshold (verify current amount; SB 25-083, Aug 6, 2025) AND the restriction is no broader than necessary to protect trade secrets (CRS § 8-2-113)."
       }
     },
     {

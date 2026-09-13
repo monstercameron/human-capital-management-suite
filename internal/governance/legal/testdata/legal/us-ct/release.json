@@ -1,0 +1,450 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ct-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "CT",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-ct-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "§ 31-71f",
+          "note": "On any change of pay or role, employers should provide written notice of new terms to align with § 31-71f disclosure requirements; no specific statutory notice period mandated for pay changes except final pay timing...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "channel": "written"
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-ct-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. § 31-40z",
+          "note": "Employers may not inquire about or direct third parties to inquire about a prospective employee's wage/salary history unless the candidate has voluntarily disclosed it (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-ct-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. § 31-49",
+          "note": "Employers must maintain payroll records for 3 years documenting employee name, address, occupation, hours worked (rounded to 15-min increments), wages, and deductions (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-ct-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. §§ 31-51kk",
+          "note": "Employers with 75+ employees in Connecticut must provide up to 16 weeks unpaid leave in any 24-month period (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "paid leave",
+          "interaction_rule": "Employers with 75+ employees in Connecticut must provide up to 16 weeks unpaid leave in any 24-month period (Conn. Gen. Stat. §§ 31-51kk to 31-51qq)."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ct-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. § 31-71b",
+          "note": "Wages must be paid weekly on a designated payday (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "WEEKLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ct-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "§ 31-71f",
+          "note": "On any change of pay or role, employers should provide written notice of new terms to align with § 31-71f disclosure requirements; no specific statutory notice period mandated for pay changes except final pay timing...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "On any change of pay or role, employers should provide written notice of new terms to align with § 31-71f disclosure requirements; no specific statutory notice period mandated for pay changes except final pay timing (see § 3 below)."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-ct-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. § 31-74g",
+          "note": "Public Act 21-30 (effective October 1, 2021) requires employers to disclose the \"wage range\" anticipated for a position to applicants upon the earlier of request or before making an offer (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Public Act 21-30 (effective October 1, 2021) requires employers to disclose the \"wage range\" anticipated for a position to applicants upon the earlier of request or before making an offer (Conn. Gen. Stat. § 31-74g)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-ct-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. § 31-49h",
+          "note": "Connecticut enforces reasonable non-compete agreements by common law and statute (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Connecticut enforces reasonable non-compete agreements by common law and statute (Conn. Gen. Stat. § 31-49h, amended by PA 26-12 effective October 1, 2026)."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-ct-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. § 31-51u",
+          "note": "Connecticut requires employers conducting a \"mass layoff\" to pay severance at the rate of 2 months' pay for each year of employment (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Connecticut requires employers conducting a \"mass layoff\" to pay severance at the rate of 2 months' pay for each year of employment (Conn."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-ct-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. § 31-58",
+          "note": "Connecticut minimum wage is $16.35 per hour as of January 1, 2025 (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "16.35",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ct-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. § 31-75",
+          "note": "Connecticut's \"equal pay for equal work\" law prohibits sex-based wage discrimination (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "age"
+          ],
+          "comparator_standard": "equal work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ct-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No specific law mandating itemized pay stubs; federal FLSA applies.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-ct-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Connecticut applies the ABC test to determine contractor vs.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "dimension": "CONTRACTOR",
+          "test_description": "Connecticut applies the ABC test to determine contractor vs. employee status for unemployment insurance, workers' compensation, and wage-and-hour purposes (used by Joint Enforcement Commission on Employee Misclassification).",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-ct-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. § 31-48h",
+          "note": "Medical records must be retained separately from personnel files for at least 3 years following termination (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ct-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks ANTI_RETALIATION for CT, and no item in connecticut.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ct-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No state-level statute regulating private-sector drug testing; federal law (pre-employment, reasonable suspicion, post-accident) governs; federal DOT rules apply to transportation.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "reasonable_suspicion",
+            "post_accident"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ct-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/connecticut.md",
+          "section": "Conn. Gen. Stat. §§ 36a-692",
+          "note": "Connecticut breach notification law (Conn.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/connecticut.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "f36a8b5b0cd16382130ab2aa79db638bd15eb431d005ecba9e8578bb4dbd4ada",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "df935b081b48e768b4e318f503dbdfe7e16b7e33d26686e9b61dc4f9b0c56ee0bd2dd518b86a1a287f77fbf63fd740f8acb4ada2c46dc1314c276854971a2005"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "f36a8b5b0cd16382130ab2aa79db638bd15eb431d005ecba9e8578bb4dbd4ada",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ct-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ct-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ct-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ct-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ct-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ct-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks NOTICE '?' for CT; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for CT; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for CT; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks CLASSIFICATION '?' for CT; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for CT; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ct-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ct-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ct-classification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ct-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ct-field-restriction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ct-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ct-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ct-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ct-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "fcfff883031a187372d1c8e69ea54b3cd7fc53c81806330a8a01fc5a9c5eb4e3",
+      "prev_digest": "",
+      "digest": "334d43ea05aa8683a815aa0c3961d28e7b9dfd17eeb637162b86429520cf3b1a",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "026f0e99d3779fd2c80d9c8529ae2a920477e294a8994eaa700805b1d3ddba85152f4a87f89f4363defed6515bed2d129b977881fc44d8bb8121a94bf980200e"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "464a52384e4a59e7338ebba8d5328bb8d9b00796e4b1915eea04c8cb885cec05",
+      "prev_digest": "334d43ea05aa8683a815aa0c3961d28e7b9dfd17eeb637162b86429520cf3b1a",
+      "digest": "ce3aba247d61c7cc1281d1f61d6a933b4b83743d9b3152fb1d2c3591d04fe8bf",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "b5e6b4c18ebad54e00355538abf70deab360ada444fa5f954a80cec5075437c9bb8381842acaa4de937170cb367f48d4be87d7b4acfd1962e8a66efd6fd61a0c"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "f36a8b5b0cd16382130ab2aa79db638bd15eb431d005ecba9e8578bb4dbd4ada",
+      "prev_digest": "ce3aba247d61c7cc1281d1f61d6a933b4b83743d9b3152fb1d2c3591d04fe8bf",
+      "digest": "11e11bd68234b53c198444d7bf7ba6dc9c03853ef2ecd397ca9c2e366da86df1",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "e677b5679422293a98d8dd7e689434ec1038399ca865bba8bec5e30dc6cdc97c079cb6c41611d2db71eed1a15a695fa5a66907da563073a79c42f46d9482680e"
+      }
+    }
+  ]
+}

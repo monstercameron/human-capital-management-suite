@@ -30,6 +30,7 @@
       },
       "body": {
         "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
         "channel": "written",
         "content_fields": ["pay_rate"]
       }
@@ -72,7 +73,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final Pay Timing (43 P.S."
+        "deadline_description": "Final Pay Timing (43 P.S. § 260.3): Schedule final paycheck by next regular payday following termination; include all wages due (including accrued paid time off per local ordinance if applicable)."
       }
     },
     {
@@ -87,7 +88,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-competes enforceable under common law (reasonableness standard); Fair Contracting for Health Care Practitioners Act (Act 74, eff."
+        "rule": "Non-competes enforceable under common law (reasonableness standard); Fair Contracting for Health Care Practitioners Act (Act 74, eff. Jan 1, 2025): Prohibits non-competes for healthcare practitioners lasting >1 year or covering dismissals."
       }
     },
     {
@@ -112,7 +113,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/pennsylvania.md",
         "section": "Pa. Code § 231.36",
-        "note": "Pay statement content (34 Pa.",
+        "note": "Pay statement content (34 Pa. Code § 231.36):",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },

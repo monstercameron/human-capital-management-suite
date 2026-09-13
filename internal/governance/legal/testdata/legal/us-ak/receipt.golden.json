@@ -1,0 +1,628 @@
+{
+  "legal_context_digest": "24bf6fe331059ecadd847a212d34d232b2808b6d32aad0a4915fd8f2acfa8cfe",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "AK",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ak-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "AK",
+          "Locality": ""
+        }
+      },
+      "Digest": "1f176c1fc403e0396dad9123e8925bfe603854211947d7af73bf39f53701d96c",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-ak-notice",
+      "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "AS § 23.05.160",
+        "Note": "Written notice requirement: Any change in pay rate, payday, or place of pay must be communicated in writing no later than the payday preceding the effective date of the change (AS § 23.05.160's \"on the payday before...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AK",
+        "Locality": ""
+      },
+      "PackID": "us-ak-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ak-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ak-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ak-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-ak-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "8bbf17856da75278b024b88af6095411c753df1c996e50f0eeadaa483b51db34"
+    },
+    {
+      "Type": 3,
+      "ID": "us-ak-retention",
+      "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "AS § 23.10.100",
+        "Note": "Payroll record retention: Employers must keep, at the employee's place of employment, a record of each employee's name, address, and occupation, rate of pay and amount paid each pay period, hours worked each day and...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AK",
+        "Locality": ""
+      },
+      "PackID": "us-ak-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ak-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ak-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "c11cebbc5ec1d8f24246226427137ba1938f8b134970e2fb3e1f445500f4b418"
+    },
+    {
+      "Type": 4,
+      "ID": "us-ak-leave-interaction",
+      "Description": "accrued paid sick leave: Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers \u003c 15 FTE) or 56 hours (employers ≥ 15 FTE). All accrued leave carries over year to year; rehire within 6 months requires reinstatement of previous balance. Not paid out on termination unless employer has a voluntary policy (AS §§ 23.10.066–.067).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "AS §§ 23.10.066",
+        "Note": "Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers \u003c 15 FTE) or 56 hours (employers ≥ 15 FTE).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AK",
+        "Locality": ""
+      },
+      "PackID": "us-ak-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ak-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ak-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ak-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "e397c3d51d44aeb76d0ab717bd62ce66ba1ba21d4ec6654677aad23fd99fe764"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ak-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "AS § 23.05.160",
+        "Note": "Pay frequency verification: If a role change alters pay frequency, the platform must enforce the requirement that final notice goes out by the payday preceding the change (AS § 23.05.160), not merely before the next...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AK",
+        "Locality": ""
+      },
+      "PackID": "us-ak-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ak-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ak-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "ed3f2601ec1fbdff914d6a5c5701b0d22241cdfd57f417244ff904b00a636369"
+    },
+    {
+      "Type": 11,
+      "ID": "us-ak-wage-floor",
+      "Description": "HOURLY floor of 14.00 USD for tipped employees, indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "AS § 23.10.065",
+        "Note": "Minimum wage: $14.00/hour as of 2026-07-01 (July 1, 2026); scheduled to increase to $15.00/hour on July 1, 2027, then adjust annually for inflation starting January 1, 2028 based on Anchorage CPI-U (AS § 23.10.065).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AK",
+        "Locality": ""
+      },
+      "PackID": "us-ak-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ak-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ak-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ak-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "4bf0d4c21ef84ec7add126c0e8862fbcf9ea62764ac3d6f97ef26966cafde3c0"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ak-pay-statement",
+      "Description": "pay statement delivered ELECTRONIC must carry employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "AS § 23.05.140(d)",
+        "Note": "Pay statement content and form: Employers must provide written or electronic pay stubs (AS § 23.05.140(d)) showing:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AK",
+        "Locality": ""
+      },
+      "PackID": "us-ak-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ak-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ak-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "57663614c0057ecbd4e81295b2bc4dee4facf44ae167fb0bcb8eeffbd8892705"
+    },
+    {
+      "Type": 14,
+      "ID": "us-ak-classification",
+      "Description": "CONTRACTOR test: Contractor classification test (ABC test): Alaska Statute § 23.20.525(a)(8)(A–C) applies the ABC test for unemployment-insurance and workers'-compensation purposes. All three prongs must be satisfied to classify a worker as an independent contractor; failure to meet any prong results in employee classification (presumption of employment). The three prongs are:",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "Alaska Statute § 23.20.525(a)(8)(A",
+        "Note": "Contractor classification test (ABC test): Alaska Statute § 23.20.525(a)(8)(A–C) applies the ABC test for unemployment-insurance and workers'-compensation purposes.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AK",
+        "Locality": ""
+      },
+      "PackID": "us-ak-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ak-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ak-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ak-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "1e356a3a36792d7cd6e6c66f89916f60d1a86cc4b2339e72276499d2b0a7d6f2"
+    },
+    {
+      "Type": 15,
+      "ID": "us-ak-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "AS § 23.10.430",
+        "Note": "Employee access to personnel files: Employees and former employees have a statutory right to inspect and copy their own personnel files and personnel information maintained by the employer during reasonable business...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AK",
+        "Locality": ""
+      },
+      "PackID": "us-ak-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ak-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ak-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "17d86125d0a96b8938d9a000baaac7b8538da1c2ca963efae8458ba5fce2583f"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-ak-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "AS § 23.05.140",
+        "Note": "Final pay: All wages due within 3 working days of employer-initiated termination; within 3 days of the next regular payday if employee-initiated (minimum 3 days after notice received) (AS § 23.05.140).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ak-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "AS § 23.10.135",
+        "Note": "Captive audience ban (Ballot Measure 1): Effective July 1, 2025, employers cannot require employees to attend meetings primarily about political or religious matters (opinions on legislation, elections, unionization, or...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ak-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Drug testing: No state statute regulating or restricting drug testing in private employment.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ak-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alaska.md",
+        "Section": "Alaska Statutes § 18.13.200–270",
+        "Note": "Biometric data: Alaska Statutes § 18.13.200–270 contain targeted rules for biometric identifiers (fingerprints, voice patterns, retina/iris scans, face recognition).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AK",
+            "Locality": ""
+          },
+          "PackID": "us-ak-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-ak-notice",
+          "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alaska.md",
+            "Section": "AS § 23.05.160",
+            "Note": "Written notice requirement: Any change in pay rate, payday, or place of pay must be communicated in writing no later than the payday preceding the effective date of the change (AS § 23.05.160's \"on the payday before...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AK",
+            "Locality": ""
+          },
+          "PackID": "us-ak-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ak-retention",
+          "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alaska.md",
+            "Section": "AS § 23.10.100",
+            "Note": "Payroll record retention: Employers must keep, at the employee's place of employment, a record of each employee's name, address, and occupation, rate of pay and amount paid each pay period, hours worked each day and...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ak-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AK",
+            "Locality": ""
+          },
+          "PackID": "us-ak-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-ak-leave-interaction",
+          "Description": "accrued paid sick leave: Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers \u003c 15 FTE) or 56 hours (employers ≥ 15 FTE). All accrued leave carries over year to year; rehire within 6 months requires reinstatement of previous balance. Not paid out on termination unless employer has a voluntary policy (AS §§ 23.10.066–.067).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alaska.md",
+            "Section": "AS §§ 23.10.066",
+            "Note": "Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers \u003c 15 FTE) or 56 hours (employers ≥ 15 FTE).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AK",
+            "Locality": ""
+          },
+          "PackID": "us-ak-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ak-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alaska.md",
+            "Section": "AS § 23.05.160",
+            "Note": "Pay frequency verification: If a role change alters pay frequency, the platform must enforce the requirement that final notice goes out by the payday preceding the change (AS § 23.05.160), not merely before the next...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ak-pay-frequency"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AK",
+            "Locality": ""
+          },
+          "PackID": "us-ak-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-ak-wage-floor",
+          "Description": "HOURLY floor of 14.00 USD for tipped employees, indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alaska.md",
+            "Section": "AS § 23.10.065",
+            "Note": "Minimum wage: $14.00/hour as of 2026-07-01 (July 1, 2026); scheduled to increase to $15.00/hour on July 1, 2027, then adjust annually for inflation starting January 1, 2028 based on Anchorage CPI-U (AS § 23.10.065).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ak-wage-floor"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AK",
+            "Locality": ""
+          },
+          "PackID": "us-ak-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ak-pay-statement",
+          "Description": "pay statement delivered ELECTRONIC must carry employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alaska.md",
+            "Section": "AS § 23.05.140(d)",
+            "Note": "Pay statement content and form: Employers must provide written or electronic pay stubs (AS § 23.05.140(d)) showing:",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AK",
+            "Locality": ""
+          },
+          "PackID": "us-ak-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-ak-classification",
+          "Description": "CONTRACTOR test: Contractor classification test (ABC test): Alaska Statute § 23.20.525(a)(8)(A–C) applies the ABC test for unemployment-insurance and workers'-compensation purposes. All three prongs must be satisfied to classify a worker as an independent contractor; failure to meet any prong results in employee classification (presumption of employment). The three prongs are:",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alaska.md",
+            "Section": "Alaska Statute § 23.20.525(a)(8)(A",
+            "Note": "Contractor classification test (ABC test): Alaska Statute § 23.20.525(a)(8)(A–C) applies the ABC test for unemployment-insurance and workers'-compensation purposes.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AK",
+            "Locality": ""
+          },
+          "PackID": "us-ak-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-ak-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alaska.md",
+            "Section": "AS § 23.10.430",
+            "Note": "Employee access to personnel files: Employees and former employees have a statutory right to inspect and copy their own personnel files and personnel information maintained by the employer during reasonable business...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ak-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "6c73b1414c69ea6f809e5ba10042f4b5d28e0bf49a39d1387b18de0610bde596",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "pFygd3Fxem7EMjNaZypC+ESla0Pcrv0Zpz3QS7R0JjG7LM+7ZE8fVTCCIwgW3jsmMurJpPJPYgE7NVWCEFRvDA=="
+  }
+}

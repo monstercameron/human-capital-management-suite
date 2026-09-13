@@ -1,0 +1,440 @@
+{
+  "legal_context_digest": "69955630b8365d7352cdd7c6c39cc82ee1fa861def8069abec6c3a99705eb309",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "WY",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-wy-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "WY",
+          "Locality": ""
+        }
+      },
+      "Digest": "c9b15b73649281f7b3b30183f8d7d91bd8448ef578e1a1817c27a8ccea039860",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-wy-retention",
+      "Description": "retain wage_records for 2 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "Wyo. Stat. § 27-4-101",
+        "Note": "Wage record retention (Wyo.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WY",
+        "Locality": ""
+      },
+      "PackID": "us-wy-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wy-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wy-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "aeddac72f2add2e450dd1f833b14ddb070f801fde7b3b4cb968e9a71277589aa"
+    },
+    {
+      "Type": 5,
+      "ID": "us-wy-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "Wyo. Stat. § 27-4-101",
+        "Note": "Semimonthly pay frequency: Wyo. Stat. § 27-4-101 requires semimonthly payment for industrial/factory operations; itemized pay stub showing all deductions; other employers may set own schedules.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WY",
+        "Locality": ""
+      },
+      "PackID": "us-wy-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wy-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wy-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "e5c1abeb61514dbc102ba450760e0cfd25ff14e734a1d74d238c5fb7e5395923"
+    },
+    {
+      "Type": 8,
+      "ID": "us-wy-non-compete",
+      "Description": "Non-compete voidness check (SF 107, effective 2025-07-01): On promotion, check if employee subject to non-compete. If non-executive (and not in sale/trade-secret carve-out), mark as void and unenforceable under SF 107. Document in system that non-compete cannot be enforced post-promotion.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "SF 107",
+        "Note": "Non-compete voidness check (SF 107, effective 2025-07-01): On promotion, check if employee subject to non-compete.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WY",
+        "Locality": ""
+      },
+      "PackID": "us-wy-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wy-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wy-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-wy-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-wy-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "20c5c388efbf4e9e512e08153db159da699a6c5c9e4b0435be02ce62526c5530"
+    },
+    {
+      "Type": 12,
+      "ID": "us-wy-pay-equity-review",
+      "Description": "pay-equity review against comparable work for bases age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "Wyo. Stat. § 27-4-302",
+        "Note": "Equal pay flag (Wyo.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WY",
+        "Locality": ""
+      },
+      "PackID": "us-wy-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wy-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wy-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-wy-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "5b2cd37e5387b6e391c2af1e46d5070c3dea299fed2bb2a001c681de94a9995b"
+    },
+    {
+      "Type": 13,
+      "ID": "us-wy-pay-statement",
+      "Description": "pay statement delivered  must carry deductions, pay_rate",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "Wyo. Stat. § 27-4-101(b)",
+        "Note": "Itemized pay stub (Wyo.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WY",
+        "Locality": ""
+      },
+      "PackID": "us-wy-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wy-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wy-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "632350a7824fa05856c8f37cd0d9874f016676102e44d05ce5d82011591fb625"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-wy-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "Wyo. Stat. § 27-4-104",
+        "Note": "Final pay timing post-promotion (Wyo.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-wy-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "Wyo. Stat. § 27-14-101",
+        "Note": "Workers' compensation retaliation (Wyo.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 17,
+      "ID": "us-wy-job-security",
+      "Reason": "the transaction is not an adverse change (no pay decrease, demotion or separation)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Handbook implied contract (Trabing v. Kinko's, 2002): If promotion involves change to termination procedures or at-will status, verify handbook has clear, conspicuous at-will disclaimer to preserve at-will employment.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-wy-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks DRUG_TESTING for WY, and no item in wyoming.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-wy-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/wyoming.md",
+        "Section": "Wyo. Stat. § 40-12-501",
+        "Note": "Data breach notification (Wyo.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WY",
+            "Locality": ""
+          },
+          "PackID": "us-wy-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-wy-retention",
+          "Description": "retain wage_records for 2 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wyoming.md",
+            "Section": "Wyo. Stat. § 27-4-101",
+            "Note": "Wage record retention (Wyo.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-wy-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WY",
+            "Locality": ""
+          },
+          "PackID": "us-wy-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-wy-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wyoming.md",
+            "Section": "Wyo. Stat. § 27-4-101",
+            "Note": "Semimonthly pay frequency: Wyo. Stat. § 27-4-101 requires semimonthly payment for industrial/factory operations; itemized pay stub showing all deductions; other employers may set own schedules.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-wy-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WY",
+            "Locality": ""
+          },
+          "PackID": "us-wy-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-wy-non-compete",
+          "Description": "Non-compete voidness check (SF 107, effective 2025-07-01): On promotion, check if employee subject to non-compete. If non-executive (and not in sale/trade-secret carve-out), mark as void and unenforceable under SF 107. Document in system that non-compete cannot be enforced post-promotion.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wyoming.md",
+            "Section": "SF 107",
+            "Note": "Non-compete voidness check (SF 107, effective 2025-07-01): On promotion, check if employee subject to non-compete.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WY",
+            "Locality": ""
+          },
+          "PackID": "us-wy-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-wy-pay-equity-review",
+          "Description": "pay-equity review against comparable work for bases age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wyoming.md",
+            "Section": "Wyo. Stat. § 27-4-302",
+            "Note": "Equal pay flag (Wyo.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WY",
+            "Locality": ""
+          },
+          "PackID": "us-wy-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-wy-pay-statement",
+          "Description": "pay statement delivered  must carry deductions, pay_rate",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/wyoming.md",
+            "Section": "Wyo. Stat. § 27-4-101(b)",
+            "Note": "Itemized pay stub (Wyo.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "dee151be7cc86e079be24b4618683b8437f2720f6f491e751f7a5f5a0beda985",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "Z/iOKAUpOQVrUQtSBc6euPTSBMdQN2gVpSrrpaEjLj80Dg6FFtdFfRvPGj4HRNxiypLDjNFbg6tPC0u9LMG2Ag=="
+  }
+}

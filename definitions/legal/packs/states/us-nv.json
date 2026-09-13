@@ -30,6 +30,7 @@
       },
       "body": {
         "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
         "timing_days": 7,
         "channel": "written"
       }
@@ -106,7 +107,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under..."
+        "deadline_description": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under NRS 613.4353. Document any accommodation requests and interactive-process discussions in payroll/personnel files. If termination occurs during pregnancy, ensure final pay includes all accrued leave and verify no retaliation claim arises under PWFA."
       }
     },
     {

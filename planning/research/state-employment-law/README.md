@@ -10,59 +10,60 @@ only through a reviewed rule pack.
 
 ## Queue
 
-| State          | File                | Status   | Researched | Reviewed                  |
-| -------------- | ------------------- | -------- | ---------- | ------------------------- |
-| Alabama        | `alabama.md`        | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Alaska         | `alaska.md`         | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Arizona        | `arizona.md`        | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Arkansas       | `arkansas.md`       | REVIEWED | 2026-09-03 | 2026-09-03                |
-| California     | `california.md`     | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Colorado       | `colorado.md`       | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Connecticut    | `connecticut.md`    | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Delaware       | `delaware.md`       | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Florida        | `florida.md`        | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Georgia        | `georgia.md`        | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Hawaii         | `hawaii.md`         | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Idaho          | `idaho.md`          | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Illinois       | `illinois.md`       | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Indiana        | `indiana.md`        | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Iowa           | `iowa.md`           | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Kansas         | `kansas.md`         | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Kentucky       | `kentucky.md`       | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Louisiana      | `louisiana.md`      | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Maine          | `maine.md`          | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Maryland       | `maryland.md`       | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Massachusetts  | `massachusetts.md`  | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Michigan       | `michigan.md`       | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Minnesota      | `minnesota.md`      | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Mississippi    | `mississippi.md`    | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Missouri       | `missouri.md`       | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Montana        | `montana.md`        | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Nebraska       | `nebraska.md`       | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Nevada         | `nevada.md`         | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| New Hampshire  | `new-hampshire.md`  | REVIEWED | 2026-09-03 | 2026-09-03                |
-| New Jersey     | `new-jersey.md`     | REVIEWED | 2026-09-03 | 2026-09-03                |
-| New Mexico     | `new-mexico.md`     | REVIEWED | 2026-09-03 | 2026-09-03                |
-| New York       | `new-york.md`       | REVIEWED | 2026-09-03 | 2026-09-03                |
-| North Carolina | `north-carolina.md` | REVIEWED | 2026-09-03 | 2026-09-03                |
-| North Dakota   | `north-dakota.md`   | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Ohio           | `ohio.md`           | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Oklahoma       | `oklahoma.md`       | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| Oregon         | `oregon.md`         | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Pennsylvania   | `pennsylvania.md`   | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Rhode Island   | `rhode-island.md`   | REVIEWED | 2026-09-03 | 2026-09-03                |
-| South Carolina | `south-carolina.md` | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| South Dakota   | `south-dakota.md`   | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Tennessee      | `tennessee.md`      | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Texas          | `texas.md`          | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Utah           | `utah.md`           | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Vermont        | `vermont.md`        | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Virginia       | `virginia.md`       | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Washington     | `washington.md`     | REVIEWED | 2026-09-03 | 2026-09-03                |
-| West Virginia  | `west-virginia.md`  | REVIEWED | 2026-09-03 | 2026-09-03                |
-| Wisconsin      | `wisconsin.md`      | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
-| US federal     | `us-federal.md`     | DRAFTED  | 2026-09-03 |                           |
-| Wyoming        | `wyoming.md`        | REVIEWED | 2026-09-03 | 2026-09-03                |
+| State                | File                      | Status   | Researched | Reviewed                  |
+| -------------------- | ------------------------- | -------- | ---------- | ------------------------- |
+| Alabama              | `alabama.md`              | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Alaska               | `alaska.md`               | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Arizona              | `arizona.md`              | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Arkansas             | `arkansas.md`             | REVIEWED | 2026-09-03 | 2026-09-03                |
+| California           | `california.md`           | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Colorado             | `colorado.md`             | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Connecticut          | `connecticut.md`          | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Delaware             | `delaware.md`             | REVIEWED | 2026-09-03 | 2026-09-03                |
+| District of Columbia | `district-of-columbia.md` | DRAFTED  | 2026-09-13 |                           |
+| Florida              | `florida.md`              | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Georgia              | `georgia.md`              | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Hawaii               | `hawaii.md`               | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Idaho                | `idaho.md`                | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Illinois             | `illinois.md`             | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Indiana              | `indiana.md`              | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Iowa                 | `iowa.md`                 | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Kansas               | `kansas.md`               | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Kentucky             | `kentucky.md`             | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Louisiana            | `louisiana.md`            | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Maine                | `maine.md`                | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Maryland             | `maryland.md`             | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Massachusetts        | `massachusetts.md`        | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Michigan             | `michigan.md`             | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Minnesota            | `minnesota.md`            | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Mississippi          | `mississippi.md`          | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Missouri             | `missouri.md`             | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Montana              | `montana.md`              | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Nebraska             | `nebraska.md`             | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Nevada               | `nevada.md`               | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| New Hampshire        | `new-hampshire.md`        | REVIEWED | 2026-09-03 | 2026-09-03                |
+| New Jersey           | `new-jersey.md`           | REVIEWED | 2026-09-03 | 2026-09-03                |
+| New Mexico           | `new-mexico.md`           | REVIEWED | 2026-09-03 | 2026-09-03                |
+| New York             | `new-york.md`             | REVIEWED | 2026-09-03 | 2026-09-03                |
+| North Carolina       | `north-carolina.md`       | REVIEWED | 2026-09-03 | 2026-09-03                |
+| North Dakota         | `north-dakota.md`         | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Ohio                 | `ohio.md`                 | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Oklahoma             | `oklahoma.md`             | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| Oregon               | `oregon.md`               | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Pennsylvania         | `pennsylvania.md`         | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Rhode Island         | `rhode-island.md`         | REVIEWED | 2026-09-03 | 2026-09-03                |
+| South Carolina       | `south-carolina.md`       | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| South Dakota         | `south-dakota.md`         | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Tennessee            | `tennessee.md`            | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Texas                | `texas.md`                | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Utah                 | `utah.md`                 | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Vermont              | `vermont.md`              | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Virginia             | `virginia.md`             | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Washington           | `washington.md`           | REVIEWED | 2026-09-03 | 2026-09-03                |
+| West Virginia        | `west-virginia.md`        | REVIEWED | 2026-09-03 | 2026-09-03                |
+| Wisconsin            | `wisconsin.md`            | REVIEWED | 2026-09-03 | fixed+reviewed 2026-09-03 |
+| US federal           | `us-federal.md`           | DRAFTED  | 2026-09-03 |                           |
+| Wyoming              | `wyoming.md`              | REVIEWED | 2026-09-03 | 2026-09-03                |
 
 Status values: `QUEUED`, `IN_PROGRESS`, `DRAFTED` (agent finished, unreviewed),
 `REVIEWED` (orchestrator read it), `NEEDS_REWORK`.

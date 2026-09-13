@@ -74,7 +74,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Earned Sick Leave Accrual and Payout (§ 28-57-1): Track accrued sick leave (1 hour per 35 hours worked)."
+        "interaction_rule": "Earned Sick Leave Accrual and Payout (§ 28-57-1): Track accrued sick leave (1 hour per 35 hours worked). On termination, automatic payout of accrued balance. On promotion within same employer, leave balance carries forward. Do not permit termination record to be finalized until sick-leave payout calculated and documented."
       }
     },
     {
@@ -118,7 +118,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay Transparency Disclosure (§ 28-6-19): Before posting any job or offering promotion, require wage-range input (min/max); block job posting or promotion posting if range empty; timestamp disclosure."
+        "required_disclosure": "Pay Transparency Disclosure (§ 28-6-19): Before posting any job or offering promotion, require wage-range input (min/max); block job posting or promotion posting if range empty; timestamp disclosure. On internal promotion, ensure disclosure before compensation discussion with promoted employee."
       }
     },
     {
@@ -133,7 +133,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-Compete Enforceability Check (§ 28-59): At hire and promotion of exempt employees, flag if salary <$37,650/year and non-compete in offer; system should warn that agreement likely unenforceable and recommend removal..."
+        "rule": "Non-Compete Enforceability Check (§ 28-59): At hire and promotion of exempt employees, flag if salary <$37,650/year and non-compete in offer; system should warn that agreement likely unenforceable and recommend removal or legal review."
       }
     },
     {

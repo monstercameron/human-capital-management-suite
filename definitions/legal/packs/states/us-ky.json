@@ -111,7 +111,7 @@
       },
       "body": {
         "dimension": "CONTRACTOR",
-        "test_description": "Contractor vs.",
+        "test_description": "Contractor vs. Employee Classification: Kentucky employment law (KRS 341.010 et seq., Unemployment Insurance Law) defines \"employee\" for unemployment-insurance purposes. Neither contract labels nor the parties' intent controls; liability is based on the true underlying nature of the working relationship. Factors include (1) control over work methods and schedules, (2) provision of tools and equipment, (3) integration into the business, (4) permanence of the relationship, and (5) whether the worker sets own rates/terms. Misclassification of employees as independent contractors triggers unemployment-insurance, wage, and tax liabilities and may expose employers to audit and penalties.",
         "standard": "REQUIRED"
       }
     },

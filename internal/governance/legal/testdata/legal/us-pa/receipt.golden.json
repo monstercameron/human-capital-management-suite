@@ -1,0 +1,566 @@
+{
+  "legal_context_digest": "5e1598e90ef107afb4712e8e8126a8932374ecc0c8ed3ed719143d7d5ffb621c",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "PA",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-pa-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "PA",
+          "Locality": ""
+        }
+      },
+      "Digest": "fbf01a92635a11a0180d528cbe524400c71306067bf1287a463b72621d453fee",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-pa-notice",
+      "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "P.S. § 260",
+        "Note": "WPCL Compliance (43 P.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "PA",
+        "Locality": ""
+      },
+      "PackID": "us-pa-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-pa-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-pa-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-pa-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-pa-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "fa2812c3550836fe0f7143136ed3b663a7fcef576e9ced761f3f4274400693b0"
+    },
+    {
+      "Type": 3,
+      "ID": "us-pa-retention",
+      "Description": "retain payroll_records for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "P.S. § 260",
+        "Note": "Payroll record retention (43 P.S.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "PA",
+        "Locality": ""
+      },
+      "PackID": "us-pa-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-pa-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-pa-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "ef3c3460624acdb4cf320b57e0c8a1d9a073805e60bbd6f70e6ac8889c6ae1bf"
+    },
+    {
+      "Type": 5,
+      "ID": "us-pa-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "P.S. § 260.3",
+        "Note": "Pay frequency and timing (43 P.S.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "PA",
+        "Locality": ""
+      },
+      "PackID": "us-pa-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-pa-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-pa-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "76cf17265db55adaa4f2fb57a05b098af7a2497744d042a69180fc5158bb7361"
+    },
+    {
+      "Type": 8,
+      "ID": "us-pa-non-compete",
+      "Description": "Non-competes enforceable under common law (reasonableness standard); Fair Contracting for Health Care Practitioners Act (Act 74, eff. Jan 1, 2025): Prohibits non-competes for healthcare practitioners lasting \u003e1 year or covering dismissals.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Non-competes enforceable under common law (reasonableness standard); Fair Contracting for Health Care Practitioners Act (Act 74, eff.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "PA",
+        "Locality": ""
+      },
+      "PackID": "us-pa-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-pa-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-pa-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-pa-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-pa-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "dbc6faea94c76e1f768aaf251d00fdd3f9484c3ae7faf6ba2e1d42865f3dfb2d"
+    },
+    {
+      "Type": 12,
+      "ID": "us-pa-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "P.S. § 336.1",
+        "Note": "Equal Pay Audit Flag (43 P.S.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "PA",
+        "Locality": ""
+      },
+      "PackID": "us-pa-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-pa-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-pa-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-pa-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "995f048678dff44f77f9ee5da10748234ec9729e784dc8753687ff058fd2544c"
+    },
+    {
+      "Type": 13,
+      "ID": "us-pa-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "Pa. Code § 231.36",
+        "Note": "Pay statement content (34 Pa. Code § 231.36):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "PA",
+        "Locality": ""
+      },
+      "PackID": "us-pa-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-pa-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-pa-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "f6dfbcc62dd8ca402bc493d1a48897fcba7ca0e26d840b34ae226dff4cc9cd25"
+    },
+    {
+      "Type": 15,
+      "ID": "us-pa-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "P.S. § 1321–1324",
+        "Note": "Personnel file access (Pennsylvania Personnel Files Act, 43 P.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "PA",
+        "Locality": ""
+      },
+      "PackID": "us-pa-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-pa-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-pa-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "03fc34c0230a6411733c4b441b30c7bc3d413a73b20f0cc240e71ad6d93b6fe6"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-pa-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "P.S. § 260.3",
+        "Note": "Final Pay Timing (43 P.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-pa-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "Pa Cons Stat § 4563",
+        "Note": "Jury Duty Protection (42 Pa Cons Stat § 4563): Employers with 15+ employees (or 40+ manufacturing) may not penalize employees for jury service; no pay-during-service required but no retaliation for participation.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-pa-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No state-level statute regulating private-sector drug testing; federal law (pre-employment, reasonable suspicion, post-accident) and DOT rules apply.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-pa-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+        "Section": "P.S. § 2301",
+        "Note": "Data breach notification (Pennsylvania Breach of Personal Information Notification Act, 73 P.S.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "PA",
+            "Locality": ""
+          },
+          "PackID": "us-pa-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-pa-notice",
+          "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+            "Section": "P.S. § 260",
+            "Note": "WPCL Compliance (43 P.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "PA",
+            "Locality": ""
+          },
+          "PackID": "us-pa-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-pa-retention",
+          "Description": "retain payroll_records for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+            "Section": "P.S. § 260",
+            "Note": "Payroll record retention (43 P.S.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-pa-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "PA",
+            "Locality": ""
+          },
+          "PackID": "us-pa-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-pa-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+            "Section": "P.S. § 260.3",
+            "Note": "Pay frequency and timing (43 P.S.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-pa-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "PA",
+            "Locality": ""
+          },
+          "PackID": "us-pa-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-pa-non-compete",
+          "Description": "Non-competes enforceable under common law (reasonableness standard); Fair Contracting for Health Care Practitioners Act (Act 74, eff. Jan 1, 2025): Prohibits non-competes for healthcare practitioners lasting \u003e1 year or covering dismissals.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Non-competes enforceable under common law (reasonableness standard); Fair Contracting for Health Care Practitioners Act (Act 74, eff.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "PA",
+            "Locality": ""
+          },
+          "PackID": "us-pa-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-pa-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+            "Section": "P.S. § 336.1",
+            "Note": "Equal Pay Audit Flag (43 P.S.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "PA",
+            "Locality": ""
+          },
+          "PackID": "us-pa-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-pa-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+            "Section": "Pa. Code § 231.36",
+            "Note": "Pay statement content (34 Pa. Code § 231.36):",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "PA",
+            "Locality": ""
+          },
+          "PackID": "us-pa-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-pa-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/pennsylvania.md",
+            "Section": "P.S. § 1321–1324",
+            "Note": "Personnel file access (Pennsylvania Personnel Files Act, 43 P.S.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-pa-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "ccc26fc79955c5e796c749ff362ea1e64e05e7bc7aeb547193a4631ff3288297",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "NwkBAuJmv47C5IqaOwgq0Yc6DKWw7zbhJJMq/8lizl6uIKxb1mhItl7zRaTAfaW313hlLM3+eQqcIDJL5XadBQ=="
+  }
+}

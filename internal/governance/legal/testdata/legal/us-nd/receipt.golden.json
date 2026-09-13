@@ -1,0 +1,366 @@
+{
+  "legal_context_digest": "b441f7521ef3ec836c13ee46b3b64c4e7df2e5e7946213f0c51cac319ba89e30",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "ND",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-nd-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "ND",
+          "Locality": ""
+        }
+      },
+      "Digest": "f9a1ef36fa3a5a886b1c10efbbd773aefb37451c63c7eeb8a8849ab8ce8b782c",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-nd-retention",
+      "Description": "retain wage_records for 2 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+        "Section": "NDCC § 34-14-04",
+        "Note": "Wage record retention (NDCC § 34-14-04): System must retain promotion records (wage change, effective date, justification) for minimum 2 years; support Department of Labor inspection rights.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ND",
+        "Locality": ""
+      },
+      "PackID": "us-nd-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nd-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nd-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "d2ac4b9d3e844a0166cc3f2587497f0c6e1e16deb58a77ab7e151772b7df8640"
+    },
+    {
+      "Type": 5,
+      "ID": "us-nd-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+        "Section": "NDCC § 34-14-02",
+        "Note": "Pay frequency: Regular paydays required; semimonthly or monthly common; must be consistent and predictable (NDCC § 34-14-02).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ND",
+        "Locality": ""
+      },
+      "PackID": "us-nd-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nd-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nd-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "e61f0fa2b469d1fbca7a5e062df924d88c7142b2b0bf370ffe0383b1ccd0972b"
+    },
+    {
+      "Type": 8,
+      "ID": "us-nd-non-compete",
+      "Description": "Non-compete/non-solicit review (NDCC § 9-08-06): On promotion, check if employee subject to non-compete or non-solicit. If non-compete, note as unenforceable and void per statute. If non-solicit exists, verify reasonableness in duration, geography, and scope; document in system.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+        "Section": "NDCC § 9-08-06",
+        "Note": "Non-compete/non-solicit review (NDCC § 9-08-06): On promotion, check if employee subject to non-compete or non-solicit.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ND",
+        "Locality": ""
+      },
+      "PackID": "us-nd-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nd-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nd-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nd-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-nd-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "53bddad2e2599b99f32f66c0bce3a9945d826b8f1fce574642b5a683d81adb1e"
+    },
+    {
+      "Type": 12,
+      "ID": "us-nd-pay-equity-review",
+      "Description": "pay-equity review against comparable work for bases gender, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+        "Section": "NDCC § 34-06.1",
+        "Note": "Equal Pay compliance (NDCC § 34-06.1): On promotion or base-pay change within same establishment, system should flag if new wage for one gender differs materially from peer rates for comparable work; require manager...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "ND",
+        "Locality": ""
+      },
+      "PackID": "us-nd-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nd-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nd-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nd-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "a509813362ba883cd620089b0822ae3a7fc8aa1513d077d466960690db0dd487"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-nd-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+        "Section": "NDCC § 34-14-03",
+        "Note": "Final pay on separation during/after promotion (NDCC § 34-14-03): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid by next regular payday or within 15...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-nd-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+        "Section": "NDCC § 34-01-20",
+        "Note": "Whistleblower protection check (NDCC § 34-01-20): If promotion follows any protected whistleblower activity (good-faith report of unlawful conduct), flag for legal review to ensure retaliation risk is mitigated.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-nd-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+        "Section": "NDCC § 34-11.1",
+        "Note": "Drug testing (NDCC § 34-11.1):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-nd-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+        "Section": "NDCC § 51-30",
+        "Note": "Data Breach Notification (NDCC § 51-30):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ND",
+            "Locality": ""
+          },
+          "PackID": "us-nd-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-nd-retention",
+          "Description": "retain wage_records for 2 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+            "Section": "NDCC § 34-14-04",
+            "Note": "Wage record retention (NDCC § 34-14-04): System must retain promotion records (wage change, effective date, justification) for minimum 2 years; support Department of Labor inspection rights.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-nd-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ND",
+            "Locality": ""
+          },
+          "PackID": "us-nd-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-nd-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+            "Section": "NDCC § 34-14-02",
+            "Note": "Pay frequency: Regular paydays required; semimonthly or monthly common; must be consistent and predictable (NDCC § 34-14-02).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-nd-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ND",
+            "Locality": ""
+          },
+          "PackID": "us-nd-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-nd-non-compete",
+          "Description": "Non-compete/non-solicit review (NDCC § 9-08-06): On promotion, check if employee subject to non-compete or non-solicit. If non-compete, note as unenforceable and void per statute. If non-solicit exists, verify reasonableness in duration, geography, and scope; document in system.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+            "Section": "NDCC § 9-08-06",
+            "Note": "Non-compete/non-solicit review (NDCC § 9-08-06): On promotion, check if employee subject to non-compete or non-solicit.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "ND",
+            "Locality": ""
+          },
+          "PackID": "us-nd-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-nd-pay-equity-review",
+          "Description": "pay-equity review against comparable work for bases gender, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/north-dakota.md",
+            "Section": "NDCC § 34-06.1",
+            "Note": "Equal Pay compliance (NDCC § 34-06.1): On promotion or base-pay change within same establishment, system should flag if new wage for one gender differs materially from peer rates for comparable work; require manager...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "b3d316b7a25e8c484f9ac7af54d0af8bf8fc1508c11dfef0264af30f54063b7d",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "d6Ga7J0MW/vDPrRcuX/itbEJij/luE2DTvoPSq3w7QmpZzCngBnuJylhRblS9RZ3jBmdxnz3Wy52/zDBwyNzAw=="
+  }
+}
