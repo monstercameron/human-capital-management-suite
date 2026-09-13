@@ -45,7 +45,10 @@ func TestMyselfPageUsesOnlyTheAuthenticatedViewerBinding(t *testing.T) {
 		"CAD 118,000", "CA-ON", "Pay statements, deductions, taxes, bank details, and pay schedules are not exposed",
 		"My workflow history", `href="/workspace/app/journeys?mode=new&amp;worker=worker-avery"`,
 		`action="/workspace/app/myself"`,
-		"My organization tree", `role="list"`, `aria-current="true"`,
+		// UXAUDIT-004: the Myself subtree is a real WAI-ARIA tree
+		// (role="tree"/"treeitem"), not a generic role="list" -- see
+		// TestTodo_UXAUDIT_004_Accessibility for the full contract.
+		"My organization tree", `role="tree"`, `aria-current="true"`,
 	} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("Myself page missing %q", want)

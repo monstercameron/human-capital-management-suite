@@ -21,8 +21,24 @@ func myselfPage(view View) ui.Node {
 	props.Profile = &profile
 	props.OrganizationTitle = view.Locale.Text("myself.organization_title")
 	props.OrganizationDescription = view.Locale.Text("myself.organization_detail")
-	props.OrganizationTree = ownershipTree(view)
+	props.OrganizationTree = myselfOwnershipSubtree(view, person.ID)
+	props.OrganizationTreeLabel = view.Locale.Text("organization.tree_label")
 	return ui.CreateElement(MyselfPage, props)
+}
+
+// myselfOwnershipSubtree scopes the reporting-line tree to personID and their
+// own reports, rather than the whole visible organization -- UXAUDIT-004's
+// REFACTOR names this explicitly as the "Myself subtree", and it consumes
+// the exact same authorized relationship projection ownershipTree does
+// (organization_relationships.go), never a second source of hierarchy truth.
+// personID's own Level is renumbered to 1 so it displays as the root of its
+// own subtree; a viewer with no visible reports simply gets one root node.
+func myselfOwnershipSubtree(view View, personID string) []OwnershipNodeProps {
+	node, ok := newOrganizationRelationshipIndex(view).findAndReroot(view, personID)
+	if !ok {
+		return nil
+	}
+	return []OwnershipNodeProps{node}
 }
 
 func viewerPerson(view View) (Person, bool) {

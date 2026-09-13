@@ -179,6 +179,83 @@ func TestTodo_PROMOUX_005_Integration(t *testing.T) {
 	}
 }
 
+// TestTodo_UXAUDIT_004_Integration is UXAUDIT-004's INTEGRATION contract,
+// reaching a real PostgreSQL database (via pgtest) rather than an in-memory
+// fixture. UXAUDIT-004's own presentation-layer adapter
+// (internal/humanwork/productui's organizationHopFacts) never queries this
+// reader directly -- it resolves each page's already-authorized View.People
+// -- but org.ResolveManagerRelationships is the SAME function both call, and
+// this test proves the production-backed org.WorkerFacts adapter that
+// function is built for (this reader, reading real journey_worker rows)
+// produces exactly the semantics productui's mapping is designed to be
+// compatible with: a genuine multi-hop chain resolves hop by hop, and a
+// manager reference that does not resolve to a real worker in this tenant --
+// including one that points at a real worker who exists ONLY in a different
+// tenant, so it is never a fabricated cross-tenant hop -- comes back as no
+// relationship at all (VACANT), never invented, exactly like
+// internal/humanwork/productui's own "manager not visible" placement expects
+// to receive from an honest reader.
+func TestTodo_UXAUDIT_004_Integration(t *testing.T) {
+	t.Parallel()
+	db := pgtest.New(t)
+	tenant := insertTenant(t, db, "uxaudit004-integration")
+	otherTenant := insertTenant(t, db, "uxaudit004-other-tenant")
+	conn := appConn(t, db)
+
+	ceo := newRow(tenant, "uxaudit004-ceo", "board:harborcare")
+	vp := newRow(tenant, "uxaudit004-vp", ceo.WorkerKey)
+	director := newRow(tenant, "uxaudit004-director", vp.WorkerKey)
+	elsewhere := newRow(otherTenant, "uxaudit004-elsewhere", "board:harborcare")
+	// orphan's manager reference names a real worker id -- just one that
+	// exists only in a different tenant, so this tenant's reader can never
+	// resolve it. That is exactly the "not visible to this viewer" case
+	// UXAUDIT-004's placement mapping must render as an honest, explained
+	// root rather than a fabricated hop.
+	orphan := newRow(tenant, "uxaudit004-orphan", elsewhere.WorkerID.String())
+
+	inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
+		for _, row := range []workforce.WorkerRow{ceo, vp, director, orphan} {
+			if _, err := (workforce.Store{}).Create(context.Background(), tx, row); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	inTenantTx(t, conn, otherTenant, func(tx dbport.Tx) error {
+		_, err := (workforce.Store{}).Create(context.Background(), tx, elsewhere)
+		return err
+	})
+
+	reader := orgfacts.NewReader(appConn(t, db), tenantMap(tenant))
+	asOf := values.NewInstant(fixedInstant.Add(24 * time.Hour))
+
+	directorResolution, err := org.ResolveManagerRelationships(context.Background(), reader, org.ManagerResolutionRequest{
+		Tenant: orgFactsTenant, Worker: workerRef(director), AsOf: asOf, MaxDepth: 5, Authorize: allowAll(),
+	})
+	if err != nil {
+		t.Fatalf("ResolveManagerRelationships(director): %v", err)
+	}
+	if directorResolution.Status != org.StatusResolved || len(directorResolution.Chain) != 2 {
+		t.Fatalf("director resolution = %+v, want a resolved two-hop chain over real rows", directorResolution)
+	}
+	if directorResolution.Direct == nil || directorResolution.Direct.Manager.Value != workerRef(vp) {
+		t.Fatalf("director's direct manager = %+v, want VP read back from PostgreSQL", directorResolution.Direct)
+	}
+	if directorResolution.Chain[1].Manager.Value != workerRef(ceo) {
+		t.Fatalf("director's chain = %+v, want the second hop to reach the CEO", directorResolution.Chain)
+	}
+
+	orphanResolution, err := org.ResolveManagerRelationships(context.Background(), reader, org.ManagerResolutionRequest{
+		Tenant: orgFactsTenant, Worker: workerRef(orphan), AsOf: asOf, MaxDepth: 5, Authorize: allowAll(),
+	})
+	if err != nil {
+		t.Fatalf("ResolveManagerRelationships(orphan): %v", err)
+	}
+	if orphanResolution.Status != org.StatusVacant || orphanResolution.Direct != nil {
+		t.Fatalf("orphan resolution = %+v, want VACANT with no fabricated hop across the tenant boundary", orphanResolution)
+	}
+}
+
 // TestReaderReportsExistenceAndAbsence proves the port's basic existence
 // contract against a real row: a seeded worker exists, an unknown id does
 // not, and a manager reference that resolves to no journey_worker row (a

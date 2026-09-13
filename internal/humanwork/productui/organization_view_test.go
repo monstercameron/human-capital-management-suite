@@ -30,31 +30,63 @@ func TestOrganizationViewCanSwitchBetweenFlatAndOwnershipTree(t *testing.T) {
 	}
 }
 
+// TestOrganizationReportingDisclosuresAndAmbiguousNames pre-dates UXAUDIT-004
+// and pinned the OLD defect: it required nesting by matching Person.Manager
+// display-name TEXT, so two people sharing a name ("Alex") made the manager
+// ambiguous and blocked nesting, and it required role="tree"/role="treeitem"
+// to be ABSENT -- exactly the missing-hierarchy-semantics defect the live UX
+// audit found. UXAUDIT-004 replaces name-matching with the authorized,
+// WorkerID-keyed org.ResolveManagerRelationships projection, so a shared
+// display name is no longer ambiguous at all (there was never a name lookup
+// to be ambiguous about), and the tree now IS a real WAI-ARIA tree. This
+// case is kept and rewritten, rather than deleted, because its worker-number
+// disclosure and "current viewer" assertions remain valid; see
+// TestTodo_UXAUDIT_004_Regression and TestTodo_UXAUDIT_004_Accessibility for
+// the fuller name-collision and ARIA-tree proofs.
 func TestOrganizationReportingDisclosuresAndAmbiguousNames(t *testing.T) {
+	alexW01 := Person{ID: "a", WorkerID: uxaudit004ID(101), Name: "Alex", WorkerNumber: "W01"}
+	alexW02 := Person{ID: "b", WorkerID: uxaudit004ID(102), Name: "Alex", WorkerNumber: "W02"}
+	chris := Person{ID: "c", WorkerID: uxaudit004ID(103), Name: "Chris", ManagerID: alexW02.WorkerID}
+	dana := Person{ID: "d", WorkerID: uxaudit004ID(104), Name: "Dana", ManagerID: chris.WorkerID}
+
 	view := testView(PageOrganization)
-	view.People = []Person{
-		{ID: "a", Name: "Alex", WorkerNumber: "W01"},
-		{ID: "b", Name: "Alex", WorkerNumber: "W02"},
-		{ID: "c", Name: "Chris", Manager: "Alex"},
-		{ID: "d", Name: "Dana", Manager: "Chris"},
-	}
+	view.Viewer.PersonID = chris.ID
+	view.People = []Person{alexW01, alexW02, chris, dana}
 	nodes := ownershipTree(view)
-	if len(nodes) != 3 || len(nodes[0].Reports) != 0 || len(nodes[1].Reports) != 0 || len(nodes[2].Reports) != 1 {
-		t.Fatalf("ambiguous manager must not receive an arbitrary report: %+v", nodes)
+	if len(nodes) != 2 {
+		t.Fatalf("expected exactly the two Alexes as roots (Chris and Dana both nest): %+v", nodes)
 	}
+	var chrisNode OwnershipNodeProps
+	for _, n := range nodes {
+		if n.ID == alexW02.ID {
+			if len(n.Reports) != 1 || n.Reports[0].ID != chris.ID {
+				t.Fatalf("Chris must nest under the specific Alex (W02) named by the authorized relationship, not be blocked by the shared name: %+v", n)
+			}
+			chrisNode = n.Reports[0]
+		} else if n.ID == alexW01.ID && len(n.Reports) != 0 {
+			t.Fatalf("the other Alex (W01), whom nobody reports to, must have no reports: %+v", n)
+		}
+	}
+	if len(chrisNode.Reports) != 1 || chrisNode.Reports[0].ID != dana.ID {
+		t.Fatalf("Dana must nest under Chris: %+v", chrisNode)
+	}
+
 	doc, err := Render(ApplyRequest(view, PageRequest{OrganizationView: "tree"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`class="ownership-reports"`, "Direct reports: 1", "W01", "W02", `aria-current="true"`} {
+	for _, want := range []string{
+		"Direct reports: 1", "W01", "W02", `aria-current="true"`,
+		// UXAUDIT-004 GREEN: the reporting-lines view is now a real WAI-ARIA
+		// tree, the opposite of this test's pre-fix expectation.
+		`role="tree"`, `role="treeitem"`,
+	} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("missing %q", want)
 		}
 	}
-	for _, absent := range []string{`role="tree"`, `role="treeitem"`, "Unavailable · Unavailable"} {
-		if strings.Contains(doc, absent) {
-			t.Errorf("invalid tree output %q", absent)
-		}
+	if strings.Contains(doc, "Unavailable · Unavailable") {
+		t.Errorf("invalid tree output %q", "Unavailable · Unavailable")
 	}
 }
 
@@ -76,26 +108,44 @@ func TestOrganizationCountLabelsFollowLocale(t *testing.T) {
 	}
 }
 
+// TestOwnershipTreeDoesNotDropCyclesOrOrphans pre-dates UXAUDIT-004, when a
+// "cycle" and an "orphan" were made of Person.Manager display-name text. It
+// is rewritten against the authorized, WorkerID-keyed relationship
+// projection: A and B name each other as their real manager (a genuine
+// reporting-line cycle, which organizationHopFacts' per-worker resolution
+// alone cannot see -- see breakOwnershipCycles), and C's manager id does not
+// belong to anyone in view.People. All three must still be rendered exactly
+// once, and neither the cycle nor the orphan may be silently nested.
 func TestOwnershipTreeDoesNotDropCyclesOrOrphans(t *testing.T) {
+	a := Person{ID: "a", WorkerID: uxaudit004ID(201), Name: "A", Team: "One"}
+	b := Person{ID: "b", WorkerID: uxaudit004ID(202), Name: "B", Team: "One"}
+	a.ManagerID, b.ManagerID = b.WorkerID, a.WorkerID
+	c := Person{ID: "c", WorkerID: uxaudit004ID(203), Name: "C", Team: "Two", ManagerID: uxaudit004ID(999)}
+
 	view := NewView(PageOrganization, "tenant", "principal", "manager")
-	view.People = []Person{
-		{ID: "a", Name: "A", Manager: "B", Team: "One"},
-		{ID: "b", Name: "B", Manager: "A", Team: "One"},
-		{ID: "c", Name: "C", Manager: "Missing", Team: "Two"},
-	}
+	view.People = []Person{a, b, c}
 	nodes := ownershipTree(view)
-	seen := map[string]bool{}
+
+	seen := map[string]OwnershipNodeProps{}
 	var walk func([]OwnershipNodeProps)
 	walk = func(values []OwnershipNodeProps) {
 		for _, value := range values {
-			seen[value.Name] = true
+			seen[value.Name] = value
 			walk(value.Reports)
 		}
 	}
 	walk(nodes)
 	for _, name := range []string{"A", "B", "C"} {
-		if !seen[name] {
+		node, ok := seen[name]
+		if !ok {
 			t.Errorf("worker %s was dropped", name)
+			continue
+		}
+		if node.Explanation == "" {
+			t.Errorf("worker %s could not be honestly nested and must carry an explanation: %+v", name, node)
+		}
+		if len(node.Reports) != 0 {
+			t.Errorf("worker %s is on a cycle or an orphan and must not gain reports: %+v", name, node)
 		}
 	}
 }

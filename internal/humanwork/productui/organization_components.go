@@ -1,6 +1,9 @@
 package productui
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -15,6 +18,7 @@ type OrganizationPageProps struct {
 	Metadata    BusinessMetadataProps
 	Groups      []OrganizationGroupProps
 	Tree        []OwnershipNodeProps
+	TreeLabel   string
 	Empty       EmptyStateProps
 }
 
@@ -45,12 +49,41 @@ type OrganizationGroupProps struct {
 
 // OwnershipNodeProps is the recursive, presentation-only reporting-line
 // contract. Every person has already passed the page's visibility boundary.
+// UXAUDIT-004: this is the ONE organization-node contract the flat
+// organization list, the organization tree, and the Myself subtree all
+// render through -- organizationPersonCard is their shared leaf renderer, and
+// every field here comes from the one authorized relationship projection
+// (see organization_relationships.go), never from a name match.
 type OwnershipNodeProps struct {
+	// ID is the person's public routing reference (Person.ID), used to find
+	// and re-root a subtree (Myself) and to compare against View.SelectedPerson.
+	ID                                         string
 	Name, Role, Team, Initials, PhotoURL, Href string
 	WorkerNumber, ReportsLabel                 string
 	Navigate                                   func(string)
 	Reports                                    []OwnershipNodeProps
 	Current                                    bool
+	// Level is the node's 1-based rendered tree depth. A root -- whether a
+	// genuine top of the organization or an explained root that could not be
+	// honestly nested -- is always 1; a nested node is always its parent's
+	// Level+1. aria-level is read directly from this field, so accessibility
+	// and visual nesting can never disagree.
+	Level int
+	// Selected mirrors View.SelectedPerson so flat and tree modes highlight
+	// the same node without duplicating the comparison in each renderer.
+	Selected bool
+	// Explanation is non-empty only when this node renders as a root that is
+	// NOT a genuine top of the organization: a withheld, not-visible,
+	// ambiguous, stale, cyclical, or otherwise undetermined manager
+	// relationship. It is never populated for a nested node, and never for a
+	// genuine no-manager root, which needs no explanation at all -- see
+	// UXAUDIT-004's "never invent or flatten hierarchy" clause.
+	Explanation string
+	// ManagerSummary is the localized "Reports to: <name>" line for a nested
+	// node. It exists so the flat, non-hierarchical list conveys the same
+	// manager relationship the tree conveys through nesting -- UXAUDIT-004's
+	// flat/tree parity clause -- without a second lookup.
+	ManagerSummary string
 }
 
 func OrganizationPage(props OrganizationPageProps) ui.Node {
@@ -64,7 +97,7 @@ func OrganizationPage(props OrganizationPageProps) ui.Node {
 	}
 	content := organizationFlat(props.Groups)
 	if props.TreeActive {
-		content = organizationTree(props.Tree)
+		content = organizationTree(props.Tree, props.TreeLabel)
 	}
 	body := html.Div(html.Props{Class: "org"},
 		html.Div(html.Props{Class: "organization-view-head"},
@@ -111,54 +144,103 @@ func organizationFlat(values []OrganizationGroupProps) ui.Node {
 	return html.Ul(html.Props{Class: "org-branches", Raw: map[string]any{"role": "list", "data-organization-view": "flat"}}, groups...)
 }
 
-func organizationTree(values []OwnershipNodeProps) ui.Node {
-	return ui.CreateElement(OrganizationOwnershipTree, OrganizationOwnershipTreeProps{Nodes: values})
+func organizationTree(values []OwnershipNodeProps, label string) ui.Node {
+	return ui.CreateElement(OrganizationOwnershipTree, OrganizationOwnershipTreeProps{Nodes: values, Label: label})
 }
 
 type OrganizationOwnershipTreeProps struct {
 	Nodes []OwnershipNodeProps
+	Label string
 }
 
-// OrganizationOwnershipTree is shared by the organization and self-service
-// pages so reporting semantics and accessibility cannot drift between them.
+// OrganizationOwnershipTree is shared by the organization page's tree view
+// and the Myself subtree so reporting semantics and accessibility cannot
+// drift between them (UXAUDIT-004 REFACTOR). It renders the real WAI-ARIA
+// tree structure the live audit found missing: role="tree" on the container,
+// role="treeitem" on every node, aria-level tied to OwnershipNodeProps.Level
+// (which is itself tied to the authorized relationship projection's depth,
+// not a hardcoded number), role="group" wrapping each child set, and
+// aria-expanded present only on a node that actually has children.
 func OrganizationOwnershipTree(props OrganizationOwnershipTreeProps) ui.Node {
 	nodes := make([]ui.Node, 0, len(props.Nodes))
 	for _, value := range props.Nodes {
-		nodes = append(nodes, ownershipNode(value))
+		nodes = append(nodes, ui.CreateElement(organizationTreeItem, value))
 	}
-	return html.Ul(html.Props{Class: "ownership-tree", Raw: map[string]any{"role": "list", "data-organization-view": "tree"}}, nodes...)
+	treeProps := html.Props{Class: "ownership-tree", Raw: map[string]any{"role": "tree", "data-organization-view": "tree"}}
+	if props.Label != "" {
+		treeProps.Aria = map[string]string{"label": props.Label}
+	}
+	return html.Ul(treeProps, nodes...)
 }
 
-func ownershipNode(props OwnershipNodeProps) ui.Node {
-	children := make([]ui.Node, 0, len(props.Reports))
-	for _, report := range props.Reports {
-		children = append(children, ownershipNode(report))
+// organizationTreeItem renders one treeitem. Expand/collapse is real,
+// client-interactive state (ui.UseState, the same idiom NavigationDrawerScope
+// and the global search popover already use), defaulting to expanded so a
+// server-rendered document exposes every level without a click -- what the
+// PRIMARY, ACCESSIBILITY and PROPERTY tests parse.
+func organizationTreeItem(props OwnershipNodeProps) ui.Node {
+	expanded := ui.UseState(true)
+	hasChildren := len(props.Reports) > 0
+	aria := map[string]string{"level": strconv.Itoa(props.Level), "selected": fmt.Sprint(props.Selected)}
+	if hasChildren {
+		aria["expanded"] = fmt.Sprint(expanded.Get())
 	}
-	card := organizationPersonCard(props)
-	branch := []ui.Node{card}
-	if len(children) > 0 {
-		label := props.ReportsLabel
-		if label == "" {
-			label = organizationCountLabel(View{}, "organization.reports_count", len(children))
-		}
-		branch = append(branch, html.Details(html.Props{Class: "ownership-reports"},
-			html.Summary(html.Props{}, ui.Text(label)),
-			html.Ul(html.Props{Raw: map[string]any{"role": "list"}}, children...),
+	content := []ui.Node{organizationPersonCard(props)}
+	if hasChildren {
+		// The visible label IS the accessible name (WCAG 2.5.3 Label in
+		// Name): the button reads "Direct reports: N" either way, and
+		// aria-expanded on the enclosing treeitem carries the open/closed
+		// state, so there is no separate "Collapse/Expand" phrase to drift
+		// out of sync with what a sighted user actually sees.
+		content = append(content, html.Button(html.Props{
+			Type: "button", Class: "ownership-toggle",
+			OnClick: ui.UseEvent(func(ui.MouseEvent) { expanded.Set(!expanded.Get()) }),
+		},
+			html.Span(html.Props{Aria: map[string]string{"hidden": "true"}}, ui.Text(organizationToggleGlyph(expanded.Get()))),
+			ui.Text(props.ReportsLabel),
 		))
+		children := make([]ui.Node, 0, len(props.Reports))
+		for _, report := range props.Reports {
+			children = append(children, ui.CreateElement(organizationTreeItem, report))
+		}
+		groupProps := html.Props{Raw: map[string]any{"role": "group"}}
+		if !expanded.Get() {
+			groupProps.Hidden = true
+		}
+		content = append(content, html.Ul(groupProps, children...))
 	}
-	return html.Li(html.Props{}, branch...)
+	return html.Li(html.Props{Raw: map[string]any{"role": "treeitem"}, Aria: aria}, content...)
 }
 
+func organizationToggleGlyph(expanded bool) string {
+	if expanded {
+		return "⌄"
+	}
+	return "›"
+}
+
+// organizationPersonCard is the single organization-node leaf renderer:
+// UXAUDIT-004's flat organization list, organization tree, and Myself
+// subtree all render every person through this one function.
 func organizationPersonCard(props OwnershipNodeProps) ui.Node {
 	class := "ownership-card"
 	if props.Current {
 		class += " current-person"
+	}
+	if props.Selected {
+		class += " selected"
 	}
 	metadata := []ui.Node{html.Strong(html.Props{}, ui.Text(props.Name))}
 	for _, value := range []string{props.WorkerNumber, props.Role, props.Team} {
 		if value != "" {
 			metadata = append(metadata, html.Small(html.Props{}, ui.Text(value)))
 		}
+	}
+	if props.ManagerSummary != "" {
+		metadata = append(metadata, html.Small(html.Props{Class: "ownership-manager-summary"}, ui.Text(props.ManagerSummary)))
+	}
+	if props.Explanation != "" {
+		metadata = append(metadata, html.Small(html.Props{Class: "ownership-explanation", Raw: map[string]any{"role": "note"}}, ui.Text(props.Explanation)))
 	}
 	children := []ui.Node{
 		personAvatar(props.Name, props.Initials, props.PhotoURL, "small"),
@@ -167,6 +249,12 @@ func organizationPersonCard(props OwnershipNodeProps) ui.Node {
 	linkProps := html.Props{Class: class}
 	if props.Current {
 		linkProps.Raw = map[string]any{"aria-current": "true"}
+	}
+	if props.Selected {
+		if linkProps.Data == nil {
+			linkProps.Data = map[string]string{}
+		}
+		linkProps.Data["selected"] = "true"
 	}
 	if props.Href == "" {
 		return html.Div(linkProps, children...)

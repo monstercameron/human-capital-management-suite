@@ -854,6 +854,12 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 	people := make([]productui.Person, 0, len(workers))
 	var failures []error
 	namesByRef := make(map[string]string, len(workers)*2)
+	// workerIDByRef resolves EITHER form of a manager reference this wire
+	// format can carry (the public WorkerRef or the raw WorkerId) to the raw
+	// WorkerId, so productui's UXAUDIT-004 relationship resolver -- which
+	// needs the canonical worker identity, not the display-oriented public
+	// reference -- can look up a worker's manager by id rather than by name.
+	workerIDByRef := make(map[string]string, len(workers)*2)
 	for _, worker := range workers {
 		if worker == nil {
 			continue
@@ -861,6 +867,8 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 		name := workerDisplayName(worker)
 		namesByRef[worker.GetWorkerRef()] = name
 		namesByRef[worker.GetWorkerId()] = name
+		workerIDByRef[worker.GetWorkerRef()] = worker.GetWorkerId()
+		workerIDByRef[worker.GetWorkerId()] = worker.GetWorkerId()
 	}
 	for _, worker := range workers {
 		if worker == nil {
@@ -885,7 +893,7 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 		people = append(people, productui.Person{
 			ID: worker.GetWorkerRef(), WorkerID: worker.GetWorkerId(), Initials: uicomponents.Initials(name), PhotoURL: photoURL, Name: name,
 			LegalName: worker.GetLegalName(), PreferredName: worker.GetPreferredName(), Role: role,
-			Team: orgUnitLabel(worker.GetOrgUnit()), Manager: managerLabel(worker.GetManagerRef(), namesByRef), Location: worker.GetLocation(), WorkerNumber: worker.GetWorkerNumber(),
+			Team: orgUnitLabel(worker.GetOrgUnit()), Manager: managerLabel(worker.GetManagerRef(), namesByRef), ManagerID: workerIDByRef[worker.GetManagerRef()], Location: worker.GetLocation(), WorkerNumber: worker.GetWorkerNumber(),
 			JobCode: worker.GetJobCode(), Grade: worker.GetGrade(), PositionID: worker.GetPositionId(),
 			PayZone: worker.GetPayZone(), BasePay: basePay,
 			BonusTarget: worker.GetBonusTarget(), HireDate: worker.GetHireDate(), Source: worker.GetSource(),

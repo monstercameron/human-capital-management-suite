@@ -13,6 +13,7 @@ type MyselfPageProps struct {
 	OrganizationTitle       string
 	OrganizationDescription string
 	OrganizationTree        []OwnershipNodeProps
+	OrganizationTreeLabel   string
 }
 
 // MyselfPage is read-only by construction. Every available change is exposed
@@ -31,7 +32,7 @@ func MyselfPage(props MyselfPageProps) ui.Node {
 		ui.CreateElement(PersonProfileComposition, PersonProfileCompositionProps{I18nProps: props.I18nProps, Profile: *props.Profile}),
 		ui.CreateElement(Panel, PanelProps{Title: props.OrganizationTitle, Body: html.Div(html.Props{Class: "myself-organization"},
 			html.P(html.Props{Class: "muted"}, ui.Text(props.OrganizationDescription)),
-			ui.CreateElement(OrganizationOwnershipTree, OrganizationOwnershipTreeProps{Nodes: props.OrganizationTree}),
+			ui.CreateElement(OrganizationOwnershipTree, OrganizationOwnershipTreeProps{Nodes: props.OrganizationTree, Label: props.OrganizationTreeLabel}),
 		)}),
 	)
 }
