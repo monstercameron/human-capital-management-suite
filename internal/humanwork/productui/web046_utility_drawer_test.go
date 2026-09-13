@@ -28,11 +28,15 @@ func TestTodo_WEB_046(t *testing.T) {
 		t.Fatalf("history parent label = %q, want registry My Work", related.Items[0].Label)
 	}
 
+	// UXAUDIT-011 removed Studio and the ten other unbuilt admin fallback
+	// surfaces from navigation, so Roles now has only three real siblings
+	// (Worker IDs, Organization visibility, Brand & appearance) plus the
+	// Admin parent.
 	roles := ApplyRoleVisibility(testView(PageRoles), []string{RoleHCMAdmin})
 	adminSections := utilityDrawerSections(roles)
 	adminRelated := findDrawerSection(adminSections, "related")
-	if adminRelated == nil || len(adminRelated.Items) != 16 {
-		t.Fatalf("roles drawer related = %#v, want Admin parent plus 15 siblings", adminSections)
+	if adminRelated == nil || len(adminRelated.Items) != 4 {
+		t.Fatalf("roles drawer related = %#v, want Admin parent plus 3 siblings", adminSections)
 	}
 	if adminRelated.Items[0].Href != "/workspace/app/admin" {
 		t.Fatalf("roles drawer first item = %#v, want Admin parent first", adminRelated.Items[0])
@@ -80,7 +84,12 @@ func TestTodo_WEB_046_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(node))
 	got := hex.EncodeToString(digest[:])
-	const want = "ba1850c103b8dcbdc5d946b54e52c4bde43f386ea2885b0f9e4cfc551b61a9ab"
+	// UXAUDIT-011 removed Studio and the ten other unbuilt admin fallback
+	// surfaces from navigation, shrinking the roles page's "Related pages"
+	// section from 16 items to 4 (Admin, Worker IDs, Organization
+	// visibility, Brand & appearance); re-pinned after inspecting the
+	// rendered markup to confirm no stub page or unresolved key leaked in.
+	const want = "839931ca302d751188921f9db7a74b8509dbb43ff0c6e505fb13d3a2c86c57a4"
 	if got != want {
 		t.Fatalf("utility drawer golden digest = %s, want %s", got, want)
 	}
@@ -120,8 +129,8 @@ func TestTodo_WEB_046_Browser(t *testing.T) {
 			t.Fatalf("drawer link leaves the page registry: %q", xhtmlAttr(link, "href"))
 		}
 	}
-	if len(collectElements(dialog, "a")) != 16 {
-		t.Fatalf("drawer links = %d, want 16 related and no actions on roles page", len(collectElements(dialog, "a")))
+	if len(collectElements(dialog, "a")) != 4 {
+		t.Fatalf("drawer links = %d, want 4 related and no actions on roles page", len(collectElements(dialog, "a")))
 	}
 
 	homeDoc, err := Render(testView(PageHome))
