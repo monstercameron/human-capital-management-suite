@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 6a1774281e572a9ce3a2e136f7a8374dd5efef5423639646f5a27b34b8d161b4
-- Package count: 801
-- Within-module edge count: 1861
+- Source graph: b860352b12e398c7f5e1e50f55ea76e486d4bd462bab68a526f3dc51da086385
+- Package count: 805
+- Within-module edge count: 1888
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -735,7 +735,10 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/atomicity`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/authoritygate`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/boundarytests`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/closurewitness`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/closurewitness`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/featurecoverage`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/p1aselection`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/pilotblueprint`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/pilotcommercial`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/pilotjurisdiction`
@@ -763,6 +766,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/evidence`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/federalbaseline`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/gateevidence`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/gateevidence/selectionbind`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/iac`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/intentcoverage`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/intentcoverage/cmd/intentcoverage`
@@ -956,4 +960,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`a71e0811a3941259af5e67035d8a1df1a7b0ab61a2eb6f96d7fc957d881986b4`
+`f69ba0bb8c6a249990b400fb3e397a6852e83cdb7c109db71e278a80af80858b`

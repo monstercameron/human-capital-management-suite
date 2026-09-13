@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-13 (NEXT-002, SLICE-016)
+
+- The P1A manifest is now bound to the selections it was always supposed to
+  rest on. It pins the scope ceiling, jurisdiction profile, provider
+  topology, pilot blueprint, topology, commercial package and threat
+  register by path and digest, and a changed artifact makes the binding
+  stale. Whether the selections are complete is computed from each
+  artifact's own gate. Today the answer is incomplete, with named reasons:
+  placeholder provider, unreviewed jurisdiction, no topology decision, no
+  design partner, no SLO, and THR-07 blocking release.
+
+- The P1B template is signed separately, names only the six candidate
+  contracts, and cannot activate without Gate A plus a new authority digest.
+  `internal/commercial.P1AManifestDigest` had drifted from the live manifest;
+  it is now checked by a test. The manifest was also missing migrations
+  00284–00288, which had been failing its checksum test.
+
+- Each source-bound definition now has one generated closure witness
+  tracing it from source through slice, model, engine, capability, handler,
+  endpoint, scenario, test, todo and evidence. None of the 14 closes today,
+  and there are 61 orphan edges. The witness also found that UX-009 was
+  closed naming a primary test that was never written.
+
 ## 2026-09-13 (THREAT-001, CUSTOMER-001, COMMERCIAL-001)
 
 - The Phase 1 threat register blocks release today, and that is its point.

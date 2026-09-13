@@ -2,22 +2,32 @@
 # P1B template names only the six candidate write/approval contracts").
 #
 # Schema: tools/planning/gateevidence.P1BTemplate. This document names the
-# six P1B candidate contracts and nothing else - it carries no signature
-# over an executable authority, and P1BTemplate.CanActivate() is
-# structurally false until both gate_a_decision is "PROCEED" and
-# authority_digest is non-empty, neither of which this package ever sets.
-# See next-steps.md "P1B - one bounded authority amendment": "P1B exists
-# only after a signed Gate A PROCEED."
+# six P1B candidate contracts and nothing else. P1BTemplate.Validate requires
+# exactly next-steps.md's six contracts in order, each BLOCKED_PENDING_GATE_A,
+# and P1BTemplate.ActivationBlockers is non-empty until gate_a_decision is
+# "PROCEED" AND authority_digest is a NEW 64-hex authority digest (not the
+# P1A manifest digest re-presented as authority). Neither is ever set in a
+# checked-in template. See next-steps.md "P1B - one bounded authority
+# amendment": "P1B exists only after a signed Gate A PROCEED."
 #
-# Disjointness from definitions/planning/gates/p1a-manifest.yaml is checked
-# by TestP1AAndP1BManifestsAreDisjointOrderedBoundedAndSelectionComplete:
-# `promote_worker` appears in both documents, but P1A only ever grants its
-# DRAFT/PREFLIGHT/SIMULATE modes while this document's promote_worker entry
-# is EXECUTE-only - the (id, mode) tuples never overlap. The other five
-# contracts here do not appear in the P1A manifest at all.
+# p1a_manifest binds the exact signed P1A manifest this amendment follows by
+# CanonicalDigest; the P1A manifest in turn binds every selection. A change
+# to P1A or to any selection it binds therefore stales this template
+# (gateevidence.CheckDisjoint and selectionbind.EvaluateP1B report it).
+#
+# Disjointness: `promote_worker` appears in both documents, but P1A only ever
+# grants its DRAFT/PREFLIGHT/SIMULATE modes while this document's
+# promote_worker entry is EXECUTE-only - the (id, mode) tuples never overlap.
+# The other five contracts do not appear in the P1A manifest at all.
+#
+# CanonicalDigest hashes every field except `signature`; this template is
+# signed separately from the P1A manifest.
 schema_version: 1
 release: P1B
 todo_id: NEXT-002
+p1a_manifest:
+  path: definitions/planning/gates/p1a-manifest.yaml
+  digest: "e9d7ffe66f019dc8ea8b4252303cde9dfc6b22cf705a8de5c6a024d1fbcd34dc"
 requires_gate_a_decision: true
 gate_a_decision: ""
 authority_digest: ""
@@ -42,3 +52,9 @@ contracts:
   - order: 6
     id: reject_proposal
     activation_status: BLOCKED_PENDING_GATE_A
+
+signature:
+  algorithm: ed25519
+  public_key: 93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b
+  key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml
+  value: "21fb24e7021ca674a76ece11993353fc036b6b6052a16dec41194411bdf2a34cf7b94b3b561aa626f27005bff3cfc9632f27e38577866dfebd100784a342020b"
