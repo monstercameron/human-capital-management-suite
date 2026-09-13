@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-13 (PROMOUX-012)
+
+- Each journey now carries the viewer's own relationship to it, resolved on
+  the server: initiator, assignee or candidate, and whether the next step is
+  theirs to act on. Every page reads that one answer, and the two status
+  vocabularies that disagreed are now one.
+
+- My Work lists only work you must act on, and its count and notification
+  badge match. Future-date waits no longer count as needing attention. A
+  new Tracked requests tab holds the promotions you started, marked "No
+  action needed from you" when the next step is someone else's. Awaiting
+  approval now includes manager and finance approvals.
+
+- The Person page shows active workflows with Resume or Open links. The
+  utility drawer no longer offers to start a second promotion while one is
+  open.
+
 ## 2026-09-13 (UXAUDIT-017, CLOSE-002, DATA-022)
 
 - My Work is now an action queue and Journeys a lifecycle tracker. Journey

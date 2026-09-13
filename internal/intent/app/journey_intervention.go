@@ -381,6 +381,8 @@ func (e *journeyEngine) RequestIntervention(
 	if sumErr != nil {
 		return workspace.JourneyInterventionResult{}, sumErr
 	}
+	summary.Viewer = journeyViewerProjection(summary.Stage,
+		isJourneyInitiator(cancelled.GetIntent().GetInitiator().GetPrincipalId(), principal.Subject()), nil)
 	decisions := cancelled.GetIntent().GetCancellationDecisions()
 	var outcome workspace.JourneyInterventionOutcome
 	var evidenceRef string

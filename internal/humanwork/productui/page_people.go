@@ -196,8 +196,11 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 // have to re-derive which workflow the reason belongs to.
 func personWorkflowActions(view View, person Person, workflows []PersonWorkflow) (actions []PeopleQuickActionProps, reason string, reasonWorkflow string) {
 	actions = make([]PeopleQuickActionProps, 0, len(workflows))
+	// PROMOUX-012: an open journey in view guards Start even when the
+	// availability verdict disagrees, the same rule the profile applies.
+	_, hasActiveJourney := activePromotionWorkItem(view, person.ID)
 	for _, workflow := range workflows {
-		if workflow.ID == "promotion" && person.PromotionAvailability == PromotionActiveConflict {
+		if workflow.ID == "promotion" && (person.PromotionAvailability == PromotionActiveConflict || hasActiveJourney) {
 			// PROMOUX-002 GREEN #3: a conflicting worker never loses the
 			// action entirely -- Start is replaced with a link to the
 			// journey already blocking a new one, so continuity survives
@@ -210,7 +213,7 @@ func personWorkflowActions(view View, person Person, workflows []PersonWorkflow)
 				})
 				continue
 			}
-			reason, reasonWorkflow = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability), workflow.Name
+			reason, reasonWorkflow = PromotionAvailabilityReason(view.Locale, PromotionActiveConflict), workflow.Name
 			continue
 		}
 		if workflow.ID == "promotion" && !personPromotionEligible(person) {

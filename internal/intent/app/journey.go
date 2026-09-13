@@ -198,10 +198,13 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 			// row the page must still be able to show, so it is listed at its
 			// stored identity with no derived placement rather than failing
 			// the whole list.
-			out = append(out, workspace.JourneySummary{
+			unreadable := workspace.JourneySummary{
 				IntentID: msg.GetIntentId(), CorrelationID: msg.GetCorrelationId(),
 				Stage: workspace.JourneyStageBlocked,
-			})
+			}
+			unreadable.Viewer = journeyViewerProjection(unreadable.Stage,
+				isJourneyInitiator(msg.GetInitiator().GetPrincipalId(), principal.Subject()), nil)
+			out = append(out, unreadable)
 			continue
 		}
 		materialDigest, record, executed, recErr := e.readExecutedRecordForIntent(ctx, tx, principal, summary.IntentID)
@@ -227,6 +230,10 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 		}
 		applyDurableJourneyTime(&summary, record)
 		summary.CurrentWorkItem = journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), now, assigneeName)
+		// PROMOUX-012: the viewer's relationship and the next transition, from
+		// the stored initiator and the membership just disclosed above.
+		summary.Viewer = journeyViewerProjection(summary.Stage,
+			isJourneyInitiator(msg.GetInitiator().GetPrincipalId(), principal.Subject()), summary.CurrentWorkItem)
 		out = append(out, summary)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -426,6 +433,8 @@ func (e *journeyEngine) Propose(ctx context.Context, in workspace.ProposalInput)
 	if summary.ProposalRevisionID == "" {
 		summary.Stage = workspace.JourneyStageBlocked
 	}
+	summary.Viewer = journeyViewerProjection(summary.Stage,
+		isJourneyInitiator(created.GetIntent().GetInitiator().GetPrincipalId(), principal.Subject()), nil)
 	return summary, nil
 }
 

@@ -21,6 +21,10 @@ type WorkCollectionProps struct {
 	Tabs       []WorkTabProps
 	Rows       []WorkRowProps
 	Footer     WorkCollectionFooterProps
+	// EmptyTitle and EmptyDetail are the localized empty state for the
+	// current view; empty falls back to the action-queue copy.
+	EmptyTitle  string
+	EmptyDetail string
 }
 
 type WorkTabProps struct {
@@ -55,6 +59,9 @@ type WorkRowProps struct {
 	Assignment string
 	WorkDue    string
 	NextAction string
+	// Tracking ("No action needed from you") marks a tracked request whose
+	// next step belongs to someone else or the workflow (PROMOUX-012).
+	Tracking string
 	// Disposition is PROMOUX-003's approval verdict for this item, already
 	// localized by approvalDispositionCardProps. Show is false when the item
 	// carries no disposition (not an approval, or none was resolved), and
@@ -154,9 +161,13 @@ func WorkCollection(props WorkCollectionProps) ui.Node {
 		rows = append(rows, ui.CreateElement(WorkRow, item))
 	}
 	if len(rows) == 0 {
+		title, detail := props.EmptyTitle, props.EmptyDetail
+		if title == "" {
+			title, detail = props.Text("work.empty_title"), props.Text("work.empty_detail")
+		}
 		rows = append(rows, html.Li(html.Props{Class: "collection-empty"},
-			html.Strong(html.Props{}, ui.Text(props.Text("work.empty_title"))),
-			html.Small(html.Props{}, ui.Text(props.Text("work.empty_detail"))),
+			html.Strong(html.Props{}, ui.Text(title)),
+			html.Small(html.Props{}, ui.Text(detail)),
 		))
 	}
 	foot := []ui.Node{html.Span(html.Props{}, ui.Text(props.Footer.Label))}
@@ -209,6 +220,9 @@ func WorkRow(props WorkRowProps) ui.Node {
 	// one exists, so a row never states whose turn it is twice.
 	if props.NextAction != "" {
 		main = append(main, html.Small(html.Props{Class: "row-next-action"}, ui.Text(props.NextAction)))
+	}
+	if props.Tracking != "" {
+		main = append(main, html.Small(html.Props{Class: "row-tracking"}, ui.Text(props.Tracking)))
 	}
 	if props.NextStep != "" {
 		main = append(main, html.Small(html.Props{Class: "row-next-step"}, ui.Text(props.NextStep)))

@@ -220,12 +220,20 @@ type WorkItem struct {
 	// viewer may see, WorkDue (YYYY-MM-DD) for the item's real deadline,
 	// ViewerMembership (NONE, CANDIDATE, ASSIGNEE, CLAIMANT) and the viewer's
 	// PermittedActions tokens.
-	WorkSummary      bool
-	AssigneeRef      string
-	AssigneeName     string
-	WorkDue          string
-	ViewerMembership string
-	PermittedActions []string
+	WorkSummary bool
+	// ViewerRelationships (INITIATOR, ASSIGNEE, CANDIDATE) and
+	// ViewerResponsibility (ACTION_REQUIRED, TRACKING, OBSERVING, CLOSED) are
+	// the server's PROMOUX-012 viewer projection. Empty responsibility means
+	// the server resolved none, which is never actionable. My Work, tracked
+	// requests, the attention counts and the person profile all read these,
+	// never re-derive them from Status.
+	ViewerRelationships  []string
+	ViewerResponsibility string
+	AssigneeRef          string
+	AssigneeName         string
+	WorkDue              string
+	ViewerMembership     string
+	PermittedActions     []string
 	// StatusProjection is supplied by the authorized service adapter when
 	// available. The page never treats it as action authority.
 	StatusProjection StatusProjection

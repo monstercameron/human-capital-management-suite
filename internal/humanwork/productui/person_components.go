@@ -30,7 +30,10 @@ type PersonProfileProps struct {
 	Compensation EmploymentDetailsProps
 	Personal     SensitiveDetailsProps
 	Workflows    WorkflowLauncherProps
-	History      WorkflowHistoryProps
+	// Active is PROMOUX-012's in-progress workflows for this worker, shown
+	// beside History (the past ones) on the person route.
+	Active  PersonActiveWorkflowsProps
+	History WorkflowHistoryProps
 }
 
 // PersonProfileCompositionProps keeps the shared profile layout independent
@@ -145,6 +148,7 @@ func PersonProfileComposition(props PersonProfileCompositionProps) ui.Node {
 	profile.Personal.I18nProps = props.I18nProps
 	profile.Workflows.I18nProps = props.I18nProps
 	profile.History.I18nProps = props.I18nProps
+	profile.Active.I18nProps = props.I18nProps
 	return html.Div(html.Props{Class: "person-profile-composition"},
 		ui.CreateElement(PersonProfileHeader, profile.Hero),
 		html.Div(html.Props{Class: "person-layout"},
@@ -156,6 +160,7 @@ func PersonProfileComposition(props PersonProfileCompositionProps) ui.Node {
 			),
 			ui.CreateElement(WorkflowLauncher, profile.Workflows),
 		),
+		ui.CreateElement(PersonActiveWorkflows, profile.Active),
 		ui.CreateElement(WorkflowHistory, profile.History),
 	)
 }

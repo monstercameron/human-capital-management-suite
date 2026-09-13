@@ -20,10 +20,15 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 		// Naomi, then Adrian's completed history, then Samuel, then
 		// Adrian's currently open journey. A flat render of this order
 		// would interleave Adrian's two journeys around Samuel's.
-		{IntentId: "int-naomi", WorkerRef: "worker-naomi", WorkerName: "Naomi Chen", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL},
-		{IntentId: "int-adrian-done", WorkerRef: "worker-adrian", WorkerName: "Adrian Fox", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED},
-		{IntentId: "int-samuel", WorkerRef: "worker-samuel", WorkerName: "Samuel Ortiz", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL},
-		{IntentId: "int-adrian-open", WorkerRef: "worker-adrian", WorkerName: "Adrian Fox", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED},
+		// Each carries the server's PROMOUX-012 projection for its stage.
+		{IntentId: "int-naomi", WorkerRef: "worker-naomi", WorkerName: "Naomi Chen", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL,
+			Viewer: &journeyv1.JourneyViewerProjection{NextStep: journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_APPROVAL_DECISION, NextStepOwner: journeyv1.JourneyStepOwner_JOURNEY_STEP_OWNER_APPROVER, AwaitsPerson: true}},
+		{IntentId: "int-adrian-done", WorkerRef: "worker-adrian", WorkerName: "Adrian Fox", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED,
+			Viewer: &journeyv1.JourneyViewerProjection{Closed: true}},
+		{IntentId: "int-samuel", WorkerRef: "worker-samuel", WorkerName: "Samuel Ortiz", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL,
+			Viewer: &journeyv1.JourneyViewerProjection{NextStep: journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_MANAGER_DECISION, NextStepOwner: journeyv1.JourneyStepOwner_JOURNEY_STEP_OWNER_MANAGER, AwaitsPerson: true}},
+		{IntentId: "int-adrian-open", WorkerRef: "worker-adrian", WorkerName: "Adrian Fox", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED,
+			Viewer: &journeyv1.JourneyViewerProjection{NextStep: journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_CORRECT_PROPOSAL, NextStepOwner: journeyv1.JourneyStepOwner_JOURNEY_STEP_OWNER_PROPOSER, AwaitsPerson: true}},
 	}
 
 	page := ListPage(testConfig(), ListData{Journeys: journeys}, nil, nil)
@@ -143,7 +148,7 @@ func TestTodo_UXAUDIT_017_Regression(t *testing.T) {
 				if journeySubjectKey(grouped[i-1]) != journeySubjectKey(grouped[i]) {
 					continue
 				}
-				if journeyOpenRank(grouped[i-1].Stage) > journeyOpenRank(grouped[i].Stage) {
+				if journeyOpenRank(grouped[i-1]) > journeyOpenRank(grouped[i]) {
 					t.Fatalf("terminal journey sorted ahead of an open one within the same subject at position %d: %+v", i, grouped[i-1:i+1])
 				}
 			}
@@ -170,6 +175,7 @@ func syntheticJourneyCards(subjectCount, journeysPerSubject int) []journey.Journ
 				IntentID:  "synthetic-" + string(rune('A'+s)) + "-" + string(rune('0'+j)),
 				WorkerRef: "worker-" + string(rune('A'+s)),
 				Stage:     stage,
+				Closed:    stage == stageCompleted,
 			})
 		}
 	}

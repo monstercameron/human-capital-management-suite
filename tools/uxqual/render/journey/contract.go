@@ -276,7 +276,10 @@ type JourneyCard struct {
 	// (UXAUDIT-017's shared status dimension, journeyclient.NextStepLabel).
 	// Empty for a terminal or unknown stage, which renders no next-step line.
 	NextStep string
-	Updated  string
+	// Closed is the server's lifecycle closure for this journey (PROMOUX-012):
+	// the one open/closed dimension every surface shares.
+	Closed  bool
+	Updated string
 	// InstanceID is empty before execution.
 	InstanceID string
 	// DiagnosticsAuthorized is PROMOUX-008's authorized-diagnostics verdict

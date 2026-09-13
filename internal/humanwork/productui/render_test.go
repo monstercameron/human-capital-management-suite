@@ -227,7 +227,7 @@ func TestMyWorkKeepsTerminalJourneysInHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Open work", "Jordan Lee", "Past workflows", "Nothing selected"} {
+	for _, want := range []string{"Needs your action", "Jordan Lee", "Past workflows", "Nothing selected"} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("open-work projection missing %q", want)
 		}
@@ -235,7 +235,7 @@ func TestMyWorkKeepsTerminalJourneysInHistory(t *testing.T) {
 	if strings.Contains(doc, "Avery Patel") {
 		t.Fatal("terminal journey leaked into the open My Work collection")
 	}
-	if !strings.Contains(doc, `aria-label="Work overview, 1 promotion journey is visible in this scope."`) {
+	if !strings.Contains(doc, `aria-label="Work overview, 1 promotion item needs your action."`) {
 		t.Fatal("work overview announced the total history instead of the open-work count")
 	}
 }

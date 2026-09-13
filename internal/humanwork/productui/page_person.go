@@ -99,6 +99,7 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 			Facts: personal,
 		},
 		Workflows: personWorkflowLauncherProps(view, person, target),
+		Active:    personActiveWorkflowsProps(view, person, target),
 		History: workflowHistoryPropsForTarget(view, person.ID, target, text("work.past"),
 			text("person.history_detail", map[string]string{"name": person.Name}), true),
 	}
@@ -110,16 +111,20 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 		filtered = nil
 	}
 	workflows := make([]WorkflowCardProps, 0, len(filtered))
+	// PROMOUX-012: an open journey the view already holds for this worker
+	// suppresses Start even when the availability verdict disagrees, so the
+	// profile can never list an active promotion beside a duplicate start.
+	activeItem, hasActiveJourney := activePromotionWorkItem(view, person.ID)
 	for _, workflow := range filtered {
-		if workflow.ID == "promotion" && person.PromotionAvailability == PromotionActiveConflict {
+		if workflow.ID == "promotion" && (person.PromotionAvailability == PromotionActiveConflict || hasActiveJourney) {
 			// PROMOUX-002 GREEN #3: Start becomes a link to the journey
 			// already in flight, exactly as the People row does, instead of
 			// disappearing with only a reason left behind.
-			if item, ok := activePromotionWorkItem(view, person.ID); ok {
+			if hasActiveJourney {
 				workflows = append(workflows, WorkflowCardProps{
 					Name: view.Locale.Text("people.open_active_promotion"), Category: workflow.Category,
 					Description: PromotionAvailabilityReason(view.Locale, PromotionActiveConflict),
-					Href:        JourneyDetailHref(view, item.ID), Navigate: view.Navigate,
+					Href:        JourneyDetailHref(view, activeItem.ID), Navigate: view.Navigate,
 				})
 			}
 			continue
@@ -167,12 +172,11 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 	// through the productclient projection that would otherwise have baked
 	// the same authorization into the code.
 	authorized := len(view.EffectivePermissions) == 0 || view.Can(PageJourneys, "create")
-	_, hasActiveJourney := activePromotionWorkItem(view, person.ID)
 	unavailableDetail := ""
 	switch {
 	case !authorized:
 		unavailableDetail = PromotionAvailabilityReason(view.Locale, PromotionWithheld)
-	case person.PromotionAvailability == PromotionActiveConflict && hasActiveJourney:
+	case hasActiveJourney:
 		// The "Open active promotion" card above already carries continuity;
 		// this is not also an empty-menu fallback.
 	case !personPromotionEligible(person):

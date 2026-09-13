@@ -133,7 +133,14 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// rendered document against the pre-change output directly (aria-label/
 	// aria-labelledby values, landmark counts, and every other attribute
 	// are byte-identical) before re-pinning.
-	const want = "951a06ce729f18e4c21fb073bf0a491fd5a4e35af1759319141bd86abe79e54d"
+	// PROMOUX-012 re-pins: the notification summary now counts only work
+	// the viewer must act on and says so ("N promotion items need your
+	// action.") instead of "N promotion journeys are visible in this
+	// scope.", and the My Work subtitle no longer says every journey needs
+	// attention. Verified before re-pinning by substituting exactly those
+	// two old strings back into the new document, which reproduced the
+	// previous digest byte for byte.
+	const want = "e7a704642cc2affb75c8c9209529255cf548772138148a6025a97972dc16046d"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

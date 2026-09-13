@@ -8,6 +8,7 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 )
 
 func TestOpenWorkCountExcludesTerminalJourneys(t *testing.T) {
@@ -23,7 +24,8 @@ func TestOpenWorkCountExcludesTerminalJourneys(t *testing.T) {
 }
 
 func TestRecordedJourneyLeavesOpenWorkAndAllKnownStagesHaveLabels(t *testing.T) {
-	items, err := projectJourneys([]*journeyv1.Journey{{IntentId: "recorded", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED}})
+	items, err := projectJourneys([]*journeyv1.Journey{{IntentId: "recorded", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED,
+		Viewer: &journeyv1.JourneyViewerProjection{Closed: true, Responsibility: journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_CLOSED}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +36,7 @@ func TestRecordedJourneyLeavesOpenWorkAndAllKnownStagesHaveLabels(t *testing.T) 
 		if number == 0 {
 			continue
 		}
-		label, _, _ := stagePresentation(journeyv1.JourneyStage(number))
+		label, _ := journeyclient.StagePresentation(journeyv1.JourneyStage(number))
 		if label == "Status unavailable" {
 			t.Errorf("known stage has no presentation: %s", name)
 		}
@@ -105,6 +107,9 @@ func TestLoadProjectsOnlyLiveServiceAnswers(t *testing.T) {
 				Current: &journeyv1.Placement{JobCode: "ENG2", Grade: "G6"},
 				Target:  &journeyv1.Placement{JobCode: "ENG3", Grade: "G7"},
 				Stage:   journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL,
+				// PROMOUX-012: the badge counts work the server says the
+				// viewer must act on.
+				Viewer: &journeyv1.JourneyViewerProjection{Responsibility: journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED},
 			}}}, nil
 		},
 		ListWorkers: func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {

@@ -310,7 +310,9 @@ func notificationMenu(view View) ui.Node {
 	// The attention count follows the current authority: denied
 	// instances keep no share of it. A silent server keeps the current
 	// count, and page-visibility keeps its honest restricted state.
-	open := len(OpenWorkItems(admittedWork(view)))
+	// PROMOUX-012: the summary counts only work the viewer must act on, so a
+	// passive wait or a tracked request never inflates it.
+	open := len(ActionableWorkItems(admittedWork(view)))
 	label := view.Locale.Text("shell.work_overview") + ", " + view.Locale.Plural("shell.work_count", int64(open))
 	children := []ui.Node{
 		html.H2(html.Props{}, ui.Text(view.Locale.Text("shell.work_overview"))),

@@ -388,6 +388,117 @@ message Journey {
   // visibility rules do not admit this viewer to that item at all -- never a
   // partially guessed value.
   JourneyWorkItemSummary current_work_item = 20;
+  // viewer is the calling viewer's relationship to this journey and the
+  // journey's next transition, resolved by the engine (PROMOUX-012). Every
+  // surface -- My Work, tracked requests, Journeys and the person profile --
+  // reads responsibility, next step and lifecycle closure from here rather
+  // than re-deriving them from stage. It is unset only on a response the
+  // engine did not resolve for a viewer.
+  JourneyViewerProjection viewer = 21;
+}
+
+// JourneyViewerProjection is one journey as it stands for the calling viewer
+// (workspace.JourneyViewerProjection). It discloses nothing about any other
+// principal: relationships name only how the viewer themself stands, so a
+// viewer with no relationship receives the same projection whoever
+// initiated the journey or holds its work item.
+message JourneyViewerProjection {
+  // relationships is how the viewer stands to the journey, sorted and
+  // unique. Empty means the viewer has no relationship beyond visibility.
+  repeated JourneyViewerRelationship relationships = 1;
+  // responsibility is what the journey asks of the viewer right now.
+  JourneyViewerResponsibility responsibility = 2;
+  // next_step is the journey's single next transition, unset when the
+  // journey is closed or its stage is unknown.
+  JourneyNextStep next_step = 3;
+  // next_step_owner is the role class that holds next_step.
+  JourneyStepOwner next_step_owner = 4;
+  // awaits_person is true when a person rather than the workflow or the
+  // calendar holds next_step. A journey whose next step no person holds is
+  // a passive wait.
+  bool awaits_person = 5;
+  // closed is true when the journey reached a terminal stage (COMPLETED,
+  // REJECTED, FAILED or RECORDED) and will not move again.
+  bool closed = 6;
+}
+
+// JourneyViewerRelationship is one way the calling viewer stands to a
+// journey. There is no follower relationship: nothing records followers.
+enum JourneyViewerRelationship {
+  // JOURNEY_VIEWER_RELATIONSHIP_UNSPECIFIED is the proto3 zero value and is
+  // never reported.
+  JOURNEY_VIEWER_RELATIONSHIP_UNSPECIFIED = 0;
+  // JOURNEY_VIEWER_RELATIONSHIP_INITIATOR: the viewer is the principal the
+  // intent records as its initiator.
+  JOURNEY_VIEWER_RELATIONSHIP_INITIATOR = 1;
+  // JOURNEY_VIEWER_RELATIONSHIP_ASSIGNEE: the viewer holds the current work
+  // item (routed assignee or claimant).
+  JOURNEY_VIEWER_RELATIONSHIP_ASSIGNEE = 2;
+  // JOURNEY_VIEWER_RELATIONSHIP_CANDIDATE: the viewer may claim the current
+  // work item.
+  JOURNEY_VIEWER_RELATIONSHIP_CANDIDATE = 3;
+}
+
+// JourneyViewerResponsibility is what a journey asks of the calling viewer.
+enum JourneyViewerResponsibility {
+  // JOURNEY_VIEWER_RESPONSIBILITY_UNSPECIFIED means the engine did not
+  // resolve a responsibility; clients treat it as nothing to act on.
+  JOURNEY_VIEWER_RESPONSIBILITY_UNSPECIFIED = 0;
+  // JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED: the viewer holds or may
+  // claim the current work item, or initiated the journey and its next step
+  // is the proposer's.
+  JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED = 1;
+  // JOURNEY_VIEWER_RESPONSIBILITY_TRACKING: the viewer initiated the journey
+  // and its next step belongs to someone else or to the workflow.
+  JOURNEY_VIEWER_RESPONSIBILITY_TRACKING = 2;
+  // JOURNEY_VIEWER_RESPONSIBILITY_OBSERVING: the journey is open and visible
+  // to the viewer, who has no relationship to it.
+  JOURNEY_VIEWER_RESPONSIBILITY_OBSERVING = 3;
+  // JOURNEY_VIEWER_RESPONSIBILITY_CLOSED: the journey is closed.
+  JOURNEY_VIEWER_RESPONSIBILITY_CLOSED = 4;
+}
+
+// JourneyNextStep is the closed vocabulary of a journey's next transition.
+enum JourneyNextStep {
+  // JOURNEY_NEXT_STEP_UNSPECIFIED: no next step (closed or unknown stage).
+  JOURNEY_NEXT_STEP_UNSPECIFIED = 0;
+  // JOURNEY_NEXT_STEP_START_APPROVAL: the proposal is ready for approval.
+  JOURNEY_NEXT_STEP_START_APPROVAL = 1;
+  // JOURNEY_NEXT_STEP_CORRECT_PROPOSAL: the proposal is blocked and must be
+  // corrected.
+  JOURNEY_NEXT_STEP_CORRECT_PROPOSAL = 2;
+  // JOURNEY_NEXT_STEP_APPROVAL_DECISION: an approval decision.
+  JOURNEY_NEXT_STEP_APPROVAL_DECISION = 3;
+  // JOURNEY_NEXT_STEP_MANAGER_DECISION: the manager's approval decision.
+  JOURNEY_NEXT_STEP_MANAGER_DECISION = 4;
+  // JOURNEY_NEXT_STEP_FINANCE_DECISION: finance's approval decision.
+  JOURNEY_NEXT_STEP_FINANCE_DECISION = 5;
+  // JOURNEY_NEXT_STEP_REAPPROVAL_DECISION: an approval decision required
+  // again after a material change.
+  JOURNEY_NEXT_STEP_REAPPROVAL_DECISION = 6;
+  // JOURNEY_NEXT_STEP_REPAIR: governed repair.
+  JOURNEY_NEXT_STEP_REPAIR = 7;
+  // JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE: the workflow waits for the
+  // effective date safe point.
+  JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE = 8;
+  // JOURNEY_NEXT_STEP_SYSTEM_PROCESSING: the workflow is processing.
+  JOURNEY_NEXT_STEP_SYSTEM_PROCESSING = 9;
+}
+
+// JourneyStepOwner is the role class that holds a journey's next step.
+enum JourneyStepOwner {
+  // JOURNEY_STEP_OWNER_UNSPECIFIED: no owner is stated.
+  JOURNEY_STEP_OWNER_UNSPECIFIED = 0;
+  // JOURNEY_STEP_OWNER_PROPOSER: the journey's proposer.
+  JOURNEY_STEP_OWNER_PROPOSER = 1;
+  // JOURNEY_STEP_OWNER_APPROVER: an approver.
+  JOURNEY_STEP_OWNER_APPROVER = 2;
+  // JOURNEY_STEP_OWNER_MANAGER: the manager.
+  JOURNEY_STEP_OWNER_MANAGER = 3;
+  // JOURNEY_STEP_OWNER_FINANCE: finance.
+  JOURNEY_STEP_OWNER_FINANCE = 4;
+  // JOURNEY_STEP_OWNER_SYSTEM: the workflow or the calendar.
+  JOURNEY_STEP_OWNER_SYSTEM = 5;
 }
 
 // JourneyWorkItemSummary is the list-level view of a journey's current open

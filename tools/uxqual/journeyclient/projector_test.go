@@ -325,22 +325,23 @@ func TestStageLabelsAndTones(t *testing.T) {
 		label string
 		tone  string
 	}{
-		{journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED, stageProposed, "Proposed", toneInfo},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED, stageBlocked, "Blocked", toneDanger},
+		// PROMOUX-012: one vocabulary shared with My Work (StagePresentation).
+		{journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED, stageProposed, "Ready to start approval", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED, stageBlocked, "Blocked", toneWarning},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL, stageAwaitingApproval, "Awaiting approval", toneWarning},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED, stageCompleted, "Completed", toneSuccess},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED, stageRejected, "Rejected", toneDanger},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED, stageRejected, "Rejected", toneNeutral},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_FAILED, stageFailed, "Failed", toneDanger},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL, stageFinanceApproval, "Finance approval", toneWarning},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL, stageManagerApproval, "Manager approval", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE, stageWaitingEffective, "Waiting for effective date", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION, stageRevalidation, "Revalidation", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL, stageReapproval, "Reapproval", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED, stageExecuted, "Executed", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS, stageObservingEffects, "Observing effects", toneWarning},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE, stageWaitingEffective, "Waiting for effective date", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION, stageRevalidation, "Final checks", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL, stageReapproval, "Approval required again", toneWarning},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED, stageExecuted, "Recording promotion", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS, stageObservingEffects, "Checking downstream effects", toneNeutral},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED, stageRecorded, "Recorded", toneSuccess},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED, stageRepairRequired, "Repair required", toneDanger},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_UNSPECIFIED, "UNSPECIFIED", "Unknown stage", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED, stageRepairRequired, "Needs repair", toneDanger},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_UNSPECIFIED, "UNSPECIFIED", "Status unavailable", toneWarning},
 	}
 	for _, c := range cases {
 		t.Run(c.token, func(t *testing.T) {
@@ -1141,6 +1142,8 @@ func workerJourneys(t *testing.T) []*journeyv1.Journey {
 	byID.WorkerRef = testJaneID
 	done := testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED)
 	done.WorkerRef = "omar-reyes"
+	// PROMOUX-012: closure is the server's projection, never read off stage.
+	done.Viewer = &journeyv1.JourneyViewerProjection{Closed: true, Responsibility: journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_CLOSED}
 	return []*journeyv1.Journey{open, byID, done, nil}
 }
 

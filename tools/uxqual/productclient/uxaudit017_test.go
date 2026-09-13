@@ -75,6 +75,11 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 			return &journeyv1.ListJourneysResponse{Journeys: []*journeyv1.Journey{{
 				IntentId: intent, WorkerRef: "worker-lin", WorkerName: "Lin Park", EffectiveDate: "2026-10-01",
 				Stage: journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED,
+				Viewer: &journeyv1.JourneyViewerProjection{
+					Relationships:  []journeyv1.JourneyViewerRelationship{journeyv1.JourneyViewerRelationship_JOURNEY_VIEWER_RELATIONSHIP_INITIATOR},
+					Responsibility: journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED,
+					NextStep:       journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_CORRECT_PROPOSAL, NextStepOwner: journeyv1.JourneyStepOwner_JOURNEY_STEP_OWNER_PROPOSER, AwaitsPerson: true,
+				},
 			}}}, nil
 		}
 		state, err := ParseState("/workspace/app/work", "filter=blocked")
@@ -203,22 +208,27 @@ func TestTodo_UXAUDIT_017_Regression(t *testing.T) {
 	})
 
 	t.Run("productui has copy for exactly the codes the shared dimension produces", func(t *testing.T) {
-		for value := range journeyv1.JourneyStage_name {
-			dimension := journeyclient.StageStatusDimension(journeyv1.JourneyStage(value))
-			if dimension.NextStep != journeyclient.NextStepNone && !productui.KnownWorkNextStep(string(dimension.NextStep)) {
-				t.Errorf("stage %d: My Work has no copy for next step %q", value, dimension.NextStep)
-			}
-			if dimension.WaitingOn != journeyclient.StageActorUnstated && !productui.KnownWorkActor(string(dimension.WaitingOn)) {
-				t.Errorf("stage %d: My Work has no copy for actor %q", value, dimension.WaitingOn)
-			}
-			for _, locale := range productui.SupportedProductLocales() {
-				resolved := productui.ResolveProductLocale(locale)
-				for _, key := range []string{"work.next_step." + string(dimension.NextStep), "work.waiting_on." + string(dimension.WaitingOn)} {
-					if strings.HasSuffix(key, ".") {
-						continue
-					}
-					if text := resolved.Text(key); strings.HasPrefix(text, "⟦") {
-						t.Errorf("%s: %s unresolved", locale, key)
+		// Every wire next step and owner (PROMOUX-012), crossed.
+		for value := range journeyv1.JourneyNextStep_name {
+			for owner := range journeyv1.JourneyStepOwner_name {
+				dimension := journeyclient.JourneyStatusDimension(&journeyv1.Journey{Viewer: &journeyv1.JourneyViewerProjection{
+					NextStep: journeyv1.JourneyNextStep(value), NextStepOwner: journeyv1.JourneyStepOwner(owner),
+				}})
+				if dimension.NextStep != journeyclient.NextStepNone && !productui.KnownWorkNextStep(string(dimension.NextStep)) {
+					t.Errorf("next step %d: My Work has no copy for next step %q", value, dimension.NextStep)
+				}
+				if dimension.WaitingOn != journeyclient.StageActorUnstated && !productui.KnownWorkActor(string(dimension.WaitingOn)) {
+					t.Errorf("owner %d: My Work has no copy for actor %q", owner, dimension.WaitingOn)
+				}
+				for _, locale := range productui.SupportedProductLocales() {
+					resolved := productui.ResolveProductLocale(locale)
+					for _, key := range []string{"work.next_step." + string(dimension.NextStep), "work.waiting_on." + string(dimension.WaitingOn)} {
+						if strings.HasSuffix(key, ".") {
+							continue
+						}
+						if text := resolved.Text(key); strings.HasPrefix(text, "⟦") {
+							t.Errorf("%s: %s unresolved", locale, key)
+						}
 					}
 				}
 			}

@@ -1546,6 +1546,35 @@ func declareBaseStyles() {
 	declareGlobal(".work-row .row-main small.row-summary",
 		mediaRule(gwccss.MaxW(1190), gwccss.Display.None),
 	)
+	// PROMOUX-012: a person's active workflows. Each item wraps its link
+	// below its facts on narrow widths rather than hiding any line.
+	declareGlobal(".person-active-list",
+		gwccss.Raw("list-style", "none"),
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Padding(gwccss.Zero),
+		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
+	)
+	declareGlobal(".person-active-item",
+		gwccss.Display.Flex,
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Items.Center,
+		gwccss.Raw("justify-content", "space-between"),
+		gwccss.Gap(gwccss.Px(12)),
+		gwccss.PaddingY(gwccss.Px(14)), gwccss.PaddingX(gwccss.Px(22)),
+		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
+	)
+	declareGlobal(".person-active-main",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(3)),
+		gwccss.MinWidth(gwccss.Zero),
+	)
+	declareGlobal(".person-active-main small",
+		gwccss.TextColor(gwccss.Var("muted")),
+	)
+	declareGlobal(".person-active-empty",
+		gwccss.PaddingY(gwccss.Px(14)), gwccss.PaddingX(gwccss.Px(22)),
+		gwccss.Margin(gwccss.Zero),
+	)
 	declareGlobal(".home-grid,.workbench,.people-workspace,.settings-shell",
 		mediaRule(gwccss.MaxW(990), gwccss.GridCols(gwccss.Fr(1))),
 	)

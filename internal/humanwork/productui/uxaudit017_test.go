@@ -12,6 +12,10 @@ import (
 // ---------------------------------------------------------------------
 // TestTodo_UXAUDIT_017 -- PRIMARY.
 //
+// PROMOUX-012 scoped My Work to work the server says the viewer must act on,
+// so the queue fixtures below carry that responsibility; the ordering keys
+// they exercise are unchanged.
+//
 // UXAUDIT-017 GREEN: "My Work is an action queue ordered by urgency and
 // ownership". This package's honest boundary (see this todo's report) is
 // that the journey summary carries neither an owner nor a per-item action
@@ -48,8 +52,8 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 		// urgency order: the neutral, merely-waiting item was admitted
 		// first and the blocked item last.
 		view.Work = []WorkItem{
-			{ID: "waiting-1", Person: "Casey Nakamura", PersonRef: "worker-casey", Status: "Waiting for effective date", Tone: "neutral", Href: "/workspace/app/journeys?journey=waiting-1", EffectiveDate: "2026-12-01", Due: "2026-12-01"},
-			{ID: "blocked-1", Person: "Bailey Osei", PersonRef: "worker-bailey", Status: "Blocked", Tone: "warning", Href: "/workspace/app/journeys?journey=blocked-1", EffectiveDate: "2026-11-01", Due: "2026-11-01"},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "waiting-1", Person: "Casey Nakamura", PersonRef: "worker-casey", Status: "Waiting for effective date", Tone: "neutral", Href: "/workspace/app/journeys?journey=waiting-1", EffectiveDate: "2026-12-01", Due: "2026-12-01"},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "blocked-1", Person: "Bailey Osei", PersonRef: "worker-bailey", Status: "Blocked", Tone: "warning", Href: "/workspace/app/journeys?journey=blocked-1", EffectiveDate: "2026-11-01", Due: "2026-11-01"},
 		}
 		view.SelectedWork = ""
 		doc, err := Render(view)
@@ -82,11 +86,11 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 		// of the next step (a person vs the workflow) within the neutral tier,
 		// and three different dates within the warning tier.
 		view.Work = []WorkItem{
-			{ID: "sys-soon", Person: "Quinn Adebayo", Status: "Waiting for effective date", Tone: "neutral", Due: "2026-09-20", NextStep: "await_effective_date", WaitingOn: "system"},
-			{ID: "person-late", Person: "Rowan Iversen", Status: "Ready to start approval", Tone: "neutral", Due: "2027-03-01", NextStep: "start_approval", WaitingOn: "proposer", AwaitsPerson: true},
-			{ID: "warn-undated", Person: "Sasha Brandt", Status: "Manager approval", Tone: "warning", NextStep: "manager_decision", WaitingOn: "manager", AwaitsPerson: true},
-			{ID: "warn-late", Person: "Tomas Lindqvist", Status: "Finance approval", Tone: "warning", Due: "2026-12-01", NextStep: "finance_decision", WaitingOn: "finance", AwaitsPerson: true},
-			{ID: "warn-soon", Person: "Uma Castellanos", Status: "Blocked", Tone: "warning", Due: "2026-10-01", NextStep: "correct_proposal", WaitingOn: "proposer", AwaitsPerson: true},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "sys-soon", Person: "Quinn Adebayo", Status: "Waiting for effective date", Tone: "neutral", Due: "2026-09-20", NextStep: "await_effective_date", WaitingOn: "system"},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "person-late", Person: "Rowan Iversen", Status: "Ready to start approval", Tone: "neutral", Due: "2027-03-01", NextStep: "start_approval", WaitingOn: "proposer", AwaitsPerson: true},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "warn-undated", Person: "Sasha Brandt", Status: "Manager approval", Tone: "warning", NextStep: "manager_decision", WaitingOn: "manager", AwaitsPerson: true},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "warn-late", Person: "Tomas Lindqvist", Status: "Finance approval", Tone: "warning", Due: "2026-12-01", NextStep: "finance_decision", WaitingOn: "finance", AwaitsPerson: true},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "warn-soon", Person: "Uma Castellanos", Status: "Blocked", Tone: "warning", Due: "2026-10-01", NextStep: "correct_proposal", WaitingOn: "proposer", AwaitsPerson: true},
 		}
 		view.SelectedWork = ""
 		doc, err := ui.RenderToString(workPage(view))
@@ -108,9 +112,12 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 	})
 
 	t.Run("each row leads with its next step and whose turn it is, and names no fabricated assignee", func(t *testing.T) {
+		// PROMOUX-012: a manager approval the viewer does not hold is a
+		// request they track, so it is read from the tracked view.
 		view := testView(PageWork)
+		view.WorkFilter = "tracked"
 		view.Work = []WorkItem{
-			{ID: "mgr-1", Person: "Vera Okonkwo", Status: "Manager approval", Tone: "warning", Due: "2026-10-01", NextStep: "manager_decision", WaitingOn: "manager", AwaitsPerson: true, Href: "/workspace/app/journeys?journey=mgr-1"},
+			{ViewerRelationships: []string{"INITIATOR"}, ViewerResponsibility: "TRACKING", ID: "mgr-1", Person: "Vera Okonkwo", Status: "Manager approval", Tone: "warning", Due: "2026-10-01", NextStep: "manager_decision", WaitingOn: "manager", AwaitsPerson: true, Href: "/workspace/app/journeys?journey=mgr-1"},
 		}
 		doc, err := ui.RenderToString(workPage(view))
 		if err != nil {
@@ -140,11 +147,11 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 		// All five share one urgency tier (warning) and person-held stage, so
 		// only the summary keys decide. Admission order is the reverse.
 		view.Work = []WorkItem{
-			{ID: "undisclosed", Person: "Aiko Brandt", Status: "Manager approval", Tone: "warning", Due: "2026-09-15", AwaitsPerson: true},
-			{ID: "other-owner", Person: "Bram Osei", Status: "Finance approval", Tone: "warning", AwaitsPerson: true, WorkSummary: true, ViewerMembership: "NONE", WorkDue: "2026-09-14"},
-			{ID: "candidate", Person: "Cleo Ruiz", Status: "Manager approval", Tone: "warning", AwaitsPerson: true, WorkSummary: true, ViewerMembership: "CANDIDATE", WorkDue: "2026-09-16", PermittedActions: []string{"claim"}},
-			{ID: "mine-late", Person: "Dev Anand", Status: "Finance approval", Tone: "warning", AwaitsPerson: true, WorkSummary: true, ViewerMembership: "ASSIGNEE", WorkDue: "2026-10-30", PermittedActions: []string{"claim"}},
-			{ID: "mine-soon", Person: "Esme Park", Status: "Finance approval", Tone: "warning", AwaitsPerson: true, WorkSummary: true, ViewerMembership: "CLAIMANT", WorkDue: "2026-09-20", PermittedActions: []string{"release", "complete", "decide_approval"}},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "undisclosed", Person: "Aiko Brandt", Status: "Manager approval", Tone: "warning", Due: "2026-09-15", AwaitsPerson: true},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "other-owner", Person: "Bram Osei", Status: "Finance approval", Tone: "warning", AwaitsPerson: true, WorkSummary: true, ViewerMembership: "NONE", WorkDue: "2026-09-14"},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "candidate", Person: "Cleo Ruiz", Status: "Manager approval", Tone: "warning", AwaitsPerson: true, WorkSummary: true, ViewerMembership: "CANDIDATE", WorkDue: "2026-09-16", PermittedActions: []string{"claim"}},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "mine-late", Person: "Dev Anand", Status: "Finance approval", Tone: "warning", AwaitsPerson: true, WorkSummary: true, ViewerMembership: "ASSIGNEE", WorkDue: "2026-10-30", PermittedActions: []string{"claim"}},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "mine-soon", Person: "Esme Park", Status: "Finance approval", Tone: "warning", AwaitsPerson: true, WorkSummary: true, ViewerMembership: "CLAIMANT", WorkDue: "2026-09-20", PermittedActions: []string{"release", "complete", "decide_approval"}},
 		}
 		view.SelectedWork = ""
 		doc, err := ui.RenderToString(workPage(view))
@@ -182,9 +189,12 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 	})
 
 	t.Run("a disclosed assignee replaces the stage waiting-on and the note goes when every row is disclosed", func(t *testing.T) {
+		// PROMOUX-012: a finance approval someone else holds is not the
+		// viewer's work; it reaches the viewer as a request they track.
 		view := testView(PageWork)
+		view.WorkFilter = "tracked"
 		view.Work = []WorkItem{
-			{ID: "fin-1", Person: "Farah Idris", Status: "Finance approval", Tone: "warning", NextStep: "finance_decision", WaitingOn: "finance", AwaitsPerson: true,
+			{ViewerRelationships: []string{"INITIATOR"}, ViewerResponsibility: "TRACKING", ID: "fin-1", Person: "Farah Idris", Status: "Finance approval", Tone: "warning", NextStep: "finance_decision", WaitingOn: "finance", AwaitsPerson: true,
 				WorkSummary: true, ViewerMembership: "NONE", AssigneeRef: "worker-gil", AssigneeName: "Gil Moreau", WorkDue: "2026-11-02"},
 		}
 		doc, err := ui.RenderToString(workPage(view))
@@ -270,7 +280,7 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 	t.Run("the row date is labeled as an effective date, never a bare/implied deadline", func(t *testing.T) {
 		view := testView(PageWork)
 		view.Work = []WorkItem{
-			{ID: "intent-1", Person: "Jordan Lee", Status: "Awaiting approval", Tone: "warning", Href: "/workspace/app/journeys?journey=intent-1", EffectiveDate: "2026-09-15", Due: "2026-09-15"},
+			{ViewerResponsibility: "ACTION_REQUIRED", ID: "intent-1", Person: "Jordan Lee", Status: "Awaiting approval", Tone: "warning", Href: "/workspace/app/journeys?journey=intent-1", EffectiveDate: "2026-09-15", Due: "2026-09-15"},
 		}
 		doc, err := ui.RenderToString(workPage(view))
 		if err != nil {
@@ -358,7 +368,10 @@ func TestTodo_UXAUDIT_017_Accessibility(t *testing.T) {
 // the facts UXAUDIT-017 exists to emphasise. Only the grade-change summary
 // may be dropped at narrow widths, and it must be dropped by its own class.
 func TestWorkRowActionFactsSurviveNarrowWidths(t *testing.T) {
-	facts := []string{"row-next-action", "row-next-step", "row-disposition", "row-assignment", "row-waiting-on", "row-work-due"}
+	// PROMOUX-012 adds the tracked row's "No action needed from you" line and
+	// the person profile's active-workflow lines; none may be hidden either.
+	facts := []string{"row-next-action", "row-next-step", "row-disposition", "row-assignment", "row-waiting-on", "row-work-due",
+		"row-tracking", "person-active-next-step", "person-active-waiting-on", "person-active-status"}
 	css := Stylesheet()
 	sawSummaryHide := false
 	for _, rule := range cssRulePattern.FindAllStringSubmatch(css, -1) {
@@ -367,7 +380,7 @@ func TestWorkRowActionFactsSurviveNarrowWidths(t *testing.T) {
 		}
 		for _, item := range strings.Split(rule[1], ",") {
 			selector := strings.TrimSpace(item)
-			if !strings.Contains(selector, "work-row") {
+			if !strings.Contains(selector, "work-row") && !strings.Contains(selector, "person-active") {
 				continue
 			}
 			if strings.Contains(selector, "small+small") || strings.Contains(selector, "small + small") || strings.Contains(selector, "small~small") {
@@ -575,9 +588,9 @@ func assertStableWithinRank(t *testing.T, original, sorted []WorkItem) {
 func TestTodo_UXAUDIT_017_Browser(t *testing.T) {
 	view := testView(PageWork)
 	view.Work = []WorkItem{
-		{ID: "waiting-1", Person: "Devon Alvarez", Status: "Waiting for effective date", Tone: "neutral", Href: "/workspace/app/journeys?journey=waiting-1", EffectiveDate: "2027-01-01", Due: "2027-01-01"},
-		{ID: "blocked-1", Person: "Reese Kowalski", Status: "Blocked", Tone: "warning", Href: "/workspace/app/journeys?journey=blocked-1", EffectiveDate: "2026-10-01", Due: "2026-10-01"},
-		{ID: "repair-1", Person: "Toni Ferreira", Status: "Needs repair", Tone: "danger", Href: "/workspace/app/journeys?journey=repair-1", EffectiveDate: "2026-09-20", Due: "2026-09-20"},
+		{ViewerResponsibility: "ACTION_REQUIRED", ID: "waiting-1", Person: "Devon Alvarez", Status: "Waiting for effective date", Tone: "neutral", Href: "/workspace/app/journeys?journey=waiting-1", EffectiveDate: "2027-01-01", Due: "2027-01-01"},
+		{ViewerResponsibility: "ACTION_REQUIRED", ID: "blocked-1", Person: "Reese Kowalski", Status: "Blocked", Tone: "warning", Href: "/workspace/app/journeys?journey=blocked-1", EffectiveDate: "2026-10-01", Due: "2026-10-01"},
+		{ViewerResponsibility: "ACTION_REQUIRED", ID: "repair-1", Person: "Toni Ferreira", Status: "Needs repair", Tone: "danger", Href: "/workspace/app/journeys?journey=repair-1", EffectiveDate: "2026-09-20", Due: "2026-09-20"},
 	}
 	view.SelectedWork = ""
 	doc, err := ui.RenderToString(workPage(view))
@@ -606,8 +619,8 @@ func TestTodo_UXAUDIT_017_Browser(t *testing.T) {
 	composed := testView(PageWork)
 	composed.WorkFilter = "blocked"
 	composed.Work = []WorkItem{
-		{ID: "blocked-2", Person: "Yusuf Brennan", Status: "Blocked", Tone: "warning", Due: "2026-10-01", NextStep: "correct_proposal", WaitingOn: "proposer", AwaitsPerson: true, Href: "/workspace/app/journeys?journey=blocked-2"},
-		{ID: "blocked-3", Person: "Zoe Lindahl", Status: "Blocked", Tone: "warning", AwaitsPerson: true, Href: "/workspace/app/journeys?journey=blocked-3",
+		{ViewerResponsibility: "ACTION_REQUIRED", ID: "blocked-2", Person: "Yusuf Brennan", Status: "Blocked", Tone: "warning", Due: "2026-10-01", NextStep: "correct_proposal", WaitingOn: "proposer", AwaitsPerson: true, Href: "/workspace/app/journeys?journey=blocked-2"},
+		{ViewerResponsibility: "ACTION_REQUIRED", ID: "blocked-3", Person: "Zoe Lindahl", Status: "Blocked", Tone: "warning", AwaitsPerson: true, Href: "/workspace/app/journeys?journey=blocked-3",
 			WorkSummary: true, ViewerMembership: "ASSIGNEE", WorkDue: "2026-09-25", PermittedActions: []string{"claim"}},
 	}
 	page, err := Render(composed)

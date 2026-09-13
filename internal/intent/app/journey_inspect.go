@@ -409,6 +409,12 @@ func (e *journeyEngine) Inspect(ctx context.Context, intentID string) (workspace
 	}
 
 	detail.Summary.Stage = deriveJourneyStage(summary.ProposalRevisionID, record)
+	// PROMOUX-012: the same viewer projection the list resolves. The work item
+	// summary is used only for the viewer's own membership; the detail page
+	// reads the work items themselves.
+	detail.Summary.Viewer = journeyViewerProjection(detail.Summary.Stage,
+		isJourneyInitiator(got.GetIntent().GetInitiator().GetPrincipalId(), principal.Subject()),
+		journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), e.now(), nil))
 	detail.Nodes = journeyNodes(record.nodes)
 	detail.WorkItems = record.items
 	detail.Transitions = record.transitions

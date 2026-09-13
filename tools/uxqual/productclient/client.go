@@ -239,7 +239,7 @@ func validControlledRouteValues(page productui.PageID, values url.Values) bool {
 	}
 	switch page {
 	case productui.PageWork:
-		return oneOf("filter", "review", "blocked", "complete", "mine")
+		return oneOf("filter", "review", "blocked", "complete", "mine", "tracked")
 	case productui.PageOrganization:
 		return oneOf("org_view", "flat", "tree")
 	case productui.PageStudio:
@@ -603,7 +603,8 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	}
 	for index := range view.Navigation {
 		if view.Navigation[index].Page == productui.PageWork {
-			view.Navigation[index].Count = len(productui.OpenWorkItems(view.Work))
+			// PROMOUX-012: the badge counts actionable work only.
+			view.Navigation[index].Count = len(productui.ActionableWorkItems(view.Work))
 		}
 	}
 	view = productui.ApplyRequest(view, state.Request)
@@ -834,7 +835,10 @@ func projectJourneys(journeys []*journeyv1.Journey) ([]productui.WorkItem, error
 		if journey == nil {
 			continue
 		}
-		status, tone, terminal := stagePresentation(journey.GetStage())
+		// PROMOUX-012: one stage vocabulary (journeyclient.StagePresentation)
+		// and the server's own closure, shared with the Journeys tracker.
+		status, tone := journeyclient.StagePresentation(journey.GetStage())
+		terminal := journeyclient.JourneyClosed(journey)
 		current, target := journey.GetCurrent(), journey.GetTarget()
 		currentJob, targetJob := "", ""
 		if current != nil {
@@ -852,9 +856,9 @@ func projectJourneys(journeys []*journeyv1.Journey) ([]productui.WorkItem, error
 		if err != nil {
 			failures = append(failures, fmt.Errorf("project journey %s proposed base: %w", journey.GetIntentId(), err))
 		}
-		// UXAUDIT-017: the same stage dimension the Journeys tracker renders,
-		// so My Work's next step and waiting-on class never disagree with it.
-		dimension := journeyclient.StageStatusDimension(journey.GetStage())
+		// UXAUDIT-017 / PROMOUX-012: the server-resolved next transition the
+		// Journeys tracker renders too, so the two never disagree.
+		dimension := journeyclient.JourneyStatusDimension(journey)
 		items = append(items, productui.WorkItem{
 			NextStep: string(dimension.NextStep), WaitingOn: string(dimension.WaitingOn), AwaitsPerson: dimension.AwaitsPerson,
 			ID: journey.GetIntentId(), Initials: uicomponents.Initials(journey.GetWorkerName()), PhotoURL: employeePhotoURL(journey.GetWorkerRef(), journey.GetWorkerName()), Title: "Promotion journey",
@@ -862,6 +866,8 @@ func projectJourneys(journeys []*journeyv1.Journey) ([]productui.WorkItem, error
 			Due: journey.GetEffectiveDate(), EffectiveDate: journey.GetEffectiveDate(), CompletedAt: timestampLabel(journey.GetUpdatedAt()),
 			InstanceID: journey.GetInstanceId(), InstanceVersion: journey.GetInstanceVersion(), MaterialDigest: journey.GetMaterialDigest(),
 			CurrentBase: currentBase, ProposedBase: proposedBase,
+			ViewerRelationships:  journeyclient.JourneyViewerRelationships(journey),
+			ViewerResponsibility: journeyclient.JourneyViewerResponsibility(journey),
 		})
 		applyWorkItemSummary(&items[len(items)-1], journey.GetCurrentWorkItem())
 	}
@@ -1051,43 +1057,6 @@ func projectPersonWorkflows(view productui.View, workerRef string) []productui.P
 		Href:        href, UseCount: view.WorkflowUses["promotion"],
 		LaunchHref: func(person string) string { return productui.JourneyProposalHref(view, person) },
 	}}
-}
-
-func stagePresentation(stage journeyv1.JourneyStage) (status, tone string, terminal bool) {
-	switch stage {
-	case journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED:
-		return "Ready to start approval", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED:
-		return "Blocked", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL:
-		return "Awaiting approval", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED:
-		return "Completed", "success", true
-	case journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED:
-		return "Recorded", "success", true
-	case journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL:
-		return "Finance approval", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL:
-		return "Manager approval", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE:
-		return "Waiting for effective date", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION:
-		return "Final checks", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL:
-		return "Approval required again", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED:
-		return "Recording promotion", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS:
-		return "Checking downstream effects", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED:
-		return "Needs repair", "danger", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED:
-		return "Rejected", "neutral", true
-	case journeyv1.JourneyStage_JOURNEY_STAGE_FAILED:
-		return "Failed", "danger", true
-	default:
-		return "Status unavailable", "warning", false
-	}
 }
 
 func displayLabel(value string) string {

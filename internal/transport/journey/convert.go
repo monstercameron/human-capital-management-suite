@@ -232,6 +232,7 @@ func toJourney(s workspace.JourneySummary, diagAuthorized bool) *journeyv1.Journ
 		GovernanceVersion:  s.GovernanceVersion,
 	}
 	out.CurrentWorkItem = toJourneyWorkItemSummary(s.CurrentWorkItem)
+	out.Viewer = toJourneyViewerProjection(s.Viewer)
 	if diagAuthorized {
 		out.CorrelationId = s.CorrelationID
 		out.MaterialDigest = s.MaterialDigest
@@ -258,6 +259,28 @@ func toJourneyWorkItemSummary(s *workspace.JourneyWorkItemSummary) *journeyv1.Jo
 	}
 	if !s.DueAt.IsZero() {
 		out.DueAt = toTimestamp(s.DueAt)
+	}
+	return out
+}
+
+// toJourneyViewerProjection renders the engine's PROMOUX-012 viewer
+// projection. It is a token-to-enum copy: the engine resolved every value, and
+// an unresolved projection (empty responsibility) stays unset on the wire.
+func toJourneyViewerProjection(v workspace.JourneyViewerProjection) *journeyv1.JourneyViewerProjection {
+	if v.Responsibility == "" {
+		return nil
+	}
+	out := &journeyv1.JourneyViewerProjection{
+		Responsibility: journeyv1.JourneyViewerResponsibility(journeyv1.JourneyViewerResponsibility_value["JOURNEY_VIEWER_RESPONSIBILITY_"+string(v.Responsibility)]),
+		NextStep:       journeyv1.JourneyNextStep(journeyv1.JourneyNextStep_value["JOURNEY_NEXT_STEP_"+string(v.NextStep)]),
+		NextStepOwner:  journeyv1.JourneyStepOwner(journeyv1.JourneyStepOwner_value["JOURNEY_STEP_OWNER_"+string(v.NextStepOwner)]),
+		AwaitsPerson:   v.AwaitsPerson,
+		Closed:         v.Closed,
+	}
+	for _, relationship := range v.Relationships {
+		if value, ok := journeyv1.JourneyViewerRelationship_value["JOURNEY_VIEWER_RELATIONSHIP_"+string(relationship)]; ok && value != 0 {
+			out.Relationships = append(out.Relationships, journeyv1.JourneyViewerRelationship(value))
+		}
 	}
 	return out
 }

@@ -194,7 +194,9 @@ func personPromotionEligible(person Person) bool {
 // than link to a journey this view was never given.
 func activePromotionWorkItem(view View, personID string) (WorkItem, bool) {
 	for _, item := range view.Work {
-		if !item.Terminal && item.PersonRef == personID {
+		// PROMOUX-012: a journey may name its subject by the canonical entity
+		// reference rather than the directory id; both resolve to the person.
+		if !item.Terminal && item.PersonRef != "" && personID != "" && stablePersonID(view.People, item.PersonRef) == personID {
 			return item, true
 		}
 	}

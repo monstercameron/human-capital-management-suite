@@ -1,6 +1,10 @@
 package journeyclient
 
-import journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+import (
+	"strings"
+
+	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+)
 
 // NextStep is the stable code for the single next step a journey's server
 // stage names (UXAUDIT-017). It is a workflow fact read off the stage, never a
@@ -89,32 +93,83 @@ var nextStepLabels = map[NextStep]string{
 // code outside the closed vocabulary.
 func NextStepLabel(code NextStep) string { return nextStepLabels[code] }
 
-// StageStatusDimension maps a server stage to its shared status dimension.
-// It is total: an unknown stage reads as no next step and no actor, never as a
-// guessed one.
-func StageStatusDimension(stage journeyv1.JourneyStage) StatusDimension {
-	switch stage {
-	case journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED:
-		return StatusDimension{NextStep: NextStepStartApproval, WaitingOn: StageActorProposer, AwaitsPerson: true}
-	case journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED:
-		return StatusDimension{NextStep: NextStepCorrectProposal, WaitingOn: StageActorProposer, AwaitsPerson: true}
-	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL:
-		return StatusDimension{NextStep: NextStepApprovalDecision, WaitingOn: StageActorApprover, AwaitsPerson: true}
-	case journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL:
-		return StatusDimension{NextStep: NextStepManagerDecision, WaitingOn: StageActorManager, AwaitsPerson: true}
-	case journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL:
-		return StatusDimension{NextStep: NextStepFinanceDecision, WaitingOn: StageActorFinance, AwaitsPerson: true}
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL:
-		return StatusDimension{NextStep: NextStepReapprovalDecision, WaitingOn: StageActorApprover, AwaitsPerson: true}
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED:
-		return StatusDimension{NextStep: NextStepRepair, WaitingOn: StageActorUnstated, AwaitsPerson: true}
-	case journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE:
-		return StatusDimension{NextStep: NextStepAwaitEffectiveDate, WaitingOn: StageActorSystem}
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION,
-		journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED,
-		journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS:
-		return StatusDimension{NextStep: NextStepSystemProcessing, WaitingOn: StageActorSystem}
-	default:
+// JourneyStatusDimension reads one journey's shared status dimension off the
+// server's PROMOUX-012 viewer projection. The server owns the stage-to-next-
+// step mapping (internal/intent/app journeyStageTransition); this is a closed
+// enum-to-code copy, so My Work, Journeys and the person profile can never
+// disagree about a stage. A journey whose projection is absent reads as no
+// next step and no actor, never a guessed one.
+func JourneyStatusDimension(j *journeyv1.Journey) StatusDimension {
+	viewer := j.GetViewer()
+	if viewer == nil {
 		return StatusDimension{}
 	}
+	return StatusDimension{
+		NextStep:     nextStepCodes[viewer.GetNextStep()],
+		WaitingOn:    stageActorCodes[viewer.GetNextStepOwner()],
+		AwaitsPerson: viewer.GetAwaitsPerson(),
+	}
+}
+
+// JourneyClosed reports the server's lifecycle closure for j. An absent
+// projection is not closed: the client never infers closure from a stage.
+func JourneyClosed(j *journeyv1.Journey) bool { return j.GetViewer().GetClosed() }
+
+var nextStepCodes = map[journeyv1.JourneyNextStep]NextStep{
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_START_APPROVAL:       NextStepStartApproval,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_CORRECT_PROPOSAL:     NextStepCorrectProposal,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_APPROVAL_DECISION:    NextStepApprovalDecision,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_MANAGER_DECISION:     NextStepManagerDecision,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_FINANCE_DECISION:     NextStepFinanceDecision,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REAPPROVAL_DECISION:  NextStepReapprovalDecision,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REPAIR:               NextStepRepair,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE: NextStepAwaitEffectiveDate,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_SYSTEM_PROCESSING:    NextStepSystemProcessing,
+}
+
+var stageActorCodes = map[journeyv1.JourneyStepOwner]StageActor{
+	journeyv1.JourneyStepOwner_JOURNEY_STEP_OWNER_PROPOSER: StageActorProposer,
+	journeyv1.JourneyStepOwner_JOURNEY_STEP_OWNER_APPROVER: StageActorApprover,
+	journeyv1.JourneyStepOwner_JOURNEY_STEP_OWNER_MANAGER:  StageActorManager,
+	journeyv1.JourneyStepOwner_JOURNEY_STEP_OWNER_FINANCE:  StageActorFinance,
+	journeyv1.JourneyStepOwner_JOURNEY_STEP_OWNER_SYSTEM:   StageActorSystem,
+}
+
+// Relationship and Responsibility are the viewer half of the projection as
+// the stable tokens productui carries (INITIATOR, ASSIGNEE, CANDIDATE;
+// ACTION_REQUIRED, TRACKING, OBSERVING, CLOSED).
+const (
+	RelationshipInitiator            = "INITIATOR"
+	RelationshipAssignee             = "ASSIGNEE"
+	RelationshipCandidate            = "CANDIDATE"
+	ResponsibilityActionRequired     = "ACTION_REQUIRED"
+	ResponsibilityTracking           = "TRACKING"
+	ResponsibilityObserving          = "OBSERVING"
+	ResponsibilityClosed             = "CLOSED"
+	relationshipEnumPrefix           = "JOURNEY_VIEWER_RELATIONSHIP_"
+	responsibilityEnumPrefix         = "JOURNEY_VIEWER_RESPONSIBILITY_"
+	relationshipEnumUnspecifiedToken = "UNSPECIFIED"
+)
+
+// JourneyViewerRelationships is the server's relationship set for j as
+// tokens, in wire order; unspecified values are dropped.
+func JourneyViewerRelationships(j *journeyv1.Journey) []string {
+	var out []string
+	for _, relationship := range j.GetViewer().GetRelationships() {
+		if relationship == journeyv1.JourneyViewerRelationship_JOURNEY_VIEWER_RELATIONSHIP_UNSPECIFIED {
+			continue
+		}
+		out = append(out, strings.TrimPrefix(relationship.String(), relationshipEnumPrefix))
+	}
+	return out
+}
+
+// JourneyViewerResponsibility is the server's responsibility token for j, or
+// "" when the projection is absent or unspecified.
+func JourneyViewerResponsibility(j *journeyv1.Journey) string {
+	token := strings.TrimPrefix(j.GetViewer().GetResponsibility().String(), responsibilityEnumPrefix)
+	if token == relationshipEnumUnspecifiedToken {
+		return ""
+	}
+	return token
 }

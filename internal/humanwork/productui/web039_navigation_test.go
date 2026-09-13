@@ -97,7 +97,14 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// (each gains tabIndex="0", ".primary-nav" also gains
 	// id="primary-nav") and the inlined stylesheet gains ScrollRegion's
 	// shared rules plus ".main-scroll"'s scrollbar tokens.
-	const want = "1c06d3f0bc0aac61333721a1298ff0910bef96aad25e8ca69e9a6c8dda884f52"
+	// PROMOUX-012 re-pins: the notification summary now counts only work
+	// the viewer must act on and says so ("N promotion items need your
+	// action.") instead of "N promotion journeys are visible in this
+	// scope.", and the My Work subtitle no longer says every journey needs
+	// attention. Verified before re-pinning by substituting exactly those
+	// two old strings back into the new document, which reproduced the
+	// previous digest byte for byte.
+	const want = "84e5c298950cf3ef653fe5c7ea9f39311b7dca88d9de6b669732ddd9c9b75007"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

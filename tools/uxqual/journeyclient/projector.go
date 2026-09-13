@@ -249,59 +249,55 @@ func stageOf(s journeyv1.JourneyStage) string {
 }
 
 // stageLabel is the stage in the page's own words, and stageTone the chip
-// colour. Both are total: an unknown stage is a schema drift to investigate,
-// and the page says so plainly rather than showing a blank chip.
+// colour. Both delegate to StagePresentation, the one stage vocabulary My
+// Work and Journeys share (PROMOUX-012): before it, Journeys said "Proposed"
+// where My Work said "Ready to start approval".
 func stageLabel(stage string) string {
-	switch stage {
-	case stageProposed:
-		return "Proposed"
-	case stageBlocked:
-		return "Blocked"
-	case stageAwaitingApproval:
-		return "Awaiting approval"
-	case stageCompleted:
-		return "Completed"
-	case stageRejected:
-		return "Rejected"
-	case stageFailed:
-		return "Failed"
-	case stageFinanceApproval:
-		return "Finance approval"
-	case stageManagerApproval:
-		return "Manager approval"
-	case stageWaitingEffective:
-		return "Waiting for effective date"
-	case stageRevalidation:
-		return "Revalidation"
-	case stageReapproval:
-		return "Reapproval"
-	case stageExecuted:
-		return "Executed"
-	case stageObservingEffects:
-		return "Observing effects"
-	case stageRecorded:
-		return "Recorded"
-	case stageRepairRequired:
-		return "Repair required"
-	default:
-		return "Unknown stage"
-	}
+	label, _ := StagePresentation(journeyv1.JourneyStage(journeyv1.JourneyStage_value[stagePrefix+stage]))
+	return label
 }
 
 func stageTone(stage string) string {
+	_, tone := StagePresentation(journeyv1.JourneyStage(journeyv1.JourneyStage_value[stagePrefix+stage]))
+	return tone
+}
+
+// StagePresentation is a stage's shared English label and chip tone. It is
+// total: an unknown stage is a schema drift, and says so plainly.
+func StagePresentation(stage journeyv1.JourneyStage) (label, tone string) {
 	switch stage {
-	case stageProposed:
-		return toneInfo
-	case stageBlocked, stageRejected, stageFailed, stageRepairRequired:
-		return toneDanger
-	case stageAwaitingApproval, stageFinanceApproval, stageManagerApproval,
-		stageWaitingEffective, stageRevalidation, stageReapproval, stageExecuted,
-		stageObservingEffects:
-		return toneWarning
-	case stageCompleted, stageRecorded:
-		return toneSuccess
+	case journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED:
+		return "Ready to start approval", toneNeutral
+	case journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED:
+		return "Blocked", toneWarning
+	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL:
+		return "Awaiting approval", toneWarning
+	case journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED:
+		return "Completed", toneSuccess
+	case journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED:
+		return "Recorded", toneSuccess
+	case journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL:
+		return "Finance approval", toneWarning
+	case journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL:
+		return "Manager approval", toneWarning
+	case journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE:
+		return "Waiting for effective date", toneNeutral
+	case journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION:
+		return "Final checks", toneNeutral
+	case journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL:
+		return "Approval required again", toneWarning
+	case journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED:
+		return "Recording promotion", toneNeutral
+	case journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS:
+		return "Checking downstream effects", toneNeutral
+	case journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED:
+		return "Needs repair", toneDanger
+	case journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED:
+		return "Rejected", toneNeutral
+	case journeyv1.JourneyStage_JOURNEY_STAGE_FAILED:
+		return "Failed", toneDanger
 	default:
-		return toneNeutral
+		return "Status unavailable", toneWarning
 	}
 }
 
@@ -495,7 +491,8 @@ func card(cfg Config, j *journeyv1.Journey) journey.JourneyCard {
 		Stage:                 stage,
 		StageLabel:            stageLabel(stage),
 		StageTone:             stageTone(stage),
-		NextStep:              NextStepLabel(StageStatusDimension(j.GetStage()).NextStep),
+		NextStep:              NextStepLabel(JourneyStatusDimension(j).NextStep),
+		Closed:                JourneyClosed(j),
 		Updated:               formatTime(j.GetUpdatedAt()),
 		InstanceID:            j.GetInstanceId(),
 		DiagnosticsAuthorized: cfg.CanPageAction(diagnosticsPageID, "view"),
@@ -512,8 +509,8 @@ func card(cfg Config, j *journeyv1.Journey) journey.JourneyCard {
 // returned it, anchors that subject's position -- so grouping never
 // invents an ordering the server did not already imply. Within one
 // subject's group, an open journey always sorts ahead of a terminal one
-// (terminalStages, the same open/closed dimension the People table's
-// per-row count already shares), so the active thread reads before its own
+// (the server's lifecycle closure, the same open/closed dimension the People
+// table's per-row count already shares), so the active thread reads before its own
 // history; journeys of equal openness keep the engine's order between them.
 func groupJourneyCards(cards []journey.JourneyCard) []journey.JourneyCard {
 	order := make([]string, 0, len(cards))
@@ -531,7 +528,7 @@ func groupJourneyCards(cards []journey.JourneyCard) []journey.JourneyCard {
 	for _, key := range order {
 		group := bySubject[key]
 		sort.SliceStable(group, func(i, j int) bool {
-			return journeyOpenRank(group[i].Stage) < journeyOpenRank(group[j].Stage)
+			return journeyOpenRank(group[i]) < journeyOpenRank(group[j])
 		})
 		grouped = append(grouped, group...)
 	}
@@ -548,10 +545,10 @@ func journeySubjectKey(c journey.JourneyCard) string {
 	return c.WorkerName
 }
 
-// journeyOpenRank ranks a stage's lifecycle openness for the within-subject
-// sort: 0 for open, 1 for terminal (terminalStages).
-func journeyOpenRank(stage string) int {
-	if terminalStages[stage] {
+// journeyOpenRank ranks a card's lifecycle openness for the within-subject
+// sort: 0 for open, 1 for closed (the server's JourneyViewerProjection.closed).
+func journeyOpenRank(c journey.JourneyCard) int {
+	if c.Closed {
 		return 1
 	}
 	return 0
@@ -915,15 +912,6 @@ func JobTitle(jobCode string) string {
 	return code
 }
 
-// terminalStages are the stages a journey no longer moves out of. A journey
-// at any other stage is open, and is what the People table's per-row count
-// counts.
-var terminalStages = map[string]bool{
-	stageCompleted: true,
-	stageRejected:  true,
-	stageFailed:    true,
-}
-
 // PeopleView projects the workforce panel, or nil when the workforce read
 // has not answered.
 //
@@ -1037,7 +1025,7 @@ func openJourneyCounts(list []*journeyv1.Journey) map[string]int {
 		if j == nil {
 			continue
 		}
-		if terminalStages[stageOf(j.GetStage())] {
+		if JourneyClosed(j) {
 			continue
 		}
 		if ref := j.GetWorkerRef(); ref != "" {

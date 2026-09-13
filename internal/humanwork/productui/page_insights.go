@@ -13,7 +13,10 @@ func insightsPage(view View) ui.Node {
 	active, terminal := journeyCounts(population)
 	attention := 0
 	for _, item := range population {
-		if item.Status == "Awaiting approval" || item.Status == "Blocked" {
+		// PROMOUX-012: every approval decision (not only the literal
+		// "Awaiting approval" label) and every blocked proposal, by the
+		// server's next-step code.
+		if !item.Terminal && (WorkAwaitsDecision(item) || item.NextStep == "correct_proposal") {
 			attention++
 		}
 	}

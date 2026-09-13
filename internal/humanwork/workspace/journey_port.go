@@ -160,6 +160,84 @@ type JourneySummary struct {
 	// calling viewer is entitled to see it (UXAUDIT-017), or nil when there
 	// is none or the work item visibility rules do not admit the viewer.
 	CurrentWorkItem *JourneyWorkItemSummary
+
+	// Viewer is how the calling viewer stands to this journey and what its
+	// next transition is (PROMOUX-012). The engine resolves it for every
+	// summary it returns; the zero value (empty Responsibility) means it was
+	// not resolved, and clients treat that as nothing to act on.
+	Viewer JourneyViewerProjection
+}
+
+// JourneyViewerRelationship is one way the calling viewer stands to a
+// journey. Nothing records followers, so there is no follower relationship.
+type JourneyViewerRelationship string
+
+const (
+	// JourneyViewerInitiator: the viewer is the intent's recorded initiator.
+	JourneyViewerInitiator JourneyViewerRelationship = "INITIATOR"
+	// JourneyViewerAssignee: the viewer holds the current work item.
+	JourneyViewerAssignee JourneyViewerRelationship = "ASSIGNEE"
+	// JourneyViewerCandidate: the viewer may claim the current work item.
+	JourneyViewerCandidate JourneyViewerRelationship = "CANDIDATE"
+)
+
+// JourneyViewerResponsibility is what a journey asks of the calling viewer.
+type JourneyViewerResponsibility string
+
+const (
+	// JourneyResponsibilityActionRequired: the viewer holds or may claim the
+	// current work item, or initiated the journey and its next step is the
+	// proposer's.
+	JourneyResponsibilityActionRequired JourneyViewerResponsibility = "ACTION_REQUIRED"
+	// JourneyResponsibilityTracking: the viewer initiated the journey and its
+	// next step is someone else's or the workflow's.
+	JourneyResponsibilityTracking JourneyViewerResponsibility = "TRACKING"
+	// JourneyResponsibilityObserving: open, visible, no relationship.
+	JourneyResponsibilityObserving JourneyViewerResponsibility = "OBSERVING"
+	// JourneyResponsibilityClosed: the journey is closed.
+	JourneyResponsibilityClosed JourneyViewerResponsibility = "CLOSED"
+)
+
+// JourneyNextStep and JourneyStepOwner are the closed vocabularies of a
+// journey's next transition. Empty means none / unstated.
+type (
+	JourneyNextStep  string
+	JourneyStepOwner string
+)
+
+const (
+	JourneyNextStepStartApproval      JourneyNextStep = "START_APPROVAL"
+	JourneyNextStepCorrectProposal    JourneyNextStep = "CORRECT_PROPOSAL"
+	JourneyNextStepApprovalDecision   JourneyNextStep = "APPROVAL_DECISION"
+	JourneyNextStepManagerDecision    JourneyNextStep = "MANAGER_DECISION"
+	JourneyNextStepFinanceDecision    JourneyNextStep = "FINANCE_DECISION"
+	JourneyNextStepReapprovalDecision JourneyNextStep = "REAPPROVAL_DECISION"
+	JourneyNextStepRepair             JourneyNextStep = "REPAIR"
+	JourneyNextStepAwaitEffectiveDate JourneyNextStep = "AWAIT_EFFECTIVE_DATE"
+	JourneyNextStepSystemProcessing   JourneyNextStep = "SYSTEM_PROCESSING"
+
+	JourneyStepOwnerProposer JourneyStepOwner = "PROPOSER"
+	JourneyStepOwnerApprover JourneyStepOwner = "APPROVER"
+	JourneyStepOwnerManager  JourneyStepOwner = "MANAGER"
+	JourneyStepOwnerFinance  JourneyStepOwner = "FINANCE"
+	JourneyStepOwnerSystem   JourneyStepOwner = "SYSTEM"
+)
+
+// JourneyViewerProjection is one journey as it stands for the calling viewer.
+// It names only the viewer's own standing: it never carries another
+// principal's identity, so a viewer with no relationship receives the same
+// projection whoever initiated the journey or holds its work item.
+type JourneyViewerProjection struct {
+	// Relationships are sorted and unique; empty means none.
+	Relationships  []JourneyViewerRelationship
+	Responsibility JourneyViewerResponsibility
+	NextStep       JourneyNextStep
+	NextStepOwner  JourneyStepOwner
+	// AwaitsPerson is true when a person holds NextStep; an open journey
+	// whose next step no person holds is a passive wait.
+	AwaitsPerson bool
+	// Closed is true at a terminal stage.
+	Closed bool
 }
 
 // JourneyWorkItemSummary is the list-level, viewer-scoped view of a journey's

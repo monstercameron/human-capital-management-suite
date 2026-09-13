@@ -35,13 +35,18 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 		workTabProps(view, "review", view.Locale.Text("work.awaiting")),
 		workTabProps(view, "blocked", view.Locale.Text("work.blocked")),
 		workTabProps(view, "mine", view.Locale.Text("work.mine")),
+		// PROMOUX-012: promotions the viewer proposed, tracked apart from the
+		// work they must do.
+		workTabProps(view, "tracked", view.Locale.Text("work.tracked")),
 	}
 	if options.ListDetail {
 		tabs = append(tabs, WorkTabProps{Label: view.Locale.Text("work.past"), Href: statefulHref(view, PageHistory), Navigate: view.Navigate})
 	}
 	items := view.Work
 	if view.WorkFilter == "" {
-		items = OpenWorkItems(items)
+		// PROMOUX-012: the default view is the viewer's actionable work only;
+		// a visible journey that asks nothing of them is not "work".
+		items = ActionableWorkItems(items)
 	}
 	// UXAUDIT-017: an action queue orders by urgency, not admission order.
 	items = SortWorkByUrgency(items)
@@ -59,6 +64,7 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 			NextStep: workNextStepText(view.Locale, item.NextStep), WaitingOn: workWaitingOnText(view.Locale, item.WaitingOn),
 			Assignment: workAssignmentText(view.Locale, item), WorkDue: workDueText(view.Locale, item),
 			NextAction:       workNextActionText(view.Locale, item),
+			Tracking:         workTrackingText(view.Locale, item),
 			StatusProjection: item.StatusProjection,
 			Disposition:      approvalDispositionCardProps(view.Locale, item.Disposition),
 			Href:             workFilterHref(view, view.WorkFilter, "selected", item.ID),
@@ -77,9 +83,13 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 			Label: view.Locale.Text("work.view"), Href: statefulHref(view, PageWork), Navigate: view.Navigate,
 		}
 	}
+	emptyTitle, emptyDetail := view.Locale.Text("work.empty_title"), view.Locale.Text("work.empty_detail")
+	if view.WorkFilter == "tracked" {
+		emptyTitle, emptyDetail = view.Locale.Text("work.tracked_empty_title"), view.Locale.Text("work.tracked_empty_detail")
+	}
 	return WorkCollectionProps{
 		Title: options.Title, CountLabel: view.Locale.Plural("work.item_count", int64(len(items))), Tabs: tabs, Rows: rows,
-		Footer: footer,
+		Footer: footer, EmptyTitle: emptyTitle, EmptyDetail: emptyDetail,
 	}
 }
 
@@ -87,7 +97,7 @@ func selectedOpenWork(view View) WorkItem {
 	if view.WorkFilter != "" {
 		return selectedWork(view)
 	}
-	items := OpenWorkItems(view.Work)
+	items := ActionableWorkItems(view.Work)
 	if view.SelectedWork != "" {
 		for _, item := range items {
 			if item.ID == view.SelectedWork {
@@ -174,6 +184,17 @@ func workNextActionText(locale LocaleContext, item WorkItem) string {
 		return ""
 	}
 	return locale.Text("work.row_next_action", map[string]string{"action": locale.Text("work.action." + code)})
+}
+
+// workTrackingText states, on a row the viewer tracks but need not act on,
+// that nothing is theirs to do (PROMOUX-012). A passive wait adds nothing
+// else: the row's next step and waiting-on lines already name the next
+// transition and its owner.
+func workTrackingText(locale LocaleContext, item WorkItem) string {
+	if item.Terminal || item.ViewerResponsibility != workResponsibilityTracking {
+		return ""
+	}
+	return locale.Text("work.row_no_action_needed")
 }
 
 // knownWorkNextSteps and knownWorkActors mirror the closed vocabularies of

@@ -133,3 +133,56 @@ func MyWorkItems(items []WorkItem, viewer ViewerProfile) []WorkItem {
 	}
 	return mine
 }
+
+// Viewer projection tokens (PROMOUX-012), as tools/uxqual/journeyclient
+// projects them off the server's JourneyViewerProjection.
+const (
+	workResponsibilityActionRequired = "ACTION_REQUIRED"
+	workResponsibilityTracking       = "TRACKING"
+	workRelationshipInitiator        = "INITIATOR"
+)
+
+// WorkNeedsViewerAction reports whether the server says this open item asks
+// the viewer to act: they hold or may claim its work item, or they proposed
+// it and its next step is the proposer's. Nothing else is actionable -- in
+// particular not a passive wait, and not an item the server resolved no
+// responsibility for -- so My Work and every attention count built from this
+// never include work the viewer cannot do.
+func WorkNeedsViewerAction(item WorkItem) bool {
+	return !item.Terminal && item.ViewerResponsibility == workResponsibilityActionRequired
+}
+
+// ActionableWorkItems is the My Work queue population and the source of every
+// actionable count (navigation badge, notification summary): open items the
+// viewer must act on, in input order.
+func ActionableWorkItems(items []WorkItem) []WorkItem {
+	return FilterWorkCollection(items, WorkCollectionAll)
+}
+
+// WorkViewerInitiated reports whether the server names the viewer as this
+// item's initiator.
+func WorkViewerInitiated(item WorkItem) bool {
+	for _, relationship := range item.ViewerRelationships {
+		if relationship == workRelationshipInitiator {
+			return true
+		}
+	}
+	return false
+}
+
+// WorkAwaitsDecision reports whether the item's next step is an approval
+// decision of any kind -- the generic, manager, finance or repeat approval --
+// read from the server's next-step code rather than a status label.
+func WorkAwaitsDecision(item WorkItem) bool {
+	switch item.NextStep {
+	case "approval_decision", "manager_decision", "finance_decision", "reapproval_decision":
+		return true
+	}
+	return false
+}
+
+// WorkIsPassiveWait reports whether an open item's next step is held by the
+// workflow or the calendar rather than by any person.
+func WorkIsPassiveWait(item WorkItem) bool {
+	return !item.Terminal && item.NextStep != "" && !item.AwaitsPerson
+}
