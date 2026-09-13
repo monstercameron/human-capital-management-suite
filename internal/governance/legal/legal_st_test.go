@@ -208,14 +208,6 @@ func legalStField(m map[string]json.RawMessage, key string) (json.RawMessage, bo
 	return raw, ok
 }
 
-func legalStStringField(m map[string]json.RawMessage, key string) string {
-	var v string
-	if raw, ok := legalStField(m, key); ok {
-		_ = json.Unmarshal(raw, &v)
-	}
-	return v
-}
-
 // legalStFieldStated reports whether one rendered obligation carries a
 // non-empty value for a required field.
 func legalStFieldStated(m map[string]json.RawMessage, key string) bool {
