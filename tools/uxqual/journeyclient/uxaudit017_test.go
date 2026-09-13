@@ -94,6 +94,18 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 	if len(adrianGroup.Statuses) != 2 {
 		t.Fatalf("Adrian's group must expose both his distinct statuses (Blocked and Completed), got %+v", adrianGroup.Statuses)
 	}
+
+	// The shared status dimension reaches the tracker's cards: an open
+	// journey names its next step, a terminal one names none.
+	if got := cards[adrianOpen].NextStep; got != "Correct the proposal" {
+		t.Fatalf("Adrian's blocked journey NextStep = %q, want %q", got, "Correct the proposal")
+	}
+	if got := cards[samuel].NextStep; got != "Manager decision" {
+		t.Fatalf("Samuel's manager-approval journey NextStep = %q, want %q", got, "Manager decision")
+	}
+	if got := cards[adrianDone].NextStep; got != "" {
+		t.Fatalf("a completed journey must name no next step, got %q", got)
+	}
 }
 
 // TestTodo_UXAUDIT_017_Regression pins groupJourneyCards directly and

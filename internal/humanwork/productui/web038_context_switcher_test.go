@@ -365,7 +365,7 @@ func TestTodo_WEB_038_OverlapCancellationAndPanicSafety(t *testing.T) {
 
 func TestTodo_WEB_038_Latency(t *testing.T) {
 	props := web038Fixture()
-	budget := latencygate.Budget{Name: "context switcher projection", P95: 2 * time.Millisecond, Warmups: 3, Samples: 25}
+	budget := latencygate.Budget{Name: "context switcher projection", P95: 2 * time.Millisecond, Warmups: 3, Samples: interactionLatencySamples}
 	result, err := latencygate.Measure(budget, func() error {
 		_, renderErr := ui.RenderToString(ui.CreateElement(ContextSwitcher, props))
 		return renderErr

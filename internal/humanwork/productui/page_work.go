@@ -34,6 +34,7 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 		workTabProps(view, "", view.Locale.Text("work.all")),
 		workTabProps(view, "review", view.Locale.Text("work.awaiting")),
 		workTabProps(view, "blocked", view.Locale.Text("work.blocked")),
+		workTabProps(view, "mine", view.Locale.Text("work.mine")),
 	}
 	if options.ListDetail {
 		tabs = append(tabs, WorkTabProps{Label: view.Locale.Text("work.past"), Href: statefulHref(view, PageHistory), Navigate: view.Navigate})
@@ -49,17 +50,28 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 		selectedID = selectedOpenWork(view).ID
 	}
 	rows := make([]WorkRowProps, 0, len(items))
+	undisclosed := false
 	for _, item := range items {
+		undisclosed = undisclosed || !item.WorkSummary
 		rows = append(rows, WorkRowProps{
 			ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: item.Title, Person: item.Person,
 			Summary: item.Summary, Due: item.Due, JourneyStage: item.Status,
+			NextStep: workNextStepText(view.Locale, item.NextStep), WaitingOn: workWaitingOnText(view.Locale, item.WaitingOn),
+			Assignment: workAssignmentText(view.Locale, item), WorkDue: workDueText(view.Locale, item),
+			NextAction:       workNextActionText(view.Locale, item),
 			StatusProjection: item.StatusProjection,
 			Disposition:      approvalDispositionCardProps(view.Locale, item.Disposition),
-			Href:             statefulHref(view, PageWork, "filter", view.WorkFilter, "selected", item.ID),
+			Href:             workFilterHref(view, view.WorkFilter, "selected", item.ID),
 			Selected:         options.ListDetail && item.ID == selectedID, Navigate: view.Navigate,
 		})
 	}
 	footer := WorkCollectionFooterProps{Label: view.Locale.Text("work.authorized")}
+	if undisclosed {
+		// Some rows carry no server work item summary (no open work item, or
+		// one this viewer may not see); say so once instead of a "Not
+		// reported" cell on every such row.
+		footer.Note = view.Locale.Text("work.assignee_note")
+	}
 	if !options.ListDetail {
 		footer.Action = ActionLinkProps{
 			Label: view.Locale.Text("work.view"), Href: statefulHref(view, PageWork), Navigate: view.Navigate,
@@ -95,25 +107,119 @@ func selectedOpenWork(view View) WorkItem {
 }
 
 func workTabProps(view View, filter, label string) WorkTabProps {
-	return WorkTabProps{Label: label, Href: statefulHref(view, PageWork, "filter", filter), Active: view.WorkFilter == filter, Navigate: view.Navigate}
+	return WorkTabProps{Label: label, Href: workFilterHref(view, filter), Active: view.WorkFilter == filter, Navigate: view.Navigate}
 }
+
+// workFilterHref is a My Work address that always states its filter. My Work
+// adopts the viewer's saved filter when the address carries none (UXAUDIT-017,
+// "retain filters on return"), so the unfiltered "Open work" view must be
+// addressed as an explicit empty filter; otherwise choosing it would silently
+// re-apply the saved filter and the viewer could never clear it.
+func workFilterHref(view View, filter string, keyValues ...string) string {
+	href := statefulHref(view, PageWork, append([]string{"filter", filter}, keyValues...)...)
+	if filter == "" {
+		return withExplicitEmptyQuery(href, "filter")
+	}
+	return href
+}
+
+// workNextStepText localizes a shared NextStep code; an empty or unknown code
+// renders nothing rather than a placeholder.
+func workNextStepText(locale LocaleContext, code string) string {
+	if !knownWorkNextSteps[code] {
+		return ""
+	}
+	return locale.Text("work.row_next_step", map[string]string{"step": locale.Text("work.next_step." + code)})
+}
+
+// workWaitingOnText localizes a shared StageActor code the same way.
+func workWaitingOnText(locale LocaleContext, code string) string {
+	if !knownWorkActors[code] {
+		return ""
+	}
+	return locale.Text("work.row_waiting_on", map[string]string{"actor": locale.Text("work.waiting_on." + code)})
+}
+
+// workAssignmentText states who holds the current work item, from the server
+// summary only: the viewer themself, a claim the viewer may take, or the
+// disclosed assignee. No summary, or no disclosed assignee, renders nothing.
+func workAssignmentText(locale LocaleContext, item WorkItem) string {
+	if !item.WorkSummary {
+		return ""
+	}
+	switch item.ViewerMembership {
+	case "ASSIGNEE", "CLAIMANT":
+		return locale.Text("work.row_assigned_to_you")
+	case "CANDIDATE":
+		return locale.Text("work.row_claimable_by_you")
+	}
+	if item.AssigneeName != "" {
+		return locale.Text("work.row_assigned_to", map[string]string{"assignee": item.AssigneeName})
+	}
+	return ""
+}
+
+// workDueText is the work item's real deadline, when the server disclosed one.
+func workDueText(locale LocaleContext, item WorkItem) string {
+	if !item.WorkSummary || item.WorkDue == "" {
+		return ""
+	}
+	return locale.Text("work.row_due", map[string]string{"date": item.WorkDue})
+}
+
+// workNextActionText is the viewer's next executable action (WorkNextAction).
+func workNextActionText(locale LocaleContext, item WorkItem) string {
+	code := WorkNextAction(item)
+	if code == "" {
+		return ""
+	}
+	return locale.Text("work.row_next_action", map[string]string{"action": locale.Text("work.action." + code)})
+}
+
+// knownWorkNextSteps and knownWorkActors mirror the closed vocabularies of
+// tools/uxqual/journeyclient.NextStep and StageActor; internal/ never imports
+// tools/, so the codes cross as strings. TestTodo_UXAUDIT_017_Regression in tools/uxqual/productclient
+// pins the two lists together.
+var (
+	knownWorkNextSteps = map[string]bool{
+		"start_approval": true, "correct_proposal": true, "approval_decision": true, "manager_decision": true,
+		"finance_decision": true, "reapproval_decision": true, "repair": true, "await_effective_date": true, "system_processing": true,
+	}
+	knownWorkActors = map[string]bool{"proposer": true, "approver": true, "manager": true, "finance": true, "system": true}
+)
+
+// KnownWorkNextStep and KnownWorkActor report whether code has product copy.
+func KnownWorkNextStep(code string) bool { return knownWorkNextSteps[code] }
+func KnownWorkActor(code string) bool    { return knownWorkActors[code] }
 
 func workPreviewProps(view View, item WorkItem) WorkPreviewProps {
 	if item.ID == "" {
 		return WorkPreviewProps{
 			Empty: true, EmptyTitle: view.Locale.Text("work.nothing_selected"), EmptyDetail: view.Locale.Text("work.nothing_detail"),
-			Action: ActionLinkProps{Label: view.Locale.Text("work.show_all"), Href: statefulHref(view, PageWork), Class: "button secondary", Navigate: view.Navigate},
+			Action: ActionLinkProps{Label: view.Locale.Text("work.show_all"), Href: workFilterHref(view, ""), Class: "button secondary", Navigate: view.Navigate},
+		}
+	}
+	facts := []FactProps{}
+	if step := workNextStepText(view.Locale, item.NextStep); step != "" {
+		facts = append(facts, FactProps{Label: view.Locale.Text("work.next_step_label"), Value: view.Locale.Text("work.next_step." + item.NextStep)})
+	}
+	if workWaitingOnText(view.Locale, item.WaitingOn) != "" {
+		facts = append(facts, FactProps{Label: view.Locale.Text("work.waiting_on_label"), Value: view.Locale.Text("work.waiting_on." + item.WaitingOn)})
+	}
+	for _, text := range []string{workAssignmentText(view.Locale, item), workDueText(view.Locale, item), workNextActionText(view.Locale, item)} {
+		if text != "" {
+			facts = append(facts, FactProps{Label: view.Locale.Text("work.current_work_item_label"), Value: text})
 		}
 	}
 	return WorkPreviewProps{
 		ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: item.Title, Person: item.Person,
 		Summary: item.Summary, JourneyStage: item.Status, StatusProjection: item.StatusProjection, Provenance: item.Provenance,
 		Disposition: approvalDispositionCardProps(view.Locale, item.Disposition), FactsTitle: view.Locale.Text("work.server_proposal"),
-		Facts: []FactProps{
-			{Label: view.Locale.Text("work.effective_date"), Value: valueOrUnavailableFor(view.Locale, item.EffectiveDate)},
-			{Label: view.Locale.Text("work.current_base"), Value: money(view.Locale, item.CurrentBase)},
-			{Label: view.Locale.Text("work.proposed_base"), Value: money(view.Locale, item.ProposedBase)},
-		},
+		Facts: append(facts,
+			FactProps{Label: view.Locale.Text("work.effective_date"), Value: valueOrUnavailableFor(view.Locale, item.EffectiveDate)},
+			FactProps{Label: view.Locale.Text("work.current_base"), Value: money(view.Locale, item.CurrentBase)},
+			FactProps{Label: view.Locale.Text("work.proposed_base"), Value: money(view.Locale, item.ProposedBase)},
+		),
 		// PROMOUX-008: the journey id is a work-item UUID -- RED names it by
 		// name -- so it no longer sits in the plain Facts list every viewer
 		// of this page reads. It is authorized diagnostics-only.

@@ -382,6 +382,41 @@ message Journey {
   // EditProposal and RequestJourneyIntervention (PROMOUX-013): those two
   // calls act on the intent record itself, not on the workflow instance.
   uint64 governance_version = 19;
+  // current_work_item summarizes the journey's one open human work item as
+  // the calling viewer is entitled to see it (UXAUDIT-017). It is unset when
+  // the journey has no open work item, or when the internal/humanwork/workitem
+  // visibility rules do not admit this viewer to that item at all -- never a
+  // partially guessed value.
+  JourneyWorkItemSummary current_work_item = 20;
+}
+
+// JourneyWorkItemSummary is the list-level view of a journey's current open
+// WorkItem, disclosed under the same rules WorkService applies
+// (internal/humanwork/workitem: MembershipOf, Visible, ContextVisible,
+// PermittedActions). It deliberately carries no work item id: raw identifiers
+// on the list are diagnostics-only (PROMOUX-008).
+message JourneyWorkItemSummary {
+  // kind is one of APPROVAL, TASK (workitem.Kind).
+  string kind = 1;
+  // status is the workitem.Status token, e.g. ASSIGNED, AVAILABLE, CLAIMED.
+  string status = 2;
+  // assignee_principal_id is the principal the item is routed to directly.
+  // It is empty when the item is owned by a candidate set, and empty whenever
+  // workitem.ContextVisible does not admit this viewer.
+  string assignee_principal_id = 3;
+  // assignee_display_name is the assignee's worker display name when the
+  // principal id is a stable worker identifier this cell resolves; empty
+  // otherwise. It is never derived from anything but that identity join.
+  string assignee_display_name = 4;
+  // due_at is the item's deadline, unset when it has none.
+  google.protobuf.Timestamp due_at = 5;
+  // viewer_permitted_actions is workitem.PermittedActions for this viewer:
+  // the action tokens ("claim", "release", "complete", "decide_approval")
+  // the viewer could exercise on the item right now, sorted.
+  repeated string viewer_permitted_actions = 6;
+  // viewer_membership is how the viewer stands to the item: one of NONE,
+  // CANDIDATE, ASSIGNEE, CLAIMANT (workitem.Membership).
+  string viewer_membership = 7;
 }
 
 // Finding is one simulation finding, as the artifact reports it

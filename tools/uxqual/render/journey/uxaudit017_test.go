@@ -78,6 +78,35 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 	if !strings.Contains(adrianSection, "Blocked") || !strings.Contains(adrianSection, "Completed") {
 		t.Fatalf("Adrian's group must expose the distinct statuses across his journeys: %s", adrianSection)
 	}
+
+	// The shared next-step dimension renders on an open card only.
+	open, err := ui.RenderToString(journeyCard(JourneyCard{IntentID: "int-open", WorkerName: "Zara Moll", StageLabel: "Manager approval", NextStep: "Manager decision"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(open, `class="jn-journey-next"`) || !strings.Contains(open, "Manager decision") {
+		t.Fatalf("an open journey card must state its next step: %s", open)
+	}
+
+	// The tracker's empty state names the tracking task, in both the
+	// standalone and the embedded product composition.
+	empty, err := ui.RenderToString(journeysSection(ListView{Empty: "No promotion has been proposed in this tenant yet."}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(empty, ">"+journeysEmptyTitle+"<") {
+		t.Fatalf("Journeys empty state lacks its lifecycle title %q: %s", journeysEmptyTitle, empty)
+	}
+	embedded, err := ui.RenderToString(embeddedListView(Page{}, ListView{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(embedded, journeysEmptyTitle) || !strings.Contains(embedded, "grouped by employee and status") {
+		t.Fatalf("embedded Journeys empty state is not tracker-specific: %s", embedded)
+	}
+	if strings.Contains(embedded, "Nothing needs your action") {
+		t.Fatalf("Journeys must not borrow My Work's action-queue empty state: %s", embedded)
+	}
 }
 
 // TestTodo_UXAUDIT_017_Regression proves the grouped rendering is additive:
@@ -98,5 +127,10 @@ func TestTodo_UXAUDIT_017_Regression(t *testing.T) {
 	}
 	if !strings.Contains(markup, "jn-grid") || !strings.Contains(markup, "Priya Nair") || !strings.Contains(markup, "Sam Okafor") {
 		t.Fatalf("the flat fallback must still render both journeys: %s", markup)
+	}
+	// A card with no next step (terminal, or a fixture predating the field)
+	// renders no next-step line, so pinned card goldens stay byte-identical.
+	if strings.Contains(markup, "jn-journey-next") {
+		t.Fatalf("a card without NextStep must not render a next-step line: %s", markup)
 	}
 }

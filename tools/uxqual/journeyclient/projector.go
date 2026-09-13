@@ -495,6 +495,7 @@ func card(cfg Config, j *journeyv1.Journey) journey.JourneyCard {
 		Stage:                 stage,
 		StageLabel:            stageLabel(stage),
 		StageTone:             stageTone(stage),
+		NextStep:              NextStepLabel(StageStatusDimension(j.GetStage()).NextStep),
 		Updated:               formatTime(j.GetUpdatedAt()),
 		InstanceID:            j.GetInstanceId(),
 		DiagnosticsAuthorized: cfg.CanPageAction(diagnosticsPageID, "view"),

@@ -272,7 +272,11 @@ type JourneyCard struct {
 	StageLabel    string
 	// StageTone is one of neutral, info, warning, success, danger.
 	StageTone string
-	Updated   string
+	// NextStep is the display wording of the single next step the stage names
+	// (UXAUDIT-017's shared status dimension, journeyclient.NextStepLabel).
+	// Empty for a terminal or unknown stage, which renders no next-step line.
+	NextStep string
+	Updated  string
 	// InstanceID is empty before execution.
 	InstanceID string
 	// DiagnosticsAuthorized is PROMOUX-008's authorized-diagnostics verdict

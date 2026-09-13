@@ -231,11 +231,33 @@ func toJourney(s workspace.JourneySummary, diagAuthorized bool) *journeyv1.Journ
 		UpdatedAt:          toTimestamp(s.UpdatedAt),
 		GovernanceVersion:  s.GovernanceVersion,
 	}
+	out.CurrentWorkItem = toJourneyWorkItemSummary(s.CurrentWorkItem)
 	if diagAuthorized {
 		out.CorrelationId = s.CorrelationID
 		out.MaterialDigest = s.MaterialDigest
 		out.InstanceId = s.InstanceID
 		out.InstanceVersion = s.InstanceVersion
+	}
+	return out
+}
+
+// toJourneyWorkItemSummary renders the engine's viewer-scoped work item
+// summary. The engine has already applied the work item read rules; this is a
+// field copy, and nil stays nil.
+func toJourneyWorkItemSummary(s *workspace.JourneyWorkItemSummary) *journeyv1.JourneyWorkItemSummary {
+	if s == nil {
+		return nil
+	}
+	out := &journeyv1.JourneyWorkItemSummary{
+		Kind:                   s.Kind,
+		Status:                 s.Status,
+		AssigneePrincipalId:    s.AssigneePrincipalID,
+		AssigneeDisplayName:    s.AssigneeDisplayName,
+		ViewerPermittedActions: append([]string(nil), s.ViewerPermittedActions...),
+		ViewerMembership:       s.ViewerMembership,
+	}
+	if !s.DueAt.IsZero() {
+		out.DueAt = toTimestamp(s.DueAt)
 	}
 	return out
 }

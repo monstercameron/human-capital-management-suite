@@ -116,10 +116,12 @@ func LoadRepository(root string) (Snapshot, map[string]bool, error) {
 // ephemeral ".gocache-*" build-cache directories directly under the
 // repository root while this runs concurrently; walking the root itself
 // races those directories and can fail with a transient "file not found"
-// even though nothing under tools/internal/cmd/gen changed.
+// even though nothing under the scanned roots changed. test/ is included
+// because the acceptance, bootstrap, tunnel and workflow suites that ticked
+// evidence cites live there; omitting it reported them as dangling.
 func scanRepoTestNames(root string) (map[string]bool, error) {
 	out := make(map[string]bool)
-	for _, sub := range []string{"tools", "internal", "cmd", "gen"} {
+	for _, sub := range []string{"cmd", "gen", "internal", "test", "tools"} {
 		dir := filepath.Join(root, sub)
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue

@@ -43,6 +43,18 @@ type WorkRowProps struct {
 	// BusinessIntent lifecycle tuple. Never derive StatusProjection from it.
 	JourneyStage     string
 	StatusProjection StatusProjection
+	// NextStep ("Next step: Manager decision") and WaitingOn ("Waiting on
+	// the manager") are UXAUDIT-017's localized stage dimension. Empty
+	// renders nothing.
+	NextStep  string
+	WaitingOn string
+	// Assignment ("Assigned to you"), WorkDue ("Due 2026-10-01") and
+	// NextAction ("Your next action: Decide approval") are the localized
+	// server work item summary. Empty renders nothing; a row with Assignment
+	// does not repeat the stage-derived WaitingOn.
+	Assignment string
+	WorkDue    string
+	NextAction string
 	// Disposition is PROMOUX-003's approval verdict for this item, already
 	// localized by approvalDispositionCardProps. Show is false when the item
 	// carries no disposition (not an approval, or none was resolved), and
@@ -84,7 +96,11 @@ type ApprovalDispositionCardProps struct {
 }
 
 type WorkCollectionFooterProps struct {
-	Label  string
+	Label string
+	// Note, when set, is one collection-level sentence stating what the rows
+	// deliberately do not carry (UXAUDIT-017: named assignees and action-by
+	// dates live on each journey's work items, not on the list).
+	Note   string
 	Action ActionLinkProps
 }
 
@@ -144,6 +160,9 @@ func WorkCollection(props WorkCollectionProps) ui.Node {
 		))
 	}
 	foot := []ui.Node{html.Span(html.Props{}, ui.Text(props.Footer.Label))}
+	if props.Footer.Note != "" {
+		foot = append(foot, html.Small(html.Props{Class: "work-list-note"}, ui.Text(props.Footer.Note)))
+	}
 	if props.Footer.Action.Href != "" {
 		foot = append(foot, ui.CreateElement(ActionLink, props.Footer.Action))
 	}
@@ -179,14 +198,31 @@ func WorkRow(props WorkRowProps) ui.Node {
 	main := []ui.Node{
 		html.Strong(html.Props{}, ui.Text(props.Title)),
 		html.Small(html.Props{}, ui.Text(props.Person)),
-		html.Small(html.Props{}, ui.Text(props.Summary)),
+		html.Small(html.Props{Class: "row-summary"}, ui.Text(props.Summary)),
 	}
 	// PROMOUX-003: the row's own compact disposition summary -- "Waiting
 	// for <role>" -- so an approver scanning the list learns whose turn it
 	// is without opening the preview. It renders only what
 	// approvalDispositionCardProps already localized.
-	if props.Disposition.Show {
+	// UXAUDIT-017: an action queue row leads with the single next step. The
+	// stage-derived waiting-on class yields to PROMOUX-003's disposition when
+	// one exists, so a row never states whose turn it is twice.
+	if props.NextAction != "" {
+		main = append(main, html.Small(html.Props{Class: "row-next-action"}, ui.Text(props.NextAction)))
+	}
+	if props.NextStep != "" {
+		main = append(main, html.Small(html.Props{Class: "row-next-step"}, ui.Text(props.NextStep)))
+	}
+	switch {
+	case props.Disposition.Show:
 		main = append(main, html.Small(html.Props{Class: "row-disposition"}, ui.Text(props.Disposition.WaitingFor)))
+	case props.Assignment != "":
+		main = append(main, html.Small(html.Props{Class: "row-assignment"}, ui.Text(props.Assignment)))
+	case props.WaitingOn != "":
+		main = append(main, html.Small(html.Props{Class: "row-waiting-on"}, ui.Text(props.WaitingOn)))
+	}
+	if props.WorkDue != "" {
+		main = append(main, html.Small(html.Props{Class: "row-work-due"}, ui.Text(props.WorkDue)))
 	}
 	return html.Li(html.Props{Class: "work-row-item"}, softwareLink(props.Navigate, linkProps, props.Href,
 		personAvatar(props.Person, props.Initials, props.PhotoURL, ""),

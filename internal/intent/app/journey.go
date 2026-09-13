@@ -184,6 +184,10 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	out := make([]workspace.JourneySummary, 0, len(listed.GetIntents()))
+	// UXAUDIT-017: one clock reading and one bounded name resolver for the
+	// whole page; the work item summary itself reuses record.items below.
+	now := e.now()
+	assigneeName := e.assigneeNameResolver(ctx, principal.Tenant())
 	for _, msg := range listed.GetIntents() {
 		if msg.GetDefinition().GetIntentTypeId() != promotion.IntentType {
 			continue
@@ -222,6 +226,7 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 			summary.InstanceVersion = record.instance.InstanceVersion
 		}
 		applyDurableJourneyTime(&summary, record)
+		summary.CurrentWorkItem = journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), now, assigneeName)
 		out = append(out, summary)
 	}
 	sort.SliceStable(out, func(i, j int) bool {

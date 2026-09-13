@@ -11,7 +11,12 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/latencygate"
 )
 
-const interactionLatencySamples = 25
+// interactionLatencySamples is 100 so the nearest-rank p95 is the 95th of 100
+// samples: a breach needs six slow runs, not two. At 25 samples p95 was the
+// second-slowest run, and two scheduler or GC pauses under the pre-commit
+// covergate's parallel package load failed renders whose p50 sat far under
+// budget. The budgets themselves are unchanged.
+const interactionLatencySamples = 100
 
 // TestInteractionLatencyGate is the product UI's executable response-time
 // contract. Keep the expensive external boundaries out of this test: their

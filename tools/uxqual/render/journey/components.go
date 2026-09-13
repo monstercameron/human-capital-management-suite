@@ -649,7 +649,10 @@ func listView(p Page, v ListView) ui.Node {
 // therefore leads with the records and actions readers came here to use.
 func embeddedListView(p Page, v ListView) ui.Node {
 	if len(v.Journeys) == 0 {
-		v.Empty = "No promotion requests are visible yet. Choose an employee above to start a request."
+		// UXAUDIT-017: a lifecycle tracker's empty state, deliberately unlike
+		// My Work's "nothing needs your action" queue state -- this page is
+		// about following requests, not about the reader's assignments.
+		v.Empty = "No promotion requests are visible to track yet. Once a request is proposed it appears here, grouped by employee and status. Choose an employee to start one."
 	}
 	return html.Div(html.Props{Class: "jn-stack"},
 		pageHeader(pageHeaderProps{Eyebrow: "Workflows", Title: "Promotion journeys", Lead: "Follow promotion requests, review their progress, and open past decisions.",
@@ -776,6 +779,9 @@ func journeyCard(j JourneyCard) ui.Node {
 			metaItem("Effective", j.EffectiveDate, false),
 			metaItem("Updated", j.Updated, false),
 		),
+		htmlIf(j.NextStep != "", func() ui.Node {
+			return html.P(html.Props{Class: "jn-journey-next"}, metaItem("Next step", j.NextStep, false))
+		}),
 		technicalDetailsSection(j.DiagnosticsAuthorized, []technicalDetail{
 			{Label: "Worker", Value: j.WorkerRef},
 			{Label: "Instance", Value: j.InstanceID},
@@ -846,13 +852,17 @@ func maskIdentifier(value string) string {
 	return "••••" + value[len(value)-visible:]
 }
 
+// journeysEmptyTitle is the Journeys lifecycle tracker's empty-state heading
+// (UXAUDIT-017): it names the tracking task, never a generic "nothing here".
+const journeysEmptyTitle = "No journeys to track"
+
 func emptyState(message string) ui.Node {
 	if message == "" {
 		message = "No promotion journeys yet."
 	}
 	return html.Div(html.Props{Class: "jn-panel jn-empty"},
 		iconEmpty("jn-empty-mark"),
-		html.P(html.Props{Class: "jn-empty-title"}, html.Text("Nothing here yet")),
+		html.P(html.Props{Class: "jn-empty-title"}, html.Text(journeysEmptyTitle)),
 		html.P(html.Props{}, html.Text(message)),
 	)
 }

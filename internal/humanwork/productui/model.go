@@ -204,6 +204,28 @@ type WorkItem struct {
 	CurrentBase     values.Money
 	ProposedBase    values.Money
 	Terminal        bool
+	// NextStep and WaitingOn are the stable codes of the single next step and
+	// the role class a journey's server stage names (UXAUDIT-017; see
+	// tools/uxqual/journeyclient.StageStatusDimension). They are workflow
+	// facts, never action authority, and render as text only. AwaitsPerson
+	// is true when a person rather than the workflow holds that step; the
+	// queue ranks those first. Empty codes render nothing.
+	NextStep     string
+	WaitingOn    string
+	AwaitsPerson bool
+	// WorkSummary is true when the server disclosed the journey's current
+	// work item to this viewer (UXAUDIT-017). The fields below are set only
+	// then, and only as far as the server's work item rules disclosed them:
+	// AssigneeRef/AssigneeName for a directly routed item whose context the
+	// viewer may see, WorkDue (YYYY-MM-DD) for the item's real deadline,
+	// ViewerMembership (NONE, CANDIDATE, ASSIGNEE, CLAIMANT) and the viewer's
+	// PermittedActions tokens.
+	WorkSummary      bool
+	AssigneeRef      string
+	AssigneeName     string
+	WorkDue          string
+	ViewerMembership string
+	PermittedActions []string
 	// StatusProjection is supplied by the authorized service adapter when
 	// available. The page never treats it as action authority.
 	StatusProjection StatusProjection

@@ -21,8 +21,12 @@ func TestInteractionLatencyGate(t *testing.T) {
 	}
 	view := PeopleView{Workers: workers, SelectedRef: workers[len(workers)-1].Ref}
 	budget := latencygate.Budget{
-		Name: "journey workforce preview (10000 workers)", P95: 16 * time.Millisecond, Warmups: 3, Samples: 25,
+		Name: "journey workforce preview (10000 workers)", P95: 16 * time.Millisecond, Warmups: 3, Samples: 100,
 	}
+	// 100 samples so p95 is the 95th of 100 and a breach needs six slow runs:
+	// at 25, p95 was the second-slowest run, and under the pre-commit
+	// covergate's parallel load it failed at 16.16ms with p50 at 0.54ms. The
+	// 16ms budget is unchanged.
 	result, err := latencygate.Measure(budget, func() error {
 		_, err := ui.RenderToString(peopleTable(view))
 		return err

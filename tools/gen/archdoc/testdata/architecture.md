@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: b860352b12e398c7f5e1e50f55ea76e486d4bd462bab68a526f3dc51da086385
-- Package count: 805
-- Within-module edge count: 1888
+- Source graph: bf82a77853357b4d6185600d7c4df0c50ebf79a395aa57d7141d2f06712cdf27
+- Package count: 808
+- Within-module edge count: 1902
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -737,6 +737,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/boundarytests`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/closurewitness`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/closurewitness`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/convergence`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/featurecoverage`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/p1aselection`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/pilotblueprint`
@@ -752,6 +753,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/workflowmaturity`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/controlcrosswalk`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/controlcrosswalk/cmd/controlcrosswalk`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/convergence`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/corpus`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/corpus/cmd/corpus`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/coveragematrix`
@@ -772,6 +774,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/intentcoverage/cmd/intentcoverage`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/intentmanifests`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/legalmatrix`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/lineageconformance`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/links`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/manifest`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/obligations`
@@ -960,4 +963,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`f69ba0bb8c6a249990b400fb3e397a6852e83cdb7c109db71e278a80af80858b`
+`8d50f99097819fa2134b66b8d691c18587b8be304fdc7ec07849260d81505e2f`

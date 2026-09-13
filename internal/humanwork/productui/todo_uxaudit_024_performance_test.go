@@ -33,7 +33,7 @@ import (
 func TestTodo_UXAUDIT_024_Performance(t *testing.T) {
 	items := uxaudit024LargeCatalog(200)
 
-	budget := latencygate.Budget{Name: "global search per-keystroke ranking", P95: 20 * time.Millisecond, Warmups: 5, Samples: 30}
+	budget := latencygate.Budget{Name: "global search per-keystroke ranking", P95: 20 * time.Millisecond, Warmups: 5, Samples: interactionLatencySamples}
 	result, err := latencygate.Measure(budget, func() error {
 		_ = SearchGlobalItems(items, "avery patel promotion", globalSearchLimit)
 		return nil

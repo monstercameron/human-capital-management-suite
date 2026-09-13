@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-09-13 (UXAUDIT-017, CLOSE-002, DATA-022)
+
+- My Work is now an action queue and Journeys a lifecycle tracker. Journey
+  list rows carry a summary of the current work item: assignee, due date and
+  the viewer's permitted actions, disclosed only when the existing work-item
+  visibility rules admit the viewer. My Work orders by urgency, then by
+  whether the viewer holds or may claim the item, then by the real due date,
+  and gains an "Assigned to me" tab. A saved My Work filter can now be
+  cleared.
+
+- A narrow-screen style rule hid every row line after the first below
+  1190px, so on phones and tablets the queue showed no next action,
+  assignee or due date. It had also been hiding the approval disposition
+  line. Only the grade-change line is dropped now, and a test pins that.
+
+- A single convergence gate re-runs the design, slice, selection and
+  workflow compilers and proves a second unchanged pass produces no new gap
+  identity. Today it reports 179 gaps, 67 of them in selected scope, each
+  resolved to a proposed todo that has not been added to the backlog, plus
+  70 unknowns. The design-closure and intent-coverage loaders now see tests
+  under `test/`.
+
+- Lineage conformance is generated per intent family, child and trigger
+  from the closure witnesses. None of 19 cases is complete: Promotion is
+  partial, missing outbox, reconciliation and correction producers, and the
+  rest are unknown.
+
 ## 2026-09-13 (NEXT-002, SLICE-016)
 
 - The P1A manifest is now bound to the selections it was always supposed to

@@ -1540,7 +1540,10 @@ func declareBaseStyles() {
 	declareGlobal(".settings-form form .button",
 		mediaRule(gwccss.MaxW(1190), gwccss.GridColumn(gwccss.GridLineAt(1))),
 	)
-	declareGlobal(".work-row .row-main small+small",
+	// Narrow rows drop only the grade-change summary. The action facts that
+	// follow it (next action, next step, disposition, assignment, due) are
+	// the point of the queue and must survive every width (UXAUDIT-017).
+	declareGlobal(".work-row .row-main small.row-summary",
 		mediaRule(gwccss.MaxW(1190), gwccss.Display.None),
 	)
 	declareGlobal(".home-grid,.workbench,.people-workspace,.settings-shell",

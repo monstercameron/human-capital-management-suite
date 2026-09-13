@@ -155,6 +155,34 @@ type JourneySummary struct {
 	// [JourneyEngine.RequestIntervention]: those two calls act on the
 	// intent record itself, not on the workflow instance.
 	GovernanceVersion uint64
+
+	// CurrentWorkItem is the journey's one open human work item as the
+	// calling viewer is entitled to see it (UXAUDIT-017), or nil when there
+	// is none or the work item visibility rules do not admit the viewer.
+	CurrentWorkItem *JourneyWorkItemSummary
+}
+
+// JourneyWorkItemSummary is the list-level, viewer-scoped view of a journey's
+// current open work item. The engine fills it under
+// internal/humanwork/workitem's own read rules; every string is a token or an
+// identifier, never presentation copy.
+type JourneyWorkItemSummary struct {
+	// Kind and Status are the workitem.Kind and workitem.Status tokens.
+	Kind   string
+	Status string
+	// AssigneePrincipalID is set only for a directly routed item whose
+	// identity-bearing context the viewer may see (workitem.ContextVisible).
+	AssigneePrincipalID string
+	// AssigneeDisplayName is the assignee's worker display name when the
+	// principal id resolves to a worker; empty otherwise.
+	AssigneeDisplayName string
+	// DueAt is the item's deadline; zero when it has none.
+	DueAt time.Time
+	// ViewerPermittedActions is workitem.PermittedActions for the viewer,
+	// sorted.
+	ViewerPermittedActions []string
+	// ViewerMembership is NONE, CANDIDATE, ASSIGNEE or CLAIMANT.
+	ViewerMembership string
 }
 
 // ProposalInput is what the manager fills in. Everything else the intent

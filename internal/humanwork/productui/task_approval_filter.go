@@ -16,6 +16,9 @@ const (
 	WorkCollectionBlocked
 	// WorkCollectionComplete is the completed view.
 	WorkCollectionComplete
+	// WorkCollectionMine is UXAUDIT-017's "assigned to me" view: open items
+	// whose current work item the server says the viewer holds or may claim.
+	WorkCollectionMine
 )
 
 // ParseWorkCollectionFilter resolves a request filter string
@@ -31,6 +34,8 @@ func ParseWorkCollectionFilter(raw string) WorkCollectionFilter {
 		return WorkCollectionBlocked
 	case "complete":
 		return WorkCollectionComplete
+	case "mine":
+		return WorkCollectionMine
 	}
 	return WorkCollectionFilter(0)
 }
@@ -51,6 +56,8 @@ func FilterWorkCollection(items []WorkItem, filter WorkCollectionFilter) []WorkI
 			include = item.Status == "Blocked"
 		case WorkCollectionComplete:
 			include = item.Terminal
+		case WorkCollectionMine:
+			include = !item.Terminal && WorkViewerOwnershipRank(item) < 2
 		}
 		if include {
 			filtered = append(filtered, item)

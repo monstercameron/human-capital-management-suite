@@ -239,7 +239,7 @@ func validControlledRouteValues(page productui.PageID, values url.Values) bool {
 	}
 	switch page {
 	case productui.PageWork:
-		return oneOf("filter", "review", "blocked", "complete")
+		return oneOf("filter", "review", "blocked", "complete", "mine")
 	case productui.PageOrganization:
 		return oneOf("org_view", "flat", "tree")
 	case productui.PageStudio:
@@ -852,15 +852,44 @@ func projectJourneys(journeys []*journeyv1.Journey) ([]productui.WorkItem, error
 		if err != nil {
 			failures = append(failures, fmt.Errorf("project journey %s proposed base: %w", journey.GetIntentId(), err))
 		}
+		// UXAUDIT-017: the same stage dimension the Journeys tracker renders,
+		// so My Work's next step and waiting-on class never disagree with it.
+		dimension := journeyclient.StageStatusDimension(journey.GetStage())
 		items = append(items, productui.WorkItem{
+			NextStep: string(dimension.NextStep), WaitingOn: string(dimension.WaitingOn), AwaitsPerson: dimension.AwaitsPerson,
 			ID: journey.GetIntentId(), Initials: uicomponents.Initials(journey.GetWorkerName()), PhotoURL: employeePhotoURL(journey.GetWorkerRef(), journey.GetWorkerName()), Title: "Promotion journey",
 			Person: journey.GetWorkerName(), PersonRef: journey.GetWorkerRef(), Summary: summary, Status: status, Tone: tone, Terminal: terminal,
 			Due: journey.GetEffectiveDate(), EffectiveDate: journey.GetEffectiveDate(), CompletedAt: timestampLabel(journey.GetUpdatedAt()),
 			InstanceID: journey.GetInstanceId(), InstanceVersion: journey.GetInstanceVersion(), MaterialDigest: journey.GetMaterialDigest(),
 			CurrentBase: currentBase, ProposedBase: proposedBase,
 		})
+		applyWorkItemSummary(&items[len(items)-1], journey.GetCurrentWorkItem())
 	}
 	return items, errors.Join(failures...)
+}
+
+// applyWorkItemSummary copies the server's viewer-scoped current work item
+// summary (UXAUDIT-017) onto a My Work item. The server has already applied
+// the work item visibility rules; an absent summary leaves every field empty
+// so the page keeps its stage-derived fallback and honest note, and nothing
+// here fills a gap with a guess.
+func applyWorkItemSummary(item *productui.WorkItem, summary *journeyv1.JourneyWorkItemSummary) {
+	if item == nil || summary == nil {
+		return
+	}
+	item.WorkSummary = true
+	item.ViewerMembership = summary.GetViewerMembership()
+	item.PermittedActions = append([]string(nil), summary.GetViewerPermittedActions()...)
+	if ref := strings.TrimSpace(summary.GetAssigneePrincipalId()); ref != "" {
+		item.AssigneeRef = ref
+		item.AssigneeName = strings.TrimSpace(summary.GetAssigneeDisplayName())
+		if item.AssigneeName == "" {
+			item.AssigneeName = displayLabel(ref)
+		}
+	}
+	if due := summary.GetDueAt(); due != nil && due.CheckValid() == nil && !due.AsTime().IsZero() {
+		item.WorkDue = due.AsTime().UTC().Format("2006-01-02")
+	}
 }
 
 func timestampLabel(stamp *timestamppb.Timestamp) string {

@@ -17,7 +17,7 @@ func TestTodo_WEB_039_InteractionP95(t *testing.T) {
 	view := ApplyNavigationProjection(NewView(PagePeople, "tenant", "Taylor", "scope"), web039NavigationProjection())
 	view.MenuQuery = "people"
 	props := navigationSidebarProps(view)
-	budget := latencygate.Budget{Name: "authorization-resolved navigation", P95: 5 * time.Millisecond, Warmups: 3, Samples: 25}
+	budget := latencygate.Budget{Name: "authorization-resolved navigation", P95: 5 * time.Millisecond, Warmups: 3, Samples: interactionLatencySamples}
 	result, err := latencygate.Measure(budget, func() error {
 		_, err := ui.RenderToString(ui.CreateElement(NavigationSidebar, props))
 		return err
