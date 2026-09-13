@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-09-13 (PHASE-001)
+
+- The Phase 1 scope ceiling now exists, independently of the release it was
+  supposed to bound. `definitions/planning/gates/phase1-scope-ceiling.yaml`
+  names the maximum candidate intents, capabilities, workflows, user flows,
+  endpoints, models and effects, with every item carrying an explicit
+  include/defer/reject rationale and four genuinely empty selection slots
+  for provider, jurisdiction, topology and SLO.
+
+- The ordering hazard this todo warns about was real. The selection-bound
+  P1A release manifest was published on 2026-09-10 -- 912 lines, signed,
+  with its own compiler and tests -- while the ceiling it should have been
+  selected from was never built. Deriving the ceiling from that manifest
+  would have been circular and would have proved nothing, so it was built
+  from the catalogs instead and the manifest was read only as a check
+  target.
+
+- That check is the load-bearing one, and it passed: every P1A intent and
+  capability, every P1B contract and every generated endpoint appears in
+  the independently-built ceiling. No unauthorized scope entered the
+  release. Mutation-verified by deleting an intent and watching the test
+  name it as absent.
+
+- The selection slots are provably empty and tamper-evident: validation
+  rejects a filled slot, and a quietly-filled provider slot invalidates the
+  manifest signature, so NEXT-002 still has real slots to fill.
+
 ## 2026-09-13 (PROMOUX-014)
 
 - A promotion waiting on its effective date now explains itself. Before, the

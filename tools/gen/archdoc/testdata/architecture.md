@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: c83597c5680700817b6018b45f248eb3addccf68074763788a39bbe11de04b41
-- Package count: 787
-- Within-module edge count: 1827
+- Source graph: a2bcdfcaf7daf9d0d871d6d42be0932903ab9ea2ba91eb38565d9a67636a1c3a
+- Package count: 789
+- Within-module edge count: 1831
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -738,6 +738,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/featurecoverage`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/plancheck`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/productslice`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/scopeceiling`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/todogovernance`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/todoregistry`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/controlcrosswalk`
@@ -777,6 +778,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/riskbinding/cmd/riskbinding`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/rolloutplan`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/scenariomatrix`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/scopeceiling`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/scopeexchange`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/securebydesign`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/tddcontract`
@@ -942,4 +944,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`597383329b86cf0de82541dddb8ff558c796a9719e5f6bbb9bcbeb428b027aba`
+`fd32fa4cfd81a111dcefe7a1f12fedee1994825cb699aebc55d97e27baaecec4`
