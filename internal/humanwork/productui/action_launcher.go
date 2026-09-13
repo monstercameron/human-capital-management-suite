@@ -478,7 +478,14 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 	if open.Get() {
 		dialogChildren = append(dialogChildren, actionLauncherResults(props, results, activeIndex, navigate))
 	}
-	dialog := html.Div(dialogProps, dialogChildren...)
+	// UIPOLISH-004 "overlay": this was the fourth ad hoc scroll region RED
+	// names by hand -- overflow:auto on both axes, no scrollbar tokens.
+	// ScrollRegion's shared stylesheet (scroll_region.go) narrows it to
+	// vertical-only and tokenizes its scrollbar; the dialog keeps its own
+	// role/aria-label/hidden wiring in Raw exactly as before.
+	dialog := ui.CreateElement(ScrollRegion, ScrollRegionProps{
+		ID: dialogProps.ID, Class: dialogProps.Class, Raw: dialogProps.Raw, Children: dialogChildren,
+	})
 	class := "action-launcher"
 	if !dialogHidden {
 		class += " action-launcher-open"

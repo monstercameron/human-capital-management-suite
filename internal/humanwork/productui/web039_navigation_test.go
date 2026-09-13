@@ -91,7 +91,13 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// (no PersonWorkflows/People) makes the launcher label itself "Go to"
 	// rather than "Start an action". Verified against the rendered
 	// markup before re-pinning.
-	const want = "2c2596a188367cc642e272ba34dd40af3cf88b0bb26ba0365bb7c3778b6918a8"
+	// UIPOLISH-004 re-pins again for the same reason as
+	// TestTodo_WEB_037_Golden's latest pin: ".main-scroll", ".primary-nav"
+	// and ".sidebar" now render through the shared ScrollRegion component
+	// (each gains tabIndex="0", ".primary-nav" also gains
+	// id="primary-nav") and the inlined stylesheet gains ScrollRegion's
+	// shared rules plus ".main-scroll"'s scrollbar tokens.
+	const want = "1c06d3f0bc0aac61333721a1298ff0910bef96aad25e8ca69e9a6c8dda884f52"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

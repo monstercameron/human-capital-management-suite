@@ -123,7 +123,10 @@ func DataTable(props DataTableProps) ui.Node {
 		html.Thead(html.Props{}, html.Tr(html.Props{Class: "data-table-head people-columns"}, headings...)),
 		html.Tbody(html.Props{Class: "data-table-body people-rows"}, rows...),
 	))
-	return html.Div(html.Props{Class: "data-table-scroll", Role: "region", TabIndex: html.TabIndexZero, Aria: map[string]string{"label": label}}, children...)
+	return ui.CreateElement(ScrollRegion, ScrollRegionProps{
+		ID: "data-table-scroll", Class: "data-table-scroll", Role: "region", Focusable: true,
+		RestoreScroll: true, Aria: map[string]string{"label": label}, Children: children,
+	})
 }
 
 // DataTableColumn renders an accessible sortable or static column header.

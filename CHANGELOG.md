@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-09-13 (UIPOLISH-004)
+
+- One scroll-region component now owns overflow, scrollbar tokens, focus
+  and accessible naming across the page shell, navigation, drawer, table
+  and overlay. Before, three regions were configured ad hoc and disagreed:
+  the page shell had a 15px native untokenized scrollbar against the nav
+  and table's themed thin ones, and it scrolled 466px while carrying no
+  role, no tabindex and no accessible name -- unreachable by keyboard.
+
+- All five regions now agree, verified live at 1440x900: thin themed
+  scrollbars throughout, the page shell focusable and named through its
+  heading, and the launcher dialog tokenized but deliberately not focusable
+  itself since focus belongs on its input.
+
+- UXAUDIT-008's matched max-height/overflow pair survived the
+  consolidation, which was the real regression risk -- that pairing's split
+  clipped 16 workers unreachably earlier the same day, and its rule-level
+  invariant test still guards it.
+
+- Three RED clauses did not reproduce and were left alone rather than
+  rebuilt: scroll chaining is already contained, the document already
+  refuses body scroll, and sticky headers do not detach.
+
+- The page shell keeps overflow-x hidden deliberately: every region beneath
+  it that can need horizontal scroll owns its own, and a regression test
+  pins the table keeping horizontal overflow so wide content cannot be
+  stranded by the shell's hidden axis.
+
 ## 2026-09-13 (PHASE-001)
 
 - The Phase 1 scope ceiling now exists, independently of the release it was

@@ -122,7 +122,18 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// Verified by inspecting the launcher's rendered markup directly
 	// before re-pinning: trigger and dialog scaffold intact, no leaked
 	// per-record content, no claimed modality.
-	const want = "6e84aa48b394cc751eb164ec6312603e35ee099c1ad7a70d68ecabd1914e3f4b"
+	// UIPOLISH-004 renders ".main-scroll", ".primary-nav" and ".sidebar"
+	// through the new shared ScrollRegion component: each gains
+	// tabIndex="0" (GREEN requires every scroll region be keyboard-
+	// reachable; none of the three carried it before), ".primary-nav" also
+	// gains id="primary-nav" (the scroll-restoration key), and the inlined
+	// stylesheet gains ScrollRegion's shared focus-visible/reduced-motion
+	// rules plus ".main-scroll"'s missing scrollbar-width/scrollbar-color
+	// tokens. No other markup changed -- verified by diffing this fixture's
+	// rendered document against the pre-change output directly (aria-label/
+	// aria-labelledby values, landmark counts, and every other attribute
+	// are byte-identical) before re-pinning.
+	const want = "951a06ce729f18e4c21fb073bf0a491fd5a4e35af1759319141bd86abe79e54d"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

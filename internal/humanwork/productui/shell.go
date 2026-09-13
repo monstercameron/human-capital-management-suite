@@ -503,12 +503,22 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 			html.Span(html.Props{}, ui.Text(view.Locale.Text("shell.live_source", map[string]string{"source": source}))),
 		),
 	)
-	mainProps := html.Props{ID: "main-content", Class: "main-scroll", Aria: map[string]string{}}
+	// UIPOLISH-004: ".main-scroll" is the page's one scroll owner and must
+	// stay keyboard-reachable and named regardless of whether the page
+	// itself renders a heading -- a feature module using BuildEmbedded
+	// (showHeading false, e.g. Journeys) previously left this region with
+	// neither aria-label nor aria-labelledby, an unnamed landmark once it
+	// also gains a tabIndex. aria-labelledby="page-title" stays the primary
+	// name whenever a heading exists; the fallback label only ever applies
+	// when it does not.
+	aria := map[string]string{}
 	if showHeading {
-		mainProps.Aria["labelledby"] = "page-title"
+		aria["labelledby"] = "page-title"
+	} else {
+		aria["label"] = view.Locale.Text("shell.main_region")
 	}
 	if view.Loading || view.ContentLoading || view.Refreshing {
-		mainProps.Aria["busy"] = "true"
+		aria["busy"] = "true"
 	}
 	stageClass := "main network-stage network-stage-ready"
 	stage := "ready"
@@ -519,7 +529,16 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 		stageClass = "main network-stage network-stage-refreshing"
 		stage = "refreshing"
 	}
-	return html.Main(mainProps,
-		html.Div(html.Props{Class: stageClass, Data: map[string]string{"network-state": stage}}, children...),
-	)
+	// overflow-x stays hidden here deliberately (UIPOLISH-004 RED names this
+	// explicitly): every region beneath the page shell that can genuinely
+	// need to scroll sideways already owns that scroll itself
+	// (".data-table-scroll", the responsive card/table breakpoints in
+	// dataTableStylesStylesheet, the sticky ".data-table thead" horizontal
+	// scroll under 1050px). Nothing below the shell is meant to overflow the
+	// page horizontally without its own scroll owner, so the shell clipping
+	// stray overflow here is a safety net, not a competing scrollbar.
+	return ui.CreateElement(ScrollRegion, ScrollRegionProps{
+		Tag: "main", ID: "main-content", Class: "main-scroll", Focusable: true, RestoreScroll: true, Aria: aria,
+		Children: []ui.Node{html.Div(html.Props{Class: stageClass, Data: map[string]string{"network-state": stage}}, children...)},
+	})
 }

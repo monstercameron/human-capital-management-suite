@@ -424,7 +424,10 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 		}
 		menu = append(menu, html.Li(html.Props{Class: "nav-empty", Raw: map[string]any{"role": "status"}}, ui.Text(emptyText)))
 	}
-	children = append(children, html.Nav(html.Props{Class: "primary-nav", Aria: map[string]string{"label": props.Text("nav.main")}}, html.Ul(html.Props{}, menu...)))
+	children = append(children, ui.CreateElement(ScrollRegion, ScrollRegionProps{
+		Tag: "nav", ID: "primary-nav", Class: "primary-nav", Focusable: true, RestoreScroll: true,
+		Aria: map[string]string{"label": props.Text("nav.main")}, Children: []ui.Node{html.Ul(html.Props{}, menu...)},
+	}))
 	if len(supportItems) > 0 {
 		support := make([]ui.Node, 0, len(supportItems))
 		for _, item := range supportItems {
@@ -432,21 +435,29 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 		}
 		children = append(children, html.Nav(html.Props{Class: "nav-bottom", Aria: map[string]string{"label": props.Text("nav.support")}}, support...))
 	}
-	asideProps := html.Props{
-		ID: "workspace-navigation", Class: class,
-		Aria:      map[string]string{"label": props.Text("nav.workspace")},
-		OnKeyDown: onEscape,
-	}
 	// A real user can only ever reach the trigger that sets Open at narrow
 	// viewports (CSS removes it from hit-testing and the tab order at wider
 	// ones), so dialog semantics only ever appear there too. Every other
 	// render — including every default and desktop SSR document — keeps the
 	// plain complementary-landmark contract WEB-048 pins.
+	var role string
+	var rawAttrs map[string]any
 	if attrs := navigationDrawerDialogAttrs(props.Open); attrs != nil {
-		asideProps.Raw = attrs
-		asideProps.Role = "dialog"
+		rawAttrs = attrs
+		role = "dialog"
 	}
-	return html.Fragment(backdrop, html.Aside(asideProps, children...))
+	// UIPOLISH-004 "drawer": at narrow viewports ".primary-nav" gives up its
+	// own overflow (declared overflow:visible!important there, see
+	// navigation_components_test.go's coverage of that breakpoint) and this
+	// aside becomes the sole scroll owner instead -- two independently
+	// scrolling regions nested inside each other is exactly the "page and
+	// table compete for the same gesture" pattern RED forbids. Rendering it
+	// through the same ScrollRegion component as every other scroll owner
+	// keeps it keyboard-reachable there too.
+	return html.Fragment(backdrop, ui.CreateElement(ScrollRegion, ScrollRegionProps{
+		Tag: "aside", ID: "workspace-navigation", Class: class, Role: role, Focusable: true, RestoreScroll: true,
+		Aria: map[string]string{"label": props.Text("nav.workspace")}, Raw: rawAttrs, OnKeyDown: onEscape, Children: children,
+	}))
 }
 
 // navigationDrawerDialogAttrs returns the raw attributes that make the
