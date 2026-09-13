@@ -106,29 +106,11 @@ type historyPageWindow struct {
 	Items                               []WorkItem
 }
 
+// paginateHistory shares its arithmetic with People's paginatePeople via
+// PaginateCollection (data_table.go); UXAUDIT-008 REFACTOR removed the
+// second, previously identical copy of this math that lived here.
 func paginateHistory(items []WorkItem, requestedPage, requestedSize int) historyPageWindow {
-	size := normalizePageSize(requestedSize)
-	total := len(items)
-	pages := (total + size - 1) / size
-	if pages < 1 {
-		pages = 1
-	}
-	page := requestedPage
-	if page < 1 {
-		page = 1
-	}
-	if page > pages {
-		page = pages
-	}
-	start, end := (page-1)*size, page*size
-	if end > total {
-		end = total
-	}
-	first := 0
-	if total > 0 {
-		first = start + 1
-	}
-	return historyPageWindow{Page: page, PageCount: pages, First: first, Last: end, Total: total, Items: items[start:end]}
+	return historyPageWindow(PaginateCollection(items, requestedPage, normalizePageSize(requestedSize)))
 }
 
 func targetHistoryPage(personID string) PageID {

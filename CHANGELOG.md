@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-09-13 (UXAUDIT-008)
+
+- The People directory keeps a real, dense table down to 761px instead of the
+  shared component's stacked-card mode at 1050px. At 1024x768 -- a desktop
+  viewport by this todo's own RED -- each worker had been costing 199px as a
+  `display:grid` card; rows are 63px now, and 9 of 20 fit above the fold
+  against 0 at the original audit. History and Organization keep the shared
+  breakpoint untouched; the change is scoped entirely to `.people-directory`.
+
+- Sticky headers detached because CSS `position` never inherits. The existing
+  rules stuck `<thead>` and the header `<tr>`, but a plain `<th>`'s own
+  computed position stays `static` regardless of what its ancestor declares.
+  The header cells now establish their own sticky context, and all six columns
+  hold 0px alignment drift even when the region is scrolled fully right.
+
+- A bounded `max-height` and a scrolling `overflow` are a matched pair. The
+  first pass at this todo scoped a taller cap unconditionally; being two
+  classes deep it beat the card-mode reset's `max-height:none` even inside
+  that media query, but did not restate `overflow`, leaving a clamped box
+  still declared `overflow:visible` inside a `section` that clips. 16 of 20
+  workers rendered below the clipping edge, unreachable at the page's maximum
+  scroll, and no test caught it. The cap now lives inside its own
+  `min-width:761px` context with `overflow:auto` in the same rule, and the
+  invariant is asserted at rule level rather than by substring: any block for
+  that selector carrying a bounded max-height must declare scrolling overflow
+  in the same block.
+
+- The repeated unavailable-workflow sentence left the visible layout without
+  being deleted. PROMOUX-001 requires that server-provided reason; it now
+  travels in `title` and an `sr-only` span referenced by `aria-describedby`
+  behind a compact badge, and PROMOUX-001's tests pass unmodified.
+
+- Toggling the promotion-eligible filter was triggering a full page reload:
+  `eligible` was missing from the directory-only route-change key set. Fixed
+  and covered.
+
 ## 2026-09-13 (UXAUDIT-004)
 
 - Reporting lines are a real tree now. The root cause was worse than the todo's

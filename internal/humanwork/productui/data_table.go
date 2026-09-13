@@ -194,6 +194,61 @@ func dataTableCell(column DataTableColumnProps, cell DataTableCellProps) ui.Node
 	return html.Td(props, children...)
 }
 
+// PaginateWindow is one resolved page of a larger, already-ordered
+// collection: the page/pageCount/first/last/total coordinates a pager
+// renders, plus exactly the items belonging to this page.
+type PaginateWindow[T any] struct {
+	Page, PageCount, First, Last, Total int
+	Items                               []T
+}
+
+// PaginateCollection is the one pagination-window implementation every
+// paged product collection uses. UXAUDIT-008 REFACTOR: People and History
+// each carried their own copy of this exact arithmetic (paginatePeople in
+// selectors.go, paginateHistory in page_history.go); this is that shared
+// implementation, with each caller keeping only its own typed window and
+// page-size normalization.
+//
+// pageSize must already be a normalized, in-range value -- this function
+// does not invent a default for an invalid one, because "invalid" means
+// different things to different callers' declared size sets (People and
+// History both currently normalize to {10,20,50,100}, but this function
+// must not assume that set is universal). A pageSize below 1 is floored to
+// 1 rather than treated as "no limit": returning the entire collection for
+// an unrecognized size would be the exact permissive-zero-value failure
+// mode this project's proof standards forbid.
+//
+// An out-of-range requestedPage clamps to the nearest real page (1 or
+// PageCount) rather than returning an empty window, so a stale bookmarked
+// page number never silently produces a blank directory.
+func PaginateCollection[T any](items []T, requestedPage, pageSize int) PaginateWindow[T] {
+	if pageSize < 1 {
+		pageSize = 1
+	}
+	total := len(items)
+	pageCount := (total + pageSize - 1) / pageSize
+	if pageCount < 1 {
+		pageCount = 1
+	}
+	page := requestedPage
+	if page < 1 {
+		page = 1
+	}
+	if page > pageCount {
+		page = pageCount
+	}
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+	first := 0
+	if total > 0 {
+		first = start + 1
+	}
+	return PaginateWindow[T]{Page: page, PageCount: pageCount, First: first, Last: end, Total: total, Items: items[start:end]}
+}
+
 func normalizedDataTableColumns(columns []DataTableColumnProps) []DataTableColumnProps {
 	result := make([]DataTableColumnProps, 0, len(columns))
 	seen := make(map[string]struct{}, len(columns))

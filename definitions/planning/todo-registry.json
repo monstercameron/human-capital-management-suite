@@ -37004,7 +37004,7 @@
     "refactor": "use the reusable configurable data-table component and server-persisted table preferences; no People-only sorting or pagination implementation",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`, `tools/uxqual/productclient`",
     "retired": false,
-    "done": false
+    "done": true
   },
   {
     "id": "UXAUDIT-009",

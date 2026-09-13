@@ -42,8 +42,8 @@ func navigationCollapsedRouteChange(previous, current string) bool {
 
 func peopleDirectoryOnlyRouteChange(previous, current string) bool {
 	return queryOnlyRouteChange(previous, current, peoplePath, map[string]bool{
-		"q": true, "team": true, "location": true, "sort": true,
-		"dir": true, "page": true, "page_size": true,
+		"q": true, "team": true, "location": true, "eligible": true,
+		"sort": true, "dir": true, "page": true, "page_size": true,
 	})
 }
 

@@ -401,7 +401,26 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 	if noWorkflowsLabel == "" {
 		noWorkflowsLabel = props.Text("people.no_workflows")
 	}
-	workflowMenu := ui.Node(html.Span(html.Props{Class: "muted"}, ui.Text(noWorkflowsLabel)))
+	// UXAUDIT-008 GREEN: an unavailable row used to render the full reason
+	// sentence directly in the row, which is what made 10 of 20 rows on the
+	// live audit repeat a long paragraph and inflate every one of those
+	// rows' height. The reason is never dropped -- PROMOUX-001's contract
+	// requires every displayed availability state to carry a non-empty,
+	// server-provided reason, and its own tests assert on the reason value,
+	// not on how it is presented -- it just stops being the row's only
+	// visible content. A short, compact badge carries a title tooltip and an
+	// aria-describedby link to a visually-hidden span holding the same full
+	// reason text, so a sighted pointer user and a screen reader both still
+	// reach it; only the constant-width short label competes for row space.
+	reasonID := "people-unavailable-" + props.ID
+	workflowMenu := ui.Node(html.Span(html.Props{
+		Class: "people-availability-badge muted",
+		Title: noWorkflowsLabel,
+		Raw:   map[string]any{"aria-describedby": reasonID},
+	},
+		ui.Text(props.Text("people.workflows_unavailable_short")),
+		html.Span(html.Props{ID: reasonID, Class: "sr-only"}, ui.Text(noWorkflowsLabel)),
+	))
 	if len(actions) > 0 {
 		workflowMenu = ui.CreateElement(TransientPopover, TransientPopoverProps{
 			Kind: "people-workflows", Class: "people-workflow-menu", TriggerClass: "button secondary people-row-action",
