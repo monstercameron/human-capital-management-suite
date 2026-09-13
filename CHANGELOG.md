@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-09-12 (PROMOUX-011)
+
+- Every committed promotion transition now emits one authority-filtered
+  invalidation carrying a sequence, and those two requirements interact as a
+  disclosure bug rather than a cosmetic one. With a global sequence and a filter
+  that merely drops undeliverable messages, a viewer who observes 1, 2, 4 has
+  learned that event 3 exists and can count promotions they hold no authority
+  over.
+
+  The scheme is gap-free renumbering per subscriber. A durable global position is
+  allocated inside each writer's own commit, so concurrent writers cannot lose or
+  duplicate one -- but that value never reaches the wire; it serves only as a
+  revision for stale and reorder protection. Each subscriber gets its own counter
+  that advances by exactly one **only when a message is actually delivered**, so
+  a transition authorizing nothing for that subscriber never touches their
+  counter and their visible sequence is contiguous by construction.
+
+  The test reproduces the leak before fixing it: the naive scheme delivers a
+  visible gap, then the real one delivers a contiguous pair. A test that only
+  asserted the corrected behaviour would not show the bug was ever reachable.
+
+- Region isolation is proven against real invalidation clients, not a stub: a
+  message for one worker's detail region fires exactly the matching client once
+  and leaves an unrelated region and a different worker's detail client at zero.
+  Last-updated equals the newest transition's own timestamp regardless of input
+  order, and an empty set renders empty rather than falling back to now.
+
+- No duplicate renders is counted rather than inferred, because a double render
+  converges to the same state and would pass any state assertion. The
+  performance check asserts delivered-message counts and bounded per-subscriber
+  state rather than elapsed time.
+
+- Fixes a defect introduced earlier in this series: the
+  `ledger_payload_disposition` registry row declared a data role and retention
+  class that are not declared values, which broke the storage-disposition gate.
+  It escaped notice because that gate lives in a different package from the
+  schema-classification check run at the time.
+
 ## 2026-09-12 (UXAUDIT-006)
 
 - User-facing copy no longer names the implementation. Page subtitles, empty

@@ -4988,11 +4988,11 @@ tables:
     migration: 00285_ledger_011_payload_disposition.sql
     owner_package: internal/data/ledger/disposition
     plane: DATA
-    data_role: EVIDENCE
+    data_role: LEDGER
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
     append_only: true
-    retention_class: EVIDENCE
+    retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: >-
@@ -5002,6 +5002,27 @@ tables:
       chronology-bearing columns were read and never altered. ledger_event
       itself stays append-only and untouched; this table is what the read path
       consults to withhold a payload.
+  - table: promotion_invalidation_sequence
+    migration: 00288_promoux011_transition_sequence.sql
+    owner_package: internal/data/promotioninvalidation
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      Durable per-(tenant, projection) counter allocating each committed promotion
+      transition's global ordering position through INSERT ON CONFLICT DO UPDATE
+      RETURNING, evaluated as part of each writer's own commit so concurrent
+      commits cannot lose or duplicate a position. The value is used only as an
+      invalidation item's revision for stale and reorder protection; it is never
+      placed on the wire as a subscriber's delivered sequence, because an
+      authority-filtered viewer could then infer a withheld transition's existence
+      from the gap. Each subscriber is minted its own gap-free counter instead.
+      Rows are a live counter and are never deleted.
   - table: promotion_target_position_guard
     migration: 00287_promoux004_position_slot_guard.sql
     owner_package: internal/data/positionguard
