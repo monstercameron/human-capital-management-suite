@@ -46,24 +46,88 @@ func TestActionLauncherComboboxReflectsVisibleResults(t *testing.T) {
 	}
 }
 
+// itemWithHref finds the first item whose Href equals route.
+func itemWithHref(items []ActionLauncherItem, route string) *ActionLauncherItem {
+	for index := range items {
+		if items[index].Href == route {
+			return &items[index]
+		}
+	}
+	return nil
+}
+
+// itemMentioning finds the first item whose Href or Description contains
+// needle -- used to find a ranked, person-specific action without hand-
+// coding its full href shape.
+func itemMentioning(items []ActionLauncherItem, needle string) *ActionLauncherItem {
+	for index := range items {
+		if strings.Contains(items[index].Href, needle) || strings.Contains(items[index].Description, needle) || strings.Contains(items[index].Label, needle) {
+			return &items[index]
+		}
+	}
+	return nil
+}
+
+// TestTodo_WEB_040 is UXAUDIT-003's REGRESSION matrix entry: WEB-040 first
+// gave the shell a launcher offering only the two bare page destinations;
+// UXAUDIT-003 changed it to rank real per-worker actions from the same
+// registry the People directory uses (page_people.go's
+// personWorkflowActions) while still falling back to those destinations
+// once no ranked action survives authorization. This test pins both eras'
+// invariants: the destinations survive as a fallback, a denied create
+// grant still removes only the action (never the destinations), and no
+// href ever executes rather than navigates.
 func TestTodo_WEB_040(t *testing.T) {
-	doc, err := Render(testView(PageHome))
+	view := testView(PageHome)
+	props := actionLauncherProps(view)
+	props.Items = authorizedActionLauncherItems(view, props.Items)
+
+	if itemWithHref(props.Items, statefulHref(view, PageJourneys)) == nil {
+		t.Fatal("launcher did not offer the authorized promotion start destination")
+	}
+	if itemWithHref(props.Items, statefulHref(view, PagePeople)) == nil {
+		t.Fatal("launcher did not offer the authorized worker selection destination")
+	}
+	if item := itemMentioning(props.Items, "worker-avery"); item == nil || item.IsNavigationDestination {
+		t.Fatal("launcher did not rank the eligible worker's own authorized promotion action")
+	}
+
+	// The ranked action embeds into the actual rendered markup only once
+	// the launcher is open -- see the doc comment on the dialog's results
+	// gate in action_launcher.go: an always-embedded per-worker item list
+	// leaked worker names into every page's raw HTML regardless of
+	// whether the control was ever opened (caught by WEB-067/WEB-072
+	// while implementing this todo).
+	opened, err := ui.RenderToString(ui.CreateElement(ActionLauncher, ActionLauncherProps{
+		I18nProps: props.I18nProps, Items: props.Items, InitialQuery: "avery",
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := xhtml.Parse(strings.NewReader(doc))
+	if !strings.Contains(opened, "worker-avery") {
+		t.Fatalf("opened launcher did not render the matched worker's action:\n%s", opened)
+	}
+	if strings.Contains(opened, "Jordan Lee") {
+		t.Fatal("a query for one worker rendered an unrelated worker's action")
+	}
+	closedDoc, err := Render(view)
 	if err != nil {
 		t.Fatal(err)
 	}
-	launcher := findElementByID(root, "action-launcher")
-	if launcher == nil {
+	closedRoot, err := xhtml.Parse(strings.NewReader(closedDoc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	closedLauncher := findElementByID(closedRoot, "action-launcher")
+	if closedLauncher == nil {
 		t.Fatal("shell rendered no global action launcher")
 	}
-	if linkForRoute(launcher, "/workspace/app/journeys") == nil {
-		t.Fatal("launcher did not offer the authorized promotion start")
+	var closedMarkup strings.Builder
+	if err := xhtml.Render(&closedMarkup, closedLauncher); err != nil {
+		t.Fatal(err)
 	}
-	if linkForRoute(launcher, "/workspace/app/people") == nil {
-		t.Fatal("launcher did not offer the authorized worker selection")
+	if strings.Contains(closedMarkup.String(), "worker-avery") {
+		t.Fatal("the closed launcher embedded a worker-specific action before anyone opened it")
 	}
 
 	// A denied create grant removes the promotion start without removing the
@@ -71,34 +135,32 @@ func TestTodo_WEB_040(t *testing.T) {
 	denied := ApplyPagePermissions(testView(PageHome), []RolePagePermission{
 		{Version: 1, RoleID: "viewer", Page: PagePeople, View: true},
 	})
-	deniedDoc, err := Render(denied)
-	if err != nil {
-		t.Fatal(err)
-	}
-	deniedRoot, err := xhtml.Parse(strings.NewReader(deniedDoc))
-	if err != nil {
-		t.Fatal(err)
-	}
-	deniedLauncher := findElementByID(deniedRoot, "action-launcher")
-	if deniedLauncher == nil {
-		t.Fatal("launcher disappeared instead of rendering its honest empty state")
-	}
-	if linkForRoute(deniedLauncher, "/workspace/app/journeys") != nil {
+	deniedProps := actionLauncherProps(denied)
+	deniedProps.Items = authorizedActionLauncherItems(denied, deniedProps.Items)
+	if itemWithHref(deniedProps.Items, statefulHref(denied, PageJourneys)) != nil {
 		t.Fatal("launcher advertised a promotion start the identity cannot create")
 	}
-	if linkForRoute(deniedLauncher, "/workspace/app/people") == nil {
+	if itemWithHref(deniedProps.Items, statefulHref(denied, PagePeople)) == nil {
 		t.Fatal("launcher hid the authorized worker selection")
+	}
+	for _, item := range deniedProps.Items {
+		if item.Href != "" && strings.Contains(item.Label+item.Description, "Avery Patel") {
+			t.Fatalf("launcher offered a launchable action the identity cannot create: %+v", item)
+		}
 	}
 
 	// The launcher starts navigations only; it never executes an intent,
 	// decision, or approval from a row.
-	for _, href := range launcherHrefs(deniedLauncher) {
-		if !strings.HasPrefix(href, "/workspace/app/") {
-			t.Fatalf("launcher href %q escapes the application shell", href)
+	for _, item := range deniedProps.Items {
+		if item.Href == "" {
+			continue
+		}
+		if !strings.HasPrefix(item.Href, "/workspace/app/") {
+			t.Fatalf("launcher href %q escapes the application shell", item.Href)
 		}
 		for _, verb := range []string{"execute", "decide", "approve", "complete", "resume"} {
-			if strings.Contains(strings.ToLower(href), verb) {
-				t.Fatalf("launcher href %q executes instead of navigating", href)
+			if strings.Contains(strings.ToLower(item.Href), verb) {
+				t.Fatalf("launcher href %q executes instead of navigating", item.Href)
 			}
 		}
 	}
@@ -112,28 +174,14 @@ func TestTodo_WEB_040(t *testing.T) {
 	}
 }
 
-func launcherHrefs(root *xhtml.Node) []string {
-	hrefs := []string{}
-	if root == nil {
-		return hrefs
-	}
-	walkElements(root, func(node *xhtml.Node) {
-		if node.Data == "a" {
-			for _, attr := range node.Attr {
-				if attr.Key == "href" {
-					hrefs = append(hrefs, attr.Val)
-				}
-			}
-		}
-	})
-	return hrefs
-}
-
 // web040GoldenDigest is pinned from the GREEN implementation run.
-// UXAUDIT-006 reworded page.people.subtitle -- rendered here as the launcher's
-// "start:people" quick-action description -- to task language that no longer
-// names the governed journey service; re-pinned to the new bytes.
-const web040GoldenDigest = "18a77a993dccbcf60e086f647e3ad645315cb201ccbf2b15f1c1889fb22ca146"
+// UXAUDIT-003 changed the closed launcher's dialog to omit its results
+// list entirely (see the results-gate doc comment in action_launcher.go)
+// so a per-worker action never embeds into a page's markup before the
+// viewer opens the control; re-pinned to the new, smaller closed-state
+// bytes after visually confirming the trigger, dialog scaffold and input
+// still render correctly.
+const web040GoldenDigest = "41e7fab62483d71e389b96ad7f661bc6e7e12396ef0b90f12b3cfd86e9dd84d4"
 
 func TestTodo_WEB_040_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

@@ -159,7 +159,6 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 		workflows = nil
 	}
 	for _, person := range window.People {
-		actions := make([]PeopleQuickActionProps, 0, len(view.PersonWorkflows))
 		reason := ""
 		if unauthorized {
 			// The same reason PromotionAvailability would have resolved to
@@ -169,41 +168,9 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 			// the bare, unexplained fallback this gate used to leave behind.
 			reason = PromotionAvailabilityReason(view.Locale, PromotionWithheld)
 		}
-		for _, workflow := range workflows {
-			if workflow.ID == "promotion" && person.PromotionAvailability == PromotionActiveConflict {
-				// PROMOUX-002 GREEN #3: a conflicting worker never loses the
-				// action entirely -- Start is replaced with a link to the
-				// journey already blocking a new one, so continuity survives
-				// the refusal rather than dead-ending at a bare reason.
-				if item, ok := activePromotionWorkItem(view, person.ID); ok {
-					actions = append(actions, PeopleQuickActionProps{
-						Label:           view.Locale.Text("people.open_active_promotion"),
-						AccessibleLabel: view.Locale.Text("people.open_active_promotion_aria", map[string]string{"name": person.Name}),
-						Href:            JourneyDetailHref(view, item.ID),
-					})
-					continue
-				}
-				reason = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability)
-				continue
-			}
-			if workflow.ID == "promotion" && !personPromotionEligible(person) {
-				// GREEN #2: a suppressed promotion action always leaves a
-				// server-provided reason behind for the empty-workflow-menu
-				// fallback, instead of the bare "no available workflows"
-				// people_components.go used to render unconditionally.
-				reason = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability)
-				continue
-			}
-			href := workflow.Href
-			if workflow.LaunchHref != nil {
-				href = workflow.LaunchHref(person.ID)
-			}
-			if href == "" {
-				continue
-			}
-			actions = append(actions, PeopleQuickActionProps{Label: workflow.Name,
-				AccessibleLabel: view.Locale.Text("people.workflow_aria", map[string]string{"workflow": workflow.Name, "name": person.Name}),
-				Href:            href, Frequent: workflow.UseCount > 0})
+		actions, workflowReason, _ := personWorkflowActions(view, person, workflows)
+		if workflowReason != "" {
+			reason = workflowReason
 		}
 		rows = append(rows, PeopleRowProps{
 			ID: person.ID, Initials: person.Initials, PhotoURL: person.PhotoURL, Name: person.Name, WorkerNumber: person.WorkerNumber, Role: person.Role, Team: person.Team,
@@ -213,6 +180,59 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 		})
 	}
 	return rows
+}
+
+// personWorkflowActions resolves the quick actions launchable for one
+// person against an already permission-filtered, ranked workflow
+// catalogue, plus the single disclosure-safe reason to show when a named
+// workflow is not currently actionable for this specific person. It is
+// the one place a person and the shared PersonWorkflow catalogue turn
+// into launchable actions -- the People directory rows (above) and the
+// shell action launcher (UXAUDIT-003, action_launcher.go) both call it
+// so neither keeps its own, page-specific action inventory.
+//
+// reasonWorkflow names the catalogue workflow reason explains (empty when
+// reason is empty), so a caller that lists actions per workflow does not
+// have to re-derive which workflow the reason belongs to.
+func personWorkflowActions(view View, person Person, workflows []PersonWorkflow) (actions []PeopleQuickActionProps, reason string, reasonWorkflow string) {
+	actions = make([]PeopleQuickActionProps, 0, len(workflows))
+	for _, workflow := range workflows {
+		if workflow.ID == "promotion" && person.PromotionAvailability == PromotionActiveConflict {
+			// PROMOUX-002 GREEN #3: a conflicting worker never loses the
+			// action entirely -- Start is replaced with a link to the
+			// journey already blocking a new one, so continuity survives
+			// the refusal rather than dead-ending at a bare reason.
+			if item, ok := activePromotionWorkItem(view, person.ID); ok {
+				actions = append(actions, PeopleQuickActionProps{
+					Label:           view.Locale.Text("people.open_active_promotion"),
+					AccessibleLabel: view.Locale.Text("people.open_active_promotion_aria", map[string]string{"name": person.Name}),
+					Href:            JourneyDetailHref(view, item.ID),
+				})
+				continue
+			}
+			reason, reasonWorkflow = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability), workflow.Name
+			continue
+		}
+		if workflow.ID == "promotion" && !personPromotionEligible(person) {
+			// GREEN #2: a suppressed promotion action always leaves a
+			// server-provided reason behind for the empty-workflow-menu
+			// fallback, instead of the bare "no available workflows"
+			// people_components.go used to render unconditionally.
+			reason, reasonWorkflow = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability), workflow.Name
+			continue
+		}
+		href := workflow.Href
+		if workflow.LaunchHref != nil {
+			href = workflow.LaunchHref(person.ID)
+		}
+		if href == "" {
+			continue
+		}
+		actions = append(actions, PeopleQuickActionProps{Label: workflow.Name,
+			AccessibleLabel: view.Locale.Text("people.workflow_aria", map[string]string{"workflow": workflow.Name, "name": person.Name}),
+			Href:            href, Frequent: workflow.UseCount > 0})
+	}
+	return actions, reason, reasonWorkflow
 }
 
 func peoplePaginationProps(view View, window peoplePageWindow) PeoplePaginationProps {

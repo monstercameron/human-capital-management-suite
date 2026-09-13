@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-09-13 (UXAUDIT-003)
+
+- The global launcher performs actions instead of duplicating navigation. It had
+  been a control labeled "Start an action" containing exactly two plain links --
+  Journeys and People -- and nothing you could actually do. It now offers ranked
+  authorized actions: six "Start Promotion for ⟨person⟩" entries, each carrying
+  the worker it acts on.
+
+- When a viewer genuinely has no authorized actions, the control relabels itself
+  rather than fabricating one to fill the menu, and that label is derived live
+  from the resolved items rather than carried as a separate prop that could drift
+  from reality.
+
+- Unavailable actions explain themselves without disclosing why. A viewer who
+  cannot act sees byte-identical reason text across every underlying cause, and
+  the rendered markup never carries the specific reason keys -- while an
+  authorized viewer sees genuinely different reasons.
+
+- A disclosure regression was caught during implementation rather than shipped:
+  the first pass rendered every admitted worker's name into the launcher's server
+  markup, hidden but present, leaking names across page-scoped surfaces. Fixed by
+  gating the results panel on open state, the pattern the global search already
+  used.
+
+- Verified against the running server. The launcher shows real actions; an
+  Escape keydown closes it and returns focus to the trigger; an outside pointer
+  press closes it too. Those three were exactly what the Go tests could not
+  execute, since the behaviour lives in a wasm-gated file this repository's CI
+  never runs either.
+
 ## 2026-09-13 (UXAUDIT-012)
 
 - Loading skeletons now preserve the geometry of the content that replaces them.

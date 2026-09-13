@@ -85,7 +85,13 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// TestTodo_WEB_037_Golden. UXAUDIT-006 reworded the header's
 	// "Authenticated scope" fallback to "Workspace access"; re-pinned again
 	// for the same reason as TestTodo_WEB_037_Golden's second pin.
-	const want = "cc94dddff3a893688e235bf45e4a90ae933253ff0ceeeb493381c91d512f2387"
+	// UXAUDIT-003 re-pinned again for the same reason as
+	// TestTodo_WEB_037_Golden's third pin: the closed launcher no longer
+	// embeds its results list, and this fixture's registry-free view
+	// (no PersonWorkflows/People) makes the launcher label itself "Go to"
+	// rather than "Start an action". Verified against the rendered
+	// markup before re-pinning.
+	const want = "2c2596a188367cc642e272ba34dd40af3cf88b0bb26ba0365bb7c3778b6918a8"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

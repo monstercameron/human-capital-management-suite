@@ -15,9 +15,21 @@ func TestActionLauncherFocusDismissal(t *testing.T) {
 	root := global.Get("Object").New()
 	inside := global.Get("Object").New()
 	outside := global.Get("Object").New()
+	trigger := global.Get("Object").New()
+	focusedTrigger := false
+	trigger.Set("focus", js.FuncOf(func(js.Value, []js.Value) any { focusedTrigger = true; return nil }))
 	handlers := map[string]js.Value{}
 	contains := js.FuncOf(func(_ js.Value, args []js.Value) any { return args[0].Equal(inside) })
-	lookup := js.FuncOf(func(js.Value, []js.Value) any { return root })
+	// UXAUDIT-003: the real target this control passes is its trigger
+	// button id, not "root" again -- getElementById must tell them apart
+	// so the Escape branch below can prove it moves focus to the actual
+	// trigger, not back onto the popover root by accident.
+	lookup := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if args[0].String() == "trigger" {
+			return trigger
+		}
+		return root
+	})
 	add := js.FuncOf(func(_ js.Value, args []js.Value) any { handlers[args[0].String()] = args[1]; return nil })
 	remove := js.FuncOf(func(_ js.Value, args []js.Value) any { delete(handlers, args[0].String()); return nil })
 	root.Set("contains", contains)
@@ -61,10 +73,32 @@ func TestActionLauncherFocusDismissal(t *testing.T) {
 	if dismissed != 2 {
 		t.Fatal("outside click did not dismiss the popover")
 	}
+
+	// UXAUDIT-003 RED: Escape did not close the launcher live (the
+	// trigger's aria-expanded stayed "true"). This is the binding that
+	// RED clause traces to: Escape pressed while focus is inside the
+	// popover must dismiss it and hand focus back to the trigger.
+	escape := global.Get("Object").New()
+	escape.Set("type", "keydown")
+	escape.Set("target", inside)
+	escape.Set("key", "Escape")
+	prevented := false
+	escape.Set("preventDefault", js.FuncOf(func(js.Value, []js.Value) any { prevented = true; return nil }))
+	handlers["keydown"].Invoke(escape)
+	if !prevented {
+		t.Fatal("Escape over the popover was not intercepted")
+	}
+	if dismissed != 3 {
+		t.Fatal("Escape did not dismiss the popover")
+	}
+	if !focusedTrigger {
+		t.Fatal("Escape did not restore focus to the trigger")
+	}
+
 	emit("focusout", inside, outside)
 	cleanup()
 	time.Sleep(220 * time.Millisecond)
-	if dismissed != 2 || len(handlers) != 0 {
+	if dismissed != 3 || len(handlers) != 0 {
 		t.Fatal("cleanup left live callbacks")
 	}
 }

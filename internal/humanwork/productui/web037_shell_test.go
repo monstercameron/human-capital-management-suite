@@ -110,7 +110,19 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// "Workspace access" (task language, not an internal-sounding label),
 	// which also touches this fixture's stable chrome, so it is re-pinned
 	// again.
-	const want = "340e44a67707c19bdc409aeefe114b2133fa9854e03638fb9782bb4acabf3395"
+	// UXAUDIT-003 changed the shell action launcher: its closed dialog no
+	// longer embeds its results list at all (previously the two bare page
+	// destinations; a per-worker ranked action would otherwise leak into
+	// every page's markup regardless of whether the control was ever
+	// opened -- see the results-gate comment in action_launcher.go and
+	// the WEB-067/WEB-072 regression that caught it). This fixture's view
+	// carries no PersonWorkflows or People, so the launcher also now
+	// labels itself "Go to" rather than "Start an action" (no ranked
+	// action survives, so the control does not claim it starts one).
+	// Verified by inspecting the launcher's rendered markup directly
+	// before re-pinning: trigger and dialog scaffold intact, no leaked
+	// per-record content, no claimed modality.
+	const want = "6e84aa48b394cc751eb164ec6312603e35ee099c1ad7a70d68ecabd1914e3f4b"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}
