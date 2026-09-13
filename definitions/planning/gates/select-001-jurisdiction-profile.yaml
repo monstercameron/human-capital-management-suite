@@ -1,0 +1,275 @@
+# SELECT-001 pilot jurisdiction profile.
+#
+# Schema: tools/planning/pilotjurisdiction.JurisdictionProfile. Validated by
+# tools/planning/pilotjurisdiction.JurisdictionProfile.Validate, verified by
+# tools/planning/pilotjurisdiction.VerifyProfileSignature, and reported by
+# `go run ./tools/planning/cmd/pilotjurisdiction`.
+#
+# This is the first, and so far only, reviewed pilot jurisdiction: US-CA.
+# It was chosen because LEGAL-001/LEGAL-010/LEGAL-011 already produced a
+# mechanically-extracted draft rule pack for California
+# (definitions/legal/packs/states/us-ca.json, eighteen populated obligation
+# kinds, review_status UNREVIEWED, pack id ending "-draft") from
+# planning/research/state-employment-law/california.md, and California's
+# obligation density exercises the rule-pack machinery hardest of the fifty
+# state drafts under definitions/legal/packs/states. This profile supplies
+# the `jurisdiction` selection slot PHASE-001's
+# definitions/planning/gates/phase1-scope-ceiling.yaml deliberately left
+# empty (filling_todo_id: SELECT-001); it does not fill that slot itself -
+# NEXT-002 does that - and it never hard-codes law in a workflow branch: a
+# caller reaches these obligations only through
+# internal/governance/legal.Resolve and internal/governance/legal.Evaluate,
+# which this profile's own tools/planning/pilotjurisdiction.Authorize calls
+# rather than duplicates.
+#
+# HONEST INCOMPLETENESS, BY DESIGN: `reviewer.name` below is deliberately
+# empty. RED requires a qualified legal owner/reviewer, and no named human
+# has reviewed this profile - fabricating one into a signed governance
+# artifact would be worse than leaving the gap visible. Validate() therefore
+# reports exactly one violation on this checked-in file
+# (`reviewer.name: missing ...`), proved by
+# profile_test.go's PRIMARY test. Every other RED element below validates
+# clean. This profile stays HUMAN_REVIEW_REQUIRED, not COUNSEL_APPROVED,
+# until a real reviewer is named and raises review_status.
+#
+# Obligation-kind coverage is EXACT, not merely non-empty: every one of
+# legal.AllObligationTypes' twenty-two kinds appears exactly once below,
+# either in obligation_mappings (the eighteen kinds
+# definitions/legal/packs/states/us-ca.json actually populates) or as an
+# OBLIGATION_KIND exclusion (the four it does not: E_VERIFY, JOB_SECURITY,
+# SEPARATION_FILING, AUTOMATED_DECISION). Validate() fails if a kind is ever
+# in both lists, or in neither. TestTodo_SELECT_001_Conformance cross-checks
+# this split live against the real pinned pack file, not just against this
+# document's own bookkeeping.
+#
+# CanonicalDigest hashes every field below except `signature`; do not hand-
+# edit any field above `signature` without re-signing (see
+# security_test.go's TestTodo_SELECT_001_Security for what breaks).
+schema_version: 1
+todo_id: SELECT-001
+signed_date: "2026-09-13"
+
+jurisdiction:
+  country: US
+  state: CA
+
+# UNREVIEWED, matching definitions/legal/packs/states/us-ca.json's own
+# review_status: this profile is exactly as reviewed as the pack it pins,
+# never more.
+review_status: UNREVIEWED
+
+# Authoritative source citations, pinned by exact version and content
+# digest so a later silent edit to either file is detectable.
+sources:
+  - kind: RESEARCH_MEMO
+    path: planning/research/state-employment-law/california.md
+    review_status: UNREVIEWED
+    content_digest: daed211f8c6fa669de009e32e6632c2300aa58a1a1aadb34dc88d7e4fba05f87
+  - kind: RULE_PACK_DEFINITION
+    path: definitions/legal/packs/states/us-ca.json
+    pack_id: us-ca-promotion-base-pay-change-draft
+    version_major: 1
+    version_minor: 0
+    vocabulary_version: 2
+    review_status: UNREVIEWED
+    content_digest: ae83ff798089b3c2a3ad0b9a236aa3ba37822bbe2c8d600ac7908815c8bcb92b
+
+# Qualified legal owner/reviewer. Deliberately empty - see the header
+# comment above and doc.go.
+reviewer:
+  name: ""
+  qualification: ""
+  assigned_date: ""
+
+# Included intent/rule/filing set, part 1: the one Phase 1 business intent
+# this profile's California obligations bind to.
+scope_items:
+  - intent_id: hcmnext.people.promote_worker/v1
+    disposition: INCLUDE
+    rationale: >-
+      the only Phase 1 business intent a promotion or base-pay-change
+      transaction runs under; the pinned pack's own pack_id
+      (us-ca-promotion-base-pay-change-draft) and
+      legal.PromotionProposalSnapshot are both scoped to exactly this
+      transaction shape.
+
+# Included intent/rule/filing set, part 2: every obligation kind the pinned
+# pack populates, each bound to the one intent above and to the exact
+# evidence path a caller reads once legal.Evaluate has run. Lifecycle step,
+# binding kind and trigger predicate are deliberately NOT restated here -
+# they live in exactly one place, legal.ObligationKindSpecFor, and
+# ObligationMapping.KindSpec reads them from there live.
+obligation_mappings:
+  - kind: NOTICE
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: FIELD_RESTRICTION
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: RETENTION
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: LEAVE_INTERACTION
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: PAY_FREQUENCY
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: FINAL_PAY_DEADLINE
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: PAY_TRANSPARENCY
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: NON_COMPETE
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: MINI_WARN
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: WAGE_FLOOR
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: PAY_EQUITY_REVIEW
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: PAY_STATEMENT
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: CLASSIFICATION
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: PERSONNEL_FILE
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: ANTI_RETALIATION
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: DRUG_TESTING
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: BREACH_NOTIFICATION
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+  - kind: MONITORING_CONSENT
+    intent_id: hcmnext.people.promote_worker/v1
+    evidence_path: legal.AppliedObligation.Bindings
+
+# Exact exclusions: the complement of obligation_mappings against
+# legal.AllObligationTypes, plus the non-obligation-kind boundaries this
+# profile's reviewed scope does not cover.
+exclusions:
+  - kind: OBLIGATION_KIND
+    value: E_VERIFY
+    reason: >-
+      E_VERIFY guards new-hire transactions only
+      (legal.PromotionProposalSnapshot.IsNewHire is always false for a
+      promotion); the pinned pack carries no E_VERIFY obligation and this
+      profile's scope never includes a new-hire transaction.
+  - kind: OBLIGATION_KIND
+    value: JOB_SECURITY
+    reason: >-
+      the pinned pack declares no JOB_SECURITY obligation; the mechanical
+      extraction found no California statute in the research file asserting
+      a probation/justification standard for this transaction type, and
+      this gap has not been re-reviewed.
+  - kind: OBLIGATION_KIND
+    value: SEPARATION_FILING
+    reason: >-
+      the pinned pack declares no SEPARATION_FILING obligation; this
+      profile's scope_items cover promotion and base-pay-change only, never
+      a concurrent separation.
+  - kind: OBLIGATION_KIND
+    value: AUTOMATED_DECISION
+    reason: >-
+      the pinned pack declares no AUTOMATED_DECISION obligation;
+      California's automated-decision-making technology rules were not
+      captured by the mechanical research extraction and require dedicated
+      review before this profile can map them.
+  - kind: JURISDICTION
+    value: every jurisdiction other than US-CA
+    reason: >-
+      this profile reviewed exactly one jurisdiction. legal.Resolve may
+      hold coverage for other jurisdictions in a shared registry (e.g.
+      US-NY), but a resolution landing there is outside this profile's
+      reviewed scope; Authorize returns UNKNOWN rather than applying
+      California's obligations, or any other jurisdiction's, to it.
+  - kind: LOCALITY
+    value: every California locality ordinance (e.g. Los Angeles, San Francisco, San Diego)
+    reason: >-
+      the pinned pack's jurisdiction is SUBDIVISION-level with an empty
+      locality_path (definitions/legal/packs/states/us-ca.json declares no
+      locality overlays); this profile excludes every California
+      city/county ordinance until a locality-level pack is drafted and
+      pinned separately.
+
+# Effective and known-at interval: the pinned pack's own effective window
+# start, and the instant this profile's underlying research/extraction/pack
+# chain was first knowable to HCM Next.
+window:
+  effective_start: "2026-01-01"
+  known_at_start: "2026-09-13T00:00:00Z"
+
+# Collective/company interaction.
+collective:
+  cba_assumption: >-
+    NONE_ASSUMED - the pinned research and pack assert no
+    collective-bargaining-agreement carve-out for any of the eighteen
+    mapped obligation kinds; a promotion or base-pay-change proposal for a
+    worker covered by a CBA is outside this profile's reviewed scope and
+    Authorize must return HUMAN_REVIEW_REQUIRED rather than evaluate it
+    under these obligations, because CBA terms can supersede or supplement
+    any of them and the research draft was never reviewed for CBA
+    interaction.
+  multi_entity_handling: >-
+    this profile resolves against exactly one
+    legal.LegalContextInput.LegalEntityID; a transaction spanning more than
+    one legal entity (e.g. a transfer between two commonly-owned California
+    employers) is outside this profile's reviewed scope, because the
+    research draft was never reviewed for successor-employer or
+    joint-employer obligations.
+
+# Uncertainty behavior: the two closed statuses GREEN names, and which one
+# this profile returns for which failure mode. Authorize implements both.
+uncertainty:
+  ambiguous_input_status: HUMAN_REVIEW_REQUIRED
+  out_of_scope_status: UNKNOWN
+
+# Update SLA.
+update_sla:
+  review_cadence_days: 90
+  trigger_events:
+    - CALIFORNIA_STATUTE_AMENDMENT
+    - CALIFORNIA_WAGE_FLOOR_INDEXATION_PUBLISHED
+    - PINNED_PACK_MINOR_VERSION_BUMP
+    - REVIEWER_ASSIGNED
+
+# Prohibited legal-advice boundary.
+legal_advice_disclaimer: >-
+  This profile is drafted, agent-assisted research and rule-pack
+  extraction. It records the citations, structure and exclusions of a
+  California employment-law review; it is not legal advice, and no
+  obligation, threshold or exclusion recorded here may be relied upon as a
+  legal conclusion until a named, qualified reviewer raises review_status
+  above UNREVIEWED.
+
+# Stop/reselect thresholds.
+stop_reselect_thresholds:
+  - metric: reviewer_assignment_age_days
+    threshold: "no named qualified reviewer within 30 days of pilot start"
+    action: STOP
+  - metric: mapped_obligation_kind_review_status
+    threshold: "any mapped obligation kind still UNREVIEWED at pilot go-live"
+    action: RESELECT_WEDGE
+  - metric: resolution_human_review_rate
+    threshold: ">10% of pilot transactions resolve HUMAN_REVIEW_REQUIRED or UNKNOWN over a rolling 20-transaction window"
+    action: STOP
+  - metric: resolution_human_review_rate
+    threshold: "reviewer named, review_status at or above VENDOR_BASELINE, and HUMAN_REVIEW_REQUIRED/UNKNOWN rate <=10% over a rolling 20-transaction window"
+    action: PROCEED
+
+signature:
+  algorithm: ed25519
+  public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
+  value: "cc10031f01c252b3dbeb351e33291e19f76d3ba71f6c3e63aa72b859edd06d07331c37ecac733011c7ebd6502a0e168201e9e974ff3f72027d7957d6a33f2400"
+  key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml

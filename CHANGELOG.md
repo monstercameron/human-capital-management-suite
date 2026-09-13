@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-09-13 (WF-DISC-012, SELECT-001)
+
+- Workflow maturity is now gated on generated evidence instead of trusted
+  prose. `planning/workflows/catalog.md` asserts per-flow maturity by hand
+  across 268 Status lines; the new gate does not read them as truth, it
+  compares its own generated report against them. Live result: 30
+  disagreements. Every one of the 14 accepted BusinessIntent definitions
+  carries a real unresolved-reference blocker, so each EXISTING claim
+  naming them is unsupported past CATALOGUED today.
+
+- The gate emits one row per definition with an exact blocker per failure
+  kind, never an aggregate boolean, and composes the existing WF-DISC
+  producers by import rather than re-deriving any of them.
+
+- Two of its checks are vacuous against today's data and say so rather than
+  posing as coverage: the status cap cannot bite while the capability-gap
+  floor holds every definition lower, and the unresolved-decision check
+  cannot fire because no decisions sidecar exists yet. Both are proven by
+  mutation-tested fixtures instead of by live data.
+
+- The pilot jurisdiction is California. Its profile pins the research
+  document and the state rule-pack by content digest, partitions all 22
+  obligation kinds into 18 mapped and 4 excluded by name, and binds to the
+  existing LegalContext resolver rather than duplicating it -- a
+  contradictory input fails exactly as that resolver fails, and a confident
+  resolution to any other jurisdiction returns UNKNOWN instead of silently
+  applying California's rules elsewhere.
+
+- That profile is unreviewed on purpose. The reviewer is a required field
+  that validation rejects when empty, so the checked-in file reports
+  exactly one violation, reviewer.name missing. No name was invented into a
+  signed governance artifact, and the repository already models unverified
+  legal content this way.
+
 ## 2026-09-13 (UIPOLISH-004)
 
 - One scroll-region component now owns overflow, scrollbar tokens, focus
