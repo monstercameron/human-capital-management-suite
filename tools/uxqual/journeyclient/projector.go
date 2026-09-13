@@ -1265,6 +1265,7 @@ func DetailPage(cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Not
 		Proposal:        proposalFacts(detail),
 		Comparison:      comparison(summary),
 		Findings:        findings(detail.GetFindings()),
+		WaitExplanation: waitExplanationFacts(detail.GetFindings()),
 		Engine:          engineFacts(detail.GetInstance()),
 		Nodes:           nodes(detail.GetNodes()),
 		WorkItems:       workItems(detail.GetWorkItems()),
@@ -1483,13 +1484,18 @@ func orDash(s string) string {
 }
 
 // findings normalises the engine's severities onto the renderer's four.
+//
+// PROMOUX-014's six WAIT_* codes are excluded: they are not a simulation
+// check (this section's own heading is "Preflight and simulation") and
+// [waitExplanationFacts] projects them onto their own, correctly labelled
+// section instead.
 func findings(in []*journeyv1.Finding) []journey.Finding {
 	if len(in) == 0 {
 		return nil
 	}
 	out := make([]journey.Finding, 0, len(in))
 	for _, f := range in {
-		if f == nil {
+		if f == nil || isWaitExplanationCode(f.GetCode()) {
 			continue
 		}
 		out = append(out, journey.Finding{
@@ -1499,6 +1505,66 @@ func findings(in []*journeyv1.Finding) []journey.Finding {
 		})
 	}
 	return out
+}
+
+// PROMOUX-014: the wire codes internal/intent/app's journeyWaitFindings
+// mints for a WAITING_EFFECTIVE_DATE journey (mirrored here, not imported,
+// for the same reason every other wire vocabulary in this file is
+// restated -- definitions/architecture/dependency-roles.yaml keeps this
+// module out of internal/).
+const (
+	codeWaitEffectiveInstant = "WAIT_EFFECTIVE_INSTANT"
+	codeWaitOwner            = "WAIT_OWNER"
+	codeWaitScheduledAction  = "WAIT_SCHEDULED_ACTION"
+	codeWaitRemainingChecks  = "WAIT_REMAINING_CHECKS"
+	codeWaitNotification     = "WAIT_NOTIFICATION"
+	codeWaitIntervention     = "WAIT_INTERVENTION"
+)
+
+// waitExplanationLabels orders and labels the six PROMOUX-014 codes for
+// display. The order is the reading order a person wants: when, who signed
+// off, what happens, what is left, whether they will hear about it, and
+// what they are allowed to do about it.
+var waitExplanationLabels = []struct{ code, label string }{
+	{codeWaitEffectiveInstant, "Effective instant"},
+	{codeWaitOwner, "Owner"},
+	{codeWaitScheduledAction, "Scheduled action"},
+	{codeWaitRemainingChecks, "Remaining checks"},
+	{codeWaitNotification, "Notification"},
+	{codeWaitIntervention, "Authorized intervention"},
+}
+
+func isWaitExplanationCode(code string) bool {
+	for _, row := range waitExplanationLabels {
+		if row.code == code {
+			return true
+		}
+	}
+	return false
+}
+
+// waitExplanationFacts projects PROMOUX-014's WAIT_* findings onto the
+// labelled facts list the "Waiting for effective date" subsection renders.
+// It is nil unless the engine actually sent every one of these codes: a
+// partial explanation would read as the missing facts having been decided
+// to be unimportant, when the true reason is that this journey is not
+// (or no longer) parked on the wait at all.
+func waitExplanationFacts(in []*journeyv1.Finding) []journey.Fact {
+	byCode := make(map[string]string, len(in))
+	for _, f := range in {
+		if f != nil {
+			byCode[f.GetCode()] = f.GetMessage()
+		}
+	}
+	facts := make([]journey.Fact, 0, len(waitExplanationLabels))
+	for _, row := range waitExplanationLabels {
+		msg, ok := byCode[row.code]
+		if !ok {
+			return nil
+		}
+		facts = append(facts, journey.Fact{Label: row.label, Value: msg})
+	}
+	return facts
 }
 
 // severityOf maps every severity word the engine and its simulators use onto

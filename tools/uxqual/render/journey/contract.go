@@ -367,6 +367,15 @@ type DetailView struct {
 
 	Findings []Finding
 
+	// WaitExplanation is PROMOUX-014's answer to a reader looking at a
+	// WAITING_EFFECTIVE_DATE journey: the effective instant and its
+	// timezone, who approved it, what runs when it fires, what checks
+	// remain, whether a notification is sent, and what intervention (if
+	// any) is authorized. Nil unless the engine sent every one of those
+	// facts (tools/uxqual/journeyclient's waitExplanationFacts), which in
+	// practice means the journey is not currently at that stage.
+	WaitExplanation []Fact
+
 	// Engine is the workflow instance as facts (instance id, version, plan
 	// digest, status, current node).
 	Engine []Fact

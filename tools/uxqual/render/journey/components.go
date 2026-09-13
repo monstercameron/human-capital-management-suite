@@ -1545,7 +1545,7 @@ func effectiveWindow(w *EffectiveWindow) ui.Node {
 // ----------------------------------------------------------------------
 
 func workflowSection(v DetailView) ui.Node {
-	if len(v.Engine) == 0 && len(v.Nodes) == 0 && len(v.WorkItems) == 0 {
+	if len(v.Engine) == 0 && len(v.Nodes) == 0 && len(v.WorkItems) == 0 && len(v.WaitExplanation) == 0 {
 		return nil
 	}
 	children := []ui.Node{
@@ -1557,6 +1557,16 @@ func workflowSection(v DetailView) ui.Node {
 		children = append(children, html.Div(html.Props{Class: "jn-subsection"},
 			html.H3(html.Props{Class: "jn-subhead"}, html.Text("Instance")),
 			factsList(v.Engine)))
+	}
+	// PROMOUX-014: RED was that "Waiting for effective date" named no
+	// instant, timezone, owner, scheduled action or explanation. This
+	// subsection is that explanation, sourced entirely from the engine
+	// (tools/uxqual/journeyclient's waitExplanationFacts): it renders only
+	// when every one of those facts arrived, never a partial guess.
+	if len(v.WaitExplanation) > 0 {
+		children = append(children, html.Div(html.Props{Class: "jn-subsection", DataAttr: html.DataAttribute{Name: "wait-explanation", Value: "present"}},
+			html.H3(html.Props{Class: "jn-subhead"}, html.Text("Waiting for effective date")),
+			factsList(v.WaitExplanation)))
 	}
 	if len(v.Nodes) > 0 {
 		children = append(children, html.Div(html.Props{Class: "jn-subsection"},
