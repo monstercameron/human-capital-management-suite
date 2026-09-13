@@ -11,8 +11,16 @@ import (
 // LoadingProxyProps describes the shape of an unresolved product surface.
 // The proxy contains no guessed business values and is deliberately
 // non-interactive; the surrounding shell owns the accessible busy message.
+//
+// State selects which of the AsyncRegionState members this proxy stands in
+// for. The zero value is AsyncRegionLoading, matching every call site that
+// predates UXAUDIT-012 and keeping their rendered output byte-identical.
+// Message is the failure detail surfaced only when State is
+// AsyncRegionFailure; it is ignored otherwise.
 type LoadingProxyProps struct {
-	Page PageID
+	Page    PageID
+	State   AsyncRegionState
+	Message string
 }
 
 // BuildLoading returns the real product shell with a component-shaped proxy
@@ -51,17 +59,71 @@ func BuildRefreshing(view View) ui.Node {
 	return Build(view)
 }
 
+// BuildFailure keeps already-resolved application chrome mounted while the
+// destination content region's own fetch could not be completed and no
+// earlier resolved answer for it exists to fall back to (the case
+// BuildRefreshing already covers when there is one). It renders through the
+// exact same size-compatible proxy as BuildContentLoading -- see
+// LoadingProxy's doc comment -- so a failed region takes up the same space a
+// loading or eventually resolved one would, rather than collapsing to a
+// small error message.
+//
+// message is the failure detail, announced assertively rather than
+// fabricated into a placeholder business value. It is carried only through
+// LoadingProxyProps.Message, never through View.LoadError: that field
+// drives appShellWithHeading's own, older, page-level LoadError branch
+// (stacking an unavailablePanel above whatever the page itself still
+// renders, used by pages such as Admin that keep showing their still-good
+// cards next to one degraded one), which is a different, pre-existing
+// degradation contract. BuildFailure clears any LoadError already on the
+// incoming view for exactly this reason: leaving it set would make that
+// older branch stack its own, differently-sized panel on top of this
+// function's size-matched proxy, silently defeating the geometry guarantee
+// this function exists to provide.
+func BuildFailure(view View, message string) ui.Node {
+	view.Loading = false
+	view.ContentLoading = false
+	view.Refreshing = false
+	view.RefreshingRegion = ""
+	view.LoadError = ""
+	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, State: AsyncRegionFailure, Message: message}))
+}
+
 // LoadingProxy preserves the broad geometry of each page family, avoiding
 // layout jumps without drawing fake names, amounts, statuses, or permissions.
+//
+// Loading, Empty and Failure all render the identical loadingProxyBody
+// markup -- same classes, same declared CSS min-heights -- because
+// UXAUDIT-012's Fault clause requires the failure state to preserve geometry
+// exactly as the loading state does: "a region that collapses when its
+// fetch fails is the same defect as one that collapses while loading."
+// Reusing one body call rather than writing a second, similar-looking one
+// for failure is what makes that proof exact instead of approximate.
+//
+// The switch has no default case: an AsyncRegionState this function does
+// not recognize is refused with a visible diagnostic panel rather than
+// silently rendered as either the decorative (aria-hidden) shimmer or an
+// unannounced failure -- both of which would hide a real programming
+// mistake from assistive technology.
 func LoadingProxy(props LoadingProxyProps) ui.Node {
 	class := "loading-proxy loading-proxy-" + safeLoadingPageClass(props.Page)
-	return html.Section(html.Props{
-		Class: class,
-		Raw:   map[string]any{"aria-hidden": "true"},
-	},
+	body := html.Fragment(
 		html.Div(html.Props{Class: "loading-progress"}),
 		loadingProxyBody(props.Page),
 	)
+	switch props.State {
+	case AsyncRegionLoading, AsyncRegionEmpty, AsyncRegionStale, AsyncRegionResolved:
+		return html.Section(html.Props{Class: class, Raw: map[string]any{"aria-hidden": "true"}}, body)
+	case AsyncRegionFailure:
+		return html.Section(html.Props{Class: class, Raw: map[string]any{"role": "alert", "aria-live": "assertive"}},
+			html.Span(html.Props{Class: "sr-only"}, ui.Text(strings.TrimSpace(props.Message))),
+			body,
+		)
+	default:
+		return html.Section(html.Props{Class: class + " loading-proxy-invalid-state", Raw: map[string]any{"role": "alert"}},
+			ui.Text(fmt.Sprintf("productui: %v", fmt.Errorf("%w: %v", ErrUnknownAsyncRegionState, props.State))),
+		)
+	}
 }
 
 func loadingProxyBody(page PageID) ui.Node {

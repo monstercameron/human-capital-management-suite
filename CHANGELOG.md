@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-09-13 (UXAUDIT-012)
+
+- Loading skeletons now preserve the geometry of the content that replaces them.
+  The defect was literally true rather than hypothetical, and measuring found
+  three real mismatches: a loading row declared ten pixels shorter than the work
+  row it stood in for -- a shift on every Home, Work and Journeys cold load --
+  plus two more on the People and History table proxies.
+
+  The proof compares dimensions rather than asserting a skeleton exists, which is
+  the difference between testing this clause and not testing it. It parses the
+  built stylesheet with an exact selector matcher, so a density variant cannot be
+  mistaken for the base rule, and was verified against the pre-fix values.
+
+- One async-region state model now covers loading, empty, stale, failure and
+  resolved, with exhaustive switches and no default branch. Its zero value is
+  _loading_, not resolved -- the load-bearing direction here, because a region
+  that forgets to set its state then renders the sized skeleton rather than a
+  false-resolved empty box, which is precisely the shift.
+
+- A region that collapses when its fetch fails is the same defect as one that
+  collapses while loading, so the failure state is proven byte-identical to the
+  loading state, not merely similar in size.
+
+- Verified against the running server. Cumulative layout shift measured through a
+  performance observer: the People directory resolved twenty rendered rows with a
+  shift score of zero -- a real skeleton-to-content transition, not a trivially
+  empty page. Software navigation between pages kept the shell and primary
+  navigation as the _same DOM nodes_, disproving the remount clause directly,
+  with zero shift across the transition.
+
+- Known gap: no governed numeric budget for layout shift exists anywhere in the
+  repository -- the performance-budgets surface is an honest stub that refuses to
+  invent one -- so the threshold used here is declared as an engineering figure
+  and documented as not business-authoritative.
+
 ## 2026-09-12 (UXAUDIT-011)
 
 - Experience Studio no longer appears in primary navigation, and the fix is a
