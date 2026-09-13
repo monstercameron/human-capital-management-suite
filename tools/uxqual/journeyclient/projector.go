@@ -345,6 +345,10 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 		}
 		cards = append(cards, card(j))
 	}
+	// UXAUDIT-017: Journeys is a lifecycle tracker grouped by subject and
+	// status, not the flat list this loop just built in server-recency
+	// order.
+	cards = groupJourneyCards(cards)
 	form := ProposalForm(values, data.Workers, data.SelectedRef, data.Options)
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("journeys", "create") {
 		form.Disabled = true
@@ -353,6 +357,7 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 	applyProposalCurrency(&form, workerCurrency(findWorker(data.Workers, data.SelectedRef), data.Options))
 	p.List = &journey.ListView{
 		Journeys: cards,
+		Groups:   journeySubjectGroups(cards),
 		Empty:    "No promotion has been proposed in this tenant yet. The form below starts one.",
 		Form:     form,
 		People:   PeopleView(cfg, data, values),
@@ -459,6 +464,103 @@ func card(j *journeyv1.Journey) journey.JourneyCard {
 		Updated:       formatTime(j.GetUpdatedAt()),
 		InstanceID:    j.GetInstanceId(),
 	}
+}
+
+// groupJourneyCards orders one tenant's journey cards so every subject's
+// journeys are adjacent (UXAUDIT-017, GREEN: "a lifecycle tracker grouped by
+// subject and status"). It is a stable reordering, never a filter: every
+// card ListPage built is still present, only rearranged.
+//
+// Subjects keep the engine's own recency order for where their group
+// appears -- the first card for a subject, in the order ListJourneys
+// returned it, anchors that subject's position -- so grouping never
+// invents an ordering the server did not already imply. Within one
+// subject's group, an open journey always sorts ahead of a terminal one
+// (terminalStages, the same open/closed dimension the People table's
+// per-row count already shares), so the active thread reads before its own
+// history; journeys of equal openness keep the engine's order between them.
+func groupJourneyCards(cards []journey.JourneyCard) []journey.JourneyCard {
+	order := make([]string, 0, len(cards))
+	seen := make(map[string]bool, len(cards))
+	bySubject := make(map[string][]journey.JourneyCard, len(cards))
+	for _, c := range cards {
+		key := journeySubjectKey(c)
+		if !seen[key] {
+			seen[key] = true
+			order = append(order, key)
+		}
+		bySubject[key] = append(bySubject[key], c)
+	}
+	grouped := make([]journey.JourneyCard, 0, len(cards))
+	for _, key := range order {
+		group := bySubject[key]
+		sort.SliceStable(group, func(i, j int) bool {
+			return journeyOpenRank(group[i].Stage) < journeyOpenRank(group[j].Stage)
+		})
+		grouped = append(grouped, group...)
+	}
+	return grouped
+}
+
+// journeySubjectKey names the subject a card groups under: the worker
+// reference when the wire supplied one, or the worker's name when it did
+// not (a defensive fallback, not an expected production path).
+func journeySubjectKey(c journey.JourneyCard) string {
+	if c.WorkerRef != "" {
+		return c.WorkerRef
+	}
+	return c.WorkerName
+}
+
+// journeyOpenRank ranks a stage's lifecycle openness for the within-subject
+// sort: 0 for open, 1 for terminal (terminalStages).
+func journeyOpenRank(stage string) int {
+	if terminalStages[stage] {
+		return 1
+	}
+	return 0
+}
+
+// journeySubjectGroups partitions an already subject-clustered card slice
+// (see groupJourneyCards, which every caller of this function has already
+// run) into the named groups journey.ListView.Groups renders. It draws the
+// group boundaries the clustering already produced; it does not reorder or
+// filter anything, so a caller that skips groupJourneyCards first would get
+// meaningless groups -- ListPage always runs both in that order.
+//
+// A subject with exactly one journey still gets its own single-journey
+// group: GREEN asks for a lifecycle tracker "grouped by subject and
+// status", and a tenant where every subject happens to have one open
+// journey is a real, common state, not an edge case excused from grouping.
+func journeySubjectGroups(clustered []journey.JourneyCard) []journey.JourneySubjectGroup {
+	groups := make([]journey.JourneySubjectGroup, 0, len(clustered))
+	for _, c := range clustered {
+		key := journeySubjectKey(c)
+		if n := len(groups); n > 0 && journeySubjectKey(groups[n-1].Journeys[0]) == key {
+			last := &groups[n-1]
+			last.Journeys = append(last.Journeys, c)
+			last.Statuses = appendJourneyStatusChip(last.Statuses, c)
+			continue
+		}
+		groups = append(groups, journey.JourneySubjectGroup{
+			Subject:  c.WorkerName,
+			Journeys: []journey.JourneyCard{c},
+			Statuses: appendJourneyStatusChip(nil, c),
+		})
+	}
+	return groups
+}
+
+// appendJourneyStatusChip adds c's status to a group's distinct-status list,
+// deduplicated by label in first-seen order, so a group whose journeys share
+// a stage shows that status once rather than once per journey.
+func appendJourneyStatusChip(statuses []journey.JourneyStatusChip, c journey.JourneyCard) []journey.JourneyStatusChip {
+	for _, existing := range statuses {
+		if existing.Label == c.StageLabel {
+			return statuses
+		}
+	}
+	return append(statuses, journey.JourneyStatusChip{Label: c.StageLabel, Tone: c.StageTone})
 }
 
 // DefaultEffectiveDate is the proposal form's seeded effective date: the

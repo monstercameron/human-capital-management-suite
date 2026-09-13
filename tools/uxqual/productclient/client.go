@@ -730,6 +730,7 @@ func applyPreferences(view *productui.View, state *State, response *journeyv1.Ge
 		}
 		applyTableDefaults(request, state.Provided, user.GetTables()["people"], false)
 		applyTableDefaults(request, state.Provided, user.GetTables()["history"], true)
+		applyWorkTableDefaults(request, state.Provided, user.GetTables()["work"])
 	}
 	if theme := response.GetTheme(); theme != nil {
 		view.AppearanceVersion = theme.GetVersion()
@@ -789,6 +790,25 @@ func applyTableDefaults(request *productui.PageRequest, provided map[string]bool
 	// previously saved direction here made a first click appear descending.
 	if !provided["dir"] && !provided["sort"] {
 		request.PeopleDirection = table.GetDirection()
+	}
+}
+
+// applyWorkTableDefaults is applyTableDefaults' My Work sibling (UXAUDIT-017,
+// GREEN's "retain filters on return"). It reuses the exact mechanism
+// UXAUDIT-008 built for the People and Workflow History tables --
+// preferences.TablePreferences, projected here from the generic
+// GetProductPreferencesResponse.tables map -- rather than inventing a
+// second retention path: My Work's tab filter is a one-field table
+// preference the same way History's filters are a multi-field one. Only the
+// stored default is applied, and only when the address bar did not already
+// say so, so an explicit link (e.g. a shared "?filter=blocked" URL) always
+// wins over whatever the viewer saved last.
+func applyWorkTableDefaults(request *productui.PageRequest, provided map[string]bool, table *journeyv1.TablePreferences) {
+	if request == nil || table == nil {
+		return
+	}
+	if !provided["filter"] {
+		request.WorkFilter = table.GetFilters()["filter"]
 	}
 }
 

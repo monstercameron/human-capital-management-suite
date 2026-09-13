@@ -90,6 +90,12 @@ type Footer struct {
 // ListView is the journeys overview with the new-proposal form.
 type ListView struct {
 	Journeys []JourneyCard
+	// Groups is Journeys clustered into named subject groups (UXAUDIT-017,
+	// GREEN: "a lifecycle tracker grouped by subject and status"). Nil or
+	// empty falls back to Journeys' flat rendering unchanged -- a page
+	// built before this field existed, or one whose projector never sets
+	// it, renders exactly as it always has.
+	Groups []JourneySubjectGroup
 	// Empty is shown instead of the list when there are no journeys.
 	Empty string
 	Form  ProposalForm
@@ -105,6 +111,28 @@ type ListView struct {
 	// projection that cannot read the workforce table should do rather than
 	// showing an empty one.
 	People *PeopleView
+}
+
+// JourneySubjectGroup is one subject's cluster of journeys for the list
+// view's grouped-by-subject-and-status rendering. Every string here is
+// already display-ready, exactly like JourneyCard.
+type JourneySubjectGroup struct {
+	// Subject is the group heading: the worker's display name.
+	Subject string
+	// Journeys are this subject's cards. The projector orders them (open
+	// before terminal); this type does not reorder them again.
+	Journeys []JourneyCard
+	// Statuses is the distinct set of this group's journeys' StageLabel and
+	// StageTone, deduplicated in first-seen order, so a reader can see the
+	// group's status mix (e.g. "Blocked" and "Recorded" both present) at a
+	// glance without opening every card in it.
+	Statuses []JourneyStatusChip
+}
+
+// JourneyStatusChip is one distinct status shown at the group level.
+type JourneyStatusChip struct {
+	Label string
+	Tone  string
 }
 
 // ProposalView is the person-scoped start of a promotion. It intentionally

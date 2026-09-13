@@ -42,6 +42,8 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 	if view.WorkFilter == "" {
 		items = OpenWorkItems(items)
 	}
+	// UXAUDIT-017: an action queue orders by urgency, not admission order.
+	items = SortWorkByUrgency(items)
 	selectedID := ""
 	if options.ListDetail {
 		selectedID = selectedOpenWork(view).ID
@@ -82,8 +84,12 @@ func selectedOpenWork(view View) WorkItem {
 		}
 		return WorkItem{}
 	}
-	if len(items) > 0 {
-		return items[0]
+	// No explicit selection: preview the same item the urgency-ordered
+	// queue shows first, so the highlighted row and the preview panel never
+	// disagree about which item "first" means.
+	ordered := SortWorkByUrgency(items)
+	if len(ordered) > 0 {
+		return ordered[0]
 	}
 	return WorkItem{}
 }

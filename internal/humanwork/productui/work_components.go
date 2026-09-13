@@ -186,9 +186,25 @@ func WorkRow(props WorkRowProps) ui.Node {
 	return html.Li(html.Props{Class: "work-row-item"}, softwareLink(props.Navigate, linkProps, props.Href,
 		personAvatar(props.Person, props.Initials, props.PhotoURL, ""),
 		html.Span(html.Props{Class: "row-main"}, main...),
-		html.Span(html.Props{Class: "row-end"}, status, html.Small(html.Props{}, ui.Text(props.Due))),
+		html.Span(html.Props{Class: "row-end"}, status, rowEffectiveDate(props.I18nProps, props.Due)),
 		html.Span(html.Props{Aria: map[string]string{"hidden": "true"}}, ui.Text("›")),
 	))
+}
+
+// rowEffectiveDate renders the queue row's own date, labeled for what it
+// actually is. UXAUDIT-017: the wire's only date on a journey summary is its
+// effective date -- the promotion's planned start, not a deadline by which
+// the viewer must act -- and the server carries no separate action-by/due
+// field on that summary (see productclient's projectJourneys). Showing it
+// bare read as a due date to every reader who scanned the row; labeling it
+// "Effective" is honest about what the server actually said without
+// fabricating an action-by date it never sent. Renders nothing for a row
+// with no date rather than an empty label.
+func rowEffectiveDate(i18n I18nProps, date string) ui.Node {
+	if date == "" {
+		return nil
+	}
+	return html.Small(html.Props{Class: "row-effective-date"}, ui.Text(i18n.Text("work.row_effective_date", map[string]string{"date": date})))
 }
 
 // ApprovalDispositionCard renders PROMOUX-003's five GREEN facts -- waiting

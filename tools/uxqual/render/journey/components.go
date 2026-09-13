@@ -646,9 +646,17 @@ func readableTenantLabel(value string) string {
 
 func journeysSection(v ListView) ui.Node {
 	body := ui.Node(nil)
-	if len(v.Journeys) == 0 {
+	switch {
+	case len(v.Groups) > 0:
+		// UXAUDIT-017: "a lifecycle tracker grouped by subject and status".
+		// A projector that populates Groups renders subject sections
+		// instead of the flat grid below; a projector (or fixture) that
+		// never sets it -- everything before this todo -- keeps the exact
+		// flat rendering the other branches below already produce.
+		body = html.Div(html.Props{Class: "jn-journey-groups"}, journeySubjectGroupSections(v.Groups)...)
+	case len(v.Journeys) == 0:
 		body = emptyState(v.Empty)
-	} else {
+	default:
 		body = html.Ul(html.Props{Class: "jn-grid", Role: "list"},
 			html.Map(v.Journeys, func(j JourneyCard) ui.Node {
 				return html.Li(html.Props{Class: "jn-griditem"}, journeyCard(j))
@@ -660,6 +668,40 @@ func journeysSection(v ListView) ui.Node {
 			chip(toneNeutral, countLabel(len(v.Journeys))),
 		),
 		body,
+	)
+}
+
+// journeySubjectGroupSections renders one accessible section per subject
+// group: a heading naming the subject, the group's distinct statuses (the
+// "and status" half of GREEN, visible across the group even when a reader
+// does not open every card in it), and the subject's own journeys, each
+// still carrying its own per-card status chip (the "within" half).
+func journeySubjectGroupSections(groups []JourneySubjectGroup) []ui.Node {
+	sections := make([]ui.Node, 0, len(groups))
+	for index, group := range groups {
+		sections = append(sections, journeySubjectGroupSection(group, index))
+	}
+	return sections
+}
+
+func journeySubjectGroupSection(group JourneySubjectGroup, index int) ui.Node {
+	headingID := "journey-group-" + strconv.Itoa(index) + "-heading"
+	statusChips := make([]ui.Node, 0, len(group.Statuses))
+	for _, status := range group.Statuses {
+		statusChips = append(statusChips, chip(status.Tone, status.Label))
+	}
+	return html.Section(html.Props{Class: "jn-journey-group", Aria: map[string]string{"labelledby": headingID}},
+		html.Div(html.Props{Class: "jn-journey-group-head"},
+			html.H3(html.Props{ID: headingID, Class: "jn-journey-group-subject"}, html.Text(group.Subject)),
+			chip(toneNeutral, countLabel(len(group.Journeys))),
+			htmlIf(len(statusChips) > 0, func() ui.Node {
+				return html.Div(html.Props{Class: "jn-journey-group-statuses", Aria: map[string]string{"label": "Statuses in this group"}}, statusChips...)
+			}),
+		),
+		html.Ul(html.Props{Class: "jn-grid jn-journey-group-list", Role: "list"},
+			html.Map(group.Journeys, func(j JourneyCard) ui.Node {
+				return html.Li(html.Props{Class: "jn-griditem"}, journeyCard(j))
+			})...),
 	)
 }
 

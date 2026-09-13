@@ -226,6 +226,11 @@ func (c *serverPreferenceController) PersistView(view productui.View) {
 		if view.Page == productui.PageHistory || view.Page == productui.PagePerson {
 			user.Tables["history"] = &journeyv1.TablePreferences{PageSize: int32(view.HistoryPageSize), Filters: map[string]string{"query": view.HistoryQuery, "outcome": view.HistoryOutcome, "person": view.HistoryPerson, "year": view.HistoryYear}, Sort: view.HistorySort, Direction: view.HistoryDirection}
 		}
+		// UXAUDIT-017: My Work's tab filter is a one-field table preference,
+		// the same retention mechanism UXAUDIT-008 gave People and History.
+		if view.Page == productui.PageWork {
+			user.Tables["work"] = &journeyv1.TablePreferences{Filters: map[string]string{"filter": view.WorkFilter}}
+		}
 	}, nil)
 }
 
