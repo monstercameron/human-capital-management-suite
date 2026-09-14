@@ -92,7 +92,7 @@ func TestUXBLIND004LoginFailureOpensCredentialRecovery(t *testing.T) {
 func TestUXBLIND005PersonaCopyNamesUsefulTasks(t *testing.T) {
 	h, _ := newShellHandler(t, true)
 	h.devPersonas = map[string]DevPersona{}
-	for _, id := range []string{"admin", "hiring-manager", "payroll-manager", "individual-contributor"} {
+	for _, id := range []string{"admin", "hiring-manager", "finance-partner", "individual-contributor"} {
 		roles, ok := DevPersonaRoles(id)
 		if !ok {
 			t.Fatalf("no canonical role fixture for persona %q", id)
@@ -104,7 +104,7 @@ func TestUXBLIND005PersonaCopyNamesUsefulTasks(t *testing.T) {
 	h.ServeHTTP(rec, req)
 	body := rec.Body.String()
 
-	cards := personaCards(t, body, "admin", "hiring-manager", "payroll-manager", "individual-contributor")
+	cards := personaCards(t, body, "admin", "hiring-manager", "finance-partner", "individual-contributor")
 
 	// RED clause 1: no persona may promise a page it cannot open. Assert
 	// this generically against the live registry rather than against a
@@ -129,25 +129,28 @@ func TestUXBLIND005PersonaCopyNamesUsefulTasks(t *testing.T) {
 		}
 	}
 
-	// RED clause 2 at the copy layer: hiring-manager and payroll-manager
-	// hold disjoint role sets ({hiring_manager,manager,intent_author} vs
-	// {worker_self}) and must not render identical persona copy.
-	if cards["hiring-manager"] == cards["payroll-manager"] {
-		t.Fatal("hiring-manager and payroll-manager, whose signed roles are disjoint, render identical persona copy")
+	// RED clause 2 at the copy layer: hiring-manager and finance-partner hold
+	// disjoint role sets ({hiring_manager,manager,intent_author} vs
+	// {finance_partner}) and must not render identical persona copy.
+	if cards["hiring-manager"] == cards["finance-partner"] {
+		t.Fatal("hiring-manager and finance-partner, whose signed roles are disjoint, render identical persona copy")
 	}
 	if !strings.Contains(cards["hiring-manager"], "People") || !strings.Contains(cards["hiring-manager"], "Journeys") {
 		t.Error("hiring-manager copy omits a workforce destination its manager role admits")
 	}
-	if strings.Contains(cards["payroll-manager"], "People") || strings.Contains(cards["payroll-manager"], "Journeys") {
-		t.Error("payroll-manager copy promises a workforce destination its worker_self role does not admit")
+	if strings.Contains(cards["finance-partner"], "People") || strings.Contains(cards["finance-partner"], "Journeys") {
+		t.Error("finance-partner copy promises a workforce destination its finance_partner role does not admit")
 	}
-	if !strings.Contains(cards["payroll-manager"], "Organization") || !strings.Contains(cards["individual-contributor"], "Organization") {
-		t.Error("a self-service persona's copy omits the one real destination its role admits")
+	if !strings.Contains(cards["finance-partner"], "My Work") {
+		t.Error("finance-partner copy omits My Work, where the approvals routed to it are decided")
+	}
+	if !strings.Contains(cards["finance-partner"], "Organization") || !strings.Contains(cards["individual-contributor"], "Organization") {
+		t.Error("a narrow persona's copy omits the organization destination its role admits")
 	}
 	if !strings.Contains(cards["admin"], "Admin") {
 		t.Error("admin persona copy does not name its admin-only destination")
 	}
-	if strings.Contains(cards["hiring-manager"], "Admin") || strings.Contains(cards["payroll-manager"], "Admin") || strings.Contains(cards["individual-contributor"], "Admin") {
+	if strings.Contains(cards["hiring-manager"], "Admin") || strings.Contains(cards["finance-partner"], "Admin") || strings.Contains(cards["individual-contributor"], "Admin") {
 		t.Error("a non-admin persona's copy names the admin-only destination")
 	}
 }
@@ -156,7 +159,10 @@ func TestUXBLIND005PersonaCopyNamesUsefulTasks(t *testing.T) {
 // persona card, in the fixed order writeLoginPage renders them, keyed by id.
 func personaCards(t *testing.T, body string, wantIDs ...string) map[string]string {
 	t.Helper()
-	order := []string{"admin", "hiring-manager", "payroll-manager", "individual-contributor"}
+	order := make([]string, 0, 4)
+	for _, set := range DevPersonaRoleSets() {
+		order = append(order, set.ID)
+	}
 	parts := strings.Split(body, `<form class="persona"`)
 	if len(parts) != len(order)+1 {
 		t.Fatalf("rendered %d persona cards, want %d", len(parts)-1, len(order))

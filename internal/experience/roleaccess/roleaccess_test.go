@@ -111,8 +111,9 @@ func TestPoliciesForRoles_AndDefaultRoles(t *testing.T) {
 		t.Fatalf("policies = %#v", got)
 	}
 	roles := DefaultRoles()
-	if len(roles) != 9 {
-		t.Fatalf("default role count = %d, want 9", len(roles))
+	// PROMOUX-015 added finance_partner, the finance approver persona's role.
+	if len(roles) != 10 {
+		t.Fatalf("default role count = %d, want 10", len(roles))
 	}
 	for _, role := range roles {
 		if !role.System || !role.Active {
@@ -181,4 +182,26 @@ func (*testStore) SaveVisibility(context.Context, values.TenantId, string, strin
 }
 func (*testStore) SavePagePermission(context.Context, values.TenantId, string, PagePermission) (PagePermission, error) {
 	return PagePermission{}, nil
+}
+
+// TestFinancePartnerPagePermissionsAreNarrow pins PROMOUX-015's
+// finance_partner grant exactly: View on Home, Myself, My Work, Work History,
+// Organization, Help and Settings; Update on My Work (deciding the approvals
+// routed to it) and Settings; nothing on People, Person, Journeys, Insights or
+// Admin, and no Create or Delete anywhere.
+func TestFinancePartnerPagePermissionsAreNarrow(t *testing.T) {
+	permissions := EffectivePagePermissions(Snapshot{PagePermissions: DefaultPagePermissions()}, []string{"finance_partner"})
+	viewable := map[string]bool{"home": true, "myself": true, "work": true, "history": true, "organization": true, "help": true, "settings": true}
+	updatable := map[string]bool{"work": true, "settings": true}
+	for _, page := range []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "insights", "admin", "worker-ids", "roles", "organization-visibility", "appearance", "studio", "help", "settings", PageJourneyDiagnostics} {
+		if got := CanPageAction(permissions, page, ActionView); got != viewable[page] {
+			t.Errorf("finance_partner view %s = %v, want %v", page, got, viewable[page])
+		}
+		if got := CanPageAction(permissions, page, ActionUpdate); got != updatable[page] {
+			t.Errorf("finance_partner update %s = %v, want %v", page, got, updatable[page])
+		}
+		if CanPageAction(permissions, page, ActionCreate) || CanPageAction(permissions, page, ActionDelete) {
+			t.Errorf("finance_partner may create or delete on %s", page)
+		}
+	}
 }

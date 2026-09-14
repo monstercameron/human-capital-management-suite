@@ -181,7 +181,8 @@ func TestTodo_WEB_040(t *testing.T) {
 // viewer opens the control; re-pinned to the new, smaller closed-state
 // bytes after visually confirming the trigger, dialog scaffold and input
 // still render correctly.
-const web040GoldenDigest = "41e7fab62483d71e389b96ad7f661bc6e7e12396ef0b90f12b3cfd86e9dd84d4"
+// PROMOUX-015 re-pin: the global search and action launcher inputs gained a visually hidden associated label; that label is the only change.
+const web040GoldenDigest = "dd3493fccf3776482a02429339fc924ce001a6042fd8494daf8a488ecf2a791d"
 
 func TestTodo_WEB_040_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

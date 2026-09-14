@@ -570,25 +570,24 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 		id, workerNumber, access, purpose string
 	}
 	specs := []personaSpec{
+		// PROMOUX-015: the four slots are one separated promotion. admin
+		// (Rafael Torres, Director of People Operations) is the manager
+		// approver -- he manages Linh Tran -- and the execution operator.
+		// hiring-manager (Darius Bennett, Chief People Officer) is the
+		// proposer: Linh's skip-level manager, so the reference workflow's
+		// CurrentManagerOf(worker) approval routes to somebody else.
+		// finance-partner (Thomas Baker, Finance Director) is the finance
+		// approver the local-dev profile's -execution-finance-partner names.
+		// individual-contributor (Linh Tran) is the employee.
 		{id: "admin", workerNumber: "HC-21050", access: "HCM administrator", purpose: "compensation_review"},
-		{id: "hiring-manager", workerNumber: "HC-21052", access: "Hiring manager", purpose: "compensation_review"},
-		// payroll-manager is a worker_self persona (dev_persona_roles.go),
-		// same as individual-contributor: no payroll-specific role or page is
-		// admitted anywhere in the registry yet (UXAUDIT-014), so worker_self
-		// -- their own employment record and organization context, nothing
-		// workforce-wide -- is the only bundle that honestly backs this slot.
-		// access is therefore left blank here and derived below from this
-		// worker's own record instead of hand-written, so the label can never
-		// re-assert a capability (a "payroll manager" title, a
-		// "payroll_processing" purpose) the signed worker_self role does not
-		// hold; purpose is the same self_service_view individual-contributor
-		// asserts, the only purpose authz.PolicyTable's worker_self entry
-		// actually grants. Do not restore a payroll-flavoured access label or
-		// purpose without first adding a role bundle that genuinely backs it
-		// -- doing so silently reintroduces the hiring-manager collision RED
-		// found.
-		{id: "payroll-manager", workerNumber: "HC-21054", access: "", purpose: "self_service_view"},
-		{id: "individual-contributor", workerNumber: "HC-21022", access: "Individual contributor", purpose: "self_service_view"},
+		{id: "hiring-manager", workerNumber: "HC-21004", access: "Hiring manager", purpose: "compensation_review"},
+		// finance-partner replaced UXAUDIT-014's worker_self payroll-manager
+		// slot. Its finance_partner role is backed by authz.PolicyTable under
+		// compensation_review, the purpose it signs, and by roleaccess's
+		// narrow finance_partner page grant. Do not give this slot a payroll
+		// label or purpose: no role bundle backs one (UXAUDIT-014).
+		{id: "finance-partner", workerNumber: "HC-21054", access: "Finance partner", purpose: "compensation_review"},
+		{id: "individual-contributor", workerNumber: "HC-21051", access: "Individual contributor", purpose: "self_service_view"},
 	}
 	workers, err := demoworkforce.Plan(pgstore.TenantID(cfg.Tenant))
 	if err != nil {
@@ -623,12 +622,10 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 		access := spec.access
 		if access == "" {
 			// Derived from this worker's own record (their real job title),
-			// not hand-written, so a worker_self slot's card can only ever
-			// say what this specific credential actually is. This also gives
-			// the two worker_self personas (payroll-manager, individual-
-			// contributor) an observable difference beyond their names: they
-			// hold identical role bundles, but HC-21054 and HC-21022 are
-			// different workers in different parts of the organization.
+			// not hand-written, so a slot with no access label of its own can
+			// only ever say what this specific credential actually is. No
+			// current spec leaves access blank; the fallback stays so a future
+			// one cannot re-assert a capability its role does not hold.
 			access = worker.JobTitle + " (self-service)"
 		}
 		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: access, Roles: roles, Token: token})

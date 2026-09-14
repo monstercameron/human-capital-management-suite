@@ -206,14 +206,38 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 	if string(financeWaiting.Summary.Stage) != "FINANCE_APPROVAL" {
 		t.Fatalf("after execute stage = %s, want FINANCE_APPROVAL", financeWaiting.Summary.Stage)
 	}
-	managerWaiting, err := journey.Decide(ctx, proposed.IntentID, workspaceDecisionApprove("finance approved"))
+	// PROMOUX-015: a decision is the caller's own. Each approval is decided
+	// by the principal it is routed to -- for this corpus worker, the
+	// class-scoped derivations of the configured approver -- and neither
+	// credential holds the execution role.
+	approverContext := func(derive func(string) (string, error)) context.Context {
+		subject, deriveErr := derive(approver)
+		if deriveErr != nil {
+			t.Fatalf("derive the routed approver: %v", deriveErr)
+		}
+		approverToken, issueErr := verifier.Issue(trust.Claims{
+			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: subject, SubjectKind: "human", Tenant: tenant,
+			OrganizationScopeID: "org-north-america", Roles: []string{"comp_admin"},
+			Purposes: []string{"compensation_review"}, AuthenticationMethod: "bearer_token", Assurance: "substantial",
+			SessionRef: "session:" + subject, IssuedAtUnix: clockAt.Add(-time.Minute).Unix(), ExpiresAtUnix: clockAt.Add(time.Hour).Unix(),
+		})
+		if issueErr != nil {
+			t.Fatalf("issue routed approver credential: %v", issueErr)
+		}
+		approverPrincipal, verifyErr := verifier.Verify(context.Background(), trust.Credential{Scheme: "Bearer", Token: approverToken, Audience: cfg.Audience})
+		if verifyErr != nil {
+			t.Fatalf("verify routed approver credential: %v", verifyErr)
+		}
+		return trust.WithPrincipal(context.Background(), approverPrincipal)
+	}
+	managerWaiting, err := journey.Decide(approverContext(promotionexec.FinanceApproverFor), proposed.IntentID, workspaceDecisionApprove("finance approved"))
 	if err != nil {
 		t.Fatalf("Journey.Decide(finance): %v", err)
 	}
 	if string(managerWaiting.Summary.Stage) != "MANAGER_APPROVAL" {
 		t.Fatalf("after finance stage = %s, want MANAGER_APPROVAL", managerWaiting.Summary.Stage)
 	}
-	waiting, err := journey.Decide(ctx, proposed.IntentID, workspaceDecisionApprove("manager approved"))
+	waiting, err := journey.Decide(approverContext(promotionexec.ManagerApproverFor), proposed.IntentID, workspaceDecisionApprove("manager approved"))
 	if err != nil {
 		t.Fatalf("Journey.Decide(manager): %v", err)
 	}
@@ -410,7 +434,9 @@ func sameStringMap(left, right map[string]string) bool {
 
 func workspaceProposalForPROMO009() workspace.ProposalInput {
 	return workspace.ProposalInput{
-		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", TargetPositionID: "POS-HRBP-301",
+		// No TargetPositionID: PROMOUX-004 refuses every position reference
+		// no picker issued, and POS-HRBP-301 is not a corpus position.
+		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
 		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "promotion_into_senior_hrbp",
 	}
 }

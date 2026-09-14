@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/repair"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
@@ -69,6 +70,11 @@ type FixtureInputs struct {
 	// ([BindWorkerLocator]), so this resolver and every other surface that
 	// accepts a worker reference agree about what one names.
 	locate WorkerLocator
+	// positionReader is the Position read a promotion's target position is
+	// re-checked against. It is nil until [NewCell] binds the cell's own
+	// ([BindPositionReader]); a nil reader refuses a named position as not
+	// found, never passes it through unproven.
+	positionReader position.PositionFacts
 	// externalSource is the observing system the comparison intents read
 	// their external side from. It is empty until the cell binds a connector,
 	// and a diagnostic resolved without one refuses rather than comparing
@@ -124,6 +130,20 @@ func (f *FixtureInputs) BindWorkers(workers people.WorkerFacts) {
 func (f *FixtureInputs) BindWorkerLocator(locate WorkerLocator) {
 	if locate != nil {
 		f.locate = locate
+	}
+}
+
+// BindPositionReader gives the promotion preflight this resolver builds the
+// cell's own Position read.
+//
+// PROMOUX-015: [NewCell] composed a position reader for the workspace form
+// path only, so the governed propose path (JourneyService.ProposePromotion and
+// the journey engine's Propose) built its preflight with no reader, and
+// PROMOUX-004's selection check refused every picker-issued position as not
+// found: no real position could be proposed. A nil reader is ignored.
+func (f *FixtureInputs) BindPositionReader(reader position.PositionFacts) {
+	if reader != nil {
+		f.positionReader = reader
 	}
 }
 
@@ -262,10 +282,11 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 	// assignment but not the pay is refused here rather than handed a
 	// simulation with the money silently missing.
 	decision, err := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: inst.CreatedAt,
-		Gate:        []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
-		Read:        peopleFields(fieldSet),
+		Subject:       subject,
+		EvaluatedAt:   inst.CreatedAt,
+		Relationships: managerChainFacts(ctx, f.locate, req.Principal, subject),
+		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Read:          peopleFields(fieldSet),
 	})
 	if err != nil {
 		return DomainCall{}, err
@@ -305,6 +326,7 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 			Budget:         budget,
 			Policy:         promotion.DefaultPolicy(),
 			Annualization:  rewards.DefaultAnnualization(),
+			PositionReader: f.positionReader,
 		},
 		Baseline: baselineFor(inst, facts, subject, target, present),
 	}, nil
@@ -331,9 +353,10 @@ func (f *FixtureInputs) resolveExplain(ctx context.Context, req ResolveRequest, 
 	}
 	fieldSet := people.AllFields()
 	decision, err := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: inst.CreatedAt,
-		Read:        peopleFields(fieldSet),
+		Subject:       subject,
+		EvaluatedAt:   inst.CreatedAt,
+		Relationships: managerChainFacts(ctx, f.locate, req.Principal, subject),
+		Read:          peopleFields(fieldSet),
 	})
 	if err != nil {
 		return DomainCall{}, err
@@ -374,9 +397,10 @@ func (f *FixtureInputs) resolveCompensation(ctx context.Context, req ResolveRequ
 	// reads gates it: there is no partial answer worth returning when the
 	// caller may not see compensation under this purpose.
 	if _, authErr := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: inst.CreatedAt,
-		Gate:        []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Subject:       subject,
+		EvaluatedAt:   inst.CreatedAt,
+		Relationships: managerChainFacts(ctx, f.locate, req.Principal, subject),
+		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
 	}); authErr != nil {
 		return DomainCall{}, authErr
 	}
@@ -436,9 +460,10 @@ func (f *FixtureInputs) resolvePayBand(ctx context.Context, req ResolveRequest, 
 	// Where a worker's pay sits in a band is a compensation disclosure, and
 	// it is gated as one.
 	if _, authErr := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: inst.CreatedAt,
-		Gate:        []authz.FieldID{authz.FieldBaseSalary},
+		Subject:       subject,
+		EvaluatedAt:   inst.CreatedAt,
+		Relationships: managerChainFacts(ctx, f.locate, req.Principal, subject),
+		Gate:          []authz.FieldID{authz.FieldBaseSalary},
 	}); authErr != nil {
 		return DomainCall{}, authErr
 	}

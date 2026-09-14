@@ -104,7 +104,8 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// attention. Verified before re-pinning by substituting exactly those
 	// two old strings back into the new document, which reproduced the
 	// previous digest byte for byte.
-	const want = "84e5c298950cf3ef653fe5c7ea9f39311b7dca88d9de6b669732ddd9c9b75007"
+	// PROMOUX-015 re-pin: the global search and action launcher inputs gained a visually hidden associated label; that label is the only change.
+	const want = "2eb446508ef107416d531784a9b72b864c2acee1a3dde389dfc1f9cadb0b7a3a"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

@@ -33,11 +33,16 @@ import (
 // caller-guessed token that was never issued by a picker.
 var ErrInvalidRevisionRef = errors.New("position: invalid revision reference")
 
-// revisionRefSeparator joins the two encoded fields. It is a byte that never
-// appears in either field's own canonical text encoding (both are built from
-// printable ASCII plus ':' by [values.EntityRef.Canonical] and
-// [values.RevisionToken.Canonical]).
-const revisionRefSeparator = "\x1f"
+// revisionRefSeparator joins the two encoded fields. Both fields are
+// base64url-encoded without padding, whose alphabet is A-Z a-z 0-9 '-' '_',
+// so '.' can never appear inside a segment and the split is unambiguous.
+//
+// PROMOUX-015: it was previously the control byte 0x1F. A proposal submits
+// this token as its POSITION subject id, and intent subject ids must be
+// canonical text with no control characters (internal/intent
+// requireCanonicalText), so every picker-issued reference was refused as a
+// malformed request and no real position could ever be proposed.
+const revisionRefSeparator = "."
 
 // RevisionRef is the opaque wire token a picker discloses for one candidate
 // and a promotion proposal later submits back unchanged. Its zero value

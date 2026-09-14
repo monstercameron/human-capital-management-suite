@@ -229,6 +229,8 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 		t.Fatalf("verify journey credential: %v", err)
 	}
 	ctx := trust.WithPrincipal(context.Background(), principal)
+	// PROMOUX-015: each approval is decided by its routed assignee.
+	financeCtx, managerCtx := routedApproverContexts(t, verifier, cfg, clockAt)
 	journey := composed.Cell().Journey
 	// TargetPositionID is deliberately absent: PROMOUX-004 checks a
 	// non-empty value against the real Position domain, and this
@@ -254,7 +256,7 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 		t.Fatalf("load original proposal snapshot: %v", err)
 	}
 	now = now.Add(10 * time.Minute)
-	finance, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
+	finance, err := journey.Decide(financeCtx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
 	if err != nil {
 		t.Fatalf("Journey.Decide(finance): %v", err)
 	}
@@ -262,7 +264,7 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 		t.Fatalf("after finance stage = %s, want MANAGER_APPROVAL", finance.Summary.Stage)
 	}
 	now = now.Add(10 * time.Minute)
-	waiting, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
+	waiting, err := journey.Decide(managerCtx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
 	if err != nil {
 		t.Fatalf("Journey.Decide(manager): %v", err)
 	}

@@ -19,10 +19,15 @@ import (
 	"google.golang.org/grpc/status"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/aggregates"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/positionfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/positionpicker"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
+	kernelvalues "github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
@@ -50,6 +55,10 @@ type promotionCell struct {
 
 	direct journeyv1.JourneyServiceClient
 	tunnel journeyv1.JourneyServiceClient
+
+	// targetPosition is the picker-issued revision reference of the vacant
+	// OPS-HRBP3 position every proposal here targets ([seedTargetPosition]).
+	targetPosition string
 
 	// tunnelHost is the httptest server's host:port, kept so a test can dial
 	// a second tunnel connection (an unauthenticated one, say) of its own.
@@ -108,10 +117,11 @@ func newPromotionCell(t *testing.T) *promotionCell {
 	t.Cleanup(func() { _ = tunnelConn.Close() })
 
 	return &promotionCell{
-		harness:    h,
-		direct:     journeyv1.NewJourneyServiceClient(direct),
-		tunnel:     journeyv1.NewJourneyServiceClient(tunnelConn),
-		tunnelHost: host,
+		harness:        h,
+		targetPosition: seedTargetPosition(t, h),
+		direct:         journeyv1.NewJourneyServiceClient(direct),
+		tunnel:         journeyv1.NewJourneyServiceClient(tunnelConn),
+		tunnelHost:     host,
 	}
 }
 
@@ -132,19 +142,105 @@ func (c *promotionCell) transports() map[string]journeyv1.JourneyServiceClient {
 
 // promotionProposeRequest is the manager's intention for the corpus worker
 // every journey test in this suite promotes: OPS-HRBP2/P2 to OPS-HRBP3/P3 at
-// 98,000 USD, effective 2026-06-01.
-func promotionProposeRequest(clientRequestID string) *journeyv1.ProposePromotionRequest {
+// 98,000 USD, effective 2026-06-01, into the target position the cell's own
+// position picker issued (see [promotionCell.targetPosition]).
+func (c *promotionCell) promotionProposeRequest(clientRequestID string) *journeyv1.ProposePromotionRequest {
 	return &journeyv1.ProposePromotionRequest{
 		SubjectWorkerRef:        "omar-reyes",
 		DesiredJobCode:          "OPS-HRBP3",
 		DesiredGrade:            "P3",
-		DesiredPositionId:       "POS-HRBP-301",
+		DesiredPositionId:       c.targetPosition,
 		DesiredBasePay:          "98000.00",
 		EffectiveDate:           "2026-06-01",
 		Reason:                  "promotion_into_senior_hrbp",
 		ExpectedSubjectRevision: app.PromotionSubjectRevision("omar-reyes"),
 		ClientRequestId:         clientRequestID,
 	}
+}
+
+// seedTargetPosition records one vacant OPS-HRBP3 position in people-ops
+// through the DB-009 aggregate stores and returns the revision reference the
+// real position picker issues for it, read back through the same
+// positionfacts.Reader the composed cell checks a proposal against.
+//
+// PROMO-007 makes desired_position_id required and PROMOUX-004 refuses every
+// position reference no picker issued, so the bare "POS-HRBP-301" this suite
+// used to send was refused at existence (promotion.target_position_not_found)
+// before simulation could mint a proposal: that is why these tests were BLOCKED.
+// The corpus has no OPS-HRBP3 position at all, so the suite records one.
+func seedTargetPosition(t *testing.T, h *journeyHarness) string {
+	t.Helper()
+	ctx := context.Background()
+	tenantKey := kernelvalues.TenantId(testTenant)
+	tenantID := pgstore.TenantID(testTenant)
+	effective := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	recorded := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
+	legalID, orgID, jobID, positionID := uuid.New(), uuid.New(), uuid.New(), uuid.New()
+
+	tx, err := h.cell.pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin target position seed: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+		t.Fatalf("scope target position seed: %v", err)
+	}
+	store := aggregates.OrganizationStore{}
+	legal, err := aggregates.NewLegalEntity(tenantID, legalID, effective, nil, recorded, "HarborCare Holdings", "ACTIVE")
+	if err == nil {
+		_, err = store.PutLegalEntity(ctx, tx, legal)
+	}
+	if err != nil {
+		t.Fatalf("seed legal entity: %v", err)
+	}
+	org, err := aggregates.NewOrganizationUnit(tenantID, orgID, effective, nil, recorded, "DEPARTMENT", "people-ops", "People Operations", &legalID, nil, "ACTIVE")
+	if err == nil {
+		_, err = store.PutOrganizationUnit(ctx, tx, org)
+	}
+	if err != nil {
+		t.Fatalf("seed organization unit: %v", err)
+	}
+	job, err := aggregates.NewJob(tenantID, jobID, effective, nil, recorded, "OPS-HRBP3", "Senior HR Business Partner", "PEOPLE", "P3", "EXEMPT")
+	if err == nil {
+		_, err = store.PutJob(ctx, tx, job)
+	}
+	if err != nil {
+		t.Fatalf("seed job: %v", err)
+	}
+	pos, err := aggregates.NewJobPosition(tenantID, positionID, jobID, orgID, &legalID, effective, nil, recorded, "POS-HRBP-301", "Boston, MA", "1.0000", "OPEN")
+	if err == nil {
+		_, err = store.PutJobPosition(ctx, tx, pos)
+	}
+	if err != nil {
+		t.Fatalf("seed job position: %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("commit target position seed: %v", err)
+	}
+
+	effectiveOn, err := kernelvalues.NewLocalDate(2026, time.June, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	knownAt, err := kernelvalues.NewKnownAt(kernelvalues.NewInstant(baseTime))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := kernelvalues.EntityRef{Tenant: tenantKey, Kind: position.KindPosition, Id: positionID.String()}
+	candidates, err := positionpicker.ResolveCandidates(ctx,
+		positionfacts.Reader{DB: h.cell.pool, TenantUUID: func(tenant kernelvalues.TenantId) uuid.UUID { return pgstore.TenantID(string(tenant)) }},
+		positionpicker.Request{
+			Tenant: tenantKey, AsOf: position.AsOf{EffectiveOn: effectiveOn, KnownAt: knownAt},
+			Directory:      []positionpicker.DirectoryEntry{{Position: ref, Title: "Senior HR Business Partner", Organization: "people-ops"}},
+			DesiredJobCode: "OPS-HRBP3", DesiredOrgUnit: "people-ops",
+		})
+	if err != nil {
+		t.Fatalf("ResolveCandidates: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("the position picker disclosed %d candidates for the seeded vacant position, want exactly 1", len(candidates))
+	}
+	return candidates[0].Reference.String()
 }
 
 // smuggledCurrentPay is one syntactically valid but undefined Protobuf field
@@ -172,7 +268,7 @@ func TestTodo_PROMO_007_Integration(t *testing.T) {
 	ctx, cancel := c.callCtx(t)
 	defer cancel()
 
-	req := promotionProposeRequest("req-parity-1")
+	req := c.promotionProposeRequest("req-parity-1")
 
 	overGRPC, err := c.direct.ProposePromotion(ctx, req)
 	if err != nil {
@@ -218,7 +314,7 @@ func TestTodo_PROMO_007_Integration(t *testing.T) {
 		// PROMOUX-002 closes, so a different idempotency key for the same
 		// worker and window must now be refused as a conflict rather than
 		// admitted as a second intent.
-		secondReq := promotionProposeRequest("req-parity-2")
+		secondReq := c.promotionProposeRequest("req-parity-2")
 		owned := assertPromotionRefusal(t, mustFail(c.tunnel.ProposePromotion(ctx, secondReq)), envelope.CodeAlreadyExists)
 		if owned.ReasonRef() != "journey.propose_promotion.active_conflict" {
 			t.Fatalf("refusal reason = %q, want journey.propose_promotion.active_conflict", owned.ReasonRef())
@@ -288,7 +384,7 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 	for name, client := range c.transports() {
 		t.Run(name+"/a smuggled current pay is refused", func(t *testing.T) {
 			before := intentCount(t, c)
-			req := promotionProposeRequest("req-smuggle-" + name)
+			req := c.promotionProposeRequest("req-smuggle-" + name)
 			req.ProtoReflect().SetUnknown(smuggledCurrentPay)
 
 			_, err := client.ProposePromotion(ctx, req)
@@ -302,7 +398,7 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 		})
 
 		t.Run(name+"/the expected subject revision is required", func(t *testing.T) {
-			req := promotionProposeRequest("req-norev-" + name)
+			req := c.promotionProposeRequest("req-norev-" + name)
 			req.ExpectedSubjectRevision = ""
 			owned := assertPromotionRefusal(t, mustFail(client.ProposePromotion(ctx, req)), envelope.CodeInvalidArgument)
 			if !strings.Contains(owned.Message(), "expected_subject_revision") {
@@ -311,7 +407,7 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 		})
 
 		t.Run(name+"/the client request id is required", func(t *testing.T) {
-			req := promotionProposeRequest("")
+			req := c.promotionProposeRequest("")
 			owned := assertPromotionRefusal(t, mustFail(client.ProposePromotion(ctx, req)), envelope.CodeInvalidArgument)
 			if !strings.Contains(owned.Message(), "client_request_id") {
 				t.Fatalf("refusal %q does not name client_request_id", owned.Message())
@@ -319,7 +415,7 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 		})
 
 		t.Run(name+"/a stale subject revision is refused", func(t *testing.T) {
-			req := promotionProposeRequest("req-stale-" + name)
+			req := c.promotionProposeRequest("req-stale-" + name)
 			req.ExpectedSubjectRevision = "rewards.package.omar-reyes@7"
 			owned := assertPromotionRefusal(t, mustFail(client.ProposePromotion(ctx, req)), envelope.CodeFailedPrecondition)
 			if owned.ReasonRef() != "promotion.propose.stale_subject_revision" {
@@ -328,13 +424,13 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 		})
 
 		t.Run(name+"/an unknown subject is refused without disclosing anything", func(t *testing.T) {
-			req := promotionProposeRequest("req-nobody-" + name)
+			req := c.promotionProposeRequest("req-nobody-" + name)
 			req.SubjectWorkerRef = "nobody-at-all"
 			assertPromotionRefusal(t, mustFail(client.ProposePromotion(ctx, req)), envelope.CodeInvalidArgument)
 		})
 
 		t.Run(name+"/a currency the subject does not use is refused", func(t *testing.T) {
-			req := promotionProposeRequest("req-currency-" + name)
+			req := c.promotionProposeRequest("req-currency-" + name)
 			req.DesiredPayCurrency = "EUR"
 			owned := assertPromotionRefusal(t, mustFail(client.ProposePromotion(ctx, req)), envelope.CodeInvalidArgument)
 			if !strings.Contains(owned.Message(), "desired_pay_currency") {
@@ -352,7 +448,7 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 			weak = metadata.AppendToOutgoingContext(weak, transport.AuthorizationMetadataKey,
 				"Bearer "+c.harness.issue(t, "intent_author"))
 
-			_, err := client.ProposePromotion(weak, promotionProposeRequest("req-weak-"+name))
+			_, err := client.ProposePromotion(weak, c.promotionProposeRequest("req-weak-"+name))
 			if err == nil {
 				t.Fatal("a caller with no compensation-read authority proposed a promotion")
 			}
@@ -367,7 +463,7 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 			// per call on both transports.
 			bare, cancelBare := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancelBare()
-			_, err := client.ProposePromotion(bare, promotionProposeRequest("req-nocred-"+name))
+			_, err := client.ProposePromotion(bare, c.promotionProposeRequest("req-nocred-"+name))
 			if err == nil {
 				t.Fatal("a call with no credential was answered")
 			}
@@ -420,7 +516,7 @@ func TestTodo_PROMO_007_Mutation(t *testing.T) {
 	intentsBefore := intentCount(t, c)
 
 	for i, client := range []journeyv1.JourneyServiceClient{c.direct, c.tunnel} {
-		req := promotionProposeRequest("req-mutation-" + string(rune('a'+i)))
+		req := c.promotionProposeRequest("req-mutation-" + string(rune('a'+i)))
 		// PROMOUX-002: two distinct client request ids for the same worker's
 		// same effective date would now be an active-intent conflict, not
 		// two admitted proposals. This test's own point is the zero-effect
@@ -468,7 +564,7 @@ func TestTodo_EP_PROMO_001_Integration(t *testing.T) {
 	defer cancel()
 	tenant := pgstore.TenantID(testTenant)
 
-	proposed, err := c.direct.ProposePromotion(ctx, promotionProposeRequest("req-durable-1"))
+	proposed, err := c.direct.ProposePromotion(ctx, c.promotionProposeRequest("req-durable-1"))
 	if err != nil {
 		t.Fatalf("ProposePromotion: %v", err)
 	}
@@ -596,7 +692,7 @@ func TestTodo_EP_PROMO_001_Integration(t *testing.T) {
 	})
 
 	t.Run("a replayed request records no second candidate set", func(t *testing.T) {
-		replayed, err := c.tunnel.ProposePromotion(ctx, promotionProposeRequest("req-durable-1"))
+		replayed, err := c.tunnel.ProposePromotion(ctx, c.promotionProposeRequest("req-durable-1"))
 		if err != nil {
 			t.Fatalf("replayed ProposePromotion: %v", err)
 		}

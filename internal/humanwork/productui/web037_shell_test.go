@@ -140,7 +140,8 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// attention. Verified before re-pinning by substituting exactly those
 	// two old strings back into the new document, which reproduced the
 	// previous digest byte for byte.
-	const want = "e7a704642cc2affb75c8c9209529255cf548772138148a6025a97972dc16046d"
+	// PROMOUX-015 re-pin: the global search and action launcher inputs gained a visually hidden associated label; that label is the only change.
+	const want = "bd8ae6b51d1072b8061279ffed00d5bee65721a2cfc07152f7d12e542b5d7ba0"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

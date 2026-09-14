@@ -28,6 +28,10 @@ func TestFrontendE2EPersonaLoginAndEveryProductRoute(t *testing.T) {
 		{id: "hiring-manager", name: "Maya Chen", access: "Hiring manager", description: "Hiring and workforce areas.", roles: []string{"hiring_manager"}},
 		{id: "payroll-manager", name: "Priya Nair", access: "Payroll manager", description: "Payroll and workforce areas.", roles: []string{"payroll_manager"}},
 		{id: "individual-contributor", name: "Omar Reyes", access: "Individual contributor", description: "Employee self service.", roles: []string{"worker_self"}},
+		// PROMOUX-015: productui.PageVisible mirrors roleaccess's
+		// finance_partner grant, so a handler with no roleaccess store admits
+		// the same routes the live server does.
+		{id: "finance-partner", name: "Thomas Baker", access: "Finance partner", description: "Finance approvals.", roles: []string{"finance_partner"}},
 	}
 
 	handler, _ := newShellHandler(t, true)

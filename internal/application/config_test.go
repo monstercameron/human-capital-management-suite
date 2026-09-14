@@ -39,7 +39,7 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 		FieldIssuer, FieldAudience, FieldTenant, FieldCellID, FieldMaxDeadline,
 		FieldMigrate, FieldWorkspace, FieldDevBrowserLogin, FieldOTelExporter,
 		FieldOTelEndpoint, FieldExecutionAuthority, FieldExecutionAuthorityDigest,
-		FieldExecutionAuthorityRole, FieldExecutionApprover,
+		FieldExecutionAuthorityRole, FieldExecutionApprover, FieldExecutionFinancePartner,
 		FieldWorkflowPlan, FieldLegalEvidenceIssuerKeys,
 		FieldExecutionRetry, FieldExecutionRetryVersion, FieldExecutionRetryMaxAttempts,
 		FieldExecutionRetryResolutionAttempts, FieldPublicOrigin,
@@ -203,6 +203,16 @@ func TestLocalDevProfileAppliesFastSafeDefaultsAndKeepsExplicitOverrides(t *test
 	}
 	if !cfg.DevBrowserLogin || !cfg.ExecutionAuthority || !cfg.Scheduler || cfg.WorkflowPlan != WorkflowPlanExecute {
 		t.Fatalf("local profile runtime defaults = %+v", cfg)
+	}
+	// PROMOUX-015: the demo tenant's finance approvals route to its Finance
+	// Director by profile default; the standard profile names no partner.
+	if cfg.ExecutionFinancePartner != LocalDevFinancePartner {
+		t.Fatalf("local profile finance partner = %q, want %q", cfg.ExecutionFinancePartner, LocalDevFinancePartner)
+	}
+	for _, field := range ServeConfigFields() {
+		if field.Name == FieldExecutionFinancePartner && field.Default != "" {
+			t.Fatalf("standard profile -%s defaults to %q, want empty", FieldExecutionFinancePartner, field.Default)
+		}
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("local profile defaults do not validate: %v", err)

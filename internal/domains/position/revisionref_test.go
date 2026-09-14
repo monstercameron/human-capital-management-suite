@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -68,6 +69,7 @@ func TestRevisionRefGuessedIdentifierFailsClosed(t *testing.T) {
 		"POS-ENG-MGR-101",
 		"position:pos-eng-mgr-101",
 		"pos-eng-mgr-101\x1frev-1",
+		"pos-eng-mgr-101.rev-1",
 	} {
 		guess := guess
 		t.Run(guess, func(t *testing.T) {
@@ -75,6 +77,37 @@ func TestRevisionRefGuessedIdentifierFailsClosed(t *testing.T) {
 				t.Fatalf("Decode(%q) = %v, want ErrInvalidRevisionRef", guess, err)
 			}
 		})
+	}
+}
+
+// TestRevisionRefIsCanonicalIntentSubjectText is the PROMOUX-015 regression: a
+// proposal submits this token unchanged as its POSITION subject id, and
+// internal/intent refuses a subject id carrying any control character. A
+// token encoded with a control-byte separator made every picker-issued
+// position unproposable, so every issued token must be printable, NFC and
+// free of control characters, and must still round-trip.
+func TestRevisionRefIsCanonicalIntentSubjectText(t *testing.T) {
+	pos := revRefTestPosition(t)
+	rev := revRefTestRevision(t)
+	ref, err := position.EncodeRevisionRef(pos, rev)
+	if err != nil {
+		t.Fatalf("EncodeRevisionRef: %v", err)
+	}
+	for _, r := range ref.String() {
+		if r < 0x20 || r == 0x7f {
+			t.Fatalf("issued reference %q carries the control character %U", ref, r)
+		}
+	}
+	subject := intent.SubjectReference{Kind: "POSITION", SubjectID: ref.String(), AuthorityDomain: "POSITION"}
+	if err := subject.Validate(); err != nil {
+		t.Fatalf("an issued reference is not a valid intent subject id: %v", err)
+	}
+	gotPos, gotRev, err := ref.Decode()
+	if err != nil || gotPos != pos {
+		t.Fatalf("Decode = %v, %v; want the encoded position", gotPos, err)
+	}
+	if cmp, cmpErr := gotRev.CompareInStream(rev); cmpErr != nil || cmp != 0 {
+		t.Fatalf("decoded revision differs from the encoded one: cmp=%d err=%v", cmp, cmpErr)
 	}
 }
 

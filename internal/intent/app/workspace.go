@@ -131,10 +131,12 @@ func (a workspaceReader) ReadPromotion(ctx context.Context, req workspace.Reques
 	}
 
 	fieldSet := workspaceFields(req.Fields)
+	relationships := managerChainFacts(ctx, a.locate, principal, subject)
 	stateDecision, err := authorizeRead(principal, purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: evaluatedAt,
-		Read:        peopleFields(fieldSet),
+		Subject:       subject,
+		EvaluatedAt:   evaluatedAt,
+		Read:          peopleFields(fieldSet),
+		Relationships: relationships,
 	})
 	if err != nil {
 		return workspace.Reading{}, workspaceDenial(err)
@@ -166,9 +168,10 @@ func (a workspaceReader) ReadPromotion(ctx context.Context, req workspace.Reques
 	// have: the two capabilities that would compute them are simply not
 	// invoked.
 	if _, gateErr := authorizeRead(principal, purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: evaluatedAt,
-		Gate:        []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Subject:       subject,
+		EvaluatedAt:   evaluatedAt,
+		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Relationships: relationships,
 	}); gateErr != nil {
 		if errors.Is(gateErr, ErrAuthorizationDenied) {
 			reading.CompensationDenial = gateErr.Error()

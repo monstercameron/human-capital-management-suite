@@ -116,7 +116,7 @@ func TestTodo_WF_RUN_027_Bootstrap(t *testing.T) {
 		t.Errorf("admission decided_by = %q, want the operator %q", admitted[0].DecidedBy, testSubject)
 	}
 
-	detail, err := h.engine.Decide(ctx, proposed.IntentID, workspace.Decision{
+	detail, err := h.engine.Decide(h.approverCtx(t), proposed.IntentID, workspace.Decision{
 		Approve: true, Reason: "reason.promotion_supported/v1",
 	})
 	if err != nil {

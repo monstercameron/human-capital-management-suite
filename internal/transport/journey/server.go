@@ -291,6 +291,13 @@ func (s *server) ListJourneys(ctx context.Context, _ *journeyv1.ListJourneysRequ
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
+	// PROMOUX-015: the journey list carries every visible promotion's current
+	// and proposed pay. It backs the Journeys and My Work pages, so a caller
+	// who may view neither -- a self-service employee -- is refused rather
+	// than handed the tenant's promotions over the RPC the pages would hide.
+	if err := s.requireAnyPageView(ctx, principal, inv, "journeys", "work"); err != nil {
+		return nil, err
+	}
 	eng, depErr := s.engine(principal, inv, "list")
 	if depErr != nil {
 		return nil, depErr

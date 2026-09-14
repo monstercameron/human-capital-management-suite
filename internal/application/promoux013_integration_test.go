@@ -18,8 +18,9 @@ import (
 // PostgreSQL via pgtest, the real journey engine, the real P1B execution
 // authority) exactly as TestTodo_PROMOUX_014_Integration does, and returns a
 // context carrying one authenticated principal plus the live
-// workspace.JourneyEngine.
-func promoux013Composed(t *testing.T, now *time.Time) (context.Context, workspace.JourneyEngine) {
+// workspace.JourneyEngine. PROMOUX-015: it also returns contexts for the
+// finance and manager approvals' routed assignees, who decide them.
+func promoux013Composed(t *testing.T, now *time.Time) (context.Context, workspace.JourneyEngine, approverContexts) {
 	t.Helper()
 	db := pgtest.New(t)
 	pool, err := pgxadapter.NewPool(context.Background(), db.URL, map[string]string{"search_path": db.Schema})
@@ -75,8 +76,12 @@ func promoux013Composed(t *testing.T, now *time.Time) (context.Context, workspac
 	if err != nil {
 		t.Fatalf("verify journey credential: %v", err)
 	}
-	return trust.WithPrincipal(context.Background(), principal), composed.Cell().Journey
+	finance, manager := routedApproverContexts(t, verifier, cfg, *now)
+	return trust.WithPrincipal(context.Background(), principal), composed.Cell().Journey, approverContexts{finance: finance, manager: manager}
 }
+
+// approverContexts are the routed finance and manager assignees' contexts.
+type approverContexts struct{ finance, manager context.Context }
 
 func promoux013Propose(t *testing.T, ctx context.Context, journey workspace.JourneyEngine, effectiveDate string) workspace.JourneySummary {
 	t.Helper()
@@ -132,7 +137,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 	now := mustParseRFC3339(t, "2026-01-05T09:00:00Z")
 
 	t.Run("EditCorrectsAnUnstartedProposal", func(t *testing.T) {
-		ctx, journey := promoux013Composed(t, &now)
+		ctx, journey, _ := promoux013Composed(t, &now)
 		proposed := promoux013Propose(t, ctx, journey, "2026-06-01")
 
 		successor, superseded, err := journey.EditProposal(ctx, proposed.IntentID, proposed.GovernanceVersion,
@@ -187,7 +192,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 	// original's finance approval becomes moot the instant the original is
 	// durably CANCELLED: it can never be decided again.
 	t.Run("EditInvalidatesAMidFlightApproval", func(t *testing.T) {
-		ctx, journey := promoux013Composed(t, &now)
+		ctx, journey, approvers := promoux013Composed(t, &now)
 		proposed := promoux013Propose(t, ctx, journey, "2026-06-15")
 
 		financeWaiting, err := journey.Execute(ctx, proposed.IntentID)
@@ -198,7 +203,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 			t.Fatalf("after execute stage = %s, want FINANCE_APPROVAL", financeWaiting.Summary.Stage)
 		}
 		now = now.Add(10 * time.Minute)
-		finance, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
+		finance, err := journey.Decide(approvers.finance, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
 		if err != nil {
 			t.Fatalf("Journey.Decide(finance): %v", err)
 		}
@@ -225,7 +230,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 
 		// The original's finance approval is now moot: the original itself
 		// can never be decided again.
-		if _, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"}); err == nil {
+		if _, err := journey.Decide(approvers.manager, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"}); err == nil {
 			t.Fatal("Journey.Decide on the original succeeded after it was edited away; its recorded approval was not invalidated")
 		}
 	})
@@ -237,7 +242,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 	// successor intent was left behind on every refused edit); reverting the
 	// reorder reproduces that failure.
 	t.Run("EditOfAnAlreadyTerminalOriginalLeavesNoPartialWrite", func(t *testing.T) {
-		ctx, journey := promoux013Composed(t, &now)
+		ctx, journey, _ := promoux013Composed(t, &now)
 		proposed := promoux013Propose(t, ctx, journey, "2026-06-20")
 
 		firstEdit, _, err := journey.EditProposal(ctx, proposed.IntentID, proposed.GovernanceVersion,
@@ -281,7 +286,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 	})
 
 	t.Run("WithdrawBeforeApproval", func(t *testing.T) {
-		ctx, journey := promoux013Composed(t, &now)
+		ctx, journey, _ := promoux013Composed(t, &now)
 		proposed := promoux013Propose(t, ctx, journey, "2026-07-01")
 
 		preview, err := journey.PreviewIntervention(ctx, proposed.IntentID, workspace.JourneyInterventionWithdraw)
@@ -318,7 +323,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 	})
 
 	t.Run("CancelDuringEligibleWait", func(t *testing.T) {
-		ctx, journey := promoux013Composed(t, &now)
+		ctx, journey, approvers := promoux013Composed(t, &now)
 		proposed := promoux013Propose(t, ctx, journey, "2026-08-01")
 
 		financeWaiting, err := journey.Execute(ctx, proposed.IntentID)
@@ -327,11 +332,11 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 		}
 		_ = financeWaiting
 		now = now.Add(10 * time.Minute)
-		if _, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"}); err != nil {
+		if _, err := journey.Decide(approvers.finance, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"}); err != nil {
 			t.Fatalf("Journey.Decide(finance): %v", err)
 		}
 		now = now.Add(10 * time.Minute)
-		waiting, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
+		waiting, err := journey.Decide(approvers.manager, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
 		if err != nil {
 			t.Fatalf("Journey.Decide(manager): %v", err)
 		}
@@ -368,7 +373,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 	})
 
 	t.Run("UnavailableStagesExplainWhy", func(t *testing.T) {
-		ctx, journey := promoux013Composed(t, &now)
+		ctx, journey, _ := promoux013Composed(t, &now)
 		proposed := promoux013Propose(t, ctx, journey, "2026-09-01")
 
 		// CANCEL is not available before anything has run.
@@ -424,7 +429,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 // error.
 func TestTodo_PROMOUX_013_Race(t *testing.T) {
 	now := mustParseRFC3339(t, "2026-01-05T09:00:00Z")
-	ctx, journey := promoux013Composed(t, &now)
+	ctx, journey, _ := promoux013Composed(t, &now)
 	proposed := promoux013Propose(t, ctx, journey, "2026-10-01")
 	expectedVersion := proposed.GovernanceVersion
 

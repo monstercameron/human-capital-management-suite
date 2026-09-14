@@ -76,6 +76,7 @@ const (
 	FieldExecutionAuthorityDigest         = "execution-authority-digest"
 	FieldExecutionAuthorityRole           = "execution-authority-role"
 	FieldExecutionApprover                = "execution-authority-approver"
+	FieldExecutionFinancePartner          = "execution-finance-partner"
 	FieldTimerTzdbVersion                 = "timer-tzdb-version"
 	FieldTimerCalendarVersion             = "timer-calendar-version"
 	FieldScheduler                        = "scheduler"
@@ -104,6 +105,11 @@ const (
 	LocalDevOrgScope    = devprofile.OrgScope
 	LocalDevRoles       = devprofile.Roles
 	LocalDevPurpose     = devprofile.Purpose
+	// LocalDevFinancePartner is the local-dev profile's default
+	// -execution-finance-partner: HarborCare's Finance Director worker, the
+	// finance partner the demo tenant's promotion approvals route to
+	// (PROMOUX-015). It is a profile default, never a literal in routing logic.
+	LocalDevFinancePartner = "hc-054-thomas-baker"
 )
 
 const (
@@ -184,6 +190,10 @@ type ServeConfig struct {
 	ExecutionAuthorityDigest string
 	ExecutionAuthorityRole   string
 	ExecutionApprover        string
+	// ExecutionFinancePartner is the principal the executable promotion
+	// plan's finance approval routes to (PROMOUX-015). Empty keeps the
+	// class-scoped derivation of ExecutionApprover.
+	ExecutionFinancePartner string
 	// TimerTzdbVersion and TimerCalendarVersion are the dataset releases the
 	// execution driver's durable timers resolve wake instants against
 	// (WF-RUN-004). Both set composes the timer ports; both empty composes
@@ -235,6 +245,7 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldExecutionAuthorityDigest, Usage: "the signed P1B authority amendment digest this cell asserts; carried through as evidence, never verified by this process"},
 		{Name: FieldExecutionAuthorityRole, Usage: "the principal role ExecuteIntent additionally requires under -" + FieldExecutionAuthority, Default: "promotion_operator"},
 		{Name: FieldExecutionApprover, Usage: "the principal the composed promotion approval workflow routes its one approval WorkItem to", Default: "principal:promotion-approver"},
+		{Name: FieldExecutionFinancePartner, Usage: "the principal the executable promotion plan's FinancePartnerFor(cost_center) approval routes to; empty derives a class-scoped identity from -" + FieldExecutionApprover},
 		{Name: FieldTimerTzdbVersion, Usage: "tzdb release the execution driver's durable timers resolve wake instants against; with -" + FieldTimerCalendarVersion + " it composes the WAIT-node timer ports, empty composes none", Default: DefaultTimerTzdbVersion},
 		{Name: FieldTimerCalendarVersion, Usage: "business-calendar release the execution driver's durable timers resolve wake instants against", Default: DefaultTimerCalendarVersion},
 		{Name: FieldScheduler, Usage: "run the in-process workflow timer/ready-work dispatcher", Default: "false", Kind: bootstrap.KindBool},
@@ -272,6 +283,9 @@ func ServeConfigFieldsForArgs(args []string) []bootstrap.Field {
 		// development and start its bounded in-process scheduler with the plan.
 		FieldScheduler:    "true",
 		FieldWorkflowPlan: WorkflowPlanExecute,
+		// PROMOUX-015: the demo tenant's finance approvals route to its
+		// Finance Director, so a local promotion is approved by real personas.
+		FieldExecutionFinancePartner: LocalDevFinancePartner,
 	}
 	for i := range fields {
 		if value, ok := defaults[fields[i].Name]; ok {
@@ -326,6 +340,7 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		ExecutionAuthorityDigest: values.String(FieldExecutionAuthorityDigest),
 		ExecutionAuthorityRole:   values.String(FieldExecutionAuthorityRole),
 		ExecutionApprover:        values.String(FieldExecutionApprover),
+		ExecutionFinancePartner:  values.String(FieldExecutionFinancePartner),
 		TimerTzdbVersion:         values.String(FieldTimerTzdbVersion),
 		TimerCalendarVersion:     values.String(FieldTimerCalendarVersion),
 		HealthAddr:               values.String(FieldHealthAddr),

@@ -394,6 +394,10 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 
 	children := []ui.Node{
 		html.Div(html.Props{Class: "global-search-control"},
+			// PROMOUX-015: a real associated label, not only aria-label, so the
+			// control is named by every assistive technology and by the
+			// repository's document qualification checks.
+			html.Label(html.Props{Class: "sr-only", For: "global-search-input"}, ui.Text(props.Text("global_search.label"))),
 			html.Span(html.Props{Class: "global-search-glyph", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text("⌕")),
 			html.Tag("input", inputProps),
 		),

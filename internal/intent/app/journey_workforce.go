@@ -226,9 +226,9 @@ func workforceOptions() (workspace.WorkforceOptions, error) {
 	if err != nil {
 		return workspace.WorkforceOptions{}, fmt.Errorf("app: journey: read the worker corpus: %w", err)
 	}
-	paths, err := fixtures.PromotionPaths()
+	paths, err := publishedPromotionPaths()
 	if err != nil {
-		return workspace.WorkforceOptions{}, fmt.Errorf("app: journey: read the published promotion paths: %w", err)
+		return workspace.WorkforceOptions{}, err
 	}
 
 	jobCodes, grades, payZones, currencies := newStringSet(), newStringSet(), newStringSet(), newStringSet()
@@ -257,23 +257,10 @@ func workforceOptions() (workspace.WorkforceOptions, error) {
 			PayZone: scope.PayZone, Currency: scope.Currency,
 		})
 	}
-	for _, scope := range paths {
-		path := scope.Path
-		option := workspace.PromotionPathOption{
-			PathRef: path.PathIDOrID(), Revision: path.Revision,
-			SourceProfileRef: path.From.ProfileID,
-			SourceJobCode:    scope.SourceJobCode, SourceGrade: scope.SourceGrade,
-			TargetProfileRef: path.To.ProfileID,
-			TargetJobCode:    scope.TargetJobCode, TargetGrade: scope.TargetGrade,
-			TargetTitle: scope.TargetTitle, Kind: string(path.Kind),
-			MinimumBaseIncrease:   path.MinimumBaseIncrease.String(),
-			MaximumBaseIncrease:   path.MaximumBaseIncrease.String(),
-			CompensationPolicyRef: path.CompensationPolicyRef.Ref + "@" + path.CompensationPolicyRef.Revision,
-		}
-		for _, rule := range path.BenefitEligibilityRuleRefs {
-			option.BenefitRuleRefs = append(option.BenefitRuleRefs, rule.Ref+"@"+rule.Revision)
-		}
-		options.PromotionPaths = append(options.PromotionPaths, option)
+	// PROMOUX-015: the published paths are the one list Propose's ladder gate
+	// also reads (publishedPromotionPaths), so a listed edge is an accepted one.
+	for _, path := range paths {
+		options.PromotionPaths = append(options.PromotionPaths, path.Option)
 	}
 	// The catalog is single-currency in this release. If it ever is not, a
 	// created worker's currency stops being derivable and becomes a choice,
@@ -281,12 +268,13 @@ func workforceOptions() (workspace.WorkforceOptions, error) {
 	if declared := currencies.sorted(); len(declared) == 1 {
 		options.Currency = declared[0]
 	}
-	appendDemoWorkforcePromotionPaths(&options)
+	appendDemoWorkforcePlacements(&options)
 	return options, nil
 }
 
-// appendDemoWorkforcePromotionPaths adds the seeded demo company's own
-// career-ladder edges to the published catalog.
+// appendDemoWorkforcePlacements adds the placements and the job codes and
+// grades the seeded demo company's own career-ladder edges lead to; the edges
+// themselves are published by [publishedPromotionPaths].
 //
 // PROMOUX-001: before this, workforceOptions only ever published the fixed
 // four-worker conformance corpus's job architecture (internal/domains/fixtures,
@@ -307,7 +295,7 @@ func workforceOptions() (workspace.WorkforceOptions, error) {
 // adding one more fixed, non-secret demo catalog does not introduce a new
 // category of cross-tenant leakage. A tenant-scoped job architecture is a
 // larger, separate change.
-func appendDemoWorkforcePromotionPaths(options *workspace.WorkforceOptions) {
+func appendDemoWorkforcePlacements(options *workspace.WorkforceOptions) {
 	edges := demoworkforce.PromotionPaths()
 	if len(edges) == 0 {
 		return
@@ -320,13 +308,6 @@ func appendDemoWorkforcePromotionPaths(options *workspace.WorkforceOptions) {
 		jobCodes.add(edge.TargetJobCode)
 		grades.add(edge.SourceGrade)
 		grades.add(edge.TargetGrade)
-		options.PromotionPaths = append(options.PromotionPaths, workspace.PromotionPathOption{
-			PathRef:       "demoworkforce:" + edge.OrgUnit + ":" + edge.SourceJobCode + "->" + edge.TargetJobCode,
-			Revision:      "1",
-			SourceJobCode: edge.SourceJobCode, SourceGrade: edge.SourceGrade,
-			TargetJobCode: edge.TargetJobCode, TargetGrade: edge.TargetGrade,
-			TargetTitle: edge.TargetTitle, Kind: "UPWARD",
-		})
 		for _, zone := range zones {
 			key := edge.TargetJobCode + "|" + edge.TargetGrade + "|" + zone
 			if seenPlacement[key] {

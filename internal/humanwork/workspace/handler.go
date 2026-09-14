@@ -617,8 +617,8 @@ func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem stri
 		banner = `<div class="status-banner" data-status="failed" role="alert">` + html.EscapeString(problem) + ` <a href="#credential-sign-in">Use a bearer credential</a></div>`
 	}
 	var personaForms strings.Builder
-	for _, id := range []string{"admin", "hiring-manager", "payroll-manager", "individual-contributor"} {
-		persona, ok := h.devPersonas[id]
+	for _, set := range DevPersonaRoleSets() {
+		persona, ok := h.devPersonas[set.ID]
 		if !ok {
 			continue
 		}

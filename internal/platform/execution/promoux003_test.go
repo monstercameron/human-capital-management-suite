@@ -109,6 +109,9 @@ func proposalRevisionFixture() intent.ProposalRevision {
 	return intent.ProposalRevision{
 		IntentID: intentID, ProposalRevisionID: revisionID, Revision: 1,
 		OrganizationScopeID: "org:acme:engineering",
+		// PROMOUX-015: routing now refuses a proposal whose requester is
+		// unknown (approverclass.RequireSeparated), so the fixture names one.
+		CreatedBy: intent.PrincipalReference{PrincipalID: "principal:promoux003-execution-requester"},
 		MaterialDigest: digest.Reference{
 			ProfileID: "PROPOSAL", ProfileVersion: 1, AlgorithmID: "sha256",
 			Digest: strings.Repeat("a", 64), ScopeBindingDigest: strings.Repeat("b", 64),

@@ -96,7 +96,8 @@ func findSearchForm(root *xhtml.Node) *xhtml.Node {
 }
 
 // web041GoldenDigest is pinned from the GREEN implementation run.
-const web041GoldenDigest = "fef9457543a1b84f42e9f7b8090b99c604bea8abd34c70d9b6abdb2303640213"
+// PROMOUX-015 re-pin: the global search and action launcher inputs gained a visually hidden associated label; that label is the only change.
+const web041GoldenDigest = "023a73dea2afc5c418ede31fa291792d19f97cba3c28d7fc9a871ea9cb5dc861"
 
 func TestTodo_WEB_041_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

@@ -184,7 +184,7 @@ func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
 	serverURL := uxaudit014Cell(t)
 
 	hiringClient := uxaudit014Login(t, serverURL, "hiring-manager")
-	payrollClient := uxaudit014Login(t, serverURL, "payroll-manager")
+	payrollClient := uxaudit014Login(t, serverURL, "finance-partner")
 
 	hiringStatus, hiringDestinations := uxaudit014Get(t, hiringClient, serverURL, workspace.PathProductHome)
 	if hiringStatus != http.StatusOK {
@@ -192,7 +192,7 @@ func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
 	}
 	payrollStatus, payrollDestinations := uxaudit014Get(t, payrollClient, serverURL, workspace.PathProductHome)
 	if payrollStatus != http.StatusOK {
-		t.Fatalf("GET home as payroll-manager = %d, want 200", payrollStatus)
+		t.Fatalf("GET home as finance-partner = %d, want 200", payrollStatus)
 	}
 
 	// RED clause 2, under the real roleaccess-store-backed authority: these
@@ -207,27 +207,31 @@ func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
 			}
 		}
 		if identical {
-			t.Fatalf("hiring-manager and payroll-manager rendered identical destinations under the real roleaccess-store authority: %v", hiringDestinations)
+			t.Fatalf("hiring-manager and finance-partner rendered identical destinations under the real roleaccess-store authority: %v", hiringDestinations)
 		}
 	}
 	for _, want := range []string{"people", "journeys", "work"} {
 		if !hiringDestinations[want] {
 			t.Errorf("hiring-manager missing %q under real roleaccess.DefaultPagePermissions wiring: %v", want, hiringDestinations)
 		}
-		if payrollDestinations[want] {
-			t.Errorf("payroll-manager unexpectedly reaches %q under real roleaccess.DefaultPagePermissions wiring: %v", want, payrollDestinations)
+	}
+	// PROMOUX-015: the finance partner reaches My Work (it decides the
+	// approvals routed to it) but no workforce directory or journey launcher.
+	for _, unwanted := range []string{"people", "journeys", "insights"} {
+		if payrollDestinations[unwanted] {
+			t.Errorf("finance-partner unexpectedly reaches %q under real roleaccess.DefaultPagePermissions wiring: %v", unwanted, payrollDestinations)
 		}
 	}
-	if !payrollDestinations["myself"] || !payrollDestinations["organization"] {
-		t.Errorf("payroll-manager missing its real self-service destinations: %v", payrollDestinations)
+	if !payrollDestinations["myself"] || !payrollDestinations["organization"] || !payrollDestinations["work"] {
+		t.Errorf("finance-partner missing its real destinations (myself, organization, work): %v", payrollDestinations)
 	}
 
-	// Direct route access, not menu omission: payroll-manager's worker_self
-	// role is not one roleaccess.DefaultPagePermissions grants "people" to,
-	// so a direct GET must refuse it under the real authority too.
+	// Direct route access, not menu omission: finance-partner's role is not
+	// one roleaccess.DefaultPagePermissions grants "people" to, so a direct GET
+	// must refuse it under the real authority too.
 	peopleStatus, _ := uxaudit014Get(t, payrollClient, serverURL, workspace.PathProductPrefix+"people")
 	if peopleStatus != http.StatusForbidden {
-		t.Errorf("GET %s as payroll-manager = %d, want 403 under real roleaccess wiring", workspace.PathProductPrefix+"people", peopleStatus)
+		t.Errorf("GET %s as finance-partner = %d, want 403 under real roleaccess wiring", workspace.PathProductPrefix+"people", peopleStatus)
 	}
 	peopleStatus, _ = uxaudit014Get(t, hiringClient, serverURL, workspace.PathProductPrefix+"people")
 	if peopleStatus != http.StatusOK {

@@ -105,8 +105,20 @@ type PromotionExecutionConfig struct {
 	// Clock supplies the recording time. Nil means time.Now in UTC.
 	Clock func() time.Time
 	// ApproverPrincipalID is who the one approval WorkItem this workflow
-	// raises is routed to. Empty means [defaultApproverPrincipalID].
+	// raises is routed to. Empty means [defaultApproverPrincipalID]. For the
+	// executable plan it is only the fallback base PROMOUX-003's class-scoped
+	// identities derive from: see FinancePartnerPrincipalID and Managers.
 	ApproverPrincipalID string
+	// FinancePartnerPrincipalID is the principal the executable plan's
+	// FinancePartnerFor(cost_center) approval routes to (PROMOUX-015). Empty
+	// keeps PROMOUX-003's class-scoped derivation of ApproverPrincipalID. The
+	// value is configuration, never a literal in routing logic: no cost-center
+	// relationship graph exists in this release to resolve it from.
+	FinancePartnerPrincipalID string
+	// Managers resolves the executable plan's CurrentManagerOf(worker)
+	// approval (PROMOUX-015). Nil means [JourneyWorkerManagers], the
+	// journey_worker manager relationship internal/data/orgfacts also reads.
+	Managers ManagerResolver
 	// AuthorityDigest names the signed P1B authority amendment this
 	// composition asserts. Carried through as evidence; never verified here.
 	AuthorityDigest string
@@ -318,7 +330,7 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		StartRetryFor: startRetryFor,
 		ConflictFence: cfg.ConflictFence,
 		Steps:         promotionStepRunner{plan: selected, effectiveDates: effectiveDates},
-		WorkItems:     promotionWorkItems{approver: approver, plan: selected},
+		WorkItems:     promotionWorkItems{approver: approver, financePartner: cfg.FinancePartnerPrincipalID, managers: cfg.Managers, plan: selected},
 		Terminal:      cfg.Terminal,
 		Guard:         guard,
 		Retention:     retention,
@@ -527,11 +539,15 @@ func runExecuteStep(req execute.StepRequest) (frontier.NodeOutcome, runtime.Gove
 // enforces are one value.
 const approvalDecisionWindow = 48 * time.Hour
 
-// promotionWorkItems creates and routes the one approval WorkItem the bounded
-// promotion graph raises, to a single fixed approver principal.
+// promotionWorkItems creates and routes the approval WorkItems the promotion
+// graphs raise: the prototype's one approval to the configured approver, and
+// the executable plan's finance and manager approvals to the principals
+// [promotionWorkItems.resolveApprovers] derives from the reference workflow.
 type promotionWorkItems struct {
-	approver string
-	plan     PromotionPlan
+	approver       string
+	financePartner string
+	managers       ManagerResolver
+	plan           PromotionPlan
 }
 
 var _ execute.WorkItemFactory = promotionWorkItems{}
@@ -556,26 +572,24 @@ func (f promotionWorkItems) CreateAndRoute(ctx context.Context, ex workitem.Exec
 	var requirement humanwork.ApprovalRequirement
 	var err error
 	// owner is who this specific node's WorkItem is routed to. For the
-	// executable plan it is never f.approver directly: PROMOUX-003 requires
-	// the finance and manager approvals to bind to distinct authority-class
-	// principals (promotionexec.FinanceApproverFor/ManagerApproverFor derive
-	// two provably different identities from the one configured base), so a
-	// composition naming only one approver can never route both approvals to
-	// an undifferentiated owner.
+	// executable plan it is never f.approver directly: PROMOUX-015 routes the
+	// finance approval to the configured finance partner and the manager
+	// approval to the worker's current manager, and refuses a route in which
+	// the two coincide or either is the requester or the subject.
 	owner := f.approver
+	termRef := termConfiguredApprover
+	directoryVersion := directoryConfiguredApprover
 	deadline := req.CreatedAt.Add(approvalDecisionWindow)
 	if plan == PLAN_EXECUTE {
+		route, routeErr := f.resolveApprovers(ctx, ex, req)
+		if routeErr != nil {
+			return workitem.WorkItem{}, routeErr
+		}
 		if req.Continuation.TargetNodeID == promotionexec.NodeApproveFinance {
-			owner, err = promotionexec.FinanceApproverFor(f.approver)
-			if err != nil {
-				return workitem.WorkItem{}, fmt.Errorf("platform execution: derive the finance approver: %w", err)
-			}
+			owner, termRef, directoryVersion = route.finance.principal, route.finance.termRef, route.finance.directoryVersion
 			requirement, err = promotionexec.CompileFinanceApprovalRequirement(owner, deadline)
 		} else {
-			owner, err = promotionexec.ManagerApproverFor(f.approver)
-			if err != nil {
-				return workitem.WorkItem{}, fmt.Errorf("platform execution: derive the manager approver: %w", err)
-			}
+			owner, termRef, directoryVersion = route.manager.principal, route.manager.termRef, route.manager.directoryVersion
 			requirement, err = promotionexec.CompileManagerApprovalRequirement(owner, deadline)
 		}
 	} else {
@@ -610,10 +624,10 @@ func (f promotionWorkItems) CreateAndRoute(ctx context.Context, ex workitem.Exec
 		RequirementID: requirement.RequirementID, RequirementRevision: requirement.Revision,
 		Outcome: humanwork.OutcomeResolved,
 		Candidates: []humanwork.Candidate{
-			{PrincipalID: owner, Via: humanwork.SourceDirect, TermRef: "term:execution-authority-approver"},
+			{PrincipalID: owner, Via: humanwork.SourceDirect, TermRef: termRef},
 		},
 		ResolvedAt: values.NewInstant(req.CreatedAt), EffectiveAt: values.NewInstant(req.CreatedAt),
-		DirectoryVersion:  "directory.execution-authority/1",
+		DirectoryVersion:  directoryVersion,
 		ExpressionDigest:  requirement.ExpressionDigest,
 		RequirementDigest: requirement.Digest(),
 		QuorumRequired:    requirement.Quorum.MinApprovals,

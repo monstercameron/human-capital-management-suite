@@ -486,14 +486,15 @@ func validateProposalInput(in workspace.ProposalInput) error {
 // filtering is guidance, never authority: every caller, including the direct
 // intent-only RPC, must prove that the current and target profiles form a
 // published edge and that the proposed base follows that edge's exact rule.
+// PROMOUX-015: the edges are [publishedPromotionPaths], the same list
+// ListWorkers publishes.
 func validatePublishedPromotionPath(current journeyCurrent, in workspace.ProposalInput, baseline journeyBaselineFacts) error {
-	paths, err := fixtures.PromotionPaths()
+	paths, err := publishedPromotionPaths()
 	if err != nil {
-		return fmt.Errorf("app: journey: read published promotion paths: %w", err)
+		return err
 	}
-	for _, scope := range paths {
-		if scope.SourceJobCode != current.jobCode || scope.SourceGrade != current.grade ||
-			scope.TargetJobCode != strings.TrimSpace(in.TargetJobCode) || scope.TargetGrade != strings.TrimSpace(in.TargetGrade) {
+	for _, path := range paths {
+		if !path.matches(current.jobCode, current.grade, strings.TrimSpace(in.TargetJobCode), strings.TrimSpace(in.TargetGrade)) {
 			continue
 		}
 		currentPay, err := values.NewMoney(baseline.currentBase, baseline.currency, fixtures.MoneyScale, fixtures.MoneyRounding)
@@ -516,10 +517,7 @@ func validatePublishedPromotionPath(current journeyCurrent, in workspace.Proposa
 		if err != nil {
 			return fmt.Errorf("app: journey: represent exact base increase: %w", err)
 		}
-		if err := scope.Path.AllowsBaseIncrease(increase); err != nil {
-			return journeyInputError("proposed_base", "the published ladder edge requires a base increase between "+scope.Path.MinimumBaseIncrease.String()+" and "+scope.Path.MaximumBaseIncrease.String()+" (decimal fractions)")
-		}
-		return nil
+		return path.allowsBaseIncrease(increase)
 	}
 	return journeyInputError("target_job_code", "the target job and grade are not a published next step from the worker's current profile")
 }
@@ -636,9 +634,10 @@ func (e *journeyEngine) currentPlacement(
 	fields := workspaceFields(promotion.RequiredWorkerFields())
 	purpose := principal.DefaultPurpose()
 	decision, authErr := authorizeRead(principal, purpose, authorizationRequest{
-		Subject:     worker,
-		EvaluatedAt: values.NewInstant(e.now()),
-		Read:        peopleFields(fields),
+		Subject:       worker,
+		EvaluatedAt:   values.NewInstant(e.now()),
+		Read:          peopleFields(fields),
+		Relationships: managerChainFacts(ctx, e.locate, principal, worker),
 	})
 	if authErr != nil {
 		return journeyCurrent{}, workspaceDenial(authErr)

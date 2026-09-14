@@ -15,6 +15,86 @@ func (s *server) visibleWorkforce(ctx context.Context, principal *trust.Principa
 	if principal.HasRole("hcm_admin") || principal.HasRole("comp_admin") {
 		return workers, options, nil
 	}
+	visible, visibleOptions, err := s.visibleByPolicy(ctx, principal, workers, options)
+	if err != nil {
+		return nil, workspace.WorkforceOptions{}, err
+	}
+	return withManagedReports(principal, workers, visible, visibleOptions)
+}
+
+// maxReportingDepth bounds one reporting-line walk, matching the engine's own
+// manager-chain bound, so a malformed cycle can never make a listing unbounded.
+const maxReportingDepth = 16
+
+// withManagedReports adds, for a principal holding the manager role, every
+// worker whose reporting line reaches that principal, directly or indirectly.
+//
+// PROMOUX-015: unit visibility alone hid a manager's own reports whenever they
+// sat in a different organization unit, so a skip-level manager the governed
+// read authorizes to propose a promotion (a MANAGER_CHAIN fact) could not
+// discover that worker on the listing at all. The walk reads only the
+// ManagerRef each listed worker already carries, never a relationship the
+// listing does not hold, and a reference naming no listed worker ends it.
+func withManagedReports(principal *trust.Principal, all, visible []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
+	subject := strings.ToLower(strings.TrimSpace(principal.Subject()))
+	if !principal.HasRole("manager") || subject == "" {
+		return visible, options, nil
+	}
+	byRef := make(map[string]workspace.WorkerSummary, len(all)*2)
+	for _, worker := range all {
+		for _, key := range []string{worker.WorkerRef, worker.WorkerID} {
+			if k := strings.ToLower(strings.TrimSpace(key)); k != "" {
+				byRef[k] = worker
+			}
+		}
+	}
+	present := make(map[string]bool, len(visible))
+	for _, worker := range visible {
+		present[strings.ToLower(strings.TrimSpace(worker.WorkerRef))] = true
+	}
+	added := false
+	for _, worker := range all {
+		if present[strings.ToLower(strings.TrimSpace(worker.WorkerRef))] || !reportsTo(worker, subject, byRef) {
+			continue
+		}
+		visible = append(visible, worker)
+		present[strings.ToLower(strings.TrimSpace(worker.WorkerRef))] = true
+		added = true
+	}
+	if !added {
+		return visible, options, nil
+	}
+	return redactHiddenManagers(visible), visibleWorkforceOptions(options, visible), nil
+}
+
+// reportsTo reports whether subject appears on worker's reporting line.
+func reportsTo(worker workspace.WorkerSummary, subject string, byRef map[string]workspace.WorkerSummary) bool {
+	seen := map[string]bool{strings.ToLower(strings.TrimSpace(worker.WorkerRef)): true}
+	ref := strings.ToLower(strings.TrimSpace(worker.ManagerRef))
+	for depth := 0; depth < maxReportingDepth && ref != ""; depth++ {
+		if ref == subject {
+			return true
+		}
+		manager, ok := byRef[ref]
+		if !ok {
+			return false
+		}
+		if workerMatchesPrincipal(manager, subject) {
+			return true
+		}
+		key := strings.ToLower(strings.TrimSpace(manager.WorkerRef))
+		if seen[key] {
+			return false
+		}
+		seen[key] = true
+		ref = strings.ToLower(strings.TrimSpace(manager.ManagerRef))
+	}
+	return false
+}
+
+// visibleByPolicy applies the role-access or personal organization-visibility
+// policy that governs the listing.
+func (s *server) visibleByPolicy(ctx context.Context, principal *trust.Principal, workers []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	if s.deps.RoleAccess != nil {
 		snapshot, err := s.deps.RoleAccess.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
 		if err != nil {

@@ -296,6 +296,7 @@ func DefaultRoles() []Role {
 		{ID: "manager", Name: "People manager", Description: "Manages employees and their governed workflows.", System: true, Active: true},
 		{ID: "payroll_manager", Name: "Payroll manager", Description: "Manages payroll operations and review.", System: true, Active: true},
 		{ID: "hr_partner", Name: "HR partner", Description: "Supports assigned organization units and their people.", System: true, Active: true},
+		{ID: "finance_partner", Name: "Finance partner", Description: "Decides the finance approvals routed to them.", System: true, Active: true},
 		{ID: "intent_author", Name: "Workflow author", Description: "Creates governed workflow proposals.", System: true, Active: true},
 		{ID: "promotion_operator", Name: "Promotion operator", Description: "Executes governed promotion workflows.", System: true, Active: true},
 		{ID: "worker_self", Name: "Employee self-service", Description: "Accesses personal employment information and self-service workflows.", System: true, Active: true},
@@ -340,6 +341,12 @@ func DefaultPagePermissions() []PagePermission {
 	}
 	for _, page := range []string{"home", "myself", "organization", "insights", "help", "settings"} {
 		grant("worker_self", page, false, page == "settings", false)
+	}
+	// PROMOUX-015: a finance partner decides the approvals routed to them
+	// (My Work, update) and reviews their outcome (Work History); it reaches
+	// no workforce directory, person profile or journey launcher.
+	for _, page := range []string{"home", "myself", "work", "history", "organization", "help", "settings"} {
+		grant("finance_partner", page, false, page == "work" || page == "settings", false)
 	}
 	for _, page := range []string{"home", "journeys", "work", "history", "people", "person", "organization", "insights", "help", "settings"} {
 		grant("intent_author", page, page == "journeys", page == "settings", false)

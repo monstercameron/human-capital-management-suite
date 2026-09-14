@@ -441,6 +441,7 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 	dialogChildren := []ui.Node{
 		html.Div(html.Props{Class: "action-launcher-head"},
 			html.Strong(html.Props{}, ui.Text(dialogTitle)),
+			html.Label(html.Props{Class: "sr-only", For: "action-launcher-input"}, ui.Text(props.Text("action_launcher.filter_label"))),
 			html.Tag("input", html.Props{
 				ID: "action-launcher-input", Name: "action", Value: query.Get(), Class: "action-launcher-input", Aria: inputAria,
 				Raw: map[string]any{"type": "search", "role": "combobox", "placeholder": props.Text("action_launcher.filter_placeholder"), "autocomplete": "off", "spellcheck": "false"},
