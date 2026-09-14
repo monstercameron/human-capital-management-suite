@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 9585f3d41dc49ceef2a96f96a5c0b45c7f1b451a4b36b52bf43a04e3221904fe
+- Source graph: 88db5e1bf0811c39bcc0941499655be5d6ef789bbce55665cd31160aa35c0c3d
 - Package count: 823
-- Within-module edge count: 1989
+- Within-module edge count: 1991
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -979,4 +979,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`06b423798c1bf721ac793cce08972009eae683a0e8033eeaffa63178b2ccddf0`
+`f686bc9a1ca0f5f152cc83194aa9fde37b08f2459616b2836cc40eea01522780`
