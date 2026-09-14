@@ -1,0 +1,338 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-az-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "AZ",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-az-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-364",
+          "note": "Payroll record retention (A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-az-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-373",
+          "note": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S. § 23-373)"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-az-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-351",
+          "note": "Pay frequency (A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "MONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-az-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-353",
+          "note": "Model a 7-day working-day deadline for final wage payment upon discharge, or link to next regular payday if sooner (A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Model a 7-day working-day deadline for final wage payment upon discharge, or link to next regular payday if sooner (A.R.S. § 23-353)"
+        }
+      },
+      {
+        "kind": "E_VERIFY",
+        "id": "us-az-e-verify",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-214",
+          "note": "E-Verify mandate: A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_on_new_hire_only": true,
+          "note": "E-Verify mandate: A.R.S."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-az-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-363",
+          "note": "Minimum wage (A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-az-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-341",
+          "note": "Equal pay statute (A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "age"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-az-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-364",
+          "note": "Pay statement content: No detailed state requirement.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "gross_wages",
+            "net_wages",
+            "deductions",
+            "hours_worked",
+            "pay_rate",
+            "pay_period",
+            "employer_identification"
+          ],
+          "standard": "RECOMMENDED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-az-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-373",
+          "note": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "protected_leave_request"
+          ],
+          "lookback_days": 30,
+          "disposition": "FLAG",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "JOB_SECURITY",
+        "id": "us-az-job-security",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 23-1501",
+          "note": "At-will employment: Arizona recognizes pure at-will employment codified in A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard_kind": "AT_WILL",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-az-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 36-2813",
+          "note": "Medical marijuana employment protections: Employers cannot discriminate against registered cardholders or penalize based on positive test result unless employee was impaired or used marijuana on premises during work...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_status": [
+            "medical_cannabis_patient"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-az-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/arizona.md",
+          "section": "A.R.S. § 18-551",
+          "note": "Data breach notification (A.R.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "subject_deadline_days": 45,
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/arizona.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "abbf1c369dabfa79642fb1820878804fa075d417a0f4a473331dc54152b36c9a",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "739ac20638f6c4c0735688374b1b73a10902730b191f76b51c246da63881598d7072a1a024ceae38754b2ea6204d352ae1e65b3e2da0eba2d5d396fec9224302"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "abbf1c369dabfa79642fb1820878804fa075d417a0f4a473331dc54152b36c9a",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-az-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-az-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-az-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-az-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-az-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-az-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) floor_amount, basis, indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for AZ; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for AZ; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-az-e-verify",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-az-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-az-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "722ece5054dfa27651fb9936440873510a15e3acd793dbba0c3952e22f00e77f",
+      "prev_digest": "",
+      "digest": "7e9bd295da54dd953b6087647da6f757122c50706ee02be322075419e3f181dd",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "75c8aee3f35dd0ed855266325fc70dc393ccd64d0e5edefdab41a5da527383469e63f744cc14f5a7d96fba53faa3f42279d7d31f6f484a2fcd566d0fbbefdd08"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "187be4debbe3431a82e6830c89f25775785c796b7933d687e072edff4c7a8669",
+      "prev_digest": "7e9bd295da54dd953b6087647da6f757122c50706ee02be322075419e3f181dd",
+      "digest": "5798ed6c4a96550840172483358c36c4a0c365011afab22415815cc9bcc9c3a3",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "cb7ff083a06554f245016e57cae35cbc303149a27828b7360a3717f3bd2964e96b078f4c2d0e923bb371408daef2be2a3ad928731dda6686baac19bdc5988a0c"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "abbf1c369dabfa79642fb1820878804fa075d417a0f4a473331dc54152b36c9a",
+      "prev_digest": "5798ed6c4a96550840172483358c36c4a0c365011afab22415815cc9bcc9c3a3",
+      "digest": "18ed9ce0379a3f99b91d35daeea96839a698ad6a72557af380b1beb3700e697d",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "1477691d5235b3c4c5bab0be15b322596f078b33223fe802f9d455764940817092cd4944d409416f70b9aec12eae03c83d978ba47aad187fc18ed82b5d78f10f"
+      }
+    }
+  ]
+}

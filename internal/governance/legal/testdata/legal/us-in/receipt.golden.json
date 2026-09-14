@@ -1,0 +1,309 @@
+{
+  "legal_context_digest": "c2b0a25d03318adb2f5a5f138425ad063dd7bd688b4f41bca859b59a8c576fa0",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "IN",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-in-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "IN",
+          "Locality": ""
+        }
+      },
+      "Digest": "46eeb760e06d57148a0fb9f52996bf1751862864d11d88f0700d4e077c1e5382",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-in-retention",
+      "Description": "retain payroll_records for 4 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/indiana.md",
+        "Section": "U.S.C. § 211",
+        "Note": "Payroll Record Retention: IC 22-2-8 requires employers to retain payroll records, time records, and documents related to remuneration for at least 4 years after the calendar year in which remuneration was paid.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IN",
+        "Locality": ""
+      },
+      "PackID": "us-in-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-in-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-in-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "039aa02d6111fa5051254ae53c32a9524202c131aa2df62e5f72ebdd648c5161"
+    },
+    {
+      "Type": 5,
+      "ID": "us-in-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/indiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Wage payment compliance: Ensure new base pay is communicated and recorded in accordance with IC 22-2-5 semimonthly or biweekly payment schedule.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IN",
+        "Locality": ""
+      },
+      "PackID": "us-in-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-in-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-in-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "616f808471c263a274f4764b2b2b0e7eec2d8a86618f275a47e5833300be5cf9"
+    },
+    {
+      "Type": 8,
+      "ID": "us-in-non-compete",
+      "Description": "Non-compete flag: If the employee is a physician or the employer uses non-compete agreements, attach and flag for legal review:",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/indiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Non-compete flag: If the employee is a physician or the employer uses non-compete agreements, attach and flag for legal review:",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "IN",
+        "Locality": ""
+      },
+      "PackID": "us-in-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-in-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-in-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-in-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-in-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "1a1d95a56d50d061d1251ede27e9aa8a2726e4ae7b88fb2c96465d5bb1505c57"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-in-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/indiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Final-pay calculation audit: On termination, calculate final pay as all earned wages through termination date, accrued PTO (if required by policy), and vacation (if required by policy).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-in-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/indiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Ensure no retaliation: Confirm termination is not in retaliation for jury duty, voting, public policy (e.g., OSHA complaint), or protected activity under federal law.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-in-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/indiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Retain termination records: Preserve separation notice, final-pay documentation, and any signed agreements (non-compete, acknowledgment, etc.) for 4 years per IC 22-2-8.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-in-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/indiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Drug Testing: No Indiana state law prohibits pre-employment drug testing.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-in-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/indiana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Data Privacy Law: Indiana has no comprehensive state data privacy statute equivalent to California CCPA or Colorado CPA.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IN",
+            "Locality": ""
+          },
+          "PackID": "us-in-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-in-retention",
+          "Description": "retain payroll_records for 4 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/indiana.md",
+            "Section": "U.S.C. § 211",
+            "Note": "Payroll Record Retention: IC 22-2-8 requires employers to retain payroll records, time records, and documents related to remuneration for at least 4 years after the calendar year in which remuneration was paid.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-in-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IN",
+            "Locality": ""
+          },
+          "PackID": "us-in-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-in-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/indiana.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Wage payment compliance: Ensure new base pay is communicated and recorded in accordance with IC 22-2-5 semimonthly or biweekly payment schedule.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-in-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "IN",
+            "Locality": ""
+          },
+          "PackID": "us-in-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-in-non-compete",
+          "Description": "Non-compete flag: If the employee is a physician or the employer uses non-compete agreements, attach and flag for legal review:",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/indiana.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Non-compete flag: If the employee is a physician or the employer uses non-compete agreements, attach and flag for legal review:",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "6cff5dc9b9db6d7cba0212da87092a6360b8b4b6dc954cc7429f981f25169b3c",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "v7wQ0n/YUEMm8XTdHZodGg8+iggjog4Pe+BO1/jpeoiYoYTtr9zmE3GZvzexbbZWrgmjTTeJrzTv9Aasb9TuBg=="
+  }
+}

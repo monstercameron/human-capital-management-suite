@@ -60,7 +60,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay post-promotion (SDCL 60-11-10): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid by next regular payday."
+        "deadline_description": "Final pay post-promotion (SDCL 60-11-10): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid by next regular payday. Employee may demand written immediate payment (due within 5 days). If employee returns all property, no holdback permitted."
       }
     },
     {
@@ -75,7 +75,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete review (SDCL 53-9-11): On promotion, check if employee subject to non-compete or non-solicit."
+        "rule": "Non-compete review (SDCL 53-9-11): On promotion, check if employee subject to non-compete or non-solicit. If non-compete exists, verify:"
       }
     },
     {

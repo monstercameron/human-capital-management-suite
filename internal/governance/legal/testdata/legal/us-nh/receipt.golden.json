@@ -1,0 +1,578 @@
+{
+  "legal_context_digest": "bf35c1c443c79411c39383456db790958606213ca2cee17f808beb39b6ef5305",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "NH",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-nh-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "NH",
+          "Locality": ""
+        }
+      },
+      "Digest": "a69946305f83caee4ed0de9aca73b1071aa4bb74d18763cb3621e0388eaff563",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-nh-notice",
+      "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay rate change notice (RSA 275:49): On any base-pay change (increase or decrease), generate automated written notice stating new rate and effective date.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NH",
+        "Locality": ""
+      },
+      "PackID": "us-nh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nh-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nh-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nh-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-nh-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "01b90a01991c255502abe50075fe1ef550510737b202f4e627c09af3b29b8ed3"
+    },
+    {
+      "Type": 3,
+      "ID": "us-nh-retention",
+      "Description": "retain payroll_records for 1 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Personnel file retention and access (RSA 275:56): For employers with 15+ employees, system must: (a) Retain all personnel and payroll records for 1 year minimum; (b) Flag records for deletion after 1-year threshold if...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NH",
+        "Locality": ""
+      },
+      "PackID": "us-nh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nh-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nh-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "09bf706285b4f0c5b7a9c5a5c40ec5576070d05751a55bca13d0b499f8eeab52"
+    },
+    {
+      "Type": 5,
+      "ID": "us-nh-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay rate change notice required: Employers must provide written notice of any wage, salary, or pay schedule changes prior to the effective date and obtain employee signature (RSA 275:49).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NH",
+        "Locality": ""
+      },
+      "PackID": "us-nh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nh-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nh-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "e2e6167c95318e7216793a6f6c9c03566b8d0b2776c9fc2f9b31619a95b4b0ba"
+    },
+    {
+      "Type": 8,
+      "ID": "us-nh-non-compete",
+      "Description": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any existing non-compete clause as VOID and unenforceable; mark in system as unenforceable; (c) If employee is physician or dentist, flag all non-compete clauses (regardless of wage) as likely VOID per RSA 329:31-a; (d) On promotion affecting wage, recalculate threshold and update enforceability status (e.g., promotion across $14.50 threshold may activate enforceability).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NH",
+        "Locality": ""
+      },
+      "PackID": "us-nh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nh-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nh-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nh-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-nh-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "ada963cf8acc979e9404c2239f1bfad2e637c505f08e008098529772a579a4de"
+    },
+    {
+      "Type": 12,
+      "ID": "us-nh-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Equal pay audit flag (RSA 275:37): On promotion + base-pay change, system should flag if new rate differs \u003e15% from peer rates for equal work in same establishment (same employer).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NH",
+        "Locality": ""
+      },
+      "PackID": "us-nh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nh-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nh-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nh-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "67dd06fa1ebe50fb9a9f5c711f833f07c0c5f9055e05eb71789003457140d538"
+    },
+    {
+      "Type": 13,
+      "ID": "us-nh-pay-statement",
+      "Description": "pay statement delivered  must carry net_wages, deductions, hours_worked, pay_rate, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No state-mandated itemized pay stub format; federal FLSA requirements apply (employer should document hours, wage rate, deductions, net pay per RSA 275:56 record-retention obligation).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NH",
+        "Locality": ""
+      },
+      "PackID": "us-nh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nh-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nh-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "cd99f7e26186cb52a37d9a70ce917db496b4902a476dc3dea98ed6c4925b6447"
+    },
+    {
+      "Type": 15,
+      "ID": "us-nh-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Non-compete disclosure (RSA 275:70): If non-compete exists and enforceable, ensure copy provided to employee prior to offer acceptance (or upon hiring if not at offer stage).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NH",
+        "Locality": ""
+      },
+      "PackID": "us-nh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nh-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nh-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "e36045554c2de22b7d4c3de904bc85923c7c3e7bc54b40ed175d41541519f1e0"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-nh-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Final pay on separation (RSA 275:44): If termination occurs during or shortly after promotion, ensure final paycheck includes all wages earned at promoted rate from effective date forward.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-nh-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Federal WARN compliance: State-level notification requirement mirrors federal WARN Act for employers with 100+ employees planning mass layoffs or plant closings; 60 days' advance notice required (RSA 275-F).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-nh-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Wage discussion protection (RSA 275:41-b): Do not restrict or flag employee discussions of wages/benefits.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-nh-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No state law restricting private-sector drug testing.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-nh-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "RSA 359-C:20: Any person or business in New Hampshire that owns or licenses computerized data containing personal information must notify affected individuals \"as soon as possible\" and \"without unreasonable delay\" when...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NH",
+            "Locality": ""
+          },
+          "PackID": "us-nh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-nh-notice",
+          "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay rate change notice (RSA 275:49): On any base-pay change (increase or decrease), generate automated written notice stating new rate and effective date.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NH",
+            "Locality": ""
+          },
+          "PackID": "us-nh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-nh-retention",
+          "Description": "retain payroll_records for 1 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Personnel file retention and access (RSA 275:56): For employers with 15+ employees, system must: (a) Retain all personnel and payroll records for 1 year minimum; (b) Flag records for deletion after 1-year threshold if...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-nh-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NH",
+            "Locality": ""
+          },
+          "PackID": "us-nh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-nh-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay rate change notice required: Employers must provide written notice of any wage, salary, or pay schedule changes prior to the effective date and obtain employee signature (RSA 275:49).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-nh-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NH",
+            "Locality": ""
+          },
+          "PackID": "us-nh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-nh-non-compete",
+          "Description": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any existing non-compete clause as VOID and unenforceable; mark in system as unenforceable; (c) If employee is physician or dentist, flag all non-compete clauses (regardless of wage) as likely VOID per RSA 329:31-a; (d) On promotion affecting wage, recalculate threshold and update enforceability status (e.g., promotion across $14.50 threshold may activate enforceability).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NH",
+            "Locality": ""
+          },
+          "PackID": "us-nh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-nh-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Equal pay audit flag (RSA 275:37): On promotion + base-pay change, system should flag if new rate differs \u003e15% from peer rates for equal work in same establishment (same employer).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NH",
+            "Locality": ""
+          },
+          "PackID": "us-nh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-nh-pay-statement",
+          "Description": "pay statement delivered  must carry net_wages, deductions, hours_worked, pay_rate, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "No state-mandated itemized pay stub format; federal FLSA requirements apply (employer should document hours, wage rate, deductions, net pay per RSA 275:56 record-retention obligation).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NH",
+            "Locality": ""
+          },
+          "PackID": "us-nh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-nh-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-hampshire.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Non-compete disclosure (RSA 275:70): If non-compete exists and enforceable, ensure copy provided to employee prior to offer acceptance (or upon hiring if not at offer stage).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-nh-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "c490df482a9db0afda1e25ace70ca846ff214c4f4d1a020e04c8b12dd3085e7e",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "NSqWV/bu4niwAbRRuj8Wr6gb6pqpSaapEZeABSfYg3dh/0Ajgj3C9Z9BIch0IGEvBpTRYftPeYYsjKCEVGhGBw=="
+  }
+}

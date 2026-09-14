@@ -1,0 +1,435 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ri-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "RI",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-ri-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-14-2",
+          "note": "§ 28-14-2 requires written notice at hire of wages, pay rate, and frequency; advance written notice in advance of any change to wage, deduction, or pay frequency.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "pay_frequency"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-ri-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-6-19",
+          "note": "Salary History Inquiry Block (§ 28-6-19): Disable any form field attempting to request prior salary from external candidates; log queries for compliance risk flagging; only permit external candidate to voluntarily...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-ri-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-14-2",
+          "note": "Pay Rate Change Notice (§ 28-14-2): On any pay increase or decrease, generate automated notice in advance of effective date (or concurrent with increase) with new rate, frequency, and effective date; document and...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {}
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-ri-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-57-1",
+          "note": "Earned Sick Leave Accrual and Payout (§ 28-57-1): Track accrued sick leave (1 hour per 35 hours worked).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Earned Sick Leave Accrual and Payout (§ 28-57-1): Track accrued sick leave (1 hour per 35 hours worked). On termination, automatic payout of accrued balance. On promotion within same employer, leave balance carries forward. Do not permit termination record to be finalized until sick-leave payout calculated and documented."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ri-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-14-2",
+          "note": "Pay frequency: Weekly (default); employers may petition to pay biweekly/semi-monthly under § 28-14-2 with surety bond if average payroll meets thresholds; advance written notice of any change required.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ri-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-14-4",
+          "note": "Final Pay Timing (§ 28-14-4): On termination, schedule final paycheck by next regular payday; include all wages due through termination date plus accrued leave payout.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final Pay Timing (§ 28-14-4): On termination, schedule final paycheck by next regular payday; include all wages due through termination date plus accrued leave payout."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-ri-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-6-19",
+          "note": "Pay Transparency Disclosure (§ 28-6-19): Before posting any job or offering promotion, require wage-range input (min/max); block job posting or promotion posting if range empty; timestamp disclosure.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay Transparency Disclosure (§ 28-6-19): Before posting any job or offering promotion, require wage-range input (min/max); block job posting or promotion posting if range empty; timestamp disclosure. On internal promotion, ensure disclosure before compensation discussion with promoted employee."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-ri-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-59",
+          "note": "Non-Compete Enforceability Check (§ 28-59): At hire and promotion of exempt employees, flag if salary \u003c$37,650/year and non-compete in offer; system should warn that agreement likely unenforceable and recommend removal...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-Compete Enforceability Check (§ 28-59): At hire and promotion of exempt employees, flag if salary \u003c$37,650/year and non-compete in offer; system should warn that agreement likely unenforceable and recommend removal or legal review."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-ri-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-59",
+          "note": "Non-Compete Enforceability Check (§ 28-59): At hire and promotion of exempt employees, flag if salary \u003c$37,650/year and non-compete in offer; system should warn that agreement likely unenforceable and recommend removal...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "note": "Non-Compete Enforceability Check (§ 28-59): At hire and promotion of exempt employees, flag if salary \u003c$37,650/year and non-compete in offer; system should warn that agreement likely unenforceable and recommend removal..."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-ri-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-12-3",
+          "note": "Minimum Wage Compliance (§ 28-12-3): System should flag if any promotion + pay change results in rate \u003c$16.00/hour (2026) and prevent entry unless override justified (verify).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "16.00",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ri-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-6-17",
+          "note": "Pay Equity Audit Flag (§ 28-6-17 et seq.): On promotion + base-pay change, flag if new rate differs significantly from peer rates for \"substantially similar work\" in same employer/county; require manager justification...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "age"
+          ],
+          "comparator_standard": "substantially similar work",
+          "documentation_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ri-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-14-2.1",
+          "note": "Pay Statement Generation (§ 28-14-2.1): Ensure all pay statements/earnings records show hours worked, rate, all deductions with explanation, and gross/net; retain for 3 years for wage-theft audit defense.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "gross_wages",
+            "net_wages",
+            "deductions",
+            "hours_worked",
+            "pay_rate"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-ri-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No Rhode Island-specific ABC test in statute results (verify whether common-law control test applies).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "dimension": "CONTRACTOR",
+          "test_description": "No Rhode Island-specific ABC test in statute results (verify whether common-law control test applies).",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-ri-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-14-19",
+          "note": "Payroll and personnel record retention (§ 28-14-19; § 28-6.4-1):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ri-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-50-1",
+          "note": "Employment-at-will with limited exceptions: Rhode Island recognizes at-will employment but prohibits termination for filing wage claims, workers' compensation claims, jury duty, military service, or exercising...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim",
+            "wage_claim",
+            "whistleblower_report",
+            "jury_duty"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ri-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "§ 28-6.5-1(a)(1)",
+          "note": "Drug testing (§ 28-6.5-1(a)(1)):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ri-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/rhode-island.md",
+          "section": "R.I. Gen. Laws § 11-49.3-4",
+          "note": "Data breach notification (R.I.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/rhode-island.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "765a9cec4a530949111132dc0c06ebb402149f5890ee2e4e50162ee02e65eb2e",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "8db100565ef32134e4d51dcdbc0f32e6997545179a02e90e11b9d7c18edd4d141ab7f9f3b2aa263eef68842d4cdaa58d6078f467faa5e245a4f6af900c6c990a"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "765a9cec4a530949111132dc0c06ebb402149f5890ee2e4e50162ee02e65eb2e",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ri-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ri-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ri-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ri-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ri-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ri-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ri-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) record_class, duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ri-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ri-classification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ri-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ri-field-restriction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ri-mini-warn",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ri-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ri-wage-floor",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "03b558bd8b9e27aa1f0f2dec1c99feec833986b965954a9a5488531f449d957e",
+      "prev_digest": "",
+      "digest": "7dbc4dd5b6e3b9ad0a08373d58c934e1cb5293bfcc15996cd530bc0ac803c9e2",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "e37028e10080260f0448afdd0369a6983fbdde7a90ee879f2c83716a9e8695b2ef6dca8ce5b72e596c81059ec99f955ba17f7ef188eaff6cb7c803b63a84cb00"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "ab58bc61ec4a92eedd0c4d4ead4ab8ba07738b33ec30c141a1a2b64a85724eb4",
+      "prev_digest": "7dbc4dd5b6e3b9ad0a08373d58c934e1cb5293bfcc15996cd530bc0ac803c9e2",
+      "digest": "2cb5964339bb5bafc0c68e747352247a7294efb2ca1aebf3baea9385d35d26d0",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "065ac4a0698d9c7ef9c50a285f1db934d7d4e319d644ee43a3306ee8f5ccdbe8974904c136887f41efc9e201ee379899221f3edf5677419fd47cfff75fbad607"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "765a9cec4a530949111132dc0c06ebb402149f5890ee2e4e50162ee02e65eb2e",
+      "prev_digest": "2cb5964339bb5bafc0c68e747352247a7294efb2ca1aebf3baea9385d35d26d0",
+      "digest": "971cf3f97a0f48e9ef867065bfdcae93c2124543ad23ab1032721ba4f0a522f2",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "a3a7e7bb59c7fd47e36a0fa86d7a401d031bc4b326694e0016f08cc820f48d07bdfd9f594b6211366b3ee42c043ffb9df8c916e4dabcc536f3cae8ef20c03902"
+      }
+    }
+  ]
+}

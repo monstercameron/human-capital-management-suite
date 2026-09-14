@@ -1,0 +1,402 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-nv-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "NV",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-nv-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 608.100",
+          "note": "Decrease notice: Any pay decrease requires written notice at least 7 days before the employee works at the lower rate (NRS 608.100).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "timing_days": 7,
+          "channel": "written"
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-nv-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 613.133",
+          "note": "If the promotion involves a pay change, verify the new pay does not rely on prior salary history (NRS 613.133 prohibition).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-nv-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 608.115",
+          "note": "Model wage-rate history recording: capture promotion date, previous and new rates, and position for 2-year retention (NRS 608.115).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 2,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-nv-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 608.0197",
+          "note": "Paid leave (NRS 608.0197): promotion does not reset accrual; earned leave carries forward.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "paid leave",
+          "interaction_rule": "Paid leave (NRS 608.0197): promotion does not reset accrual; earned leave carries forward."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-nv-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 608.060",
+          "note": "Pay frequency: Wages are due semimonthly (15th and last day of month) by law (NRS 608.060).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-nv-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 613.4353",
+          "note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under NRS 613.4353. Document any accommodation requests and interactive-process discussions in payroll/personnel files. If termination occurs during pregnancy, ensure final pay includes all accrued leave and verify no retaliation claim arises under PWFA."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-nv-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 613.133",
+          "note": "After the interview, notify the promotee of the wage or salary range for the new position (NRS 613.133 requirement).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "After the interview, notify the promotee of the wage or salary range for the new position (NRS 613.133 requirement)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-nv-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 613.195",
+          "note": "Non-compete enforceability: if the promoted employee is hourly, non-competes are void (NRS 613.195); if salary, non-competes are generally unenforceable unless sale-of-business exception applies.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforceability: if the promoted employee is hourly, non-competes are void (NRS 613.195); if salary, non-competes are generally unenforceable unless sale-of-business exception applies."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-nv-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 608.250",
+          "note": "Minimum wage is $12.00/hour flat (constitutional amendment effective 2024, NRS 608.250); overtime applies at 8-hour daily or 40-hour weekly threshold (1.5x rate) for employees under 1.5x minimum wage (NRS 608.018).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "12.00",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-nv-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 613.330",
+          "note": "Equal pay compliance: Verify the new rate does not create unlawful pay disparity based on sex or other protected class (NRS 613.330 general anti-discrimination rule).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_bases": [
+            "sex"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-nv-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 608.115",
+          "note": "Pay statement requirements: Employers must provide an itemized statement showing gross pay, net pay, deductions (with reason and authorization for each), and hours worked per period (NRS 608.115).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "gross_wages",
+            "net_wages",
+            "deductions",
+            "hours_worked",
+            "employer_identification"
+          ],
+          "delivery": "ELECTRONIC",
+          "consent_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-nv-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 608.0155",
+          "note": "Independent contractor presumption (NRS 608.0155): A person is presumed to be an independent contractor if:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "dimension": "CONTRACTOR",
+          "test_description": "Independent contractor presumption (NRS 608.0155): A person is presumed to be an independent contractor if:",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-nv-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 613.4353",
+          "note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-nv-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 613.4353",
+          "note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_activities": [
+            "protected_leave_request"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-nv-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 613.330",
+          "note": "Wage transparency ban: employers cannot enforce pay-secrecy policies; discussion of wages is protected (NRS 613.330).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "safety_sensitive_role"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-nv-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nevada.md",
+          "section": "NRS 603",
+          "note": "Nevada privacy law (NRS 603A): Nevada does not have a comprehensive state privacy law parallel to CCPA.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/nevada.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "a085ac1b58b8f6db81f62e7278d227ce3a945840b5c97c40f312826d543837a7",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "1de2e233c2d2b8e7d741da2c8fc7c3afbce08d08dc8726e5f8da1504229ac66f34b84bd1f1203ca4cbb03e03b13ef64cda9c728ceebe48be47240f55b75b4a0d"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "a085ac1b58b8f6db81f62e7278d227ce3a945840b5c97c40f312826d543837a7",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-nv-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nv-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nv-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nv-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nv-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nv-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nv-field-restriction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nv-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nv-pay-equity-review",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nv-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "5e05531618391c0585bfbd9abe3b5bc38b78319eba275cd9d23611e0669a621a",
+      "prev_digest": "",
+      "digest": "0edf77c6b37dd45b30a4fa9e4a56d4fb09ca9070a911461024836b9228865854",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "2dfb042c02dab458576a2137df986f0e8b6ae8481f18ebeaf5d64ce4d95622d7cf885c11e0aa20010025d7c5b5a0efd6a31d9b8fe539adc7d9a7f7126079820e"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "db641d46f5319c4787228348edead3df13620831404902e06a6c61f428f7e215",
+      "prev_digest": "0edf77c6b37dd45b30a4fa9e4a56d4fb09ca9070a911461024836b9228865854",
+      "digest": "3b7b5b0564e05ae900480186c0e42280be639a5d4b2767743cdf1ac3f9a156b4",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "e1388c870b58a114650e2f5d716f1d23152f9cada3941fbb6d3d7641e4be1cddf8dcc376d57a123a165d2421d584d54a9fb9b471760bd87a29e305bc306c6001"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "a085ac1b58b8f6db81f62e7278d227ce3a945840b5c97c40f312826d543837a7",
+      "prev_digest": "3b7b5b0564e05ae900480186c0e42280be639a5d4b2767743cdf1ac3f9a156b4",
+      "digest": "afe1cf09dd6b9bb92eb7cf0189dae7eb83940e2e599043ec8b1ede5b58ac4817",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "0461e7e3f0572301deb34e82c5d4dc359b24547e6da752151b87b2ce776e64ef4d55725ba40f1fae282834f3119657e3b60e1c014c36f6b4c91aaa56e2ee8604"
+      }
+    }
+  ]
+}

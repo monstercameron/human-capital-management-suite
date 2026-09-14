@@ -1,0 +1,425 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-hi-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "HI",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-hi-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS §388-2",
+          "note": "At time of hiring, employer should provide written notice of rate of pay, hours of work, pay frequency, and wage policies (best practice; no explicit statute, but HRS §388-2 requires semi-monthly pay).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "pay_frequency"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-hi-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS § 378-2.4",
+          "note": "Salary history ban (HRS § 378-2.4, effective 1/1/19): Employers prohibited from inquiring about or relying on applicant's prior salary history; applies to all employers.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-hi-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS §388-4",
+          "note": "Payroll records retention (HRS §388-4):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "payroll_records"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-hi-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS §378-71a",
+          "note": "Hawaii Family Leave Law (HFLL) (HRS §378-71a, verify exact section):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "leave_type": "paid family and medical leave",
+          "interaction_rule": "Hawaii Family Leave Law (HFLL) (HRS §378-71a, verify exact section):"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-hi-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS §388-2",
+          "note": "Final pay timing: At discharge, all earned wages due at time of discharge or no later than next working day; semi-monthly pay required (HRS §388-2, §388-3).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-hi-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS §388-2",
+          "note": "Final pay timing: At discharge, all earned wages due at time of discharge or no later than next working day; semi-monthly pay required (HRS §388-2, §388-3).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing: At discharge, all earned wages due at time of discharge or no later than next working day; semi-monthly pay required (HRS §388-2, §388-3)."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-hi-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS § 378-2.3",
+          "note": "Pay transparency mandate (HRS § 378-2.3 as amended by Act 203, effective 1/1/24): Employers with 50+ employees must disclose reasonably expected wage/hourly rate or salary range in all job postings (internal and...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay transparency mandate (HRS § 378-2.3 as amended by Act 203, effective 1/1/24): Employers with 50+ employees must disclose reasonably expected wage/hourly rate or salary range in all job postings (internal and external)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-hi-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Non-compete/non-solicit: Store contract date, business protective purpose (trade secret, customer list, confidential info), duration, geography, scope; flag technology worker exemption if applicable; post-employment...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete/non-solicit: Store contract date, business protective purpose (trade secret, customer list, confidential info), duration, geography, scope; flag technology worker exemption if applicable; post-employment covenants require clear protective purpose."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-hi-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS §394B",
+          "note": "Mini-WARN (HRS §394B): Employers with 50+ employees must provide 60 days' notice of divestiture, closing, partial closing, or relocation; severance required; failure to provide notice = back pay/benefits for up to 60...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Mini-WARN (HRS §394B): Employers with 50+ employees must provide 60 days' notice of divestiture, closing, partial closing, or relocation; severance required; failure to provide notice = back pay/benefits for up to 60...",
+          "employee_threshold": 50,
+          "notice_days": 60
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-hi-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS §387-2",
+          "note": "Minimum wage and scheduled increases: Hawaii minimum wage is $16.00/hour (2026), increasing to $18.00/hour on January 1, 2028 (HRS §387-2); no subminimum allowed for minors or any class of worker.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "16.00",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "indexation": "SCHEDULE",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-hi-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS § 378-71",
+          "note": "Equal pay statute (HRS § 378-71, verify exact section number):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-hi-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS §388-6",
+          "note": "Pay statement requirements (HRS §388-6):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-hi-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "HRS § 89-16.5",
+          "note": "Hawaii has no general statute giving private-sector employees a right to inspect or copy their own personnel file.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-hi-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "§ 378-62",
+          "note": "Whistleblower protections and violation of public policy (e.g., refusing illegal act); verify scope and specific statute (§ 378-62 whistleblower, verify).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_activities": [
+            "whistleblower_report"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-hi-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No Hawaii statute regulates private-sector drug testing; federal law governs (DOT rules for transportation).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-hi-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/hawaii.md",
+          "section": "Chapter 487N",
+          "note": "Hawaii Revised Statutes Chapter 487N addresses data breach notification and personal information security (primarily consumer data; verify whether employee data specifically covered).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/hawaii.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "c858eca84492fa37472154c51202c358799ddec6543046142b35bffd9ffbfd0b",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "30257c8132b4f08c84f0a8412b931d45c8a21ff5e3bc244362ff23289c23d82c78ecffda550def3f5642d0dfe520b1409c143655db5f2992709c89490d6db901"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "c858eca84492fa37472154c51202c358799ddec6543046142b35bffd9ffbfd0b",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-hi-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-hi-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-hi-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-hi-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-hi-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_bases, comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-hi-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-hi-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-hi-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks NOTICE '?' for HI; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PERSONNEL_FILE '?' for HI; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-hi-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-hi-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-hi-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-hi-leave-interaction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-hi-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-hi-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-hi-pay-equity-review",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-hi-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "db240944e724015378c9b865bc2d151d72e506289e45ef59ec9331dec83e0787",
+      "prev_digest": "",
+      "digest": "55d3366d2ded7ae0c7b5b6d4ccff4793697837c75ae7b61cf33fc16475472ed9",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "20afed9dbbf9277daddfae187ba4ff0545c63e5bd933048f67940647553ae2eefefb34678c6767e0665f5b98759628bd80dccae12206e7961b51026ac2809304"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "44d56fbb94d1145eb99a0298a3fb59b6c11e7ca5673646cb0b1e77771febfae6",
+      "prev_digest": "55d3366d2ded7ae0c7b5b6d4ccff4793697837c75ae7b61cf33fc16475472ed9",
+      "digest": "b9dc87f9a0b1a1d0c2819bce0c07ac932f0723a8f36b57d76dbb5e6b358879a2",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "36035cd1f4aebbf31b2a8280962f2fa72f9473b9c57a590948eeba75c5b1af351e4fd9500dfe3ca44f521c916d2ded30b0e6cd887f84dbffe532a32efcab0b09"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "c858eca84492fa37472154c51202c358799ddec6543046142b35bffd9ffbfd0b",
+      "prev_digest": "b9dc87f9a0b1a1d0c2819bce0c07ac932f0723a8f36b57d76dbb5e6b358879a2",
+      "digest": "85665106b6c83d9f72371ef81f9b9adde3f5d1e73a546796417a7af4e03a6682",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "1680e73c7a9cd7ca462bef09a1a60540367b980fd698a364683c53345cc7e17e420d4c4cc32a35621c722086e3af884c4d9972abf427618a3c661ca97c6ab903"
+      }
+    }
+  ]
+}

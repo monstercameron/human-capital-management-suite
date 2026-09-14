@@ -1,6 +1,6 @@
 {
-  "canonical_digest": "fb8dfca360a4ea907de5f5f16b04234deeef32f99578cadf55dede866a54a9e1",
-  "signature_value": "cc10031f01c252b3dbeb351e33291e19f76d3ba71f6c3e63aa72b859edd06d07331c37ecac733011c7ebd6502a0e168201e9e974ff3f72027d7957d6a33f2400",
+  "canonical_digest": "febb6b41e25c7b95275e13be7e5dcf7226f8dab07cd0c198367cb8f8f9f8645e",
+  "signature_value": "46bdd208b1fca32ec1512a8ece5daf22e2d1983f0138c456ad7d3fd1d8aeeeae11413e99f007be2cd39ee9993affe487b9f7971513af9a75062638aa955e2107",
   "counts": {
     "sources": 2,
     "scope_items": 1,

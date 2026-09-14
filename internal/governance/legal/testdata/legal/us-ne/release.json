@@ -1,0 +1,358 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ne-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "NE",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-ne-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Neb. Rev. Stat. § 48-1230",
+          "note": "Notice of payday changes: If an employer alters regular paydays, 30 days' written notice must be given to each employee before the change takes effect (Neb.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "timing_days": 30,
+          "channel": "written",
+          "content_fields": [
+            "payday"
+          ]
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-ne-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Neb. Rev. Stat. §§ 48-3801",
+          "note": "Neb. Rev. Stat. §§ 48-3801 to 48-3811 establish paid sick leave requirements.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Neb. Rev. Stat. §§ 48-3801 to 48-3811 establish paid sick leave requirements. Applies to employers with 11 or more employees; LB 415 (2025) exempts employers with 10 or fewer employees, temporary workers, and employees under age 16."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ne-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Neb. Rev. Stat. § 48-1230",
+          "note": "Pay Frequency: No state law mandates a specific pay frequency (weekly, biweekly, semi-monthly, monthly).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ne-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Neb. Rev. Stat. § 48-1230",
+          "note": "Final pay timing: next payday or within 2 weeks of termination, whichever is sooner: Unpaid wages (including accrued vacation/PTO) become due immediately on separation under Neb. Rev. Stat. § 48-1230.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing: next payday or within 2 weeks of termination, whichever is sooner: Unpaid wages (including accrued vacation/PTO) become due immediately on separation under Neb. Rev. Stat. § 48-1230. Accrued PTO is considered wages."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-ne-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Neb. Rev. Stat. § 87-404",
+          "note": "Statutory framework: Neb. Rev. Stat. § 87-404 applies only to franchise-relationship noncompetes (Franchise Practices Act context) and is not the governing law for general employment noncompetes.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Statutory framework: Neb. Rev. Stat. § 87-404 applies only to franchise-relationship noncompetes (Franchise Practices Act context) and is not the governing law for general employment noncompetes."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-ne-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "LB 921",
+          "note": "Nebraska WARN Act (LB 921) requires 90-day notice for mass layoffs of 25+ employees: State mini-WARN applies to separations of 25 or more employees on the same day, for the same reason, expected to last 7+ days; federal...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Nebraska WARN Act (LB 921) requires 90-day notice for mass layoffs of 25+ employees: State mini-WARN applies to separations of 25 or more employees on the same day, for the same reason, expected to last 7+ days; federal...",
+          "employee_threshold": 25,
+          "notice_days": 90
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-ne-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "LB 258",
+          "note": "Minimum wage: $15/hour (2026), with annual increases: Effective January 1, 2026, minimum wage is $15/hour per Initiative 433 (LB 258); increases 1.75% annually starting January 1, 2027, calculated and published by...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "15.00",
+            "currency": "USD"
+          },
+          "worker_class": "tipped employees",
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ne-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Neb. Rev. Stat. § 48-1219",
+          "note": "Capture job-classification and compensation data: Neb. Rev. Stat. § 48-1219 requires equal pay for equal work; document job descriptions, skill requirements, effort, responsibility, and working conditions for all roles.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "comparator_standard": "equal work",
+          "documentation_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ne-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Neb. Rev. Stat. § 48-1230",
+          "note": "Wage Statements: Neb. Rev. Stat. § 48-1230 requires employers to deliver or make available to each employee on each regular payday a wage statement showing, at minimum: (1) identity of the employer, (2) hours for which...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "deductions",
+            "hours_worked",
+            "employer_identification"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ne-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Neb. Rev. Stat. §§ 48-1219",
+          "note": "Equal Pay Law: Neb. Rev. Stat. §§ 48-1219 to 48-1227 (Equal Pay Act) prohibit wage discrimination based on sex.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-ne-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Retain separation documentation: Maintain final-pay records, separation notices, and related documentation.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ne-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Nebraska Revised Statutes §§ 48-1901",
+          "note": "Drug and Alcohol Testing: Nebraska Revised Statutes §§ 48-1901 to 48-1910 address drug and alcohol testing in the workplace.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment"
+          ],
+          "standard": "RECOMMENDED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ne-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/nebraska.md",
+          "section": "Neb. Rev. Stat. § 87-803",
+          "note": "Data breach notification required without unreasonable delay: Neb. Rev. Stat. § 87-803 requires notification of affected parties \"as soon as possible and without unreasonable delay\" if personal information is breached...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/nebraska.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "c902254a8729c8eaa830e3c35fba36b0a4e1bc88bc11251e1bd0b5e1dbc0c036",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "98bcfbfd8ed2be4c82ce97acc9f6ce8590468707d027d72145ce8c3aadd29d09cc11eee328f5a155117b548d0b513276d1db34a09c4b9669fad1f9b426af4b08"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "c902254a8729c8eaa830e3c35fba36b0a4e1bc88bc11251e1bd0b5e1dbc0c036",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ne-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ne-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ne-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ne-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ne-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ne-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for NE; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for NE; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ne-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ne-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ne-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ne-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "a15db95209039c3d504db54f4c31d19496ac507c35076d49aa4e7c05a2266936",
+      "prev_digest": "",
+      "digest": "af8094f7bc2aefbf39e82a62fd693942931a4b783a3c9b3a54ae91020ef1b910",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "a2c021a1598b0d638b32435ca38b86b8600790bbdf547defcf426a16b5ff4aba84b63e844c25273bf3a0f23c070307e84e1ef1b91e877f6f516af326deae230a"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "bd54e646fc7edaf7f89e216d16cb5e7fec87ebc5083f58a1ba810ac98c9c5149",
+      "prev_digest": "af8094f7bc2aefbf39e82a62fd693942931a4b783a3c9b3a54ae91020ef1b910",
+      "digest": "8746a64d3b17e079fbace3da300bda51783c55bdbdc9d37f58a8b6144c518355",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "eac18b626db571c4b24dce87c49f3c9a2078b4fb8a600c54abd4b296834635b30f6d2f72eaac516f74f1c592696b5cfbbd7622a88240586ef3efbb71d208d90e"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "c902254a8729c8eaa830e3c35fba36b0a4e1bc88bc11251e1bd0b5e1dbc0c036",
+      "prev_digest": "8746a64d3b17e079fbace3da300bda51783c55bdbdc9d37f58a8b6144c518355",
+      "digest": "af473c004b9094820ca26f40962f9d5804515eba621ab8769b3ecfbbbf9e003a",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "c139e0da8f8db354a9145b0049d36a1efa0b33da4d31fa74f671f842d1921478bb4013c4af1184f6b8ca1cd8718729825ff612b415b76b5aa360d23dd2421708"
+      }
+    }
+  ]
+}

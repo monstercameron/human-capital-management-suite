@@ -45,7 +45,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S."
+        "interaction_rule": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S. § 23-373)"
       }
     },
     {
@@ -74,7 +74,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Model a 7-day working-day deadline for final wage payment upon discharge, or link to next regular payday if sooner (A.R.S."
+        "deadline_description": "Model a 7-day working-day deadline for final wage payment upon discharge, or link to next regular payday if sooner (A.R.S. § 23-353)"
       }
     },
     {
@@ -103,6 +103,21 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "PAY_EQUITY_REVIEW",
+      "id": "us-az-pay-equity-review",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/arizona.md",
+        "section": "A.R.S. § 23-341",
+        "note": "Equal pay statute (A.R.S.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "protected_bases": ["sex", "age"],
         "standard": "REQUIRED"
       }
     },

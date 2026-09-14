@@ -1,0 +1,310 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ky-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "KY",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-ky-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "KRS 337.320",
+          "note": "Retain all wage and separation records for 4 years (KRS 337.320): Promotion date, old pay, new pay, effective date, overtime calculations, seventh-day calculations, final-pay records.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 4,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ky-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "KRS 337.020",
+          "note": "Enforce KRS 337.020 semi-monthly requirement: Ensure the new pay schedule pays wages at least semi-monthly (twice per calendar month).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ky-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "KRS 337.055",
+          "note": "Provide final paycheck by the later of 14 days after termination or the next regular payday (\"whichever last occurs\", KRS 337.055).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Provide final paycheck by the later of 14 days after termination or the next regular payday (\"whichever last occurs\", KRS 337.055)."
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ky-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "KRS 344",
+          "note": "Has the employer reviewed pay equity by gender/race for comparable roles (KRS 344 compliance)?",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "gender",
+            "race"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ky-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "KRS 337.060",
+          "note": "Deductions and Pay Statements: KRS 337.060 permits only deductions required by law (federal/state income tax, Social Security, child support), court order, or written employee authorization.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "gross_wages",
+            "net_wages",
+            "deductions",
+            "employer_identification"
+          ],
+          "consent_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-ky-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "KRS 341.010",
+          "note": "Contractor vs.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "dimension": "CONTRACTOR",
+          "test_description": "Contractor vs. Employee Classification: Kentucky employment law (KRS 341.010 et seq., Unemployment Insurance Law) defines \"employee\" for unemployment-insurance purposes. Neither contract labels nor the parties' intent controls; liability is based on the true underlying nature of the working relationship. Factors include (1) control over work methods and schedules, (2) provision of tools and equipment, (3) integration into the business, (4) permanence of the relationship, and (5) whether the worker sets own rates/terms. Misclassification of employees as independent contractors triggers unemployment-insurance, wage, and tax liabilities and may expose employers to audit and penalties.",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ky-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Do not use a manager change as a pretext for discrimination (e.g., changing a manager solely to create a basis for termination); such actions may expose the employer to retaliation or constructive-discharge claims.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-ky-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "File a Separation Notice (UK-ES form or equivalent) with the Kentucky Department of Unemployment Insurance within a specified timeframe (typically within 10 days of separation).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recipient_authority": "state unemployment insurance agency",
+          "deadline_days": 10,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ky-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Drug Testing: No Kentucky law prohibits pre-employment drug testing.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ky-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kentucky.md",
+          "section": "KRS 365.732",
+          "note": "Data breach notification required: Kentucky law (verify: likely KRS 365.732 or related statute) requires breach notification \"without unreasonable delay\" when personal information is exposed; specific timeline unclear...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/kentucky.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "8c2f34bfb4ac7ff769c2c40073869ea10d82054b07c34f6cdd129a0d0a520928",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "888c7999e0677c87316801019da53d48d0d658396e67835b3ed33b31eb59ed18f6ae29f2842563c59150f70b4f65609e60afe9071694d579109384c9e9b84a0a"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "8c2f34bfb4ac7ff769c2c40073869ea10d82054b07c34f6cdd129a0d0a520928",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ky-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ky-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ky-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ky-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ky-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for KY; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ky-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ky-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ky-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ky-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ky-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ky-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "8f575c6b93b072d0907ae59d5fb4847c9802f9cc008ff3eca488bfe5053e1a02",
+      "prev_digest": "",
+      "digest": "dd39f6417f2baa8dbf049d505ebf26dea89529b234353dea87acadc9fc16cf44",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "cc56c57be692751e4aacdb07a5df580ca0150194dd143b0c198fa43ebbda75cf5bf3f4f8bc6b6972ad6f55ea99dd47f73b0b812e0858de3c4ce0dcb4b614830c"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "3e131fdaf2c8f765ea68a34ba6b21be44f34a849ef0bb0a0c9a98a6cc2825834",
+      "prev_digest": "dd39f6417f2baa8dbf049d505ebf26dea89529b234353dea87acadc9fc16cf44",
+      "digest": "2fc4a0e13a325d7c37e330523fe9c2bc155fce12aa812fece3f3e952b24f66af",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "6cfd2aaa07055b61536dd38041a366309a3a3dd1cefee6349bbffc489899cf8068739029b94a708cb74e85fd3bd7cf50a7804ca0a9f4401dd7bbf69dc4c05d04"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "8c2f34bfb4ac7ff769c2c40073869ea10d82054b07c34f6cdd129a0d0a520928",
+      "prev_digest": "2fc4a0e13a325d7c37e330523fe9c2bc155fce12aa812fece3f3e952b24f66af",
+      "digest": "44992bffbda6a34dec38b8371f761da51b32a9a576de4912611fabd09f0faaad",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "ccc3805ab5b24989afd677abc09b4150ffcd0ed749fedafada6b24295316955eb9e66dd149e9fdaf590e9305768e804c752c4f05e79bafebe094d5f1be9c380d"
+      }
+    }
+  ]
+}

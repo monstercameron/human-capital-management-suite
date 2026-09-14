@@ -1,0 +1,288 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ks-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "KS",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-ks-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kansas.md",
+          "section": "U.S.C. § 211",
+          "note": "Record Retention and Notice: K.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "channel": "written",
+          "content_fields": [
+            "pay_rate"
+          ]
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ks-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kansas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Wage Payment Act governs pay frequency and final pay: K.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ks-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kansas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Wage Payment Act governs pay frequency and final pay: K.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Wage Payment Act governs pay frequency and final pay: K.S.A. 44-313 to 44-327 require regular pay intervals (at least semimonthly) and timely final payment on separation; notice of pay-rate changes required before work is performed (K.S.A. 44-320, K.A.R. 49-20-1)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-ks-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kansas.md",
+          "section": "SB 241",
+          "note": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman) — K.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman) — K.S.A. 50-163 does not reach them. 2025 SB 241 (eff. 2025-07-01) amended K.S.A. 50-163 to presume enforceable two categories of non-solicitation covenant (employee non-solicits protecting confidential/trade-secret information or ≤2 years; customer non-solicits limited to material-contact customers and ≤2 years) and to require reformation of overbroad ones."
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-ks-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kansas.md",
+          "section": "K.S.A. § 44-701",
+          "note": "Contractor vs.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "dimension": "CONTRACTOR",
+          "test_description": "Contractor vs. Employee Classification: Kansas recognizes the ABC test for unemployment insurance purposes (K.S.A. § 44-701 et seq.) similar to other states. Control over work methods, provision of tools, integration into the business, and permanence determine status. Misclassification exposes employers to wage-and-hour audits and unemployment insurance liabilities.",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ks-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kansas.md",
+          "section": "U.S.C. § 1681",
+          "note": "Sex-offender registry checks (permitted, especially for positions involving children or vulnerable populations).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-ks-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kansas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No mini-WARN act: Federal WARN Act applies (60 days for mass layoffs affecting 50+ in 30 days); Kansas has no state-level mass-separation notice requirement.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "deadline_days": 60,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ks-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kansas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Drug Testing: No Kansas statute prohibits pre-employment drug testing.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ks-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/kansas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Data breach notification: K.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "subject_deadline_days": 5,
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/kansas.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "40795db36d4227acb99315a42ca253f022a99a552ab14f002fe2708f5ffc6f27",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "1f026f03b52365bbf69bc047a3d13680b82196efa754ca1ff55dadecdd841f8eff16e02c9eb2642038fa6695ca321452b4eae2bf67203591eb9356ee3b6e3907"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "40795db36d4227acb99315a42ca253f022a99a552ab14f002fe2708f5ffc6f27",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ks-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ks-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ks-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ks-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks NON_COMPETE '?' for KS; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ks-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ks-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ks-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ks-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ks-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ks-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ks-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "ee753af15865e7a1de302072ad794137191716e7a9214449947cbd42f1c8be7b",
+      "prev_digest": "",
+      "digest": "5a98c2b8581483765a1b1e6499559d8b0f305342b41e57c716ee0d70959d6921",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "dadac4f13d6f59e4f968f559ce101d484b6f0e0cf3fd42be434bd44d86e7bf4ee89a759fc9d94bd27b70982e49013a96aaa3d73b59430a1cb0abe87c460bfe0d"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "bacca5cbcc3144f7ea34483c5756b3577fe259e2e49e874f6dc55165ea5d349a",
+      "prev_digest": "5a98c2b8581483765a1b1e6499559d8b0f305342b41e57c716ee0d70959d6921",
+      "digest": "b57ceb84f02d41f5ec0bdc977d1897aad07f067e3c40f8711279d082d0ba0d4c",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "a9fc98c64b9258dfa5467ec79c04681163026cb22378abda255513d410a8d68429c17343108cee289f427a031a0955499bdf948f46a74a6ab8e6ef5e98da8b02"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "40795db36d4227acb99315a42ca253f022a99a552ab14f002fe2708f5ffc6f27",
+      "prev_digest": "b57ceb84f02d41f5ec0bdc977d1897aad07f067e3c40f8711279d082d0ba0d4c",
+      "digest": "24611b88d626428b901d127fdb461f4a4587e5a5def0cb454469d5ffba674c17",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "d7a4d08170cf50dfe11d3e2ae18de6be3a07b47d8ab4842d57ac62de408fcdb6771620ce50fc718680f0ed0051417f78130ae10b3e073f8cac652d2a99d0c707"
+      }
+    }
+  ]
+}

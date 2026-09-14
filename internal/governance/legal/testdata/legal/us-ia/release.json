@@ -1,0 +1,339 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ia-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "IA",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-ia-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "Iowa Code § 91A.3",
+          "note": "Pay-rate change notice required: Iowa Code § 91A.3 requires written notice of any change in pay rate at least 3 days before the change becomes effective.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "timing_days": 3,
+          "channel": "written",
+          "content_fields": [
+            "pay_rate"
+          ]
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-ia-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "§ 91A.6",
+          "note": "Record Retention: Maintain all pay-rate-change notices, promotion records, and wage data for 4 years per § 91A.6.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 4,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ia-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "Iowa Code § 91A.3",
+          "note": "Pay Frequency and Wage Notices: Iowa Code § 91A.3 does not mandate a specific pay frequency, but employers must establish regular paydays and notify employees in writing (at time of hiring and before any change) of:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ia-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "Iowa Code § 91A.4",
+          "note": "Final pay timing mandated: Iowa Code § 91A.4 requires final wages paid by the next regular payday or within 5 days, whichever occurs first; fail to comply invokes civil penalty.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing mandated: Iowa Code § 91A.4 requires final wages paid by the next regular payday or within 5 days, whichever occurs first; fail to comply invokes civil penalty."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-ia-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "§ 84C",
+          "note": "Iowa WARN (§ 84C) - Layoff Scenario: If the system models a future layoff:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Iowa WARN (§ 84C) - Layoff Scenario: If the system models a future layoff:"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ia-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "§ 91D.2",
+          "note": "Equal Pay Compliance (§ 91D.2): When entering a promotion or pay change:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ia-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "Iowa Code § 91A.8",
+          "note": "Failure to pay final wages timely triggers liquidated damages under Iowa Code § 91A.8: the employee may recover double the amount of unpaid wages plus attorney fees and costs.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "gross_wages",
+            "deductions",
+            "employer_identification"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-ia-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "§ 91B.1",
+          "note": "Personnel-File Access (§ 91B.1): Model a 3-business-day response window for employee requests to access their personnel file (which includes pay history, promotions, performance notes).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ia-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "SF 418",
+          "note": "Protected Classes under Chapter 216: Iowa Code Chapter 216 (Civil Rights Act) protects employees from discrimination based on sex, race, color, creed, national origin, disability, and age.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-ia-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Separation and Termination Records: Employers should retain separation notices, final-pay records, and related documentation as part of the 4-year payroll-retention cycle.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ia-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "Iowa Code § 730.5",
+          "note": "Drug and Alcohol Testing: Iowa Code § 730.5 permits drug and alcohol testing of employees and applicants under specified conditions:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ia-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/iowa.md",
+          "section": "§ 715C.1",
+          "note": "Breach Notification (§ 715C.1): If a personnel-file or wage-record breach occurs:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/iowa.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "5ec660c99b133f3dd19354b21ac20caf850c6ee31488d14061c2a3c0d0b18f32",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "a0d2a0d21f53fcc93ff10877c3c59ee05d5de0f054b1405ea905e04b7cb9558a0306551834783226a0d1b4905d34cd148c74e191b9127df860e59b7c49f5ef06"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "5ec660c99b133f3dd19354b21ac20caf850c6ee31488d14061c2a3c0d0b18f32",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ia-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ia-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ia-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ia-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_bases, comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ia-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ia-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ia-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ia-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for IA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for IA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ia-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ia-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ia-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ia-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "8c86628261c1ab41cc8f265f730f9ceb663ced82ba67c1cdd48785b2049f96a3",
+      "prev_digest": "",
+      "digest": "6cc802c5c3876d3c2a4b7222e40cc932dbdc4a3ff533571dca39eccb69a52cc3",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "d70e45af8ef529009b5ce72fe977becb56f9000e5bb65fa17afbd279dbcc685b7a0ac782fde2bafc4736a2393e3ea735f529eaef6b029985935e8d448ad2f10c"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "6536365136bda1a7a20eac9b705c749cb4bee66d194f582d34f98a3df46aca4f",
+      "prev_digest": "6cc802c5c3876d3c2a4b7222e40cc932dbdc4a3ff533571dca39eccb69a52cc3",
+      "digest": "aee3248982d88a33883100bb103887b475d65dcb92d79992d63e8b595ce639db",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "aa58974734629109a5f0c56ef3e6d18562300de94f85af647c5dbd5f64667e74fedab62dd8c004bfa2c62e397dd426136bfac65ca01b5f4e87f508111693e203"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "5ec660c99b133f3dd19354b21ac20caf850c6ee31488d14061c2a3c0d0b18f32",
+      "prev_digest": "aee3248982d88a33883100bb103887b475d65dcb92d79992d63e8b595ce639db",
+      "digest": "5999866990f051306e91a47804d8a1818a6266b7e64d3ed282654772695cd646",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "b91447c8ca721b60c48c458bd85b5441c92c9653facf1816fe551056dc9680a7fd36ba7897fe8ab98125a128289bf0f7d18a0c85a9b582cf32815f2b94130205"
+      }
+    }
+  ]
+}

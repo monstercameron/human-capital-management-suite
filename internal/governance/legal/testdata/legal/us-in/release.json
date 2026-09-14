@@ -1,0 +1,262 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-in-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "IN",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-in-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/indiana.md",
+          "section": "U.S.C. § 211",
+          "note": "Payroll Record Retention: IC 22-2-8 requires employers to retain payroll records, time records, and documents related to remuneration for at least 4 years after the calendar year in which remuneration was paid.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_years": 4,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-in-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/indiana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Wage payment compliance: Ensure new base pay is communicated and recorded in accordance with IC 22-2-5 semimonthly or biweekly payment schedule.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-in-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/indiana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Final-pay calculation audit: On termination, calculate final pay as all earned wages through termination date, accrued PTO (if required by policy), and vacation (if required by policy).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final-pay calculation audit: On termination, calculate final pay as all earned wages through termination date, accrued PTO (if required by policy), and vacation (if required by policy). Validate that final pay meets next regular payday or employer policy."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-in-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/indiana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Non-compete flag: If the employee is a physician or the employer uses non-compete agreements, attach and flag for legal review:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete flag: If the employee is a physician or the employer uses non-compete agreements, attach and flag for legal review:"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-in-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/indiana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Ensure no retaliation: Confirm termination is not in retaliation for jury duty, voting, public policy (e.g., OSHA complaint), or protected activity under federal law.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_activities": [
+            "jury_duty"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-in-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/indiana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Retain termination records: Preserve separation notice, final-pay documentation, and any signed agreements (non-compete, acknowledgment, etc.) for 4 years per IC 22-2-8.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-in-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/indiana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Drug Testing: No Indiana state law prohibits pre-employment drug testing.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-in-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/indiana.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Data Privacy Law: Indiana has no comprehensive state data privacy statute equivalent to California CCPA or Colorado CPA.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/indiana.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "46eeb760e06d57148a0fb9f52996bf1751862864d11d88f0700d4e077c1e5382",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "e496b322f39c66fdc78796b83951703a5a36b6aa9e0ed6ce1b6b80494fecd386ad779ba15387cdf6e822fbce0e17228b338c6d8d4a32ef6b6973a5d771f99106"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "46eeb760e06d57148a0fb9f52996bf1751862864d11d88f0700d4e077c1e5382",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-in-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-in-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-in-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-in-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-in-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-in-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-in-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-in-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-in-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-in-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "687b3a0ea4d18fe1e33413590f848167ca8dd8772a12c9f90eee81bab5135465",
+      "prev_digest": "",
+      "digest": "fdfa5e3b5f07a55968dde5bf96c279bc1f4bb3a182fe71715437b4809fb76c1e",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "5757b6755c0d022382b2a01b85e0b0d61d18ee53c0340d3d177128b850d22806550e1bac76c48d3d83ac50ac3a739c9cd1bbbba13defaab88cb69af9eed27804"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "295e175bcccfce3d147ae042f0b2693174cf8ec4b0e34217a082058ffb753346",
+      "prev_digest": "fdfa5e3b5f07a55968dde5bf96c279bc1f4bb3a182fe71715437b4809fb76c1e",
+      "digest": "dfc2a3d766b384f162f4cfbba0fc0717fba1377f8823df2653ef7a980af6d5c1",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "499edea0d00a94111d7a783598128b88f287a06e7a87fe7deae0565875fdfcfb434153809d18b81f18de8173b9d205ef1f4a2e5148685a9e40a0e32068736f0a"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "46eeb760e06d57148a0fb9f52996bf1751862864d11d88f0700d4e077c1e5382",
+      "prev_digest": "dfc2a3d766b384f162f4cfbba0fc0717fba1377f8823df2653ef7a980af6d5c1",
+      "digest": "e2f386346d4f064bdbb2a9a86ecff0284c06a9fcf4e41634cc8b9d62ca02f71f",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "68a201c9377debbd73f8dcf155505aa1d6ecbf8c9b40f0fc48e23dee35a73ddb5bd2efb8b4cdc6cbd9e04f123de420e139d8c06dbdbdd9c8a0a8987efb23eb0f"
+      }
+    }
+  ]
+}

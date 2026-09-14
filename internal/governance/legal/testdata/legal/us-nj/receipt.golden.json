@@ -1,0 +1,659 @@
+{
+  "legal_context_digest": "9409a6d78b2fac7f0827c4cbc56a0bfd6bf188077488b476d2c643403108b834",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "NJ",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-nj-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "NJ",
+          "Locality": ""
+        }
+      },
+      "Digest": "2881959bcb5eb132b362e7cffe9264e63fe8950ef8231245c5eda6357f51cb31",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-nj-notice",
+      "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "N.J.S.A. 34:11-4.1",
+        "Note": "N.J.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NJ",
+        "Locality": ""
+      },
+      "PackID": "us-nj-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nj-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nj-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nj-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-nj-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "414a54c3cca24a8b0ed6cbd9fce24026f9de2e607f26d9fa939a2fabe60dd0b7"
+    },
+    {
+      "Type": 3,
+      "ID": "us-nj-retention",
+      "Description": "retain payroll_records for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "N.J.S.A. 34:11",
+        "Note": "Payroll and personnel record retention (N.J.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NJ",
+        "Locality": ""
+      },
+      "PackID": "us-nj-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nj-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nj-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "b06a08f720e1439a87b093dfe92f0851e9347e0998377232887f10b09654f63d"
+    },
+    {
+      "Type": 4,
+      "ID": "us-nj-leave-interaction",
+      "Description": "accrued paid sick leave: Earned Leave Accrual and Termination (§ 34:11D-1): Track accrued sick leave (1 hour per 30 hours worked, 40-hour max per year). On termination, automatic payout of accrued balance unless written policy limits compensation exists and was provided at hire. On promotion within same employer, leave balance carries forward.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "§ 34:11D-1",
+        "Note": "Earned Leave Accrual and Termination (§ 34:11D-1): Track accrued sick leave (1 hour per 30 hours worked, 40-hour max per year).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NJ",
+        "Locality": ""
+      },
+      "PackID": "us-nj-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nj-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nj-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-nj-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "a3065ca8781bed39cd4e234554416a6c8830000b67844080973cd6c4d2db3aff"
+    },
+    {
+      "Type": 5,
+      "ID": "us-nj-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "N.J.S.A. 34:11-4.2",
+        "Note": "Pay frequency and timing (N.J.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NJ",
+        "Locality": ""
+      },
+      "PackID": "us-nj-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nj-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nj-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "70605e25f5a635cfccccd662d4b5dafca5fa3a972417e28259fede7ef83fcfbb"
+    },
+    {
+      "Type": 7,
+      "ID": "us-nj-pay-transparency",
+      "Description": "internal_promotion: Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure. On internal promotion posting, ensure reasonable-notice requirement met (10+ employees threshold).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "§ 34:6B-23",
+        "Note": "Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NJ",
+        "Locality": ""
+      },
+      "PackID": "us-nj-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nj-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nj-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-nj-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "225708c831d7281db07234af29597ba45b0bf747b1ae740cb1f7c38894caad06"
+    },
+    {
+      "Type": 11,
+      "ID": "us-nj-wage-floor",
+      "Description": " floor of  for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "N.J.S.A. 34:11-56",
+        "Note": "Minimum wage (N.J.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NJ",
+        "Locality": ""
+      },
+      "PackID": "us-nj-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nj-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nj-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-nj-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "96666a1f1d97a2434dc982fa6f8d7ae061d3d37a07d8c9ac9bfd3b2316ad65fd"
+    },
+    {
+      "Type": 12,
+      "ID": "us-nj-pay-equity-review",
+      "Description": "pay-equity review against substantially similar work for bases age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "Diane B. Allen § 10:5-12",
+        "Note": "Equal Pay Audit Flag (Diane B.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NJ",
+        "Locality": ""
+      },
+      "PackID": "us-nj-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nj-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nj-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-nj-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "7546ac33fcf4f652046fe05ce987714420be3806746336d0292d8d532f9417c4"
+    },
+    {
+      "Type": 15,
+      "ID": "us-nj-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "N.J.S.A. 34:11",
+        "Note": "Payroll and personnel record retention (N.J.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NJ",
+        "Locality": ""
+      },
+      "PackID": "us-nj-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-nj-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-nj-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "43af5f8f0952121f0e460a688390ff963cce4d5e8706b01187b39c73bf31b290"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-nj-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "§ 34:6B-20",
+        "Note": "Salary History Inquiry Block (§ 34:6B-20): Disable any form field attempting to request prior salary/wages from external candidates; log any such queries as compliance risk.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-nj-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "§ 34:11-4.3",
+        "Note": "Final Pay Timing (§ 34:11-4.3): Schedule final paycheck by next regular payday following termination; include all wages due.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-nj-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "§ 34:21-1",
+        "Note": "WARN Act Trigger (§ 34:21-1 as amended): If planned layoff affects 100+ employees nationwide or 25+ employees in single event and employer has 100+ employees total, auto-flag and require 90-day notice scheduling (vs.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-nj-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "§ 34:11-4.1",
+        "Note": "Wage Theft Act Compliance (§ 34:11-4.1): Document all pay rate changes and provide written notice in advance; failure to provide notice triggers retaliation and wage-theft penalties (200% liquidated damages, attorney...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-nj-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "N.J.S.A. 24:6",
+        "Note": "Cannabis exception: N.J.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-nj-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+        "Section": "N.J.S.A. 56:8-163",
+        "Note": "Data breach notification (N.J.S.A.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NJ",
+            "Locality": ""
+          },
+          "PackID": "us-nj-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-nj-notice",
+          "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+            "Section": "N.J.S.A. 34:11-4.1",
+            "Note": "N.J.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NJ",
+            "Locality": ""
+          },
+          "PackID": "us-nj-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-nj-retention",
+          "Description": "retain payroll_records for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+            "Section": "N.J.S.A. 34:11",
+            "Note": "Payroll and personnel record retention (N.J.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-nj-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NJ",
+            "Locality": ""
+          },
+          "PackID": "us-nj-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-nj-leave-interaction",
+          "Description": "accrued paid sick leave: Earned Leave Accrual and Termination (§ 34:11D-1): Track accrued sick leave (1 hour per 30 hours worked, 40-hour max per year). On termination, automatic payout of accrued balance unless written policy limits compensation exists and was provided at hire. On promotion within same employer, leave balance carries forward.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+            "Section": "§ 34:11D-1",
+            "Note": "Earned Leave Accrual and Termination (§ 34:11D-1): Track accrued sick leave (1 hour per 30 hours worked, 40-hour max per year).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NJ",
+            "Locality": ""
+          },
+          "PackID": "us-nj-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-nj-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+            "Section": "N.J.S.A. 34:11-4.2",
+            "Note": "Pay frequency and timing (N.J.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-nj-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NJ",
+            "Locality": ""
+          },
+          "PackID": "us-nj-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-nj-pay-transparency",
+          "Description": "internal_promotion: Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure. On internal promotion posting, ensure reasonable-notice requirement met (10+ employees threshold).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+            "Section": "§ 34:6B-23",
+            "Note": "Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NJ",
+            "Locality": ""
+          },
+          "PackID": "us-nj-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-nj-wage-floor",
+          "Description": " floor of  for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+            "Section": "N.J.S.A. 34:11-56",
+            "Note": "Minimum wage (N.J.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NJ",
+            "Locality": ""
+          },
+          "PackID": "us-nj-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-nj-pay-equity-review",
+          "Description": "pay-equity review against substantially similar work for bases age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+            "Section": "Diane B. Allen § 10:5-12",
+            "Note": "Equal Pay Audit Flag (Diane B.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NJ",
+            "Locality": ""
+          },
+          "PackID": "us-nj-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-nj-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/new-jersey.md",
+            "Section": "N.J.S.A. 34:11",
+            "Note": "Payroll and personnel record retention (N.J.S.A.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-nj-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "5d1d75a758cc3eeba00c740e976215ae0ece9c8a5ca2fd5cf98bd8bdd7ebb84a",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "8TR61J2v10RqQfkJv+B0/8twOmkGiCDa79LxbHbYkUlndQqKWpcoKs6Wqj0QahofuxTfU5J6t4mJDztL+niFAw=="
+  }
+}

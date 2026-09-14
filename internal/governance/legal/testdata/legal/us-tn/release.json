@@ -1,0 +1,356 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-tn-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "TN",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-tn-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 50-2-103",
+          "note": "Records retention (§ 50-2-103): Retain promotion documents (wage change, effective date, justification) per employer record policy (verify whether 3 years or employer-set); support labor commissioner inspection.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-tn-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 50-2-112",
+          "note": "No state-mandated paid sick or family leave: Federal FMLA (50+ employees, unpaid) is the statutory floor; Tennessee preempts local ordinances that impose wage/benefit mandates (§ 50-2-112).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "No state-mandated paid sick or family leave: Federal FMLA (50+ employees, unpaid) is the statutory floor; Tennessee preempts local ordinances that impose wage/benefit mandates (§ 50-2-112)."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-tn-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 50-2-103",
+          "note": "Pay frequency verification (§ 50-2-103): On promotion, verify payday remains regular (daily through monthly).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "MONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-tn-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 50-2-103",
+          "note": "Final pay timing: On termination, all wages due by next regular payday or 21 days after discharge/resignation, whichever is later (§ 50-2-103).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing: On termination, all wages due by next regular payday or 21 days after discharge/resignation, whichever is later (§ 50-2-103)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-tn-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 63-1-148",
+          "note": "Non-competes: Enforced under common law reasonableness test (time, scope, geography, legitimate business interest).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-competes: Enforced under common law reasonableness test (time, scope, geography, legitimate business interest). Healthcare providers subject to statutory cap: 2 years maximum, 10-mile radius or county restriction (§ 63-1-148)."
+        }
+      },
+      {
+        "kind": "E_VERIFY",
+        "id": "us-tn-e-verify",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 50-1-703",
+          "note": "E-Verify compliance verification (§ 50-1-703, 35+ FTE employers): On promotion, confirm employee's I-9/E-Verify status remains valid; flag if verification window approaching renewal (3-year/1-year reverification may be...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_on_new_hire_only": true,
+          "note": "E-Verify compliance verification (§ 50-1-703, 35+ FTE employers): On promotion, confirm employee's I-9/E-Verify status remains valid; flag if verification window approaching renewal (3-year/1-year reverification may be...",
+          "employee_threshold": 35
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-tn-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 50-1-601",
+          "note": "Plant closure notice: Employers with 50–99 employees must notify affected employees and the state when reducing 50+ employees due to closing or relocation \u003e50 miles (§ 50-1-601 et seq.; no penalty, notification-only).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Plant closure notice: Employers with 50–99 employees must notify affected employees and the state when reducing 50+ employees due to closing or relocation \u003e50 miles (§ 50-1-601 et seq.; no penalty, notification-only).",
+          "employee_threshold": 99
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-tn-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay statement content: No state-mandated itemized format; federal FLSA requirements apply.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-tn-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 50-1-304",
+          "note": "Whistleblower retaliation check (§ 50-1-304): If employee recently reported illegal activity, flag promotion timing and ensure timing does not appear retaliatory and cannot be inferred as discharge threat.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "whistleblower_report"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-tn-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks SEPARATION_FILING for TN, and no item in tennessee.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-tn-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 50-9-101",
+          "note": "Drug testing (§ 50-9-101 et seq., Drug-Free Workplace Program):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-tn-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "§ 47-18-2107",
+          "note": "Data breach notification (§ 47-18-2107, Release of Personal Consumer Information):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [
+      {
+        "kind": "LEAVE_INTERACTION",
+        "scope": "LOCALITY_ONLY",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "Tenn. Code § 50-2-112",
+          "note": "state preemption of locality rules of this kind, per the rule-pack contract's section 6.4",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "scope": "LOCALITY_ONLY",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/tennessee.md",
+          "section": "Tenn. Code § 50-2-112",
+          "note": "state preemption of locality rules of this kind, per the rule-pack contract's section 6.4",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        }
+      }
+    ],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/tennessee.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "05abcaffc096a950b662ef58f9525292ad886683db36c72ed81c58cb7b9b9c2c",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "c2808420bf601277908744d950c79e900112fc83ec7257b2f01cd8b80c5167e823bbe72bd37ddb0fb91e1556471bdf50a570dcb9ff4482ea96a70e7f6089bb0a"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "05abcaffc096a950b662ef58f9525292ad886683db36c72ed81c58cb7b9b9c2c",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-tn-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-tn-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-tn-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-tn-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-tn-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for TN; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for TN; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-tn-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-tn-e-verify",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-tn-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-tn-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-tn-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-tn-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "19ea2030d94a80436466e2d081edf3c399e5069c1d24d42a3362bb8976b3d30b",
+      "prev_digest": "",
+      "digest": "62c868af5ff13922b4409a69e3428a13731be475b252c272a6f279d27add20f1",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "4cfaf545dbf3b76cf32f422199c0123d01efdbfbde9978c048a3ea89f17ba461b7972d80ba968e765fb6edec491c5414f740a3c4b284355257acdbf657ee5d0d"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "aae1b2f51ec4b1a931ae940eecfdd648a6b1590e2363f73e8882284e02b92407",
+      "prev_digest": "62c868af5ff13922b4409a69e3428a13731be475b252c272a6f279d27add20f1",
+      "digest": "d94227e21d5fb3b28c94af4c51c9a0358bb90f6818b00f17a4d2b1ef1a70a683",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "6137220e04736347ca80406d0809440be2d5f5b6c01053fd2452f08c12837729317a56b2b44b3382111857a870c17b50c4c2877a7e7302b71e261a6dab98ff05"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "05abcaffc096a950b662ef58f9525292ad886683db36c72ed81c58cb7b9b9c2c",
+      "prev_digest": "d94227e21d5fb3b28c94af4c51c9a0358bb90f6818b00f17a4d2b1ef1a70a683",
+      "digest": "e1b2962b09f6a5cfabb281afc5f08945e92543cd536c1a7dcb3ed6d2c42c991f",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "7f74bae7afc8abfa230346e7c34e1225304004c1c7396069509600ab5dc19592eb8ca27a1eb14b5a2c72b51d3f9fbaf4528acacc2f089015724ed195dd66c502"
+      }
+    }
+  ]
+}

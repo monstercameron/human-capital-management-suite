@@ -362,13 +362,14 @@ re-researched.
 | ----- | ------ | ---------- | ----------- | ---------- | -------- | -------- | ----- | ----------- | -------- | ---------- | --------- | -------------- |
 | AL    | F      | F          | F           | F          | F        | F        | F     | Y           | F        | Y          | Y         | F              |
 | AK    | Y      | F          | F           | Y          | Y        | Y        | Y     | F           | Y        | F          | ?         | Y              |
-| AZ    | F      | F          | F           | Y          | Y        | ?        | Y     | F           | F        | F          | ?         | F              |
+| AZ    | F      | F          | F           | Y          | Y        | ?        | Y     | F           | F        | Y          | ?         | F              |
 | AR    | F      | F          | F           | Y          | Y        | F        | F     | Y           | F        | Y          | ?         | F              |
 | CA    | Y      | Y          | Y           | Y          | Y        | Y        | Y     | Y           | Y        | Y          | Y         | Y              |
 | CO    | ?      | Y          | Y           | Y          | ?        | Y        | Y     | Y           | Y        | Y          | Y         | Y              |
 | CT    | ?      | Y          | Y           | Y          | ?        | ?        | Y     | Y           | ?        | Y          | ?         | Y              |
+| DC    | Y      | Y          | Y           | Y          | Y        | Y        | Y     | Y           | L        | Y          | Y         | F              |
 | DE    | F      | F          | Y           | Y          | Y        | ?        | Y     | F           | F        | ?          | Y         | Y              |
-| FL    | F      | F          | F           | Y          | F        | F        | F     | Y           | F        | F          | F         | F              |
+| FL    | F      | F          | F           | Y          | F        | F        | F     | Y           | F        | Y          | F         | F              |
 | GA    | F      | F          | F           | F          | Y        | F        | Y     | Y           | F        | Y          | Y         | F              |
 | HI    | ?      | Y          | Y           | Y          | Y        | Y        | Y     | Y           | F        | Y          | Y         | ?              |
 | ID    | Y      | F          | F           | F          | ?        | Y        | F     | Y           | F        | F          | Y         | F              |
@@ -381,25 +382,25 @@ re-researched.
 | ME    | ?      | F          | Y           | Y          | Y        | Y        | Y     | Y           | Y        | Y          | Y         | Y              |
 | MD    | Y      | Y          | Y           | Y          | ?        | ?        | Y     | Y           | F        | Y          | ?         | ?              |
 | MA    | F      | Y          | Y           | Y          | ?        | ?        | Y     | Y           | F        | Y          | Y         | Y              |
-| MI    | Y      | F          | F           | Y          | ?        | ?        | Y     | F           | F        | F          | ?         | Y              |
+| MI    | Y      | F          | F           | Y          | ?        | ?        | Y     | Y           | F        | F          | ?         | Y              |
 | MN    | Y      | Y          | Y           | Y          | Y        | Y        | Y     | Y           | Y        | Y          | Y         | Y              |
 | MS    | F      | F          | F           | F          | Y        | F        | F     | F           | F        | Y          | F         | F              |
 | MO    | Y      | F          | F           | Y          | Y        | Y        | F     | Y           | F        | Y          | F         | F              |
 | MT    | ?      | F          | F           | Y          | Y        | ?        | F     | Y           | F        | F          | ?         | F              |
-| NE    | Y      | F          | F           | Y          | ?        | ?        | Y     | F           | F        | Y          | F         | F              |
+| NE    | Y      | F          | F           | Y          | ?        | ?        | Y     | Y           | F        | Y          | F         | F              |
 | NV    | Y      | Y          | Y           | Y          | Y        | Y        | Y     | Y           | Y        | Y          | Y         | Y              |
 | NH    | Y      | F          | F           | F          | ?        | ?        | F     | Y           | F        | Y          | Y         | Y              |
 | NJ    | Y      | Y          | Y           | Y          | ?        | ?        | Y     | F           | F        | Y          | Y         | ?              |
 | NM    | ?      | F          | F           | Y          | Y        | ?        | Y     | Y           | F        | Y          | Y         | F              |
 | NY    | Y      | Y          | Y           | Y          | ?        | Y        | Y     | F           | F        | Y          | Y         | ?              |
-| NC    | Y      | F          | ?           | F          | Y        | ?        | Y     | F           | F        | F          | ?         | F              |
+| NC    | Y      | F          | ?           | F          | Y        | ?        | Y     | Y           | F        | F          | ?         | F              |
 | ND    | F      | F          | F           | F          | Y        | ?        | F     | Y           | F        | Y          | Y         | F              |
 | OH    | F      | L          | L           | Y          | Y        | Y        | Y     | F           | F        | Y          | Y         | F              |
 | OK    | F      | F          | F           | F          | Y        | ?        | P     | Y           | F        | Y          | Y         | F              |
 | OR    | F      | F          | Y           | Y          | ?        | Y        | Y     | Y           | F        | Y          | Y         | Y              |
 | PA    | Y      | F          | L           | F          | ?        | ?        | L     | Y           | F        | Y          | ?         | Y              |
 | RI    | Y      | Y          | Y           | Y          | Y        | Y        | Y     | Y           | Y        | Y          | Y         | Y              |
-| SC    | Y      | F          | F           | F          | ?        | Y        | F     | F           | F        | F          | Y         | F              |
+| SC    | Y      | F          | F           | F          | ?        | Y        | F     | Y           | F        | F          | Y         | F              |
 | SD    | F      | F          | F           | Y          | Y        | ?        | F     | Y           | F        | Y          | Y         | F              |
 | TN    | F      | F          | F           | F          | Y        | ?        | Y     | Y           | F        | F          | ?         | F              |
 | TX    | F      | F          | F           | F          | Y        | ?        | P     | Y           | F        | F          | F         | F              |
@@ -414,10 +415,10 @@ re-researched.
 Column totals (`Y` + `L`, excluding `P`, `F` and `?`):
 
 ```text
-NOTICE          22      PAY_TRANSPARENCY 16      FIELD_RESTRICTION 20
-WAGE_FLOOR      30      PAY_FREQUENCY    31      PAY_STATEMENT     18
-LEAVE           28      NON_COMPETE      35      CLASSIFICATION    10
-PAY_EQUITY      36      RETENTION        31      PERSONNEL_FILE    18
+NOTICE          23      PAY_TRANSPARENCY 17      FIELD_RESTRICTION 21
+WAGE_FLOOR      31      PAY_FREQUENCY    32      PAY_STATEMENT     19
+LEAVE           29      NON_COMPETE      40      CLASSIFICATION    11
+PAY_EQUITY      39      RETENTION        32      PERSONNEL_FILE    18
 ```
 
 ### 5.2 Table B — kinds the flow declares but usually does not trigger
@@ -431,6 +432,7 @@ PAY_EQUITY      36      RETENTION        31      PERSONNEL_FILE    18
 | CA    | Y         | Y         | ?          | F        | Y         | Y          | F       | Y      | ?        | Y     |
 | CO    | Y         | ?         | Y          | F        | ?         | Y          | F       | Y      | Y        | Y     |
 | CT    | Y         | Y         | ?          | F        | ?         | Y          | F       | Y      | F        | F     |
+| DC    | Y         | F         | ?          | F        | ?         | Y          | F       | Y      | F        | F     |
 | DE    | Y         | Y         | ?          | F        | ?         | Y          | F       | Y 60d  | F        | F     |
 | FL    | F         | F         | ?          | Y 25+    | Y         | Y          | F       | Y 30d  | F        | ?     |
 | GA    | F         | Y 48h     | Y          | Y 11+    | ?         | Y          | F       | Y      | F        | F     |
@@ -478,9 +480,9 @@ PAY_EQUITY      36      RETENTION        31      PERSONNEL_FILE    18
 Column totals (`Y` + `L`, excluding `P`, `F` and `?`):
 
 ```text
-FINAL_PAY_DEADLINE 44      MINI_WARN 17      SEPARATION_FILING  9
-E_VERIFY           17      DRUG_TEST 13      ANTI_RETALIATION  50
-JOB_SECURITY        4      BREACH    49      AUTOMATED_DECISION 3
+FINAL_PAY_DEADLINE 45      MINI_WARN 17      SEPARATION_FILING  9
+E_VERIFY           17      DRUG_TEST 13      ANTI_RETALIATION  51
+JOB_SECURITY        4      BREACH    50      AUTOMATED_DECISION 3
 LOCAL overlay      16      LOCAL preempted 5
 ```
 

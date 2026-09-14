@@ -1,0 +1,423 @@
+{
+  "legal_context_digest": "01bd394575c519c62c41abd48d65b747a5f95edf384340990df3ffb15fe98efb",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "SD",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-sd-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "SD",
+          "Locality": ""
+        }
+      },
+      "Digest": "a4e58bf8632b4a8240f063493e5162a35f6030398de3587868e1b0af2701bdbf",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-sd-retention",
+      "Description": "retain wage_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Wage record retention (SDCL 60-12-17): System must retain promotion records (effective date, wage change, justification) for minimum 3 years (federal FLSA standard; state \"reasonable period\" aligns with this).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SD",
+        "Locality": ""
+      },
+      "PackID": "us-sd-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sd-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sd-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "6bbe1ee4da247f6ac3fac96fafd795aea810b586a85755decde52786679980f3"
+    },
+    {
+      "Type": 5,
+      "ID": "us-sd-pay-frequency",
+      "Description": "minimum frequency MONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay frequency: Monthly or regular agreed payday (SDCL 60-11-9); employer must designate and communicate payday at hire.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SD",
+        "Locality": ""
+      },
+      "PackID": "us-sd-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sd-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sd-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "5e9320c41b01c696470e740b098ca504b769bbc0aa71b116af3c0eff00688e36"
+    },
+    {
+      "Type": 8,
+      "ID": "us-sd-non-compete",
+      "Description": "Non-compete review (SDCL 53-9-11): On promotion, check if employee subject to non-compete or non-solicit. If non-compete exists, verify:",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Non-compete review (SDCL 53-9-11): On promotion, check if employee subject to non-compete or non-solicit.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SD",
+        "Locality": ""
+      },
+      "PackID": "us-sd-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sd-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sd-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-sd-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-sd-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "86c54352ad6328b5a7eaeb4dd022c8b833e4f46369e9de3ae2b522815b0cc608"
+    },
+    {
+      "Type": 11,
+      "ID": "us-sd-wage-floor",
+      "Description": "HOURLY floor of 11.85 USD for tipped employees, indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Minimum wage compliance (SDCL 60-11-3): On promotion or base-pay change, verify wage meets $11.85/hour (2026 rate; indexed annually).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SD",
+        "Locality": ""
+      },
+      "PackID": "us-sd-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sd-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sd-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-sd-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "acd1effe2cbe086dc74ad58d6a565d50d45a0157b0c84850d9c0ec8c41b7c325"
+    },
+    {
+      "Type": 12,
+      "ID": "us-sd-pay-equity-review",
+      "Description": "pay-equity review against comparable work for bases sex, gender, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Equal Pay compliance (SDCL 60-12-15): On promotion or base-pay change within same location, system should flag if new wage for one gender differs materially from peer rates for comparable work; require manager...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "SD",
+        "Locality": ""
+      },
+      "PackID": "us-sd-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-sd-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-sd-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-sd-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "e0cd670f958b33d1bccf5ab59c67c699c3e65c1f4003e54e26b1288a486b636e"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-sd-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Final pay post-promotion (SDCL 60-11-10): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid by next regular payday.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-sd-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Workers' compensation retaliation check (SDCL 62-1-16): If promotion follows any workers' compensation claim filing, document business justification for promotion/wage change to mitigate retaliation risk.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-sd-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Data Breach Notification (SDCL 22-40-20):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SD",
+            "Locality": ""
+          },
+          "PackID": "us-sd-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-sd-retention",
+          "Description": "retain wage_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Wage record retention (SDCL 60-12-17): System must retain promotion records (effective date, wage change, justification) for minimum 3 years (federal FLSA standard; state \"reasonable period\" aligns with this).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-sd-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SD",
+            "Locality": ""
+          },
+          "PackID": "us-sd-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-sd-pay-frequency",
+          "Description": "minimum frequency MONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay frequency: Monthly or regular agreed payday (SDCL 60-11-9); employer must designate and communicate payday at hire.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-sd-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SD",
+            "Locality": ""
+          },
+          "PackID": "us-sd-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-sd-non-compete",
+          "Description": "Non-compete review (SDCL 53-9-11): On promotion, check if employee subject to non-compete or non-solicit. If non-compete exists, verify:",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Non-compete review (SDCL 53-9-11): On promotion, check if employee subject to non-compete or non-solicit.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SD",
+            "Locality": ""
+          },
+          "PackID": "us-sd-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-sd-wage-floor",
+          "Description": "HOURLY floor of 11.85 USD for tipped employees, indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Minimum wage compliance (SDCL 60-11-3): On promotion or base-pay change, verify wage meets $11.85/hour (2026 rate; indexed annually).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-sd-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "SD",
+            "Locality": ""
+          },
+          "PackID": "us-sd-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-sd-pay-equity-review",
+          "Description": "pay-equity review against comparable work for bases sex, gender, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/south-dakota.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Equal Pay compliance (SDCL 60-12-15): On promotion or base-pay change within same location, system should flag if new wage for one gender differs materially from peer rates for comparable work; require manager...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "4f5b9e7667d966d98393ba9f74be70738faca7d9a3c422c0307c5c6f1b1b6cda",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "8thJMn81f2FoqC5MXCxwk9EhTRdurQ9/MvibHHViV0s0rdLGQC4thB8wJzAWec4UE3ydvy2iCiKT18W7UU0ZCw=="
+  }
+}

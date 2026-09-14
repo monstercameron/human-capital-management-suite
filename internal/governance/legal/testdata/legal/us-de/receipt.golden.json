@@ -1,0 +1,564 @@
+{
+  "legal_context_digest": "7b1aeaad58ed37e3de846784cc33f5533c51e6e21259d239d1d8e0f273837570",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "DE",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-de-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "DE",
+          "Locality": ""
+        }
+      },
+      "Digest": "f50d2054c995bf28aa712a9245036527541d914fede9f11b99bb703c6cc72dfd",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-de-retention",
+      "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "Del. C. § 1108",
+        "Note": "Employers must maintain payroll records for at least 3 years, documenting employee name, address, occupation, hours worked, wage information, and deductions (19 Del. C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DE",
+        "Locality": ""
+      },
+      "PackID": "us-de-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-de-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-de-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "30031e964a919102df8060a83a0f4ae645cc5987b0f79c0bd050ff6af6cb0fe3"
+    },
+    {
+      "Type": 4,
+      "ID": "us-de-leave-interaction",
+      "Description": "paid leave: Delaware Paid Leave eligibility: Gate 12-week parental leave and 6-week medical/caregiving leave to employees with 12+ months tenure, 1,250+ prior-year hours, and employer headcount (10–24 for parental only; 25+ for all three reasons); track accrual and usage in rolling 24-month window for medical/caregiving.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Delaware Paid Leave eligibility: Gate 12-week parental leave and 6-week medical/caregiving leave to employees with 12+ months tenure, 1,250+ prior-year hours, and employer headcount (10–24 for parental only; 25+ for...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DE",
+        "Locality": ""
+      },
+      "PackID": "us-de-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-de-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-de-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-de-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "2b5968fc1d17ad5de49d17d0c68d3f1c04a509626ba0f0aa60077adbe47c4b10"
+    },
+    {
+      "Type": 5,
+      "ID": "us-de-pay-frequency",
+      "Description": "minimum frequency MONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay frequency: Default to monthly pay; document employer's chosen payday.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DE",
+        "Locality": ""
+      },
+      "PackID": "us-de-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-de-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-de-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "79594ed248c8b8684283d2812d0cedacc430626da9ef0bbf9139922ea597c06e"
+    },
+    {
+      "Type": 11,
+      "ID": "us-de-wage-floor",
+      "Description": " floor of 15.00 USD for tipped employees, indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "Del. C. § 902",
+        "Note": "Minimum wage $15.00/hr: Effective 2025-01-01 (19 Del. C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DE",
+        "Locality": ""
+      },
+      "PackID": "us-de-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-de-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-de-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-de-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "d116d7fb49123af93f5fc09ee1e4c35741a6e85d6c28e82541d4c03bdbfb5f52"
+    },
+    {
+      "Type": 12,
+      "ID": "us-de-pay-equity-review",
+      "Description": "pay-equity review against  for bases ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No state-level pay equity reporting requirement; federal EEO-1 applies if applicable.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DE",
+        "Locality": ""
+      },
+      "PackID": "us-de-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-de-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-de-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-de-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "9c65d927c854ae90241e79395e1143a49b0bcd4c381daee86a1c48b795c8b779"
+    },
+    {
+      "Type": 13,
+      "ID": "us-de-pay-statement",
+      "Description": "pay statement delivered  must carry gross_wages, deductions, hours_worked, pay_rate, pay_period, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "Del. C. § 1108",
+        "Note": "Employers must provide written pay statement showing pay period, total hours worked, rate of pay, gross wages, and all deductions (19 Del. C.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DE",
+        "Locality": ""
+      },
+      "PackID": "us-de-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-de-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-de-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "240f1baa37706121d6a660d1393022a80bedf4d36400eed0686893761c3254e5"
+    },
+    {
+      "Type": 15,
+      "ID": "us-de-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "Del. C. §§ 730–735",
+        "Note": "Personnel file access: Employees have right to inspect personnel files during reasonable business hours; penalties $1,000–$5,000 per refusal (19 Del. C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DE",
+        "Locality": ""
+      },
+      "PackID": "us-de-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-de-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-de-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "96320f39736437b7d5e73293c47d8e3f7cc79728560718bf891e67b1fecd383a"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-de-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "§ 709B",
+        "Note": "Salary history inquiry ban: Block or flag any form field requesting prior salary/compensation history from external candidates; document that inquiry prohibition applies under § 709B.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-de-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Final pay timing: On layoff, calculate full wages due on next regular payday; on termination, verify whether 7-day rule or next payday applies (confirm current Delaware case law).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-de-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Mini-WARN trigger: When 50+ employees laid off within 3-month period at single location, trigger 60-day notice workflow and penalty calculation ($1,000/day or $100/worker/day).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-de-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Penalties: Employers refusing access face civil penalties of $1,000–$5,000 per violation; retaliation against complainants also prohibited.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-de-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/delaware.md",
+        "Section": "Del. C. § 12B-102",
+        "Note": "Breach notification: 60-day notice required if personal information breached; if 500+ residents affected, notify Attorney General; free credit monitoring if SSN involved (6 Del. C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DE",
+            "Locality": ""
+          },
+          "PackID": "us-de-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-de-retention",
+          "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/delaware.md",
+            "Section": "Del. C. § 1108",
+            "Note": "Employers must maintain payroll records for at least 3 years, documenting employee name, address, occupation, hours worked, wage information, and deductions (19 Del. C.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-de-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DE",
+            "Locality": ""
+          },
+          "PackID": "us-de-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-de-leave-interaction",
+          "Description": "paid leave: Delaware Paid Leave eligibility: Gate 12-week parental leave and 6-week medical/caregiving leave to employees with 12+ months tenure, 1,250+ prior-year hours, and employer headcount (10–24 for parental only; 25+ for all three reasons); track accrual and usage in rolling 24-month window for medical/caregiving.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/delaware.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Delaware Paid Leave eligibility: Gate 12-week parental leave and 6-week medical/caregiving leave to employees with 12+ months tenure, 1,250+ prior-year hours, and employer headcount (10–24 for parental only; 25+ for...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DE",
+            "Locality": ""
+          },
+          "PackID": "us-de-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-de-pay-frequency",
+          "Description": "minimum frequency MONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/delaware.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay frequency: Default to monthly pay; document employer's chosen payday.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-de-pay-frequency"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DE",
+            "Locality": ""
+          },
+          "PackID": "us-de-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-de-wage-floor",
+          "Description": " floor of 15.00 USD for tipped employees, indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/delaware.md",
+            "Section": "Del. C. § 902",
+            "Note": "Minimum wage $15.00/hr: Effective 2025-01-01 (19 Del. C.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-de-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DE",
+            "Locality": ""
+          },
+          "PackID": "us-de-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-de-pay-equity-review",
+          "Description": "pay-equity review against  for bases ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/delaware.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "No state-level pay equity reporting requirement; federal EEO-1 applies if applicable.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DE",
+            "Locality": ""
+          },
+          "PackID": "us-de-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-de-pay-statement",
+          "Description": "pay statement delivered  must carry gross_wages, deductions, hours_worked, pay_rate, pay_period, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/delaware.md",
+            "Section": "Del. C. § 1108",
+            "Note": "Employers must provide written pay statement showing pay period, total hours worked, rate of pay, gross wages, and all deductions (19 Del. C.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DE",
+            "Locality": ""
+          },
+          "PackID": "us-de-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-de-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/delaware.md",
+            "Section": "Del. C. §§ 730–735",
+            "Note": "Personnel file access: Employees have right to inspect personnel files during reasonable business hours; penalties $1,000–$5,000 per refusal (19 Del. C.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-de-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "0804f6962b3b9d23a3ecfcd92e2333b2576a7a117c49382e1bcf7d9955a0a14c",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "hqM8IyWDDElIltGZF5KwcvLKdJd13tZKPo7EsBfM+gIl1MYI/Za5ANGGz7741rVAzLtG4ELD9J+JhKXYhIXqCg=="
+  }
+}

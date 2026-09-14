@@ -79,6 +79,7 @@ var (
 	bulletRE      = regexp.MustCompile(`^\s*[-*]\s+(.*)$`)
 	numberedRE    = regexp.MustCompile(`^\s*\d+\.\s+(.*)$`)
 	boldMarkupRE  = regexp.MustCompile(`\*\*|__|` + "`")
+	emphasisRE    = regexp.MustCompile(`(^|\W)_([^_\n]+?)_(\W|$)`)
 	whitespaceRE  = regexp.MustCompile(`\s+`)
 	openQuestions = regexp.MustCompile(`(?i)open question|verification item|open-question|to verify`)
 )
@@ -115,10 +116,18 @@ func ParseResearch(relPath, markdown string) *ResearchFile {
 		out.Items = append(out.Items, item)
 	}
 
+	// A paragraph that ends with ':' or '—' heads a list, not a claim: the
+	// bullets it introduces are its content ("Payroll record retention
+	// (§ 231.31): - retain for 3 years - ..."). Treating the header and its
+	// bullets as one item keeps the parameters under the citation that names
+	// them, instead of splitting a section-bearing stub from the rules it
+	// enumerates.
+	continuation := false
 	for _, raw := range strings.Split(markdown, "\n") {
 		line := strings.TrimRight(raw, "\r")
 		if m := headingRE.FindStringSubmatch(line); m != nil {
 			flush()
+			continuation = false
 			topic = classifyTopic(m[1])
 			group = ""
 			continue
@@ -128,19 +137,25 @@ func ParseResearch(relPath, markdown string) *ResearchFile {
 		}
 		if m := boldHeaderRE.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
 			flush()
+			continuation = false
 			group = normalizeText(m[1])
 			continue
 		}
 		if m := bulletRE.FindStringSubmatch(line); m != nil {
-			flush()
+			if !continuation {
+				flush()
+			}
 			pending = append(pending, m[1])
 			continue
 		}
 		if m := numberedRE.FindStringSubmatch(line); m != nil {
-			flush()
+			if !continuation {
+				flush()
+			}
 			pending = append(pending, m[1])
 			continue
 		}
+		continuation = false
 		if strings.TrimSpace(line) == "" {
 			flush()
 			continue
@@ -150,6 +165,8 @@ func ParseResearch(relPath, markdown string) *ResearchFile {
 		// least semimonthly...") rather than as a bullet, and skipping those
 		// lines would drop the best-cited evidence in the corpus.
 		pending = append(pending, strings.TrimSpace(line))
+		trimmed := strings.TrimSpace(line)
+		continuation = strings.HasSuffix(trimmed, ":") || strings.HasSuffix(trimmed, "—")
 	}
 	flush()
 	return out
@@ -170,6 +187,7 @@ func classifyTopic(heading string) Topic {
 // same definition file.
 func normalizeText(s string) string {
 	s = boldMarkupRE.ReplaceAllString(s, "")
+	s = emphasisRE.ReplaceAllString(s, "${1}${2}${3}")
 	s = whitespaceRE.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
 }

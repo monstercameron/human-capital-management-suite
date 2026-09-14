@@ -60,7 +60,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final-pay calculation audit: On termination, calculate final pay as all earned wages through termination date, accrued PTO (if required by policy), and vacation (if required by policy)."
+        "deadline_description": "Final-pay calculation audit: On termination, calculate final pay as all earned wages through termination date, accrued PTO (if required by policy), and vacation (if required by policy). Validate that final pay meets next regular payday or employer policy."
       }
     },
     {

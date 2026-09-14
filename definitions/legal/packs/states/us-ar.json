@@ -60,7 +60,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay due within 7 days of termination if employee requests it, or by next regular payday (Ark."
+        "deadline_description": "Final pay due within 7 days of termination if employee requests it, or by next regular payday (Ark. Code § 11-4-405)."
       }
     },
     {
@@ -75,7 +75,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Verify non-compete is ancillary to employment and limited in time/scope (Ark."
+        "rule": "Verify non-compete is ancillary to employment and limited in time/scope (Ark. Code § 4-75-101)."
       }
     },
     {

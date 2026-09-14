@@ -57,7 +57,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid Leave Continuity (RCW 49.46.210 + RCW 50A): On promotion within same employer, paid sick leave accrual carries forward; do not reset."
+        "interaction_rule": "Paid Leave Continuity (RCW 49.46.210 + RCW 50A): On promotion within same employer, paid sick leave accrual carries forward; do not reset. If promotion occurs during active PFML leave, employee retains job protection and leave benefit; role may change but leave benefit continues. Do not reduce base pay retroactively if employee in PFML during promotion announcement."
       }
     },
     {
@@ -86,7 +86,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final Pay Timing Trigger (RCW 49.48.010): On termination action, auto-calculate deadline based on discharge type (end of established pay period)."
+        "deadline_description": "Final Pay Timing Trigger (RCW 49.48.010): On termination action, auto-calculate deadline based on discharge type (end of established pay period). Notify employee and payroll if unpaid wages lapse beyond deadline; system must log compliance risk and auto-escalate to HR if 48+ hours past deadline."
       }
     },
     {
@@ -101,7 +101,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay-Range Disclosure (RCW 49.58.110): When initiating internal transfer/promotion process: if employee requests, must provide minimum wage/salary for promoted role within standard response time."
+        "required_disclosure": "Pay-Range Disclosure (RCW 49.58.110): When initiating internal transfer/promotion process: if employee requests, must provide minimum wage/salary for promoted role within standard response time. If external posting created for similar role, must include pay range (no omission without 5-business-day cure notification option)."
       }
     },
     {
@@ -116,7 +116,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-Compete Threshold Recheck (RCW 49.62.020): On promotion, if new salary crosses $123,394.17 threshold (2025; adjust annually), auto-flag: if employee lacks signed NCA with enforceability conditions (income threshold..."
+        "rule": "Non-Compete Threshold Recheck (RCW 49.62.020): On promotion, if new salary crosses $123,394.17 threshold (2025; adjust annually), auto-flag: if employee lacks signed NCA with enforceability conditions (income threshold met at time of agreement, 18-month max duration, independent consideration/garden leave), mark as unenforceable going forward. If NCA exists and new role extends beyond 18 months, flag for legal review."
       }
     },
     {

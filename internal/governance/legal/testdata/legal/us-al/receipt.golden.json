@@ -1,0 +1,373 @@
+{
+  "legal_context_digest": "82c9441e624ecfc27c55aa221cdb2e9ac4b846e99b752e7edd316e3ca00eaa46",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "AL",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-al-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "AL",
+          "Locality": ""
+        }
+      },
+      "Digest": "92070469e550c1e5721b4e9a6409a8513a33aa98d740c629d8aa727145172abb",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-al-retention",
+      "Description": "retain wage_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 25-1-30",
+        "Note": "Clarke-Figures Equal Pay Act requires 3-year retention of wages, wage rates, job classifications, and employment terms and conditions.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AL",
+        "Locality": ""
+      },
+      "PackID": "us-al-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-al-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-al-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "f4e58ba3f7c3f5166dada7da03e4b3456ca3d9510d7728a2ba3eb84ca11c7323"
+    },
+    {
+      "Type": 8,
+      "ID": "us-al-non-compete",
+      "Description": "Employee non-competes of 2 years or less presumed reasonable; business-sale non-competes of 1 year or less presumed reasonable; customer non-solicits of 18 months or less (or while post-employment consideration is paid) presumed reasonable; must be written, signed, tied to a protectable interest, reasonable in geography, and without undue hardship.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code §§ 8-1-190, 8-1-191",
+        "Note": "Employee non-competes of 2 years or less presumed reasonable; business-sale non-competes of 1 year or less presumed reasonable; customer non-solicits of 18 months or less (or while post-employment consideration is paid) presumed reasonable; must be written, signed, tied to a protectable interest, reasonable in geography, and without undue hardship.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AL",
+        "Locality": ""
+      },
+      "PackID": "us-al-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-al-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-al-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-al-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-al-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "16e8d90269a554d8b14e6339e435580f3d23cdc36a949f0500d80deeee62dd34"
+    },
+    {
+      "Type": 11,
+      "ID": "us-al-wage-floor",
+      "Description": "HOURLY floor of  for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "29 U.S.C. § 206; no Alabama statute",
+        "Note": "No state minimum wage or overtime statute; federal FLSA $7.25/hour and 1.5x overtime past 40 hours apply. Overtime fully subject to state income tax withholding since 2025-07-01.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AL",
+        "Locality": ""
+      },
+      "PackID": "us-al-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-al-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-al-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-al-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "068710d3cdd479a824784a43cd49a2ba2bbd501b467ffe369d7ff175a1e1ae6b"
+    },
+    {
+      "Type": 12,
+      "ID": "us-al-pay-equity-review",
+      "Description": "pay-equity review against substantially similar work for bases sex, race",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 25-1-30",
+        "Note": "Clarke-Figures Equal Pay Act prohibits wage discrimination based on sex or race for substantially similar work (skill, effort, responsibility, working conditions); capture classifications and working conditions for each promotion or pay change.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AL",
+        "Locality": ""
+      },
+      "PackID": "us-al-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-al-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-al-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-al-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "9b24a9a8984e63b2ed44a86e631936b61bc686e927ea8bc50cdf896a6664d7f7"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 9,
+      "ID": "us-al-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 31-13-15",
+        "Note": "All Alabama employers, public and private of any size, must open an E-Verify case within 3 business days of hire; no employer-size exceptions.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-al-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 25-5-11.1",
+        "Note": "Termination solely because of a workers-compensation claim or safety-rule notice is prohibited under a strict solely-because standard; flag and block or require acknowledgment.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-al-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 25-5-330 et seq.",
+        "Note": "Drug testing permitted, including cannabis; certified drug-free workplace programs earn a workers-compensation premium discount.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-al-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/alabama.md",
+        "Section": "Ala. Code § 8-38-5",
+        "Note": "Breach exposing biometric data with name requires resident notification within 45 days when substantial harm is reasonably likely; Attorney General notification when more than 1000 residents are affected.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AL",
+            "Locality": ""
+          },
+          "PackID": "us-al-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-al-retention",
+          "Description": "retain wage_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alabama.md",
+            "Section": "Ala. Code § 25-1-30",
+            "Note": "Clarke-Figures Equal Pay Act requires 3-year retention of wages, wage rates, job classifications, and employment terms and conditions.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-al-retention"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AL",
+            "Locality": ""
+          },
+          "PackID": "us-al-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-al-non-compete",
+          "Description": "Employee non-competes of 2 years or less presumed reasonable; business-sale non-competes of 1 year or less presumed reasonable; customer non-solicits of 18 months or less (or while post-employment consideration is paid) presumed reasonable; must be written, signed, tied to a protectable interest, reasonable in geography, and without undue hardship.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alabama.md",
+            "Section": "Ala. Code §§ 8-1-190, 8-1-191",
+            "Note": "Employee non-competes of 2 years or less presumed reasonable; business-sale non-competes of 1 year or less presumed reasonable; customer non-solicits of 18 months or less (or while post-employment consideration is paid) presumed reasonable; must be written, signed, tied to a protectable interest, reasonable in geography, and without undue hardship.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AL",
+            "Locality": ""
+          },
+          "PackID": "us-al-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-al-wage-floor",
+          "Description": "HOURLY floor of  for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alabama.md",
+            "Section": "29 U.S.C. § 206; no Alabama statute",
+            "Note": "No state minimum wage or overtime statute; federal FLSA $7.25/hour and 1.5x overtime past 40 hours apply. Overtime fully subject to state income tax withholding since 2025-07-01.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AL",
+            "Locality": ""
+          },
+          "PackID": "us-al-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-al-pay-equity-review",
+          "Description": "pay-equity review against substantially similar work for bases sex, race",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/alabama.md",
+            "Section": "Ala. Code § 25-1-30",
+            "Note": "Clarke-Figures Equal Pay Act prohibits wage discrimination based on sex or race for substantially similar work (skill, effort, responsibility, working conditions); capture classifications and working conditions for each promotion or pay change.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "26dc3333eaed384e33a0931f1c17516833f5d8322a8b6952fbb3ea12aed40acc",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "NRVDR4uw7BL5fuZ2bG87ttBUwtb5JOI7tTYy5XNZEDXNXskb0Dec699s3Hdf0/uKxGUkAET/GJ1fzW9+X0PDAQ=="
+  }
+}

@@ -1,0 +1,427 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ca-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "CA",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-ca-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 2810.5",
+          "note": "Wage notice (§ 2810.5): Upon hire, system must generate/display/send notice.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_days": 7,
+          "content_fields": [
+            "payday"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-ca-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 432.3",
+          "note": "Pay transparency mandatory: § 432.3 bans salary history questions, requires pay scale disclosure in job postings (15+ employees), mandates 3-year wage/job title record retention, and Gov.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-ca-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 226",
+          "note": "Pay statement accuracy (§ 226): System must generate itemized statements with all 9 required fields, retain 3-year copies, and track deduction authorization (written employee consent).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-ca-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§§ 201–203",
+          "note": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "accrued paid time off",
+          "interaction_rule": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72 hours on resignation or immediately on discharge, and track payment date to flag 30-day maximum penalty exposure."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ca-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 204",
+          "note": "Pay frequency: § 204 requires wages at least semimonthly on designated paydays; exceptions exist for certain professions.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ca-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§§ 201–203",
+          "note": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72 hours on resignation or immediately on discharge, and track payment date to flag 30-day maximum penalty exposure."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-ca-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 432.3",
+          "note": "Pay scale disclosure (§ 432.3): System must store current pay scale per position, surface in job posting export, and provide on employee request within 30 days or face liability.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay scale disclosure (§ 432.3): System must store current pay scale per position, surface in job posting export, and provide on employee request within 30 days or face liability."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-ca-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 16600",
+          "note": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation workflows."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-ca-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "Labor Code §§ 1400–1408",
+          "note": "Cal-WARN notice (Labor Code §§ 1400–1408): California Worker Adjustment and Retraining Notification Act requires 60-day written notice of mass layoff (50+ employees in 30 days), plant closure, or relocation to:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Cal-WARN notice (Labor Code §§ 1400–1408): California Worker Adjustment and Retraining Notification Act requires 60-day written notice of mass layoff (50+ employees in 30 days), plant closure, or relocation to:",
+          "employee_threshold": 50,
+          "notice_days": 60
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-ca-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 1182.12",
+          "note": "Minimum wage complexity: Three-tier system (general § 1182.12: $16.90/2026; fast-food § 1474: $20/hour; healthcare § 1182.14: $21–$25/hour by facility type); plus 20+ local ordinances with higher floors.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "16.90",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ca-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "Labor Code § 1197.5",
+          "note": "Equal pay: Labor Code § 1197.5 (California Equal Pay Act) prohibits paying employees at lower wage rates based on sex for substantially similar work (skill, effort, responsibility, working conditions).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "age"
+          ],
+          "comparator_standard": "substantially similar work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ca-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 226",
+          "note": "Pay statement accuracy (§ 226): System must generate itemized statements with all 9 required fields, retain 3-year copies, and track deduction authorization (written employee consent).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "deductions",
+            "pay_rate"
+          ],
+          "delivery": "ELECTRONIC",
+          "consent_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-ca-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "AB 5",
+          "note": "AB 5 ABC test presumes employee: All three prongs (A: no control, B: outside usual business, C: independent trade) must be satisfied to classify as contractor; failure on any = employee.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "dimension": "CONTRACTOR",
+          "test_description": "AB 5 ABC test presumes employee: All three prongs (A: no control, B: outside usual business, C: independent trade) must be satisfied to classify as contractor; failure on any = employee.",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-ca-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 1198.5",
+          "note": "Personnel file access (§ 1198.5): On employee request, system must flag 30-day deadline (extendable to 35 with agreement) to provide inspection/copies or $750 penalty risk.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "response_days": 30,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ca-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "Labor Code § 2810.5",
+          "note": "California is at-will employment (no state restriction on at-will doctrine).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "protected_leave_request"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ca-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "§ 230–230.1",
+          "note": "Cannabis/domestic violence/victim leave: System must flag eligibility for AB 2188 cannabis use non-discrimination (no testing unless federal-funding job or CDL), AB 2499 victim-of-violence leave (runs concurrent with...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_status": [
+            "lawful_off_duty_cannabis_use"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ca-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "Civil Code § 1798.150",
+          "note": "Business obligations: Covered employers must provide privacy notice at or before collection, honor access/deletion/opt-out/correction requests within 45 days (or 90 days if unverifiable request; verify: CPPA guidance on...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "subject_deadline_days": 45,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "MONITORING_CONSENT",
+        "id": "us-ca-monitoring-consent",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/california.md",
+          "section": "Civil Code § 1798.100",
+          "note": "Biometric information: Civil Code § 1798.100 et seq. does not expressly restrict biometric collection, but employers using facial recognition or fingerprint/iris scanning for time-tracking, access control, or...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "data_categories": [
+            "biometric_identifiers"
+          ],
+          "consent_form": "NOTICE_ONLY",
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/california.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "f6bf255f1c09417ccce5ad1d6a29b0cb8e4e448e1c77ea8ca0b8fd8929a380f2",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "d4f2e9695cd39690621b3f241b48bd0a1b2f2c02560ab5f2aed703e9396e56279b2e7218f888eb8aeab9a23c70c7ac997860c608cb653b9d7f42c7c268daed0c"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "f6bf255f1c09417ccce5ad1d6a29b0cb8e4e448e1c77ea8ca0b8fd8929a380f2",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ca-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ca-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ca-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ca-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, channel are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ca-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ca-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ca-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ca-monitoring-consent",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "5378e8e55ef014fc679674cebc32a3049713e2ddb5e46ae03028c5da45f90cb2",
+      "prev_digest": "",
+      "digest": "c12aa58aa49a32eb3feea093e6671ff49838a7492eb72620af25b31c0d583868",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "0392796086c038c16712ab434783524fe7a784795bce2d7002366fe5238e4c57424350b9f47e775a0c8cc47d1b7acb99855669d5c469dda062cc7cecbe3a1a09"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "e4268155c5a592b7f7080163197df98e60481748f5f969b8bff83f9e82e560c1",
+      "prev_digest": "c12aa58aa49a32eb3feea093e6671ff49838a7492eb72620af25b31c0d583868",
+      "digest": "4e51ca4a77290e1ee6c2fb92c6187c12746f4ac42dd19c5e65bac38af2c2b82b",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "dd1776cd77c6af7d75370333679db035fb40783f131e4bbbc9f235910c28fd71c068a8b3ad0e14cad42b1577496c2d7344d70493ab20cb26e9d5024a91148105"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "f6bf255f1c09417ccce5ad1d6a29b0cb8e4e448e1c77ea8ca0b8fd8929a380f2",
+      "prev_digest": "4e51ca4a77290e1ee6c2fb92c6187c12746f4ac42dd19c5e65bac38af2c2b82b",
+      "digest": "ababce80bb0b0dde5679b7afe445ae029e24b098683921f40e666bff1b43952c",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "2dd67f0577782c9c5f66ffef54644e66aae73817359856357b5509e70a7b882e5d130a2366ef34f737ba796e32c975bcf7debe193a200abcc94a8159903eb301"
+      }
+    }
+  ]
+}

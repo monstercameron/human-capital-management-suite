@@ -1,0 +1,288 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-tx-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "TX",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-tx-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "§ 61.011",
+          "note": "Pay frequency verification (§ 61.011, 61.012): Confirm payday schedule remains designated (daily through monthly).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "MONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-tx-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "§ 61.014",
+          "note": "Final pay on termination during promotion period (§ 61.014): If termination occurs within 6 days of promotion effective date, ensure final check includes promoted wage rate for days worked at that rate; discharge...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay on termination during promotion period (§ 61.014): If termination occurs within 6 days of promotion effective date, ensure final check includes promoted wage rate for days worked at that rate; discharge deadline is 6 days, resignation deadline is next regular payday."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-tx-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "§ 15.50",
+          "note": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying agreement); (b) does promotion change job duties, location, or scope in a way that affects enforceability? If healthcare practitioner (effective 2025-09-01), apply 1-year/5-mile/buyout caps or non-compete is unenforceable post-Sept-1-2025."
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-tx-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay statement content: No state-mandated itemized format; federal FLSA disclosure requirements apply.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-tx-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "§ 451.001",
+          "note": "Workers' compensation retaliation check (§ 451.001): If employee recently filed claim, record promotion timing and business rationale to rebut inference of retaliation.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-tx-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "§ 411.091",
+          "note": "Drug testing: No state law prohibiting or mandating pre-employment drug testing for private employers.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "post_accident",
+            "random"
+          ],
+          "standard": "RECOMMENDED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-tx-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "TDPSA § 2026",
+          "note": "Data protection if promotion involves access change (TDPSA § 2026, § 521.053): If promotion grants access to personal information (e.g., HR data, SSN, customer lists), ensure data security, breach notification...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "subject_deadline_days": 60,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "MONITORING_CONSENT",
+        "id": "us-tx-monitoring-consent",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Trigger: Data breach of \"personal information\" = first name/initial + last name + one sensitive element (SSN, account, driver license, passport, biometric, financial/medical data, unique ID) if not encrypted.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "data_categories": [
+            "biometric_identifiers"
+          ],
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [
+      {
+        "kind": "LEAVE_INTERACTION",
+        "scope": "LOCALITY_ONLY",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "HB 2127",
+          "note": "state preemption of locality rules of this kind, per the rule-pack contract's section 6.4",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "scope": "LOCALITY_ONLY",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/texas.md",
+          "section": "HB 2127",
+          "note": "state preemption of locality rules of this kind, per the rule-pack contract's section 6.4",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        }
+      }
+    ],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/texas.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "a5783bb1d46d6576fab10f15d63949c2ad8d2b83cc6dfc427ac3305e1628ac1c",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "68a0015fb211cf109c6c254e94b4f8dad8b87b22390f8038e64ca3fa3186a2e8c9133bb2441cf0ca62e55b95f8485800d728d3a882831c4b9821db35180af90e"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "a5783bb1d46d6576fab10f15d63949c2ad8d2b83cc6dfc427ac3305e1628ac1c",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-tx-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-tx-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-tx-monitoring-consent",
+        "severity": "BLOCKING",
+        "note": "required field(s) consent_form are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-tx-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for TX; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-tx-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-tx-monitoring-consent",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-tx-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-tx-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-tx-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "876ae32ce7e2ac885a5dd3484c87e698f16aa5edfa4139a7612b7ef3d5607ba0",
+      "prev_digest": "",
+      "digest": "c278b8fbace16f8e597b32c23cec488422b1a38d023b6020fc49a5e27ea44ec2",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "9f22c7843132cbb981d64182fef8091173664daedf0a64d76674a5781539e206c330850364c9449dda9f5055c9529b4f3ca1e97d93e3e4279552fb973ba5cd02"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "dcb9fb8ca37cfd8ffbcfd118f9f410359b3e7c2677e97bf40ba610b57e4dfbc1",
+      "prev_digest": "c278b8fbace16f8e597b32c23cec488422b1a38d023b6020fc49a5e27ea44ec2",
+      "digest": "36908d0c7fa7dc1dce783ad1405893d9af67f5811ae9410d05cdecdc60f6dc16",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "5f8aaa23739081e1bb3fb788980b46e5dd3c5e41bd38eaa4de9d8bc05aeb6764124c980bd78b7591d4d0a696e6f5c3387acd4331341a881ea376030058e2c30c"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "a5783bb1d46d6576fab10f15d63949c2ad8d2b83cc6dfc427ac3305e1628ac1c",
+      "prev_digest": "36908d0c7fa7dc1dce783ad1405893d9af67f5811ae9410d05cdecdc60f6dc16",
+      "digest": "beec3d6ed1acd4b4298f50030d4dc96574796fa5281a625711504ee07d0696ae",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "f064eed3ed21f122457770f1dcaf5d731f20531b62a9c82a14a97817ee727660a2053d5ab271edda2f8066c1b93bf5daab4fc5b30d8625991fb8fb50c0ae7f00"
+      }
+    }
+  ]
+}

@@ -76,7 +76,7 @@
       },
       "body": {
         "leave_type": "paid leave",
-        "interaction_rule": "Employers with 75+ employees in Connecticut must provide up to 16 weeks unpaid leave in any 24-month period (Conn."
+        "interaction_rule": "Employers with 75+ employees in Connecticut must provide up to 16 weeks unpaid leave in any 24-month period (Conn. Gen. Stat. §§ 31-51kk to 31-51qq)."
       }
     },
     {
@@ -105,7 +105,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "On any change of pay or role, employers should provide written notice of new terms to align with § 31-71f disclosure requirements; no specific statutory notice period mandated for pay changes except final pay timing..."
+        "deadline_description": "On any change of pay or role, employers should provide written notice of new terms to align with § 31-71f disclosure requirements; no specific statutory notice period mandated for pay changes except final pay timing (see § 3 below)."
       }
     },
     {
@@ -120,7 +120,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Public Act 21-30 (effective October 1, 2021) requires employers to disclose the \"wage range\" anticipated for a position to applicants upon the earlier of request or before making an offer (Conn."
+        "required_disclosure": "Public Act 21-30 (effective October 1, 2021) requires employers to disclose the \"wage range\" anticipated for a position to applicants upon the earlier of request or before making an offer (Conn. Gen. Stat. § 31-74g)."
       }
     },
     {
@@ -135,7 +135,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Connecticut enforces reasonable non-compete agreements by common law and statute (Conn."
+        "rule": "Connecticut enforces reasonable non-compete agreements by common law and statute (Conn. Gen. Stat. § 31-49h, amended by PA 26-12 effective October 1, 2026)."
       }
     },
     {
@@ -213,7 +213,7 @@
       },
       "body": {
         "dimension": "CONTRACTOR",
-        "test_description": "Connecticut applies the ABC test to determine contractor vs.",
+        "test_description": "Connecticut applies the ABC test to determine contractor vs. employee status for unemployment insurance, workers' compensation, and wage-and-hour purposes (used by Joint Enforcement Commission on Employee Misclassification).",
         "standard": "REQUIRED"
       }
     },

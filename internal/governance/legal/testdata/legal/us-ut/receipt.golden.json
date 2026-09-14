@@ -1,0 +1,440 @@
+{
+  "legal_context_digest": "8c2ae02a5690462d2f3a5cf5779ddf8264f8f0ce9a8db21e873aca874c343df0",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "UT",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ut-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "UT",
+          "Locality": ""
+        }
+      },
+      "Digest": "c6551689533363799ebef72bd948bb2ce5190fc83bd623abc09ee72735272656",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-ut-retention",
+      "Description": "retain wage_records for 1 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 34-28-10",
+        "Note": "Wage record retention (§ 34-28-10): System must retain promotion records (wage change, effective date, justification) for minimum 1 year after employment ends; construction-licensed employers must retain pay statements...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "UT",
+        "Locality": ""
+      },
+      "PackID": "us-ut-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ut-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ut-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "20421e16af1735fcb6a9806f3d658b977b6f20077bbdcac6c4754f9b39692cb1"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ut-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 34-28-3",
+        "Note": "Pay frequency: Semimonthly or more frequent required (§ 34-28-3); salaried employees may be paid monthly (on/before 7th of following month).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "UT",
+        "Locality": ""
+      },
+      "PackID": "us-ut-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ut-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ut-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "680250495dc33e17c8a037a0b6b465c923478627c051a40ce3f2f9ba86b2b12d"
+    },
+    {
+      "Type": 8,
+      "ID": "us-ut-non-compete",
+      "Description": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete. If entered before May 10, 2016, verify enforceability; if after May 10, 2016, cap at 1 year from promotion date is implicit (termination occurs later). If non-compete, document cap and void status if exceeded. If non-solicit exists, verify reasonableness; document in system.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 34-51-102",
+        "Note": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "UT",
+        "Locality": ""
+      },
+      "PackID": "us-ut-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ut-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ut-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ut-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-ut-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "5609acd66e5f01a8f9cccc4732c6d25aef8687013ea370ccdc74b4d9db843f51"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ut-pay-equity-review",
+      "Description": "pay-equity review against comparable work for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 34A-5-106(1)(a)",
+        "Note": "Equal Pay compliance (§ 34A-5-106(1)(a)): On promotion or base-pay change within same establishment, flag if new wage for one sex differs materially from peer rates for comparable work; require manager justification or...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "UT",
+        "Locality": ""
+      },
+      "PackID": "us-ut-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ut-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ut-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ut-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "e07c63b63c08aa6a30709039a6fa9f77bd35e38fa561a6b921dcf3caf3f5076b"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ut-pay-statement",
+      "Description": "pay statement delivered  must carry employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 34-28-10",
+        "Note": "Wage record retention (§ 34-28-10): System must retain promotion records (wage change, effective date, justification) for minimum 1 year after employment ends; construction-licensed employers must retain pay statements...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "UT",
+        "Locality": ""
+      },
+      "PackID": "us-ut-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ut-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ut-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "c7d7f0b103ac8818260d59240f68189d0a2c0cbdc051625ff91e5449ac7a79d9"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-ut-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 34-28-5",
+        "Note": "Final pay on separation during/after promotion (§ 34-28-5): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid within 24 hours (involuntary) or next...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 9,
+      "ID": "us-ut-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 13-47-101",
+        "Note": "E-Verify for 150+ employees (§ 13-47-101); no penalty for non-compliance.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ut-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 34-01-20",
+        "Note": "Whistleblower protection (§ 34-01-20 private employees, § 67-21 public): If promotion follows any protected whistleblower activity (good-faith report of unlawful conduct), flag for legal review to ensure retaliation...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ut-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 34-38-1",
+        "Note": "Drug testing (§ 34-38-1 et seq., Utah Drug and Alcohol Testing Act):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ut-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/utah.md",
+        "Section": "§ 13-44-101",
+        "Note": "Breach notification required without unreasonable delay if misuse of personal information reasonably likely (§ 13-44-101).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "UT",
+            "Locality": ""
+          },
+          "PackID": "us-ut-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ut-retention",
+          "Description": "retain wage_records for 1 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/utah.md",
+            "Section": "§ 34-28-10",
+            "Note": "Wage record retention (§ 34-28-10): System must retain promotion records (wage change, effective date, justification) for minimum 1 year after employment ends; construction-licensed employers must retain pay statements...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ut-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "UT",
+            "Locality": ""
+          },
+          "PackID": "us-ut-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ut-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/utah.md",
+            "Section": "§ 34-28-3",
+            "Note": "Pay frequency: Semimonthly or more frequent required (§ 34-28-3); salaried employees may be paid monthly (on/before 7th of following month).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ut-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "UT",
+            "Locality": ""
+          },
+          "PackID": "us-ut-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-ut-non-compete",
+          "Description": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete. If entered before May 10, 2016, verify enforceability; if after May 10, 2016, cap at 1 year from promotion date is implicit (termination occurs later). If non-compete, document cap and void status if exceeded. If non-solicit exists, verify reasonableness; document in system.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/utah.md",
+            "Section": "§ 34-51-102",
+            "Note": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "UT",
+            "Locality": ""
+          },
+          "PackID": "us-ut-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ut-pay-equity-review",
+          "Description": "pay-equity review against comparable work for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/utah.md",
+            "Section": "§ 34A-5-106(1)(a)",
+            "Note": "Equal Pay compliance (§ 34A-5-106(1)(a)): On promotion or base-pay change within same establishment, flag if new wage for one sex differs materially from peer rates for comparable work; require manager justification or...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "UT",
+            "Locality": ""
+          },
+          "PackID": "us-ut-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ut-pay-statement",
+          "Description": "pay statement delivered  must carry employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/utah.md",
+            "Section": "§ 34-28-10",
+            "Note": "Wage record retention (§ 34-28-10): System must retain promotion records (wage change, effective date, justification) for minimum 1 year after employment ends; construction-licensed employers must retain pay statements...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "6a5a25350f29bf157230589041578a74b92fd71acd92e02c0a7a1ef1a0af35fa",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "DjMJh+LuhnzGUmsOHfdLUbb1L9MEKsWZtX/1rFo9Fhv9G3lbAuZCKTMTMnqMTCOzdPjBU/UzE25ucmJ+G+VfCg=="
+  }
+}

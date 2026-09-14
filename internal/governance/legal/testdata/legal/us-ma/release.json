@@ -1,0 +1,378 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ma-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "MA",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-ma-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "§ 105A",
+          "note": "Salary history ban: Employers may not inquire about or consider an applicant's previous wage/salary history unless voluntarily disclosed by the candidate (M.G.L.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-ma-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "§ 52C",
+          "note": "Personnel record access (c.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "personnel_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-ma-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "M § 2",
+          "note": "Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "leave_type": "paid leave",
+          "interaction_rule": "Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L. c. 175M § 2). Weekly benefit: 80% of the portion of average weekly wage at or below 50% of the state average weekly wage, plus 50% of the portion above, capped (cap $1,170.64 in 2025; verify 2026)."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ma-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "§ 148",
+          "note": "Wages must be paid on a regular, designated payday, at least weekly (M.G.L.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "WEEKLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ma-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "§ 150",
+          "note": "Treble damages flag: Any delay in final pay triggers automatic exposure to 3x damages plus attorney fees (M.G.L.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Treble damages flag: Any delay in final pay triggers automatic exposure to 3x damages plus attorney fees (M.G.L. c. 149 § 150); platform should block final pay submission if amount is incomplete."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-ma-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "§ 105F",
+          "note": "Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-ma-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "§ 24L",
+          "note": "Non-compete/non-solicit: If non-compete exists, platform must verify garden leave payment (50% salary, pro-rata) and track restricted period; flag any restriction without garden leave as likely unenforceable post-M.G.L.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete/non-solicit: If non-compete exists, platform must verify garden leave payment (50% salary, pro-rata) and track restricted period; flag any restriction without garden leave as likely unenforceable post-M.G.L. c. 149 § 24L amendment; require documentation of 10+ business days for legal review."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-ma-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "A §§ 71A–71B",
+          "note": "No state mini-WARN: Massachusetts has no enforceable mini-WARN act with statutory penalties.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "note": "No state mini-WARN: Massachusetts has no enforceable mini-WARN act with statutory penalties."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-ma-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "§ 1",
+          "note": "Minimum wage is $15.00/hour (unchanged since January 1, 2023; M.G.L.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "15.00",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ma-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "§ 105A",
+          "note": "Employers cannot pay employees less than others of a different gender for comparable work in the same workplace (M.G.L.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "gender"
+          ],
+          "comparator_standard": "comparable work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ma-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Federal FLSA requires itemized pay stubs; no specific Massachusetts statute mandates detailed pay stub format beyond federal requirements.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-ma-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "§ 52C",
+          "note": "Personnel record access (c.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "response_days": 10,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ma-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "PFML pay and benefits interaction: Document that pay changes during leave do not affect job restoration upon return (same or equivalent position, same status, pay, benefits, seniority); flag if promotion occurs during...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_activities": [
+            "protected_leave_request"
+          ],
+          "lookback_days": 30,
+          "disposition": "FLAG",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ma-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/massachusetts.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No state-level statute regulating private-sector drug testing scope; federal law (pre-employment, reasonable suspicion, post-accident, DOT rules) and FCRA apply if using third-party testing vendors.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "reasonable_suspicion",
+            "post_accident"
+          ],
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/massachusetts.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "ec479e726285d9c595f78913e2d9b6de3afc1773e9d52ed3f6de5478cd74687d",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "430d2e7e05931a2be7a7debfd264bbd97f816a2011760eb2762afc1cb494a817337e5853ae4a1a40b49fbf04329e7672539624b8d05012b946f9584814b30f0e"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "ec479e726285d9c595f78913e2d9b6de3afc1773e9d52ed3f6de5478cd74687d",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ma-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ma-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ma-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for MA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for MA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ma-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ma-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ma-field-restriction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ma-leave-interaction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ma-mini-warn",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ma-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ma-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ma-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "5004d79f0f5257c45fb1ec59362b6bc6aa7e78492201a53c6e4597558d6f2698",
+      "prev_digest": "",
+      "digest": "4ebed349eea9ad16b5f601eb2ba6e06f5fdd2ca330aee16bad84590ced69db45",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "7d95d588a3b873e6c829f1015f07d016687c80f50f165db80e38ea77a526ae1d3323facede8530ac3ab13758d6b35eb5b0f69478b2671b4557f5d101a8a65804"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "d34ad2c8cdfd9127307a07d2a31d54853880425c3ae15d9ea29ef5c69e3783d7",
+      "prev_digest": "4ebed349eea9ad16b5f601eb2ba6e06f5fdd2ca330aee16bad84590ced69db45",
+      "digest": "f52fb7d21a89d0efb9c00cf6cc0503bfc0814c33a978aca6c77a698c1b02cb0c",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "d388ed6c339bc39b9d9efcac8015a0365f174e9599cac3fd081d6b4daef14387d6a22d428ebfc8c75105eef6ab816302022593c00dccb501d233a59077be5b09"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "ec479e726285d9c595f78913e2d9b6de3afc1773e9d52ed3f6de5478cd74687d",
+      "prev_digest": "f52fb7d21a89d0efb9c00cf6cc0503bfc0814c33a978aca6c77a698c1b02cb0c",
+      "digest": "91f0e14ac349f6df5dd50040129338db53c48e14e0e5367fbedb53397fd14eb0",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "6d91f4fd7e0bfeee028f12b7b41e78afd6f455b3502d710546bbb81dbce2e70926267d7372e1106564d64f3a7389f4d8d33f8ea9368ae356d109190e39666005"
+      }
+    }
+  ]
+}

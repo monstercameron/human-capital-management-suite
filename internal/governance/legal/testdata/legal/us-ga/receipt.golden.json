@@ -1,0 +1,459 @@
+{
+  "legal_context_digest": "ebf14653d2877a2f405a863a820198f145f0460667e72405adbdf17251b9892b",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "GA",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ga-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "GA",
+          "Locality": ""
+        }
+      },
+      "Digest": "9c37892960c9252f1353769a7d693c6f86fe0d045cead71bf63fecab94140fbe",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-ga-retention",
+      "Description": "retain payroll_records for 4 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "O.C.G.A. § 34-4-5",
+        "Note": "Payroll Record Retention: Recommended 4-year retention after calendar-year end (O.C.G.A.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "GA",
+        "Locality": ""
+      },
+      "PackID": "us-ga-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ga-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ga-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "5b9fa2fad41f8bdcb7c4ed38f2f2c47a9eda0d35bffa9df40a30e496ec85feee"
+    },
+    {
+      "Type": 4,
+      "ID": "us-ga-leave-interaction",
+      "Description": ": Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued leave balance at termination, (5) final paycheck delivery date/method, (6) any severance agreement, release, or non-compete signed. Retain all documents for 4 years after termination per payroll-record rules (O.C.G.A. § 34-4-5).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "O.C.G.A. § 34-4-5",
+        "Note": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "GA",
+        "Locality": ""
+      },
+      "PackID": "us-ga-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ga-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ga-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ga-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "a2ac02baa5caa682e3f1a25ad52ea79246f1c1b6ec0ed07845d59a47771a3932"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ga-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "§ 34-7-2",
+        "Note": "Pay Frequency Notice: No pre-hire notice required; § 34-7-2 pay frequency (semi-monthly minimum) is employer's choice.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "GA",
+        "Locality": ""
+      },
+      "PackID": "us-ga-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ga-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ga-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "ebb8ef6be191850918a6128cff131116eafca64492417cc8c653de121313192e"
+    },
+    {
+      "Type": 8,
+      "ID": "us-ga-non-compete",
+      "Description": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued leave balance at termination, (5) final paycheck delivery date/method, (6) any severance agreement, release, or non-compete signed. Retain all documents for 4 years after termination per payroll-record rules (O.C.G.A. § 34-4-5).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "O.C.G.A. § 34-4-5",
+        "Note": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "GA",
+        "Locality": ""
+      },
+      "PackID": "us-ga-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ga-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ga-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ga-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-ga-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "4e2ab54f98712d706a92df33f7721141e52eeb629f9c9f3091b75c13bd1605bd"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ga-pay-equity-review",
+      "Description": "pay-equity review against comparable work for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "§ 34-5-3",
+        "Note": "Equal Pay Audit Trail: For pay increase/promotion decisions, capture job title, duties, knowledge/skills/effort/responsibility (KSER) level before and after (§ 34-5-3, Sex Discrimination in Employment Act).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "GA",
+        "Locality": ""
+      },
+      "PackID": "us-ga-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ga-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ga-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ga-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "1260106b08483b4a2ee14bdb2d5f062c055a3d7322188982f9348f15fca0ed82"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 9,
+      "ID": "us-ga-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "§ 13-10-91",
+        "Note": "E-Verify Documentation: Required if employer has 11+ employees (§ 13-10-91).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-ga-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "U.S.C. § 2102",
+        "Note": "WARN Act: The federal Worker Adjustment and Retraining Notification Act (29 U.S.C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ga-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "U.S.C. § 1681",
+        "Note": "Background Checks: Permitted under federal FCRA (15 U.S.C.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-ga-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Mass Separation Trigger (25+ same day, same reason, 7+ days): If threshold met, file Georgia DOL-402A (Mass Separation Notice) with the Georgia Department of Labor within 48 hours.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ga-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "Consult O.C.G.A. § 34-9-410",
+        "Note": "Drug Testing: No state law prohibits pre-employment drug testing.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ga-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/georgia.md",
+        "Section": "§ 10-1-912",
+        "Note": "Data Breach Contingency: If worker's personal information (SSN, driver's license, financial account, etc.) is exposed in a system breach, trigger \"expedient notification\" workflow per § 10-1-912.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "GA",
+            "Locality": ""
+          },
+          "PackID": "us-ga-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ga-retention",
+          "Description": "retain payroll_records for 4 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/georgia.md",
+            "Section": "O.C.G.A. § 34-4-5",
+            "Note": "Payroll Record Retention: Recommended 4-year retention after calendar-year end (O.C.G.A.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ga-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "GA",
+            "Locality": ""
+          },
+          "PackID": "us-ga-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-ga-leave-interaction",
+          "Description": ": Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued leave balance at termination, (5) final paycheck delivery date/method, (6) any severance agreement, release, or non-compete signed. Retain all documents for 4 years after termination per payroll-record rules (O.C.G.A. § 34-4-5).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/georgia.md",
+            "Section": "O.C.G.A. § 34-4-5",
+            "Note": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "GA",
+            "Locality": ""
+          },
+          "PackID": "us-ga-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ga-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/georgia.md",
+            "Section": "§ 34-7-2",
+            "Note": "Pay Frequency Notice: No pre-hire notice required; § 34-7-2 pay frequency (semi-monthly minimum) is employer's choice.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ga-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "GA",
+            "Locality": ""
+          },
+          "PackID": "us-ga-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-ga-non-compete",
+          "Description": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued leave balance at termination, (5) final paycheck delivery date/method, (6) any severance agreement, release, or non-compete signed. Retain all documents for 4 years after termination per payroll-record rules (O.C.G.A. § 34-4-5).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/georgia.md",
+            "Section": "O.C.G.A. § 34-4-5",
+            "Note": "Separation Documentation: Retain in the separated employee's file: (1) termination letter or notice, (2) reason for termination (performance, RIF, conduct, etc.), (3) final pay calculation and check stub, (4) accrued...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "GA",
+            "Locality": ""
+          },
+          "PackID": "us-ga-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ga-pay-equity-review",
+          "Description": "pay-equity review against comparable work for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/georgia.md",
+            "Section": "§ 34-5-3",
+            "Note": "Equal Pay Audit Trail: For pay increase/promotion decisions, capture job title, duties, knowledge/skills/effort/responsibility (KSER) level before and after (§ 34-5-3, Sex Discrimination in Employment Act).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "6ecc245080bb372df79f85d14f2a85c9cc69f0a4185176ffe1cec72dc8051e0d",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "9QF61MczphQTf5Vo9lL6f168CelIZUpeSH9Ybms/KAtjgYcgdmcv+fKBGPe3RnDM49jjtTsVNFjzzZKGn0rsAA=="
+  }
+}

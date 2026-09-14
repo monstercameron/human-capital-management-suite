@@ -1,0 +1,283 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ok-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "OK",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-ok-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "§ 165.4",
+          "note": "Record retention (§ 165.4): System must retain promotion records (effective date, wage amount, justification, approval) for minimum 1 year to support labor commissioner inspection rights.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 1,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ok-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "§ 165.2",
+          "note": "Pay frequency/payday notification (§ 165.2): On promotion or base-pay change, flag if payday changes.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ok-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "§ 165.3",
+          "note": "Final pay on separation during/after promotion: If termination follows promotion, ensure promoted-rate wages from effective date forward are paid by next regular payday per § 165.3; wages not paid face 2% daily...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay on separation during/after promotion: If termination follows promotion, ensure promoted-rate wages from effective date forward are paid by next regular payday per § 165.3; wages not paid face 2% daily liquidated damages (capped at unpaid amount). Document final pay calculation and payday."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-ok-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "O.S. § 219A",
+          "note": "Non-compete enforceability check (15 O.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforceability check (15 O.S. § 219A, § 219B): On promotion to customer-facing or high-access role, if employee subject to non-compete, flag as unenforceable per § 219A; document non-solicitation clause (if present) and whether it meets strict-compliance standard (established customers only, reasonable duration/scope)."
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ok-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "O.S. § 198.1",
+          "note": "Equal pay statute compliance (40 O.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "gender",
+            "age"
+          ],
+          "comparator_standard": "comparable work",
+          "documentation_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ok-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "§ 165.4",
+          "note": "Pay statement content: No state-mandated itemized format; federal FLSA requirements and § 165.4 record-keeping obligations apply (should document hours, wage rate, deductions, net pay).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "net_wages",
+            "deductions",
+            "hours_worked",
+            "pay_rate"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ok-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "A O.S. § 7",
+          "note": "Workers' compensation interaction (85A O.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim",
+            "protected_leave_request"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ok-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "O.S. § 427.8",
+          "note": "Medical marijuana (63 O.S.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "permitted_bases": [
+            "safety_sensitive_role"
+          ],
+          "written_policy_required": true,
+          "protected_status": [
+            "medical_cannabis_patient"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ok-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "§ 161",
+          "note": "No state-specific employee data privacy law analogous to CCPA; general data breach notification (§ 161 et seq.) applies.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [
+      {
+        "kind": "LEAVE_INTERACTION",
+        "scope": "LOCALITY_ONLY",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/oklahoma.md",
+          "section": "40 O.S. § 160",
+          "note": "state preemption of locality rules of this kind, per the rule-pack contract's section 6.4",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        }
+      }
+    ],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/oklahoma.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "50dfc197ebb33a265107d257615206de1c52fef852b83e0e38185b24f58b0fc0",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "657b17b2162179ec6f358b487f19256ea93e79d52688da353c3f71e7b2462bb8e451c278026fcb1b8e80439e8ae293a31f1e5e37f7409ad668dced237f000601"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "50dfc197ebb33a265107d257615206de1c52fef852b83e0e38185b24f58b0fc0",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ok-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ok-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ok-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ok-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for OK; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ok-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "70aca1cea9c4ccfab3407914e12d8581dbe4c7583e97c775b3fc45d67fd82612",
+      "prev_digest": "",
+      "digest": "a3a98314a523b391296bfe8c0062cf01228ad31f70474aa0e0d8c54814daa545",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "75365cedd07d1aa9ad35e2da93785535351defc26bd2b96262686542dc945e17a1117e85f5813a728ac93cd2a5670b2d2c312fe592abf6e1d5ad22c6cc47e506"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "1226df76de3bc2d53d045885104773282928e75cd4813527aea09e05a16a7a67",
+      "prev_digest": "a3a98314a523b391296bfe8c0062cf01228ad31f70474aa0e0d8c54814daa545",
+      "digest": "e3330a967088a65bab8730c3579284992f7c79ab3146bf164e6a305dee1a397a",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "72ef527227116195371c2c1b55c8db3680136b9fabaaeb0f56ed3c9790fbbf56239a1ba7ab406ab0cbc283c79ef8b930d51644c9d99da748d442cfc434bb7509"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "50dfc197ebb33a265107d257615206de1c52fef852b83e0e38185b24f58b0fc0",
+      "prev_digest": "e3330a967088a65bab8730c3579284992f7c79ab3146bf164e6a305dee1a397a",
+      "digest": "0178924ef6f75c2c7a85edf97894f53b497baa5bd4cdcedc2ab1f28c62cc93a3",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "f53c679b6599a4e2b74fceb5a0b55fbf2ec09b9afb8be75bc313ebe1a65e0fd8db140c83b5d52dcc22bdcb9b923a6b5c4263bec09f9f5e1e4a0c2d0165a29a05"
+      }
+    }
+  ]
+}

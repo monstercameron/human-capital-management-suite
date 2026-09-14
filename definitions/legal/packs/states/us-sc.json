@@ -31,6 +31,7 @@
       "body": {
         "who": "employer_to_worker",
         "timing_direction": "BEFORE",
+        "timing_days": 7,
         "channel": "written",
         "content_fields": ["effective_date"]
       }
@@ -75,6 +76,21 @@
       "body": {
         "trigger": "termination_any",
         "deadline_description": "Final pay timing: § 41-10-50 requires payment of all wages within 48 hours of separation or next regular payday (not exceeding 30 days)."
+      }
+    },
+    {
+      "kind": "NON_COMPETE",
+      "id": "us-sc-non-compete",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/south-carolina.md",
+        "section": "(statutory section not stated in the research file)",
+        "note": "Non-compete enforceability: Common law; must be written, signed, reasonable in time/territory; strictly construed against drafter; no blue-pencil modification.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "VERIFY"
+      },
+      "body": {
+        "recheck_on_pay_change": true,
+        "rule": "Non-compete enforceability: Common law; must be written, signed, reasonable in time/territory; strictly construed against drafter; no blue-pencil modification."
       }
     },
     {

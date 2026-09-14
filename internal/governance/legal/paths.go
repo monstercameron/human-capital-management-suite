@@ -14,11 +14,11 @@ import (
 var ErrRepoRootNotFound = errors.New("legal: cannot locate the repository root holding definitions/legal/packs")
 
 // PackDefinitionDir is the repository-relative directory holding checked-in
-// rule-pack definition files. Seed fixtures live under seed/, the fifty
+// rule-pack definition files. Seed fixtures live under seed/, the fifty-one
 // extracted state drafts under states/.
 const PackDefinitionDir = "definitions/legal/packs"
 
-// ResearchDir is the repository-relative directory holding the fifty state
+// ResearchDir is the repository-relative directory holding the fifty-one state
 // research files every citation in a state draft points back to.
 const ResearchDir = "planning/research/state-employment-law"
 

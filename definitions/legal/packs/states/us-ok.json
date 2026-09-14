@@ -58,7 +58,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on separation during/after promotion: If termination follows promotion, ensure promoted-rate wages from effective date forward are paid by next regular payday per § 165.3; wages not paid face 2% daily..."
+        "deadline_description": "Final pay on separation during/after promotion: If termination follows promotion, ensure promoted-rate wages from effective date forward are paid by next regular payday per § 165.3; wages not paid face 2% daily liquidated damages (capped at unpaid amount). Document final pay calculation and payday."
       }
     },
     {
@@ -73,7 +73,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforceability check (15 O.S."
+        "rule": "Non-compete enforceability check (15 O.S. § 219A, § 219B): On promotion to customer-facing or high-access role, if employee subject to non-compete, flag as unenforceable per § 219A; document non-solicitation clause (if present) and whether it meets strict-compliance standard (established customers only, reasonable duration/scope)."
       }
     },
     {

@@ -1,0 +1,412 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ny-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "NY",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-ny-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "§ 194-b",
+          "note": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker"
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-ny-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "§ 194-a",
+          "note": "Salary history ban (§ 194-a): Cannot inquire about prior wages; retaliation for refusal prohibited.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-ny-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "Labor Law § 210-b",
+          "note": "No general state statute currently mandates employee access to personnel files.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "personnel_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-ny-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "§ 196-b",
+          "note": "Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max). On promotion, carry accrued balance forward; do not forfeit. On termination, pay out accrued balance at regular rate unless written accrual-limit policy was provided at hire (system should flag if no policy exists)."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ny-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Manual workers: must be paid weekly.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "WEEKLY",
+          "applies_to_worker_class": "manual workers"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ny-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "§ 195(4)",
+          "note": "§ 195(4) requires records retention for 6 years covering hours, rates, deductions, and final pay.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "§ 195(4) requires records retention for 6 years covering hours, rates, deductions, and final pay."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-ny-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "§ 194-b",
+          "note": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting). Block posting if range field empty. Timestamp posting date for compliance audit. For internal promotion to 4+ employee organization, include wage range in promotion notice and track disclosure timing."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-ny-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "WARN Act Trigger (Labor Law Art.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "note": "WARN Act Trigger (Labor Law Art.",
+          "employee_threshold": 25,
+          "notice_days": 90
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-ny-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "Labor Law § 652",
+          "note": "Regional minimum wage tiers (Labor Law § 652, effective 2026): NYC/Long Island/Westchester $17.00/hour; rest of state $16.00/hour; frequent annual increases by CPI-W.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "17.00",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ny-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "§ 194",
+          "note": "Equal Pay Audit Flag (§ 194): On promotion + base-pay change, system should identify peer employees performing \"substantially similar work\" in same geographic area (county minimum, employer scope optimal) and flag if...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "age"
+          ],
+          "comparator_standard": "substantially similar work",
+          "documentation_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ny-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "§ 195(2)",
+          "note": "Pay Rate Change Notice (§ 195(2)): If promotion involves pay decrease, generate mandatory 7-day advance written notice with new rate, frequency, and effective date.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "pay_rate"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-ny-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "Labor Law § 210-b",
+          "note": "No general state statute currently mandates employee access to personnel files.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "response_days": 5,
+          "day_basis": "BUSINESS",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ny-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "§ 195(1)",
+          "note": "Wage Theft Prevention Act Compliance (§ 195(1), § 198): Log all pay-rate changes and link to written notice delivery.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "lookback_days": 7,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ny-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "Executive Law § 201-d",
+          "note": "Cannabis: Employers cannot take adverse action based solely on detection of cannabis metabolites from lawful off-duty use (Executive Law § 201-d, as amended); may test for on-the-job impairment or reasonable suspicion.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "reasonable_suspicion"
+          ],
+          "protected_status": [
+            "lawful_off_duty_cannabis_use"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ny-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks BREACH_NOTIFICATION for NY, and no item in new-york.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "MONITORING_CONSENT",
+        "id": "us-ny-monitoring-consent",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-york.md",
+          "section": "§ 203-e",
+          "note": "Reproductive Health and Electronic Monitoring Notices: Ensure employee handbook includes § 203-e (reproductive health nondiscrimination) and § 201-i (electronic monitoring) notices; update as of January 2, 2025.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "consent_form": "NOTICE_ONLY",
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/new-york.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "9c35da4d780c7792e9edbb28726cf72486c269542f1112d4bb4f6f6611f60e40",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "9a9f6d72db586964f05f0fa821e9534c052456b1c35a9b31a0f3eec8e408ea41363c6be40ac75b0e1e09816a0a37074aa9599baac7900895ad94500fa69e6107"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "9c35da4d780c7792e9edbb28726cf72486c269542f1112d4bb4f6f6611f60e40",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ny-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ny-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ny-monitoring-consent",
+        "severity": "BLOCKING",
+        "note": "required field(s) data_categories are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ny-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_direction, timing_days, channel are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ny-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for NY; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PERSONNEL_FILE '?' for NY; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ny-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ny-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ny-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ny-mini-warn",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ny-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ny-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "b8c0c0b42c012e967207737eed62387fb1e3024b11d9873ca5ac4024658b58c8",
+      "prev_digest": "",
+      "digest": "01244c99ee1e65774d6ffbe84d8340839f84486282c7db97317d3ed5dd693087",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "c5ec39120b4925017893aa3a02535b36d39422d2cebdea4c417655978eba6fee2a00075b053a1b7f17403ea69e3d13b111f9f30e0cb3f656e1fcb1a5c96d8609"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "558f525e8ff76415f528722c70cb67785114d2d570e30ba4a8d50e36dc6516ca",
+      "prev_digest": "01244c99ee1e65774d6ffbe84d8340839f84486282c7db97317d3ed5dd693087",
+      "digest": "280470c883f29f90b53afd1185b76eab8590a9deb463911d4f66dcb782487e90",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "2842e51ff16c8bdc7d2df052382024a088e4d7dd237439ba7153266c6d1efe98832b649a4cbff18605ee43e1c1755f8fc3004f4f57e321e281c6ab64e4165306"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "9c35da4d780c7792e9edbb28726cf72486c269542f1112d4bb4f6f6611f60e40",
+      "prev_digest": "280470c883f29f90b53afd1185b76eab8590a9deb463911d4f66dcb782487e90",
+      "digest": "8418861c88fcdd4b0c8f96134c5a83387b7d1cac761670b22859c8a2acdfaaf6",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "a8bf42089c4c54833b9547de851d1f54d0f7fc3fa16d926447b70ec397529175886ea186797d1ed8c8a01c27ffc545902e887aaf4f5a62a0f8c3e6bb3eb92902"
+      }
+    }
+  ]
+}

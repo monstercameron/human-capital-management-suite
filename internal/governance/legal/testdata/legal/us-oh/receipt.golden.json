@@ -1,0 +1,552 @@
+{
+  "legal_context_digest": "007eb94a6d3bff83684dae160be8ca97e3f3eaaf7d708dc25e2735f494e402df",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "OH",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-oh-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "OH",
+          "Locality": ""
+        }
+      },
+      "Digest": "448c06430770ed75c9e3f054c515be031a00da4f9c9d005bbb9cecfabe8f4741",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-oh-retention",
+      "Description": "retain wage_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Record retention (RC 4111.08): System must retain promotion documentation (offer, effective date, wage-change justification, HR approval, equal-pay analysis if conducted) for ≥3 years to support compliance with...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OH",
+        "Locality": ""
+      },
+      "PackID": "us-oh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-oh-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-oh-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "365fc923856ff3d09ae7119d7ecd996175eea5e98b1d196e0a5f62a612d4d351"
+    },
+    {
+      "Type": 4,
+      "ID": "us-oh-leave-interaction",
+      "Description": "accrued paid sick leave: Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate. Sick-leave accrual continues during paid leave; no reduction in accrual on promotion (verify if employer policy allows selective accrual adjustments).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OH",
+        "Locality": ""
+      },
+      "PackID": "us-oh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-oh-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-oh-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-oh-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "8d396a62db4a628a30eee11e4d2ddbf617e9fdd265ca6eeba646d9089dca2328"
+    },
+    {
+      "Type": 5,
+      "ID": "us-oh-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay frequency and payday change (RC 4113.15): System must flag if promotion/pay change coincides with payday change.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OH",
+        "Locality": ""
+      },
+      "PackID": "us-oh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-oh-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-oh-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "f57b7b3ca634e8a5bacf59028ba05ccc5c32c93922883a10f3e5e9d0533780d4"
+    },
+    {
+      "Type": 10,
+      "ID": "us-oh-mini-warn",
+      "Description": "0+ affected within 0 day(s) requires 60 day(s) notice",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Ohio mini-WARN Act (RC 4113.31, effective Sept 29, 2025): 60-day advance notice to state/local officials + employees required for plant closing or layoff of 50+ at one site if employer has 100+ total employees or...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OH",
+        "Locality": ""
+      },
+      "PackID": "us-oh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-oh-mini-warn",
+        "Kind": 6,
+        "NonRemovable": true,
+        "Description": "timer: mini-WARN notice deadline",
+        "LifecycleStep": "EXECUTE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-oh-mini-warn",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "timer: mini-WARN notice deadline",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "76fc2558248189895b53972e87b2479c924908399229ae0b76008adaccb0764e"
+    },
+    {
+      "Type": 11,
+      "ID": "us-oh-wage-floor",
+      "Description": "HOURLY floor of 11.00 USD for tipped employees, indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "Ohio Constitution Art. II § 34a",
+        "Note": "Minimum wage $11.00/hour (2026, indexed annually per Ohio Constitution Art.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OH",
+        "Locality": ""
+      },
+      "PackID": "us-oh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-oh-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-oh-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-oh-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "07a75892a71170d736b16603b8fa3892efcab12bba479720e42d2c7e51372bd7"
+    },
+    {
+      "Type": 12,
+      "ID": "us-oh-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases sex, gender, race, national_origin, religion, age [RECOMMENDED, not a statutory requirement]",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Equal-pay statute compliance (RC 4111.17): On promotion or pay change, system should flag if new wage for one gender deviates substantially from peer rates for equal work.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OH",
+        "Locality": ""
+      },
+      "PackID": "us-oh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-oh-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-oh-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-oh-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "edfafa32e1896a570ba43a2d6869ebe0e65ae65ecb81b9a30a3980bce2a90c6a"
+    },
+    {
+      "Type": 13,
+      "ID": "us-oh-pay-statement",
+      "Description": "pay statement delivered  must carry pay_rate",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "HB 106",
+        "Note": "Pay-statement compliance (HB 106 RC 4113.14, effective 4/9/2025): On promotion effective mid-pay-period, system must ensure pay stub issued on next regular payday itemizes both pre- and post-promotion wages separately...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "OH",
+        "Locality": ""
+      },
+      "PackID": "us-oh-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-oh-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-oh-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "eb30b93a530838283c3abaddebf42592036fb04673f24e32306ef090a66ae609"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-oh-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Final pay compliance on separation (RC 4113.15): If termination occurs within promotion period, ensure all wages at promoted rate paid within 15 days of separation (or on next regular payday if sooner); capture in...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-oh-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "U.S.C. § 2000gg",
+        "Note": "Federal Pregnant Workers Fairness Act (PWFA, 42 U.S.C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-oh-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "R.C. 3796.28",
+        "Note": "Medical marijuana (Ohio Medical Marijuana Control Program, R.C.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-oh-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/ohio.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Data breach notification (RC 1349.19):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OH",
+            "Locality": ""
+          },
+          "PackID": "us-oh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-oh-retention",
+          "Description": "retain wage_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/ohio.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Record retention (RC 4111.08): System must retain promotion documentation (offer, effective date, wage-change justification, HR approval, equal-pay analysis if conducted) for ≥3 years to support compliance with...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-oh-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OH",
+            "Locality": ""
+          },
+          "PackID": "us-oh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-oh-leave-interaction",
+          "Description": "accrued paid sick leave: Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate. Sick-leave accrual continues during paid leave; no reduction in accrual on promotion (verify if employer policy allows selective accrual adjustments).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/ohio.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OH",
+            "Locality": ""
+          },
+          "PackID": "us-oh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-oh-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/ohio.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay frequency and payday change (RC 4113.15): System must flag if promotion/pay change coincides with payday change.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-oh-pay-frequency"
+    },
+    {
+      "Kind": 10,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OH",
+            "Locality": ""
+          },
+          "PackID": "us-oh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 10,
+          "ID": "us-oh-mini-warn",
+          "Description": "0+ affected within 0 day(s) requires 60 day(s) notice",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/ohio.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Ohio mini-WARN Act (RC 4113.31, effective Sept 29, 2025): 60-day advance notice to state/local officials + employees required for plant closing or layoff of 50+ at one site if employer has 100+ total employees or...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-oh-mini-warn"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OH",
+            "Locality": ""
+          },
+          "PackID": "us-oh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-oh-wage-floor",
+          "Description": "HOURLY floor of 11.00 USD for tipped employees, indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/ohio.md",
+            "Section": "Ohio Constitution Art. II § 34a",
+            "Note": "Minimum wage $11.00/hour (2026, indexed annually per Ohio Constitution Art.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-oh-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OH",
+            "Locality": ""
+          },
+          "PackID": "us-oh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-oh-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases sex, gender, race, national_origin, religion, age [RECOMMENDED, not a statutory requirement]",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/ohio.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Equal-pay statute compliance (RC 4111.17): On promotion or pay change, system should flag if new wage for one gender deviates substantially from peer rates for equal work.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "OH",
+            "Locality": ""
+          },
+          "PackID": "us-oh-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-oh-pay-statement",
+          "Description": "pay statement delivered  must carry pay_rate",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/ohio.md",
+            "Section": "HB 106",
+            "Note": "Pay-statement compliance (HB 106 RC 4113.14, effective 4/9/2025): On promotion effective mid-pay-period, system must ensure pay stub issued on next regular payday itemizes both pre- and post-promotion wages separately...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "b39f52bab3c1be415777f29c66ebadefe791d6f641b0c9743c9013aedcb0a4b8",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "F2gxA3zRB6oHNUY4YQtERsuVgL4snwAGpV2fFczSiVvvSClEougkGFHy0Dujx1MdJvk1/6nm5iJUKQrsmYo/Dw=="
+  }
+}

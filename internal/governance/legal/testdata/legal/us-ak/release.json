@@ -1,0 +1,333 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ak-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "AK",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-ak-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "AS § 23.05.160",
+          "note": "Written notice requirement: Any change in pay rate, payday, or place of pay must be communicated in writing no later than the payday preceding the effective date of the change (AS § 23.05.160's \"on the payday before...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "payday",
+            "effective_date"
+          ]
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-ak-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "AS § 23.10.100",
+          "note": "Payroll record retention: Employers must keep, at the employee's place of employment, a record of each employee's name, address, and occupation, rate of pay and amount paid each pay period, hours worked each day and...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-ak-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "AS §§ 23.10.066",
+          "note": "Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers \u003c 15 FTE) or 56 hours (employers ≥ 15 FTE).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers \u003c 15 FTE) or 56 hours (employers ≥ 15 FTE). All accrued leave carries over year to year; rehire within 6 months requires reinstatement of previous balance. Not paid out on termination unless employer has a voluntary policy (AS §§ 23.10.066–.067)."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ak-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "AS § 23.05.160",
+          "note": "Pay frequency verification: If a role change alters pay frequency, the platform must enforce the requirement that final notice goes out by the payday preceding the change (AS § 23.05.160), not merely before the next...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ak-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "AS § 23.05.140",
+          "note": "Final pay: All wages due within 3 working days of employer-initiated termination; within 3 days of the next regular payday if employee-initiated (minimum 3 days after notice received) (AS § 23.05.140).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay: All wages due within 3 working days of employer-initiated termination; within 3 days of the next regular payday if employee-initiated (minimum 3 days after notice received) (AS § 23.05.140)."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-ak-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "AS § 23.10.065",
+          "note": "Minimum wage: $14.00/hour as of 2026-07-01 (July 1, 2026); scheduled to increase to $15.00/hour on July 1, 2027, then adjust annually for inflation starting January 1, 2028 based on Anchorage CPI-U (AS § 23.10.065).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "14.00",
+            "currency": "USD"
+          },
+          "worker_class": "tipped employees",
+          "basis": "HOURLY",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ak-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "AS § 23.05.140(d)",
+          "note": "Pay statement content and form: Employers must provide written or electronic pay stubs (AS § 23.05.140(d)) showing:",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "employer_identification"
+          ],
+          "delivery": "ELECTRONIC",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-ak-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "Alaska Statute § 23.20.525(a)(8)(A",
+          "note": "Contractor classification test (ABC test): Alaska Statute § 23.20.525(a)(8)(A–C) applies the ABC test for unemployment-insurance and workers'-compensation purposes.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "dimension": "CONTRACTOR",
+          "test_description": "Contractor classification test (ABC test): Alaska Statute § 23.20.525(a)(8)(A–C) applies the ABC test for unemployment-insurance and workers'-compensation purposes. All three prongs must be satisfied to classify a worker as an independent contractor; failure to meet any prong results in employee classification (presumption of employment). The three prongs are:",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-ak-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "AS § 23.10.430",
+          "note": "Employee access to personnel files: Employees and former employees have a statutory right to inspect and copy their own personnel files and personnel information maintained by the employer during reasonable business...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ak-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "AS § 23.10.135",
+          "note": "Captive audience ban (Ballot Measure 1): Effective July 1, 2025, employers cannot require employees to attend meetings primarily about political or religious matters (opinions on legislation, elections, unionization, or...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "union_activity"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ak-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Drug testing: No state statute regulating or restricting drug testing in private employment.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "random",
+            "safety_sensitive_role"
+          ],
+          "standard": "RECOMMENDED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ak-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alaska.md",
+          "section": "Alaska Statutes § 18.13.200–270",
+          "note": "Biometric data: Alaska Statutes § 18.13.200–270 contain targeted rules for biometric identifiers (fingerprints, voice patterns, retina/iris scans, face recognition).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/alaska.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "1f176c1fc403e0396dad9123e8925bfe603854211947d7af73bf39f53701d96c",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "aa25e6e2a8fc2cca566b3ce28669e6dadde32da0188948dd5d0e1ffee0a249b83fa840a22c5babf588bd475854dbc509d08edfe4e62f548957f6ab233fe13a0a"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "1f176c1fc403e0396dad9123e8925bfe603854211947d7af73bf39f53701d96c",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ak-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ak-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ak-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ak-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ak-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for AK; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ak-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ak-leave-interaction",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ak-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "2f4b1570564b83775caf93d24dc5db7ca3c1943efa7b108a86d77a5cfe07e1b1",
+      "prev_digest": "",
+      "digest": "e16f74f4832becda4027efe6f9942a3f9096200cc9801c66ffa47be8cad8f577",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "04499cc41852ee864b544e5c0f498e90b23a5391eef8cb79f33dc48c2eb5b15cb8aa03e2ea9f4087041a47b57628c1462f7f5fbd44a8351d2d7f800ac57bd309"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "883b1fe881bd930fff8c85d4b2c85a8e6476a808d882a965edaac16db39e6f2f",
+      "prev_digest": "e16f74f4832becda4027efe6f9942a3f9096200cc9801c66ffa47be8cad8f577",
+      "digest": "86d4fa2508ee3cb4c6e48ba8a0f111598c93344406c573492e39bf48070ebbb9",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "8db361a4f522abeefc4075248a4f4b67149ec580fd049f9d4db428ec41e868c73615dc9180e03d68e16869c88bce1f02cfea6f6bda53b8038ddb5d4c98cebe00"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "1f176c1fc403e0396dad9123e8925bfe603854211947d7af73bf39f53701d96c",
+      "prev_digest": "86d4fa2508ee3cb4c6e48ba8a0f111598c93344406c573492e39bf48070ebbb9",
+      "digest": "099cf01d725f9613234967b4bacb659d59008800cd97179d6ead96b1fafb7082",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "4a5aece69b82664bef9c26310c22ce0e5ebf7f88c989b408e095fe6d625da28b1281ba860a37f05b4ab4d6b94453b62d0a7409d5c24943e4faa1c0df4e5a8000"
+      }
+    }
+  ]
+}

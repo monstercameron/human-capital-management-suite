@@ -30,6 +30,7 @@
       },
       "body": {
         "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
         "channel": "written",
         "content_fields": ["pay_rate", "payday"]
       }
@@ -76,7 +77,7 @@
       },
       "body": {
         "leave_type": "paid leave",
-        "interaction_rule": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed."
+        "interaction_rule": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed. Display accrual balance before and after role change. On termination, calculate and include payout of unused paid leave in final pay calculation."
       }
     },
     {
@@ -105,7 +106,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed."
+        "deadline_description": "Paid leave accrual preservation (820 ILCS 192): On demotion or role change, system must preserve accrued paid leave balance; no forfeiture allowed. Display accrual balance before and after role change. On termination, calculate and include payout of unused paid leave in final pay calculation."
       }
     },
     {
@@ -120,7 +121,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay transparency and Equal Pay Act (820 ILCS 112): Effective Jan 1, 2025 (PA 103-0539), employers with 15+ employees must include pay scale in job postings, cannot screen applicants by salary history, must disclose pay..."
+        "required_disclosure": "Pay transparency and Equal Pay Act (820 ILCS 112): Effective Jan 1, 2025 (PA 103-0539), employers with 15+ employees must include pay scale in job postings, cannot screen applicants by salary history, must disclose pay range before offer, and extend equal pay protections to race-based discrimination; Equal Pay Registration Certificate required for 100+ employees."
       }
     },
     {

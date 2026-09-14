@@ -225,9 +225,9 @@ Businesses in multiple states must comply with conflicting classification tests 
 
 **Must Model as Typed Obligation or Notice:**
 
-- **Equal Pay Audit Trail:** Capture job classifications, skills, effort, responsibility, and working conditions for each promotion or pay change; enable proof of "substantially similar work" evaluation (Ala. Code § 25-1-30).
+- **Equal Pay Audit Trail:** Capture job classifications, skills, effort, responsibility, and working conditions for each promotion or pay change; enable proof of "substantially similar work" evaluation and document the sex and race protected bases the Act covers (Ala. Code § 25-1-30).
 - **Wage Record Retention:** Automatically retain all wage, pay rate, job classification, and term/condition records for 3-year minimum; flag records older than 3 years for archive review.
-- **Workers' Compensation Termination Restriction:** Flag if termination reason is workers' compensation claim or safety report; block or require manager acknowledgment if "solely because" reason detected (Ala. Code § 25-5-11.1).
+- **Workers' Compensation Termination Restriction:** Flag if termination reason is workers' compensation claim or safety report; block or require manager acknowledgment if "solely because" reason detected (Ala. Code § 25-5-11.1); a § 25-5-11.1 retaliatory-discharge claim is bounded by Alabama's 2-year tort limitations period (Ala. Code § 6-2-38).
 - **Non-Compete Enforceability Check:** For existing-employee non-compete enforcement, confirm independent consideration has been documented (beyond mere continued employment).
 - **Classification Audit:** Document the 20-factor right-of-control analysis for any contractor reclassification; flag if historical 1099 treatment conflicts with new classification (Act 2021-226).
 - **E-Verify Compliance:** All new-hire records must confirm E-Verify case opened within 3 business days of hire date; no employer-size exceptions (Ala. Code § 31-13-15).

@@ -75,7 +75,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max)."
+        "interaction_rule": "Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max). On promotion, carry accrued balance forward; do not forfeit. On termination, pay out accrued balance at regular rate unless written accrual-limit policy was provided at hire (system should flag if no policy exists)."
       }
     },
     {
@@ -120,7 +120,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting)."
+        "required_disclosure": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting). Block posting if range field empty. Timestamp posting date for compliance audit. For internal promotion to 4+ employee organization, include wage range in promotion notice and track disclosure timing."
       }
     },
     {

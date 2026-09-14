@@ -1,0 +1,604 @@
+{
+  "legal_context_digest": "2f601decd722092f1cb647f89ca5d3d1402bc73096fa190c9a549c3c6229b5a4",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "NE",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ne-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "NE",
+          "Locality": ""
+        }
+      },
+      "Digest": "c902254a8729c8eaa830e3c35fba36b0a4e1bc88bc11251e1bd0b5e1dbc0c036",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-ne-notice",
+      "Description": "employer_to_worker notice before the effective date within 30 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Neb. Rev. Stat. § 48-1230",
+        "Note": "Notice of payday changes: If an employer alters regular paydays, 30 days' written notice must be given to each employee before the change takes effect (Neb.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NE",
+        "Locality": ""
+      },
+      "PackID": "us-ne-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ne-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ne-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ne-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-ne-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "c21c6ad04be62435d9647f3e035dfbda0482d8c4f8556cc85313ae8ffa01413b"
+    },
+    {
+      "Type": 4,
+      "ID": "us-ne-leave-interaction",
+      "Description": "accrued paid sick leave: Neb. Rev. Stat. §§ 48-3801 to 48-3811 establish paid sick leave requirements. Applies to employers with 11 or more employees; LB 415 (2025) exempts employers with 10 or fewer employees, temporary workers, and employees under age 16.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Neb. Rev. Stat. §§ 48-3801",
+        "Note": "Neb. Rev. Stat. §§ 48-3801 to 48-3811 establish paid sick leave requirements.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NE",
+        "Locality": ""
+      },
+      "PackID": "us-ne-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ne-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ne-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ne-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "4814a8d1040150ceb3e3655c23849c2825976012e0077138d546dcc0fcac2bfa"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ne-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Neb. Rev. Stat. § 48-1230",
+        "Note": "Pay Frequency: No state law mandates a specific pay frequency (weekly, biweekly, semi-monthly, monthly).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NE",
+        "Locality": ""
+      },
+      "PackID": "us-ne-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ne-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ne-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "1ab1cbc348ae9f67638dea7127d7bb880589393705cf3eac19cd9ee12df21494"
+    },
+    {
+      "Type": 8,
+      "ID": "us-ne-non-compete",
+      "Description": "Statutory framework: Neb. Rev. Stat. § 87-404 applies only to franchise-relationship noncompetes (Franchise Practices Act context) and is not the governing law for general employment noncompetes.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Neb. Rev. Stat. § 87-404",
+        "Note": "Statutory framework: Neb. Rev. Stat. § 87-404 applies only to franchise-relationship noncompetes (Franchise Practices Act context) and is not the governing law for general employment noncompetes.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NE",
+        "Locality": ""
+      },
+      "PackID": "us-ne-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ne-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ne-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ne-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-ne-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "6e0806e26a7b2851b5b60a9e1471f8939915dfa0644d98b309087b76a70249f8"
+    },
+    {
+      "Type": 11,
+      "ID": "us-ne-wage-floor",
+      "Description": "HOURLY floor of 15.00 USD for tipped employees, indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "LB 258",
+        "Note": "Minimum wage: $15/hour (2026), with annual increases: Effective January 1, 2026, minimum wage is $15/hour per Initiative 433 (LB 258); increases 1.75% annually starting January 1, 2027, calculated and published by...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NE",
+        "Locality": ""
+      },
+      "PackID": "us-ne-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ne-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ne-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ne-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "551686d16e6b6f1ba5d05efedaad2882d6a86c354ab0f5c32e51ac1fc9be8d88"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ne-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Neb. Rev. Stat. § 48-1219",
+        "Note": "Capture job-classification and compensation data: Neb. Rev. Stat. § 48-1219 requires equal pay for equal work; document job descriptions, skill requirements, effort, responsibility, and working conditions for all roles.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NE",
+        "Locality": ""
+      },
+      "PackID": "us-ne-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ne-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ne-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ne-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "eb21318c2d260464ecb462421f54d2c5b03a11c9718699176e3c6acf3cb653cf"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ne-pay-statement",
+      "Description": "pay statement delivered  must carry deductions, hours_worked, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Neb. Rev. Stat. § 48-1230",
+        "Note": "Wage Statements: Neb. Rev. Stat. § 48-1230 requires employers to deliver or make available to each employee on each regular payday a wage statement showing, at minimum: (1) identity of the employer, (2) hours for which...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "NE",
+        "Locality": ""
+      },
+      "PackID": "us-ne-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ne-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ne-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "3a3dcb16333a417fc8b8c23d0aef3dde83f20370f7d7e4d608e3d5ad5e4541de"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-ne-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Neb. Rev. Stat. § 48-1230",
+        "Note": "Final pay timing: next payday or within 2 weeks of termination, whichever is sooner: Unpaid wages (including accrued vacation/PTO) become due immediately on separation under Neb. Rev. Stat. § 48-1230.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-ne-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "LB 921",
+        "Note": "Nebraska WARN Act (LB 921) requires 90-day notice for mass layoffs of 25+ employees: State mini-WARN applies to separations of 25 or more employees on the same day, for the same reason, expected to last 7+ days; federal...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ne-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Neb. Rev. Stat. §§ 48-1219",
+        "Note": "Equal Pay Law: Neb. Rev. Stat. §§ 48-1219 to 48-1227 (Equal Pay Act) prohibit wage discrimination based on sex.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-ne-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Retain separation documentation: Maintain final-pay records, separation notices, and related documentation.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ne-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Nebraska Revised Statutes §§ 48-1901",
+        "Note": "Drug and Alcohol Testing: Nebraska Revised Statutes §§ 48-1901 to 48-1910 address drug and alcohol testing in the workplace.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ne-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/nebraska.md",
+        "Section": "Neb. Rev. Stat. § 87-803",
+        "Note": "Data breach notification required without unreasonable delay: Neb. Rev. Stat. § 87-803 requires notification of affected parties \"as soon as possible and without unreasonable delay\" if personal information is breached...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NE",
+            "Locality": ""
+          },
+          "PackID": "us-ne-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-ne-notice",
+          "Description": "employer_to_worker notice before the effective date within 30 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nebraska.md",
+            "Section": "Neb. Rev. Stat. § 48-1230",
+            "Note": "Notice of payday changes: If an employer alters regular paydays, 30 days' written notice must be given to each employee before the change takes effect (Neb.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NE",
+            "Locality": ""
+          },
+          "PackID": "us-ne-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-ne-leave-interaction",
+          "Description": "accrued paid sick leave: Neb. Rev. Stat. §§ 48-3801 to 48-3811 establish paid sick leave requirements. Applies to employers with 11 or more employees; LB 415 (2025) exempts employers with 10 or fewer employees, temporary workers, and employees under age 16.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nebraska.md",
+            "Section": "Neb. Rev. Stat. §§ 48-3801",
+            "Note": "Neb. Rev. Stat. §§ 48-3801 to 48-3811 establish paid sick leave requirements.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NE",
+            "Locality": ""
+          },
+          "PackID": "us-ne-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ne-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nebraska.md",
+            "Section": "Neb. Rev. Stat. § 48-1230",
+            "Note": "Pay Frequency: No state law mandates a specific pay frequency (weekly, biweekly, semi-monthly, monthly).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ne-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NE",
+            "Locality": ""
+          },
+          "PackID": "us-ne-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-ne-non-compete",
+          "Description": "Statutory framework: Neb. Rev. Stat. § 87-404 applies only to franchise-relationship noncompetes (Franchise Practices Act context) and is not the governing law for general employment noncompetes.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nebraska.md",
+            "Section": "Neb. Rev. Stat. § 87-404",
+            "Note": "Statutory framework: Neb. Rev. Stat. § 87-404 applies only to franchise-relationship noncompetes (Franchise Practices Act context) and is not the governing law for general employment noncompetes.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NE",
+            "Locality": ""
+          },
+          "PackID": "us-ne-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-ne-wage-floor",
+          "Description": "HOURLY floor of 15.00 USD for tipped employees, indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nebraska.md",
+            "Section": "LB 258",
+            "Note": "Minimum wage: $15/hour (2026), with annual increases: Effective January 1, 2026, minimum wage is $15/hour per Initiative 433 (LB 258); increases 1.75% annually starting January 1, 2027, calculated and published by...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ne-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NE",
+            "Locality": ""
+          },
+          "PackID": "us-ne-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ne-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nebraska.md",
+            "Section": "Neb. Rev. Stat. § 48-1219",
+            "Note": "Capture job-classification and compensation data: Neb. Rev. Stat. § 48-1219 requires equal pay for equal work; document job descriptions, skill requirements, effort, responsibility, and working conditions for all roles.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "NE",
+            "Locality": ""
+          },
+          "PackID": "us-ne-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ne-pay-statement",
+          "Description": "pay statement delivered  must carry deductions, hours_worked, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/nebraska.md",
+            "Section": "Neb. Rev. Stat. § 48-1230",
+            "Note": "Wage Statements: Neb. Rev. Stat. § 48-1230 requires employers to deliver or make available to each employee on each regular payday a wage statement showing, at minimum: (1) identity of the employer, (2) hours for which...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "f46b03c7901ca52e245b7e83e55613fd5046f3216c68341a96725a709e230746",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "xNTlVWwaORTsdou0PFDdIC3zELonn2NRqXDdFD1WYe88j/3qzS/sQt5scG402UFSjgtkkx8YozMdl+46TXunCA=="
+  }
+}

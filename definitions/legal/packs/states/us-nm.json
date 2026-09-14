@@ -30,7 +30,6 @@
       },
       "body": {
         "who": "employer_to_worker",
-        "timing_direction": "BEFORE",
         "channel": "written",
         "content_fields": ["effective_date"]
       }
@@ -63,7 +62,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid sick leave interaction (§ 50-17-1 et seq.): On promotion + pay change, if employee uses sick leave concurrently, system must not reduce post-leave wage below pre-promotion level."
+        "interaction_rule": "Paid sick leave interaction (§ 50-17-1 et seq.): On promotion + pay change, if employee uses sick leave concurrently, system must not reduce post-leave wage below pre-promotion level. Sick leave accrual continues during paid leave (verify if employer policy dictates pro-rata accrual)."
       }
     },
     {
@@ -90,7 +89,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on separation during/after promotion: If termination occurs following promotion, ensure all wages earned at promoted rate from effective date forward are paid within 5 days (fixed wages) or 10 days (other..."
+        "deadline_description": "Final pay on separation during/after promotion: If termination occurs following promotion, ensure all wages earned at promoted rate from effective date forward are paid within 5 days (fixed wages) or 10 days (other compensation) of discharge per § 50-4-4."
       }
     },
     {
@@ -105,7 +104,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforceability check (§ 50-4A-1): On promotion to healthcare practitioner role, system must: (a) Identify if employee subject to non-compete; (b) If yes, flag as unenforceable per § 50-4A-1 (applies to all..."
+        "rule": "Non-compete enforceability check (§ 50-4A-1): On promotion to healthcare practitioner role, system must: (a) Identify if employee subject to non-compete; (b) If yes, flag as unenforceable per § 50-4A-1 (applies to all listed healthcare roles); (c) Document non-solicitation clause (≤1 year) and liquidated damages as enforceable alternatives; (d) On promotion, check if new role changes healthcare-practitioner status and update enforceability status."
       }
     },
     {

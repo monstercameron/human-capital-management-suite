@@ -1,0 +1,309 @@
+{
+  "legal_context_digest": "1fed89c9da749ce252f2cec755def6f6db883785d06f8606342c2229b7796ba4",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "TX",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-tx-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "TX",
+          "Locality": ""
+        }
+      },
+      "Digest": "a5783bb1d46d6576fab10f15d63949c2ad8d2b83cc6dfc427ac3305e1628ac1c",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 5,
+      "ID": "us-tx-pay-frequency",
+      "Description": "minimum frequency MONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/texas.md",
+        "Section": "§ 61.011",
+        "Note": "Pay frequency verification (§ 61.011, 61.012): Confirm payday schedule remains designated (daily through monthly).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "TX",
+        "Locality": ""
+      },
+      "PackID": "us-tx-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-tx-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-tx-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "867c118ae8264e580fa7fedd6130db1cd1fdb5658d3fbe6a9c06a27c42081927"
+    },
+    {
+      "Type": 8,
+      "ID": "us-tx-non-compete",
+      "Description": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying agreement); (b) does promotion change job duties, location, or scope in a way that affects enforceability? If healthcare practitioner (effective 2025-09-01), apply 1-year/5-mile/buyout caps or non-compete is unenforceable post-Sept-1-2025.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/texas.md",
+        "Section": "§ 15.50",
+        "Note": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "TX",
+        "Locality": ""
+      },
+      "PackID": "us-tx-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-tx-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-tx-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-tx-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-tx-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "430f5e222de3898940ee446e84e2c681aceef2a31f8f391568671bf3530d66b6"
+    },
+    {
+      "Type": 13,
+      "ID": "us-tx-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/texas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Pay statement content: No state-mandated itemized format; federal FLSA disclosure requirements apply.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "TX",
+        "Locality": ""
+      },
+      "PackID": "us-tx-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-tx-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-tx-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "337c7308d6e02795fe4fde06e985505cbf21e28077b4afc898968d2c554b45e4"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-tx-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/texas.md",
+        "Section": "§ 61.014",
+        "Note": "Final pay on termination during promotion period (§ 61.014): If termination occurs within 6 days of promotion effective date, ensure final check includes promoted wage rate for days worked at that rate; discharge...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-tx-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/texas.md",
+        "Section": "§ 451.001",
+        "Note": "Workers' compensation retaliation check (§ 451.001): If employee recently filed claim, record promotion timing and business rationale to rebut inference of retaliation.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-tx-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/texas.md",
+        "Section": "§ 411.091",
+        "Note": "Drug testing: No state law prohibiting or mandating pre-employment drug testing for private employers.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-tx-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/texas.md",
+        "Section": "TDPSA § 2026",
+        "Note": "Data protection if promotion involves access change (TDPSA § 2026, § 521.053): If promotion grants access to personal information (e.g., HR data, SSN, customer lists), ensure data security, breach notification...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 22,
+      "ID": "us-tx-monitoring-consent",
+      "Reason": "the transaction touches no data category this rule covers",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/texas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Trigger: Data breach of \"personal information\" = first name/initial + last name + one sensitive element (SSN, account, driver license, passport, biometric, financial/medical data, unique ID) if not encrypted.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "TX",
+            "Locality": ""
+          },
+          "PackID": "us-tx-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-tx-pay-frequency",
+          "Description": "minimum frequency MONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/texas.md",
+            "Section": "§ 61.011",
+            "Note": "Pay frequency verification (§ 61.011, 61.012): Confirm payday schedule remains designated (daily through monthly).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-tx-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "TX",
+            "Locality": ""
+          },
+          "PackID": "us-tx-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-tx-non-compete",
+          "Description": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying agreement); (b) does promotion change job duties, location, or scope in a way that affects enforceability? If healthcare practitioner (effective 2025-09-01), apply 1-year/5-mile/buyout caps or non-compete is unenforceable post-Sept-1-2025.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/texas.md",
+            "Section": "§ 15.50",
+            "Note": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "TX",
+            "Locality": ""
+          },
+          "PackID": "us-tx-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-tx-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/texas.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Pay statement content: No state-mandated itemized format; federal FLSA disclosure requirements apply.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "2300422f743be012fabe4d96728f0a4db40755bb43ba1f36f0f099eb300e1c88",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "7F9WWzUJr/K+rqOzvJK/XQNFv0AGYf2yqDrJgpMHv+Ja3qzfii2ee1LNqlYU3iOIcaZH2WXvlDDvOfGT/RlyBg=="
+  }
+}

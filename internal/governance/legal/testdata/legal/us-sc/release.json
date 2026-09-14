@@ -1,0 +1,317 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-sc-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "SC",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-sc-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "§ 41-10-30",
+          "note": "Seven-day written notice before wage change (§ 41-10-30): Any increase or decrease in base wage, bonus structure, or commission rate requires seven calendar days' written advance notice before effective date.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "timing_days": 7,
+          "channel": "written",
+          "content_fields": [
+            "effective_date"
+          ]
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-sc-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "§ 41-10-30(C)",
+          "note": "Personnel file documentation (§ 41-10-30(C), three-year retention): Record promotion decision, wage change, effective date, business rationale, and seven-day notice delivery in personnel file; retain for three years.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-sc-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "§ 41-10-40",
+          "note": "Pay frequency (§ 41-10-40, § 41-10-30):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-sc-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "§ 41-10-50",
+          "note": "Final pay timing: § 41-10-50 requires payment of all wages within 48 hours of separation or next regular payday (not exceeding 30 days).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay timing: § 41-10-50 requires payment of all wages within 48 hours of separation or next regular payday (not exceeding 30 days)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-sc-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Non-compete enforceability: Common law; must be written, signed, reasonable in time/territory; strictly construed against drafter; no blue-pencil modification.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforceability: Common law; must be written, signed, reasonable in time/territory; strictly construed against drafter; no blue-pencil modification."
+        }
+      },
+      {
+        "kind": "E_VERIFY",
+        "id": "us-sc-e-verify",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "§ 41-8-20(B)",
+          "note": "E-Verify status verification (§ 41-8-20(B)): Before processing promotion or base-pay increase, verify employee's work authorization status in E-Verify or I-9 file is current and no legal hold/revocation is in place...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_on_new_hire_only": true,
+          "note": "E-Verify status verification (§ 41-8-20(B)): Before processing promotion or base-pay increase, verify employee's work authorization status in E-Verify or I-9 file is current and no legal hold/revocation is in place..."
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-sc-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Direct deposit permitted if employees receive earnings statements and at least one free withdrawal per deposit period.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-sc-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "§ 41-1-80",
+          "note": "Workers' compensation retaliation check (§ 41-1-80): If employee recently filed workers' compensation claim, injury report, or participated in related proceeding, flag promotion timing to ensure no retaliation...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim"
+          ],
+          "lookback_days": 30,
+          "disposition": "FLAG",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "JOB_SECURITY",
+        "id": "us-sc-job-security",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "§ 41-1-110",
+          "note": "Handbook disclaimer enforcement (§ 41-1-110): If handbook contains job-security language or cause-for-termination clause, verify disclaimer is conspicuously underlined capital letters on first page and signed by...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard_kind": "HANDBOOK_DISCLAIMER",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-sc-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "§ 41-1-15",
+          "note": "Drug testing (§ 41-1-15):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-sc-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/south-carolina.md",
+          "section": "§ 39-1-90",
+          "note": "Data breach notification (§ 39-1-90):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/south-carolina.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "fe771128189e35e6333f9d8ee5cf9823a730fa1cd9ac1dd9f6578528cf30571b",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "3af71e4c195e524e9e583f88f46a31343c70a38d8fe81639da903c031146d932c5cc021e5936d6760cef70d40923d8baeb871305f1de9bc86324823e1c23f205"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "fe771128189e35e6333f9d8ee5cf9823a730fa1cd9ac1dd9f6578528cf30571b",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-sc-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-sc-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-sc-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-sc-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) required_fields, delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-sc-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for SC; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-sc-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sc-e-verify",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sc-job-security",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sc-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sc-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-sc-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "df24360d8da041e187597d8296c307e52ed9fe972a8c867ce61439c33c0daea2",
+      "prev_digest": "",
+      "digest": "e9028b8401fb934bd7a3627c303f3fea374e35464a2e572029f5caa07ad94ee8",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "124bfcb998229c323f1f2ed163acf69798912e468e78f2780927ad3b889ddeea1409df78d74e909c28f73b396a36bf266c08cacf6c27446794bf8b93cf05a808"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "a427fa38b85a347194c2bb513049e40a1fc094eb9114384e3c704745fd208d74",
+      "prev_digest": "e9028b8401fb934bd7a3627c303f3fea374e35464a2e572029f5caa07ad94ee8",
+      "digest": "371f3019a7abd3529a9314e19d5d5a00ba0d7adb3015da861c222172fc7b1e4f",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "44303dce1193f69e087e2b883ec54a45f61f877c3ad207a0ef499f668da4d55e04178f7257147cc3a88bd8f80e8ed80ebc248f3c78605071f7378f7f53dceb02"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "fe771128189e35e6333f9d8ee5cf9823a730fa1cd9ac1dd9f6578528cf30571b",
+      "prev_digest": "371f3019a7abd3529a9314e19d5d5a00ba0d7adb3015da861c222172fc7b1e4f",
+      "digest": "4716255cae5fa679198844a372bac8214fed1dde1c53e621530f7364cfbf2ad5",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "b7c95bdf8fd9c64b66426ffffb05b8b048e045ca993e51f6e0c18b2f3337f1984911876c6893ed7dfed2a2e239cd3fbeceb83ded3d0cf5e9013d5f7df12a790d"
+      }
+    }
+  ]
+}

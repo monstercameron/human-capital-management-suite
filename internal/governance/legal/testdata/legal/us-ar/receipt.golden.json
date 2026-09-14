@@ -1,0 +1,435 @@
+{
+  "legal_context_digest": "9a93e674143f928a15ed6e48d2f4b183a45eba0af38d2938ff01d76854c037be",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "AR",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ar-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "AR",
+          "Locality": ""
+        }
+      },
+      "Digest": "7a9bdff5bb28c9fc15de78b1ee7405a7abdf6967cca36a0701357547e6bc1105",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-ar-retention",
+      "Description": "retain payroll_records for 5 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arkansas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Employee records retention: Personnel files must be retained 5 years post-separation (state agency standard); federal FLSA requires 3 years for payroll records.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AR",
+        "Locality": ""
+      },
+      "PackID": "us-ar-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ar-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ar-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "6ed6afa37df60a42ea7decf2ccb7fe7898aef0290cfc11fc83f444157de5d819"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ar-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arkansas.md",
+        "Section": "Ark. Code § 11-4-401",
+        "Note": "Semi-monthly pay frequency required for most employees; corporations with $500k+ annual income may pay exempt management once per month (Ark.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AR",
+        "Locality": ""
+      },
+      "PackID": "us-ar-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ar-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ar-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "2a15ff0cfc6330f29a4abcbb11c98ebb235c691f81d54015d4133e3d00f33236"
+    },
+    {
+      "Type": 8,
+      "ID": "us-ar-non-compete",
+      "Description": "Verify non-compete is ancillary to employment and limited in time/scope (Ark. Code § 4-75-101).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arkansas.md",
+        "Section": "Ark. Code § 4-75-101",
+        "Note": "Verify non-compete is ancillary to employment and limited in time/scope (Ark.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AR",
+        "Locality": ""
+      },
+      "PackID": "us-ar-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ar-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ar-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ar-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-ar-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "139cf59cdd9e2d69737c6c9422809b944eee7123e72e17c66b9e5f72c055756b"
+    },
+    {
+      "Type": 11,
+      "ID": "us-ar-wage-floor",
+      "Description": "HOURLY floor of 11.00 USD for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arkansas.md",
+        "Section": "Ark. Code § 11-4-211",
+        "Note": "Minimum wage: $11.00/hour for employers with 4+ employees (Ark.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AR",
+        "Locality": ""
+      },
+      "PackID": "us-ar-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ar-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ar-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ar-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "7658b6104d8364305adab065dfd21e8f48c30fc4bcbb0ef3cec1c2a9c1e5e78e"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ar-pay-equity-review",
+      "Description": "pay-equity review against  for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arkansas.md",
+        "Section": "Ark. Code § 11-4-405",
+        "Note": "Sex-based wage discrimination prohibited for employers of any size (Ark.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "AR",
+        "Locality": ""
+      },
+      "PackID": "us-ar-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ar-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ar-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ar-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "f6a9424c41270d7e57bb785c0c593361cd828ee7dcb64d1f7e4f992f976f5f13"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-ar-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arkansas.md",
+        "Section": "Ark. Code § 11-4-405",
+        "Note": "Final pay due within 7 days of termination if employee requests it, or by next regular payday (Ark.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ar-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arkansas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks ANTI_RETALIATION for AR, and no item in arkansas.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ar-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arkansas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "### Drug Testing",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ar-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/arkansas.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "### Breach Notification",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AR",
+            "Locality": ""
+          },
+          "PackID": "us-ar-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ar-retention",
+          "Description": "retain payroll_records for 5 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arkansas.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Employee records retention: Personnel files must be retained 5 years post-separation (state agency standard); federal FLSA requires 3 years for payroll records.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ar-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AR",
+            "Locality": ""
+          },
+          "PackID": "us-ar-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ar-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arkansas.md",
+            "Section": "Ark. Code § 11-4-401",
+            "Note": "Semi-monthly pay frequency required for most employees; corporations with $500k+ annual income may pay exempt management once per month (Ark.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ar-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AR",
+            "Locality": ""
+          },
+          "PackID": "us-ar-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-ar-non-compete",
+          "Description": "Verify non-compete is ancillary to employment and limited in time/scope (Ark. Code § 4-75-101).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arkansas.md",
+            "Section": "Ark. Code § 4-75-101",
+            "Note": "Verify non-compete is ancillary to employment and limited in time/scope (Ark.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AR",
+            "Locality": ""
+          },
+          "PackID": "us-ar-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-ar-wage-floor",
+          "Description": "HOURLY floor of 11.00 USD for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arkansas.md",
+            "Section": "Ark. Code § 11-4-211",
+            "Note": "Minimum wage: $11.00/hour for employers with 4+ employees (Ark.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ar-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "AR",
+            "Locality": ""
+          },
+          "PackID": "us-ar-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ar-pay-equity-review",
+          "Description": "pay-equity review against  for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/arkansas.md",
+            "Section": "Ark. Code § 11-4-405",
+            "Note": "Sex-based wage discrimination prohibited for employers of any size (Ark.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "3f4f0591cf5c2e51da3b8dd0f53d1d6087d91b3efac463629d15fde797168903",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "w7OJfp8KKnffvwoR6FHXwczbKYfPJFHbucw9IdOIRw2yIudx37M5v+Obp4VKxeGN18YrfKpz3jpgxqpKh1cMBw=="
+  }
+}

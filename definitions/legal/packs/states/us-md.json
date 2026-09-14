@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/maryland.md",
         "section": "Empl. § 3-504(a)",
-        "note": "Md.",
+        "note": "Md. Code, Lab. & Empl.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -56,7 +56,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/maryland.md",
         "section": "Empl. § 3-424",
-        "note": "Md.",
+        "note": "Md. Code, Lab. & Empl.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -77,7 +77,7 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "interaction_rule": "Earned leave accrual (§ 3-1301, § 3-424): Track accrued HWFA leave (1 hour per 30 hours worked, max 40/year for large employers, unpaid for small employers)."
+        "interaction_rule": "Earned leave accrual (§ 3-1301, § 3-424): Track accrued HWFA leave (1 hour per 30 hours worked, max 40/year for large employers, unpaid for small employers). On termination, if no written leave-payout policy exists, automatic payout of accrued balance. On promotion within same employer, leave balance carries forward."
       }
     },
     {
@@ -121,7 +121,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay transparency notice (§ 3-304.2): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty."
+        "required_disclosure": "Pay transparency notice (§ 3-304.2): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty. On offer extension, timestamp wage range disclosure."
       }
     },
     {
@@ -136,7 +136,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforceability check (§ 3-716): On hiring or role change, if employee earns ≤$22.50/hour (or $46,800 annually), flag any non-compete clause as unenforceable; mark as void."
+        "rule": "Non-compete enforceability check (§ 3-716): On hiring or role change, if employee earns ≤$22.50/hour (or $46,800 annually), flag any non-compete clause as unenforceable; mark as void. Healthcare/veterinary workers: void all non-competes regardless of wage."
       }
     },
     {
@@ -261,7 +261,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/maryland.md",
         "section": "Com. Law § 14-3501",
-        "note": "Md.",
+        "note": "Md. Code, Com.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

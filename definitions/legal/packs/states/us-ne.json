@@ -42,13 +42,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. §§ 48-3801",
-        "note": "Neb.",
+        "note": "Neb. Rev. Stat. §§ 48-3801 to 48-3811 establish paid sick leave requirements.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Neb."
+        "interaction_rule": "Neb. Rev. Stat. §§ 48-3801 to 48-3811 establish paid sick leave requirements. Applies to employers with 11 or more employees; LB 415 (2025) exempts employers with 10 or fewer employees, temporary workers, and employees under age 16."
       }
     },
     {
@@ -71,13 +71,28 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. § 48-1230",
-        "note": "Final pay timing: next payday or within 2 weeks of termination, whichever is sooner: Unpaid wages (including accrued vacation/PTO) become due immediately on separation under Neb.",
+        "note": "Final pay timing: next payday or within 2 weeks of termination, whichever is sooner: Unpaid wages (including accrued vacation/PTO) become due immediately on separation under Neb. Rev. Stat. § 48-1230.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing: next payday or within 2 weeks of termination, whichever is sooner: Unpaid wages (including accrued vacation/PTO) become due immediately on separation under Neb."
+        "deadline_description": "Final pay timing: next payday or within 2 weeks of termination, whichever is sooner: Unpaid wages (including accrued vacation/PTO) become due immediately on separation under Neb. Rev. Stat. § 48-1230. Accrued PTO is considered wages."
+      }
+    },
+    {
+      "kind": "NON_COMPETE",
+      "id": "us-ne-non-compete",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/nebraska.md",
+        "section": "Neb. Rev. Stat. § 87-404",
+        "note": "Statutory framework: Neb. Rev. Stat. § 87-404 applies only to franchise-relationship noncompetes (Franchise Practices Act context) and is not the governing law for general employment noncompetes.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "recheck_on_pay_change": true,
+        "rule": "Statutory framework: Neb. Rev. Stat. § 87-404 applies only to franchise-relationship noncompetes (Franchise Practices Act context) and is not the governing law for general employment noncompetes."
       }
     },
     {
@@ -122,7 +137,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. § 48-1219",
-        "note": "Capture job-classification and compensation data: Neb.",
+        "note": "Capture job-classification and compensation data: Neb. Rev. Stat. § 48-1219 requires equal pay for equal work; document job descriptions, skill requirements, effort, responsibility, and working conditions for all roles.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -138,7 +153,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. § 48-1230",
-        "note": "Wage Statements: Neb.",
+        "note": "Wage Statements: Neb. Rev. Stat. § 48-1230 requires employers to deliver or make available to each employee on each regular payday a wage statement showing, at minimum: (1) identity of the employer, (2) hours for which...",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -153,7 +168,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. §§ 48-1219",
-        "note": "Equal Pay Law: Neb.",
+        "note": "Equal Pay Law: Neb. Rev. Stat. §§ 48-1219 to 48-1227 (Equal Pay Act) prohibit wage discrimination based on sex.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -197,7 +212,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. § 87-803",
-        "note": "Data breach notification required without unreasonable delay: Neb.",
+        "note": "Data breach notification required without unreasonable delay: Neb. Rev. Stat. § 87-803 requires notification of affected parties \"as soon as possible and without unreasonable delay\" if personal information is breached...",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

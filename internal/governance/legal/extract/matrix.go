@@ -134,8 +134,8 @@ func ParseMatrix(contract string) (*Matrix, error) {
 		m.States = append(m.States, state)
 	}
 	sort.Strings(m.States)
-	if len(m.States) != 50 {
-		return nil, fmt.Errorf("extract: contract section 5 parsed %d state rows, want 50", len(m.States))
+	if len(m.States) != 51 {
+		return nil, fmt.Errorf("extract: contract section 5 parsed %d state rows, want 51", len(m.States))
 	}
 	return m, nil
 }

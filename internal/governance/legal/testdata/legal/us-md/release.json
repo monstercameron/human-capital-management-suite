@@ -1,0 +1,438 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-md-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "MD",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-md-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "Empl. § 3-504(a)",
+          "note": "Md. Code, Lab. \u0026 Empl.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "payday"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-md-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 3-304.1",
+          "note": "Salary history inquiry block (§ 3-304.1): Disable or flag any form field attempting to request prior salary/wages from external candidates; log any such queries as compliance risk.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-md-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "Empl. § 3-424",
+          "note": "Md. Code, Lab. \u0026 Empl.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-md-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 3-1301",
+          "note": "Earned leave accrual (§ 3-1301, § 3-424): Track accrued HWFA leave (1 hour per 30 hours worked, max 40/year for large employers, unpaid for small employers).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "interaction_rule": "Earned leave accrual (§ 3-1301, § 3-424): Track accrued HWFA leave (1 hour per 30 hours worked, max 40/year for large employers, unpaid for small employers). On termination, if no written leave-payout policy exists, automatic payout of accrued balance. On promotion within same employer, leave balance carries forward."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-md-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 3-502",
+          "note": "§ 3-502: Employers must pay at least every 2 weeks (biweekly) or twice monthly.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "BIWEEKLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-md-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks FINAL_PAY_DEADLINE for MD, and no item in maryland.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "the research file states no rule text for this duty"
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-md-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 3-304.2",
+          "note": "Pay transparency notice (§ 3-304.2): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay transparency notice (§ 3-304.2): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty. On offer extension, timestamp wage range disclosure."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-md-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 3-716",
+          "note": "Non-compete enforceability check (§ 3-716): On hiring or role change, if employee earns ≤$22.50/hour (or $46,800 annually), flag any non-compete clause as unenforceable; mark as void.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete enforceability check (§ 3-716): On hiring or role change, if employee earns ≤$22.50/hour (or $46,800 annually), flag any non-compete clause as unenforceable; mark as void. Healthcare/veterinary workers: void all non-competes regardless of wage."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-md-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 11-301",
+          "note": "Mini-WARN trigger (§ 11-301): If planned layoff affects 25% or 15+ employees over 3 months and employer has 50+ employees, auto-flag and require 60-day notice scheduling; notify state Dislocated Worker Unit.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Mini-WARN trigger (§ 11-301): If planned layoff affects 25% or 15+ employees over 3 months and employer has 50+ employees, auto-flag and require 60-day notice scheduling; notify state Dislocated Worker Unit.",
+          "employee_threshold": 15,
+          "notice_days": 60
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-md-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 3-716",
+          "note": "Non-compete restrictions: Non-competes unenforceable for employees earning ≤150% of state minimum wage ($22.50/hour; $46,800 annually); banned for healthcare workers earning ≤$350,000 and veterinary professionals...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "22.50",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-md-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 3-304",
+          "note": "Equal pay audit flag (§ 3-304): On promotion + base-pay change, system should flag if new rate differs significantly from peer rates for \"equal work\" (comparable role in same establishment/county); require manager...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "age"
+          ],
+          "comparator_standard": "equal work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-md-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 3-424",
+          "note": "No Maryland statute mandates itemized pay stubs; federal FLSA rules apply.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "net_wages",
+            "deductions",
+            "hours_worked",
+            "pay_rate",
+            "employer_identification"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-md-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Personnel records (performance reviews, disciplinary notes, hire/termination documentation) may be retained indefinitely unless employee disputes information; disputed items must be accompanied by employee's written...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-md-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "§ 3-304.1",
+          "note": "Salary history ban: Employers cannot inquire about prospective employees' wage history unless voluntarily disclosed (§ 3-304.1); retaliation against candidates who refuse is prohibited.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "disposition": "BLOCK",
+          "standard": "RECOMMENDED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-md-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "No state-level statute regulating private-sector drug testing; federal law (pre-employment, reasonable suspicion, post-accident) and federal DOT rules apply.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "reasonable_suspicion",
+            "post_accident"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-md-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/maryland.md",
+          "section": "Com. Law § 14-3501",
+          "note": "Md. Code, Com.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/maryland.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "7920d5813a1c5966409aeeb65e903b349f35885664ac34edbfccc1e04648abf6",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "bc89c9599045a8a9d9f7207a5ac0ecb884c9c0a8ddb5adfa5d1ef240d5ecf9b97a5fc20dcca2406b80b9b277b40a53f434fec6c9c573c67c254d2881b4086c00"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "7920d5813a1c5966409aeeb65e903b349f35885664ac34edbfccc1e04648abf6",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-md-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-md-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-md-leave-interaction",
+        "severity": "BLOCKING",
+        "note": "required field(s) leave_type are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-md-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-md-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-md-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-md-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for MD; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for MD; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks RETENTION '?' for MD; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PERSONNEL_FILE '?' for MD; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-md-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-md-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-md-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-md-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-md-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-md-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-md-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "6d916a2c3629f945f4f48db7994df4a9f589cad8cfedaf915c0e267a66bac7ed",
+      "prev_digest": "",
+      "digest": "143b07dd01340fe86d350b3647474df7a394d84d43dd3b956b30aa1972df44c2",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "45129b3d5aba36941a887d54a6b82671f129e50c053eb4ff45c62461838be0b0e29c17c21add94df1291df9e7f2ba95511df91336cffabbfee960c825102280e"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "c19d5d9e269151a8eed3b87d9a648d3ef601fd913808ffcedfd758a13c6fde0c",
+      "prev_digest": "143b07dd01340fe86d350b3647474df7a394d84d43dd3b956b30aa1972df44c2",
+      "digest": "8ea24108adf625b7b721205666322d1d653499746e5584da575dc6c3f0f86bc7",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "93fbe8c720d67b9d2ecb44a7a546cf75adcdad5f71ec85317de1fdc51d4bfaa8a12a1a4e8bc2d91e56a1fdc98671d8f68e6604304fcab5eee12374aa5dbd3c08"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "7920d5813a1c5966409aeeb65e903b349f35885664ac34edbfccc1e04648abf6",
+      "prev_digest": "8ea24108adf625b7b721205666322d1d653499746e5584da575dc6c3f0f86bc7",
+      "digest": "7e154c0189fea4d285bc85c96477e738839716a9f228922e35cb7ac448e132ed",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "9bf74b59ad40b276a363993e045bd5a9c13e2d1270dec43684a84fc568c9d6a235a8ee3ce5deb922198437c35de9f35df21c4e6dbdbf322a245d63ab7bc11609"
+      }
+    }
+  ]
+}

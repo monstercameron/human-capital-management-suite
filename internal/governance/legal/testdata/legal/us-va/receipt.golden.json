@@ -1,0 +1,723 @@
+{
+  "legal_context_digest": "7fc853c6d8fb4b89b47d95edee16b4dbeb68efd6d22d4e2f310f7782482f11b1",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "VA",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-va-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "VA",
+          "Locality": ""
+        }
+      },
+      "Digest": "44af7797476303a1f3e38cc0e0bc4245826932608424faf14e3a733f33316323",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-va-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "Va. Code § 40.1-29",
+        "Note": "Va. Code § 40.1-29: Written notice of wages, pay periods, and deductions required.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VA",
+        "Locality": ""
+      },
+      "PackID": "us-va-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-va-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-va-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-va-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-va-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "02ed799af16ba9c05626d73e7710d89e941fe4195666225a1405b613c1d48ef7"
+    },
+    {
+      "Type": 3,
+      "ID": "us-va-retention",
+      "Description": "retain payroll_records for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-29",
+        "Note": "Payroll record retention (§ 40.1-29):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VA",
+        "Locality": ""
+      },
+      "PackID": "us-va-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-va-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-va-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "9db1e5fd31354e286f195dae91227da97679060bdb4d72d172d6dac49cd2ef0f"
+    },
+    {
+      "Type": 5,
+      "ID": "us-va-pay-frequency",
+      "Description": "minimum frequency BIWEEKLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-29",
+        "Note": "Pay frequency and final pay (§ 40.1-29): Hourly = biweekly or twice monthly; salaried = monthly; final pay on or before next regular payday; treble damages for knowing wage violations.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VA",
+        "Locality": ""
+      },
+      "PackID": "us-va-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-va-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-va-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "6a6c58483a5c9195fc48194641eddc0dd1e7ed9a87003a1daa57fff4819b41ec"
+    },
+    {
+      "Type": 7,
+      "ID": "us-va-pay-transparency",
+      "Description": "internal_promotion: Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per subsequent; private right of action within 1 year (§ 40.1-28.7:12).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-28.7:12",
+        "Note": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VA",
+        "Locality": ""
+      },
+      "PackID": "us-va-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-va-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-va-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-va-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "54a6b9c845a29be41247ac782857e4033e6dddefe21a2a521be845aef8bb2179"
+    },
+    {
+      "Type": 8,
+      "ID": "us-va-non-compete",
+      "Description": "Non-compete enforceability check and void (§ 40.1-28.7:8; SB 1218):",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-28.7:8",
+        "Note": "Non-compete enforceability check and void (§ 40.1-28.7:8; SB 1218):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VA",
+        "Locality": ""
+      },
+      "PackID": "us-va-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-va-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-va-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-va-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-va-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "4d0b1dc9836fbc0acca16287995f021dcda98c0bfaaeb0a15aa7ba9f3dfdcb4d"
+    },
+    {
+      "Type": 11,
+      "ID": "us-va-wage-floor",
+      "Description": " floor of 12.77 USD for , indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-28.10",
+        "Note": "Minimum wage floor check (§ 40.1-28.10): On any pay change (promotion, base raise, role change), verify new rate ≥ current state minimum ($12.77 for 2026–2027; $13.75 for 2027–2028; $15.00 for 2028–2029; then...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VA",
+        "Locality": ""
+      },
+      "PackID": "us-va-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-va-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-va-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-va-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "202d86b99aeb614253b920d42289e2b1c5e611df2ba5bc6cb444fb1495e6fe68"
+    },
+    {
+      "Type": 12,
+      "ID": "us-va-pay-equity-review",
+      "Description": "pay-equity review against  for bases ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-28.6",
+        "Note": "Equal pay audit and justification (§ 40.1-28.6):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VA",
+        "Locality": ""
+      },
+      "PackID": "us-va-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-va-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-va-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-va-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "e1519662a77259f2ad663078c0760448fc547a015fc78fb7801ee8e69edbe982"
+    },
+    {
+      "Type": 13,
+      "ID": "us-va-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-29",
+        "Note": "Pay statement content (§ 40.1-29):",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VA",
+        "Locality": ""
+      },
+      "PackID": "us-va-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-va-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-va-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "9badaaebc08abfd4e08f111b066f17654ed865dfd552b77676c6a574b4dac4c4"
+    },
+    {
+      "Type": 14,
+      "ID": "us-va-classification",
+      "Description": " test: § 40.1-28.7:7: Misclassification enforcement by Department of Labor, Department of Revenue, Workers' Compensation Commission; penalties include back wages, reclassification, civil actions.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-28.7:7",
+        "Note": "§ 40.1-28.7:7: Misclassification enforcement by Department of Labor, Department of Revenue, Workers' Compensation Commission; penalties include back wages, reclassification, civil actions.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "VA",
+        "Locality": ""
+      },
+      "PackID": "us-va-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-va-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-va-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-va-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "2d46bc5bed2f2fa19f7206e26cc96da67ceb98ae43a412f825a55214a764d1d8"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-va-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-28.7:12",
+        "Note": "Salary history inquiry block (§ 40.1-28.7:12, effective September 3, 2026):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-va-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-29",
+        "Note": "Pay frequency and final pay (§ 40.1-29): Hourly = biweekly or twice monthly; salaried = monthly; final pay on or before next regular payday; treble damages for knowing wage violations.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-va-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 40.1-28.7:9",
+        "Note": "§ 40.1-28.7:9 (Wage Discussion Protection, 2022): Employer cannot discharge, discipline, threaten, discriminate against, or retaliate against employee for inquiring about, discussing, or disclosing own wages, other...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-va-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 19.2-392.4",
+        "Note": "Ban-the-box for public employers only: § 19.2-392.4 restricts public employers from inquiring about expunged records; marijuana possession inquiry prohibited (§ 19.2-389.3).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-va-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/virginia.md",
+        "Section": "§ 18.2-186.6",
+        "Note": "Breach notification (§ 18.2-186.6):",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VA",
+            "Locality": ""
+          },
+          "PackID": "us-va-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-va-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/virginia.md",
+            "Section": "Va. Code § 40.1-29",
+            "Note": "Va. Code § 40.1-29: Written notice of wages, pay periods, and deductions required.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VA",
+            "Locality": ""
+          },
+          "PackID": "us-va-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-va-retention",
+          "Description": "retain payroll_records for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/virginia.md",
+            "Section": "§ 40.1-29",
+            "Note": "Payroll record retention (§ 40.1-29):",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-va-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VA",
+            "Locality": ""
+          },
+          "PackID": "us-va-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-va-pay-frequency",
+          "Description": "minimum frequency BIWEEKLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/virginia.md",
+            "Section": "§ 40.1-29",
+            "Note": "Pay frequency and final pay (§ 40.1-29): Hourly = biweekly or twice monthly; salaried = monthly; final pay on or before next regular payday; treble damages for knowing wage violations.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-va-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VA",
+            "Locality": ""
+          },
+          "PackID": "us-va-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-va-pay-transparency",
+          "Description": "internal_promotion: Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per subsequent; private right of action within 1 year (§ 40.1-28.7:12).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/virginia.md",
+            "Section": "§ 40.1-28.7:12",
+            "Note": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VA",
+            "Locality": ""
+          },
+          "PackID": "us-va-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-va-non-compete",
+          "Description": "Non-compete enforceability check and void (§ 40.1-28.7:8; SB 1218):",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/virginia.md",
+            "Section": "§ 40.1-28.7:8",
+            "Note": "Non-compete enforceability check and void (§ 40.1-28.7:8; SB 1218):",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VA",
+            "Locality": ""
+          },
+          "PackID": "us-va-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-va-wage-floor",
+          "Description": " floor of 12.77 USD for , indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/virginia.md",
+            "Section": "§ 40.1-28.10",
+            "Note": "Minimum wage floor check (§ 40.1-28.10): On any pay change (promotion, base raise, role change), verify new rate ≥ current state minimum ($12.77 for 2026–2027; $13.75 for 2027–2028; $15.00 for 2028–2029; then...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-va-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VA",
+            "Locality": ""
+          },
+          "PackID": "us-va-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-va-pay-equity-review",
+          "Description": "pay-equity review against  for bases ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/virginia.md",
+            "Section": "§ 40.1-28.6",
+            "Note": "Equal pay audit and justification (§ 40.1-28.6):",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VA",
+            "Locality": ""
+          },
+          "PackID": "us-va-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-va-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/virginia.md",
+            "Section": "§ 40.1-29",
+            "Note": "Pay statement content (§ 40.1-29):",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "VA",
+            "Locality": ""
+          },
+          "PackID": "us-va-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-va-classification",
+          "Description": " test: § 40.1-28.7:7: Misclassification enforcement by Department of Labor, Department of Revenue, Workers' Compensation Commission; penalties include back wages, reclassification, civil actions.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/virginia.md",
+            "Section": "§ 40.1-28.7:7",
+            "Note": "§ 40.1-28.7:7: Misclassification enforcement by Department of Labor, Department of Revenue, Workers' Compensation Commission; penalties include back wages, reclassification, civil actions.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "346ae243eed8c8d14f2b01860a5f0867140f74718182b2a6c822c89e46f727a1",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "FgpfT/LOvyISuVOfbJP52KeoJAbPPRYsmDsCC+Ih0JnDywZM403Pfmf38ftI5JYyMHJde9YIFpsZG2x82COrBQ=="
+  }
+}

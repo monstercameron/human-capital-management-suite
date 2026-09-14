@@ -1,0 +1,916 @@
+{
+  "legal_context_digest": "14b2fd2f49174a03a73f69a53df291e07a3c1afe7afdfa5b85cfb0a0cad29749",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "CT",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ct-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "CT",
+          "Locality": ""
+        }
+      },
+      "Digest": "f36a8b5b0cd16382130ab2aa79db638bd15eb431d005ecba9e8578bb4dbd4ada",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-ct-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "§ 31-71f",
+        "Note": "On any change of pay or role, employers should provide written notice of new terms to align with § 31-71f disclosure requirements; no specific statutory notice period mandated for pay changes except final pay timing...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ct-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-ct-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "08c0642acfb0b4f72d58951eed394e425fa41b57fcea6a6ace8c1141991aca28"
+    },
+    {
+      "Type": 3,
+      "ID": "us-ct-retention",
+      "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. § 31-49",
+        "Note": "Employers must maintain payroll records for 3 years documenting employee name, address, occupation, hours worked (rounded to 15-min increments), wages, and deductions (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "52954d359df483e32017689052c7f57dd4ce8be847ad36f53ced77368db07f6e"
+    },
+    {
+      "Type": 4,
+      "ID": "us-ct-leave-interaction",
+      "Description": "paid leave: Employers with 75+ employees in Connecticut must provide up to 16 weeks unpaid leave in any 24-month period (Conn. Gen. Stat. §§ 31-51kk to 31-51qq).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. §§ 31-51kk",
+        "Note": "Employers with 75+ employees in Connecticut must provide up to 16 weeks unpaid leave in any 24-month period (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ct-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "4289410a53c885b0b158cc82cf82f3d2c832e43c72e0f9378b5802850916ce9c"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ct-pay-frequency",
+      "Description": "minimum frequency WEEKLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. § 31-71b",
+        "Note": "Wages must be paid weekly on a designated payday (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "f66ee41e1e607b067015104a2690a840cd0030b62265f8c23044b338291a72d7"
+    },
+    {
+      "Type": 7,
+      "ID": "us-ct-pay-transparency",
+      "Description": "internal_promotion: Public Act 21-30 (effective October 1, 2021) requires employers to disclose the \"wage range\" anticipated for a position to applicants upon the earlier of request or before making an offer (Conn. Gen. Stat. § 31-74g).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. § 31-74g",
+        "Note": "Public Act 21-30 (effective October 1, 2021) requires employers to disclose the \"wage range\" anticipated for a position to applicants upon the earlier of request or before making an offer (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-ct-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "08b7ba54b42bbfbe8df2813ecc2e463c11d50805d323d92203bd009b388fb3a0"
+    },
+    {
+      "Type": 8,
+      "ID": "us-ct-non-compete",
+      "Description": "Connecticut enforces reasonable non-compete agreements by common law and statute (Conn. Gen. Stat. § 31-49h, amended by PA 26-12 effective October 1, 2026).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. § 31-49h",
+        "Note": "Connecticut enforces reasonable non-compete agreements by common law and statute (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ct-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-ct-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "0aaaa8307a8daea1ba6734e9e8c60421ee3f2ca8332e342ba77f04bcd6ae9c24"
+    },
+    {
+      "Type": 10,
+      "ID": "us-ct-mini-warn",
+      "Description": "0+ affected within 0 day(s) requires 0 day(s) notice",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. § 31-51u",
+        "Note": "Connecticut requires employers conducting a \"mass layoff\" to pay severance at the rate of 2 months' pay for each year of employment (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-mini-warn",
+        "Kind": 6,
+        "NonRemovable": true,
+        "Description": "timer: mini-WARN notice deadline",
+        "LifecycleStep": "EXECUTE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-mini-warn",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "timer: mini-WARN notice deadline",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "2d4c7a6f504912d29e8243184db768254e8722d42c6b5087a1a6acdb3fa8f0c0"
+    },
+    {
+      "Type": 11,
+      "ID": "us-ct-wage-floor",
+      "Description": "HOURLY floor of 16.35 USD for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. § 31-58",
+        "Note": "Connecticut minimum wage is $16.35 per hour as of January 1, 2025 (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ct-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "5b02412469ee74ad87aca434705e0b0fe33cfb9cc3e9050e30ef784b67ac5d77"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ct-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. § 31-75",
+        "Note": "Connecticut's \"equal pay for equal work\" law prohibits sex-based wage discrimination (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ct-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "8ab9d84cb0ac73c2f65e5c4648b08f92366be4c02f64f4c58f3b1d53e7429966"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ct-pay-statement",
+      "Description": "pay statement delivered  must carry ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No specific law mandating itemized pay stubs; federal FLSA applies.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "0cf90440cf2589f4de45147b9ec17896202d4b9e10160d44456fb9fcdb4dbe34"
+    },
+    {
+      "Type": 14,
+      "ID": "us-ct-classification",
+      "Description": "CONTRACTOR test: Connecticut applies the ABC test to determine contractor vs. employee status for unemployment insurance, workers' compensation, and wage-and-hour purposes (used by Joint Enforcement Commission on Employee Misclassification).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Connecticut applies the ABC test to determine contractor vs.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ct-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "b6428c4493559cc4075db87ad079614bf5353ce51597ead677bd9403a0f8b531"
+    },
+    {
+      "Type": 15,
+      "ID": "us-ct-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. § 31-48h",
+        "Note": "Medical records must be retained separately from personnel files for at least 3 years following termination (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CT",
+        "Locality": ""
+      },
+      "PackID": "us-ct-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ct-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ct-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "00a064ff831d9caf1ce11ec3c5ef083bdcc6f6b6106309213f8fa5200b4e4577"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-ct-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. § 31-40z",
+        "Note": "Employers may not inquire about or direct third parties to inquire about a prospective employee's wage/salary history unless the candidate has voluntarily disclosed it (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-ct-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "§ 31-71f",
+        "Note": "On any change of pay or role, employers should provide written notice of new terms to align with § 31-71f disclosure requirements; no specific statutory notice period mandated for pay changes except final pay timing...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ct-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks ANTI_RETALIATION for CT, and no item in connecticut.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ct-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "No state-level statute regulating private-sector drug testing; federal law (pre-employment, reasonable suspicion, post-accident) governs; federal DOT rules apply to transportation.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ct-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/connecticut.md",
+        "Section": "Conn. Gen. Stat. §§ 36a-692",
+        "Note": "Connecticut breach notification law (Conn.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-ct-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "§ 31-71f",
+            "Note": "On any change of pay or role, employers should provide written notice of new terms to align with § 31-71f disclosure requirements; no specific statutory notice period mandated for pay changes except final pay timing...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ct-retention",
+          "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "Conn. Gen. Stat. § 31-49",
+            "Note": "Employers must maintain payroll records for 3 years documenting employee name, address, occupation, hours worked (rounded to 15-min increments), wages, and deductions (Conn.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ct-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-ct-leave-interaction",
+          "Description": "paid leave: Employers with 75+ employees in Connecticut must provide up to 16 weeks unpaid leave in any 24-month period (Conn. Gen. Stat. §§ 31-51kk to 31-51qq).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "Conn. Gen. Stat. §§ 31-51kk",
+            "Note": "Employers with 75+ employees in Connecticut must provide up to 16 weeks unpaid leave in any 24-month period (Conn.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ct-pay-frequency",
+          "Description": "minimum frequency WEEKLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "Conn. Gen. Stat. § 31-71b",
+            "Note": "Wages must be paid weekly on a designated payday (Conn.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ct-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-ct-pay-transparency",
+          "Description": "internal_promotion: Public Act 21-30 (effective October 1, 2021) requires employers to disclose the \"wage range\" anticipated for a position to applicants upon the earlier of request or before making an offer (Conn. Gen. Stat. § 31-74g).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "Conn. Gen. Stat. § 31-74g",
+            "Note": "Public Act 21-30 (effective October 1, 2021) requires employers to disclose the \"wage range\" anticipated for a position to applicants upon the earlier of request or before making an offer (Conn.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-ct-non-compete",
+          "Description": "Connecticut enforces reasonable non-compete agreements by common law and statute (Conn. Gen. Stat. § 31-49h, amended by PA 26-12 effective October 1, 2026).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "Conn. Gen. Stat. § 31-49h",
+            "Note": "Connecticut enforces reasonable non-compete agreements by common law and statute (Conn.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 10,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 10,
+          "ID": "us-ct-mini-warn",
+          "Description": "0+ affected within 0 day(s) requires 0 day(s) notice",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "Conn. Gen. Stat. § 31-51u",
+            "Note": "Connecticut requires employers conducting a \"mass layoff\" to pay severance at the rate of 2 months' pay for each year of employment (Conn.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ct-mini-warn"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-ct-wage-floor",
+          "Description": "HOURLY floor of 16.35 USD for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "Conn. Gen. Stat. § 31-58",
+            "Note": "Connecticut minimum wage is $16.35 per hour as of January 1, 2025 (Conn.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ct-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ct-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "Conn. Gen. Stat. § 31-75",
+            "Note": "Connecticut's \"equal pay for equal work\" law prohibits sex-based wage discrimination (Conn.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ct-pay-statement",
+          "Description": "pay statement delivered  must carry ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "No specific law mandating itemized pay stubs; federal FLSA applies.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-ct-classification",
+          "Description": "CONTRACTOR test: Connecticut applies the ABC test to determine contractor vs. employee status for unemployment insurance, workers' compensation, and wage-and-hour purposes (used by Joint Enforcement Commission on Employee Misclassification).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Connecticut applies the ABC test to determine contractor vs.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CT",
+            "Locality": ""
+          },
+          "PackID": "us-ct-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-ct-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/connecticut.md",
+            "Section": "Conn. Gen. Stat. § 31-48h",
+            "Note": "Medical records must be retained separately from personnel files for at least 3 years following termination (Conn.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-ct-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "bbdd83e847788adeaaa6317a33927b576ed96ae52d8b82957875961ee6fa30cf",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "reFjKID6n1DLkm2NPjZK1kB/kNGZXu+fDREhK3EjcQD+4kb1WABI78wg3C/62o03M9iu75uAdmi5P7brgaV4CQ=="
+  }
+}

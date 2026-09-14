@@ -280,7 +280,7 @@ func (o PersonnelFileRule) canonicalBody(dst []byte) []byte {
 }
 
 // AntiRetaliationRule is the protected-activity check a pay or role change
-// runs before it commits. Every one of the fifty research files records a
+// runs before it commits. Every one of the fifty-one research files records a
 // protected-activity exception, which is precisely why the lookback windows
 // and dispositions are typed and cited rather than assumed.
 //

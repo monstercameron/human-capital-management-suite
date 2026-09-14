@@ -13,7 +13,7 @@ import (
 // them, `npx prettier --write definitions/legal` runs over them in the
 // standard check sequence, and the regeneration test asserts the two agree
 // byte for byte. If the generator emitted encoding/json's indentation
-// instead, every prettier run would rewrite fifty files and the regeneration
+// instead, every prettier run would rewrite fifty-one files and the regeneration
 // test would fail on a formatting difference rather than on a content one.
 //
 // The three rules this reproduces, all confirmed against prettier 3.8.3 with

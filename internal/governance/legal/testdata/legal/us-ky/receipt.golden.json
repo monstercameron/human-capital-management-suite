@@ -1,0 +1,433 @@
+{
+  "legal_context_digest": "defcd1d9906a2dbc27790b99fc5ef733693c615edd0f7b2ffd0371374931f4e7",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "KY",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-ky-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "KY",
+          "Locality": ""
+        }
+      },
+      "Digest": "8c2f34bfb4ac7ff769c2c40073869ea10d82054b07c34f6cdd129a0d0a520928",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-ky-retention",
+      "Description": "retain wage_records for 4 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "KRS 337.320",
+        "Note": "Retain all wage and separation records for 4 years (KRS 337.320): Promotion date, old pay, new pay, effective date, overtime calculations, seventh-day calculations, final-pay records.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "KY",
+        "Locality": ""
+      },
+      "PackID": "us-ky-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ky-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ky-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "19dc5a0b944b292eb81d3007d2e355525a81789198f713db0d0bfe395124ce1b"
+    },
+    {
+      "Type": 5,
+      "ID": "us-ky-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "KRS 337.020",
+        "Note": "Enforce KRS 337.020 semi-monthly requirement: Ensure the new pay schedule pays wages at least semi-monthly (twice per calendar month).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "KY",
+        "Locality": ""
+      },
+      "PackID": "us-ky-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ky-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ky-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "6990a3ea3330e51ebbe20fdc44f1bfa2f12cd7d425b2d0399ce7447487731f5a"
+    },
+    {
+      "Type": 12,
+      "ID": "us-ky-pay-equity-review",
+      "Description": "pay-equity review against  for bases gender, race",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "KRS 344",
+        "Note": "Has the employer reviewed pay equity by gender/race for comparable roles (KRS 344 compliance)?",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "KY",
+        "Locality": ""
+      },
+      "PackID": "us-ky-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ky-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ky-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-ky-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "78a6b1be5e2610070ed5c44eead322d22cbbd3d03875417d9a8e382f3ffbe049"
+    },
+    {
+      "Type": 13,
+      "ID": "us-ky-pay-statement",
+      "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "KRS 337.060",
+        "Note": "Deductions and Pay Statements: KRS 337.060 permits only deductions required by law (federal/state income tax, Social Security, child support), court order, or written employee authorization.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "KY",
+        "Locality": ""
+      },
+      "PackID": "us-ky-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ky-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ky-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "8d8677feecfd0171cf7d7b68fa6b6813725a50f09b0e63aee83cd09b95ca8a09"
+    },
+    {
+      "Type": 14,
+      "ID": "us-ky-classification",
+      "Description": "CONTRACTOR test: Contractor vs. Employee Classification: Kentucky employment law (KRS 341.010 et seq., Unemployment Insurance Law) defines \"employee\" for unemployment-insurance purposes. Neither contract labels nor the parties' intent controls; liability is based on the true underlying nature of the working relationship. Factors include (1) control over work methods and schedules, (2) provision of tools and equipment, (3) integration into the business, (4) permanence of the relationship, and (5) whether the worker sets own rates/terms. Misclassification of employees as independent contractors triggers unemployment-insurance, wage, and tax liabilities and may expose employers to audit and penalties.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "KRS 341.010",
+        "Note": "Contractor vs.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "KY",
+        "Locality": ""
+      },
+      "PackID": "us-ky-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-ky-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-ky-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-ky-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "d0fecf772c4ba6a4f60d9d2e833fa516430623d0c59bd1cb5581de9fd332c037"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-ky-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "KRS 337.055",
+        "Note": "Provide final paycheck by the later of 14 days after termination or the next regular payday (\"whichever last occurs\", KRS 337.055).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-ky-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Do not use a manager change as a pretext for discrimination (e.g., changing a manager solely to create a basis for termination); such actions may expose the employer to retaliation or constructive-discharge claims.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-ky-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "File a Separation Notice (UK-ES form or equivalent) with the Kentucky Department of Unemployment Insurance within a specified timeframe (typically within 10 days of separation).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-ky-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Drug Testing: No Kentucky law prohibits pre-employment drug testing.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-ky-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/kentucky.md",
+        "Section": "KRS 365.732",
+        "Note": "Data breach notification required: Kentucky law (verify: likely KRS 365.732 or related statute) requires breach notification \"without unreasonable delay\" when personal information is exposed; specific timeline unclear...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "KY",
+            "Locality": ""
+          },
+          "PackID": "us-ky-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-ky-retention",
+          "Description": "retain wage_records for 4 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/kentucky.md",
+            "Section": "KRS 337.320",
+            "Note": "Retain all wage and separation records for 4 years (KRS 337.320): Promotion date, old pay, new pay, effective date, overtime calculations, seventh-day calculations, final-pay records.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-ky-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "KY",
+            "Locality": ""
+          },
+          "PackID": "us-ky-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-ky-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/kentucky.md",
+            "Section": "KRS 337.020",
+            "Note": "Enforce KRS 337.020 semi-monthly requirement: Ensure the new pay schedule pays wages at least semi-monthly (twice per calendar month).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-ky-pay-frequency"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "KY",
+            "Locality": ""
+          },
+          "PackID": "us-ky-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-ky-pay-equity-review",
+          "Description": "pay-equity review against  for bases gender, race",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/kentucky.md",
+            "Section": "KRS 344",
+            "Note": "Has the employer reviewed pay equity by gender/race for comparable roles (KRS 344 compliance)?",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "KY",
+            "Locality": ""
+          },
+          "PackID": "us-ky-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-ky-pay-statement",
+          "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/kentucky.md",
+            "Section": "KRS 337.060",
+            "Note": "Deductions and Pay Statements: KRS 337.060 permits only deductions required by law (federal/state income tax, Social Security, child support), court order, or written employee authorization.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "KY",
+            "Locality": ""
+          },
+          "PackID": "us-ky-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-ky-classification",
+          "Description": "CONTRACTOR test: Contractor vs. Employee Classification: Kentucky employment law (KRS 341.010 et seq., Unemployment Insurance Law) defines \"employee\" for unemployment-insurance purposes. Neither contract labels nor the parties' intent controls; liability is based on the true underlying nature of the working relationship. Factors include (1) control over work methods and schedules, (2) provision of tools and equipment, (3) integration into the business, (4) permanence of the relationship, and (5) whether the worker sets own rates/terms. Misclassification of employees as independent contractors triggers unemployment-insurance, wage, and tax liabilities and may expose employers to audit and penalties.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/kentucky.md",
+            "Section": "KRS 341.010",
+            "Note": "Contractor vs.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "a806f34a3e0c6935be9e068794110e4bf032773572b330f07ea30f98a5cd387b",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "CwDl4vfsZ047E+2BnY/GQ7fS5HP83TNrgjOUKUseqqazpbJSaUuTjYH4uEzEoNwsTi1x2HFTEjFafympQsXQCg=="
+  }
+}

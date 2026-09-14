@@ -13,8 +13,8 @@ import (
 // document is a deliberate act that must update these, the evidence report
 // and internal/commercial.P1AManifestDigest together.
 const (
-	goldenP1ADigest = "e9d7ffe66f019dc8ea8b4252303cde9dfc6b22cf705a8de5c6a024d1fbcd34dc"
-	goldenP1BDigest = "fdcd55a46a26dad80c1e9a980a5b1f6acfcedee64a818f29a18cd13cc8f602d2"
+	goldenP1ADigest = "cc103e4f75356db302c0d70573f2a029f1d4d3aed30f9b4cad45e27bc955ad5a"
+	goldenP1BDigest = "c1c7467906953e02c912604a83c3997760d76494cf2b608d9ada6549e2ba3fe6"
 )
 
 const goldenReportPath = "testdata/live-completeness-report.golden.json"

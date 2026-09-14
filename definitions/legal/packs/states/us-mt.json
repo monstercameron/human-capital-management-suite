@@ -71,7 +71,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing: MCA § 39-3-205 requires immediate payment on involuntary termination unless the employer has a written policy extending to the next payday or 15 days, whichever is sooner."
+        "deadline_description": "Final pay timing: MCA § 39-3-205 requires immediate payment on involuntary termination unless the employer has a written policy extending to the next payday or 15 days, whichever is sooner. Resignations allow next regular payday or 15 days from separation, whichever is sooner. Special rule: if alleged theft is involved, wages may be withheld if employee consents in writing or employer reports to law enforcement within 7 business days; if no charges within 30 days, wages must be paid in full."
       }
     },
     {
@@ -86,7 +86,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file."
+        "rule": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file. Montana generally voids noncompete agreements for employment; only enforce in narrow goodwill-sale or partnership-dissolution contexts. Do not enforce an employment noncompete without legal review and current case law confirmation. If an employee opposes noncompete enforcement and the employer terminates for the opposition, risk of wrongful-discharge and retaliation claims is high."
       }
     },
     {

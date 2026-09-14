@@ -1,0 +1,323 @@
+{
+  "legal_context_digest": "761bc3145c3019f1138df24119e0cdef16d3362b143c26901c177e4f4e03834e",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "FL",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-fl-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "FL",
+          "Locality": ""
+        }
+      },
+      "Digest": "3c17a4b3ccc2af839738640ac16f71253965297188d6a93439254c2fc300e493",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 8,
+      "ID": "us-fl-non-compete",
+      "Description": "Non-compete and non-solicit: Enforceable under Fla. Stat. § 542.335 if in writing, protect a legitimate business interest, and reasonable in time/geography/scope. CHOICE Act (eff. July 1, 2025) strengthened enforcement for non-competes but left non-solicits unchanged.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/florida.md",
+        "Section": "Fla. Stat. § 542.335",
+        "Note": "Non-compete and non-solicit: Enforceable under Fla. Stat. § 542.335 if in writing, protect a legitimate business interest, and reasonable in time/geography/scope.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "FL",
+        "Locality": ""
+      },
+      "PackID": "us-fl-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-fl-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-fl-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-fl-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-fl-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "6f893dfe8b4edc90c013c47373104cda74613e63adfdbe4aac82c4170a0782ae"
+    },
+    {
+      "Type": 11,
+      "ID": "us-fl-wage-floor",
+      "Description": " floor of 14.00 USD for tipped employees, indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/florida.md",
+        "Section": "Fla. Const. Art. X § 24",
+        "Note": "Minimum wage (effective Sept 30, 2025): $14.00/hr general, $10.98/hr tipped employees; escalates to $15.00 on Sept 30, 2026, then annual CPI adjustments thereafter (Fla.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "FL",
+        "Locality": ""
+      },
+      "PackID": "us-fl-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-fl-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-fl-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-fl-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "031a11c03578a6ec4136258a821a8963ecf4b653be2178a2dd831dc8b23d0460"
+    },
+    {
+      "Type": 12,
+      "ID": "us-fl-pay-equity-review",
+      "Description": "pay-equity review against equal work for bases sex, age",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/florida.md",
+        "Section": "Fla. Stat. § 448.07",
+        "Note": "Equal pay law: Fla. Stat. § 448.07 prohibits employers from discriminating based on sex in wages.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "FL",
+        "Locality": ""
+      },
+      "PackID": "us-fl-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-fl-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-fl-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-fl-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "14b56f2b2539edd74bb409d5f8d1cbd5a9e3666fdf072efcd3f94367837161c3"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 9,
+      "ID": "us-fl-e-verify",
+      "Reason": "the transaction is not a new hire",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/florida.md",
+        "Section": "SB 1718",
+        "Note": "E-Verify: Mandatory for private employers with 25+ employees (SB 1718, eff.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-fl-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/florida.md",
+        "Section": "Fla. Stat. § 448.101–105",
+        "Note": "At-will employment: Default rule under common law; exceptions: whistleblower retaliation (Fla.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-fl-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/florida.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Notice of separation: No state requirement to provide separation notice.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-fl-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/florida.md",
+        "Section": "Fla. Stat. § 440.102",
+        "Note": "Drug-free workplace program (Fla.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-fl-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/florida.md",
+        "Section": "Fla. Stat. § 501.171",
+        "Note": "Data breach notification: FIPA (Fla.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "FL",
+            "Locality": ""
+          },
+          "PackID": "us-fl-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-fl-non-compete",
+          "Description": "Non-compete and non-solicit: Enforceable under Fla. Stat. § 542.335 if in writing, protect a legitimate business interest, and reasonable in time/geography/scope. CHOICE Act (eff. July 1, 2025) strengthened enforcement for non-competes but left non-solicits unchanged.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/florida.md",
+            "Section": "Fla. Stat. § 542.335",
+            "Note": "Non-compete and non-solicit: Enforceable under Fla. Stat. § 542.335 if in writing, protect a legitimate business interest, and reasonable in time/geography/scope.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "FL",
+            "Locality": ""
+          },
+          "PackID": "us-fl-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-fl-wage-floor",
+          "Description": " floor of 14.00 USD for tipped employees, indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/florida.md",
+            "Section": "Fla. Const. Art. X § 24",
+            "Note": "Minimum wage (effective Sept 30, 2025): $14.00/hr general, $10.98/hr tipped employees; escalates to $15.00 on Sept 30, 2026, then annual CPI adjustments thereafter (Fla.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-fl-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "FL",
+            "Locality": ""
+          },
+          "PackID": "us-fl-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-fl-pay-equity-review",
+          "Description": "pay-equity review against equal work for bases sex, age",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/florida.md",
+            "Section": "Fla. Stat. § 448.07",
+            "Note": "Equal pay law: Fla. Stat. § 448.07 prohibits employers from discriminating based on sex in wages.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "8ef5e559eef3790eaf335b7a4d6b1425bca2ecf6b9a3bff62c28b449fbb5acad",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "+ltsmEiN8HjCr1GaFlxX8wxSAUKGqyGMrOR2Mfw4Ny9zbi/giqdM0G1KDydY9g0WkAbsuIUjBkdGgT6N4dDeDQ=="
+  }
+}

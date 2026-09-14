@@ -1,0 +1,442 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-mn-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "MN",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-mn-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 181.032",
+          "note": "Pre-effective-date notice (P1A trigger): § 181.032 requires written notice of pay rate or pay-basis change prior to the date the change takes effect (not after, not concurrent).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "timing_days": 10,
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "effective_date"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-mn-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 363A.08",
+          "note": "Salary history field restriction: Do not store, query, or reference employee's prior salary history in promotion/pay-change workflow (§ 363A.08).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-mn-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§§ 181.960–181.966",
+          "note": "Personnel file access: §§ 181.960–181.966 grant current and former employees right to review personnel records at reasonable times within 30 calendar days of written request (extendable to 35 days by written mutual...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_years": 1,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-mn-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "Minn. Stat. § 181.988",
+          "note": "Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "interaction_rule": "Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date. Notice includes: new salary ($60,000/year), new pay basis (salaried), new payday (if changed), new position title (Manager), effective date, and statement: \"Accrued ESST balance ($1,200) carries over to new role; accrual continues at equivalent rate. Non-compete per Minn. Stat. § 181.988 is void; no re-signing required.\""
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-mn-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 181.101",
+          "note": "Pay frequency (§ 181.101): Payment required at least once every 31 days on designated payday.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-mn-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 181.13/181.14",
+          "note": "Compensation timing and effective date: Final paycheck (if termination) follows § 181.13/181.14 (within 24 hours or next payday, depending on quit vs.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Compensation timing and effective date: Final paycheck (if termination) follows § 181.13/181.14 (within 24 hours or next payday, depending on quit vs. discharge). Promotion pay increase typically effective on promotion date or next paycheck; system should verify that pay increase is reflected in first full pay period post-effective date. Do not delay pay increase to future pay period without documented business reason (e.g., payroll system lag); timely payment is required."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-mn-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 181.173",
+          "note": "Pay-range posting (if promotion creates new or changed role): If promotion creates a new title or materially changes the role and employer has 30+ employees, system must flag that any new job posting for that role must...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay-range posting (if promotion creates new or changed role): If promotion creates a new title or materially changes the role and employer has 30+ employees, system must flag that any new job posting for that role must include salary range per § 181.173 (effective 2025-01-01, enacted by the 2024 Omnibus Labor and Industry Policy Bill, SF 3852). Correction (2026-09-03 contradiction closure): § 181.9414 was repealed effective 2021 (2020 Minn. Stat., amended 1Sp2021 c.10 art.3 s.22) and is not the pay-range posting statute; the operative citation is § 181.173, consistent with the Summary and § 4 above. \"Salary range\" = employer's reasonable estimate of hourly rate or annual salary for the position. If new title is not posted externally, no posting requirement. Recommendations: (1) integrate salary-range requirement into job-posting workflow; (2) flag roles that have never had a salary range posted; (3) require range to be entered before job posting goes live."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-mn-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "Minn. Stat. § 181.988",
+          "note": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete. System should generate compliance note: \"Non-compete per Minn. Stat. § 181.988 is void unless related to sale of business or business dissolution. No non-compete enforcement on role change or promotion. Do not require employee to re-sign non-compete.\" If system encounters a non-compete flag on employee record during promotion, escalate to legal for review; do not proceed with re-signing."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-mn-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "USC § 2101",
+          "note": "WARN notification (federal and state): Minnesota has no state-specific WARN act separate from federal WARN Act (29 USC § 2101 et seq.). Federal WARN requires 60-day advance notice for plant closings (permanent...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "note": "WARN notification (federal and state): Minnesota has no state-specific WARN act separate from federal WARN Act (29 USC § 2101 et seq.). Federal WARN requires 60-day advance notice for plant closings (permanent...",
+          "employee_threshold": 50,
+          "notice_days": 60
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-mn-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 177.24–177.25",
+          "note": "Minimum wage and overtime (§ 177.24–177.25): Statewide $11.41/hour (Jan 1, 2026); Minneapolis $16.37/hour; St.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "11.41",
+            "currency": "USD"
+          },
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-mn-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 181.67",
+          "note": "Equal pay statute: § 181.67 (Equal Pay for Equal Work Law) prohibits employers from paying employees of one sex less than employees of the opposite sex for equal work on jobs requiring equal skill, effort, and...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "age"
+          ],
+          "comparator_standard": "equal work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-mn-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 181.101",
+          "note": "Pay frequency (§ 181.101): Payment required at least once every 31 days on designated payday.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "required_fields": [
+            "gross_wages",
+            "net_wages",
+            "deductions",
+            "hours_worked",
+            "pay_period",
+            "employer_identification"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "CLASSIFICATION",
+        "id": "us-mn-classification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 177.25",
+          "note": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "dimension": "OVERTIME_THRESHOLD",
+          "test_description": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption criteria are met (executive, administrative, professional duties test—not merely salary-based); (2) require manager attestation that role duties meet exemption standard; (3) document duties change in personnel file; (4) do not rely on salary alone for exemption. Conversely, if promotion moves exempt to non-exempt, recalculate overtime eligibility. System should flag if classification change lacks documented duties justification.",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-mn-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 177.25",
+          "note": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-mn-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 181.172",
+          "note": "Wage disclosure: Record promotion/pay change in system; inform employee that their pay rate may be disclosed to coworkers (§ 181.172 protects such disclosure from retaliation).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-mn-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 181.950–181.957",
+          "note": "Drug testing (§ 181.950–181.957): Limited to safety-sensitive positions only (impairment would threaten health/safety).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "permitted_bases": [
+            "safety_sensitive_role"
+          ],
+          "protected_status": [
+            "lawful_off_duty_cannabis_use"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-mn-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/minnesota.md",
+          "section": "§ 325E.61",
+          "note": "Breach notification: § 325E.61 requires any person/business conducting business in Minnesota (even if data stored elsewhere) that owns or licenses \"personal information\" of Minnesota residents to notify affected...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "subject_deadline_days": 60,
+          "credit_monitoring_required": true,
+          "standard": "RECOMMENDED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/minnesota.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "613255bfeffe008061321988fc0ecb8d072dbb735de81e046d45e3661ce9e73a",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "acd4fb814597f69683b8558a0ffc92b1b319ca4e00e8dc5d89e23c9efe24612d877d83c4566593c20dee63c367e867540eccf26de1a90262afe471cba01e2403"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "613255bfeffe008061321988fc0ecb8d072dbb735de81e046d45e3661ce9e73a",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-mn-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mn-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mn-leave-interaction",
+        "severity": "BLOCKING",
+        "note": "required field(s) leave_type are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mn-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mn-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mn-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mn-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-mn-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mn-classification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mn-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mn-mini-warn",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mn-notice",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mn-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-mn-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "b9f0c984f43bf4966b9070e96b2bb80638d22a3b475eee1e35ea5afb289b1c89",
+      "prev_digest": "",
+      "digest": "854e4cb0dbd6461067c621d2930b08c421c2aa6fb08ff7eaf952b1760d0df4fa",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "bc90cadc471e6cc0a4890a61ea64b2144dfde608645a31d8b945698dcee1ca47c7ec6a44b0bd423476ffda3acbe9c3877ceab5ccaa91f934d344f2ebcbf8100e"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "834141018abb61dc917a2a28de5a6e71eb0b20735ddc3b61b80ec1761b98dbd3",
+      "prev_digest": "854e4cb0dbd6461067c621d2930b08c421c2aa6fb08ff7eaf952b1760d0df4fa",
+      "digest": "e1c4bb81c86e70729f58d3a6ef1bf519e56d824ccb982f615b8347a076433732",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "c4349bf31f0446f1104a1a7e162cb20c3720c90dc3af3168ebfb1c895b1fb81a942180fd488e065ce1bae165130840cbde9cb158f080bbf2e5a48d0f10c62403"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "613255bfeffe008061321988fc0ecb8d072dbb735de81e046d45e3661ce9e73a",
+      "prev_digest": "e1c4bb81c86e70729f58d3a6ef1bf519e56d824ccb982f615b8347a076433732",
+      "digest": "ab74c34ee28b9f50b8efa9280ee2717096638607e8ba147ec33ce8b39d5b079d",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "2a0dbcd0b3d06f45483f36515153e52b6cb58b7efc971b4019232a38d8af8311b26d9799bfca3117ff3853a1109a7567844d2b778df8f71eb32515e00de13b08"
+      }
+    }
+  ]
+}

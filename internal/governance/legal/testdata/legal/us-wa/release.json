@@ -1,0 +1,383 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-wa-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "WA",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-wa-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.58.100",
+          "note": "Salary History Block (RCW 49.58.100): Disable any form field requesting prior salary from external candidate in hiring module; log as compliance risk if manager attempts inquiry via notes/comments.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-wa-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.46.210",
+          "note": "Paid Leave Continuity (RCW 49.46.210 + RCW 50A): On promotion within same employer, paid sick leave accrual carries forward; do not reset.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {}
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-wa-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.46.210",
+          "note": "Paid Leave Continuity (RCW 49.46.210 + RCW 50A): On promotion within same employer, paid sick leave accrual carries forward; do not reset.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Paid Leave Continuity (RCW 49.46.210 + RCW 50A): On promotion within same employer, paid sick leave accrual carries forward; do not reset. If promotion occurs during active PFML leave, employee retains job protection and leave benefit; role may change but leave benefit continues. Do not reduce base pay retroactively if employee in PFML during promotion announcement."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-wa-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Payday requirement: At minimum monthly; recommended biweekly or semi-monthly.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-wa-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.48.010",
+          "note": "Final Pay Timing Trigger (RCW 49.48.010): On termination action, auto-calculate deadline based on discharge type (end of established pay period).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final Pay Timing Trigger (RCW 49.48.010): On termination action, auto-calculate deadline based on discharge type (end of established pay period). Notify employee and payroll if unpaid wages lapse beyond deadline; system must log compliance risk and auto-escalate to HR if 48+ hours past deadline."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-wa-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.58.110",
+          "note": "Pay-Range Disclosure (RCW 49.58.110): When initiating internal transfer/promotion process: if employee requests, must provide minimum wage/salary for promoted role within standard response time.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay-Range Disclosure (RCW 49.58.110): When initiating internal transfer/promotion process: if employee requests, must provide minimum wage/salary for promoted role within standard response time. If external posting created for similar role, must include pay range (no omission without 5-business-day cure notification option)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-wa-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.62.020",
+          "note": "Non-Compete Threshold Recheck (RCW 49.62.020): On promotion, if new salary crosses $123,394.17 threshold (2025; adjust annually), auto-flag: if employee lacks signed NCA with enforceability conditions (income threshold...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-Compete Threshold Recheck (RCW 49.62.020): On promotion, if new salary crosses $123,394.17 threshold (2025; adjust annually), auto-flag: if employee lacks signed NCA with enforceability conditions (income threshold met at time of agreement, 18-month max duration, independent consideration/garden leave), mark as unenforceable going forward. If NCA exists and new role extends beyond 18 months, flag for legal review."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-wa-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "SB 5525",
+          "note": "Washington WARN Act (SB 5525 eff.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "Washington WARN Act (SB 5525 eff.",
+          "notice_days": 60
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-wa-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.58.110",
+          "note": "Pay-Range Disclosure (RCW 49.58.110): When initiating internal transfer/promotion process: if employee requests, must provide minimum wage/salary for promoted role within standard response time.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-wa-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.58",
+          "note": "Equal Pay Audit Flag (RCW 49.58): On promotion + base-pay change, if new rate differs \u003e15% from peer rates for substantially similar work (same/similar role/location/department), flag for manager justification or HR...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "age"
+          ],
+          "comparator_standard": "substantially similar work",
+          "documentation_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-wa-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Pay Statement Update (WAC 296-128-010): On any base-pay change (promotion, merit increase, etc.), system must generate itemized statement showing new rate, effective date, gross, deductions breakdown.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "gross_wages",
+            "deductions",
+            "pay_rate"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-wa-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.12.240",
+          "note": "Personnel file access (RCW 49.12.240/250, amended HB 1308 eff.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "response_days": 21,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-wa-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "RCW 49.76",
+          "note": "Domestic Violence/Sexual Assault Leave (RCW 49.76): Job-protected; cannot retaliate for approved leave use.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "protected_leave_request"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-wa-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Cannabis: Employers may test; positive not protected (no medical-cardholder exception for employment).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "protected_status": [
+            "lawful_off_duty_cannabis_use"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-wa-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/washington.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks BREACH_NOTIFICATION for WA, and no item in washington.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/washington.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "6c9cc9c441d4d3f85cd6257a2c3af536ff2d0c5dc2a6c4db7106b2027e71368b",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "f8a91d874fef6f6cbb764675d9061573d796e2d3ee21f496804fc99033cb19f8f403d4d6a14110a0d94d33f90c7815c051d38e0ca36f939c735780a11c69e408"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "6c9cc9c441d4d3f85cd6257a2c3af536ff2d0c5dc2a6c4db7106b2027e71368b",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-wa-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wa-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wa-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wa-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wa-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wa-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) record_class, duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-wa-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) floor_amount, basis, indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for WA; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-wa-breach-notification",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wa-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wa-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-wa-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "0974a90a35b0792e6e658da6f18437925eb848abf94bca1370ce330b6b8d40f6",
+      "prev_digest": "",
+      "digest": "f9e4ae8a256132f8cd5063bb47635e3abc0fa695b35fb501f5b786606711f6da",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "25998b8c64442d533e093daf0acbd9db07d06b213daeff7f0f29136146290ea3ede5711bcf3edc70c8cab9e8642634760820bea64e2efaf038eb2f6c82b96a0d"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "0bbc70a9df7b383882a47ed4cb19f3cddb702d6f018f03ac7352ce6522283e54",
+      "prev_digest": "f9e4ae8a256132f8cd5063bb47635e3abc0fa695b35fb501f5b786606711f6da",
+      "digest": "e9ec5d7a3e5e186877dfd2e69d0fbd15cffc8b9a166c9ef04f387d1211a23a43",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "b6bbc6bff949f1b220a0584fd36d8a595e8fab8af3f00cdc84067d5e6db86b3a48571b1055e7983769b79f5da6482fc30fb140c294de6b18ebf7e8d6be4aa40e"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "6c9cc9c441d4d3f85cd6257a2c3af536ff2d0c5dc2a6c4db7106b2027e71368b",
+      "prev_digest": "e9ec5d7a3e5e186877dfd2e69d0fbd15cffc8b9a166c9ef04f387d1211a23a43",
+      "digest": "6dafe1f0e3ffbe6c212ac559e6c56ab0cc3f4f16b606976bcdaa85ee55b742ce",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "40e441ae6619733acb2ba116b1cd87d2498321f4dc6231725c85650e98575e6034c4a4a6a5070660e1273afc9831f1e17a30a1e935fbe7d38f1a8ada0978670c"
+      }
+    }
+  ]
+}

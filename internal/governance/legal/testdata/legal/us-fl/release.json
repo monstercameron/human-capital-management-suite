@@ -1,0 +1,262 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-fl-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "FL",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-fl-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/florida.md",
+          "section": "Fla. Stat. § 542.335",
+          "note": "Non-compete and non-solicit: Enforceable under Fla. Stat. § 542.335 if in writing, protect a legitimate business interest, and reasonable in time/geography/scope.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete and non-solicit: Enforceable under Fla. Stat. § 542.335 if in writing, protect a legitimate business interest, and reasonable in time/geography/scope. CHOICE Act (eff. July 1, 2025) strengthened enforcement for non-competes but left non-solicits unchanged."
+        }
+      },
+      {
+        "kind": "E_VERIFY",
+        "id": "us-fl-e-verify",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/florida.md",
+          "section": "SB 1718",
+          "note": "E-Verify: Mandatory for private employers with 25+ employees (SB 1718, eff.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_on_new_hire_only": true,
+          "note": "E-Verify: Mandatory for private employers with 25+ employees (SB 1718, eff.",
+          "employee_threshold": 25
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-fl-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/florida.md",
+          "section": "Fla. Const. Art. X § 24",
+          "note": "Minimum wage (effective Sept 30, 2025): $14.00/hr general, $10.98/hr tipped employees; escalates to $15.00 on Sept 30, 2026, then annual CPI adjustments thereafter (Fla.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "14.00",
+            "currency": "USD"
+          },
+          "worker_class": "tipped employees",
+          "indexation": "CPI",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-fl-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/florida.md",
+          "section": "Fla. Stat. § 448.07",
+          "note": "Equal pay law: Fla. Stat. § 448.07 prohibits employers from discriminating based on sex in wages.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "age"
+          ],
+          "comparator_standard": "equal work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-fl-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/florida.md",
+          "section": "Fla. Stat. § 448.101–105",
+          "note": "At-will employment: Default rule under common law; exceptions: whistleblower retaliation (Fla.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "workers_compensation_claim",
+            "whistleblower_report",
+            "jury_duty"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "SEPARATION_FILING",
+        "id": "us-fl-separation-filing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/florida.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Notice of separation: No state requirement to provide separation notice.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-fl-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/florida.md",
+          "section": "Fla. Stat. § 440.102",
+          "note": "Drug-free workplace program (Fla.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "reasonable_suspicion",
+            "post_accident",
+            "random"
+          ],
+          "protected_status": [
+            "medical_cannabis_patient"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-fl-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/florida.md",
+          "section": "Fla. Stat. § 501.171",
+          "note": "Data breach notification: FIPA (Fla.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "subject_deadline_days": 30,
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/florida.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "3c17a4b3ccc2af839738640ac16f71253965297188d6a93439254c2fc300e493",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "5f3d884c0b9092b5207863ec3f43b5573b6234fcad431e3713e6ce11eef9bf11b060843e99c6513c3844b8ee7228f88bcba55c31c51defd83265c52c79271b07"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "3c17a4b3ccc2af839738640ac16f71253965297188d6a93439254c2fc300e493",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-fl-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-fl-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-fl-separation-filing",
+        "severity": "BLOCKING",
+        "note": "required field(s) form_name are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-fl-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-fl-e-verify",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-fl-separation-filing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "70ef7dbc18ae851e648c1ce28e296cea5fc3e6c5ca5b74fd2a56b0baeb8a4dbe",
+      "prev_digest": "",
+      "digest": "4517b20b680801930ccf30d2df7f51064709c052094e57f816efca4b7b5da8fc",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "c2110da08c692ffe1cb0bb5561bf5bda0152d96a292a9114778c23d0682805ef653877180bf7c21e8994e2705c6eac43ecf6b8088617787fe774e6338abfd50f"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "3bbecea45924567f8feab36f4c725a778786301ad875b5b497336ec0215b4a22",
+      "prev_digest": "4517b20b680801930ccf30d2df7f51064709c052094e57f816efca4b7b5da8fc",
+      "digest": "82c2f45ccb60cbbcf5dc99322ca3a995b961cd1c396e7bd5521f298c47bf5af5",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "34c9f3a660d2ebb03fd8c6db1b108e6a1fc68d8ccadb1d9c207326aa04b5c7637d9214e3c4d5e70f2c7a7c4bc3caad2988701b190ce6d6c194dd161782d9dd09"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "3c17a4b3ccc2af839738640ac16f71253965297188d6a93439254c2fc300e493",
+      "prev_digest": "82c2f45ccb60cbbcf5dc99322ca3a995b961cd1c396e7bd5521f298c47bf5af5",
+      "digest": "f57aefae26cb180a32b45098f8f050ae63c64dc3339e17da003dc3519aa6fe7f",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "3bb54ff53d7ae676d65ea70c5c2664a3ab4de4fc7f2c7f5f75550656f31362589e0b0a92ff79aa2ab7bea8a9d72fb1dc67676e1b41260e16a23cb37a80560e00"
+      }
+    }
+  ]
+}

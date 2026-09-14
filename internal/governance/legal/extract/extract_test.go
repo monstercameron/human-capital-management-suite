@@ -38,8 +38,8 @@ func TestTodo_LEGAL_010_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
-	if len(files) != 50 {
-		t.Fatalf("generated %d definition files, want 50", len(files))
+	if len(files) != 51 {
+		t.Fatalf("generated %d definition files, want 51", len(files))
 	}
 
 	for _, f := range files {
@@ -99,12 +99,12 @@ func TestTodo_LEGAL_CFG_Conformance(t *testing.T) {
 		t.Fatalf("LoadMatrix: %v", err)
 	}
 
-	t.Run("the matrix parses to fifty rows keyed to the fifty research files", func(t *testing.T) {
-		if len(matrix.States) != 50 {
-			t.Fatalf("matrix has %d rows, want 50", len(matrix.States))
+	t.Run("the matrix parses to fifty-one rows keyed to the fifty-one research files", func(t *testing.T) {
+		if len(matrix.States) != 51 {
+			t.Fatalf("matrix has %d rows, want 51", len(matrix.States))
 		}
-		if len(States) != 50 {
-			t.Fatalf("the extractor knows %d states, want 50", len(States))
+		if len(States) != 51 {
+			t.Fatalf("the extractor knows %d states, want 51", len(States))
 		}
 		for _, state := range States {
 			if _, ok := matrix.Cells[state.Code]; !ok {
@@ -373,26 +373,26 @@ func TestMatrixTotalsMatchTheContract(t *testing.T) {
 		t.Fatalf("LoadMatrix: %v", err)
 	}
 	stated := map[legal.ObligationType]int{
-		legal.ObligationTypeNotice:             22,
-		legal.ObligationTypePayTransparency:    16,
-		legal.ObligationTypeFieldRestriction:   20,
-		legal.ObligationTypeWageFloor:          30,
-		legal.ObligationTypePayFrequency:       31,
-		legal.ObligationTypePayStatement:       18,
-		legal.ObligationTypeLeaveInteraction:   28,
-		legal.ObligationTypeNonCompete:         35,
-		legal.ObligationTypeClassification:     10,
-		legal.ObligationTypePayEquityReview:    36,
-		legal.ObligationTypeRetention:          31,
+		legal.ObligationTypeNotice:             23,
+		legal.ObligationTypePayTransparency:    17,
+		legal.ObligationTypeFieldRestriction:   21,
+		legal.ObligationTypeWageFloor:          31,
+		legal.ObligationTypePayFrequency:       32,
+		legal.ObligationTypePayStatement:       19,
+		legal.ObligationTypeLeaveInteraction:   29,
+		legal.ObligationTypeNonCompete:         40,
+		legal.ObligationTypeClassification:     11,
+		legal.ObligationTypePayEquityReview:    39,
+		legal.ObligationTypeRetention:          32,
 		legal.ObligationTypePersonnelFile:      18,
-		legal.ObligationTypeFinalPayDeadline:   44,
+		legal.ObligationTypeFinalPayDeadline:   45,
 		legal.ObligationTypeMiniWARN:           17,
 		legal.ObligationTypeSeparationFiling:   9,
 		legal.ObligationTypeEVerify:            17,
 		legal.ObligationTypeDrugTesting:        13,
-		legal.ObligationTypeAntiRetaliation:    50,
+		legal.ObligationTypeAntiRetaliation:    51,
 		legal.ObligationTypeJobSecurity:        4,
-		legal.ObligationTypeBreachNotification: 49,
+		legal.ObligationTypeBreachNotification: 50,
 		legal.ObligationTypeAutomatedDecision:  3,
 		legal.ObligationTypeMonitoringConsent:  5,
 	}

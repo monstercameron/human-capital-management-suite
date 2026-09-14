@@ -1,0 +1,723 @@
+{
+  "legal_context_digest": "b257ff1f73b882c14a5b6b32955c814a645584753c2d199f14ed4c05b0fb66d7",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "DC",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-dc-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "DC",
+          "Locality": ""
+        }
+      },
+      "Digest": "a608119b04d2a4125cf111f9451d8a94a4eaec01e044ef7b54a48f07c196ab43",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-dc-notice",
+      "Description": "employer_to_worker notice after the effective date within 30 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "D.C. Code § 32-1008",
+        "Note": "Wage Theft Prevention notice: Written \"Notice of Hire\" at hire, and an updated written notice within 30 days of any change to the notice's contents (pay rate, payday, employer information); $500 administrative penalty...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DC",
+        "Locality": ""
+      },
+      "PackID": "us-dc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-dc-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-dc-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-dc-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-dc-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "39892d67f13dd8e35e4027bbe07a6405bd40e20ecd448dcce13edb01975defc8"
+    },
+    {
+      "Type": 3,
+      "ID": "us-dc-retention",
+      "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "§ 32-1008",
+        "Note": "Payroll records: name, address, occupation, hours worked each day/week, rate of pay, deductions, and net/gross wages retained at least 3 years (§ 32-1008; verify exact subsection and whether WTPAA raised the period).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DC",
+        "Locality": ""
+      },
+      "PackID": "us-dc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-dc-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-dc-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "6bb3999763f3b0a085ca2d4c4673173e41956453265f84f51a3394ad2ac3887e"
+    },
+    {
+      "Type": 4,
+      "ID": "us-dc-leave-interaction",
+      "Description": "paid leave: Universal Paid Leave: Employer-funded benefit financed by a 0.75% payroll contribution on covered wages; up to 12 weeks of paid parental, family-care, or medical leave administered by DOES (D.C. Code § 32-541.01 et seq.).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "D.C. Code § 32-541.01",
+        "Note": "Universal Paid Leave: Employer-funded benefit financed by a 0.75% payroll contribution on covered wages; up to 12 weeks of paid parental, family-care, or medical leave administered by DOES (D.C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DC",
+        "Locality": ""
+      },
+      "PackID": "us-dc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-dc-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-dc-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-dc-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "75a5bbbc1d81de0e00d11fb5f366aadb00dbfcee3f89a95370868a4ecec3bea5"
+    },
+    {
+      "Type": 5,
+      "ID": "us-dc-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "D.C. Code § 32-1302",
+        "Note": "Wages must be paid at least twice per month on regular paydays designated in advance; payment within 10 working days after the close of the pay period (D.C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DC",
+        "Locality": ""
+      },
+      "PackID": "us-dc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-dc-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-dc-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "db020954ca35b9c5f8f6a8b27e8c214bb1da1e3f22a8954252752b7b6cc796e2"
+    },
+    {
+      "Type": 7,
+      "ID": "us-dc-pay-transparency",
+      "Description": "internal_promotion: Pay transparency: Good-faith minimum and maximum salary or hourly pay in all job listings and position descriptions, including promotion and transfer opportunities; healthcare-benefits existence disclosed before the first interview; wage-history screening banned (D.C. Code § 32-1453.01, § 32-1452; Wage Transparency Omnibus Amendment Act of 2023, D.C. Law 25-138, effective 2024-06-30).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "D.C. Code § 32-1453.01",
+        "Note": "Pay transparency: Good-faith minimum and maximum salary or hourly pay in all job listings and position descriptions, including promotion and transfer opportunities; healthcare-benefits existence disclosed before the...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DC",
+        "Locality": ""
+      },
+      "PackID": "us-dc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-dc-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-dc-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-dc-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "b19381fbf4bc79759f9592a4dc60faae4777499fa6bb3fc1c1fa08ba89a62f1f"
+    },
+    {
+      "Type": 8,
+      "ID": "us-dc-non-compete",
+      "Description": "Near-total non-compete ban: Non-competes are void for employees below the \"minimum qualifying annual compensation\" ($150,000, or $250,000 for medical specialists, CPI-adjusted annually from 2024) for agreements entered on or after 2022-10-01; permitted agreements with highly compensated employees require statutory notice (D.C. Code § 32-581.01 et seq.; Ban on Non-Compete Agreements Amendment Act of 2020 as amended by the Non-Compete Clarification Amendment Act of 2022, D.C. Law 24-175).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "D.C. Code § 32-581.01",
+        "Note": "Near-total non-compete ban: Non-competes are void for employees below the \"minimum qualifying annual compensation\" ($150,000, or $250,000 for medical specialists, CPI-adjusted annually from 2024) for agreements entered...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DC",
+        "Locality": ""
+      },
+      "PackID": "us-dc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-dc-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-dc-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-dc-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-dc-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "c034bb2cec6888f0ba540a6586faa03e89f73f73b756ecc5579d51d671ca1ee5"
+    },
+    {
+      "Type": 11,
+      "ID": "us-dc-wage-floor",
+      "Description": " floor of 17.95 USD for tipped employees, indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "D.C. Code § 32-1003",
+        "Note": "Minimum wage $17.95/hr (2026): $17.95/hr effective 2025-07-01, rising to $18.40/hr effective 2026-07-01; applies to all employers regardless of size (D.C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DC",
+        "Locality": ""
+      },
+      "PackID": "us-dc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-dc-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-dc-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-dc-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "0cbfad6894ef2589fa775747d020e838511d0a607952c34a4343a03b0a64f7ce"
+    },
+    {
+      "Type": 12,
+      "ID": "us-dc-pay-equity-review",
+      "Description": "pay-equity review against  for bases ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks PAY_EQUITY_REVIEW for DC, and no item in district-of-columbia.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DC",
+        "Locality": ""
+      },
+      "PackID": "us-dc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-dc-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-dc-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-dc-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "65cd5f3d1d3cdcb15b48203a944b0f31eff04d3c22f444430a15f8448cdd4a84"
+    },
+    {
+      "Type": 13,
+      "ID": "us-dc-pay-statement",
+      "Description": "pay statement delivered  must carry deductions, pay_period",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "§ 32-1008(b)",
+        "Note": "Itemized statement of deductions each pay period; itemized listing of allowances claimed (§ 32-1008(b)).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "DC",
+        "Locality": ""
+      },
+      "PackID": "us-dc-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-dc-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-dc-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "91aa23d31dbfddb086ea1fcc4860502bcd485e34b98041abceef77c7c2d1f112"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-dc-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "§ 32-1452(a)(4)",
+        "Note": "Employers may not screen prospective employees based on wage history, require wage history to satisfy minimum or maximum criteria, or require disclosure of wage history as a condition of interview or continued candidacy...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-dc-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "D.C. Code § 32-1303",
+        "Note": "Final pay next working day on discharge: Discharged employees must be paid no later than the working day after discharge (4-day window when the employee is responsible for the employer's money); resignation pays the...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-dc-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks ANTI_RETALIATION for DC, and no item in district-of-columbia.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-dc-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Ban-the-box / cannabis: internal-move pipelines that run background screens must respect the conditional-offer sequence; no marijuana pre-employment testing except safety-sensitive roles.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-dc-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+        "Section": "D.C. Code § 28-3852",
+        "Note": "Breach notification: Notice to affected residents \"as expeditiously as possible and without unreasonable delay\"; notice to the Attorney General when 50+ D.C.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DC",
+            "Locality": ""
+          },
+          "PackID": "us-dc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-dc-notice",
+          "Description": "employer_to_worker notice after the effective date within 30 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+            "Section": "D.C. Code § 32-1008",
+            "Note": "Wage Theft Prevention notice: Written \"Notice of Hire\" at hire, and an updated written notice within 30 days of any change to the notice's contents (pay rate, payday, employer information); $500 administrative penalty...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DC",
+            "Locality": ""
+          },
+          "PackID": "us-dc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-dc-retention",
+          "Description": "retain payroll_records for 3 year(s) (from_record_date)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+            "Section": "§ 32-1008",
+            "Note": "Payroll records: name, address, occupation, hours worked each day/week, rate of pay, deductions, and net/gross wages retained at least 3 years (§ 32-1008; verify exact subsection and whether WTPAA raised the period).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-dc-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DC",
+            "Locality": ""
+          },
+          "PackID": "us-dc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-dc-leave-interaction",
+          "Description": "paid leave: Universal Paid Leave: Employer-funded benefit financed by a 0.75% payroll contribution on covered wages; up to 12 weeks of paid parental, family-care, or medical leave administered by DOES (D.C. Code § 32-541.01 et seq.).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+            "Section": "D.C. Code § 32-541.01",
+            "Note": "Universal Paid Leave: Employer-funded benefit financed by a 0.75% payroll contribution on covered wages; up to 12 weeks of paid parental, family-care, or medical leave administered by DOES (D.C.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DC",
+            "Locality": ""
+          },
+          "PackID": "us-dc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-dc-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+            "Section": "D.C. Code § 32-1302",
+            "Note": "Wages must be paid at least twice per month on regular paydays designated in advance; payment within 10 working days after the close of the pay period (D.C.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-dc-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DC",
+            "Locality": ""
+          },
+          "PackID": "us-dc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-dc-pay-transparency",
+          "Description": "internal_promotion: Pay transparency: Good-faith minimum and maximum salary or hourly pay in all job listings and position descriptions, including promotion and transfer opportunities; healthcare-benefits existence disclosed before the first interview; wage-history screening banned (D.C. Code § 32-1453.01, § 32-1452; Wage Transparency Omnibus Amendment Act of 2023, D.C. Law 25-138, effective 2024-06-30).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+            "Section": "D.C. Code § 32-1453.01",
+            "Note": "Pay transparency: Good-faith minimum and maximum salary or hourly pay in all job listings and position descriptions, including promotion and transfer opportunities; healthcare-benefits existence disclosed before the...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DC",
+            "Locality": ""
+          },
+          "PackID": "us-dc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-dc-non-compete",
+          "Description": "Near-total non-compete ban: Non-competes are void for employees below the \"minimum qualifying annual compensation\" ($150,000, or $250,000 for medical specialists, CPI-adjusted annually from 2024) for agreements entered on or after 2022-10-01; permitted agreements with highly compensated employees require statutory notice (D.C. Code § 32-581.01 et seq.; Ban on Non-Compete Agreements Amendment Act of 2020 as amended by the Non-Compete Clarification Amendment Act of 2022, D.C. Law 24-175).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+            "Section": "D.C. Code § 32-581.01",
+            "Note": "Near-total non-compete ban: Non-competes are void for employees below the \"minimum qualifying annual compensation\" ($150,000, or $250,000 for medical specialists, CPI-adjusted annually from 2024) for agreements entered...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DC",
+            "Locality": ""
+          },
+          "PackID": "us-dc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-dc-wage-floor",
+          "Description": " floor of 17.95 USD for tipped employees, indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+            "Section": "D.C. Code § 32-1003",
+            "Note": "Minimum wage $17.95/hr (2026): $17.95/hr effective 2025-07-01, rising to $18.40/hr effective 2026-07-01; applies to all employers regardless of size (D.C.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-dc-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DC",
+            "Locality": ""
+          },
+          "PackID": "us-dc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-dc-pay-equity-review",
+          "Description": "pay-equity review against  for bases ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "the contract's section 5 matrix marks PAY_EQUITY_REVIEW for DC, and no item in district-of-columbia.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "DC",
+            "Locality": ""
+          },
+          "PackID": "us-dc-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-dc-pay-statement",
+          "Description": "pay statement delivered  must carry deductions, pay_period",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/district-of-columbia.md",
+            "Section": "§ 32-1008(b)",
+            "Note": "Itemized statement of deductions each pay period; itemized listing of allowances claimed (§ 32-1008(b)).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "a247258f3065c3ce6e69e8bbaa56140656516a968e7f6bbac4218666e1e9fc59",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "/4RI2IHabNiWfia/kIdZBHCJmjB1A7NnMP9smzdtDge20wPNbpt3zAQ59dgVeOiBr/u/SVKugSl631oAvBh9Dw=="
+  }
+}

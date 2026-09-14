@@ -1,0 +1,826 @@
+{
+  "legal_context_digest": "2ca6c92737f8af4d30e5e8159a83402aa4a30d86f3ac3663e41c3c6c6519a10d",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "CO",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-co-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "CO",
+          "Locality": ""
+        }
+      },
+      "Digest": "4568e68bdf37a784e1b6c2ec4b5b6722dade0ceb7e66fdc64cf72a6455250f68",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 3,
+      "ID": "us-co-retention",
+      "Description": "retain  for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "HB 24-1130",
+        "Note": "Biometric data (fingerprints, iris, voice, face recognition) requires informed, written consent, a written retention/deletion policy, and destruction by the earlier of: original purpose fulfilled, 24 months after last...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "f8a5febe99fffb6e494756c8bb54aa39c900800f1335934d63f114e7afa72bee"
+    },
+    {
+      "Type": 4,
+      "ID": "us-co-leave-interaction",
+      "Description": "accrued paid sick leave: Paid leave obligations: 48 hours paid sick leave per year (Healthy Families and Workplaces Act, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (family members, newborn, or personal medical condition; employer or private plan required); premiums 0.88% in 2026 with $184,500 annual wage cap.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-13.3-401",
+        "Note": "Paid leave obligations: 48 hours paid sick leave per year (Healthy Families and Workplaces Act, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (family members...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-leave-interaction",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: preserve leave balance/accrual across the pay change",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-co-leave-interaction",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: preserve leave balance/accrual across the pay change",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "17f0196e4e2b6c66986fdf103b15b8d905ab0da3e7d3829559e54165006821dd"
+    },
+    {
+      "Type": 5,
+      "ID": "us-co-pay-frequency",
+      "Description": "minimum frequency  for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-4-102",
+        "Note": "All pay changes must be documented in a new pay statement; wages must include the new rate on the next regular payday or within the pay frequency (CRS § 8-4-102).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "79b1eec3da0dcc4732ceea8a2a2078ca2853334e5a03ac0e43bebf9eea0898ad"
+    },
+    {
+      "Type": 7,
+      "ID": "us-co-pay-transparency",
+      "Description": "internal_promotion: Model job-posting and selection-notice obligations as a timed requirement: posting must include salary range and close date; selection notice must be sent within 30 calendar days (CRS § 8-5-102).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-5-102",
+        "Note": "Model job-posting and selection-notice obligations as a timed requirement: posting must include salary range and close date; selection notice must be sent within 30 calendar days (CRS § 8-5-102).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-pay-transparency",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: pay-range disclosure",
+        "LifecycleStep": "DRAFT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "DRAFT"
+        },
+        {
+          "ObligationID": "us-co-pay-transparency",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: pay-range disclosure",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "372b3238863164b42798983cac809b633e117178c8b975c586075d37a92b9a68"
+    },
+    {
+      "Type": 8,
+      "ID": "us-co-non-compete",
+      "Description": "Non-competes are void unless the employee earns at or above the \"highly compensated worker\" threshold (verify current amount; SB 25-083, Aug 6, 2025) AND the restriction is no broader than necessary to protect trade secrets (CRS § 8-2-113).",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-2-113",
+        "Note": "Non-competes are void unless the employee earns at or above the \"highly compensated worker\" threshold (verify current amount; SB 25-083, Aug 6, 2025) AND the restriction is no broader than necessary to protect trade...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-co-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-co-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "2878ec4c9553c79240d64e5395894b722182f06ed0dcf2fe9b8b5f70cec2f3bf"
+    },
+    {
+      "Type": 11,
+      "ID": "us-co-wage-floor",
+      "Description": "HOURLY floor of 15.16 USD for tipped employees, indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-6-102",
+        "Note": "Minimum wage: $15.16 per hour statewide as of January 1, 2026 (CRS § 8-6-102); local jurisdictions (Denver, Boulder, Edgewater) set higher floors.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-co-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "72f4e254ae12ba02fa2316ef39615df49dc5b9d6607ed35c1dd8f0dc8fae930e"
+    },
+    {
+      "Type": 12,
+      "ID": "us-co-pay-equity-review",
+      "Description": "pay-equity review against substantially similar work for bases ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-5-101",
+        "Note": "If raising pay, verify no equal-pay violation for other employees in similar roles (CRS § 8-5-101).",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-co-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "81e5103fea193713c3546bc570b7e9ca574d3a3f2522b869e71b3d059b07e8a9"
+    },
+    {
+      "Type": 13,
+      "ID": "us-co-pay-statement",
+      "Description": "pay statement delivered  must carry pay_rate",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-4-102",
+        "Note": "All pay changes must be documented in a new pay statement; wages must include the new rate on the next regular payday or within the pay frequency (CRS § 8-4-102).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "45b15fd46cfee1764207594ef2b95939302b6b9d802d34925feff515db6fb72c"
+    },
+    {
+      "Type": 14,
+      "ID": "us-co-classification",
+      "Description": "CONTRACTOR test: Independent contractor test (CRS § 8-6-101 et seq.): Colorado uses a modified ABC test requiring BOTH:",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-6-101",
+        "Note": "Independent contractor test (CRS § 8-6-101 et seq.): Colorado uses a modified ABC test requiring BOTH:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-classification",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard and human task: classification test",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-classification",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-co-classification",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "guard and human task: classification test",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "299a9054f3751987582e3f4ca986391d786f98cd533f9eb88afa469b8949b909"
+    },
+    {
+      "Type": 15,
+      "ID": "us-co-personnel-file",
+      "Description": "personnel-file request answered within 10 business day(s)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-2-129",
+        "Note": "Employee access to personnel file: Colorado law requires employers to permit employees to inspect and obtain a copy of any part of their own personnel file once per calendar year, without unreasonable delay (CRS §...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "CO",
+        "Locality": ""
+      },
+      "PackID": "us-co-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-co-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-co-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "04dbef677bedb150a26d1b499c36d2d50c4552373e2d3d21ec259bf14e58b512"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 2,
+      "ID": "us-co-field-restriction",
+      "Reason": "compensation-setting did not consult a restricted field",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-5-103",
+        "Note": "Prohibit using employee's prior salary to set new pay; enforce pay-secrecy ban on employer policies (CRS § 8-5-103).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 6,
+      "ID": "us-co-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-4-109",
+        "Note": "Final pay on involuntary termination: Compensation for labor earned, vested, determinable, and unpaid at discharge is due immediately (CRS § 8-4-109).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 10,
+      "ID": "us-co-mini-warn",
+      "Reason": "the concurrent workforce reduction is below this rule's employee threshold",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "U.S.C. § 2101–2109",
+        "Note": "WARN Act: No Colorado mini-WARN act.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-co-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-4-105",
+        "Note": "Practical wage/hour compliance for Human Capital Management Suite: (1) Document all pay changes and overtime calculations.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-co-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 8-90-107",
+        "Note": "Termination requires immediate final-pay delivery if involuntary (or within 6 hours of next business day if payroll office closed), or payment on next regular payday if resignation; accrued vacation must be paid out...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-co-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Drug testing: No state rule prohibiting private-employer drug testing; federal requirements and best practices apply.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-co-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "CRS § 6-1-716",
+        "Note": "Breach notification: Colorado data breach notification law (CRS § 6-1-716) requires employers and other data holders to notify affected individuals of data breaches involving personal information without unreasonable...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 21,
+      "ID": "us-co-automated-decision",
+      "Reason": "no model scored, ranked or recommended the subject",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "SB 24-205",
+        "Note": "AI hiring decisions (Colorado AI Act, SB 24-205, effective 2026-02-01 verify): employers using AI systems for \"high-risk\" employment decisions must conduct impact assessments, maintain documentation, and notify affected...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 22,
+      "ID": "us-co-monitoring-consent",
+      "Reason": "the transaction touches no data category this rule covers",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/colorado.md",
+        "Section": "HB 24-1130",
+        "Note": "Biometric data (fingerprints, iris, voice, face recognition) requires informed, written consent, a written retention/deletion policy, and destruction by the earlier of: original purpose fulfilled, 24 months after last...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-co-retention",
+          "Description": "retain  for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "HB 24-1130",
+            "Note": "Biometric data (fingerprints, iris, voice, face recognition) requires informed, written consent, a written retention/deletion policy, and destruction by the earlier of: original purpose fulfilled, 24 months after last...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-co-retention"
+    },
+    {
+      "Kind": 4,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 4,
+          "ID": "us-co-leave-interaction",
+          "Description": "accrued paid sick leave: Paid leave obligations: 48 hours paid sick leave per year (Healthy Families and Workplaces Act, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (family members, newborn, or personal medical condition; employer or private plan required); premiums 0.88% in 2026 with $184,500 annual wage cap.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "CRS § 8-13.3-401",
+            "Note": "Paid leave obligations: 48 hours paid sick leave per year (Healthy Families and Workplaces Act, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (family members...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-co-pay-frequency",
+          "Description": "minimum frequency  for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "CRS § 8-4-102",
+            "Note": "All pay changes must be documented in a new pay statement; wages must include the new rate on the next regular payday or within the pay frequency (CRS § 8-4-102).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-co-pay-frequency"
+    },
+    {
+      "Kind": 7,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 7,
+          "ID": "us-co-pay-transparency",
+          "Description": "internal_promotion: Model job-posting and selection-notice obligations as a timed requirement: posting must include salary range and close date; selection notice must be sent within 30 calendar days (CRS § 8-5-102).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "CRS § 8-5-102",
+            "Note": "Model job-posting and selection-notice obligations as a timed requirement: posting must include salary range and close date; selection notice must be sent within 30 calendar days (CRS § 8-5-102).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-co-non-compete",
+          "Description": "Non-competes are void unless the employee earns at or above the \"highly compensated worker\" threshold (verify current amount; SB 25-083, Aug 6, 2025) AND the restriction is no broader than necessary to protect trade secrets (CRS § 8-2-113).",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "CRS § 8-2-113",
+            "Note": "Non-competes are void unless the employee earns at or above the \"highly compensated worker\" threshold (verify current amount; SB 25-083, Aug 6, 2025) AND the restriction is no broader than necessary to protect trade...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-co-wage-floor",
+          "Description": "HOURLY floor of 15.16 USD for tipped employees, indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "CRS § 8-6-102",
+            "Note": "Minimum wage: $15.16 per hour statewide as of January 1, 2026 (CRS § 8-6-102); local jurisdictions (Denver, Boulder, Edgewater) set higher floors.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-co-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-co-pay-equity-review",
+          "Description": "pay-equity review against substantially similar work for bases ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "CRS § 8-5-101",
+            "Note": "If raising pay, verify no equal-pay violation for other employees in similar roles (CRS § 8-5-101).",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-co-pay-statement",
+          "Description": "pay statement delivered  must carry pay_rate",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "CRS § 8-4-102",
+            "Note": "All pay changes must be documented in a new pay statement; wages must include the new rate on the next regular payday or within the pay frequency (CRS § 8-4-102).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 14,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 14,
+          "ID": "us-co-classification",
+          "Description": "CONTRACTOR test: Independent contractor test (CRS § 8-6-101 et seq.): Colorado uses a modified ABC test requiring BOTH:",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "CRS § 8-6-101",
+            "Note": "Independent contractor test (CRS § 8-6-101 et seq.): Colorado uses a modified ABC test requiring BOTH:",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "CO",
+            "Locality": ""
+          },
+          "PackID": "us-co-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-co-personnel-file",
+          "Description": "personnel-file request answered within 10 business day(s)",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/colorado.md",
+            "Section": "CRS § 8-2-129",
+            "Note": "Employee access to personnel file: Colorado law requires employers to permit employees to inspect and obtain a copy of any part of their own personnel file once per calendar year, without unreasonable delay (CRS §...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-co-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "8780d9faa4f60dd1707dbd1d5cd04fa7db0176b2864becac150610cc2f259954",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "v9FMGsrx1Zl3TE1jJHdSocnuNWfQnVVO6gtCi66MHdnPRb/cpuWpVD+hZzDorK8P0PmMarfD49wzqWSc/P1bAQ=="
+  }
+}

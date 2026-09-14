@@ -1,0 +1,298 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-ut-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "UT",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "RETENTION",
+        "id": "us-ut-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 34-28-10",
+          "note": "Wage record retention (§ 34-28-10): System must retain promotion records (wage change, effective date, justification) for minimum 1 year after employment ends; construction-licensed employers must retain pay statements...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "wage_records",
+          "duration_years": 1,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-ut-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 34-28-3",
+          "note": "Pay frequency: Semimonthly or more frequent required (§ 34-28-3); salaried employees may be paid monthly (on/before 7th of following month).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-ut-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 34-28-5",
+          "note": "Final pay on separation during/after promotion (§ 34-28-5): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid within 24 hours (involuntary) or next...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay on separation during/after promotion (§ 34-28-5): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid within 24 hours (involuntary) or next payday (voluntary). Do not forgive accrued final-pay penalty if promotion occurred."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-ut-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 34-51-102",
+          "note": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete. If entered before May 10, 2016, verify enforceability; if after May 10, 2016, cap at 1 year from promotion date is implicit (termination occurs later). If non-compete, document cap and void status if exceeded. If non-solicit exists, verify reasonableness; document in system."
+        }
+      },
+      {
+        "kind": "E_VERIFY",
+        "id": "us-ut-e-verify",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 13-47-101",
+          "note": "E-Verify for 150+ employees (§ 13-47-101); no penalty for non-compliance.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_on_new_hire_only": true,
+          "note": "E-Verify for 150+ employees (§ 13-47-101); no penalty for non-compliance.",
+          "employee_threshold": 150
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-ut-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 34A-5-106(1)(a)",
+          "note": "Equal Pay compliance (§ 34A-5-106(1)(a)): On promotion or base-pay change within same establishment, flag if new wage for one sex differs materially from peer rates for comparable work; require manager justification or...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "sex",
+            "age"
+          ],
+          "comparator_standard": "comparable work",
+          "documentation_required": true,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-ut-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 34-28-10",
+          "note": "Wage record retention (§ 34-28-10): System must retain promotion records (wage change, effective date, justification) for minimum 1 year after employment ends; construction-licensed employers must retain pay statements...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "employer_identification"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-ut-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 34-01-20",
+          "note": "Whistleblower protection (§ 34-01-20 private employees, § 67-21 public): If promotion follows any protected whistleblower activity (good-faith report of unlawful conduct), flag for legal review to ensure retaliation...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_activities": [
+            "whistleblower_report"
+          ],
+          "disposition": "BLOCK",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-ut-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 34-38-1",
+          "note": "Drug testing (§ 34-38-1 et seq., Utah Drug and Alcohol Testing Act):",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-ut-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/utah.md",
+          "section": "§ 13-44-101",
+          "note": "Breach notification required without unreasonable delay if misuse of personal information reasonably likely (§ 13-44-101).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/utah.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "c6551689533363799ebef72bd948bb2ce5190fc83bd623abc09ee72735272656",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "0c0a938ebaa4367722d247abd107f46cabed5f90e0ad36987f409974caddc0a1b0019f1ecbc4b99d48f4779454fbf048c114d22b90b26d0738553aa9b470bf00"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "c6551689533363799ebef72bd948bb2ce5190fc83bd623abc09ee72735272656",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-ut-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ut-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ut-drug-testing",
+        "severity": "BLOCKING",
+        "note": "required field(s) permitted_bases are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-ut-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for UT; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-ut-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ut-e-verify",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ut-final-pay-deadline",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ut-non-compete",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-ut-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "9f97b1be3193db0f4d0aed5ed2e4742516df0ef5efd7a099d43ea43b3c8f3ad4",
+      "prev_digest": "",
+      "digest": "057a3a8338682ff8af6e4611d4c3e42d63f9dc44d9740c08c03beb99bb9de152",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "c260bb1d34c3178220510efa1c8fdd9f307d0007ebe34c11b42615c8d7d30b0c0cbc471c062e416bd87c96ecbb428e35df1b78f973ffd7a5a19c3da8b51a9d04"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "aff7272a87496182fa216b3c87b1b11d70d92fc1c1e1820a30ef76e0e45adbd7",
+      "prev_digest": "057a3a8338682ff8af6e4611d4c3e42d63f9dc44d9740c08c03beb99bb9de152",
+      "digest": "97a6e44b9a533ab22d48af6019715ed5f5780fd6a5eccf44f334a4147513b6c1",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "8590ed2258c1ef16eb896fb8dcf47bffbd728dba0fc7bd0997d97dd58245a8dcc9723970d289e221049d562af75f0803a0a13f6993296d50f86daf7154610909"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "c6551689533363799ebef72bd948bb2ce5190fc83bd623abc09ee72735272656",
+      "prev_digest": "97a6e44b9a533ab22d48af6019715ed5f5780fd6a5eccf44f334a4147513b6c1",
+      "digest": "5e987ff605b1516731bbc932ff585da3d2c3ecb8d3c79a4f1f6971a1d36ee8f7",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "fdf0ab4f20bd27004f7824111aab3c2f949c28cb6d6a796cc811aab0126daa4b35a8968635b6f15aa5e2a27733c38bc2c60edb8c7aad28e00405e98207a4450f"
+      }
+    }
+  ]
+}

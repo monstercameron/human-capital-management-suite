@@ -46,7 +46,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate."
+        "interaction_rule": "Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate. Sick-leave accrual continues during paid leave; no reduction in accrual on promotion (verify if employer policy allows selective accrual adjustments)."
       }
     },
     {
@@ -75,7 +75,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay compliance on separation (RC 4113.15): If termination occurs within promotion period, ensure all wages at promoted rate paid within 15 days of separation (or on next regular payday if sooner); capture in..."
+        "deadline_description": "Final pay compliance on separation (RC 4113.15): If termination occurs within promotion period, ensure all wages at promoted rate paid within 15 days of separation (or on next regular payday if sooner); capture in system. Failure to pay subjects employer to liquidated damages (greater of 6% unpaid wages or $200) plus attorneys' fees."
       }
     },
     {

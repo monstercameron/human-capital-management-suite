@@ -960,7 +960,7 @@ selection_bindings:
   - todo_id: SELECT-001
     path: definitions/planning/gates/select-001-jurisdiction-profile.yaml
     digest_kind: CANONICAL_JSON
-    digest: "fb8dfca360a4ea907de5f5f16b04234deeef32f99578cadf55dede866a54a9e1"
+    digest: "febb6b41e25c7b95275e13be7e5dcf7226f8dab07cd0c198367cb8f8f9f8645e"
   - todo_id: SELECT-002
     path: definitions/planning/gates/select-002-provider-topology.yaml
     digest_kind: CANONICAL_JSON
@@ -986,4 +986,4 @@ signature:
   algorithm: ed25519
   public_key: 93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b
   key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml
-  value: "c09bcd91e6230cc79549ed11399f3e1243100ebb0a5b77d8481db541af27160bc8d25f4a591b9f463eedc07ef4e6e3de041c024161295314887adccbcd3e4602"
+  value: "962ea6af2830180e1bf1f22aa96bc918db6f6eb65a45f9aea0f97c7f254a229222287588d79c1624a02973d4ca53a7464b2747ff37b0124b7315688a66fd7302"

@@ -1,0 +1,368 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-dc-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "DC",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-dc-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "D.C. Code § 32-1008",
+          "note": "Wage Theft Prevention notice: Written \"Notice of Hire\" at hire, and an updated written notice within 30 days of any change to the notice's contents (pay rate, payday, employer information); $500 administrative penalty...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "AFTER",
+          "timing_days": 30,
+          "channel": "written",
+          "content_fields": [
+            "pay_rate",
+            "payday"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-dc-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "§ 32-1452(a)(4)",
+          "note": "Employers may not screen prospective employees based on wage history, require wage history to satisfy minimum or maximum criteria, or require disclosure of wage history as a condition of interview or continued candidacy...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-dc-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "§ 32-1008",
+          "note": "Payroll records: name, address, occupation, hours worked each day/week, rate of pay, deductions, and net/gross wages retained at least 3 years (§ 32-1008; verify exact subsection and whether WTPAA raised the period).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "record_class": "payroll_records",
+          "duration_years": 3,
+          "duration_basis": "from_record_date"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-dc-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "D.C. Code § 32-541.01",
+          "note": "Universal Paid Leave: Employer-funded benefit financed by a 0.75% payroll contribution on covered wages; up to 12 weeks of paid parental, family-care, or medical leave administered by DOES (D.C.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "paid leave",
+          "interaction_rule": "Universal Paid Leave: Employer-funded benefit financed by a 0.75% payroll contribution on covered wages; up to 12 weeks of paid parental, family-care, or medical leave administered by DOES (D.C. Code § 32-541.01 et seq.)."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-dc-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "D.C. Code § 32-1302",
+          "note": "Wages must be paid at least twice per month on regular paydays designated in advance; payment within 10 working days after the close of the pay period (D.C.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "minimum_frequency": "SEMIMONTHLY"
+        }
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-dc-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "D.C. Code § 32-1303",
+          "note": "Final pay next working day on discharge: Discharged employees must be paid no later than the working day after discharge (4-day window when the employee is responsible for the employer's money); resignation pays the...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final pay next working day on discharge: Discharged employees must be paid no later than the working day after discharge (4-day window when the employee is responsible for the employer's money); resignation pays the earlier of the next regular payday or 7 days; 10%-per-working-day liquidated damages capped at treble wages (D.C. Code § 32-1303)."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-dc-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "D.C. Code § 32-1453.01",
+          "note": "Pay transparency: Good-faith minimum and maximum salary or hourly pay in all job listings and position descriptions, including promotion and transfer opportunities; healthcare-benefits existence disclosed before the...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay transparency: Good-faith minimum and maximum salary or hourly pay in all job listings and position descriptions, including promotion and transfer opportunities; healthcare-benefits existence disclosed before the first interview; wage-history screening banned (D.C. Code § 32-1453.01, § 32-1452; Wage Transparency Omnibus Amendment Act of 2023, D.C. Law 25-138, effective 2024-06-30)."
+        }
+      },
+      {
+        "kind": "NON_COMPETE",
+        "id": "us-dc-non-compete",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "D.C. Code § 32-581.01",
+          "note": "Near-total non-compete ban: Non-competes are void for employees below the \"minimum qualifying annual compensation\" ($150,000, or $250,000 for medical specialists, CPI-adjusted annually from 2024) for agreements entered...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "recheck_on_pay_change": true,
+          "rule": "Near-total non-compete ban: Non-competes are void for employees below the \"minimum qualifying annual compensation\" ($150,000, or $250,000 for medical specialists, CPI-adjusted annually from 2024) for agreements entered on or after 2022-10-01; permitted agreements with highly compensated employees require statutory notice (D.C. Code § 32-581.01 et seq.; Ban on Non-Compete Agreements Amendment Act of 2020 as amended by the Non-Compete Clarification Amendment Act of 2022, D.C. Law 24-175)."
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-dc-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "D.C. Code § 32-1003",
+          "note": "Minimum wage $17.95/hr (2026): $17.95/hr effective 2025-07-01, rising to $18.40/hr effective 2026-07-01; applies to all employers regardless of size (D.C.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "floor_amount": {
+            "amount": "17.95",
+            "currency": "USD"
+          },
+          "worker_class": "tipped employees",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-dc-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks PAY_EQUITY_REVIEW for DC, and no item in district-of-columbia.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_STATEMENT",
+        "id": "us-dc-pay-statement",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "§ 32-1008(b)",
+          "note": "Itemized statement of deductions each pay period; itemized listing of allowances claimed (§ 32-1008(b)).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "required_fields": [
+            "deductions",
+            "pay_period"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-dc-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "the contract's section 5 matrix marks ANTI_RETALIATION for DC, and no item in district-of-columbia.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-dc-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "(statutory section not stated in the research file)",
+          "note": "Ban-the-box / cannabis: internal-move pipelines that run background screens must respect the conditional-offer sequence; no marijuana pre-employment testing except safety-sensitive roles.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "pre_employment",
+            "safety_sensitive_role"
+          ],
+          "protected_status": [
+            "lawful_off_duty_cannabis_use"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-dc-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+          "section": "D.C. Code § 28-3852",
+          "note": "Breach notification: Notice to affected residents \"as expeditiously as possible and without unreasonable delay\"; notice to the Attorney General when 50+ D.C.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/district-of-columbia.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "a608119b04d2a4125cf111f9451d8a94a4eaec01e044ef7b54a48f07c196ab43",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "947a2d62d23a5c113ac95273fa09f8d576511af78388c7621f8ce931d0bc86a683c0ef7c9065f08a14b419383edf9ec32cd1d20301a466547e7d44ae6623b10c"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "a608119b04d2a4125cf111f9451d8a94a4eaec01e044ef7b54a48f07c196ab43",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-dc-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, lookback_days, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-dc-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-dc-pay-equity-review",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_bases, comparator_standard are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-dc-pay-statement",
+        "severity": "BLOCKING",
+        "note": "required field(s) delivery are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-dc-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) basis, indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-dc-anti-retaliation",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-dc-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-dc-pay-equity-review",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-dc-pay-statement",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-dc-retention",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "87ffe247781f75ab94b7e1e7b43dae00846515f096903e850f8f780fbbb8ce1d",
+      "prev_digest": "",
+      "digest": "13fba49563331b9309a295ae657327307ee7e6960576a3653db3ca02b6e81b25",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "22a902eec81bb63fea49ea270a084470ce435804a796851af3ddc6dd9c935950ac0810efddc85a27aff13de77c7ca018a74208c5415119454e50ca653215c203"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "bcb86c0496402b7e4d352d943f833f4707aeb41014acccc185c3b886ad71d8a0",
+      "prev_digest": "13fba49563331b9309a295ae657327307ee7e6960576a3653db3ca02b6e81b25",
+      "digest": "3af563132509e698fc801d9b8a7521e9571d3c2452d8028287a1b69fc018e2fe",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "0e86bb2543efbd193c36ebf96de502e258216f00726e231a4e3342605a5cac322fc5aa20f792b72e0f2bef551436398b9b77932eded79c12248e0de36da8a308"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "a608119b04d2a4125cf111f9451d8a94a4eaec01e044ef7b54a48f07c196ab43",
+      "prev_digest": "3af563132509e698fc801d9b8a7521e9571d3c2452d8028287a1b69fc018e2fe",
+      "digest": "d20ad073d9a8f64fc2fe037808285990975ef049bd638f6a7f54de87f85434d2",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "9a3de96dc09f09d73e40c378da42e3e567949044004411ab2b4b00ec06c7ebcee85737d98234584cc219202aec80d76ae35c9d63aaa678f04cfdc3bda702a301"
+      }
+    }
+  ]
+}

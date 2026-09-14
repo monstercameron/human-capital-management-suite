@@ -1,0 +1,371 @@
+{
+  "definition": {
+    "schema_version": 1,
+    "pack_id": "us-nj-promotion-base-pay-change-draft",
+    "version": {
+      "major": 1,
+      "minor": 0
+    },
+    "vocabulary_version": 2,
+    "jurisdiction": {
+      "country": "US",
+      "subdivision": "NJ",
+      "locality_path": [],
+      "level": "SUBDIVISION"
+    },
+    "window": {
+      "start": "2026-01-01"
+    },
+    "source_type": "STATUTE",
+    "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "obligations": [
+      {
+        "kind": "NOTICE",
+        "id": "us-nj-notice",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "N.J.S.A. 34:11-4.1",
+          "note": "N.J.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "who": "employer_to_worker",
+          "timing_direction": "BEFORE",
+          "channel": "written",
+          "content_fields": [
+            "payday",
+            "pay_frequency"
+          ]
+        }
+      },
+      {
+        "kind": "FIELD_RESTRICTION",
+        "id": "us-nj-field-restriction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "§ 34:6B-20",
+          "note": "Salary History Inquiry Block (§ 34:6B-20): Disable any form field attempting to request prior salary/wages from external candidates; log any such queries as compliance risk.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "restricted_fields": [
+            "salary_history"
+          ],
+          "context": "setting compensation for a promotion or base-pay change"
+        }
+      },
+      {
+        "kind": "RETENTION",
+        "id": "us-nj-retention",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "N.J.S.A. 34:11",
+          "note": "Payroll and personnel record retention (N.J.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "record_class": "payroll_records"
+        }
+      },
+      {
+        "kind": "LEAVE_INTERACTION",
+        "id": "us-nj-leave-interaction",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "§ 34:11D-1",
+          "note": "Earned Leave Accrual and Termination (§ 34:11D-1): Track accrued sick leave (1 hour per 30 hours worked, 40-hour max per year).",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "leave_type": "accrued paid sick leave",
+          "interaction_rule": "Earned Leave Accrual and Termination (§ 34:11D-1): Track accrued sick leave (1 hour per 30 hours worked, 40-hour max per year). On termination, automatic payout of accrued balance unless written policy limits compensation exists and was provided at hire. On promotion within same employer, leave balance carries forward."
+        }
+      },
+      {
+        "kind": "PAY_FREQUENCY",
+        "id": "us-nj-pay-frequency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "N.J.S.A. 34:11-4.2",
+          "note": "Pay frequency and timing (N.J.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {}
+      },
+      {
+        "kind": "FINAL_PAY_DEADLINE",
+        "id": "us-nj-final-pay-deadline",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "§ 34:11-4.3",
+          "note": "Final Pay Timing (§ 34:11-4.3): Schedule final paycheck by next regular payday following termination; include all wages due.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "termination_any",
+          "deadline_description": "Final Pay Timing (§ 34:11-4.3): Schedule final paycheck by next regular payday following termination; include all wages due."
+        }
+      },
+      {
+        "kind": "PAY_TRANSPARENCY",
+        "id": "us-nj-pay-transparency",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "§ 34:6B-23",
+          "note": "Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "trigger": "internal_promotion",
+          "required_disclosure": "Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure. On internal promotion posting, ensure reasonable-notice requirement met (10+ employees threshold)."
+        }
+      },
+      {
+        "kind": "MINI_WARN",
+        "id": "us-nj-mini-warn",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "§ 34:21-1",
+          "note": "WARN Act Trigger (§ 34:21-1 as amended): If planned layoff affects 100+ employees nationwide or 25+ employees in single event and employer has 100+ employees total, auto-flag and require 90-day notice scheduling (vs.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "note": "WARN Act Trigger (§ 34:21-1 as amended): If planned layoff affects 100+ employees nationwide or 25+ employees in single event and employer has 100+ employees total, auto-flag and require 90-day notice scheduling (vs.",
+          "employee_threshold": 100,
+          "notice_days": 90
+        }
+      },
+      {
+        "kind": "WAGE_FLOOR",
+        "id": "us-nj-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "N.J.S.A. 34:11-56",
+          "note": "Minimum wage (N.J.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PAY_EQUITY_REVIEW",
+        "id": "us-nj-pay-equity-review",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "Diane B. Allen § 10:5-12",
+          "note": "Equal Pay Audit Flag (Diane B.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "protected_bases": [
+            "age"
+          ],
+          "comparator_standard": "substantially similar work",
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "PERSONNEL_FILE",
+        "id": "us-nj-personnel-file",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "N.J.S.A. 34:11",
+          "note": "Payroll and personnel record retention (N.J.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "ANTI_RETALIATION",
+        "id": "us-nj-anti-retaliation",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "§ 34:11-4.1",
+          "note": "Wage Theft Act Compliance (§ 34:11-4.1): Document all pay rate changes and provide written notice in advance; failure to provide notice triggers retaliation and wage-theft penalties (200% liquidated damages, attorney...",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "lookback_days": 2190,
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "DRUG_TESTING",
+        "id": "us-nj-drug-testing",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "N.J.S.A. 24:6",
+          "note": "Cannabis exception: N.J.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "VERIFY"
+        },
+        "body": {
+          "permitted_bases": [
+            "reasonable_suspicion"
+          ],
+          "protected_status": [
+            "lawful_off_duty_cannabis_use"
+          ],
+          "standard": "REQUIRED"
+        }
+      },
+      {
+        "kind": "BREACH_NOTIFICATION",
+        "id": "us-nj-breach-notification",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/new-jersey.md",
+          "section": "N.J.S.A. 56:8-163",
+          "note": "Data breach notification (N.J.S.A.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "standard": "REQUIRED"
+        }
+      }
+    ],
+    "preemption_assertions": [],
+    "provenance": {
+      "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
+      "source_files": [
+        "planning/research/state-employment-law/new-jersey.md"
+      ],
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    }
+  },
+  "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+  "digest": "2881959bcb5eb132b362e7cffe9264e63fe8950ef8231245c5eda6357f51cb31",
+  "signatures": [
+    {
+      "role": "RELEASE_PUBLISHER",
+      "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+      "signature": "47b88ca394ddb17580c6c97e985457f04819ca4fbcdf0873a8e46e6c0669ae6427ac1ed4dc8ef5e071aca1ca9ab50b3af3708580341445cab0577f5e07f6e40f"
+    }
+  ],
+  "review_record": {
+    "pack_digest": "2881959bcb5eb132b362e7cffe9264e63fe8950ef8231245c5eda6357f51cb31",
+    "author_id": "vendor:rule-author",
+    "reviewer_id": "vendor:legal-reviewer",
+    "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
+    "findings": [
+      {
+        "obligation_id": "us-nj-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) protected_activities, disposition are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nj-breach-notification",
+        "severity": "BLOCKING",
+        "note": "required field(s) subject_deadline_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nj-notice",
+        "severity": "BLOCKING",
+        "note": "required field(s) timing_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nj-pay-frequency",
+        "severity": "BLOCKING",
+        "note": "required field(s) minimum_frequency are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nj-personnel-file",
+        "severity": "BLOCKING",
+        "note": "required field(s) response_days, day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nj-retention",
+        "severity": "BLOCKING",
+        "note": "required field(s) duration_years are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "obligation_id": "us-nj-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) floor_amount, basis, indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_FREQUENCY '?' for NJ; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PAY_STATEMENT '?' for NJ; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "severity": "BLOCKING",
+        "note": "contract section 5 matrix marks PERSONNEL_FILE '?' for NJ; a flow-consumed '?' is a blocking finding, not a footnote"
+      },
+      {
+        "obligation_id": "us-nj-drug-testing",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nj-pay-frequency",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      },
+      {
+        "obligation_id": "us-nj-personnel-file",
+        "severity": "CONCERN",
+        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+      }
+    ]
+  },
+  "pipeline_events": [
+    {
+      "stage": "AUTHORED",
+      "principal_id": "vendor:rule-author",
+      "role": "RULE_AUTHOR",
+      "artifact_digest": "a9cd1ed6b88329eef5174c9eee29b59fe22d5805c53aa35f8d27a31be6bf1e6a",
+      "prev_digest": "",
+      "digest": "aa9ecbcd8cb59db14787cfd2031cef51818d8924e1dbe609731584129dfbdd2c",
+      "signature": {
+        "role": "",
+        "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
+        "signature": "2c8b430e18917cbbf95a424e77ee3a0d8a4a6b2de0a4d907ab76a5220424684d693b04e938e9adac7e58fcc1cf6605424e79af8a9111f7addcda3203db36c109"
+      }
+    },
+    {
+      "stage": "REVIEWED",
+      "principal_id": "vendor:legal-reviewer",
+      "role": "VENDOR_LEGAL_REVIEWER",
+      "artifact_digest": "71ab8a3ee3d40e6927ea02c046eaa11dcc80bfabd2fa15b46a754830fbae618f",
+      "prev_digest": "aa9ecbcd8cb59db14787cfd2031cef51818d8924e1dbe609731584129dfbdd2c",
+      "digest": "fbc310abe6d7d24eaae713142da54167e4f10bafe8571155d9d3a907601214e0",
+      "signature": {
+        "role": "",
+        "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature": "8a95708441179fe41076e5d7c5e632ff0b4a1a7dff8e47ef985b9d4894b2e08999d2f221d4960418842c6e8c853e7d0f39c00d99028508a79112603eba586e0a"
+      }
+    },
+    {
+      "stage": "PUBLISHED",
+      "principal_id": "vendor:release-publisher",
+      "role": "RELEASE_PUBLISHER",
+      "artifact_digest": "2881959bcb5eb132b362e7cffe9264e63fe8950ef8231245c5eda6357f51cb31",
+      "prev_digest": "fbc310abe6d7d24eaae713142da54167e4f10bafe8571155d9d3a907601214e0",
+      "digest": "5b813e92291e66a378c36fb3c97e2e86f3d4cd6e128bb6ac07fbcc55c4286a28",
+      "signature": {
+        "role": "",
+        "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
+        "signature": "676754d88c475f51393b424e69e6194bdc4e04f741794fa71af4ad442e5de66b96fcc82cea954d4e6d7e2c87bcbeb3a67deac2bc2d46967e2907c0121e2baa07"
+      }
+    }
+  ]
+}

@@ -93,20 +93,20 @@ func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	role, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "finance_partner", Name: "Finance partner", Description: "Supports Finance", Active: true})
+	role, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "tenant_finance_partner", Name: "Tenant finance partner", Description: "Supports Finance", Active: true})
 	if err != nil || role.Version != 1 {
 		t.Fatalf("save role = %+v, %v", role, err)
 	}
-	if _, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "finance_partner", Name: "Duplicate", Active: true}); !errors.Is(err, roleaccess.ErrVersionConflict) {
+	if _, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "tenant_finance_partner", Name: "Duplicate", Active: true}); !errors.Is(err, roleaccess.ErrVersionConflict) {
 		t.Fatalf("duplicate role = %v", err)
 	}
 
-	assignment, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker-1", RoleIDs: []string{"worker_self", "finance_partner"}})
+	assignment, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker-1", RoleIDs: []string{"worker_self", "tenant_finance_partner"}})
 	if err != nil || assignment.Version != 1 {
 		t.Fatalf("save assignment = %+v, %v", assignment, err)
 	}
 	updated := assignment
-	updated.RoleIDs = []string{"finance_partner"}
+	updated.RoleIDs = []string{"tenant_finance_partner"}
 	updated, err = store.SaveAssignment(ctx, tenant, "admin", updated)
 	if err != nil || updated.Version != 2 {
 		t.Fatalf("update assignment = %+v, %v", updated, err)
@@ -115,11 +115,11 @@ func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 		t.Fatalf("stale assignment = %v", err)
 	}
 
-	policy, err := store.SaveVisibility(ctx, tenant, "org:north", "admin", roleaccess.VisibilityPolicy{RoleID: "finance_partner", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Finance", "finance"}})
+	policy, err := store.SaveVisibility(ctx, tenant, "org:north", "admin", roleaccess.VisibilityPolicy{RoleID: "tenant_finance_partner", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Finance", "finance"}})
 	if err != nil || policy.Version != 1 || len(policy.OrganizationUnits) != 1 {
 		t.Fatalf("save visibility = %+v, %v", policy, err)
 	}
-	page, err := store.SavePagePermission(ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "finance_partner", PageID: "insights", View: true})
+	page, err := store.SavePagePermission(ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "tenant_finance_partner", PageID: "insights", View: true})
 	if err != nil || page.Version != 1 || page.Create {
 		t.Fatalf("save page permission = %+v, %v", page, err)
 	}

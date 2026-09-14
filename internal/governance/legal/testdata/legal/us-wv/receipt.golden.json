@@ -1,0 +1,585 @@
+{
+  "legal_context_digest": "f61132d8ba69d812e4da01f1e3208d1a21fe8a1abf7e4ca0dd14ec35e2d3f802",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "WV",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-wv-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "WV",
+          "Locality": ""
+        }
+      },
+      "Digest": "464cd8f8c21a3e1c8518b1576a320bccb1e1e9db83b12a69948e491f5adb5137",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-wv-notice",
+      "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "W. Va. Code § 21-5-9(4)",
+        "Note": "W. Va. Code § 21-5-9(4) specifies that when an employer changes an employee's rate of pay, pay period, place or method of payment, time of payment, or any other term of employment, the employer shall furnish written...",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WV",
+        "Locality": ""
+      },
+      "PackID": "us-wv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wv-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wv-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-wv-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-wv-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "4ee955c7b8d3a88538df3958e61930b279f88e7118aa26fac7f3c57d830ebecc"
+    },
+    {
+      "Type": 3,
+      "ID": "us-wv-retention",
+      "Description": "retain  for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "§ 21-1B-4",
+        "Note": "Does the employer maintain I-9 and employment-verification records per § 21-1B-4, and what is the retention protocol?",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WV",
+        "Locality": ""
+      },
+      "PackID": "us-wv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wv-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wv-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "f1fc305240feb25b559f0f26ceb22f51a7f0e22a656a21e3603d36ce9baa2d8b"
+    },
+    {
+      "Type": 5,
+      "ID": "us-wv-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "Enforce § 21-5-3",
+        "Note": "Enforce § 21-5-3 semi-monthly requirement: Ensure the new pay schedule pays wages at least twice per calendar month with no more than 19 days between paydays.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WV",
+        "Locality": ""
+      },
+      "PackID": "us-wv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wv-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wv-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "b0530789a2d18ff83adf0d07fea330faf4163508813dcefe5e67d7ebabe5974a"
+    },
+    {
+      "Type": 8,
+      "ID": "us-wv-non-compete",
+      "Description": "For physicians (§ 47-11E-2): non-competes are void and unenforceable upon termination by employer; limit enforcement to 1 year/30 miles if employee terminates voluntarily.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "§ 47-11E-2",
+        "Note": "For physicians (§ 47-11E-2): non-competes are void and unenforceable upon termination by employer; limit enforcement to 1 year/30 miles if employee terminates voluntarily.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WV",
+        "Locality": ""
+      },
+      "PackID": "us-wv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wv-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wv-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-wv-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-wv-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "ad208665a72ea030b654243916a2acac00ec4c186215502cad5344a41684d7ab"
+    },
+    {
+      "Type": 11,
+      "ID": "us-wv-wage-floor",
+      "Description": "HOURLY floor of 8.75 USD for , indexation=",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "W. Va. Code § 21-5C-2",
+        "Note": "Minimum wage for 6+ employees: $8.75/hour for employers with six or more non-exempt employees (W.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WV",
+        "Locality": ""
+      },
+      "PackID": "us-wv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wv-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wv-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-wv-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "e7f7b5ebc6ae778a6452ce224ad97be7d7180afb638c9b30b281c56fc8922074"
+    },
+    {
+      "Type": 12,
+      "ID": "us-wv-pay-equity-review",
+      "Description": "pay-equity review against  for bases gender, race",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "§ 21-5B",
+        "Note": "Has the employer reviewed pay equity by gender/race for comparable roles (§ 21-5B compliance)?",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WV",
+        "Locality": ""
+      },
+      "PackID": "us-wv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wv-pay-equity-review",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: pay-equity review of the proposed rate",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wv-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-wv-pay-equity-review",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: pay-equity review of the proposed rate",
+          "LifecycleStep": "APPROVAL"
+        }
+      ],
+      "BodyDigest": "0c2e75ccece54469dd63dbb811307194f69faf6c2006389d60f64d2d08c731b1"
+    },
+    {
+      "Type": 15,
+      "ID": "us-wv-personnel-file",
+      "Description": "personnel-file request answered within 0  day(s) [RECOMMENDED, not a statutory requirement]",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "W. Va. Code § 21-3-22",
+        "Note": "Correction (2026-09-03 contradiction closure): W. Va. Code § 21-3-22 is part of the state's public-improvement construction-safety program (Article 3, workplace-safety enforcement); it is not a personnel-records...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "WV",
+        "Locality": ""
+      },
+      "PackID": "us-wv-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-wv-personnel-file",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: personnel-file access duty",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-wv-personnel-file",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: personnel-file access duty",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "0b70cc2ce27cf60851ce9e168ad4cbadb6034f33d3f7fbc01153f115b6d50953"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-wv-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "§ 21-5-3",
+        "Note": "Semi-monthly pay requirement: Employers must pay wages at least twice per month with no more than 19 days between paydays (§ 21-5-3); final pay must be due on or before the next regular payday (§ 21-5-4).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-wv-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "W. Va. Code § 16B-17-1",
+        "Note": "W. Va. Code § 16B-17-1 et seq. (recodified 2024 from former Chapter 5, Article 11) protects employees from discrimination and retaliation based on:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-wv-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "File a separation notice with the West Virginia Department of Unemployment Insurance within 10 days of separation.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-wv-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "§ 21-3E",
+        "Note": "Does the employer have a written drug-free workplace policy compliant with the Safer Workplace Act (§ 21-3E)?",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-wv-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Data Privacy Law: West Virginia has no comprehensive state data-privacy statute equivalent to CCPA or GDPR.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WV",
+            "Locality": ""
+          },
+          "PackID": "us-wv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-wv-notice",
+          "Description": "employer_to_worker notice before the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+            "Section": "W. Va. Code § 21-5-9(4)",
+            "Note": "W. Va. Code § 21-5-9(4) specifies that when an employer changes an employee's rate of pay, pay period, place or method of payment, time of payment, or any other term of employment, the employer shall furnish written...",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WV",
+            "Locality": ""
+          },
+          "PackID": "us-wv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-wv-retention",
+          "Description": "retain  for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+            "Section": "§ 21-1B-4",
+            "Note": "Does the employer maintain I-9 and employment-verification records per § 21-1B-4, and what is the retention protocol?",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-wv-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WV",
+            "Locality": ""
+          },
+          "PackID": "us-wv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-wv-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+            "Section": "Enforce § 21-5-3",
+            "Note": "Enforce § 21-5-3 semi-monthly requirement: Ensure the new pay schedule pays wages at least twice per calendar month with no more than 19 days between paydays.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-wv-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WV",
+            "Locality": ""
+          },
+          "PackID": "us-wv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-wv-non-compete",
+          "Description": "For physicians (§ 47-11E-2): non-competes are void and unenforceable upon termination by employer; limit enforcement to 1 year/30 miles if employee terminates voluntarily.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+            "Section": "§ 47-11E-2",
+            "Note": "For physicians (§ 47-11E-2): non-competes are void and unenforceable upon termination by employer; limit enforcement to 1 year/30 miles if employee terminates voluntarily.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WV",
+            "Locality": ""
+          },
+          "PackID": "us-wv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-wv-wage-floor",
+          "Description": "HOURLY floor of 8.75 USD for , indexation=",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+            "Section": "W. Va. Code § 21-5C-2",
+            "Note": "Minimum wage for 6+ employees: $8.75/hour for employers with six or more non-exempt employees (W.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-wv-wage-floor"
+    },
+    {
+      "Kind": 12,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WV",
+            "Locality": ""
+          },
+          "PackID": "us-wv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 12,
+          "ID": "us-wv-pay-equity-review",
+          "Description": "pay-equity review against  for bases gender, race",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+            "Section": "§ 21-5B",
+            "Note": "Has the employer reviewed pay equity by gender/race for comparable roles (§ 21-5B compliance)?",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "INTERSECTION",
+      "Winner": "INTERSECTION"
+    },
+    {
+      "Kind": 15,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "WV",
+            "Locality": ""
+          },
+          "PackID": "us-wv-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 15,
+          "ID": "us-wv-personnel-file",
+          "Description": "personnel-file request answered within 0  day(s) [RECOMMENDED, not a statutory requirement]",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/west-virginia.md",
+            "Section": "W. Va. Code § 21-3-22",
+            "Note": "Correction (2026-09-03 contradiction closure): W. Va. Code § 21-3-22 is part of the state's public-improvement construction-safety program (Article 3, workplace-safety enforcement); it is not a personnel-records...",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-wv-personnel-file"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "4c5e8779a5dae4c57671c50929a39c2666de2edaedfd7a970e3b755953d480dd",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "GYi7B4q9WTrXXvoKB8WEnOOVNKTnQrShX9EFMd6GSfdNsSMVAm3BoHLqWxDNh/9WI+rUxy/Xw0pDWBbwLMNFBg=="
+  }
+}

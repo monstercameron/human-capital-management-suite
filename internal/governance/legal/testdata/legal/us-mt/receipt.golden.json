@@ -1,0 +1,528 @@
+{
+  "legal_context_digest": "47a5d9d1eca5374bdf815207dc37bfa667034e5dd9ee087563dcc473feedd8a4",
+  "jurisdiction_set": {
+    "Primary": {
+      "Country": "US",
+      "State": "MT",
+      "Locality": ""
+    },
+    "Overlays": null,
+    "UnregisteredLocalities": null
+  },
+  "pinned_releases": [
+    {
+      "Release": {
+        "PackID": "us-mt-promotion-base-pay-change-draft",
+        "Version": 1,
+        "MinorVersion": 0,
+        "Jurisdiction": {
+          "Country": "US",
+          "State": "MT",
+          "Locality": ""
+        }
+      },
+      "Digest": "85a1d22f7e8869fa91ab1ac168d37a9827d92d98e5138b51a58af3c4375fbe8c",
+      "ReviewStatus": 5
+    }
+  ],
+  "attribution_rule_fired": "A1",
+  "remote_work_policy_applied": "not_remote",
+  "obligations_applied": [
+    {
+      "Type": 1,
+      "ID": "us-mt-notice",
+      "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Written Notice at Hire: Montana has no required written notice to the employee at hire about at-will status or wage-theft prevention; no state form mandated.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MT",
+        "Locality": ""
+      },
+      "PackID": "us-mt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mt-notice",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: send pay-rate-change notice",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mt-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-mt-notice",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "EXECUTE"
+        },
+        {
+          "ObligationID": "us-mt-notice",
+          "Kind": 6,
+          "NonRemovable": true,
+          "Description": "workflow node: send pay-rate-change notice",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "d0ae8e79c0745e00967136bf4f7b5ee171e73bd50e73728c5cf287df0057367a"
+    },
+    {
+      "Type": 3,
+      "ID": "us-mt-retention",
+      "Description": "retain  for 0 year(s) ()",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "MCA § 30-14-1704",
+        "Note": "Record Format: No state requirement for paper vs.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MT",
+        "Locality": ""
+      },
+      "PackID": "us-mt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mt-retention",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "record-retention schedule",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mt-retention",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "record-retention schedule",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "5082ef77a73481a01c116756e10f5055cc3c354cd1bb98ded56b72687dd72c37"
+    },
+    {
+      "Type": 5,
+      "ID": "us-mt-pay-frequency",
+      "Description": "minimum frequency SEMIMONTHLY for ",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "MCA § 39-3-204",
+        "Note": "Pay frequency: 10-day maximum hold: MCA § 39-3-204 caps wage withholding at 10 business days after wages are earned and due; no frequency mandate (weekly, biweekly, semi-monthly all allowed).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MT",
+        "Locality": ""
+      },
+      "PackID": "us-mt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mt-pay-frequency",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: pay frequency floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mt-pay-frequency",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: pay frequency floor",
+          "LifecycleStep": "PREFLIGHT"
+        }
+      ],
+      "BodyDigest": "597db8b8d168e041a4e55bc73ead3f70856e5ce42261f96a01d9a6ea5345d373"
+    },
+    {
+      "Type": 8,
+      "ID": "us-mt-non-compete",
+      "Description": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file. Montana generally voids noncompete agreements for employment; only enforce in narrow goodwill-sale or partnership-dissolution contexts. Do not enforce an employment noncompete without legal review and current case law confirmation. If an employee opposes noncompete enforcement and the employer terminates for the opposition, risk of wrongful-discharge and retaliation claims is high.",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "MCA § 28-2-703",
+        "Note": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MT",
+        "Locality": ""
+      },
+      "PackID": "us-mt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mt-non-compete",
+        "Kind": 5,
+        "NonRemovable": true,
+        "Description": "human task: non-compete re-check",
+        "LifecycleStep": "SIMULATE"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mt-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "SIMULATE"
+        },
+        {
+          "ObligationID": "us-mt-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "APPROVAL"
+        },
+        {
+          "ObligationID": "us-mt-non-compete",
+          "Kind": 5,
+          "NonRemovable": true,
+          "Description": "human task: non-compete re-check",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "b3f7d84719a5f9da79825654166b387d21df2234117aae1ae1647ea6fa0b8a2f"
+    },
+    {
+      "Type": 11,
+      "ID": "us-mt-wage-floor",
+      "Description": "HOURLY floor of 10.85 USD for , indexation=CPI",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "MCA § 39-3-404",
+        "Note": "Minimum wage ties to CPI-U annually: MCA § 39-3-404; as of 2026-01-01, $10.85/hour (adjusted annually by inflation, rounded to nearest $0.05).",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MT",
+        "Locality": ""
+      },
+      "PackID": "us-mt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mt-wage-floor",
+        "Kind": 2,
+        "NonRemovable": true,
+        "Description": "guard: statutory wage floor",
+        "LifecycleStep": "PREFLIGHT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mt-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "PREFLIGHT"
+        },
+        {
+          "ObligationID": "us-mt-wage-floor",
+          "Kind": 2,
+          "NonRemovable": true,
+          "Description": "guard: statutory wage floor",
+          "LifecycleStep": "EXECUTE"
+        }
+      ],
+      "BodyDigest": "502bdbcc91fd36e168f83ccbef667ac90874cbc9a23db84c79ef040c62d77f78"
+    },
+    {
+      "Type": 13,
+      "ID": "us-mt-pay-statement",
+      "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, hours_worked, pay_rate, pay_period, employer_identification",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "Deductions and Pay Statements: Montana follows federal FLSA rules; only deductions required by law, court order, or written employee authorization are permitted.",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      },
+      "Jurisdiction": {
+        "Country": "US",
+        "State": "MT",
+        "Locality": ""
+      },
+      "PackID": "us-mt-promotion-base-pay-change-draft",
+      "PackVersion": 1,
+      "Binding": {
+        "ObligationID": "us-mt-pay-statement",
+        "Kind": 1,
+        "NonRemovable": true,
+        "Description": "workflow node: post-change pay statement",
+        "LifecycleStep": "POST-COMMIT"
+      },
+      "Bindings": [
+        {
+          "ObligationID": "us-mt-pay-statement",
+          "Kind": 1,
+          "NonRemovable": true,
+          "Description": "workflow node: post-change pay statement",
+          "LifecycleStep": "POST-COMMIT"
+        }
+      ],
+      "BodyDigest": "67b22f0151099564a083909b4d61101300cdee5504e90779aebbf518f12645f9"
+    }
+  ],
+  "obligations_not_applicable": [
+    {
+      "Type": 6,
+      "ID": "us-mt-final-pay-deadline",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "MCA § 39-3-205",
+        "Note": "Final pay timing: MCA § 39-3-205 requires immediate payment on involuntary termination unless the employer has a written policy extending to the next payday or 15 days, whichever is sooner.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 16,
+      "ID": "us-mt-anti-retaliation",
+      "Reason": "no protected activity is recorded inside this rule's lookback window",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "MCA § 49-2-303",
+        "Note": "Discrimination and Protected Classes (MCA § 49-2-303): Ensure pay changes and terminations do not violate discrimination statutes.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 17,
+      "ID": "us-mt-job-security",
+      "Reason": "the transaction is not an adverse change (no pay decrease, demotion or separation)",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "§ 39-2-912",
+        "Note": "If the employer has written internal procedures for appealing a discharge (other than those in § 39-2-912), the employee must exhaust them before suing for wrongful discharge.",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 18,
+      "ID": "us-mt-separation-filing",
+      "Reason": "the transaction does not concurrently separate the worker",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "(statutory section not stated in the research file)",
+        "Note": "the contract's section 5 matrix marks SEPARATION_FILING for MT, and no item in montana.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    },
+    {
+      "Type": 19,
+      "ID": "us-mt-drug-testing",
+      "Reason": "the role does not become safety-sensitive and no test was ordered",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "MCA § 39-2-205",
+        "Note": "Drug Testing (MCA § 39-2-205 to 39-2-211, Workforce Drug and Alcohol Testing Act): Permitted, but only for employees in qualifying positions:",
+        "Status": 1,
+        "ConfidenceMarker": 1
+      }
+    },
+    {
+      "Type": 20,
+      "ID": "us-mt-breach-notification",
+      "Reason": "no personal-data breach incident is open on this transaction",
+      "Citation": {
+        "SourceFile": "planning/research/state-employment-law/montana.md",
+        "Section": "MCA § 30-14-1704",
+        "Note": "Data Breach and Personal Information (MCA § 30-14-1704): If employee personal data (SSN, financial account, driver's license, etc.) is breached or exposed in a security incident, trigger notification to affected...",
+        "Status": 1,
+        "ConfidenceMarker": 2
+      }
+    }
+  ],
+  "obligations_not_considered": null,
+  "preemptions_applied": null,
+  "composition_trace": [
+    {
+      "Kind": 1,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MT",
+            "Locality": ""
+          },
+          "PackID": "us-mt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 1,
+          "ID": "us-mt-notice",
+          "Description": "employer_to_worker notice after the effective date within 0 day(s), channel=written",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/montana.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Written Notice at Hire: Montana has no required written notice to the employee at hire about at-will status or wage-theft prevention; no state form mandated.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    },
+    {
+      "Kind": 3,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MT",
+            "Locality": ""
+          },
+          "PackID": "us-mt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 3,
+          "ID": "us-mt-retention",
+          "Description": "retain  for 0 year(s) ()",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/montana.md",
+            "Section": "MCA § 30-14-1704",
+            "Note": "Record Format: No state requirement for paper vs.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MAX",
+      "Winner": "us-mt-retention"
+    },
+    {
+      "Kind": 5,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MT",
+            "Locality": ""
+          },
+          "PackID": "us-mt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 5,
+          "ID": "us-mt-pay-frequency",
+          "Description": "minimum frequency SEMIMONTHLY for ",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/montana.md",
+            "Section": "MCA § 39-3-204",
+            "Note": "Pay frequency: 10-day maximum hold: MCA § 39-3-204 caps wage withholding at 10 business days after wages are earned and due; no frequency mandate (weekly, biweekly, semi-monthly all allowed).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "CUSTOM",
+      "Winner": "us-mt-pay-frequency"
+    },
+    {
+      "Kind": 8,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MT",
+            "Locality": ""
+          },
+          "PackID": "us-mt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 8,
+          "ID": "us-mt-non-compete",
+          "Description": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file. Montana generally voids noncompete agreements for employment; only enforce in narrow goodwill-sale or partnership-dissolution contexts. Do not enforce an employment noncompete without legal review and current case law confirmation. If an employee opposes noncompete enforcement and the employer terminates for the opposition, risk of wrongful-discharge and retaliation claims is high.",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/montana.md",
+            "Section": "MCA § 28-2-703",
+            "Note": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file.",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "VOID_IF_ANY_VOIDS",
+      "Winner": "VOID"
+    },
+    {
+      "Kind": 11,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MT",
+            "Locality": ""
+          },
+          "PackID": "us-mt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 11,
+          "ID": "us-mt-wage-floor",
+          "Description": "HOURLY floor of 10.85 USD for , indexation=CPI",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/montana.md",
+            "Section": "MCA § 39-3-404",
+            "Note": "Minimum wage ties to CPI-U annually: MCA § 39-3-404; as of 2026-01-01, $10.85/hour (adjusted annually by inflation, rounded to nearest $0.05).",
+            "Status": 1,
+            "ConfidenceMarker": 1
+          }
+        }
+      ],
+      "Comparator": "MOST_PROTECTIVE_MIN",
+      "Winner": "us-mt-wage-floor"
+    },
+    {
+      "Kind": 13,
+      "Inputs": [
+        {
+          "Jurisdiction": {
+            "Country": "US",
+            "State": "MT",
+            "Locality": ""
+          },
+          "PackID": "us-mt-promotion-base-pay-change-draft",
+          "PackVersion": 1,
+          "Type": 13,
+          "ID": "us-mt-pay-statement",
+          "Description": "pay statement delivered  must carry gross_wages, net_wages, deductions, hours_worked, pay_rate, pay_period, employer_identification",
+          "Citation": {
+            "SourceFile": "planning/research/state-employment-law/montana.md",
+            "Section": "(statutory section not stated in the research file)",
+            "Note": "Deductions and Pay Statements: Montana follows federal FLSA rules; only deductions required by law, court order, or written employee authorization are permitted.",
+            "Status": 1,
+            "ConfidenceMarker": 2
+          }
+        }
+      ],
+      "Comparator": "UNION",
+      "Winner": "ALL"
+    }
+  ],
+  "contradictions": null,
+  "notes": null,
+  "status": 2,
+  "evaluated_at": "2026-07-05T16:00:00Z",
+  "effective_date": "2026-07-01",
+  "known_at": "2026-07-05T15:00:00Z",
+  "digest": "97de8e0598ac1bddce67b2079d8bdbb03008f058f54a4272ba182c2741cf5191",
+  "signature": {
+    "PublicKey": "11l5O7wTooGagnx2rbb7qKSa7gB/SfLQmS2ZuCWtLEg=",
+    "Bytes": "+mpG/pwptOvrmkRbmC3pxDL8Gq2I9X78CPDsDa5maw0KEoNTaL7qTJR7JzK8wS0AgGMrAKjBdEn1CVgY5fBeAg=="
+  }
+}
