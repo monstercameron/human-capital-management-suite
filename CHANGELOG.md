@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-13 (new-hire rules research)
+
+- `planning/research/state-employment-law/new-hire-requirements.yaml` is a
+  machine-readable dataset covering all 51 jurisdictions for the
+  `lifecycle.recruit_hire_onboard/v1` workflow: new-hire reporting deadlines
+  and contractor coverage, state withholding forms, E-Verify mandate scope,
+  wage-notice-at-hire statutes and timing, ban-the-box stage and coverage, and
+  salary-history/pay-transparency screening flags. Companion
+  `new-hire-requirements.md` documents the schema, the workflow steps each
+  block feeds, and everything left unresolved under `verify` markers.
+
 ## 2026-09-13 (UXAUDIT-004)
 
 - Reporting lines are a real tree now. The root cause was worse than the todo's
