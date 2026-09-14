@@ -160,30 +160,10 @@ func visibleWorkforceForRolePolicies(principal *trust.Principal, workers []works
 			break
 		}
 	}
+	evaluator := roleaccess.NewVisibilityEvaluator(policies, ownUnit)
 	visible := make([]workspace.WorkerSummary, 0, len(workers))
 	for _, worker := range workers {
-		unit := normalizedOrganizationUnit(worker.OrgUnit)
-		include := workerMatchesPrincipal(worker, principal.Subject())
-		for _, policy := range policies {
-			qualified := map[string]bool{}
-			for _, candidate := range policy.OrganizationUnits {
-				qualified[normalizedOrganizationUnit(candidate)] = true
-			}
-			switch policy.Mode {
-			case roleaccess.VisibilityAll:
-				include = true
-			case roleaccess.VisibilityOwnUnit:
-				include = include || ownUnit != "" && unit == ownUnit
-			case roleaccess.VisibilityAllowlist:
-				include = include || qualified[unit]
-			case roleaccess.VisibilityDenylist:
-				include = include || !qualified[unit]
-			}
-			if include {
-				break
-			}
-		}
-		if include {
+		if evaluator.Allows(worker.OrgUnit, workerMatchesPrincipal(worker, principal.Subject())) {
 			visible = append(visible, worker)
 		}
 	}
