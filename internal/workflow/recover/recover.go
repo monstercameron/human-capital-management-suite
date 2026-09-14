@@ -310,7 +310,9 @@ const ErrorClassWorkerDied = "WORKER_LEASE_EXPIRED"
 // TX-006's IDEMPOTENCY_CONFLICT.
 func (r Recoverer) DispatchEffect(
 	ctx context.Context, tx dbport.Tx, req Request, attempt int, fence runtime.Fence, now time.Time,
-) (EffectOutcome, error) {
+) (ret0 EffectOutcome, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.recover.dispatch_effect", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return EffectOutcome{}, err
 	}

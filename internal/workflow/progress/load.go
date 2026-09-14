@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // liveStatuses are the instance statuses LoadSnapshots reads: every status
@@ -25,7 +26,9 @@ var openWorkItemStatuses = []string{"CREATED", "ROUTED", "ASSIGNED", "AVAILABLE"
 //
 // limit bounds how many instances one sweep reads, oldest first, so a sweep
 // over a large tenant is paged rather than unbounded.
-func LoadSnapshots(ctx context.Context, q dbport.Querier, tenant uuid.UUID, limit int) ([]Snapshot, error) {
+func LoadSnapshots(ctx context.Context, q dbport.Querier, tenant uuid.UUID, limit int) (ret0 []Snapshot, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.progress.load_snapshots", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if tenant == uuid.Nil {
 		return nil, fmt.Errorf("progress: tenant is required")
 	}

@@ -44,6 +44,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/jit"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/timer"
 )
@@ -159,22 +160,30 @@ func New(db dbport.Beginner, journal operator.Journal, plans PlanResolver, autho
 }
 
 // Pause requests a pause.
-func (c *Controller) Pause(ctx context.Context, cmd Command) (Result, error) {
+func (c *Controller) Pause(ctx context.Context, cmd Command) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.control.pause", cmd)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	return c.submit(ctx, operator.KindWorkflowPause, cmd)
 }
 
 // Resume resumes a paused instance after revalidation.
-func (c *Controller) Resume(ctx context.Context, cmd Command) (Result, error) {
+func (c *Controller) Resume(ctx context.Context, cmd Command) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.control.resume", cmd)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	return c.submit(ctx, operator.KindWorkflowResume, cmd)
 }
 
 // Cancel cancels an instance at its cancellation boundary.
-func (c *Controller) Cancel(ctx context.Context, cmd Command) (Result, error) {
+func (c *Controller) Cancel(ctx context.Context, cmd Command) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.control.cancel", cmd)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	return c.submit(ctx, operator.KindWorkflowCancel, cmd)
 }
 
 // RetryNode retries exactly one failed attempt.
-func (c *Controller) RetryNode(ctx context.Context, cmd Command) (Result, error) {
+func (c *Controller) RetryNode(ctx context.Context, cmd Command) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.control.retry_node", cmd)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	return c.submit(ctx, operator.KindWorkflowRetryNode, cmd)
 }
 
@@ -618,7 +627,9 @@ type Response struct {
 type TenantIDs func(values.TenantId) (uuid.UUID, error)
 
 // Handle runs one transport-shaped control.
-func (c *Controller) Handle(ctx context.Context, tenantIDs TenantIDs, req Request) (Response, error) {
+func (c *Controller) Handle(ctx context.Context, tenantIDs TenantIDs, req Request) (ret0 Response, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.control.handle", tenantIDs, req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if tenantIDs == nil {
 		return Response{}, fmt.Errorf("%w: tenant mapping", ErrInvalidCommand)
 	}

@@ -43,12 +43,12 @@ func hasKind(findings []Finding, k Kind) bool {
 	return false
 }
 
-// TestProgressSweep is the PRIMARY. RED: a long legal wait flagged solely
+// TestTodo_WF_RUN_020 is the PRIMARY. RED: a long legal wait flagged solely
 // by age, or a poison node left invisible despite a missed lease, timer,
 // signal, retry or SLA expectation. GREEN: detection uses each state's own
 // expected progress, and a stuck instance opens exactly one incident that a
 // repeated detection links to instead of duplicating.
-func TestProgressSweep(t *testing.T) {
+func TestTodo_WF_RUN_020(t *testing.T) {
 	p := DefaultPolicy()
 
 	t.Run("a three-month-old instance legitimately waiting on a future timer is not stuck", func(t *testing.T) {
@@ -132,10 +132,10 @@ func TestProgressSweep(t *testing.T) {
 	})
 }
 
-// TestProgressSweep_Race runs concurrent sweeps over the same stuck
+// TestTodo_WF_RUN_020_Race runs concurrent sweeps over the same stuck
 // instance and proves the operations store's unique incident key still leaves
 // exactly one incident.
-func TestProgressSweep_Race(t *testing.T) {
+func TestTodo_WF_RUN_020_Race(t *testing.T) {
 	h := newHarness(t)
 	id := h.instance("RUNNING", evalAt.AddDate(0, -1, 0))
 	h.lease(id, "commit", evalAt.Add(-time.Hour))
@@ -160,11 +160,11 @@ func TestProgressSweep_Race(t *testing.T) {
 	}
 }
 
-// TestProgressSweep_Fault proves the sweep fails loudly rather than
+// TestTodo_WF_RUN_020_Fault proves the sweep fails loudly rather than
 // silently: an invalid policy, a missing evaluation instant, an unscoped
 // tenant, a failed transaction and an incident storm each surface as an
 // error, and a storm-refused incident does not hide other stuck instances.
-func TestProgressSweep_Fault(t *testing.T) {
+func TestTodo_WF_RUN_020_Fault(t *testing.T) {
 	if _, err := Detect(Snapshot{Instance: liveInstance("RUNNING")}, Policy{PoisonAttempts: 0}, evalAt); err == nil {
 		t.Fatal("Detect accepted a poison threshold of 0")
 	}
@@ -200,11 +200,11 @@ func TestProgressSweep_Fault(t *testing.T) {
 	}
 }
 
-// TestProgressSweep_Security runs the sweep under the application role and
+// TestTodo_WF_RUN_020_Security runs the sweep under the application role and
 // proves row-level security confines it to its own tenant: another tenant's
 // stuck instance is neither read nor raised, and an incident cannot be raised
 // against a tenant the snapshot does not belong to.
-func TestProgressSweep_Security(t *testing.T) {
+func TestTodo_WF_RUN_020_Security(t *testing.T) {
 	h := newHarness(t)
 	other := h.otherTenant()
 	h.timer(h.instanceFor(other, "RUNNING", evalAt.AddDate(0, -1, 0)), "wait", evalAt.Add(-time.Hour))
@@ -228,9 +228,9 @@ func TestProgressSweep_Security(t *testing.T) {
 	}
 }
 
-// TestProgressSweep_Mutation plants the defects this detector exists to
+// TestTodo_WF_RUN_020_Mutation plants the defects this detector exists to
 // catch and proves each is caught, and that a planted age-only rule would be.
-func TestProgressSweep_Mutation(t *testing.T) {
+func TestTodo_WF_RUN_020_Mutation(t *testing.T) {
 	p := DefaultPolicy()
 	ancient := liveInstance("RUNNING")
 	ancient.CreatedAt = evalAt.AddDate(-2, 0, 0)

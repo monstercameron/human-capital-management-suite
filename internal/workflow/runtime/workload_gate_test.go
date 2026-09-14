@@ -51,12 +51,12 @@ func instanceCount(t *testing.T, db *pgtest.DB, tenant uuid.UUID) int {
 	return n
 }
 
-// TestWorkloadGate is the PRIMARY. RED: a branch, child, payload,
+// TestTodo_WF_RUN_021 is the PRIMARY. RED: a branch, child, payload,
 // concurrent-activity or cost demand beyond the declared limit is admitted or
 // partially scheduled. GREEN: the start is refused OVERLOADED or
 // ADMISSION_DEFERRED before any row is written, so the business intent stays
 // visible for retry; limits resolve by tenant, capability and criticality.
-func TestWorkloadGate(t *testing.T) {
+func TestTodo_WF_RUN_021(t *testing.T) {
 	db := pgtest.New(t)
 	conn := appConn(t, db)
 	tenantID := insertTenant(t, db, "wfrun021")
@@ -151,10 +151,10 @@ func TestWorkloadGate(t *testing.T) {
 	})
 }
 
-// TestWorkloadGate_Race starts more workflows concurrently than the
+// TestTodo_WF_RUN_021_Race starts more workflows concurrently than the
 // concurrency limit allows and proves the advisory lock keeps admission exact:
 // exactly the limit are admitted and the rest are deferred, never overrun.
-func TestWorkloadGate_Race(t *testing.T) {
+func TestTodo_WF_RUN_021_Race(t *testing.T) {
 	db := pgtest.New(t)
 	tenantID := insertTenant(t, db, "wfrun021-race")
 	pf := newPromotionFixture(t, values.TenantId("wfrun021-race-tenant"), "intent:race-021")
@@ -201,10 +201,10 @@ func TestWorkloadGate_Race(t *testing.T) {
 	}
 }
 
-// TestWorkloadGate_Fault proves a start whose limits cannot be resolved is
+// TestTodo_WF_RUN_021_Fault proves a start whose limits cannot be resolved is
 // refused rather than admitted: an unversioned snapshot, a non-positive limit
 // and ambiguous equally specific rules each fail the start with no row.
-func TestWorkloadGate_Fault(t *testing.T) {
+func TestTodo_WF_RUN_021_Fault(t *testing.T) {
 	db := pgtest.New(t)
 	conn := appConn(t, db)
 	tenantID := insertTenant(t, db, "wfrun021-fault")
@@ -238,10 +238,10 @@ func TestWorkloadGate_Fault(t *testing.T) {
 	}
 }
 
-// TestWorkloadGate_Mutation proves the verdict is not vacuous: a demand one
+// TestTodo_WF_RUN_021_Mutation proves the verdict is not vacuous: a demand one
 // unit over each limit is refused with that dimension named, and one unit
 // under is admitted; the structural/concurrency classification cannot swap.
-func TestWorkloadGate_Mutation(t *testing.T) {
+func TestTodo_WF_RUN_021_Mutation(t *testing.T) {
 	limits := workload.Limits{MaxBranches: 3, MaxChildren: 2, MaxPayloadBytes: 100, MaxCostUnits: 50, MaxConcurrentInstances: 4}
 	r := workload.Resolved{Limits: limits, SnapshotVersion: "v", Source: "default"}
 	at := workload.Demand{Branches: 3, Children: 2, PayloadBytes: 100, CostUnits: 50, ActiveInstances: 3}

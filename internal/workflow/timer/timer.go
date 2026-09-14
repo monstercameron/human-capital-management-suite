@@ -308,7 +308,9 @@ func (s Scheduler) Pending(ctx context.Context, ex Executor, tenantID, instanceI
 // Due returns every pending timer across the tenant whose instant is at or
 // before asOf, soonest first, bounded by limit. It writes nothing: it is what
 // a caller reads to decide what to hand [Scheduler.Fire].
-func (s Scheduler) Due(ctx context.Context, ex Executor, tenantID uuid.UUID, asOf time.Time, limit int) ([]Timer, error) {
+func (s Scheduler) Due(ctx context.Context, ex Executor, tenantID uuid.UUID, asOf time.Time, limit int) (ret0 []Timer, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.timer.due", observe.Attrs{observe.KeyTenant: tenantID.String()})
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	rows, err := s.timers.Due(ctx, ex, tenantID, asOf, limit)
 	if err != nil {
 		return nil, wrapErr(CodeStorageFailed, ErrStorage, location{}, err, "read the tenant's due timers")

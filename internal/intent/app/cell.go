@@ -25,6 +25,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/definitions"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
@@ -282,6 +283,12 @@ type Cell struct {
 	// workspace.ErrJourneyUnavailable from its own nil check.
 	Journey workspace.JourneyEngine
 
+	// WorkflowControl and WorkflowTenantIDs are EP-WF-002's governed workflow
+	// controls. Both are nil on a cell composed without an execution database
+	// and tenant mapping; the workflow transport then refuses every control.
+	WorkflowControl   *workflowcontrol.Controller
+	WorkflowTenantIDs workflowcontrol.TenantIDs
+
 	// locateWorker is the one worker-reference resolver this cell composed.
 	// Every surface that accepts a reference somebody typed -- the
 	// domain-input resolver, the workspace's read surface, the journey engine
@@ -533,13 +540,19 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if cfg.Executor != nil && cfg.ExecutionDB != nil {
 		journey = newJourneyEngine(svc, cfg.ExecutionDB, cfg.ExecutionApprover, cfg.Now, locateWorker, cfg.WorkerIDs)
 	}
+	workflowControl, workflowTenantIDs, err := composeWorkflowControl(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Cell{
-		Journey:        journey,
-		WorkerIDs:      cfg.WorkerIDs,
-		locateWorker:   locateWorker,
-		positionReader: positionReader,
-		managerFacts:   managerFacts,
+		Journey:           journey,
+		WorkflowControl:   workflowControl,
+		WorkflowTenantIDs: workflowTenantIDs,
+		WorkerIDs:         cfg.WorkerIDs,
+		locateWorker:      locateWorker,
+		positionReader:    positionReader,
+		managerFacts:      managerFacts,
 
 		workspaceEnabled: workspaceEnabled,
 		devBrowserLogin:  cfg.DevBrowserLogin,

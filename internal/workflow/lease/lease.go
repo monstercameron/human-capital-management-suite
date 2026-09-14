@@ -377,7 +377,9 @@ type Held struct {
 // A zero now skips the expiry check and compares tokens only. That is for the
 // holder tidying up after itself ([Manager.Release]); a write path always
 // supplies its instant.
-func (m Manager) Verify(ctx context.Context, ex Executor, fence Fence, now time.Time) (Held, error) {
+func (m Manager) Verify(ctx context.Context, ex Executor, fence Fence, now time.Time) (ret0 Held, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.lease.verify", fence)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := fence.Validate(); err != nil {
 		return Held{}, err
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	intentapproval "github.com/monstercameron/human-capital-management-suite/internal/intent/approval"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Complete records decision.Digest() as the immutable completed output of the
@@ -41,7 +42,9 @@ func Complete(
 	ctx context.Context, tx workitem.Executor, store workitem.Port,
 	item workitem.WorkItem, decision intentapproval.ApprovalDecision,
 	now time.Time, meta workitem.TransitionMeta,
-) (workitem.WorkItem, error) {
+) (ret0 workitem.WorkItem, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.steps.approval.complete", item, meta)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if item.Kind != workitem.KindApproval || item.ApprovalRequirementRef == "" {
 		return workitem.WorkItem{}, fmt.Errorf("%w: work item %s is not an approval task", ErrBindingMismatch, item.WorkItemID)
 	}

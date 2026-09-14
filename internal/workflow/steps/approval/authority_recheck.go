@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // SeparationAuthority implements [workitem.AuthorityRecheckPort]. It is
@@ -39,7 +40,9 @@ var _ workitem.AuthorityRecheckPort = SeparationAuthority{}
 // Recheck implements [workitem.AuthorityRecheckPort].
 func (SeparationAuthority) Recheck(
 	ctx context.Context, ex workitem.Executor, req workitem.AuthorityRecheckRequest,
-) (workitem.AuthorityRecheckDecision, error) {
+) (ret0 workitem.AuthorityRecheckDecision, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.steps.approval.authority_recheck", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	item := req.Item
 	if item.Kind != workitem.KindApproval || item.ApprovalRequirementRef == "" {
 		return workitem.AuthorityRecheckDecision{}, fmt.Errorf(

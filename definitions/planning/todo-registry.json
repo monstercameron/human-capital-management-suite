@@ -15526,7 +15526,8 @@
     "refactor": "diagnostic reads may remain governed capabilities, but any material change/effect has an IntentInstance and outcome",
     "refs": "[Incident management](specs/incident-management.md), [support access](specs/platform-responsibility-boundaries.md), [recovery](data/models/operations-production.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestOperatorMutationRequiresIntentAndJITAuthority` plus `TestTodo_INTENT_022_Race`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/intent/operator` (`Gateway.Submit` routes every material operator kind -- database repair, workflow node intervention and controls, connector redrive, projection rebuild, failover, quarantine, tenant suspension, key rotation -- through a registered operational intent with a JIT grant of an admitted role naming the capability, dual control and simulation over the exact scope where the kind demands, an idempotency key and a digest-sealed receipt; break-glass execution records its bypass reason and demands post-use review; executors hold a gateway-minted authorization so a direct call is refused; a failure after authorization is recorded REPAIR_REQUIRED and never re-run, and a journal recomposed after restart replays without re-executing), with production authority from durable trust-store grants (`truststore.Store.ActiveJITGrants`, `jit.Restore`) proven live on the composed server by `TestGovernedWorkflowControlsOnComposedServer`; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "INTENT-023",
@@ -37397,7 +37398,8 @@
     "refactor": "global and per-person history use the same query, table and detail components with scope supplied as props",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`, `internal/data`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_019` plus `_Integration`, `_Browser`, `_Accessibility`, `_Performance` and `_Regression` in `internal/humanwork/productui` (implemented in 655e12d6 and verified here: one titled compact History surface with a search/outcome/person/year filter bar, sortable columns with `aria-sort` and browser-addressable sort links, server-backed pagination and result counts over the authorized record-verdict population with withheld terminal records excluded, an explained empty state, a 500-record projection under 250ms, and the same `WorkflowHistory` component and props builder serving global History (`page_history.go`) and person-scoped past work (`page_person.go`)); `go test -count=1 -run TestTodo_UXAUDIT_019` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "UXAUDIT-020",
@@ -45291,7 +45293,8 @@
     "refactor": "detector cannot alter business state",
     "refs": "[Operational readiness](plan.md#112-operational-readiness), [incident management](specs/incident-management.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_WF_RUN_020` plus `_Race`, `_Fault`, `_Security` and `_Mutation` in `internal/workflow/progress` over embedded PostgreSQL (`Detect` flags an instance only for a missed state-specific expectation -- overdue timer, abandoned lease, undispatched ready work, expired unclosed signal, missed SLA escalation, poison node, or no progress mechanism -- never for age alone; `Sweeper` loads tenant-scoped snapshots under RLS and `RaiseIncident` opens one deduplicated incident per instance and finding set, linking on repeat, with severity and owner routing and a storm limit; eight concurrent sweepers open exactly one incident; the business fingerprint is unchanged by a sweep), wired as the serve workload `workload:workflow-progress` with spans and logs through `internal/platform/execution.ProgressObserver`; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "WF-RUN-021",
@@ -45316,7 +45319,8 @@
     "refactor": "limits resolve by tenant/capability/criticality/control snapshot",
     "refs": "[Runtime resource controls](specs/workflow-runtime.md), [quantitative contract](plan.md#113-quantitative-service-and-capacity-contract)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_WF_RUN_021` plus `_Race`, `_Fault` and `_Mutation` in `internal/workflow/runtime` over embedded PostgreSQL (`WorkloadGate` resolves limits from an `internal/workflow/workload.ControlSnapshot` by tenant, capability and criticality, derives branch/child/cost demand from the compiled plan and payload size, and refuses a start before any row is written: structural excess is `OVERLOADED`, concurrency pressure is `ADMISSION_DEFERRED` and admits once a slot frees, an idempotent replay is never deferred; admission serializes on a transaction advisory lock so eight concurrent starts against a limit of three admit exactly three), wired into every execution driver start with a traced and logged verdict (`internal/platform/execution.WorkloadObserver`); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "WF-RUN-022",

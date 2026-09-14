@@ -3042,7 +3042,7 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** recent/favorite/notification UI projects this same truth rather than maintaining a second status model.
   - **Refs:** [Business execution receipt](#12-canonical-data-ledger-projections-outbox-reconciliation-and-repair), [AuthZ](specs/organization-scope-and-authz.md).
 
-- [ ] `INTENT-022` **[GATE_B][SOL_HIGH] Route operator, support, recovery and break-glass actions through governed intents.**
+- [x] `INTENT-022` **[GATE_B][SOL_HIGH] Route operator, support, recovery and break-glass actions through governed intents.**
   - **Depends:** `INTENT-013`, `TRUST-021`, `OPS-004`, `RECOVERY-003`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestOperatorMutationRequiresIntentAndJITAuthority`.
@@ -3051,6 +3051,7 @@ or an explicit rejection and replacement decision.
   - **GREEN:** each material operation resolves a typed operational/repair intent, JIT/dual-control policy, simulation/scope, idempotency and evidence receipt; emergency execution records declared bypass reason and mandatory review without rewriting business truth.
   - **REFACTOR:** diagnostic reads may remain governed capabilities, but any material change/effect has an IntentInstance and outcome.
   - **Refs:** [Incident management](specs/incident-management.md), [support access](specs/platform-responsibility-boundaries.md), [recovery](data/models/operations-production.md).
+  - **Evidence (2026-09-14):** `TestOperatorMutationRequiresIntentAndJITAuthority` plus `TestTodo_INTENT_022_Race`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/intent/operator` (`Gateway.Submit` routes every material operator kind -- database repair, workflow node intervention and controls, connector redrive, projection rebuild, failover, quarantine, tenant suspension, key rotation -- through a registered operational intent with a JIT grant of an admitted role naming the capability, dual control and simulation over the exact scope where the kind demands, an idempotency key and a digest-sealed receipt; break-glass execution records its bypass reason and demands post-use review; executors hold a gateway-minted authorization so a direct call is refused; a failure after authorization is recorded REPAIR_REQUIRED and never re-run, and a journal recomposed after restart replays without re-executing), with production authority from durable trust-store grants (`truststore.Store.ActiveJITGrants`, `jit.Restore`) proven live on the composed server by `TestGovernedWorkflowControlsOnComposedServer`; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
 
 - [x] `INTENT-023` **[GATE_A][SOL_HIGH] Preserve intent semantics across simulate, shadow, replay, test and execute modes.**
   - **Evidence (2026-09-05):** `TestIntentExecutionModesCannotEscalateEffects`, `TestTodo_INTENT_023_{Golden,Integration,Fault,Conformance,Recovery,Mutation}`, `FuzzTodo_INTENT_023` in `internal/intent` (fixed 5-mode × 4-environment ModeContract matrix pinned as `testdata/intent_023_mode_matrix.json`; only EXECUTE/PRODUCTION and REPAIR/PRODUCTION reach the real world, Permit composes the contract ceiling with the definition's effect class so neither lifts the other, CausalSeparation forbids a replay naming itself); `go test -count=1 ./internal/intent/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
@@ -3830,7 +3831,7 @@ or an explicit rejection and replacement decision.
   - **Refs:** [Execution inspector](specs/workflow-runtime.md), [HRIS DataOps](specs/hris-admin-dataops.md).
   - **Evidence (2026-09-03):** `TestTodo_WF_RUN_019` and `TestTodo_WF_RUN_019_Golden` (`testdata/wfrun019_operator_view.json` pins the full definition, instance, node, governance, transaction, connector, observation and trace traversal with current node, attempt, retry-policy, proposal, baseline, policy, effect and repair refs), `TestTodo_WF_RUN_019_Race` (eight concurrent projections byte-identical, inputs unmutated), `TestTodo_WF_RUN_019_Integration` (round trip through PostgreSQL arrays and jsonb before projecting), `TestTodo_WF_RUN_019_Fault` (non-disclosable instance returns `ErrNotDisclosable` without leaking ids, denied protected fields render as `REDACTED` refs absent from the rendered bytes, a denied stage is named not dropped, a frontier node without an execution is reported in `Completeness.Gaps`) in `internal/workflow/inspect`; `go test -count=1 ./internal/workflow/...` PASS via embedded-postgres on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
 
-- [ ] `WF-RUN-020` **[GATE_B][SOL_HIGH] Detect stuck workflows from expected progress.**
+- [x] `WF-RUN-020` **[GATE_B][SOL_HIGH] Detect stuck workflows from expected progress.**
   - **Depends:** `WF-RUN-001`, `OPS-001`, `OPS-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_WF_RUN_020`.
@@ -3839,8 +3840,9 @@ or an explicit rejection and replacement decision.
   - **GREEN:** detector uses state-specific expected progress and opens/links one incident/work item with evidence.
   - **REFACTOR:** detector cannot alter business state.
   - **Refs:** [Operational readiness](plan.md#112-operational-readiness), [incident management](specs/incident-management.md).
+  - **Evidence (2026-09-14):** `TestTodo_WF_RUN_020` plus `_Race`, `_Fault`, `_Security` and `_Mutation` in `internal/workflow/progress` over embedded PostgreSQL (`Detect` flags an instance only for a missed state-specific expectation -- overdue timer, abandoned lease, undispatched ready work, expired unclosed signal, missed SLA escalation, poison node, or no progress mechanism -- never for age alone; `Sweeper` loads tenant-scoped snapshots under RLS and `RaiseIncident` opens one deduplicated incident per instance and finding set, linking on repeat, with severity and owner routing and a storm limit; eight concurrent sweepers open exactly one incident; the business fingerprint is unchanged by a sweep), wired as the serve workload `workload:workflow-progress` with spans and logs through `internal/platform/execution.ProgressObserver`; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `WF-RUN-021` **[GATE_B][SOL_HIGH] Enforce workflow workload limits.**
+- [x] `WF-RUN-021` **[GATE_B][SOL_HIGH] Enforce workflow workload limits.**
   - **Depends:** `WF-COMP-002`, `ADMISSION-001`, `ADMISSION-002`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_WF_RUN_021`.
@@ -3849,6 +3851,7 @@ or an explicit rejection and replacement decision.
   - **GREEN:** request returns `OVERLOADED`/`ADMISSION_DEFERRED` before unsafe work; durable intent remains visible for retry/queue policy.
   - **REFACTOR:** limits resolve by tenant/capability/criticality/control snapshot.
   - **Refs:** [Runtime resource controls](specs/workflow-runtime.md), [quantitative contract](plan.md#113-quantitative-service-and-capacity-contract).
+  - **Evidence (2026-09-14):** `TestTodo_WF_RUN_021` plus `_Race`, `_Fault` and `_Mutation` in `internal/workflow/runtime` over embedded PostgreSQL (`WorkloadGate` resolves limits from an `internal/workflow/workload.ControlSnapshot` by tenant, capability and criticality, derives branch/child/cost demand from the compiled plan and payload size, and refuses a start before any row is written: structural excess is `OVERLOADED`, concurrency pressure is `ADMISSION_DEFERRED` and admits once a slot frees, an idempotent replay is never deferred; admission serializes on a transaction advisory lock so eight concurrent starts against a limit of three admit exactly three), wired into every execution driver start with a traced and logged verdict (`internal/platform/execution.WorkloadObserver`); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
 
 - [x] `WF-RUN-022` **[GATE_B][SOL_HIGH] Prove workflow recovery after database/cell interruption.**
   - **Depends:** `WF-RUN-002`–`WF-RUN-007`, `RECOVERY-001`, `RECOVERY-002`, `RECOVERY-003`.
@@ -19099,7 +19102,7 @@ These items are the follow-up to the 2026-09-12 blind browser audit of the runni
   - **REFACTOR:** metrics consume certified report projections and shared accessible visualization components.
   - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/presentation`.
 
-- [ ] `UXAUDIT-019` **[GATE_C][TERRA] Make workflow History inspectable, sortable and compact.**
+- [x] `UXAUDIT-019` **[GATE_C][TERRA] Make workflow History inspectable, sortable and compact.**
   - **Depends:** `WEB-107`, `WEB-130`, `WEB-221`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=let authorized users review past workflows from immutable evidence`.
   - **TEST:** `TestTodo_UXAUDIT_019`.
@@ -19108,6 +19111,7 @@ These items are the follow-up to the 2026-09-12 blind browser audit of the runni
   - **GREEN:** one responsive filter bar, sortable reusable columns, server-backed pagination, result count, stable loading geometry and an evidence-based detail view serve global and person-scoped history; empty states explain how records appear.
   - **REFACTOR:** global and per-person history use the same query, table and detail components with scope supplied as props.
   - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`, `internal/data`.
+  - **Evidence (2026-09-14):** `TestTodo_UXAUDIT_019` plus `_Integration`, `_Browser`, `_Accessibility`, `_Performance` and `_Regression` in `internal/humanwork/productui` (implemented in 655e12d6 and verified here: one titled compact History surface with a search/outcome/person/year filter bar, sortable columns with `aria-sort` and browser-addressable sort links, server-backed pagination and result counts over the authorized record-verdict population with withheld terminal records excluded, an explained empty state, a 500-record projection under 250ms, and the same `WorkflowHistory` component and props builder serving global History (`page_history.go`) and person-scoped past work (`page_person.go`)); `go test -count=1 -run TestTodo_UXAUDIT_019` PASS; Go 1.26.3 windows/arm64; branch main.
 
 - [ ] `UXAUDIT-020` **[GATE_C][TERRA] Refine flat organization browsing for scan, search and progressive disclosure.**
   - **Depends:** `WEB-181`, `WEB-183`, `WEB-192`.

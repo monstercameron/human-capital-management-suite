@@ -20,6 +20,7 @@ import (
 	ledgerport "github.com/monstercameron/human-capital-management-suite/internal/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // PromotionOutcomeSchema names the payload schema [LedgerTerminalWriter]
@@ -215,7 +216,9 @@ type LedgerTerminalWriter struct {
 var _ execute.TerminalWriter = (*LedgerTerminalWriter)(nil)
 
 // Write implements [execute.TerminalWriter].
-func (w *LedgerTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (idempotency.ResultIdentity, error) {
+func (w *LedgerTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (ret0 idempotency.ResultIdentity, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.effects.ledger_terminal_write", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if w.Appender == nil {
 		return idempotency.ResultIdentity{}, fmt.Errorf("effects: LedgerTerminalWriter has no ledger Appender bound")
 	}

@@ -71,7 +71,9 @@ const nodeColumns = `tenant_id, node_execution_id, instance_id, node_id, attempt
 // exists collides on the primary key rather than overwriting, because two
 // drivers that both believe they created an instance is a fact the caller
 // needs to hear about.
-func (Store) CreateInstance(ctx context.Context, ex Executor, inst Instance) (Instance, error) {
+func (Store) CreateInstance(ctx context.Context, ex Executor, inst Instance) (ret0 Instance, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.create_instance", inst)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := inst.Validate(); err != nil {
 		return Instance{}, err
 	}
@@ -187,7 +189,9 @@ func (s Store) RecordInstanceState(ctx context.Context, ex Executor, t InstanceT
 // must now hold.
 func (s Store) RecordNodeExecution(
 	ctx context.Context, ex Executor, n NodeExecution, expectedInstanceVersion int64,
-) (NodeExecution, int64, error) {
+) (ret0 NodeExecution, ret1 int64, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.record_node_execution", n)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0, ret1) }()
 	if err := n.Validate(); err != nil {
 		return NodeExecution{}, 0, err
 	}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/opsmeta"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Route is the authoritative incident routing policy for stuck workflows. It
@@ -92,7 +93,9 @@ func declaredAt(s Snapshot, findings []Finding) time.Time {
 // operational_incident row through opsmeta.RouteAlert and nothing else: no
 // runtime, work item or business row is touched. created is false when the
 // same condition was already raised.
-func RaiseIncident(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, s Snapshot, findings []Finding, route Route) (opsmeta.AlertIncidentResult, error) {
+func RaiseIncident(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, s Snapshot, findings []Finding, route Route) (ret0 opsmeta.AlertIncidentResult, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.progress.raise_incident", observe.Attrs{observe.KeyTenant: tenant.String()}, s, route)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if len(findings) == 0 {
 		return opsmeta.AlertIncidentResult{}, ErrNoFindings
 	}

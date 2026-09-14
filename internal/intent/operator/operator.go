@@ -34,6 +34,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/breakglass"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/jit"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Kind is the closed vocabulary of operator actions.
@@ -434,7 +435,9 @@ func NewGateway(journal Journal, executors map[Kind]Executor, clock func() time.
 
 // Submit evaluates and, when every requirement holds, performs one operator
 // action exactly once.
-func (g *Gateway) Submit(ctx context.Context, req Request) (Receipt, error) {
+func (g *Gateway) Submit(ctx context.Context, req Request) (ret0 Receipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "operator.submit", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return Receipt{}, err
 	}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-14 (Live governed workflow controls and enforced workflow telemetry)
+
+- Pause and Resume are now live on a composed server: operator authority comes from the operator's current JIT grant in the durable trust store, rebuilt through `jit.Restore` so a widened or tampered record is never authority. Cancel and RetryNode stay governed denials until dual-control and simulation evidence is supplied.
+- Every remaining context-taking workflow entry point (effect dispatch, currency checks, approval completion and authority recheck, instance creation, node execution, incidents, continuations, terminal writers, per-artifact migration, gateway submissions and controls) now emits a span and structured log, and a test fails when a new one does not or an exemption goes stale.
+- WF-RUN-020, WF-RUN-021, INTENT-022 and UXAUDIT-019 are closed against their committed implementations.
+
 ## 2026-09-14 (Workflow todo prerequisites: product alignment, import commit, onboarding cutover)
 
 - ALIGN-024-029: product views refetch authoritatively after an invalidation hint; intent drafts have durable owner-scoped, revisioned, expiring persistence and bind to the immutable proposal revision they produced; simulation is proven write-free across every table of a composed cell; every human decision pins its proposal revision digest; the promotion journey stage is projected from durable workflow state only.

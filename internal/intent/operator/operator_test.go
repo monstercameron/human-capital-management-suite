@@ -82,13 +82,13 @@ func newGateway(t *testing.T, j Journal, execs map[Kind]Executor) *Gateway {
 	return g
 }
 
-// TestGatewayRequiresIntentAndJITAuthority proves the operator
+// TestOperatorMutationRequiresIntentAndJITAuthority proves the operator
 // gateway: every material operator action resolves a typed operational intent
 // under a JIT grant with its policy's dual control and simulation, runs its
 // effect exactly once behind a gateway-minted authorization, and leaves a
 // verifiable receipt; the same action without that authority -- including
 // the executor called directly as a side door -- changes nothing.
-func TestGatewayRequiresIntentAndJITAuthority(t *testing.T) {
+func TestOperatorMutationRequiresIntentAndJITAuthority(t *testing.T) {
 	ctx := context.Background()
 	exec := &counting{}
 	execs := map[Kind]Executor{}
@@ -172,9 +172,9 @@ func TestGatewayRequiresIntentAndJITAuthority(t *testing.T) {
 	}
 }
 
-// TestGateway_Race proves concurrent submissions of one action under
+// TestTodo_INTENT_022_Race proves concurrent submissions of one action under
 // one idempotency key perform exactly one effect and all agree on it.
-func TestGateway_Race(t *testing.T) {
+func TestTodo_INTENT_022_Race(t *testing.T) {
 	exec := &counting{}
 	gw := newGateway(t, NewMemoryJournal(), map[Kind]Executor{KindConnectorRedrive: exec})
 	req := baseRequest(t, KindConnectorRedrive, "key-race")
@@ -206,10 +206,10 @@ func TestGateway_Race(t *testing.T) {
 	}
 }
 
-// TestGateway_Integration runs the gateway over real JIT and
+// TestTodo_INTENT_022_Integration runs the gateway over real JIT and
 // break-glass grants through their whole lifecycle: grant, use, replay,
 // revocation, emergency use and mandatory post-use review.
-func TestGateway_Integration(t *testing.T) {
+func TestTodo_INTENT_022_Integration(t *testing.T) {
 	ctx := context.Background()
 	journal := NewMemoryJournal()
 	exec := &counting{}
@@ -264,10 +264,10 @@ func TestGateway_Integration(t *testing.T) {
 	}
 }
 
-// TestGateway_Fault covers failures around the effect: a failed
+// TestTodo_INTENT_022_Fault covers failures around the effect: a failed
 // effect is recorded REPAIR_REQUIRED and never retried blindly, journal
 // errors refuse before any effect, and malformed wiring is refused.
-func TestGateway_Fault(t *testing.T) {
+func TestTodo_INTENT_022_Fault(t *testing.T) {
 	ctx := context.Background()
 	boom := errors.New("connector timeout")
 	exec := &counting{fail: boom}
@@ -349,9 +349,9 @@ func (f faultyJournal) Begin(context.Context, Receipt) (Receipt, bool, error) {
 func (f faultyJournal) Complete(context.Context, Receipt) error { return f.complete }
 func (f faultyJournal) Abort(context.Context, Receipt) error    { return f.complete }
 
-// TestGateway_Security refuses every attempt to borrow, stretch or
+// TestTodo_INTENT_022_Security refuses every attempt to borrow, stretch or
 // self-approve authority, and every malformed or conflicting request.
-func TestGateway_Security(t *testing.T) {
+func TestTodo_INTENT_022_Security(t *testing.T) {
 	ctx := context.Background()
 	exec := &counting{}
 	execs := map[Kind]Executor{}
@@ -443,11 +443,11 @@ func TestGateway_Security(t *testing.T) {
 	}
 }
 
-// TestGateway_Recovery proves recovery never depends on process
+// TestTodo_INTENT_022_Recovery proves recovery never depends on process
 // memory: a gateway recomposed over the same journal replays completed
 // actions without re-running them and refuses to blindly re-run an action
 // whose previous attempt crashed before recording its outcome.
-func TestGateway_Recovery(t *testing.T) {
+func TestTodo_INTENT_022_Recovery(t *testing.T) {
 	ctx := context.Background()
 	journal := NewMemoryJournal()
 	exec := &counting{}
@@ -493,10 +493,10 @@ func mustPolicy(t *testing.T, k Kind) Policy {
 	return p
 }
 
-// TestGateway_Mutation proves each guard is load-bearing: a gateway
+// TestTodo_INTENT_022_Mutation proves each guard is load-bearing: a gateway
 // whose policy is weakened in one dimension admits exactly the request the
 // real policy refuses, so removing that guard would be caught.
-func TestGateway_Mutation(t *testing.T) {
+func TestTodo_INTENT_022_Mutation(t *testing.T) {
 	ctx := context.Background()
 	for name, m := range map[string]struct {
 		weaken func(Policy) Policy

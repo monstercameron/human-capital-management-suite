@@ -217,7 +217,9 @@ func newPauseReceipt(inst Instance, eligible bool, blocking, reason, actor strin
 // about node type.
 func SafePointEligibility(
 	ctx context.Context, ex Executor, inst Instance, plan *workflow.CompiledWorkflow,
-) (bool, string, error) {
+) (ret0 bool, ret1 string, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.safe_point_eligibility", inst, plan)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0, ret1) }()
 	rows, err := (Store{}).LoadNodeExecutions(ctx, ex, inst.TenantID, inst.InstanceID)
 	if err != nil {
 		return false, "", err

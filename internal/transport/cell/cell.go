@@ -138,7 +138,7 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	// The workflow transport consumes its string-ID reader port. The existing
 	// application reader remains owned by AdminService; this adapter supplies
 	// the same durable record without moving database access into transport.
-	workflowDeps := transportworkflow.Dependencies{Instances: newWorkflowReader(instances), CursorKey: append([]byte(nil), cursorKey...)}
+	workflowDeps := workflowDependencies(c, instances, cursorKey)
 	transportworkflow.Register(srv, workflowDeps)
 	// WorkService (EP-WORK-001) publishes the queue read endpoints under the
 	// same interceptor chain and cursor key. A nil workQueue leaves the
@@ -194,7 +194,7 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 			Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
 			CursorKey: append([]byte(nil), cursorKey...),
 		},
-		Workflow:   &transportworkflow.Dependencies{Instances: newWorkflowReader(instances), CursorKey: append([]byte(nil), cursorKey...)},
+		Workflow:   workflowDependenciesRef(c, instances, cursorKey),
 		Work:       &transporthumanwork.Dependencies{Queue: newWorkQueueReader(workQueue), CursorKey: append([]byte(nil), cursorKey...)},
 		Operations: &transportoperations.Dependencies{Store: operationStore},
 		Health:     transporthealth.New(transporthealth.Dependencies{}), HandlerOptions: opts,

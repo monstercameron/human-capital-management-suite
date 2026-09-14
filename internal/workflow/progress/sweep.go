@@ -9,6 +9,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Observer is the sweep's telemetry port. This package never opens an
@@ -61,7 +62,9 @@ type Sweeper struct {
 // its own transaction, so one conflicting or storm-refused incident does not
 // hide the others; the first such error is returned after every instance has
 // been attempted.
-func (w Sweeper) Sweep(ctx context.Context, tenant uuid.UUID) (SweepResult, error) {
+func (w Sweeper) Sweep(ctx context.Context, tenant uuid.UUID) (ret0 SweepResult, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.progress.sweep_run", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	obs := w.Observer
 	if obs == nil {
 		obs = NoopObserver{}
