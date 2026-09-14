@@ -27,6 +27,8 @@ package workflowcontrol
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -134,11 +136,14 @@ type Controller struct {
 	clock     func() time.Time
 	// journalRef is the journal the gateway records into.
 	journalRef operator.Journal
+	// preflight dry-runs simulation-required controls; see
+	// WithPreflightSimulation.
+	preflight bool
 }
 
 // New composes a controller over journal: it builds the operator gateway with
 // this package's four executors registered.
-func New(db dbport.Beginner, journal operator.Journal, plans PlanResolver, authority AuthorityResolver, clock func() time.Time) (*Controller, error) {
+func New(db dbport.Beginner, journal operator.Journal, plans PlanResolver, authority AuthorityResolver, clock func() time.Time, opts ...Option) (*Controller, error) {
 	if db == nil || plans == nil || authority == nil {
 		return nil, fmt.Errorf("%w: database, plan resolver and authority resolver are required", ErrInvalidCommand)
 	}
@@ -146,6 +151,11 @@ func New(db dbport.Beginner, journal operator.Journal, plans PlanResolver, autho
 		clock = func() time.Time { return time.Now().UTC() }
 	}
 	c := &Controller{db: db, plans: plans, authority: authority, clock: clock, journalRef: journal}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(c)
+		}
+	}
 	gw, err := operator.NewGateway(journal, map[operator.Kind]operator.Executor{
 		operator.KindWorkflowPause:     operator.ExecutorFunc(c.applyPause),
 		operator.KindWorkflowResume:    operator.ExecutorFunc(c.applyResume),
@@ -228,6 +238,13 @@ func (c *Controller) submit(ctx context.Context, kind operator.Kind, cmd Command
 	if err != nil {
 		return Result{}, fmt.Errorf("workflowcontrol: resolve authority: %w", err)
 	}
+	if policy, _ := operator.PolicyFor(kind); c.preflight && policy.SimulationRequired && auth.Simulation == nil {
+		sim, _, err := c.Simulate(ctx, kind, cmd)
+		if err != nil {
+			return Result{}, fmt.Errorf("workflowcontrol: preflight simulation: %w", err)
+		}
+		auth.Simulation = sim
+	}
 	req := operator.Request{
 		Kind: kind, Tenant: cmd.Tenant, Operator: cmd.Operator, Scope: cmd.Scope(kind),
 		ExpectedVersion: strconv.FormatInt(cmd.ExpectedVersion, 10) + "/" + strconv.Itoa(cmd.ExpectedAttempt),
@@ -309,9 +326,13 @@ func decodeEffect(ref string) (Result, error) {
 		InstanceVersion: version, NodeID: parts[6], Attempt: attempt}, nil
 }
 
+// stepFunc is one control's decision and writes inside the tenant
+// transaction.
+type stepFunc func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error)
+
 // transact runs fn in one tenant transaction, committing only when the
 // result is a state change (APPLIED, PENDING_SAFE_POINT or REPAIR_REQUIRED).
-func (c *Controller) transact(ctx context.Context, auth operator.Authorization, kind operator.Kind, fn func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error)) (string, error) {
+func (c *Controller) transact(ctx context.Context, auth operator.Authorization, kind operator.Kind, fn stepFunc) (string, error) {
 	cmd, ok := commandFrom(ctx)
 	if !ok {
 		return "", fmt.Errorf("%w: executor invoked without a command", ErrInvalidCommand)
@@ -319,43 +340,108 @@ func (c *Controller) transact(ctx context.Context, auth operator.Authorization, 
 	if err := auth.Require(kind, cmd.Tenant); err != nil {
 		return "", err
 	}
+	res, err := c.run(ctx, cmd, fn, true)
+	if err != nil {
+		return "", err
+	}
+	return encodeEffect(res), nil
+}
+
+// run executes fn against the instance's pinned plan. With commit false the
+// transaction always rolls back: the result is a dry run over exactly the
+// state the real control would see.
+func (c *Controller) run(ctx context.Context, cmd Command, fn stepFunc, commit bool) (Result, error) {
 	tx, err := c.db.Begin(ctx)
 	if err != nil {
-		return "", noEffect("begin", err)
+		return Result{}, noEffect("begin", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	if err := tenancy.WithTenant(ctx, tx, cmd.TenantID); err != nil {
-		return "", noEffect("bind tenant", err)
+		return Result{}, noEffect("bind tenant", err)
 	}
 	inst, err := (runtime.Store{}).LoadInstance(ctx, tx, cmd.TenantID, cmd.InstanceID)
 	if err != nil {
 		if runtime.CodeOf(err) == runtime.CodeInstanceNotFound {
-			return encodeEffect(Result{Outcome: OutcomeDenied, Code: runtime.CodeInstanceNotFound, InstanceID: cmd.InstanceID}), nil
+			return Result{Outcome: OutcomeDenied, Code: runtime.CodeInstanceNotFound, InstanceID: cmd.InstanceID}, nil
 		}
-		return "", noEffect("load instance", err)
+		return Result{}, noEffect("load instance", err)
 	}
 	plan, err := c.plans.ResolvePlan(ctx, tx, inst)
 	if err != nil {
-		return "", noEffect("resolve plan", err)
+		return Result{}, noEffect("resolve plan", err)
 	}
 	if plan == nil || plan.Digest() != inst.CompiledPlanHash {
 		// Safe points, effect classes and idempotency are compiled facts of
 		// the one plan the instance is pinned to.
-		return encodeEffect(Result{Outcome: OutcomeDenied, Code: runtime.CodeAdvancePlanMismatch, InstanceID: cmd.InstanceID,
-			InstanceStatus: inst.RuntimeStatus, InstanceVersion: inst.InstanceVersion}), nil
+		return Result{Outcome: OutcomeDenied, Code: runtime.CodeAdvancePlanMismatch, InstanceID: cmd.InstanceID,
+			InstanceStatus: inst.RuntimeStatus, InstanceVersion: inst.InstanceVersion}, nil
 	}
 	res, err := fn(tx, cmd, inst, plan, c.clock().UTC())
 	if err != nil {
-		return "", noEffect("apply", err)
+		return Result{}, noEffect("apply", err)
 	}
 	res.InstanceID = cmd.InstanceID
+	if !commit {
+		return res, nil
+	}
 	switch res.Outcome {
 	case OutcomeApplied, OutcomePendingSafePoint, OutcomeRepairRequired:
 		if err := tx.Commit(ctx); err != nil {
-			return "", fmt.Errorf("workflowcontrol: commit: %w", err)
+			return Result{}, fmt.Errorf("workflowcontrol: commit: %w", err)
 		}
 	}
-	return encodeEffect(res), nil
+	return res, nil
+}
+
+// step returns the decision function of a control kind.
+func (c *Controller) step(ctx context.Context, kind operator.Kind) (stepFunc, bool) {
+	switch kind {
+	case operator.KindWorkflowPause:
+		return c.pauseStep(ctx), true
+	case operator.KindWorkflowResume:
+		return c.resumeStep(ctx), true
+	case operator.KindWorkflowCancel:
+		return c.cancelStep(ctx), true
+	case operator.KindWorkflowRetryNode:
+		return c.retryStep(ctx), true
+	}
+	return nil, false
+}
+
+// Simulate dry-runs a control: the exact decision and writes run against the
+// instance's current state and pinned plan in a transaction that always rolls
+// back. The returned simulation covers exactly the command's scope and seals
+// the predicted result, so the gateway can require it and the receipt names
+// what was predicted.
+func (c *Controller) Simulate(ctx context.Context, kind operator.Kind, cmd Command) (ret0 *operator.Simulation, ret1 Result, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.control.simulate", cmd)
+	defer func() { observe.DoneWith(obsOp, retErr, ret1) }()
+	if err := cmd.validate(kind); err != nil {
+		return nil, Result{}, err
+	}
+	fn, ok := c.step(ctx, kind)
+	if !ok {
+		return nil, Result{}, fmt.Errorf("%w: kind %s is not a workflow control", ErrInvalidCommand, kind)
+	}
+	at := c.clock().UTC()
+	res, err := c.run(ctx, cmd, fn, false)
+	if err != nil {
+		return nil, Result{}, err
+	}
+	scope := cmd.Scope(kind)
+	sum := sha256.Sum256([]byte("workflowcontrol/simulation/v1|" + string(kind) + "|" + strings.Join(scope.IDs, ",") + "|" + encodeEffect(res)))
+	return &operator.Simulation{Digest: "sha256:" + hex.EncodeToString(sum[:]), Scope: scope, At: at}, res, nil
+}
+
+// Option configures a Controller.
+type Option func(*Controller)
+
+// WithPreflightSimulation makes the controller dry-run a control whose policy
+// requires simulation when the operator presents none, and submit that
+// simulation as the evidence. The prediction is sealed into the receipt; a
+// simulation the operator already holds is never replaced.
+func WithPreflightSimulation() Option {
+	return func(c *Controller) { c.preflight = true }
 }
 
 // noEffect marks a failure that happened before commit: the transaction rolls
@@ -394,7 +480,11 @@ func runtimeRefusal(inst runtime.Instance, err error) (Result, error) {
 }
 
 func (c *Controller) applyPause(ctx context.Context, auth operator.Authorization, _ operator.Request) (string, error) {
-	return c.transact(ctx, auth, operator.KindWorkflowPause, func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error) {
+	return c.transact(ctx, auth, operator.KindWorkflowPause, c.pauseStep(ctx))
+}
+
+func (c *Controller) pauseStep(ctx context.Context) stepFunc {
+	return func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error) {
 		if inst.RuntimeStatus.Terminal() {
 			r := current(inst)
 			r.Outcome, r.Code = OutcomeTooLate, CodeInstanceTerminal
@@ -412,11 +502,15 @@ func (c *Controller) applyPause(ctx context.Context, auth operator.Authorization
 			r.Outcome, r.NodeID = OutcomePendingSafePoint, receipt.BlockingNodeID
 		}
 		return r, nil
-	})
+	}
 }
 
 func (c *Controller) applyResume(ctx context.Context, auth operator.Authorization, _ operator.Request) (string, error) {
-	return c.transact(ctx, auth, operator.KindWorkflowResume, func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error) {
+	return c.transact(ctx, auth, operator.KindWorkflowResume, c.resumeStep(ctx))
+}
+
+func (c *Controller) resumeStep(ctx context.Context) stepFunc {
+	return func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error) {
 		if inst.RuntimeStatus.Terminal() {
 			r := current(inst)
 			r.Outcome, r.Code = OutcomeTooLate, CodeInstanceTerminal
@@ -430,11 +524,15 @@ func (c *Controller) applyResume(ctx context.Context, auth operator.Authorizatio
 			return runtimeRefusal(inst, err)
 		}
 		return Result{Outcome: OutcomeApplied, InstanceStatus: receipt.Status, InstanceVersion: receipt.InstanceVersion}, nil
-	})
+	}
 }
 
 func (c *Controller) applyCancel(ctx context.Context, auth operator.Authorization, _ operator.Request) (string, error) {
-	return c.transact(ctx, auth, operator.KindWorkflowCancel, func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error) {
+	return c.transact(ctx, auth, operator.KindWorkflowCancel, c.cancelStep(ctx))
+}
+
+func (c *Controller) cancelStep(ctx context.Context) stepFunc {
+	return func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error) {
 		if inst.RuntimeStatus.Terminal() {
 			r := current(inst)
 			r.Outcome, r.Code = OutcomeTooLate, CodeInstanceTerminal
@@ -496,7 +594,7 @@ func (c *Controller) applyCancel(ctx context.Context, auth operator.Authorizatio
 			return runtimeRefusal(inst, err)
 		}
 		return Result{Outcome: OutcomeApplied, InstanceStatus: cancelled.RuntimeStatus, InstanceVersion: cancelled.InstanceVersion}, nil
-	})
+	}
 }
 
 func transitionOf(inst runtime.Instance, status runtime.InstanceStatus) runtime.InstanceTransition {
@@ -522,7 +620,11 @@ func retrySafe(node workflow.CompiledNode) bool {
 }
 
 func (c *Controller) applyRetry(ctx context.Context, auth operator.Authorization, _ operator.Request) (string, error) {
-	return c.transact(ctx, auth, operator.KindWorkflowRetryNode, func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error) {
+	return c.transact(ctx, auth, operator.KindWorkflowRetryNode, c.retryStep(ctx))
+}
+
+func (c *Controller) retryStep(ctx context.Context) stepFunc {
+	return func(tx dbport.Tx, cmd Command, inst runtime.Instance, plan *workflow.CompiledWorkflow, now time.Time) (Result, error) {
 		base := current(inst)
 		base.NodeID, base.Attempt = cmd.NodeID, cmd.ExpectedAttempt
 		if inst.RuntimeStatus.Terminal() {
@@ -592,7 +694,7 @@ func (c *Controller) applyRetry(ctx context.Context, auth operator.Authorization
 		}
 		return Result{Outcome: OutcomeApplied, InstanceStatus: inst.RuntimeStatus, InstanceVersion: version,
 			NodeID: cmd.NodeID, Attempt: latest.Attempt + 1}, nil
-	})
+	}
 }
 
 // Request is a transport-shaped control: identifiers are strings, so a

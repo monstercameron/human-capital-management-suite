@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -26,12 +27,21 @@ type GrantSource interface {
 // control. The controller turns it into a governed DENIED outcome.
 var ErrNoAuthority = errors.New("workflowcontrol: no current operator authority")
 
+// InstanceApprovalField is the grant field that narrows a JIT grant to one
+// workflow instance. A grant carrying it for the addressed instance is the
+// durable dual-control record: its approver, whom the grant store already
+// requires to differ from the requester, approved this operator acting on
+// exactly this instance under this capability.
+func InstanceApprovalField(instanceID string) string { return "workflow_instance:" + instanceID }
+
 // JITAuthority resolves an operator's authority from the durable grant store.
-// It presents the operator's current, unrevoked JIT grant naming the control
-// and nothing else: dual control and simulation evidence must be supplied by
-// their own recorded sources, so a cancel (dual control) or retry
-// (simulation) without them is DENIED by the gateway rather than silently
-// authorized.
+// It presents the operator's current, unrevoked JIT grant naming the control.
+// For a dual-control kind it presents the grant approver as the second
+// approver only when the grant is narrowed to the addressed instance
+// ([InstanceApprovalField]); a broad grant carries no per-action second
+// approval, so a cancel under one is DENIED by the gateway rather than
+// silently authorized. Simulation evidence is never invented here: the
+// controller's preflight supplies it ([WithPreflightSimulation]).
 type JITAuthority struct {
 	Grants    GrantSource
 	TenantIDs TenantIDs
@@ -39,7 +49,7 @@ type JITAuthority struct {
 }
 
 // ResolveAuthority implements AuthorityResolver.
-func (a JITAuthority) ResolveAuthority(ctx context.Context, tenant values.TenantId, operatorID string, kind operator.Kind, _ string) (Authority, error) {
+func (a JITAuthority) ResolveAuthority(ctx context.Context, tenant values.TenantId, operatorID string, kind operator.Kind, instanceID string) (Authority, error) {
 	if a.Grants == nil || a.TenantIDs == nil {
 		return Authority{}, fmt.Errorf("%w: grant source and tenant mapping are required", ErrInvalidCommand)
 	}
@@ -56,12 +66,20 @@ func (a JITAuthority) ResolveAuthority(ctx context.Context, tenant values.Tenant
 		return Authority{}, fmt.Errorf("workflowcontrol: load operator grants: %w", err)
 	}
 	policy, _ := operator.PolicyFor(kind)
+	var broad *jit.Grant
 	for _, g := range grants {
-		for _, role := range policy.Roles {
-			if g.Role == role {
-				return Authority{JIT: g}, nil
-			}
+		if !slices.Contains(policy.Roles, g.Role) {
+			continue
 		}
+		if policy.DualControl && instanceID != "" && slices.Contains(g.Fields, InstanceApprovalField(instanceID)) {
+			return Authority{JIT: g, SecondApprover: g.Approver}, nil
+		}
+		if broad == nil {
+			broad = g
+		}
+	}
+	if broad != nil {
+		return Authority{JIT: broad}, nil
 	}
 	// No usable grant: present none, and the gateway refuses with
 	// OPERATOR_AUTHORITY_REQUIRED as a governed denial.
