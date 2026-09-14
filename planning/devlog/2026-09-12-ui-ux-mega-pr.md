@@ -2661,3 +2661,30 @@ Roles, Appearance, People, and History. The Roles form, People sort transition,
 page headings, breadcrumbs, and pagination behaved correctly, with no browser
 warnings or errors. Desktop was checked on the rebuilt bundle; earlier narrow
 viewport observations were inconclusive and are not claimed as visual proof.
+
+### Appearance long-form editor refinement (2026-09-14)
+
+UXSCAN-011 now groups the editor into direct section links, keeps a compact
+saved-versus-draft summary and guarded Save at the scroll edge, and keeps a
+preview launcher reachable while editing. The mobile action row uses short
+localized labels at 390 px and 320 px. Preview defaults now replaces the actual
+form draft before Save, rather than only updating visible controls. The modal
+returns focus to the launcher actually used, preserving scroll position.
+
+Focused Appearance, UXSCAN-011 and scrollbar-token tests passed; scoped vet,
+format and diff checks were clean. The rebuilt Go/WASM page was manually tested
+in the Codex browser at desktop, 390 px and 320 px, including unsaved state,
+defaults preview and modal close. The full product UI package still reports a
+WEB-063 person-profile golden mismatch from concurrent profile edits; its
+stale scrollbar-token assertion was updated and passed on targeted rerun.
+UXSCAN-008 remains open: the current role store does not supply the credential
+inheritance and governed proposed-scope simulation needed to claim an
+effective-access preview, so no browser-only substitute was introduced.
+The live access-page review also found that the server intentionally grants
+`hcm_admin` and `comp_admin` the full workforce before the role-visibility
+policies run; a preview must surface that override rather than promising that
+an edit to those roles narrows their discovery.
+The additive unit policy predicate is now a pure, precomputed evaluator shared
+with the live workforce transport path. Role-access and journey transport
+package tests and scoped vet pass. This is a foundation for the proposed
+policy simulation, not an effective-access preview yet; UXSCAN-008 stays open.

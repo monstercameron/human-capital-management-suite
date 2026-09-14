@@ -220,3 +220,25 @@ resilience and outage proofs, performance, governance, planning domains,
 product theming). It was committed in feature groups from a clean worktree so
 each group passed the full pre-commit gates on its own; planning ticks were
 three-way merged against the ticks already on `main`.
+
+### Second grouped commit: live-UI fixes, theming and role visibility
+
+The product UI session's work had stopped compiling mid-edit during the first
+grouped run; once it settled it was committed as three groups: the role
+visibility evaluator, the product UI (theming and UXSCAN fixes together, since
+`styles.go` and the theme helpers are shared and a split did not build), and
+planning/docs. Before committing, the productui and uxqual suites were run:
+`TestTodo_WEB_063_Golden` failed because UXSCAN-001 added accessible names to
+the profile's Promotion and Internal transfer links. A render diff confirmed
+those two `aria-label` attributes were the only change, and the golden was
+re-pinned with that note. `TestTodo_PROMOUX_011_ProductRefreshPublishesOnlyNewestSequence`
+failed once in a full-package run and passed alone and in four further package
+runs; it is timing-sensitive and was not changed.
+
+A process defect surfaced in this session and is recorded here: commits made
+from `git worktree add` checkouts silently ran no pre-commit hooks, because
+`core.hooksPath` is the gitignored `.husky/_`. Every session commit from
+`9f523218` to `65086a36` bypassed the gates. The grouped commits since then copy
+`.husky/_` into the worktree, verify hook output, and passed the full
+`test:all` suite over a tree containing that earlier code; the changed-file
+coverage gate did not re-run against those earlier files.

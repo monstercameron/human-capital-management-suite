@@ -19572,3 +19572,119 @@ These items qualify the rendered production frontend against the design-token co
   - **GREEN:** automated token and component checks plus direct Codex-browser review cover login and every authorized application page at 1440 px, 390 px and 320 px, 100% and 200% zoom, light/dark/high-contrast/reduced-motion, default and adversarial customer themes, en-US/de-DE/RTL, empty/loading/populated/error/success and keyboard-only states; visual baselines, contrast, overflow, target size, layout shift and interaction latency meet declared budgets with no unresolved severity-one or severity-two design finding.
   - **REFACTOR:** baselines render production components and server states; no mock-only design system or page-specific exception may satisfy the gate.
   - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), `test/workspace`, `tools/uxqual/tokens`, `tools/uxqual/latencygate`, `tools/uxqual/wcag`.
+
+## 72. September 14 live-UI regression findings
+
+These are specific, still-visible findings from a read-only Codex-browser pass of the production Go frontend at approximately 1280 × 720 in dark mode. They narrow the broader `UXAUDIT` and `UIPOLISH` work above; implement through the shared components and server-backed projections, not duplicate page-local UI. A checkbox requires the named test and a fresh live-browser check of the affected state.
+
+- [x] `UXSCAN-001` **[P0][TERRA] Disambiguate employee identity everywhere a person can be chosen or acted on.**
+  - **Depends:** `WEB-040`, `WEB-112`, `WEB-113`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.ACCESS; DIRECT=none; WHY=prevent the wrong worker being selected when names collide without revealing withheld identity fields`.
+  - **TEST:** `TestTodo_UXSCAN_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_001`; `BROWSER=TestTodo_UXSCAN_001_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_001_Accessibility`; `SECURITY=TestTodo_UXSCAN_001_Security`; `REGRESSION=TestTodo_UXSCAN_001_Regression`.
+  - **RED:** People rows, person headings, role assignments, global-search results or promotion actions identify a worker only as a first name; two same-named workers cannot be distinguished before opening or acting.
+  - **GREEN:** every selection and action surface uses one authorized display-identity component with full permitted name plus stable worker number or equivalent disambiguator; withheld fields never leak, and accessible names identify the same worker as the visible label.
+  - **REFACTOR:** extend the identity work of `UXAUDIT-016` through shared row, result and action props instead of formatting names independently on each page.
+  - **Refs:** [worker-profile audit](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/productclient`.
+
+- [x] `UXSCAN-002` **[P0][TERRA] Keep the action launcher focused on executable, scannable actions.**
+  - **Depends:** `UXAUDIT-003`, `WEB-040`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS,BI.EXPERIENCE; DIRECT=none; WHY=help an authorized actor find one promotion action without implying that ineligible workers can be promoted`.
+  - **TEST:** `TestTodo_UXSCAN_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_002`; `BROWSER=TestTodo_UXSCAN_002_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_002_Accessibility`; `SECURITY=TestTodo_UXSCAN_002_Security`; `PERFORMANCE=TestTodo_UXSCAN_002_Performance`; `REGRESSION=TestTodo_UXSCAN_002_Regression`.
+  - **RED:** the unfiltered launcher repeats `Start Promotion for…` across a long employee list, and a disabled employee result prints the eligibility explanation twice and consumes several result rows of height.
+  - **GREEN:** the initial menu has a bounded, ranked action set and a clear employee-search path; ineligible matches are either omitted until specifically searched or shown once with one concise non-disclosing reason; keyboard focus and scrolling keep the chosen result visible.
+  - **REFACTOR:** reuse the semantic-action projection and shared popover from `UXAUDIT-003`; do not create a second launcher inventory or eligibility rule.
+  - **Refs:** [launcher audit](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/render/journey`.
+
+- [x] `UXSCAN-003` **[P0][TERRA] Make the global Promotion search result's destination truthful.**
+  - **Depends:** `WEB-040`, `WEB-101`, `UXAUDIT-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS,BI.EXPERIENCE; DIRECT=none; WHY=avoid presenting navigation to an empty tracker as an executable workflow`.
+  - **TEST:** `TestTodo_UXSCAN_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_003`; `BROWSER=TestTodo_UXSCAN_003_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_003_Accessibility`; `SECURITY=TestTodo_UXSCAN_003_Security`; `REGRESSION=TestTodo_UXSCAN_003_Regression`.
+  - **RED:** searching `promotion` returns a `Workflow` result whose selection opens the empty Journeys tracker, while a separate Journeys `Page` result uses almost the same description.
+  - **GREEN:** an action-typed Promotion result leads to an authorized worker-selection/start step; a tracker destination is named and typed as a page; the two results have distinct descriptions and neither promises an unavailable action.
+  - **REFACTOR:** derive result type, label and target from the same authorized action/page definitions used by the launcher and navigation.
+  - **Refs:** [navigation audit](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/productclient`.
+
+- [x] `UXSCAN-004` **[GATE_C][TERRA] Compress Home's all-empty state around the next useful action.**
+  - **Depends:** `WEB-097`, `WEB-098`, `WEB-099`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=make a new or quiet workspace useful without fabricating activity`.
+  - **TEST:** `TestTodo_UXSCAN_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_004`; `BROWSER=TestTodo_UXSCAN_004_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_004_Accessibility`; `PERFORMANCE=TestTodo_UXSCAN_004_Performance`; `REGRESSION=TestTodo_UXSCAN_004_Regression`.
+  - **RED:** a zero-work Home spends multiple screens on separate empty attention, drafts, tracked requests, completions and recent-people cards while the start action is small and low in the hierarchy.
+  - **GREEN:** the all-empty state presents one prominent role-appropriate next step and a compact, understandable continuity summary; populated states restore their distinct cards without jumping or hiding due work.
+  - **REFACTOR:** implement the specific zero-state composition inside `UXAUDIT-015`'s Home floorplan using existing cards and action components.
+  - **Refs:** [Home audit](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/render/journey`.
+
+- [x] `UXSCAN-005` **[GATE_C][TERRA] Remove cramped desktop table and filter layouts.**
+  - **Depends:** `WEB-107`, `WEB-130`, `UXAUDIT-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.WORK; DIRECT=none; WHY=keep dense employee and history data readable without trapping users in competing scroll regions`.
+  - **TEST:** `TestTodo_UXSCAN_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_005`; `BROWSER=TestTodo_UXSCAN_005_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_005_Accessibility`; `PERFORMANCE=TestTodo_UXSCAN_005_Performance`; `REGRESSION=TestTodo_UXSCAN_005_Regression`.
+  - **RED:** at 1280 px the People table has its own vertical scroll inside the scrolling content page, and History's search and select controls truncate their prompts or selected labels.
+  - **GREEN:** each page has an explicit usable scroll owner and sticky table headers; horizontal/vertical table scrolling, if retained, is clearly bounded and keyboard reachable; History filters expose full labels and values at 1280, 1440, 390 and 320 px without overlap or clipping.
+  - **REFACTOR:** use the reusable table, filter bar and scroll-region contracts from `UXAUDIT-019` and `UIPOLISH-004`; do not fork layouts by page.
+  - **Refs:** [history audit](#69-live-product-ux-audit-remediation), [visual polish](#71-live-visual-design-and-interaction-polish), `internal/humanwork/productui`.
+
+- [x] `UXSCAN-006` **[P0][TERRA] Correct contrast in the dark appearance preview.**
+  - **Depends:** `WEB-017`, `WEB-232`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=ensure administrators can evaluate a proposed dark brand safely before publishing it`.
+  - **TEST:** `TestTodo_UXSCAN_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_006`; `GOLDEN=TestTodo_UXSCAN_006_Golden`; `BROWSER=TestTodo_UXSCAN_006_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_006_Accessibility`; `REGRESSION=TestTodo_UXSCAN_006_Regression`.
+  - **RED:** the dark mini-preview displays its brand name in near-black text on a dark header while its neighboring preview content uses light text.
+  - **GREEN:** brand text, icon, controls and focus states in light, dark and compact previews use the proposed theme's semantic tokens and meet the declared contrast thresholds for every preset and valid custom palette.
+  - **REFACTOR:** the mini-preview and full preview consume the same token resolver qualified by `UIPOLISH-005`, not separate hard-coded colors.
+  - **Refs:** [visual polish](#71-live-visual-design-and-interaction-polish), `internal/humanwork/productui`.
+
+- [x] `UXSCAN-007` **[GATE_C][TERRA] Make zero-data Insights useful without inventing metrics.**
+  - **Depends:** `WEB-217`, `WEB-219`, `WEB-222`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ANALYTICS; DIRECT=none; WHY=distinguish unavailable measures from genuine zero activity and offer a productive next step`.
+  - **TEST:** `TestTodo_UXSCAN_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_007`; `INTEGRATION=TestTodo_UXSCAN_007_Integration`; `BROWSER=TestTodo_UXSCAN_007_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_007_Accessibility`; `SECURITY=TestTodo_UXSCAN_007_Security`; `REGRESSION=TestTodo_UXSCAN_007_Regression`.
+  - **RED:** three large metric cards repeat `Not reported`, freshness is unavailable, and the suggested My Work link leads to another empty queue in the zero-journey fixture.
+  - **GREEN:** the zero-data state uses one purposeful explanation with the correct known-zero/unknown/suppressed distinction, names scope and freshness when authoritative, and links to an action appropriate to the viewer and data state; populated metrics remain evidence-backed.
+  - **REFACTOR:** make this a concrete fixture and acceptance case within `UXAUDIT-018`; do not synthesize counts in the frontend.
+  - **Refs:** [Insights audit](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/presentation`.
+
+- [ ] `UXSCAN-008` **[GATE_C][SOL_HIGH] Explain effective access before an administrator changes role visibility.**
+  - **Depends:** `WEB-229`, `WEB-231`, `WEB-232`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ACCESS,BI.WORKFORCE; DIRECT=none; WHY=make current and proposed worker discovery intelligible without widening disclosure`.
+  - **TEST:** `TestTodo_UXSCAN_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_008`; `INTEGRATION=TestTodo_UXSCAN_008_Integration`; `BROWSER=TestTodo_UXSCAN_008_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_008_Accessibility`; `SECURITY=TestTodo_UXSCAN_008_Security`; `REGRESSION=TestTodo_UXSCAN_008_Regression`.
+  - **RED:** Organization reports `Access scope: Not reported`, Roles shows `No explicit assignment` without effective-role context, and the visibility editor says the worker preview is unavailable; the administrator cannot predict what the current or proposed role reveals.
+  - **GREEN:** an authorized, server-resolved summary distinguishes explicit from inherited roles, effective scope and withheld facts; representative-worker/current-versus-proposed preview explains additive role effects without returning forbidden records or allowing the browser to decide access.
+  - **REFACTOR:** close the specific cross-page evidence gap through `UXAUDIT-009` and `UXAUDIT-010`'s shared policy simulation rather than a display-only approximation.
+  - **Refs:** [organization scope and authz](specs/organization-scope-and-authz.md), `internal/humanwork/productui`, `test/workspace`.
+  - **Progress (2026-09-14):** A live Codex-browser pass confirmed Roles & access exposes only durable assignments and the visibility editor still has no server preview. Source review found that `roleaccess.AssignedRoles` falls back to admitted credential roles for an unassigned subject, which the admin's snapshot cannot resolve for another worker; `visibleWorkforce` also grants `hcm_admin` and `comp_admin` all workers before role policies run. The additive unit decision was extracted into a pure `roleaccess.VisibilityEvaluator` and the live transport path now calls it, so a future read-only server preview can reuse enforcement semantics; `go test ./internal/experience/roleaccess -count=1` and `go test ./internal/transport/journey -count=1` PASS, scoped vet clean. Proposed-scope projection must still resolve inherited roles and admin overrides without exposing forbidden records. No client-derived access claim was added and this todo remains open.
+
+- [x] `UXSCAN-009` **[GATE_C][TERRA] Correct misleading labels and settings hierarchy.**
+  - **Depends:** `WEB-043`, `WEB-229`, `WEB-232`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ACCESS,BI.EXPERIENCE; DIRECT=none; WHY=make administrative and personal tasks understandable without technical or contradictory copy`.
+  - **TEST:** `TestTodo_UXSCAN_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_009`; `GOLDEN=TestTodo_UXSCAN_009_Golden`; `BROWSER=TestTodo_UXSCAN_009_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_009_Accessibility`; `I18N=TestTodo_UXSCAN_009_I18N`; `REGRESSION=TestTodo_UXSCAN_009_Regression`.
+  - **RED:** the visibility editor asks `Who can people discover?`, Settings places organization-wide appearance under `Account & security`, and Admin says it shows only available capabilities while presenting an unavailable configuration card.
+  - **GREEN:** role visibility asks which people a role's holders may find; tenant appearance sits under clearly tenant-scoped navigation, not personal account safety; Admin distinguishes available tasks from planned capabilities without contradictory claims in en-US, de-DE or RTL Arabic.
+  - **REFACTOR:** apply `UIPOLISH-007` and `UXAUDIT-023`'s copy and information-architecture rules through shared section metadata, not page-specific string patches.
+  - **Refs:** [settings audit](#69-live-product-ux-audit-remediation), [visual polish](#71-live-visual-design-and-interaction-polish), `internal/humanwork/productui`.
+
+- [x] `UXSCAN-010` **[GATE_C][TERRA] Keep the expanded sidebar's scrollbar unobtrusive and destinations reachable.**
+  - **Depends:** `WEB-039`, `WEB-047`, `UXAUDIT-024`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=preserve destination discovery when both navigation groups are expanded`.
+  - **TEST:** `TestTodo_UXSCAN_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_010`; `BROWSER=TestTodo_UXSCAN_010_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_010_Accessibility`; `I18N=TestTodo_UXSCAN_010_I18N`; `REGRESSION=TestTodo_UXSCAN_010_Regression`.
+  - **RED:** expanding My Work and Admin produces a prominent inner-edge scrollbar and leaves the first or last destination clipped beneath the fixed search/support regions as the menu scrolls.
+  - **GREEN:** one thin edge-aligned navigation scroll region keeps every visible destination reachable by wheel, touch and keyboard at desktop and mobile widths; fixed search and support controls never obscure focused or selected items.
+  - **REFACTOR:** refine the shared navigation shell from `UXAUDIT-024`; do not add independent submenu scrollbars.
+  - **Refs:** [navigation audit](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`.
+
+- [x] `UXSCAN-011` **[GATE_C][TERRA] Keep Appearance's edit context and save action visible during long-form work.**
+  - **Depends:** `WEB-232`, `UXAUDIT-021`, `UXAUDIT-022`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=let an administrator compare a proposed brand with the current workspace and save deliberately`.
+  - **TEST:** `TestTodo_UXSCAN_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXSCAN_011`; `BROWSER=TestTodo_UXSCAN_011_Browser`; `ACCESSIBILITY=TestTodo_UXSCAN_011_Accessibility`; `I18N=TestTodo_UXSCAN_011_I18N`; `REGRESSION=TestTodo_UXSCAN_011_Regression`.
+  - **RED:** Appearance spans many screens of controls, the save action is only at the bottom, and the mini-preview cannot consistently show the edit context while choosing late sections.
+  - **GREEN:** grouped navigation, a responsive persistent preview and a guarded sticky action area show current/proposed state, unsaved changes, validation and Save throughout the edit at desktop, 390 px and 320 px without covering controls.
+  - **REFACTOR:** reuse the admin editor action bar and governed preview components from `UXAUDIT-021` and `UXAUDIT-022`.
+  - **Refs:** [appearance audit](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`.
+  - **Evidence (2026-09-14):** `go test ./internal/humanwork/productui -run 'TestTodo_UXSCAN_011|TestTodo_UIPOLISH_004_ScrollbarTokens|TestAppearance' -count=1` PASS; `go vet ./internal/humanwork/productui`, `gofmt -l` on edited Go files and `git diff --check` clean. Live Codex-browser inspection at desktop, 390 px and 320 px verified section navigation, persistent saved/draft state, disabled Save with no changes, enabled Save for an unsaved Ocean preview, Preview defaults restoring the form draft, and preview-modal focus returning to the sticky launcher without a scroll jump. The full productui package still has an unrelated `WEB-063` person-profile golden mismatch in the shared dirty checkout; its scrollbar-token failure was corrected and the focused regression rerun passed.

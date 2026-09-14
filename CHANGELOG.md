@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-14 (Live-UI regression fixes, customer theming and role visibility)
+
+- UXSCAN-001-007, 009-011: every person selection and action surface shows the full permitted name with a stable disambiguator and matching accessible names; the action launcher lists only executable actions; the Promotion search result opens its real destination; Home's all-empty state points at the next useful action; desktop tables and filters no longer cramp; the dark appearance preview meets contrast; zero-data Insights explains itself without inventing metrics; misleading settings labels and hierarchy are corrected; the expanded sidebar scrollbar stays unobtrusive; and Appearance keeps section links, a draft summary, a guarded Save and a reachable preview during long-form edits.
+- Customer theming: the appearance engine gains custom components, a preview modal with scroll preservation, and a customer theme stylesheet; theme tokens flow through the journey preferences contract to the WASM client.
+- Role visibility: additive unit visibility policies compile into a pure, precomputed evaluator shared with the live workforce transport path. UXSCAN-008 (effective-access preview) stays open until the role store supplies credential inheritance and governed scope simulation.
+
 ## 2026-09-14 (Gate B resilience evidence, planning domains and product theming)
 
 - Recovery and resilience (Gate B): the pilot restores into an isolated recovery environment, failover/failback game days run end to end, deletion and restriction manifests are reapplied during restore, and ledger recovery is proven after database interruption and ambiguous commit, with continuous ledger and relational invariant scans (RECOVERY-003/004, PRIV-004, LEDGER-014, DATA-012).
