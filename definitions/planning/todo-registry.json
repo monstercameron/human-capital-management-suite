@@ -24585,7 +24585,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[DataOps](specs/hris-admin-dataops.md), [configuration models](data/models/dataops-configuration.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PACK_004` plus `_Golden`, `_Conformance` and `_Mutation` in `internal/domains/industrypack` (`CheckPublication` blocks with `PACK_004_REJECTED` naming the first field/state/version and listing every impacted object: installed platform/country/customer versions outside a declared dotted-numeric range or not installed, a dependency not published at its pinned version and digest, a candidate that does not succeed the published parent digest, a running workflow instance pinned to a definition the candidate drops or re-versions without a resolved migration, a changed configuration object or rule pack without a resolved migration, and any PACK-002 content or PACK-003 experience refusal -- so an unknown dependency or mandatory country rule override blocks; `PublishChecked` persists nothing unless accepted); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "PACK-005",
@@ -24609,7 +24610,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Control plane](#30-control-plane-publication-distribution-and-activation), [rollout](#42-confidential-actors-abuse-detection-and-progressive-rollout)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PACK_005` plus `_Golden` and `_Mutation` in `internal/domains/industrypack` (`SignedPackVersion` is an ed25519 envelope over pack id, version, bundle digest, tenant/cell target, effective instant, rollback version, publisher, approver, signing instant and key id; `VerifyActivation` refuses with `PACK_005_REJECTED` unsigned, untrusted-key, tampered, wrong-scope, future/over-age, not-newer, wrong-rollback and unapproved or self-approved envelopes; the receipt binds exact target, bundle, effective time and rollback version; `ActivateSigned` persists nothing on refusal; every bound field is tamper-tested); 100% statement coverage of publication.go; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "PACK-006",
@@ -24633,7 +24635,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Governance composition](specs/governance-decision-and-obligation-composition.md), [regulatory platform](specs/platform-architecture-catalog.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PACK_006` plus `_Golden`, `_Security` and `_Mutation` in `internal/domains/industrypack` (`ComposeLayers` composes PLATFORM \u003c COUNTRY \u003c INDUSTRY \u003c CUSTOMER packs by explicit per-family strategy -- ADDITIVE union, PRECEDENCE highest layer, RESTRICTIVE strictest numeric value with declared direction, CUSTOM named resolver -- with provenance and an order-independent digest; a higher layer relaxing, removing, overriding or custom-dropping a mandatory SECURITY/LEGAL value is `PACK_006_REJECTED` WEAKENED_MANDATORY, and conflicts without a strategy, two packs at one layer, same-layer conflicts, non-numeric restrictive values, missing/failed resolvers, unknown strategies and missing platform packs are BLOCKING_AMBIGUITY or INVALID_LAYER naming the offending pack version); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "PACK-007",
@@ -24661,7 +24664,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Adversarial audit](specs/adversarial-audit-32-reviewers-2026-08-14.md), [configuration models](data/models/dataops-configuration.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PACK_007` plus `_Golden`, `_Conformance` and `_Mutation` in `internal/domains/industrypack` (Healthcare, Retail and Manufacturing packs each combine with the same US country pack and customer pack through `ComposeIndustry` -- PACK-004 publication, PACK-002 content, PACK-003 experience and PACK-006 layers -- preserving the non-overridable country rule and the mandatory security/legal settings, and producing pinned deterministic config, workflow, model and bundle digests that differ per industry while the shared mandatory set is identical; `ActivateIndustry` accepts only a PACK-005 envelope signed over exactly the proven bundle; an unknown dependency, a mandatory country rule override (experience or customer content), an incompatible platform, a missing form accessibility declaration, a weakened security setting, a bundle mismatch or an unapproved activation is `PACK_007_REJECTED` with stage, field, state and version and zero effects); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "PAYGL-001",
