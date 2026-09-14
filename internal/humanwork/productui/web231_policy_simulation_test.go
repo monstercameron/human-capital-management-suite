@@ -24,7 +24,7 @@ func TestTodo_WEB_231(t *testing.T) {
 	if !ok {
 		t.Fatal("authorization-policy simulation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("authorization-policy simulation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

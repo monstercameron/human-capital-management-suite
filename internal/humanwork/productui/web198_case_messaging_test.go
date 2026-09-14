@@ -24,7 +24,7 @@ func TestTodo_WEB_198(t *testing.T) {
 	if !ok {
 		t.Fatal("restricted case messaging unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("restricted case messaging incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

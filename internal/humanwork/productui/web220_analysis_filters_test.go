@@ -24,7 +24,7 @@ func TestTodo_WEB_220(t *testing.T) {
 	if !ok {
 		t.Fatal("authorized analysis filters unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("authorized analysis filters incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

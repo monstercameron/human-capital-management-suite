@@ -23,7 +23,7 @@ func TestTodo_WEB_217(t *testing.T) {
 	if !ok {
 		t.Fatal("report catalog unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("report catalog incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

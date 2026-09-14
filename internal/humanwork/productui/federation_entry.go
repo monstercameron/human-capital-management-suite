@@ -234,7 +234,7 @@ func federationEntryGroups(entries []FederationEntry) []federationTenantGroup {
 	for i := range groups {
 		sort.SliceStable(groups[i].entries, func(a, b int) bool {
 			left, right := groups[i].entries[a], groups[i].entries[b]
-			if strings.ToLower(left.Issuer) != strings.ToLower(right.Issuer) {
+			if !strings.EqualFold(left.Issuer, right.Issuer) {
 				return strings.ToLower(left.Issuer) < strings.ToLower(right.Issuer)
 			}
 			if left.Protocol != right.Protocol {

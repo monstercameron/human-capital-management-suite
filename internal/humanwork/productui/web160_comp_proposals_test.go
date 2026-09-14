@@ -23,7 +23,7 @@ func TestTodo_WEB_160(t *testing.T) {
 	if !ok {
 		t.Fatal("manager compensation proposals unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("manager compensation proposals incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

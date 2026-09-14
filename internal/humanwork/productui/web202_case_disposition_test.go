@@ -24,7 +24,7 @@ func TestTodo_WEB_202(t *testing.T) {
 	if !ok {
 		t.Fatal("case finding and disposition unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("case finding and disposition incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

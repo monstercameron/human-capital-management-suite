@@ -23,7 +23,7 @@ func TestTodo_WEB_193(t *testing.T) {
 	if !ok {
 		t.Fatal("employee Help hub unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("employee Help hub incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

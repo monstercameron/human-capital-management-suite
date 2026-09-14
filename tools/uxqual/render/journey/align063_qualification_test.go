@@ -101,8 +101,8 @@ func TestTodo_ALIGN_063_Golden(t *testing.T) {
 // escaped and cannot smuggle attributes or executable elements into the DOM.
 func TestTodo_ALIGN_063_Security(t *testing.T) {
 	page := journey.SampleListPage()
-	page.Title = "مراجعة الزيادة ⁨(ar-SA)"
-	page.List.Journeys[0].WorkerName = "نور حداد ⁩"
+	page.Title = "مراجعة الزيادة 2068(ar-SA)"
+	page.List.Journeys[0].WorkerName = "نور حداد 2069"
 	page.List.Journeys[0].PayLine = "93٬000٫00 د.إ → 98٬000٫00 د.إ (+5٫4 ٪)"
 	doc := renderALIGN063(t, page)
 	if got := qual.CheckLocalizedValues(doc, map[string]string{

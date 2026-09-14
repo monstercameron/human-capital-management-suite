@@ -23,7 +23,7 @@ func TestTodo_WEB_165(t *testing.T) {
 	if !ok {
 		t.Fatal("benefit-program overview unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("benefit-program overview incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

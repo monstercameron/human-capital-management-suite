@@ -23,7 +23,7 @@ func TestTodo_WEB_151(t *testing.T) {
 	if !ok {
 		t.Fatal("time-off request journey unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("time-off request journey incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

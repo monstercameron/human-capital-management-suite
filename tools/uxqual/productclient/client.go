@@ -1151,43 +1151,6 @@ func projectPersonWorkflows(view productui.View, workerRef string) []productui.P
 	}}
 }
 
-func stagePresentation(stage journeyv1.JourneyStage) (status, tone string, terminal bool) {
-	switch stage {
-	case journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED:
-		return "Ready to start approval", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED:
-		return "Blocked", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL:
-		return "Awaiting approval", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED:
-		return "Completed", "success", true
-	case journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED:
-		return "Recorded", "success", true
-	case journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL:
-		return "Finance approval", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL:
-		return "Manager approval", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE:
-		return "Waiting for effective date", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION:
-		return "Final checks", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL:
-		return "Approval required again", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED:
-		return "Recording promotion", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS:
-		return "Checking downstream effects", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED:
-		return "Needs repair", "danger", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED:
-		return "Rejected", "neutral", true
-	case journeyv1.JourneyStage_JOURNEY_STAGE_FAILED:
-		return "Failed", "danger", true
-	default:
-		return "Status unavailable", "warning", false
-	}
-}
-
 // journeyStageKey carries the service's typed stage across the locale boundary
 // without altering Status, which remains the adapter's fallback and is used
 // by work-bucket selection before display.

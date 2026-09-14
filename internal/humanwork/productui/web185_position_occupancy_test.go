@@ -24,7 +24,7 @@ func TestTodo_WEB_185(t *testing.T) {
 	if !ok {
 		t.Fatal("position occupancy presentation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("position occupancy presentation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

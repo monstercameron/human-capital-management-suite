@@ -23,7 +23,7 @@ func TestTodo_WEB_179(t *testing.T) {
 	if !ok {
 		t.Fatal("talent calibration unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("talent calibration incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

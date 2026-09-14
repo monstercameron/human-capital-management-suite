@@ -24,7 +24,7 @@ func TestTodo_WEB_183(t *testing.T) {
 	if !ok {
 		t.Fatal("effective-date organization navigation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("effective-date organization navigation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

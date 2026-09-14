@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-func mustBundlePublic(t *testing.T) ed25519.PublicKey {
-	t.Helper()
-	_, public, _, _ := cp003Keys(t)
-	return public
-}
-
 func mustBundlePrivate(t *testing.T) ed25519.PrivateKey {
 	t.Helper()
 	private, _, _, _ := cp003Keys(t)

@@ -24,7 +24,7 @@ func TestTodo_WEB_214(t *testing.T) {
 	if !ok {
 		t.Fatal("offboarding external-effect status unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("offboarding external-effect status incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

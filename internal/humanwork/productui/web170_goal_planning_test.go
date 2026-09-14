@@ -22,7 +22,7 @@ func TestTodo_WEB_170(t *testing.T) {
 	if !ok {
 		t.Fatal("goal planning unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("goal planning incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

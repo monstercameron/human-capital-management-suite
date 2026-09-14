@@ -23,7 +23,7 @@ func TestTodo_WEB_207(t *testing.T) {
 	if !ok {
 		t.Fatal("offboarding impact simulation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("offboarding impact simulation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

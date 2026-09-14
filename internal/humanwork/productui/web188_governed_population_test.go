@@ -23,7 +23,7 @@ func TestTodo_WEB_188(t *testing.T) {
 	if !ok {
 		t.Fatal("governed population building unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("governed population building incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

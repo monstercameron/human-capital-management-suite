@@ -23,7 +23,7 @@ func TestTodo_WEB_161(t *testing.T) {
 	if !ok {
 		t.Fatal("salary-range and budget comparison unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("salary-range and budget comparison incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

@@ -1771,16 +1771,6 @@ func declareBaseStyles() {
 	declareVisualFoundationStyles()
 }
 
-// visualFoundationStyles is the shared visual baseline for surfaces and
-// controls. It deliberately consumes the semantic aliases established by the
-// theme layer instead of introducing a second palette or page-specific scale.
-// Keeping this at the end of the base declaration block gives later component
-// styles a chance to opt into a more specific treatment while ensuring every
-// unadorned control still has a complete, accessible visual contract.
-func visualFoundationStylesheet() string {
-	return buildTypedSheet(declareVisualFoundationStyles)
-}
-
 func declareVisualFoundationStyles() {
 	declareGlobal(":root",
 		gwccss.Custom("hcm-control-height", "44px"),

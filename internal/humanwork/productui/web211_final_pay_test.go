@@ -24,7 +24,7 @@ func TestTodo_WEB_211(t *testing.T) {
 	if !ok {
 		t.Fatal("final-pay and benefit status unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("final-pay and benefit status incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

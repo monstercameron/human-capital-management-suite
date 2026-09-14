@@ -24,7 +24,7 @@ func TestTodo_WEB_227(t *testing.T) {
 	if !ok {
 		t.Fatal("analysis-to-proposal handoff unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("analysis-to-proposal handoff incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

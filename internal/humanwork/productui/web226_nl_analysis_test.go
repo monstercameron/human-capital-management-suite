@@ -24,7 +24,7 @@ func TestTodo_WEB_226(t *testing.T) {
 	if !ok {
 		t.Fatal("safe natural-language analysis unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("safe natural-language analysis incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

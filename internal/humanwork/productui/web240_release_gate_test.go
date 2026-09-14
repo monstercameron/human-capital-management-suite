@@ -23,7 +23,7 @@ func TestTodo_WEB_240(t *testing.T) {
 	if !ok {
 		t.Fatal("production frontend release gate unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("production frontend release gate incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

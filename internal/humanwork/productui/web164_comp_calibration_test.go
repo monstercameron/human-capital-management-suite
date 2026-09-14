@@ -23,7 +23,7 @@ func TestTodo_WEB_164(t *testing.T) {
 	if !ok {
 		t.Fatal("compensation calibration unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("compensation calibration incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

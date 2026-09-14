@@ -24,7 +24,7 @@ func TestTodo_WEB_237(t *testing.T) {
 	if !ok {
 		t.Fatal("production browser matrix unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("production browser matrix incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

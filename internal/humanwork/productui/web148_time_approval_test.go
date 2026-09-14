@@ -23,7 +23,7 @@ func TestTodo_WEB_148(t *testing.T) {
 	if !ok {
 		t.Fatal("manager time approval unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("manager time approval incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

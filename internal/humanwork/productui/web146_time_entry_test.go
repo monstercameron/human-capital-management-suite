@@ -23,7 +23,7 @@ func TestTodo_WEB_146(t *testing.T) {
 	if !ok {
 		t.Fatal("accessible time entry unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("accessible time entry incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

@@ -24,7 +24,7 @@ func TestTodo_WEB_206(t *testing.T) {
 	if !ok {
 		t.Fatal("exit reason and effective-date collection unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("exit reason and effective-date collection incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

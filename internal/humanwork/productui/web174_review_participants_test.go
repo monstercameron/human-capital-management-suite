@@ -24,7 +24,7 @@ func TestTodo_WEB_174(t *testing.T) {
 	if !ok {
 		t.Fatal("review-participant visibility unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("review-participant visibility incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

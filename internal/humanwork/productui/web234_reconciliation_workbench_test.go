@@ -24,7 +24,7 @@ func TestTodo_WEB_234(t *testing.T) {
 	if !ok {
 		t.Fatal("reconciliation and repair workbench unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("reconciliation and repair workbench incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

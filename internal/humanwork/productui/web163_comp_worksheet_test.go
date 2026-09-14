@@ -23,7 +23,7 @@ func TestTodo_WEB_163(t *testing.T) {
 	if !ok {
 		t.Fatal("compensation worksheet unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("compensation worksheet incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

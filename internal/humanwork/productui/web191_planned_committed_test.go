@@ -25,7 +25,7 @@ func TestTodo_WEB_191(t *testing.T) {
 	if !ok {
 		t.Fatal("planned-versus-committed distinction unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("planned-versus-committed distinction incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

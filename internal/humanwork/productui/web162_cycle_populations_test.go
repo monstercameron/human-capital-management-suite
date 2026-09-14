@@ -23,7 +23,7 @@ func TestTodo_WEB_162(t *testing.T) {
 	if !ok {
 		t.Fatal("compensation-cycle populations unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("compensation-cycle populations incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

@@ -24,7 +24,7 @@ func TestTodo_WEB_194(t *testing.T) {
 	if !ok {
 		t.Fatal("authorized knowledge search unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("authorized knowledge search incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

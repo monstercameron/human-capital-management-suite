@@ -24,7 +24,7 @@ func TestTodo_WEB_222(t *testing.T) {
 	if !ok {
 		t.Fatal("data-freshness presentation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("data-freshness presentation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

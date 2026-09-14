@@ -52,23 +52,6 @@ func cloneRetentionModel(model RetentionModel) RetentionModel {
 	return out
 }
 
-func retentionProjection(t *testing.T, report RetentionReport, dim string, horizon int64) HorizonProjection {
-	t.Helper()
-	for _, projection := range report.Dimensions {
-		if projection.Name != dim {
-			continue
-		}
-		for _, horizonProjection := range projection.Horizons {
-			if horizonProjection.HorizonDays == horizon {
-				return horizonProjection
-			}
-		}
-		t.Fatalf("dimension %s has no %d-day horizon", dim, horizon)
-	}
-	t.Fatalf("report has no dimension %s", dim)
-	return HorizonProjection{}
-}
-
 // TestLongHorizonRetentionStorageGrowthAndLifecycleStayWithinBudget is the
 // PERF-009 primary: a healthy 30/90/365-day model evaluates with headroom,
 // a held-data surge is never disposed away, and every seeded breach —

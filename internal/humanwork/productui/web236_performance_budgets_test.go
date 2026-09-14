@@ -24,7 +24,7 @@ func TestTodo_WEB_236(t *testing.T) {
 	if !ok {
 		t.Fatal("frontend performance budgets unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("frontend performance budgets incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

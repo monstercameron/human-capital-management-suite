@@ -82,7 +82,6 @@ func TestTodo_UXAUDIT_024_GlobalSearchHonorsActionAndFieldVerdicts(t *testing.T)
 		}
 	}
 	view.LauncherActions = []LauncherActionProjection{{ID: SemanticActionPromoteWorker, State: ActionState{Availability: ActionAvailable}}}
-	items = globalSearchItems(view)
 	if !globalSearchCanStartPromotion(view) {
 		t.Fatal("explicit available launcher action was not recognized")
 	}

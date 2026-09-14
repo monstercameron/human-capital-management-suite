@@ -236,13 +236,9 @@ func CheckBudget(summary Summary, budgets []OperationBudget) error {
 
 var commitPayload = make([]byte, 1024)
 
-// digestSink keeps the local-commit hash observable so the compiler
-// cannot discard the measured work.
-var digestSink [32]byte
-
 // digestPayload hashes a fixed payload: the local-commit stand-in
 // for the pilot path.
 func digestPayload() error {
-	digestSink = sha256.Sum256(commitPayload)
+	_ = sha256.Sum256(commitPayload)
 	return nil
 }

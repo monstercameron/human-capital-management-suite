@@ -24,7 +24,7 @@ func TestTodo_WEB_228(t *testing.T) {
 	if !ok {
 		t.Fatal("accessible data visualization unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("accessible data visualization incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

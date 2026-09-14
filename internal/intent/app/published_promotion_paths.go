@@ -6,7 +6,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
-	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 // PROMOUX-015: one source of published promotion paths.
@@ -75,23 +74,4 @@ func publishedPromotionPaths() ([]publishedPromotionPath, error) {
 func (p publishedPromotionPath) matches(sourceJobCode, sourceGrade, targetJobCode, targetGrade string) bool {
 	return p.Option.SourceJobCode == sourceJobCode && p.Option.SourceGrade == sourceGrade &&
 		p.Option.TargetJobCode == targetJobCode && p.Option.TargetGrade == targetGrade
-}
-
-// allowsBaseIncrease applies the edge's published rule to an exact increase
-// fraction: the published minimum and maximum for a job-architecture edge,
-// and for a demo ladder edge, which publishes no bounds, the only rule its
-// UPWARD kind states -- the proposed base may not be lower than the current
-// one. It returns the input error the proposal form reports.
-func (p publishedPromotionPath) allowsBaseIncrease(increase values.Percentage) error {
-	if p.bounds != nil {
-		if err := p.bounds.Path.AllowsBaseIncrease(increase); err != nil {
-			return journeyInputError("proposed_base", "the published ladder edge requires a base increase between "+
-				p.bounds.Path.MinimumBaseIncrease.String()+" and "+p.bounds.Path.MaximumBaseIncrease.String()+" (decimal fractions)")
-		}
-		return nil
-	}
-	if increase.Fraction().Sign() < 0 {
-		return journeyInputError("proposed_base", "an upward ladder edge does not accept a base below the current base")
-	}
-	return nil
 }

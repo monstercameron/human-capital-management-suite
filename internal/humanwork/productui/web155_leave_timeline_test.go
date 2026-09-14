@@ -23,7 +23,7 @@ func TestTodo_WEB_155(t *testing.T) {
 	if !ok {
 		t.Fatal("leave-status timeline unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("leave-status timeline incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

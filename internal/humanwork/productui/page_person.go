@@ -139,22 +139,6 @@ func profileFactsFromWorkerSection(section WorkerSection) []ProfileFactProps {
 	return facts
 }
 
-func activeWorkflowsProps(view View, person Person) ActiveWorkflowsProps {
-	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
-	rows := make([]WorkRowProps, 0)
-	for _, item := range OpenWorkItems(admittedWork(view)) {
-		if item.PersonRef != person.ID {
-			continue
-		}
-		rows = append(rows, WorkRowProps{
-			ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: item.Title,
-			Person: identity.Label, Summary: item.Summary, Due: item.Due, JourneyStage: item.Status,
-			StatusProjection: item.StatusProjection, Href: item.Href, Navigate: view.Navigate,
-		})
-	}
-	return ActiveWorkflowsProps{I18nProps: I18nProps{Locale: view.Locale}, Title: view.Locale.Text("work.all"), Description: view.Locale.Text("work.collection_label"), Rows: rows}
-}
-
 func personWorkflowLauncherProps(view View, person Person, target PageID) WorkflowLauncherProps {
 	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
 	authorized := len(view.EffectivePermissions) == 0 || view.Can(PageJourneys, "create")

@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -14,18 +14,29 @@ import (
 
 func TestAllExportedComponentPropsStayViewIndependent(t *testing.T) {
 	fset := token.NewFileSet()
-	packages, err := parser.ParseDir(fset, ".", func(info fs.FileInfo) bool {
-		return strings.HasSuffix(info.Name(), ".go") && !strings.HasSuffix(info.Name(), "_test.go")
-	}, 0)
+	entries, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg, ok := packages["productui"]
-	if !ok {
+	var files []*ast.File
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if file.Name.Name == "productui" {
+			files = append(files, file)
+		}
+	}
+	if len(files) == 0 {
 		t.Fatal("productui source package not found")
 	}
 	types := make(map[string]ast.Expr)
-	for _, file := range pkg.Files {
+	for _, file := range files {
 		for _, declaration := range file.Decls {
 			group, ok := declaration.(*ast.GenDecl)
 			if !ok || group.Tok != token.TYPE {

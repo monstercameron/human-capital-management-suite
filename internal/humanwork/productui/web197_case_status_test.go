@@ -24,7 +24,7 @@ func TestTodo_WEB_197(t *testing.T) {
 	if !ok {
 		t.Fatal("safe participant case status unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("safe participant case status incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

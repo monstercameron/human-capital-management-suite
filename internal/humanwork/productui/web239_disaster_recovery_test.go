@@ -23,7 +23,7 @@ func TestTodo_WEB_239(t *testing.T) {
 	if !ok {
 		t.Fatal("frontend disaster recovery unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("frontend disaster recovery incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

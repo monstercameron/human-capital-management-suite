@@ -1571,14 +1571,6 @@ func stepsLocale(locale, stage string, events []*journeyv1.TimelineEvent, effect
 	return out
 }
 
-// stepTimes maps timeline kinds onto the five business steps. Distinct work
-// item references identify the finance and manager reviews without parsing
-// localized titles; the effective-date timestamp comes from the immutable
-// proposal rather than from a browser clock.
-func stepTimes(events []*journeyv1.TimelineEvent) [5]string {
-	return stepTimesLocale("en-US", events)
-}
-
 func stepTimesLocale(locale string, events []*journeyv1.TimelineEvent) [5]string {
 	var at [5]string
 	workItems := make([]string, 0, 2)
@@ -1610,11 +1602,6 @@ func stepTimesLocale(locale string, events []*journeyv1.TimelineEvent) [5]string
 	return at
 }
 
-// proposalFacts is the request as the engine recorded it.
-func proposalFacts(detail *journeyv1.JourneyDetail) []journey.Fact {
-	return proposalFactsLocale("en-US", detail)
-}
-
 func proposalFactsLocale(locale string, detail *journeyv1.JourneyDetail) []journey.Fact {
 	copy := productui.ResolveProductLocale(locale)
 	j := detail.GetJourney()
@@ -1644,11 +1631,6 @@ func proposalFactsLocale(locale string, detail *journeyv1.JourneyDetail) []journ
 		return nil
 	}
 	return facts
-}
-
-// comparison is the before/after table.
-func comparison(j *journeyv1.Journey) []journey.ComparisonRow {
-	return comparisonLocale("en-US", j)
 }
 
 func comparisonLocale(locale string, j *journeyv1.Journey) []journey.ComparisonRow {
@@ -1702,16 +1684,6 @@ func orDash(s string) string {
 		return emDash
 	}
 	return s
-}
-
-// findings normalises the engine's severities onto the renderer's four.
-//
-// PROMOUX-014's six WAIT_* codes are excluded: they are not a simulation
-// check (this section's own heading is "Preflight and simulation") and
-// [waitExplanationFacts] projects them onto their own, correctly labelled
-// section instead.
-func findings(in []*journeyv1.Finding) []journey.Finding {
-	return findingsLocale("en-US", in)
 }
 
 func findingsLocale(locale string, in []*journeyv1.Finding) []journey.Finding {
@@ -1946,10 +1918,6 @@ func whoWhen(who, when string) string {
 	return who + ", " + when
 }
 
-func ledger(l *journeyv1.LedgerEvent, proposalEffectiveDate string) *journey.LedgerCard {
-	return ledgerLocale("en-US", l, proposalEffectiveDate)
-}
-
 func ledgerLocale(locale string, l *journeyv1.LedgerEvent, proposalEffectiveDate string) *journey.LedgerCard {
 	if l == nil {
 		return nil
@@ -1998,10 +1966,6 @@ func timelineLocale(locale string, in []*journeyv1.TimelineEvent) []journey.Time
 	return collapseTimeline(out)
 }
 
-func timelineActor(e *journeyv1.TimelineEvent) string {
-	return timelineActorLocale("en-US", e)
-}
-
 func timelineActorLocale(locale string, e *journeyv1.TimelineEvent) string {
 	copy := productui.ResolveProductLocale(locale)
 	actor := strings.TrimSpace(e.GetActor())
@@ -2012,10 +1976,6 @@ func timelineActorLocale(locale string, e *journeyv1.TimelineEvent) string {
 		return copy.Text("journey.timeline_system")
 	}
 	return copy.Text("journey.timeline_reviewer")
-}
-
-func timelineTitle(e *journeyv1.TimelineEvent) string {
-	return timelineTitleLocale("en-US", e)
 }
 
 func timelineTitleLocale(locale string, e *journeyv1.TimelineEvent) string {
@@ -2070,10 +2030,6 @@ func timelineTitleLocale(locale string, e *journeyv1.TimelineEvent) string {
 		return copy.Text("journey.timeline_review_updated")
 	}
 	return copy.Text("journey.timeline_update")
-}
-
-func timelineDetail(e *journeyv1.TimelineEvent) string {
-	return timelineDetailLocale("en-US", e)
 }
 
 func timelineDetailLocale(locale string, e *journeyv1.TimelineEvent) string {
@@ -2141,17 +2097,6 @@ func eventTone(e *journeyv1.TimelineEvent) string {
 	}
 }
 
-// effectiveWindow places the effective date against when the proposal was
-// made and when this page's answers were read.
-//
-// It is the one gauge this projection can fill honestly today: Start is the
-// day the intent was created, EffectiveDate the day the change takes effect,
-// and KnownAt the instant the engine last updated the record -- which is the
-// as-known-at time every figure on the page was read at.
-func effectiveWindow(j *journeyv1.Journey) *journey.EffectiveWindow {
-	return effectiveWindowLocale("en-US", j)
-}
-
 func effectiveWindowLocale(locale string, j *journeyv1.Journey) *journey.EffectiveWindow {
 	if j == nil {
 		return nil
@@ -2168,17 +2113,6 @@ func effectiveWindowLocale(locale string, j *journeyv1.Journey) *journey.Effecti
 		KnownAt:       knownAt,
 		Note:          productui.ResolveProductLocale(locale).Text("journey.effective_window_note"),
 	}
-}
-
-// actions is what the signed-in person can do now.
-//
-// The stage decides, and the engine decides again: an action offered here is
-// still authorized server-side, and one refused there becomes a notice. What
-// this projection must not do is offer a decision on a journey that has none
-// (a completed journey's approval work item is closed) or hide the reason an
-// action is unavailable.
-func actions(head journey.JourneyCard, approver string, workItems []*journeyv1.WorkItem, withdrawPreview, cancelPreview *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
-	return actionsLocale("en-US", head, approver, workItems, withdrawPreview, cancelPreview)
 }
 
 func actionsLocale(locale string, head journey.JourneyCard, approver string, workItems []*journeyv1.WorkItem, withdrawPreview, cancelPreview *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
@@ -2496,10 +2430,6 @@ func hasActionableApproval(items []*journeyv1.WorkItem) bool {
 		}
 	}
 	return false
-}
-
-func approverLabel(stage, principal string) string {
-	return approverLabelLocale("en-US", stage, principal)
 }
 
 func approverLabelLocale(locale, stage, principal string) string {

@@ -23,7 +23,7 @@ func TestTodo_WEB_159(t *testing.T) {
 	if !ok {
 		t.Fatal("pay-discrepancy intake unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("pay-discrepancy intake incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

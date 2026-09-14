@@ -23,7 +23,7 @@ func TestTodo_WEB_153(t *testing.T) {
 	if !ok {
 		t.Fatal("protected-leave intake unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("protected-leave intake incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

@@ -23,7 +23,7 @@ func TestTodo_WEB_177(t *testing.T) {
 	if !ok {
 		t.Fatal("career-opportunity discovery unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("career-opportunity discovery incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

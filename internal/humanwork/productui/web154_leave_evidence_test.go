@@ -23,7 +23,7 @@ func TestTodo_WEB_154(t *testing.T) {
 	if !ok {
 		t.Fatal("leave-evidence tasks unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("leave-evidence tasks incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

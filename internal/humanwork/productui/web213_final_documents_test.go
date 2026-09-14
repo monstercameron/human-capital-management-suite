@@ -23,7 +23,7 @@ func TestTodo_WEB_213(t *testing.T) {
 	if !ok {
 		t.Fatal("final-document delivery unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("final-document delivery incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

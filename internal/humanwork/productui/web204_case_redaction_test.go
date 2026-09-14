@@ -23,7 +23,7 @@ func TestTodo_WEB_204(t *testing.T) {
 	if !ok {
 		t.Fatal("case-view redaction and audit unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("case-view redaction and audit incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

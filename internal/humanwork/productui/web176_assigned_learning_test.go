@@ -23,7 +23,7 @@ func TestTodo_WEB_176(t *testing.T) {
 	if !ok {
 		t.Fatal("assigned learning unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("assigned learning incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

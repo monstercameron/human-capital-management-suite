@@ -22,7 +22,7 @@ func TestTodo_WEB_133(t *testing.T) {
 	if !ok {
 		t.Fatal("headcount page unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("headcount page incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

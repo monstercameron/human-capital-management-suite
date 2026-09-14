@@ -25,7 +25,7 @@ func TestTodo_WEB_218(t *testing.T) {
 	if !ok {
 		t.Fatal("certified and customer report distinction unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("certified and customer report distinction incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

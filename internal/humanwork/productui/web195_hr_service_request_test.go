@@ -23,7 +23,7 @@ func TestTodo_WEB_195(t *testing.T) {
 	if !ok {
 		t.Fatal("HR service-request intake unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("HR service-request intake incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

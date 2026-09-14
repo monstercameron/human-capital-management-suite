@@ -23,7 +23,7 @@ func TestTodo_WEB_149(t *testing.T) {
 	if !ok {
 		t.Fatal("time-exception workbench unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("time-exception workbench incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

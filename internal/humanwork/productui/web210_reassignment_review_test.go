@@ -24,7 +24,7 @@ func TestTodo_WEB_210(t *testing.T) {
 	if !ok {
 		t.Fatal("manager and work reassignment review unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("manager and work reassignment review incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

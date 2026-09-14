@@ -23,7 +23,7 @@ func TestTodo_WEB_224(t *testing.T) {
 	if !ok {
 		t.Fatal("governed report export unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("governed report export incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

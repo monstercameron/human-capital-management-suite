@@ -23,7 +23,7 @@ func TestTodo_WEB_138(t *testing.T) {
 	if !ok {
 		t.Fatal("interview scheduling unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("interview scheduling incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

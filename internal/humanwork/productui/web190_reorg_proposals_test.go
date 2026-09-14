@@ -24,7 +24,7 @@ func TestTodo_WEB_190(t *testing.T) {
 	if !ok {
 		t.Fatal("reorganization proposals unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("reorganization proposals incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

@@ -735,14 +735,6 @@ func embeddedListView(p Page, v ListView) ui.Node {
 	)
 }
 
-func leadSentence(p Page) string {
-	who := readableTenantLabel(p.TenantLabel)
-	if who == "" {
-		who = "your organization"
-	}
-	return "Track every promotion in " + who + ", from the initial request through approvals and the recorded outcome."
-}
-
 func readableTenantLabel(value string) string {
 	parts := strings.FieldsFunc(strings.TrimSpace(value), func(r rune) bool {
 		return r == '-' || r == '_'
@@ -870,10 +862,6 @@ func groupedJourneys(cards []JourneyCard) []journeyGroupBlock {
 	return result
 }
 
-func countLabel(n int) string {
-	return countLabelLocale("", n)
-}
-
 func countLabelLocale(locale string, n int) string {
 	copy := productui.ResolveProductLocale(locale)
 	if n == 1 {
@@ -985,10 +973,6 @@ func maskIdentifier(value string) string {
 // journeysEmptyTitle is the Journeys lifecycle tracker's empty-state heading
 // (UXAUDIT-017): it names the tracking task, never a generic "nothing here".
 const journeysEmptyTitle = "No journeys to track"
-
-func emptyState(message string) ui.Node {
-	return emptyStateLocale("", message)
-}
 
 func emptyStateLocale(locale, message string) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
@@ -1342,10 +1326,6 @@ func effectiveDateWaitLocale(locale string, explanation *wait.EffectiveDateWait)
 	)
 }
 
-func detailNavigation(v DetailView) ui.Node {
-	return detailNavigationLocale("en-US", v)
-}
-
 func detailNavigationLocale(locale string, v DetailView) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
 	links := make([]ui.Node, 0, 2)
@@ -1403,10 +1383,6 @@ func heroSectionLocale(locale string, j JourneyCard, diagnostics bool) ui.Node {
 	)
 }
 
-func stepperSection(steps []Step) ui.Node {
-	return stepperSectionLocale("en-US", steps)
-}
-
 func stepperSectionLocale(locale string, steps []Step) ui.Node {
 	if len(steps) == 0 {
 		return nil
@@ -1454,10 +1430,6 @@ func stepNodeLocale(locale string, index int, s Step) ui.Node {
 			}),
 		),
 	)
-}
-
-func proposalDetailSection(v DetailView) ui.Node {
-	return proposalDetailSectionLocale("en-US", v)
 }
 
 func proposalDetailSectionLocale(locale string, v DetailView) ui.Node {
@@ -1527,10 +1499,6 @@ func factsListWithClass(facts []Fact, class string) ui.Node {
 			dd(html.Props{Class: valueClass, Dir: "auto"}, html.Text(f.Value)),
 		)
 	})...)
-}
-
-func comparisonTable(rows []ComparisonRow) ui.Node {
-	return comparisonTableLocale("en-US", rows)
 }
 
 func comparisonTableLocale(locale string, rows []ComparisonRow) ui.Node {
@@ -1630,10 +1598,6 @@ func preflightSectionLocale(locale string, v DetailView) ui.Node {
 	return html.Section(html.Props{Class: "jn-panel", Aria: map[string]string{"labelledby": "findings-heading"}}, children...)
 }
 
-func findingCountLabel(n int) string {
-	return findingCountLabelLocale("en-US", n)
-}
-
 func findingCountLabelLocale(locale string, n int) string {
 	copy := productui.ResolveProductLocale(locale)
 	if n == 1 {
@@ -1669,10 +1633,6 @@ func findingRowLocale(locale string, index int, f Finding) ui.Node {
 			html.P(html.Props{Class: "jn-check-msg"}, html.Text(f.Message)),
 		),
 	)
-}
-
-func diagnosticsSection(v DetailView) ui.Node {
-	return diagnosticsSectionLocale("en-US", v)
 }
 
 func diagnosticsSectionLocale(locale string, v DetailView) ui.Node {
@@ -2190,10 +2150,6 @@ func actionConfirmationCopy(locale string, a Action) (title, review string) {
 		}
 	}
 	return title, review
-}
-
-func timelineSection(events []TimelineEvent) ui.Node {
-	return timelineSectionLocale("en-US", events)
 }
 
 func timelineSectionLocale(locale string, events []TimelineEvent) ui.Node {

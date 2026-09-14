@@ -25,7 +25,7 @@ func TestTodo_WEB_173(t *testing.T) {
 	if !ok {
 		t.Fatal("performance-review workspace unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("performance-review workspace incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

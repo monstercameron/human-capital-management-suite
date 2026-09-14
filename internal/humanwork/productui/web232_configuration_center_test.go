@@ -24,7 +24,7 @@ func TestTodo_WEB_232(t *testing.T) {
 	if !ok {
 		t.Fatal("configuration center unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("configuration center incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

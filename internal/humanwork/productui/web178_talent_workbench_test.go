@@ -23,7 +23,7 @@ func TestTodo_WEB_178(t *testing.T) {
 	if !ok {
 		t.Fatal("manager talent workbench unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("manager talent workbench incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

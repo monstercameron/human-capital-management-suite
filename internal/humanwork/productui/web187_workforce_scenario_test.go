@@ -23,7 +23,7 @@ func TestTodo_WEB_187(t *testing.T) {
 	if !ok {
 		t.Fatal("workforce scenario authoring unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("workforce scenario authoring incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

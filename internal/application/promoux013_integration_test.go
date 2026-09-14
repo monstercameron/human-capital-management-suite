@@ -14,33 +14,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
-// promotionApproverContext supplies the independently authenticated, routed
-// finance or manager actor. The proposal initiator must never decide either
-// approval, even in an integration fixture.
-func promotionApproverContext(t *testing.T, now time.Time, subject string) context.Context {
-	t.Helper()
-	verifier, err := trust.NewHMACVerifier(trust.HMACVerifierConfig{
-		Key: []byte(integrationSigningKey), Issuer: DefaultIssuer, Audience: DefaultAudience, Now: func() time.Time { return now },
-	})
-	if err != nil {
-		t.Fatalf("approver verifier: %v", err)
-	}
-	token, err := verifier.Issue(trust.Claims{
-		Issuer: DefaultIssuer, Audience: DefaultAudience, Subject: subject, SubjectKind: "human", Tenant: string(fixtures.Tenant),
-		OrganizationScopeID: "org-north-america", Roles: []string{"comp_admin", "promotion_operator"}, Purposes: []string{"compensation_review"},
-		AuthenticationMethod: "bearer_token", Assurance: "substantial", SessionRef: "session:" + subject,
-		IssuedAtUnix: now.Add(-time.Minute).Unix(), ExpiresAtUnix: now.Add(48 * time.Hour).Unix(),
-	})
-	if err != nil {
-		t.Fatalf("issue routed approver credential: %v", err)
-	}
-	principal, err := verifier.Verify(context.Background(), trust.Credential{Scheme: "Bearer", Token: token, Audience: DefaultAudience})
-	if err != nil {
-		t.Fatalf("verify routed approver credential: %v", err)
-	}
-	return trust.WithPrincipal(context.Background(), principal)
-}
-
 // promoux013Composed builds one full production composition (real
 // PostgreSQL via pgtest, the real journey engine, the real P1B execution
 // authority) exactly as TestTodo_PROMOUX_014_Integration does, and returns a

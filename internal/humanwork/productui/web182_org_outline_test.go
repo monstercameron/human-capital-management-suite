@@ -23,7 +23,7 @@ func TestTodo_WEB_182(t *testing.T) {
 	if !ok {
 		t.Fatal("accessible organization outline unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("accessible organization outline incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

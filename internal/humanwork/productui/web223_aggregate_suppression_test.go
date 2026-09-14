@@ -24,7 +24,7 @@ func TestTodo_WEB_223(t *testing.T) {
 	if !ok {
 		t.Fatal("aggregate suppression states unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("aggregate suppression states incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

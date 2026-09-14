@@ -23,7 +23,7 @@ func TestTodo_WEB_150(t *testing.T) {
 	if !ok {
 		t.Fatal("time-off balance and calendar unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("time-off balance and calendar incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

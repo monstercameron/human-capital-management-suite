@@ -23,7 +23,7 @@ func TestTodo_WEB_205(t *testing.T) {
 	if !ok {
 		t.Fatal("exit initiation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("exit initiation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

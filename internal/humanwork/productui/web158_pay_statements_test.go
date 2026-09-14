@@ -23,7 +23,7 @@ func TestTodo_WEB_158(t *testing.T) {
 	if !ok {
 		t.Fatal("accessible pay statements unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("accessible pay statements incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

@@ -23,7 +23,7 @@ func TestTodo_WEB_141(t *testing.T) {
 	if !ok {
 		t.Fatal("candidate portal unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("candidate portal incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

@@ -23,7 +23,7 @@ func TestTodo_WEB_181(t *testing.T) {
 	if !ok {
 		t.Fatal("organization explorer unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("organization explorer incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

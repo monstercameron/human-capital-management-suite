@@ -23,7 +23,7 @@ func TestTodo_WEB_230(t *testing.T) {
 	if !ok {
 		t.Fatal("Policy Studio unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("Policy Studio incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

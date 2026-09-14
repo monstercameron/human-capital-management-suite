@@ -24,7 +24,7 @@ func TestTodo_WEB_208(t *testing.T) {
 	if !ok {
 		t.Fatal("exit review and approval unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("exit review and approval incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

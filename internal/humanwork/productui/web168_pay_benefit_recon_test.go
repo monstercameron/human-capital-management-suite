@@ -24,7 +24,7 @@ func TestTodo_WEB_168(t *testing.T) {
 	if !ok {
 		t.Fatal("payroll and benefit reconciliation status unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("payroll and benefit reconciliation status incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

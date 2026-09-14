@@ -23,7 +23,7 @@ func TestTodo_WEB_156(t *testing.T) {
 	if !ok {
 		t.Fatal("return-to-work planning unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("return-to-work planning incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

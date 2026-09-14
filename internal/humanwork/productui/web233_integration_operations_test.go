@@ -24,7 +24,7 @@ func TestTodo_WEB_233(t *testing.T) {
 	if !ok {
 		t.Fatal("integration operations unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("integration operations incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

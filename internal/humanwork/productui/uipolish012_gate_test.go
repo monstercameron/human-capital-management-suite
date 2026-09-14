@@ -31,7 +31,7 @@ func TestTodo_UIPOLISH_012(t *testing.T) {
 	}
 	seen := map[PageID]bool{}
 	for _, definition := range definitions {
-		if definition.ID == "" || definition.Route == "" || definition.render == nil {
+		if definition.ID == "" || definition.Route == "" || pageRenderer(definition.ID) == nil {
 			t.Fatalf("incomplete production page definition: %+v", definition)
 		}
 		if seen[definition.ID] {

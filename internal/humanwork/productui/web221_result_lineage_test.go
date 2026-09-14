@@ -24,7 +24,7 @@ func TestTodo_WEB_221(t *testing.T) {
 	if !ok {
 		t.Fatal("result lineage presentation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("result lineage presentation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

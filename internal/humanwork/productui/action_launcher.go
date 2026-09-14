@@ -450,15 +450,6 @@ func uniqueLauncherActionProjection(values []LauncherActionProjection, id string
 	return result, found
 }
 
-func personWorkflowByID(workflows []PersonWorkflow, id string) (PersonWorkflow, bool) {
-	for _, workflow := range workflows {
-		if workflow.ID == id {
-			return workflow, true
-		}
-	}
-	return PersonWorkflow{}, false
-}
-
 // RankActionLauncherItems performs deterministic typo-tolerant ranking over
 // the local authorized starts. It never contacts a server and never reveals
 // records outside the already-resolved projection.

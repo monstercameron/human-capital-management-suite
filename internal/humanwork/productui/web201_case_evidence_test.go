@@ -24,7 +24,7 @@ func TestTodo_WEB_201(t *testing.T) {
 	if !ok {
 		t.Fatal("restricted case evidence review unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("restricted case evidence review incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)

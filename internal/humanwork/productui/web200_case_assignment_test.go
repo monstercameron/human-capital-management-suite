@@ -23,7 +23,7 @@ func TestTodo_WEB_200(t *testing.T) {
 	if !ok {
 		t.Fatal("case assignment and recusal unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("case assignment and recusal incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
