@@ -235,8 +235,7 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 		return trust.WithPrincipal(context.Background(), principal)
 	}
 	ctx := contextFor(subject, "session:application-execute-plan")
-	financeCtx := contextFor(approver, "session:application-finance")
-	managerCtx := contextFor(managerApprover, "session:application-manager")
+	financeCtx, managerCtx := routedApproverContexts(t, verifier, cfg, clockAt)
 	journey := composed.Cell().Journey
 	// TargetPositionID is deliberately absent: PROMOUX-004 checks a
 	// non-empty value against the real Position domain, and this

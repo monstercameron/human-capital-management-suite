@@ -83,6 +83,7 @@ type authorizationRequest struct {
 	// on the caller's own administrative or self scope. A workflow approval may
 	// supply the exact durable assignment fact that authorizes its current
 	// owner to review that one proposal; it never widens population access.
+	// Manager-chain facts are also supplied for worker reads.
 	Relationships []authz.RelationshipFact
 }
 

@@ -30,11 +30,24 @@ type DevPersonaRoleSet struct {
 // workforce-wide. This is option (b): the smaller, safer fix that makes the
 // fixture's promise match its admitted capability instead of inventing a
 // new surface.
+//
+// PROMOUX-015: that slot is now the finance approver. A promotion needs four
+// separated people -- a proposer, a finance approver, a manager approver and
+// the employee -- and the worker_self payroll slot could do none of those
+// steps. It is renamed "finance-partner" and carries the narrow
+// "finance_partner" role (roleaccess: Home, Myself, My Work with update, Work
+// History, Organization, Help and Settings; authz: the worker core and
+// compensation under compensation_review), so it can decide the finance
+// approval routed to it and nothing else. The admin persona is the manager
+// approver: its worker manages the employee persona's worker, and it holds the
+// execution role. The hiring-manager persona is the proposer, bound to the
+// employee's skip-level manager, because the reference workflow's manager
+// approval is CurrentManagerOf(worker) and the requester may not approve.
 func DevPersonaRoleSets() []DevPersonaRoleSet {
 	return []DevPersonaRoleSet{
 		{ID: "admin", Roles: []string{"hcm_admin", "comp_admin", "intent_author", "promotion_operator"}},
 		{ID: "hiring-manager", Roles: []string{"hiring_manager", "manager", "intent_author"}},
-		{ID: "payroll-manager", Roles: []string{"worker_self"}},
+		{ID: "finance-partner", Roles: []string{"finance_partner"}},
 		{ID: "individual-contributor", Roles: []string{"worker_self"}},
 	}
 }

@@ -201,7 +201,11 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 		return trust.WithPrincipal(context.Background(), principal)
 	}
 	ctx := principalContext(operator, []string{"intent_author", "comp_admin", "promotion_operator"})
-	financeCtx := principalContext(financeApprover, []string{"comp_admin", "promotion_operator"})
+	routedFinance, err := promotionexec.FinanceApproverFor(financeApprover)
+	if err != nil {
+		t.Fatalf("derive finance approver: %v", err)
+	}
+	financeCtx := principalContext(routedFinance, []string{"comp_admin"})
 	managerCtx := principalContext(managerApprover, []string{"manager", "comp_admin", "promotion_operator"})
 
 	journey := composed.Cell().Journey
@@ -420,7 +424,9 @@ func sameStringMap(left, right map[string]string) bool {
 
 func workspaceProposalForPROMO009(positionRef string) workspace.ProposalInput {
 	return workspace.ProposalInput{
-		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", TargetPositionID: positionRef,
+		// No TargetPositionID: PROMOUX-004 refuses every position reference
+		// no picker issued, and POS-HRBP-301 is not a corpus position.
+		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
 		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "promotion_into_senior_hrbp",
 	}
 }

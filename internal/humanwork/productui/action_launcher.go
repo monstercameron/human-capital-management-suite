@@ -576,7 +576,6 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 	}
 	dialogChildren := []ui.Node{
 		html.Div(html.Props{Class: "action-launcher-head"},
-
 			html.Strong(html.Props{}, ui.Text(props.Text(dialogKey))),
 			html.Label(html.Props{Class: "sr-only", For: "action-launcher-input"}, ui.Text(props.Text(filterKey))),
 			html.Tag("input", html.Props{

@@ -112,6 +112,8 @@ func TestTodo_PROMOUX_014_Recovery(t *testing.T) {
 		t.Fatalf("verify journey credential: %v", err)
 	}
 	ctx := trust.WithPrincipal(context.Background(), principal)
+	// PROMOUX-015: each approval is decided by its routed assignee.
+	financeCtx, managerCtx := routedApproverContexts(t, verifier, cfg, now)
 	journey := composed.Cell().Journey
 
 	proposed, err := journey.Propose(ctx, workspace.ProposalInput{
@@ -125,11 +127,11 @@ func TestTodo_PROMOUX_014_Recovery(t *testing.T) {
 		t.Fatalf("Journey.Execute: %v", err)
 	}
 	now = now.Add(10 * time.Minute)
-	if _, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"}); err != nil {
+	if _, err := journey.Decide(financeCtx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"}); err != nil {
 		t.Fatalf("Journey.Decide(finance): %v", err)
 	}
 	now = now.Add(10 * time.Minute)
-	waiting, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
+	waiting, err := journey.Decide(managerCtx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
 	if err != nil {
 		t.Fatalf("Journey.Decide(manager): %v", err)
 	}

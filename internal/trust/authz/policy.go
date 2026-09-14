@@ -81,7 +81,7 @@ func (e Effect) rank() int {
 // token, not a display label.
 type RoleID string
 
-// The six P1A bootstrap role templates.
+// The P1A bootstrap role templates.
 const (
 	RoleWorkerSelf     RoleID = "worker_self"
 	RoleManager        RoleID = "manager"
@@ -89,13 +89,19 @@ const (
 	RoleCompAdmin      RoleID = "comp_admin"
 	RolePayrollManager RoleID = "payroll_manager"
 	RoleAuditor        RoleID = "auditor"
+	// RoleFinancePartner is PROMOUX-015's finance approver: it reviews the
+	// compensation a promotion moves under compensation_review and nothing
+	// else. No cost-center relationship graph exists in this release, so its
+	// scope is the administrative tenant/organization boundary (see
+	// [administrativeRoleOrder]) rather than FinancePartnerFor(cost_center).
+	RoleFinancePartner RoleID = "finance_partner"
 )
 
 // roleEvaluationOrder is the fixed order roles are evaluated in wherever more
 // than one of a principal's roles could produce a ruling. Ties are broken by
 // [Effect.rank], but the order still has to be fixed for the evidence trail
 // (matched rule IDs) to be deterministic across runs with the same input.
-var roleEvaluationOrder = []RoleID{RoleWorkerSelf, RoleManager, RoleHRPartner, RoleCompAdmin, RolePayrollManager, RoleAuditor}
+var roleEvaluationOrder = []RoleID{RoleWorkerSelf, RoleManager, RoleHRPartner, RoleCompAdmin, RolePayrollManager, RoleAuditor, RoleFinancePartner}
 
 // rolesOf returns the subset of principal's roles this policy table
 // recognizes, in [roleEvaluationOrder]. [roleEvaluationOrder] is the closed
@@ -279,6 +285,10 @@ var PolicyTable = map[RoleID]map[DataDomain]PurposeGrant{
 		DomainTax:  {RuleID: "p1a.payroll_manager.tax", Purposes: []string{PurposePayrollProcessing}, Effect: EffectAllow},
 		DomainBank: {RuleID: "p1a.payroll_manager.bank", Purposes: []string{PurposePayrollProcessing}, Effect: EffectAllow},
 	},
+	RoleFinancePartner: {
+		DomainCore:         {RuleID: "p1a.finance_partner.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainCompensation: {RuleID: "p1a.finance_partner.compensation", Purposes: []string{PurposeCompensationReview}, Effect: EffectAllow},
+	},
 	RoleAuditor: {
 		DomainCore:    {RuleID: "p1a.auditor.core", AnyPurpose: true, Effect: EffectAllow},
 		DomainContact: {RuleID: "p1a.auditor.contact", AnyPurpose: true, Effect: EffectAllow},
@@ -313,7 +323,7 @@ var PolicyTable = map[RoleID]map[DataDomain]PurposeGrant{
 // someone's manager or HR partner. It is a fixed-order slice, not a map, so
 // that a principal holding more than one administrative role still resolves
 // to a deterministic matched rule.
-var administrativeRoleOrder = []RoleID{RoleCompAdmin, RolePayrollManager, RoleAuditor}
+var administrativeRoleOrder = []RoleID{RoleCompAdmin, RolePayrollManager, RoleAuditor, RoleFinancePartner}
 
 // ErrInvalidPolicyInput is returned when a caller-supplied argument to one of
 // this package's resolvers is malformed enough that no decision, not even a

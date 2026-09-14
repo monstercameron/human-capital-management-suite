@@ -471,6 +471,7 @@ func (e *journeyEngine) inspectWithRelationships(
 	if relErr != nil {
 		return workspace.JourneyDetail{}, relErr
 	}
+	relationships = append(relationships, managerChainFacts(ctx, e.locate, principal, summary.Worker)...)
 	if len(carried) != 0 {
 		relationships = append(append([]authz.RelationshipFact(nil), carried...), relationships...)
 	}

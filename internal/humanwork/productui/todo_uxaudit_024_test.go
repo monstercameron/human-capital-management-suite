@@ -476,7 +476,8 @@ func TestTodo_UXAUDIT_024_Security(t *testing.T) {
 		{"worker_self"},
 		{"hcm_admin", "comp_admin", "intent_author", "promotion_operator"}, // admin persona
 		{"hiring_manager", "manager", "intent_author"},                     // hiring-manager persona
-		{"worker_self"}, // payroll-manager / individual-contributor persona
+		{"worker_self"},     // individual-contributor persona
+		{"finance_partner"}, // finance-partner persona (PROMOUX-015)
 		{"manager", "worker_self"},
 		{"hr_partner", "promotion_operator"},
 		{"no_such_role"},

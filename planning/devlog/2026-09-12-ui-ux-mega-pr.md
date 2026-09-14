@@ -2611,3 +2611,32 @@ now in a dedicated uninstrumented/race-excluded file; its other semantic
 tests remain in the tagged build. Global-search timing uses the same tag
 boundary. Both timing tests passed uninstrumented, and the covered product UI
 package now compiles with the gate tag.
+
+### Paused promotion work and UX merge (2026-09-14)
+
+The clean UX reconciliation commit `655e12d6` and the paused promotion work
+preservation commit `c23b9c0c` were merged in an isolated worktree, leaving
+both source commits and the original UX snapshot intact. The paused work's
+standalone staged coverage passed twice (15 packages), and its remaining
+policy, TypeScript, nested Go and build checks passed independently. The
+user explicitly requested bypassing the third redundant hook pass after a
+browser-test lint fix and architecture-inventory regeneration; the commit
+records that exception rather than claiming a completed hook run.
+
+The combined tree required semantic reconciliation, not a wholesale side
+choice. It keeps the UX manager-approver setting alongside the finance-partner
+route, uses the worker relationship graph first, and applies the configured
+manager fallback only outside that graph. It also removed a duplicate
+published-path append, fenced demo pay bands by tenant, classified rejected
+promotion decisions before writes, and fixed test helpers that had issued
+reviewer credentials for the proposer. The Go/WASM bundle, asset integrity
+manifest and architecture inventory were regenerated from the merged source.
+
+Verification on the combined tree: `npm run test:all`; full Go package suites
+for `internal/application`, `internal/intent/app`, `internal/platform/execution`,
+`internal/platform/sandbox`, `internal/trust/authz`, `internal/humanwork/workspace`,
+`test/bootstrap`, `test/workflow`, and `test/workspace`; and the product UI,
+journey WASM, and product-client suites. The product UI suite reported `ok`
+before a Windows temporary-binary unlink denial. A combined staged-coverage
+pass, Linux race CI, and an interactive browser pass were not run in this
+reconciliation; they are not represented as green.

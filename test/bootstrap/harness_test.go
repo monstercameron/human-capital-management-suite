@@ -277,6 +277,8 @@ func promoteWorkerRequest(t *testing.T, idempotencyKey string) *intentsv1.Create
 		"target": map[string]any{
 			"job_code": "OPS-HRBP3",
 			"grade":    "P3",
+			// No position_id: PROMOUX-004 refuses every position reference
+			// no picker issued, and POS-HRBP-301 is not a corpus position.
 			"org_unit": "people-ops",
 			"pay_zone": "US-EAST",
 		},

@@ -25,16 +25,16 @@ func TestComposeDevPersonasIssuesFourDistinctVerifiedIdentities(t *testing.T) {
 		t.Fatalf("personas = %d, want 4", len(personas))
 	}
 	wantSubject := map[string]string{
-		"admin": "hc-050-rafael-torres", "hiring-manager": "hc-052-dominic-collins",
-		"payroll-manager": "hc-054-thomas-baker", "individual-contributor": "hc-022-samuel-rivera",
+		"admin": "hc-050-rafael-torres", "hiring-manager": "hc-004-darius-bennett",
+		"finance-partner": "hc-054-thomas-baker", "individual-contributor": "hc-051-linh-tran",
 	}
 	wantName := map[string]string{
-		"admin": "Rafael Torres", "hiring-manager": "Dominic Collins",
-		"payroll-manager": "Thomas Baker", "individual-contributor": "Samuel Rivera",
+		"admin": "Rafael Torres", "hiring-manager": "Darius Bennett",
+		"finance-partner": "Thomas Baker", "individual-contributor": "Linh Tran",
 	}
 	wantPurpose := map[string]string{
 		"admin": "compensation_review", "hiring-manager": "compensation_review",
-		"payroll-manager": "self_service_view", "individual-contributor": "self_service_view",
+		"finance-partner": "compensation_review", "individual-contributor": "self_service_view",
 	}
 	planned, err := demoworkforce.Plan(pgstore.TenantID(cfg.Tenant))
 	if err != nil {

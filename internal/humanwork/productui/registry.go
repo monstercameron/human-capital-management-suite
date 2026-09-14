@@ -55,6 +55,14 @@ func PageVisible(page PageID, roles []string) bool {
 	if hasAnyProductRole(roles, RoleHCMAdmin, "comp_admin") {
 		return true
 	}
+	// PROMOUX-015: mirrors roleaccess.DefaultPagePermissions' finance_partner
+	// grant (Home, Help and Settings are every role's baseline below).
+	if hasProductRole(roles, "finance_partner") {
+		switch page {
+		case PageMyself, PageWork, PageHistory, PageOrganization:
+			return true
+		}
+	}
 	switch page {
 	case PageHome, PageHelp, PageSettings:
 		return true

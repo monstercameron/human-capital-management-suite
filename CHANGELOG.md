@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-14 (UX reconciliation and PROMOUX-015)
+
+- Reconciled the UX workspace with promotion approval routing: finance approvals reach the configured finance partner, manager approvals use the worker's current manager when that relationship exists, and the two deciders remain separate from the requester and employee.
+- The development sign-in set now includes a finance-partner account that can act on its own assigned approval without broad promotion execution authority. Historical journey reads use the current manager relationship when authorized.
+- Rebuilt the Go/WASM bundle and integrity manifest from the reconciled source. Promotion path selection and demo pay-band reads remain bounded by the published path and tenant.
+
 ## 2026-09-13 (UXAUDIT-014)
 
 - Development persona copy is derived, not written. `loginPersonaDescription`

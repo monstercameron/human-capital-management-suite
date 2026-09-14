@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 )
 
 // TestTodo_PROMOUX_015_Integration is the bounded multi-persona promotion
@@ -72,7 +73,7 @@ func TestTodo_PROMOUX_015_Integration(t *testing.T) {
 
 	finance := h.ctxAs(t, "principal:finance-approver", journeyOperatorRoles()...)
 	beforeRefusal := snapshotDatabase(t, h.cell)
-	if _, err := h.engine.Decide(finance, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance-approved"}); err == nil || !strings.Contains(err.Error(), "not the routed approver") {
+	if _, err := h.engine.Decide(finance, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance-approved"}); !errors.Is(err, app.ErrProposalDecisionRoute) || !errors.Is(err, workspace.ErrDenied) {
 		t.Fatalf("Decide(finance): %v, want routed-approver authorization refusal", err)
 	}
 	assertSnapshotsEqual(t, beforeRefusal, snapshotDatabase(t, h.cell))

@@ -27,9 +27,9 @@ func TestTodo_UXAUDIT_014_Browser_Live(t *testing.T) {
 	}
 	personas := []personaCase{
 		{id: "admin", name: "Rafael Torres", subject: "hc-050-rafael-torres", landing: PathProductHome, roles: []string{productui.RoleHCMAdmin, "comp_admin", "intent_author", "promotion_operator"}},
-		{id: "hiring-manager", name: "Dominic Collins", subject: "hc-052-dominic-collins", landing: PathProductPrefix + "people", roles: []string{"hiring_manager", "manager", "intent_author", "promotion_operator"}},
-		{id: "payroll-manager", name: "Thomas Baker", subject: "hc-054-thomas-baker", landing: PathProductPrefix + "work", roles: []string{"payroll_manager", "promotion_operator"}},
-		{id: "individual-contributor", name: "Samuel Rivera", subject: "hc-022-samuel-rivera", landing: PathProductPrefix + "myself", roles: []string{"worker_self"}},
+		{id: "hiring-manager", name: "Darius Bennett", subject: "hc-004-darius-bennett", landing: PathProductPrefix + "people", roles: []string{"hiring_manager", "manager", "intent_author"}},
+		{id: "finance-partner", name: "Thomas Baker", subject: "hc-054-thomas-baker", landing: PathProductHome, roles: []string{"finance_partner"}},
+		{id: "individual-contributor", name: "Linh Tran", subject: "hc-051-linh-tran", landing: PathProductPrefix + "myself", roles: []string{"worker_self"}},
 	}
 
 	handler, _ := newShellHandler(t, true)
@@ -116,9 +116,9 @@ func TestTodo_UXAUDIT_014_Browser_Live(t *testing.T) {
 				if !organizationNav || !promote {
 					t.Fatal("hiring-manager landing lost its organization path or promotion action")
 				}
-			case "payroll-manager":
-				if organizationNav || promote {
-					t.Fatal("payroll-manager landing advertised organization browsing or promotion initiation")
+			case "finance-partner":
+				if !organizationNav || promote {
+					t.Fatal("finance partner landing lost organization browsing or advertised promotion initiation")
 				}
 			case "individual-contributor":
 				if promote || strings.Contains(landingBody, `href="/workspace/app/people`) {

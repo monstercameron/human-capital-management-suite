@@ -151,7 +151,7 @@ func signedInClient(t *testing.T, serverURL, personaID string) *http.Client {
 	wantLanding := map[string]string{
 		"admin":                  PathProductHome,
 		"hiring-manager":         PathProductPrefix + "people",
-		"payroll-manager":        PathProductPrefix + "myself",
+		"finance-partner":        PathProductHome,
 		"individual-contributor": PathProductPrefix + "myself",
 	}[personaID]
 	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != wantLanding {
@@ -230,20 +230,27 @@ func TestTodo_UXAUDIT_014(t *testing.T) {
 		}
 	}
 
-	// RED clause 2 at the fixture layer: hiring-manager
-	// ({hiring_manager,manager,intent_author}) and payroll-manager
-	// ({worker_self}) hold disjoint role sets and must derive different
-	// destination-label sets.
-	hiring := labelsByID["hiring-manager"]
-	payroll := labelsByID["payroll-manager"]
-	if strings.Join(hiring, ",") == strings.Join(payroll, ",") {
-		t.Fatalf("hiring-manager and payroll-manager derive identical destinations: %v", hiring)
+	// RED clause 2 at the fixture layer: every pair of the four personas holds
+	// a different role bundle and must derive a different destination-label
+	// set. PROMOUX-015 replaced the payroll-manager worker_self slot with the
+	// finance-partner approver, so all four bundles are now distinct.
+	for i, a := range sets {
+		for _, b := range sets[i+1:] {
+			if strings.Join(labelsByID[a.ID], ",") == strings.Join(labelsByID[b.ID], ",") {
+				t.Errorf("%s and %s derive identical destinations: %v", a.ID, b.ID, labelsByID[a.ID])
+			}
+		}
 	}
+	hiring := labelsByID["hiring-manager"]
+	finance := labelsByID["finance-partner"]
 	if !containsLabel(hiring, "People") || !containsLabel(hiring, "Journeys") {
 		t.Errorf("hiring-manager labels = %v, want People and Journeys (its manager role admits both)", hiring)
 	}
-	if containsLabel(payroll, "People") || containsLabel(payroll, "Journeys") {
-		t.Errorf("payroll-manager labels = %v, want neither People nor Journeys (worker_self admits neither)", payroll)
+	if containsLabel(finance, "People") || containsLabel(finance, "Journeys") || containsLabel(finance, "Insights") {
+		t.Errorf("finance-partner labels = %v, want no People, Journeys or Insights (finance_partner admits none)", finance)
+	}
+	if !containsLabel(finance, "My Work") || !containsLabel(finance, "Myself") || !containsLabel(finance, "Organization") {
+		t.Errorf("finance-partner labels = %v, want My Work, Myself and Organization", finance)
 	}
 }
 
@@ -273,10 +280,14 @@ func TestTodo_UXAUDIT_014_Browser(t *testing.T) {
 		{"hiring-manager", PathProductPrefix + "journeys", http.StatusOK},
 		{"hiring-manager", PathProductPrefix + "myself", http.StatusOK},
 		{"hiring-manager", PathProductPrefix + "admin", http.StatusForbidden},
-		{"payroll-manager", PathProductPrefix + "people", http.StatusForbidden},
-		{"payroll-manager", PathProductPrefix + "journeys", http.StatusForbidden},
-		{"payroll-manager", PathProductPrefix + "myself", http.StatusOK},
-		{"payroll-manager", PathProductPrefix + "organization", http.StatusOK},
+		{"finance-partner", PathProductPrefix + "people", http.StatusForbidden},
+		{"finance-partner", PathProductPrefix + "person", http.StatusForbidden},
+		{"finance-partner", PathProductPrefix + "journeys", http.StatusForbidden},
+		{"finance-partner", PathProductPrefix + "insights", http.StatusForbidden},
+		{"finance-partner", PathProductPrefix + "myself", http.StatusOK},
+		{"finance-partner", PathProductPrefix + "organization", http.StatusOK},
+		{"finance-partner", PathProductPrefix + "work", http.StatusOK},
+		{"finance-partner", PathProductPrefix + "history", http.StatusOK},
 		{"individual-contributor", PathProductPrefix + "people", http.StatusForbidden},
 		{"admin", PathProductPrefix + "admin", http.StatusOK},
 	}
@@ -331,11 +342,20 @@ func TestTodo_UXAUDIT_014_Security(t *testing.T) {
 		PathProductPrefix + "history",
 		PathProductPrefix + "admin",
 	}
-	for _, persona := range []string{"payroll-manager", "individual-contributor"} {
+	// PROMOUX-015: finance-partner is admitted My Work and Work History (it
+	// decides the approvals routed to it) but nothing workforce-wide.
+	deniedByPersona := map[string][]string{
+		"individual-contributor": deniedRoutes,
+		"finance-partner": {
+			PathProductPrefix + "people", PathProductPrefix + "person", PathProductPrefix + "journeys",
+			PathProductPrefix + "insights", PathProductPrefix + "admin",
+		},
+	}
+	for _, persona := range []string{"finance-partner", "individual-contributor"} {
 		persona := persona
 		t.Run(persona, func(t *testing.T) {
 			client := signedInClient(t, serverURL, persona)
-			for _, route := range deniedRoutes {
+			for _, route := range deniedByPersona[persona] {
 				route := route
 				t.Run(route, func(t *testing.T) {
 					res, err := client.Get(serverURL + route)
@@ -501,8 +521,9 @@ func TestTodo_UXAUDIT_014_CopyMatchesMenu(t *testing.T) {
 		}
 	}
 	loginRes.Body.Close()
-	cards := personaCards(t, loginBody.String(), "admin", "hiring-manager", "payroll-manager", "individual-contributor")
+	cards := personaCards(t, loginBody.String(), "admin", "hiring-manager", "finance-partner", "individual-contributor")
 
+	claimedByID := map[string]map[string]bool{}
 	for _, set := range DevPersonaRoleSets() {
 		card := cards[set.ID]
 
@@ -534,6 +555,19 @@ func TestTodo_UXAUDIT_014_CopyMatchesMenu(t *testing.T) {
 		if !sameLabelSet(claimed, actual) {
 			t.Errorf("%s: card claims %v, live menu renders %v (folded) -- symmetric difference: %v",
 				set.ID, sortedLabelKeys(claimed), sortedLabelKeys(actual), symmetricLabelDifference(claimed, actual))
+		}
+		claimedByID[set.ID] = claimed
+	}
+
+	// PROMOUX-015 extension: the four personas are four separated promotion
+	// roles, so every pair of cards must claim a different destination set;
+	// two cards promising the same menu would again be indistinguishable.
+	sets := DevPersonaRoleSets()
+	for i, a := range sets {
+		for _, b := range sets[i+1:] {
+			if sameLabelSet(claimedByID[a.ID], claimedByID[b.ID]) {
+				t.Errorf("%s and %s cards claim the same destinations %v", a.ID, b.ID, sortedLabelKeys(claimedByID[a.ID]))
+			}
 		}
 	}
 }

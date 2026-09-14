@@ -19,6 +19,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
@@ -114,9 +115,13 @@ func newPromoUXServer(t *testing.T) *promoUXServer {
 	if err != nil {
 		t.Fatalf("build promo UX verifier: %v", err)
 	}
+	financePrincipal, err := promotionexec.FinanceApproverFor(cfg.ExecutionApprover)
+	if err != nil {
+		t.Fatalf("derive routed finance approver: %v", err)
+	}
 	people := map[string]promoUXPersona{
 		"proposer": {Name: "proposer", Subject: "principal:promo-ux-proposer", Roles: []string{"intent_author", "comp_admin", "promotion_operator"}},
-		"finance":  {Name: "finance", Subject: "principal:promo-ux-finance", Roles: []string{"payroll_manager", "promotion_operator"}},
+		"finance":  {Name: "finance", Subject: financePrincipal, Roles: []string{"payroll_manager"}},
 		"manager":  {Name: "manager", Subject: "principal:promo-ux-manager", Roles: []string{"hiring_manager", "manager", "promotion_operator"}},
 		"employee": {Name: "employee", Subject: "principal:promo-ux-employee", Roles: []string{"worker_self"}},
 	}

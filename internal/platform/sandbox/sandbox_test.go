@@ -11,6 +11,8 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
 )
 
 func TestMain(m *testing.M) { pgtest.RunMain(m) }
@@ -161,6 +163,7 @@ func TestTodo_SANDBOX_001(t *testing.T) {
 	if proof.Detail.Ledger == nil {
 		t.Fatal("proof recorded no terminal ledger write")
 	}
+	assertDecidedByRoutedApprovers(t, pool, sb, proof)
 
 	if got := sb.Fence().Count(); got != 0 {
 		t.Fatalf("fence recorded %d refusals during a run that should reach nothing fenced: %+v", got, sb.Fence().Refusals())
@@ -287,9 +290,11 @@ func TestTodo_SANDBOX_001_Recovery(t *testing.T) {
 	// moving target. See mutableTenantRows.
 	baselineRows := mutableTenantRows(t, pool, sb)
 
-	if _, err := sb.RunPromotionProof(context.Background(), promotionInput()); err != nil {
+	proof, err := sb.RunPromotionProof(context.Background(), promotionInput())
+	if err != nil {
 		t.Fatalf("RunPromotionProof: %v", err)
 	}
+	assertDecidedByRoutedApprovers(t, pool, sb, proof)
 	grownRows := mutableTenantRows(t, pool, sb)
 	if grownRows <= baselineRows {
 		t.Fatalf("running a promotion did not grow the tenant's own mutable row count: baseline %d, after %d", baselineRows, grownRows)
@@ -377,5 +382,97 @@ func TestTodo_SANDBOX_001_Race(t *testing.T) {
 	}
 	if a.TenantID() == b.TenantID() {
 		t.Fatal("two distinct sandbox slugs collided onto the same tenant id")
+	}
+}
+
+// expectedRoutedApprover is who the composition's routing assigns an
+// approval requirement to for a corpus worker (no manager fact, no finance
+// partner configured): the prototype approval goes to the configured
+// ExecutionApprover, and the executable plan's finance and manager approvals
+// to PROMOUX-003's class-scoped derivations of it. It is computed from the
+// same derivations internal/platform/execution routes with, independently of
+// the WorkItem the proof reads its approver from.
+func expectedRoutedApprover(t *testing.T, requirement string) string {
+	t.Helper()
+	var (
+		want string
+		err  error
+	)
+	switch requirement {
+	case prototype.ApprovalRequirementID:
+		want = sandboxApproverRef
+	case promotionexec.ApprovalFinance:
+		want, err = promotionexec.FinanceApproverFor(sandboxApproverRef)
+	case promotionexec.ApprovalManager:
+		want, err = promotionexec.ManagerApproverFor(sandboxApproverRef)
+	default:
+		t.Fatalf("decision under unexpected requirement %q", requirement)
+	}
+	if err != nil {
+		t.Fatalf("derive the routed approver for %s: %v", requirement, err)
+	}
+	return want
+}
+
+// assertDecidedByRoutedApprovers proves separation of duties on the durable
+// record: every human approval decision this proof recorded -- the
+// intent_decision row and the completed WorkItem alike -- names the principal
+// the composition routed that approval to, never the sandbox initiator, and no
+// one principal decided two approvals of the proposal.
+func assertDecidedByRoutedApprovers(t *testing.T, pool *pgxadapter.Pool, sb *Sandbox, proof *PromotionProof) {
+	t.Helper()
+	ctx := context.Background()
+	initiator := sb.initiatorSubject()
+	rows, err := pool.Query(ctx, `SELECT requirement_id, decided_by FROM intent_decision
+		WHERE tenant_id = $1 AND intent_id::text = $2 AND decision_kind = 'HUMAN_APPROVAL' ORDER BY decided_at, requirement_id`,
+		sb.TenantID(), proof.IntentID)
+	if err != nil {
+		t.Fatalf("read intent decisions: %v", err)
+	}
+	var decisions [][2]string
+	for rows.Next() {
+		var requirement, by string
+		if err := rows.Scan(&requirement, &by); err != nil {
+			rows.Close()
+			t.Fatalf("scan intent decision: %v", err)
+		}
+		decisions = append(decisions, [2]string{requirement, by})
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		t.Fatalf("intent decisions: %v", err)
+	}
+	if len(decisions) == 0 {
+		t.Fatal("the proof recorded no human approval decision; nothing proves who decided")
+	}
+	if len(decisions) != len(proof.Approvers) {
+		t.Fatalf("recorded %d human approval decisions %v, the proof reports deciding %v", len(decisions), decisions, proof.Approvers)
+	}
+	seen := map[string]string{}
+	for _, d := range decisions {
+		requirement, by := d[0], d[1]
+		if by == initiator {
+			t.Errorf("%s was decided by the sandbox initiator %s", requirement, initiator)
+		}
+		if want := expectedRoutedApprover(t, requirement); by != want {
+			t.Errorf("%s decided_by = %q, want the routed approver %q", requirement, by, want)
+		}
+		if prior, dup := seen[by]; dup {
+			t.Errorf("%s decided both %s and %s", by, prior, requirement)
+		}
+		seen[by] = requirement
+	}
+
+	var completedByInitiator, completedApprovals int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE completed_by = $2), count(*) FILTER (WHERE status = 'COMPLETED')
+		FROM work_item WHERE tenant_id = $1 AND kind = 'APPROVAL' AND proposal_ref = $3`,
+		sb.TenantID(), initiator, proof.MaterialDigest).Scan(&completedByInitiator, &completedApprovals); err != nil {
+		t.Fatalf("read completed approvals: %v", err)
+	}
+	if completedByInitiator != 0 {
+		t.Errorf("%d approval WorkItems were completed by the sandbox initiator", completedByInitiator)
+	}
+	if completedApprovals != len(decisions) {
+		t.Errorf("%d approval WorkItems completed, want one per recorded decision (%d)", completedApprovals, len(decisions))
 	}
 }

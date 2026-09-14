@@ -65,6 +65,14 @@ func (c *demoBandCatalog) LookupBand(ctx context.Context, q rewards.BandQuery) (
 			return record, nil
 		}
 	}
+	// The fixture base also contains demo pay bands for its own conformance
+	// suite. Do not let that globally keyed fallback expose a demo-company
+	// policy to a different tenant.
+	if string(q.Tenant) != demoworkforce.CompanyKey {
+		if _, demoScope := c.bands[q.Scope()]; demoScope {
+			return rewards.BandRecord{}, fmt.Errorf("%w: demo pay band outside company tenant", rewards.ErrBandNotFound)
+		}
+	}
 	return c.base.LookupBand(ctx, q)
 }
 

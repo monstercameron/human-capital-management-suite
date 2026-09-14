@@ -50,6 +50,23 @@ var workersJSON []byte
 //go:embed testdata/bands.json
 var bandsJSON []byte
 
+// demoBandsJSON is the HarborCare demo workforce's own pay-band catalog
+// (internal/data/demoworkforce), in the same shape as bands.json and served by
+// the same [MemoryBandCatalog]. It is a second file rather than more rows in
+// bands.json because bands.json is the frozen four-worker conformance corpus,
+// copied verbatim into internal/data/seed and internal/data/aggregates and
+// digest-pinned there; pricing the demo's roles must not move those vectors.
+//
+// Every demo role is priced in every pay zone the demo company has a location
+// in, with the role's own seeded base pay as the midpoint and a symmetric
+// 80%-120% range, effective from the demo population's own effective date. The
+// range is a stated derivation over the demo's own data, not an observed
+// market fact; TestDemoBandsPriceEveryDemoRole pins it to
+// internal/data/demoworkforce so the two cannot drift apart.
+//
+//go:embed testdata/demo-bands.json
+var demoBandsJSON []byte
+
 //go:embed testdata/legacy-compensation-scenarios.json
 var legacyScenariosJSON []byte
 
@@ -120,6 +137,41 @@ type bandRecord struct {
 	Maximum     string `json:"maximum"`
 	Blocking    bool   `json:"blocking"`
 	EvidenceRef string `json:"evidence_ref"`
+	// EffectiveFrom and EffectiveTo bound the business dates the band is
+	// effective on, as ISO dates: [from, to). Empty means unbounded on that
+	// side, which is what every bands.json corpus band declares.
+	EffectiveFrom string `json:"effective_from,omitempty"`
+	EffectiveTo   string `json:"effective_to,omitempty"`
+}
+
+// effectiveOn reports whether the band is effective on date.
+func (b bandRecord) effectiveOn(date values.LocalDate) (bool, error) {
+	if b.EffectiveFrom != "" {
+		from, err := values.ParseLocalDate(b.EffectiveFrom)
+		if err != nil {
+			return false, fmt.Errorf("fixtures: band %s effective_from: %w", b.ID, err)
+		}
+		if date.Compare(from) < 0 {
+			return false, nil
+		}
+	}
+	if b.EffectiveTo != "" {
+		to, err := values.ParseLocalDate(b.EffectiveTo)
+		if err != nil {
+			return false, fmt.Errorf("fixtures: band %s effective_to: %w", b.ID, err)
+		}
+		if date.Compare(to) >= 0 {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// catalogBand is one band together with the catalog file that published it,
+// so a lookup reports the band's own catalog version and provenance.
+type catalogBand struct {
+	record  bandRecord
+	catalog *bandFile
 }
 
 // jobArchitectureFile is the fixture company's published job catalog. Every
@@ -206,6 +258,7 @@ var (
 	loadErr    error
 	workers    workerFile
 	bands      bandFile
+	demoBands  bandFile
 	scenarios  LegacyScenarioSet
 	jobCatalog jobArchitectureFile
 )
@@ -219,6 +272,13 @@ func load() error {
 		}
 		if err := json.Unmarshal(bandsJSON, &bands); err != nil {
 			loadErr = fmt.Errorf("fixtures: bands.json: %w", err)
+			return
+		}
+		if err := json.Unmarshal(demoBandsJSON, &demoBands); err != nil {
+			loadErr = fmt.Errorf("fixtures: demo-bands.json: %w", err)
+			return
+		}
+		if _, loadErr = mergeBandCatalogs(&bands, &demoBands); loadErr != nil {
 			return
 		}
 		if err := json.Unmarshal(legacyScenariosJSON, &scenarios); err != nil {
@@ -306,6 +366,51 @@ func Workers() ([]WorkerProfile, error) {
 	return out, nil
 }
 
+// catalogBands is every published band of the corpus and demo catalogs, in
+// file order. It is rebuilt per call rather than kept in a package-level
+// variable, so no shared mutable registry exists; [load] has already proven
+// the merge is free of duplicate ids and overlapping scopes.
+func catalogBands() ([]catalogBand, error) {
+	if err := load(); err != nil {
+		return nil, err
+	}
+	return mergeBandCatalogs(&bands, &demoBands)
+}
+
+// mergeBandCatalogs lists every band of every catalog file, in file order, and
+// refuses two bands sharing an id, or pricing the same scope on a shared
+// effective date: a lookup that could answer from either would make the
+// answer depend on file order.
+func mergeBandCatalogs(files ...*bandFile) ([]catalogBand, error) {
+	var out []catalogBand
+	ids := map[string]bool{}
+	for _, file := range files {
+		for _, record := range file.Bands {
+			if ids[record.ID] {
+				return nil, fmt.Errorf("fixtures: band id %s is published twice", record.ID)
+			}
+			ids[record.ID] = true
+			for _, prior := range out {
+				p := prior.record
+				if p.JobCode == record.JobCode && p.Grade == record.Grade && p.PayZone == record.PayZone &&
+					p.Currency == record.Currency && effectiveWindowsOverlap(p, record) {
+					return nil, fmt.Errorf("fixtures: bands %s and %s price the same scope %s/%s/%s in %s",
+						p.ID, record.ID, record.JobCode, record.Grade, record.PayZone, record.Currency)
+				}
+			}
+			out = append(out, catalogBand{record: record, catalog: file})
+		}
+	}
+	return out, nil
+}
+
+// effectiveWindowsOverlap reports whether two bands' [from, to) windows share
+// a date. ISO dates order lexically, and an empty bound is unbounded.
+func effectiveWindowsOverlap(a, b bandRecord) bool {
+	startsBeforeEnd := func(from, to string) bool { return from == "" || to == "" || from < to }
+	return startsBeforeEnd(a.EffectiveFrom, b.EffectiveTo) && startsBeforeEnd(b.EffectiveFrom, a.EffectiveTo)
+}
+
 // BandScope is one pay band's placement scope plus the currency it is
 // denominated in.
 type BandScope struct {
@@ -327,8 +432,13 @@ func BandScopes() ([]BandScope, error) {
 	if err := load(); err != nil {
 		return nil, err
 	}
-	out := make([]BandScope, 0, len(bands.Bands))
-	for _, b := range bands.Bands {
+	merged, err := catalogBands()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]BandScope, 0, len(merged))
+	for _, band := range merged {
+		b := band.record
 		out = append(out, BandScope{JobCode: b.JobCode, Grade: b.Grade, PayZone: b.PayZone, Currency: b.Currency})
 	}
 	return out, nil
@@ -629,11 +739,10 @@ func (m *MemoryWorkerFacts) WorkerFactsAt(_ context.Context, q people.FactQuery)
 // MemoryBandCatalog is an in-memory rewards.PayBandCatalog over the fixture
 // catalog.
 type MemoryBandCatalog struct {
-	bands           []bandRecord
-	catalogVersion  string
-	sourceSystem    string
-	authorityPolicy string
-	recordedAt      values.RecordedAt
+	bands          []catalogBand
+	catalogVersion string
+	// recordedAt is each catalog file's own recorded instant.
+	recordedAt map[*bandFile]values.RecordedAt
 	// Fail, when set, is returned instead of a lookup result. It exists so a
 	// test can prove that a catalog fault is an error rather than a silent
 	// "no band".
@@ -645,24 +754,32 @@ func NewMemoryBandCatalog() (*MemoryBandCatalog, error) {
 	if err := load(); err != nil {
 		return nil, err
 	}
-	at, err := instant(bands.RecordedAt)
-	if err != nil {
-		return nil, err
+	recordedAt := map[*bandFile]values.RecordedAt{}
+	for _, file := range []*bandFile{&bands, &demoBands} {
+		at, err := instant(file.RecordedAt)
+		if err != nil {
+			return nil, err
+		}
+		recorded, err := values.NewRecordedAt(at)
+		if err != nil {
+			return nil, err
+		}
+		recordedAt[file] = recorded
 	}
-	recordedAt, err := values.NewRecordedAt(at)
+	merged, err := catalogBands()
 	if err != nil {
 		return nil, err
 	}
 	return &MemoryBandCatalog{
-		bands:           bands.Bands,
-		catalogVersion:  bands.CatalogVersion,
-		sourceSystem:    bands.SourceSystem,
-		authorityPolicy: bands.AuthorityPolicy,
-		recordedAt:      recordedAt,
+		bands:          merged,
+		catalogVersion: bands.CatalogVersion,
+		recordedAt:     recordedAt,
 	}, nil
 }
 
-// CatalogVersion returns the pinned catalog version.
+// CatalogVersion returns the pinned version of the corpus catalog. A band
+// published by the demo catalog reports that catalog's own version on its
+// [rewards.BandRecord].
 func (c *MemoryBandCatalog) CatalogVersion() string { return c.catalogVersion }
 
 // LookupBand implements rewards.PayBandCatalog.
@@ -673,8 +790,16 @@ func (c *MemoryBandCatalog) LookupBand(_ context.Context, q rewards.BandQuery) (
 	if err := q.Validate(); err != nil {
 		return rewards.BandRecord{}, err
 	}
-	for _, b := range c.bands {
+	for _, entry := range c.bands {
+		b := entry.record
 		if b.JobCode != q.JobCode || b.Grade != q.Grade || b.PayZone != q.PayZone || b.Currency != q.Currency {
+			continue
+		}
+		effective, err := b.effectiveOn(q.AsOf)
+		if err != nil {
+			return rewards.BandRecord{}, err
+		}
+		if !effective {
 			continue
 		}
 		band, err := toBand(b)
@@ -683,17 +808,17 @@ func (c *MemoryBandCatalog) LookupBand(_ context.Context, q rewards.BandQuery) (
 		}
 		return rewards.BandRecord{
 			Band:           band,
-			CatalogVersion: c.catalogVersion,
+			CatalogVersion: entry.catalog.CatalogVersion,
 			Blocking:       b.Blocking,
 			Authority: evidence.SourceAuthority{
 				Kind:      evidence.AuthorityLocal,
-				System:    c.sourceSystem,
-				PolicyRef: c.authorityPolicy,
+				System:    entry.catalog.SourceSystem,
+				PolicyRef: entry.catalog.AuthorityPolicy,
 			},
 			Provenance: evidence.Provenance{
-				Source:      c.sourceSystem,
+				Source:      entry.catalog.SourceSystem,
 				EvidenceRef: b.EvidenceRef,
-				RecordedAt:  c.recordedAt,
+				RecordedAt:  c.recordedAt[entry.catalog],
 			},
 		}, nil
 	}
@@ -731,9 +856,13 @@ func Band(id string) (payband.Band, error) {
 	if err := load(); err != nil {
 		return payband.Band{}, err
 	}
-	for _, b := range bands.Bands {
-		if b.ID == id {
-			return toBand(b)
+	merged, err := catalogBands()
+	if err != nil {
+		return payband.Band{}, err
+	}
+	for _, b := range merged {
+		if b.record.ID == id {
+			return toBand(b.record)
 		}
 	}
 	return payband.Band{}, fmt.Errorf("fixtures: no band %q", id)

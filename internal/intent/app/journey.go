@@ -651,17 +651,37 @@ func validateProposalInput(in workspace.ProposalInput) error {
 // filtering is guidance, never authority: every caller, including the direct
 // intent-only RPC, must prove that the current and target profiles form a
 // published edge and that the proposed base follows that edge's exact rule.
+// PROMOUX-015: the edges are [publishedPromotionPaths], the same list
+// ListWorkers publishes.
 func validatePublishedPromotionPath(current journeyCurrent, in workspace.ProposalInput, baseline journeyBaselineFacts) error {
-	paths, err := fixtures.PromotionPaths()
+	paths, err := publishedPromotionPaths()
 	if err != nil {
-		return fmt.Errorf("app: journey: read published promotion paths: %w", err)
+		return err
 	}
-	for _, scope := range paths {
-		if scope.SourceJobCode != current.jobCode || scope.SourceGrade != current.grade ||
-			scope.TargetJobCode != strings.TrimSpace(in.TargetJobCode) || scope.TargetGrade != strings.TrimSpace(in.TargetGrade) {
+	for _, path := range paths {
+		if !path.matches(current.jobCode, current.grade, strings.TrimSpace(in.TargetJobCode), strings.TrimSpace(in.TargetGrade)) {
 			continue
 		}
-		return validatePublishedBaseIncrease(in.ProposedBase, baseline, scope.Path.MinimumBaseIncrease, scope.Path.MaximumBaseIncrease)
+		if path.bounds != nil {
+			return validatePublishedBaseIncrease(in.ProposedBase, baseline, path.bounds.Path.MinimumBaseIncrease, path.bounds.Path.MaximumBaseIncrease)
+		}
+		if current.orgUnit == "" {
+			// Catalog-level eligibility checks have no worker organization;
+			// enforce the edge's published UPWARD rule without inventing one.
+			currentPay, payErr := values.NewMoney(baseline.currentBase, baseline.currency, fixtures.MoneyScale, fixtures.MoneyRounding)
+			if payErr != nil {
+				return payErr
+			}
+			proposedPay, payErr := values.NewMoney(strings.TrimSpace(in.ProposedBase), baseline.currency, fixtures.MoneyScale, values.RoundingExactRequired)
+			if payErr != nil {
+				return journeyInputError("proposed_base", "must be an exact monetary amount")
+			}
+			if proposedPay.Amount().Cmp(currentPay.Amount()) < 0 {
+				return journeyInputError("proposed_base", "an upward ladder edge does not accept a base below the current base")
+			}
+			return nil
+		}
+		break // Worker proposals are checked against their demo ladder bounds below.
 	}
 	// The workforce options publish the demo company's deterministic ladder in
 	// addition to the fixed conformance corpus. Admission must read that same
@@ -828,9 +848,10 @@ func (e *journeyEngine) currentPlacement(
 	fields := workspaceFields(promotion.RequiredWorkerFields())
 	purpose := principal.DefaultPurpose()
 	decision, authErr := authorizeRead(principal, purpose, authorizationRequest{
-		Subject:     worker,
-		EvaluatedAt: values.NewInstant(e.now()),
-		Read:        peopleFields(fields),
+		Subject:       worker,
+		EvaluatedAt:   values.NewInstant(e.now()),
+		Read:          peopleFields(fields),
+		Relationships: managerChainFacts(ctx, e.locate, principal, worker),
 	})
 	if authErr != nil {
 		return journeyCurrent{}, workspaceDenial(authErr)

@@ -59,6 +59,7 @@ func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 		Plan:                       platformexecution.PromotionPlan(cfg.WorkflowPlan),
 		ApproverPrincipalID:        cfg.ExecutionApprover,
 		ManagerApproverPrincipalID: cfg.ExecutionManagerApprover,
+		FinancePartnerPrincipalID:  cfg.ExecutionFinancePartner,
 		AuthorityDigest:            cfg.ExecutionAuthorityDigest,
 		RequiredRole:               cfg.ExecutionAuthorityRole,
 		Clock:                      cellConfig.Now,

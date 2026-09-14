@@ -72,6 +72,10 @@ type FixtureInputs struct {
 	locate WorkerLocator
 	// The simulation and workspace preview must validate selected positions
 	// against the same composed, tenant-scoped Position facts reader.
+	// positionReader is the Position read a promotion's target position is
+	// re-checked against. It is nil until [NewCell] binds the cell's own
+	// ([BindPositionReader]); a nil reader refuses a named position as not
+	// found, never passes it through unproven.
 	positionReader position.PositionFacts
 	// externalSource is the observing system the comparison intents read
 	// their external side from. It is empty until the cell binds a connector,
@@ -135,10 +139,18 @@ func (f *FixtureInputs) BindWorkerLocator(locate WorkerLocator) {
 	}
 }
 
-// BindPositionReader gives promotion simulation the position reader already
-// used by the workspace preview. A nil reader keeps named positions blocked.
+// BindPositionReader gives the promotion preflight this resolver builds the
+// cell's own Position read.
+//
+// PROMOUX-015: [NewCell] composed a position reader for the workspace form
+// path only, so the governed propose path (JourneyService.ProposePromotion and
+// the journey engine's Propose) built its preflight with no reader, and
+// PROMOUX-004's selection check refused every picker-issued position as not
+// found: no real position could be proposed. A nil reader is ignored.
 func (f *FixtureInputs) BindPositionReader(reader position.PositionFacts) {
-	f.positionReader = reader
+	if reader != nil {
+		f.positionReader = reader
+	}
 }
 
 // Bands exposes the pay-band catalog the domain handlers evaluate against.
@@ -280,7 +292,7 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 		EvaluatedAt:   inst.CreatedAt,
 		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
 		Read:          peopleFields(fieldSet),
-		Relationships: req.Relationships,
+		Relationships: append(append([]authz.RelationshipFact{}, req.Relationships...), managerChainFacts(ctx, f.locate, req.Principal, subject)...),
 	})
 	if err != nil {
 		return DomainCall{}, err
@@ -374,7 +386,7 @@ func (f *FixtureInputs) resolveExplain(ctx context.Context, req ResolveRequest, 
 		Subject:       subject,
 		EvaluatedAt:   inst.CreatedAt,
 		Read:          peopleFields(fieldSet),
-		Relationships: req.Relationships,
+		Relationships: append(append([]authz.RelationshipFact{}, req.Relationships...), managerChainFacts(ctx, f.locate, req.Principal, subject)...),
 	})
 	if err != nil {
 		return DomainCall{}, err
@@ -418,7 +430,7 @@ func (f *FixtureInputs) resolveCompensation(ctx context.Context, req ResolveRequ
 		Subject:       subject,
 		EvaluatedAt:   inst.CreatedAt,
 		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
-		Relationships: req.Relationships,
+		Relationships: append(append([]authz.RelationshipFact{}, req.Relationships...), managerChainFacts(ctx, f.locate, req.Principal, subject)...),
 	}); authErr != nil {
 		return DomainCall{}, authErr
 	}
@@ -481,7 +493,7 @@ func (f *FixtureInputs) resolvePayBand(ctx context.Context, req ResolveRequest, 
 		Subject:       subject,
 		EvaluatedAt:   inst.CreatedAt,
 		Gate:          []authz.FieldID{authz.FieldBaseSalary},
-		Relationships: req.Relationships,
+		Relationships: append(append([]authz.RelationshipFact{}, req.Relationships...), managerChainFacts(ctx, f.locate, req.Principal, subject)...),
 	}); authErr != nil {
 		return DomainCall{}, authErr
 	}
