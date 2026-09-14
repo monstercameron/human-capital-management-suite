@@ -994,3 +994,23 @@ immediately showed Recorded. This isolates a software-navigation publication or
 loading-state defect, not missing durable promotion data. Backend logs continue
 serving requests and watch rollovers. Requested adversarial root-cause review of
 journeyclient loadDetail/applyDetail/watch and embedded routing. No fix claimed.
+
+### Grouped promotion request navigation resolved
+
+Reproduced a separate deterministic list-to-detail stall in the integrated
+Journeys page: the visible subject-group cards changed the URL to a standalone
+`#/journeys/<id>` fragment while leaving the product history router on the
+list. `journey.Wire` bound callbacks on the flat `Journeys` slice but not the
+`Groups` copies that the overview actually rendered. Both representations now
+receive their own live `OnOpen` callbacks. Copied legacy fragment links are
+normalized to the product query route on a cold load; an attempted hot hash
+fallback was removed after adversarial review found a Back-button trap.
+
+The grouped-card regression test, product route tests, and the four related Go
+packages passed. Rebuilt the WASM and restarted the local backend. In a clean
+Codex browser tab, clicking Jane's recorded request opened her detail at the
+canonical `?journey=` URL; Back returned directly to the grouped list and
+Forward returned to the recorded detail. A copied fragment URL also resolved
+to detail on reload. The adversarial re-review found no remaining P1/P2 in
+this narrow change. This verifies navigation, not a new promotion submission
+or every other detail-loading race described above.

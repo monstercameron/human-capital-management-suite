@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-14 (Gate B resilience evidence, planning domains and product theming)
+
+- Recovery and resilience (Gate B): the pilot restores into an isolated recovery environment, failover/failback game days run end to end, deletion and restriction manifests are reapplied during restore, and ledger recovery is proven after database interruption and ambiguous commit, with continuous ledger and relational invariant scans (RECOVERY-003/004, PRIV-004, LEDGER-014, DATA-012).
+- Outage proofs: queue outage and ambiguous publish (EVENT-004), key/secret service outage with sealed recovery (TRUST-032), control-plane outage and corruption (CP-010), observability evidence and outage runbooks (OBS-008), lock and database-edge behavior (DB-EDGE-002), artifact identity, retention and backup lifecycle (ARTIFACT-007, DATA-023), connector terminal ambiguity across crash and restore (CONN-RT-009), cutover and rollback migration drills (CUSTOMER-003) and full ledger, projection, outbox and journal restore (RECOVERY-005).
+- Topology, infrastructure and operations: modular-monolith process topology and role isolation (SVC-012), immutable backup and isolated-recovery stacks, drift detection with destructive-change protection, and cell deploy/drain/failover/teardown (IAC-010/011/012), vendor continuity and emergency change rehearsal (OPS-009), and rollout conformance (ROLLOUT-008).
+- Performance: pilot-path and critical-query benchmarks, ramp/peak/24-hour soak, regression and scale-boundary gates, and evidence retention (PERF-002/003/008/009).
+- Governance: the pre-write P1B authority evidence amendment (NEXT-009), pilot exit rehearsal (TENANT-004), the Gate B evidence manifest (GATEB-EVID-001), the pilot go/no-go review (PILOT-001), verified deletion and backup re-delete (MODEL-028), and the Alabama state legal pack.
+- Planning domains: population completeness reconciliation (POP-009), typed qualification status (QUAL-004), demand coverage, explanation, forecast reconciliation and bounded intents (DEMAND-003-006), hard-constraint matching and deterministic soft ranking (MATCH-003/004), scenario impact (SCENARIO-002/003), governed bulk communications (MSG-012) and a typed intent operation catalog.
+- Product UI: the appearance theming engine gains custom components, modal and preview behavior, and theme tokens flow through the journey preferences contract to the WASM client.
+
+## 2026-09-14 (Workflow engine completion, industry packs and host telemetry)
+
+- Cancel is live under dual control: a JIT grant narrowed to the addressed workflow instance and approved by a second person is the second approval. RetryNode is dry-run in a rolled-back transaction first and the sealed prediction is its simulation evidence on the receipt. Both are proven on the composed server.
+- PACK-003-007: industry packs bind workflows, forms, skills and metrics with explicit side effects, authority, locales, accessibility and metric definitions; publication is gated on compatibility, dependencies, parent lineage, running-workflow impact and resolved migrations; versions activate only from ed25519-signed, second-person-approved envelopes; platform, country, industry and customer layers compose by explicit per-family strategy without weakening mandatory security or legal settings; Healthcare, Retail and Manufacturing compositions produce pinned deterministic config, workflow, model and bundle digests.
+- Telemetry reaches every workflow path: gRPC-originated controls and the journey's direct approval step carry the serve composition's recorder, each parallel branch is its own operation, failed repair-evidence writes are recorded, and step runs, threshold raises, work-item routing, timer creation, retry admission, terminal writes and authority resolution open operations. The execution host and operator gateway now have the same enforced coverage test as the engine, and a guard test refuses discarded context-bound failures.
+
 ## 2026-09-14 (Live governed workflow controls and enforced workflow telemetry)
 
 - Pause and Resume are now live on a composed server: operator authority comes from the operator's current JIT grant in the durable trust store, rebuilt through `jit.Restore` so a widened or tampered record is never authority. Cancel and RetryNode stay governed denials until dual-control and simulation evidence is supplied.

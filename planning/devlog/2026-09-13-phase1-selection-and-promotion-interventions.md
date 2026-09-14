@@ -146,3 +146,77 @@ other lanes' gate results unreliable and the tree intermittently unbuildable.
 Two lanes reported failures that were entirely collateral. Lanes no longer
 regenerate `architecture.md` or `todo-registry.json`; those are regenerated
 once at commit time instead.
+
+## 2026-09-14 — Workflow engine completion, industry packs and engine telemetry
+
+### Goal
+
+Cam's goal for this stretch: complete every remaining workflow todo, then go
+over the whole workflow engine and make sure OTEL spans and structured logging
+cover everywhere viable to track status and issues.
+
+### Commits
+
+- `9f523218`, `aa241b86`, `def9ea18`, `8ddf83c7` — the observe seam, governed
+  Pause/Resume/Cancel/RetryNode controls, the ALIGN/DATAOPS/ONBOARD
+  prerequisites, and live JIT-backed Pause/Resume with the engine coverage test.
+- `8a1088ae`, `717f6d1e` — PACK-003 experience binding.
+- `1f3e5356` — Cancel under instance-scoped dual control and RetryNode with a
+  rolled-back preflight simulation, both proven on the composed server.
+- `ac9c002b` — PACK-004 publication gate, PACK-005 signed activation, PACK-006
+  layered composition and PACK-007 Healthcare/Retail/Manufacturing conformance.
+- `2464c45e` — the serve recorder threaded into gRPC controls and the journey's
+  direct approval step; per-branch parallel spans; recorded evidence-write
+  failures; a guard test against discarded context-bound failures.
+- `65086a36` — execution-host instrumentation (step runs, threshold raises,
+  work-item routing, timers, retry admission, terminal writes, authority
+  resolution) and enforced coverage tests for the host and operator gateway.
+
+### Defects found
+
+- Governed controls arriving over gRPC produced no spans or logs: only the
+  execution driver and the timer scheduler put a recorder in context, so every
+  `observe.Begin` in the controller was a no-op in production. The journey's
+  direct `stepsapproval.Complete` call had the same gap.
+- A failed repair-evidence write was discarded with `_ =`, leaving no trace.
+- Parallel branches ran without their own operation, so one failing branch was
+  indistinguishable from its siblings.
+- The gateway recorded a plan-resolution failure as `REPAIR_REQUIRED` before any
+  effect ran; pre-commit failures now abort the pending journal entry.
+
+### Decisions
+
+- Dual control for Cancel is a JIT grant narrowed to the instance
+  (`workflow_instance:<id>` field) whose approver differs from the requester. A
+  broad grant carries no per-action second approval and is still denied.
+- RetryNode's simulation evidence is a dry run of the exact retry in a
+  transaction that always rolls back; an operator-held simulation is never
+  replaced.
+- Engine telemetry is enforced by test rather than by review: every exported
+  context-taking function in `internal/workflow`, `internal/platform/execution`
+  and `internal/intent/operator` opens an observe operation or carries a
+  documented exemption, and stale exemptions fail.
+
+### Verified and left partial
+
+Verified: the workflowcontrol, operator, execute, parallel, observe, intent/app,
+transport/workflow, platform/execution (with promotionsteps, promotionterminal,
+scheduler) and industrypack suites, and `TestGovernedWorkflowControlsOnComposedServer`
+(Cancel applies and leaves the instance `CANCELLED`; a live RetryNode clears the
+simulation gate and is judged on node state). The committed registry showed 74
+done, 4 retired and 0 open workflow/PACK todos.
+
+Left partial: the operator journal is still in-memory, so control receipts do
+not survive a restart. A live successful retry of a genuinely failed node on the
+composed server is covered only by unit tests. PROGRAM-001 stays blocked behind
+13 open balance, leave, eligibility and qualification todos. Another session
+ticked the four retired `WF-STEP-*` items in its working copy; that tick is
+committed with its planning changes, not re-litigated here.
+
+### Grouped commit of concurrent session work
+
+The working tree also held uncommitted work from concurrent sessions (Gate B
+resilience and outage proofs, performance, governance, planning domains,
+product theming). It was committed in feature groups from a clean worktree so
+each group passed the full pre-commit gates on its own; planning ticks were
+three-way merged against the ticks already on `main`.

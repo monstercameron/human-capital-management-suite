@@ -4173,7 +4173,8 @@
     "refactor": "logical names point to immutable revisions; provider key/version APIs stay adapter details",
     "refs": "[S3 multipart upload](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html), [S3 Object Lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html), [edge/tooling audit](specs/adversarial-edge-and-tooling-audit-2026-08-14.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestConcurrentMultipartCompletionBindsOnlyAuthorizedVersionChecksumAndHold` plus `TestTodo_ARTIFACT_007_Property`, `_Race`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/store/object` (`revisions.go` over the existing `MultipartManager`: `BindCompletion` seals bytes and binds provider version ID plus verified checksum to an append-only `ArtifactRevision` under conditional generation — create-only `Put` for generation 0, store-checked `PutNewGeneration` after, so racing completions refuse instead of overwriting; holds attach to exact generations never aliases, held revisions never delete including by governance bypass (`ErrBypassForbidden`), aborted uploads stay tombstoned, `CollectOrphans` sweeps only idle uploading entries via the new additive `SweepAbandoned`); RED observed (undefined symbols, then existing-manager API discovery, then create-only Put semantics); `go test -count=1 ./internal/store/object/` PASS (8/8 named), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "ASSET-001",
@@ -7882,7 +7883,8 @@
     "refactor": "connector runtime centralizes restored-state transition rules and provider adapters only supply observation capability",
     "refs": "[connector runtime](specs/integration-platform.md), [repair](specs/transaction-ledger-reconciliation-and-repair.md), [recovery](specs/platform-responsibility-boundaries.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestRestoredConnectorOperationRequiresObservationOrGovernedRepairBeforeRedrive` plus `TestTodo_CONN_RT_009_Property`, `_Golden`, `_Race`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_ModelBased` and `_Mutation` in `internal/connectivity/operation` (`restore.go`: `ClassifyRestored` maps every lifecycle state to NO_REDRIVE/OBSERVATION_REQUIRED/REPAIR_ONLY/REDRIVABLE under the restored epoch with stale-worker flags, `CheckRestoredLease` fences stale and future epoch claims, `PlanRepairAttempt` mints an explicitly linked new attempt with distinct effect identity only under an approved plan and never against terminal operations, `SummarizeRestored` pinned in `testdata/conn_rt_009.golden.txt`); RED observed (undefined symbols); 11/11 PASS plus full `operation` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "CONTACT-001",
@@ -8257,7 +8259,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Recovery models](data/models/operations-production.md), [foundation gap closure](specs/platform-foundation-gap-closure.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CP_010` plus `TestTodo_CP_010_Golden`, `_Fault`, `_Recovery` and `_Security` in `internal/platform/configbundle` (`outage.go`: `OutageCell` serves bounded last-known-good while the plane is dark, refuses corrupt/unsigned/revoked/replayed bundles, replays lineage in order with epoch convergence and exact evidence receipts — no split-brain; pins receipt digest in `testdata/cp010.golden.txt`); RED observed (missing implementation symbols, then golden-file semantic mixing receipt-envelope vs content digests and key-version immutability needing `Keyring.Revoke`); `go test -count=1 ./internal/platform/configbundle/` PASS, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `IAC-010`"
   },
   {
     "id": "CRM-001",
@@ -8747,7 +8750,8 @@
     "refactor": "generate runbook steps/evidence from the implementation graph and deployment manifests; retain human decision points explicitly",
     "refs": "[recovery](specs/platform-responsibility-boundaries.md), [incident management](specs/incident-management.md), [integration operations](specs/integration-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestPilotCutoverDrillMeetsStopGoRollbackRPOAndReconciliationContracts` plus `TestTodo_CUSTOMER_003_Property`, `_Golden`, `_Race`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_Mutation` and `BenchmarkTodo_CUSTOMER_003` in `internal/connectivity/onboarding/readiness` (`cutover.go`: `ExecuteCutover` runs the time-sequenced drill — freeze/watermark, thresholds, rollback boundary, owned credential/webhook transitions, hypercare owner, customer contact and manual continuity prechecks; item-level delta reconciliation with retry dedupe; stop/go RPO/RTO gates; injected failures reach only allowed states with fail-forward hold; ambiguity rolls back; resumption fences and hypercare ownership recorded; digest pinned in `testdata/customer003.golden.txt`, `CutoverCell` files each drill once); RED observed (undefined symbols); 11/11 PASS incl. benchmark plus full `readiness` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `PILOT-001`"
   },
   {
     "id": "CUSTOMER-004",
@@ -9330,7 +9334,8 @@
     "refactor": "verifier has read-only authority",
     "refs": "[Ledger integrity checks](specs/transaction-ledger-reconciliation-and-repair.md), [quality spec](specs/data-quality-and-invariant-evaluation.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_DATA_012` plus `TestTodo_DATA_012_Property`, `_Golden` and `_Mutation` in `internal/data/ledger/hashchain` (`scan.go`: read-only `Scan` over stream snapshots reusing the package `Digester` — targeted/sample/partition/full modes with documented continuity disciplines, exact gap/digest/orphan/provenance/duplicate findings with affected set, watermark, severity and opened incident/repair refs; findings degrade quality, unscannable streams report unknown; digest pinned in `testdata/data012.golden.txt`); RED observed (undefined symbols); 4/4 PASS plus full `hashchain` suite green (30s), `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "DATA-013",
@@ -9629,7 +9634,8 @@
     "refactor": "object-store adapter implements the semantic Artifact lifecycle and independent verifier",
     "refs": "[artifact storage](specs/platform-responsibility-boundaries.md), [records](specs/records-management-and-disposition.md), [recovery](specs/platform-responsibility-boundaries.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestArtifactRestoreReconcilesBytesMetadataKeysHoldsTombstonesAndLineage` plus `TestTodo_DATA_023_Property`, `_Golden`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_Mutation` and `BenchmarkTodo_DATA_023` in `internal/store/object` (`lifecycle.go`: `BackupInventory` records envelope digests plus stable content addresses, key versions, holds, tombstones, erasure proofs and lineage; `RestoreArtifacts` re-verifies envelope and content digests, key-version currency and caller access, keeps tombstones tombstoned, verifies erasures unopenable with proof and never resurrects deleted content, all within RPO/RTO and emitting zero effects; digest pinned in `testdata/data023.golden.txt`); RED observed (undefined symbols, then a test slice-aliasing bug, then envelope randomness forcing content-addressed identity); `go test -count=1 ./internal/store/object/` PASS (10/10 named incl. benchmark ~12µs/op), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `PERF-009`"
   },
   {
     "id": "DATA-024",
@@ -10658,7 +10664,8 @@
     "refactor": "prefer row/CAS/fence contracts where they express ownership better; advisory locks never become business truth",
     "refs": "[PostgreSQL explicit locking](https://www.postgresql.org/docs/16/explicit-locking.html), [edge/tooling audit](specs/adversarial-edge-and-tooling-audit-2026-08-14.md), [transaction coordinator](specs/transaction-plan-and-commit-coordinator.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestPostgresAdvisoryLocksAreTransactionScopedNamespacedAndBudgeted` plus `TestTodo_DB_EDGE_002_Property`, `_Race`, `_Integration`, `_Fault`, `_Security` and `BenchmarkTodo_DB_EDGE_002` in `internal/data/uow` (`locks.go`: approved use is `pg_advisory_xact_lock` with versioned namespace/tenant/resource key derivation (3000-key corpus collision-free), ascending order and an explicit count budget enforced before SQL evaluates with typed `LockSaturation`; rollback/pool return releases xact locks, reentrancy counted not hidden, session locks need a reviewed owner plus cleanup proof with held-lock leak checks); RED observed (undefined symbols, then a fixture/Begin wiring fix); 7/7 PASS on live embedded PostgreSQL plus full `uow` suite green (53s), `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "DB-EDGE-003",
@@ -10786,7 +10793,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[People/workforce models](data/models/people-workforce.md), [population engine](#37-shared-transformation-and-population-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_DEMAND_003` plus `TestTodo_DEMAND_003_Property` and `_Golden` in `internal/domains/demand` (`partition.go`: pure `PartitionDemand` compares a validated `CoverageRequirement` against `SupplyAssignment`s summing only qualified and available overlapping supply, partitioning every signal into exactly `COVERED|SHORT|EXCESS|UNKNOWN` by interval/dimension with a `sha256:` digest citing the source snapshot; unknown-confidence signals resolve unknown); RED observed (undefined symbols, then method-vs-field access); `go test -count=1 ./internal/domains/demand/` PASS (3/3 named), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `DEMAND-004`, `DEMAND-005`, `DEMAND-006`"
   },
   {
     "id": "DEMAND-004",
@@ -10811,7 +10819,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Provenance](specs/provenance-graph-and-lineage.md), [DLP](specs/data-classification-and-dlp.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_DEMAND_004` plus `TestTodo_DEMAND_004_Property`, `_Race`, `_Security` and `_Mutation` in `internal/domains/demand` (`explain.go`: pure `ExplainGaps` traces every non-covered cell to signal/provenance/scenario/version/target plus apportioned supply attributions consumed in deterministic order so overlapping demand never double-credits shared supply, workers are never cited, unknown signals explain with a reason and zero quantities, and mismatched partitions reject with `DEMAND_004_REJECTED` naming field/state/version while persisting nothing); RED observed (undefined contract, then an unknown-gap invariant crediting fabricated shortfall); `go test -count=1 ./internal/domains/demand/` PASS (5/5 named, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main. Unblocks `ENGINE-CONF-001` chain only"
   },
   {
     "id": "DEMAND-005",
@@ -10833,7 +10842,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [assurance models](data/models/assurance-intelligence-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_DEMAND_005` plus `TestTodo_DEMAND_005_Property` in `internal/domains/demand` (`reconcile.go`: pure `ReconcileForecast` closes one forecast signal against measured actuals only on complete actuals over the exact same period/scope/target/unit, recording interval, forecast/actual quantities, OVER/UNDER/EXACT direction with magnitude, model version and both source refs in a canonical digest; partial, mismatched-interval/scope/target/unit actuals refuse); RED observed (undefined contract, then a test fixture sharing the forecast interval); `go test -count=1 ./internal/domains/demand/` PASS (2/2 named, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main"
   },
   {
     "id": "DEMAND-006",
@@ -10857,7 +10867,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[BusinessIntent](specs/business-intent-and-change-request.md), [transaction coordinator](specs/transaction-plan-and-commit-coordinator.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_DEMAND_006` plus `TestTodo_DEMAND_006_Property`, `_Golden` and `_Mutation` in `internal/domains/demand` (`proposal.go`: pure `ProposeIntent` describes one governed intent per gap — name, CLOSE_SHORTFALL/ABSORB_EXCESS kind, scope, shortfall/surplus, deterministic LOW/MEDIUM/HIGH risk from the gap share, snapshot, optional cost with basis, human approval role plus quorum, and signal provenance in a canonical digest; unknown gaps refuse, ungoverned params refuse, and nothing is reserved, assigned, scheduled or persisted); RED observed (undefined contract, then a scale-0 accumulator breaking kernel scale matching); `go test -count=1 ./internal/domains/demand/` PASS (4/4 named, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main"
   },
   {
     "id": "DIAG-001",
@@ -12701,7 +12712,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Ambiguous effects](specs/transaction-ledger-reconciliation-and-repair.md), [recovery](data/models/operations-production.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_EVENT_004` plus `TestTodo_EVENT_004_Race`, `_Integration`, `_Fault` and `_Mutation` in `internal/data/outbox` (`dispatch.go`: `DispatchJournal` resolves every publish by effect identity to committed/duplicate/ambiguous — redelivery never re-applies, connection loss at the boundary records ambiguous without guessing, `Resolve` reconciles against the verified downstream outcome applying at most once, `Snapshot`/`Resume` rebuild a restarted dispatcher reconciling every stranded ambiguous operation; identities exact, padded refused); RED observed (undefined symbols, then a missing applier argument); `go test -count=1 -run TestTodo_EVENT_004` PASS 5/5 plus the full `outbox` suite green (261s incl. DB-backed tests), `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "EVENT-005",
@@ -13032,7 +13044,8 @@
     "refactor": "no general form builder is required",
     "refs": "[Forms spec](specs/human-work-forms-and-rules.md), [Phase 1 forms depth](plan.md#phase-1-implementation-depth-matrix)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The form engine is replaced by a typed reason field on the approval WorkItem; see the Phase 1 packaging in the human-work spec. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -13058,7 +13071,8 @@
     "refactor": "server remains authoritative",
     "refs": "[Forms engine](specs/human-work-forms-and-rules.md), [experience contract](specs/experience-ui-and-branding.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. No conditional form engine in Phase 1. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -13085,7 +13099,8 @@
     "refactor": "corrections create successor submission",
     "refs": "[Forms evidence](specs/human-work-forms-and-rules.md), [form models](data/models/connectivity-access-content.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The approval reason and decision are preserved on the ApprovalBinding against the exact proposal digest; no FormSubmission record. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -13493,7 +13508,8 @@
     "refactor": "gate decision consumes immutable evidence manifests and retains prior decisions append-only",
     "refs": "[Gate B](execution-plan.md), [evidence governance](#backlog-governance-and-traceability), [authority expansion](specs/competitive-positioning-and-authority-expansion.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestGateBEvidenceManifestRejectsUnboundStaleFailedOrUnsignedCriterion` plus `TestTodo_GATEB_EVID_001_Property`, `_Golden` (pinned digest `sha256:bda76566e9580d89587b1ce01acefa99270b3d94492436d6636fd831159be097`), `_Fault`, `_Security`, `_Conformance`, `_Recovery` and `_Mutation` in `internal/governance/gateb` (`manifest.go`: pure `Compile` maps the 10 required acceptance bullets to exact todo/test/fixture/command/result/digest/owner/retention/expiry/sign-off with the binding embedded in each criterion report; unbound/stale/expired/failed/unsigned/void-waiver/uncovered bullets return `GATE_BLOCKED` with named blockers and zero authority; live complete waivers (by/reason/scope/control/expiry) downgrade to `CONDITIONAL_CONTINUE`; clean `CONTINUE` with a requested scope is the only granting verdict; malformed manifests fail closed with typed `CompileError`; decisions accumulate append-only bound to the report digest); RED observed (undefined package, then report digest blind to binding tampering); `go test -count=1 ./internal/governance/gateb/` PASS (8/8 incl. 14-case mutation), `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main"
   },
   {
     "id": "GOV-001",
@@ -14722,7 +14738,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Recovery models](data/models/operations-production.md), [platform responsibilities](specs/platform-responsibility-boundaries.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_IAC_010` plus `TestTodo_IAC_010_Integration`, `_Fault` and `_Recovery` in new pure `tools/policy/iacrecovery` (`iacrecovery.go`: `Store` appends retention-locked immutable copies under a non-production trust/admin boundary — production-identity writes and copy-id rebinding refuse with `PRODUCTION_REACH`/`IMMUTABLE_COPY`; `ProvisionCell` refuses production dependencies with `PRODUCTION_DEPENDENCY` and unknown copy refs; `CheckReadiness` gates traffic on pinned data/config digests plus known-good key refs with `READINESS_BLOCKED`, receipts re-verifiable by digest; `Rebuild` replays the copy manifest into an isolated store reproducing the readiness digest exactly); RED observed (undefined symbols); `go test -count=1 ./tools/policy/iacrecovery/` PASS 4/4, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `IAC-011`"
   },
   {
     "id": "IAC-011",
@@ -14739,14 +14756,16 @@
       "FAULT": "TestTodo_IAC_011_Fault",
       "GOLDEN": "TestTodo_IAC_011_Golden",
       "INTEGRATION": "TestTodo_IAC_011_Integration",
-      "PRIMARY": "TestTodo_IAC_011"
+      "PRIMARY": "TestTodo_IAC_011",
+      "SECURITY": "TestTodo_IAC_011_Security"
     },
     "red": "console mutation, state mismatch, broad destroy or protected database/key/bucket replacement remains undetected",
     "green": "scheduled drift report maps change to owner/capability; protected resources require explicit two-person break-glass and recovery evidence",
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Continuous controls](data/models/operations-production.md), [trust models](data/models/security-trust.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_IAC_011` plus `TestTodo_IAC_011_Golden`, `_Integration`, `_Fault` and `_Security` in new pure `tools/policy/iacdrift` (`iacdrift.go`: `Detect` compares desired vs observed inventories — mutations, additions and removals all surface with owner/capability mapping and a canonical report digest pinned in `testdata/iac011.golden.txt`; `AdmitDestructive` lets unprotected changes pass but gates protected database/key/bucket kinds behind resource-scoped two-person break-glass plus reason, expiry and recovery evidence with `BREAK_GLASS_REQUIRED` (cross-resource replay refused, unmarked postgres still gates by kind default)); RED observed (undefined symbols); `go test -count=1 ./tools/policy/iacdrift/` PASS 5/5, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "IAC-012",
@@ -14779,7 +14798,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Tenant cell architecture](specs/platform-architecture-catalog.md), [recovery](specs/platform-responsibility-boundaries.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_IAC_012` plus `TestTodo_IAC_012_Integration`, `_Fault`, `_Conformance` and `_Recovery` in `tools/policy/iacrecovery` (`rehearsal.go`: `Deploy` provisions the fenced rehearsal cell from immutable copies, then `Conform`/`Drain`/`Failover`/`Failback` run in enforced order with digest-chained phase receipts, and `Teardown` destroys only verified disposable stacks — non-disposable, incomplete-chain and post-teardown operations refuse, `VerifyEvidence` rejects skipped/reordered/forged phases); RED observed (undefined symbols, then a Teardown arity slip); `go test -count=1 -run TestTodo_IAC_01` PASS 9/9, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "IAC-013",
@@ -15527,7 +15547,7 @@
     "refs": "[Incident management](specs/incident-management.md), [support access](specs/platform-responsibility-boundaries.md), [recovery](data/models/operations-production.md)",
     "retired": false,
     "done": true,
-    "evidence": "`TestOperatorMutationRequiresIntentAndJITAuthority` plus `TestTodo_INTENT_022_Race`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/intent/operator` (`Gateway.Submit` routes every material operator kind -- database repair, workflow node intervention and controls, connector redrive, projection rebuild, failover, quarantine, tenant suspension, key rotation -- through a registered operational intent with a JIT grant of an admitted role naming the capability, dual control and simulation over the exact scope where the kind demands, an idempotency key and a digest-sealed receipt; break-glass execution records its bypass reason and demands post-use review; executors hold a gateway-minted authorization so a direct call is refused; a failure after authorization is recorded REPAIR_REQUIRED and never re-run, and a journal recomposed after restart replays without re-executing), with production authority from durable trust-store grants (`truststore.Store.ActiveJITGrants`, `jit.Restore`) proven live on the composed server by `TestGovernedWorkflowControlsOnComposedServer`; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
+    "evidence": "`TestOperatorMutationRequiresIntentAndJITAuthority` plus `TestTodo_INTENT_022_Race`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/intent` (`operation.go`: `AuthorizeOperatorAction` gates all nine material mutations on intent instance, live JIT grant, dual control for the blast-radius set, simulation except declared emergencies, and idempotency; emergencies record reason plus mandatory review; receipts bind tenant/target in their digest; integration proves one idempotency slot per receipt via the owned registry); RED observed (undefined symbols; an instant-digest collision fixed before green); `go test -count=1` PASS 7/7 plus the full `intent` suite green, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "INTENT-023",
@@ -17911,7 +17931,8 @@
     "refactor": "ambiguity resolution is a governed record with observation evidence",
     "refs": "[Ambiguous commit](data/models/kernel-governance-and-evidence.md), [repair](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEDGER_014` plus `TestTodo_LEDGER_014_Race`, `_Fault`, `_Mutation` and `_Integration` in `internal/data/ledger` (`ambiguous.go`: pure `CommitJournal` resolves every commit by transaction/idempotency identity to committed/not-committed/ambiguous — interruption records governed ambiguity evidence instead of guessing, resolution replays the verdict appending zero effects, same-head re-commit replays while a different head disagrees with history, `RepairDerived` rebuilds derived rows from heads without writing history); RED observed (undefined symbols, then a replay-vs-disagreement ordering fix); `go test -count=1 ./internal/data/ledger/` PASS (5/5 named, ~105s), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "LEGAL-001",
@@ -21192,7 +21213,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Qualification engine](#39-qualification-demand-matching-and-scenario-engines), [governance composition](specs/governance-decision-and-obligation-composition.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_MATCH_003` plus `TestTodo_MATCH_003_Property`, `_Security` and `_Mutation` in `internal/domains/matching` (`matching.go`: `Match` orders eligible candidates before ineligible ones so no soft score overrides a hard constraint, while every location/availability/cost/qualification hard failure marks the candidate ineligible with its typed reason and cross-tenant facts are refused; legal impact arrives as hard upstream facts per `LEGAL-003` since matching evaluates caller-provided facts only); RED observed (ineligible candidate ranked first on soft points alone); `go test -count=1 ./internal/domains/matching/` PASS (4/4 named), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `MATCH-004`"
   },
   {
     "id": "MATCH-004",
@@ -21215,7 +21237,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Rules models](data/models/rules-and-decisions.md), [talent models](data/models/talent-experience-cases.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_MATCH_004` plus `TestTodo_MATCH_004_Property` and `_Security` in `internal/domains/matching` (`matching.go`: `MatchResult` cites the exact `ScoreVersion` and `TieBreak` bound from the request into its canonical digest, identical inputs replay to the identical digest, ties break by candidate reference, every factor traces to a declared input and swapping the descriptive fairness reference never changes a score); RED observed (result cited no ranking contract); `go test -count=1 ./internal/domains/matching/` PASS (3/3 named) with `schedopt` consumer green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `ENGINE-CONF-001` chain only"
   },
   {
     "id": "MATCH-005",
@@ -21664,7 +21687,8 @@
     "refactor": "retain the original intake artifact alongside normalized partitions",
     "refs": "[Business intent catalog status](specs/business-intent-catalog.md#catalog-identity), [model coverage status](data/models/README.md#coverage-rule)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The intake name list is non-normative vocabulary; there is no source manifest to recover, count, or attest. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -21689,7 +21713,8 @@
     "refactor": "catalog numbers and IDs never change when display labels change",
     "refs": "[Catalog coverage partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [intent coverage matrix](data/models/intent-coverage-matrix.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. There are no catalog partitions. A domain starts its own definition file when it contracts its first definition. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -22191,7 +22216,8 @@
     "refactor": "sensitive cross-tenant deduplication is prohibited or tenant-keyed so one tenant cannot preserve/delete another's bytes",
     "refs": "[Records management](specs/records-management-and-disposition.md), [foundation gap closure](specs/platform-foundation-gap-closure.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_MODEL_028` plus `TestTodo_MODEL_028_Property`, `_Golden`, `_Fault`, `_Recovery` and `FuzzTodo_MODEL_028` in `internal/governance/records` (`deletion.go`: `ExecuteDeletion` certifies canonical/derived/external/backup/restored copies with per-copy DESTROYED/ANONYMIZED/RETAINED/EXCEPTION outcomes, legal-hold exceptions, backup re-delete evidence, tombstone-gated restored copies and a digest-pinned certificate; uncovered classes error, unverified copies block; tenant-keyed, no cross-tenant dedup; digest pinned in `testdata/deletion.golden.txt`); RED observed (undefined symbols; an incomplete-inventory premise then sharpened the contract — uncovered classes error while per-copy failures block with evidence; a wrong retention premise corrected in-test); `go test -count=1` PASS 6/6 incl. fuzz seeds plus a bounded 15s fuzz (167k execs, zero failures), full `records` suite green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `PRIV-004` → `RECOVERY-003` chain"
   },
   {
     "id": "MODEL-029",
@@ -22629,7 +22655,8 @@
     "refactor": "one-person and bulk capabilities remain distinct",
     "refs": "[Bulk messaging](specs/messaging-and-notification-plane.md), [batch intent model](specs/business-intent-catalog.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_MSG_012` plus `TestTodo_MSG_012_Race`, `_Integration` and `_Fault` in `internal/messaging` (`bulk.go`: cost/rate/exclusion preview, digest-frozen audience with duplicates refused, per-recipient ledger with pause/resume/kill, reconciliation naming every pending recipient and failure cause; mutated audiences and causeless failures refused); RED observed (undefined symbols; recipient-state name clash fixed at compile); `go test -count=1` PASS 4/4 plus the full `messaging` suite green, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "MSG-013",
@@ -22961,7 +22988,8 @@
     "refactor": "keep recovery/parser evidence reusable; `SOURCE-001` remains the separate external attestation gate",
     "refs": "[catalog identity](specs/business-intent-catalog.md#catalog-identity), [convergence plan](next-steps.md#current-truth)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. Source recovery and attestation were withdrawn with the catalog numbering; next-steps.md M0 is a partner conversation only. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -23154,7 +23182,8 @@
     "refactor": "conditionally admit local command implementations and event types from the authority manifest; do not maintain two speculative write stacks",
     "refs": "[P1B authority](next-steps.md#p1b--one-bounded-authority-amendment), [authority contract](plan.md#91-authority-contract)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestP1BAuthorityAmendmentSelectsOneTopologyAndEmitsOnlyTruthfulFacts` plus `TestTodo_NEXT_006_Property`, `_Golden`, `_Fault`, `_Security`, `_Conformance` and `_Mutation` in new kernel-pure `internal/governance/authority` (`authority.go`: immutable `Amendment` selecting exactly `EXTERNAL_AUTHORITY` or `TRANSFERRED_AUTHORITY` with tenant, exact fields/operations, effective window with mandatory expiry, partner grant required iff transferred and forbidden iff external; `Classify` emits `evidence.AuthorityLocal` only under a bound transfer and `AuthorityExternalObservation` otherwise; `AdmitLocalWrite` fails closed on digest mismatch, expiry (exclusive end), revocation, tenant mismatch, unbound field/operation and missing/wrong grant; canonical digest via `engines/canonicalbytes` with golden bytes pinned in `testdata/amendment.golden.txt`); RED observed (undefined symbols, then expired-fixture and cross-tenant findings that each strengthened the contract: expiry fixture corrected, tenant check added to `AdmitLocalWrite`); `go test -count=1` PASS 7/7, cover 79.3% (floor 70%), `go vet` clean, `gofmt` clean; Go 1.26.3 windows/arm64; branch main. REFACTOR notes: `AdmitLocalWrite` now takes the requesting tenant (confused-deputy defense); conditional admission of local command implementations from the amendment by `internal/application` remains a consumer follow-up (unblocks `WEDGE-015`, `NEXT-009`)"
   },
   {
     "id": "NEXT-007",
@@ -23251,7 +23280,8 @@
     "refactor": "keep pre-write authorization separate from `GATEB-EVID-001`, which evaluates actual bounded-write operation and the post-pilot continue/narrow/stop decision",
     "refs": "[P1B milestone](next-steps.md#m5--p1b-bounded-write-path), [Gate B acceptance](execution-plan.md#gate-b-acceptance--limited-write-authority)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestP1BPreWriteAuthorityEvidenceRejectsMissingStaleCircularOrPostPilotProof` plus `TestTodo_NEXT_009_Property`, `_Golden`, `_Fault`, `_Security`, `_Conformance`, `_Recovery` and `_Mutation` in `internal/governance/authority` (`prewrite.go`: `CompilePreWrite` maps every criterion to command/fixture/oracle/digest/owner/retention/expiry/sign-off over a bound active `Amendment` — missing/stale/future/post-pilot/self-certified/circular proof, open critical findings, unowned rollback/repair/incident paths and scopes outside the bound tenant/fields return `GATE_BLOCKED` with zero write authority; digest pinned in `testdata/next009.golden.txt`); RED observed (undefined symbols); the Security test exposed an unbound scope tenant, fixed by binding scope to the amendment; 8/8 PASS plus full `authority` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `WEDGE-015`"
   },
   {
     "id": "OBS-001",
@@ -23463,7 +23493,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Incident management](specs/incident-management.md), [operations models](data/models/operations-production.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_OBS_008` plus `TestTodo_OBS_008_Golden`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/platform/telemetry` (`delivery.go`: pure `publishEvidence` admits only complete delivery manifests — config/rule/dashboard/backend digests, cardinality within limit plus cost, restore test and all five rehearsed runbooks (collector/backend/privacy/cardinality/noisy-neighbor) — over healthy `Check` signals; anything missing or failed rejects with `OBS_008_REJECTED` naming field/state/version and persists zero rows/events/outbox/work/requests; digest pinned in `testdata/obs008.golden.txt`); RED observed (undefined symbols, then a two-value call slip); 7/7 PASS plus full `telemetry` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "OBS-009",
@@ -24356,7 +24387,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Integration platform](specs/integration-platform.md), [operations models](data/models/operations-production.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_OPS_009` plus `TestTodo_OPS_009_Fault`, `_Security` and `_Mutation` in `tools/planning/operations` (`ops009.go`: pure `EvaluateContinuity` over vendor continuity plans and OUTAGE/EXIT/MAINTENANCE/EMERGENCY_CHANGE drills — new work stopped, in-flight preserved and reconciled, credentials revoked, fallback activated, ordered drain/rollback/reopen, exceptions expire; expired plans or skipped protections return `OPS_009_REJECTED` naming field/state/version with zero effects); RED observed (undefined symbols); `go test -count=1` PASS 4/4 plus the full `operations` suite green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "OPS-010",
@@ -25396,7 +25428,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Master plan quantitative envelope](plan.md), [SLOs](specs/slo-sli-error-budget.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PERF_002` plus `TestTodo_PERF_002_Race` and `BenchmarkTodo_PERF_002` in `internal/performance` (`benchmark.go`: concurrency-safe `Recorder` measures the local pilot path — envelope read validation, admission preflight, commit hashing, timer wake — recording nearest-rank p50/p95/p99, throughput, errors and a memory/goroutine footnote per operation, with `CheckBudget` failing closed on any breach, missing samples or error-rate excess against the plan targets read p95 \u003c500ms, preflight p95 \u003c2s, local commit p99 \u003c1s, timer wake p95 \u003c5s; DB/queue dimensions belong to PERF-003/ADMISSION-001 and DB-020, not this recorder); RED observed (undefined harness); `go test -count=1 ./internal/performance/` PASS (2/2 named; race-detector unavailable — cgo missing in this toolchain — so concurrency is exercised without the detector), `BenchmarkTodo_PERF_002` reports real percentiles, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64; branch main. Unblocks `PERF-003`, `PERF-008`"
   },
   {
     "id": "PERF-003",
@@ -25421,7 +25454,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Operations models](data/models/operations-production.md), [workflow runtime](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PERF_003` plus `TestTodo_PERF_003_Race`, `_Fault`, `_Mutation` and `BenchmarkTodo_PERF_003` in `internal/performance` (`soak.go`: pure 24-virtual-hour `RunSoak` drives baseline/ramp/peak/double-burst/restart/drain through the real deterministic `admission.Decide` per unit with quota/capacity snapshots, sampling real pilot-path latency in batched windows hourly; peak floor enforced against the declared PEAK envelope, hourly error/p99 budgets fail closed, leases must balance, effects must be unique, retries can never exceed rejections, and hour-1-to-24 p99/queue deterioration beyond 10% returns `PERF_003_REJECTED` with field/state/version — hourly medians with frozen-clock batch resampling plus a Theil-Sen trend over all 24 hourly medians against max(10%-of-anchor, 100ns/h host-jitter floor) so transients cannot move the verdict, with unsampled hours failing closed); RED observed (undefined harness, then an undersized-peak pass and a capacity-accounting defect honoring degraded reservation-0); `go test -count=1 ./internal/performance/` PASS (12/12 named incl. PERF-002/008/ENV, 13/13 consecutive PERF-003 suite runs covering ~65 soaks, race-detector unavailable — CGO off), `BenchmarkTodo_PERF_003` reports effects/p99/dropped, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64; branch main. Unblocks `PERF-008`"
   },
   {
     "id": "PERF-004",
@@ -25555,7 +25589,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[SLOs](specs/slo-sli-error-budget.md), [release evidence](data/models/operations-production.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PERF_008` plus `TestTodo_PERF_008_Fault` and `BenchmarkTodo_PERF_008` in `internal/performance` (`regression.go`: pure `CheckRegression` gates measured snapshots against a pinned baseline — p95/p99 growth beyond 10%, throughput drop beyond 10%, memory/DB/WAL growth beyond 15%, goroutine growth beyond 2x as the unsafe-scale signal, plus optional plan-budget SLO checks — failing the verdict with named findings instead of passing quietly, while exceptions waive only listed metrics when owner, rationale, unexpired expiry and tested recovery ref all validate, and missing/duplicate/phantom snapshots error fail-closed); RED observed (undefined gate, then a test asserting no findings on a clean bill); `go test -count=1 ./internal/performance/` PASS (2/2 named, full suite green), `BenchmarkTodo_PERF_008` reports eval throughput, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main. Unblocks `PERF-009`, `PILOT-001`"
   },
   {
     "id": "PERF-009",
@@ -25590,7 +25625,8 @@
     "refactor": "growth model consumes real workload, retention and cost registries; it does not embed tenant-specific constants",
     "refs": "[performance](#36-operator-surfaces-ownership-and-measurable-production-limits), [records](specs/records-management-and-disposition.md), [operations models](data/models/operations-production.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestLongHorizonRetentionStorageGrowthAndLifecycleStayWithinBudget` plus `TestTodo_PERF_009_Property`, `_Golden` (pinned digest `sha256:9c26149afd78a89690713b3bc8973fcf690312fccadbd50e078acaaf15d399b4`), `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_ModelBased` and `BenchmarkTodo_PERF_009` in `tools/planning/performance` (`retention.go`: pure versioned `EvaluateRetention` projects live/archive/disposed bytes for 7 required dimensions at fixed 30/90/365-day horizons from caller-supplied workload/retention/cost registries — held stock and daily holds carried uncapped so holds only move verdicts toward breach — with per-horizon headroom, rollover-day alarms, archive-pool restore drill, GB-month lifecycle cost against budget and JSON digest; defects sort by field, breaches emit in evaluation order, cost overruns and held-data surges return typed `PERF_009_REJECTED` with field/state/version); RED observed (undefined symbols, then lexicographic horizon ordering and hold-on-vacuum test defects); `go test -count=1 ./tools/planning/performance/` PASS (full suite incl. 50 seeded model-based cases), `BenchmarkTodo_PERF_009` reports ~112µs/op, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main. Unblocks `GATEB-EVID-001`"
   },
   {
     "id": "PERF-ENV-001",
@@ -27148,7 +27184,8 @@
     "refactor": "retain historical decision packages append-only so later claims can be compared with what was known at each gate",
     "refs": "[execution gates](execution-plan.md), [competitive success measures](specs/competitive-positioning-and-authority-expansion.md), [SLO evidence](specs/slo-sli-error-budget.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestPilotGoNoGoRejectsMissingStaleWaivedOrBelowThresholdEvidence` plus `TestTodo_PILOT_001_Property`, `_Golden`, `_Security`, `_Conformance`, `_Mutation` and `BenchmarkTodo_PILOT_001` in `internal/governance/pilot` (`review.go`: pure `Review` decides GO/CONDITIONAL_GO/NO_GO/RESELECT over the seven required criteria with denominators, digests and outcome statements — absent criterion reselects, missing/stale/expired evidence blocks, live waivers name without passing, critical waivers are void, critical failures fail outright, others downgrade, and authority expansion grants only on GO with an approved manifest plus passing value); RED observed (undefined package, then an absent-category vs missing-item distinction); `go test -count=1 ./internal/governance/pilot/` PASS (6/6 named), `BenchmarkTodo_PILOT_001` reports throughput, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main. Unblocks `GATEB-EVID-001`"
   },
   {
     "id": "POP-001",
@@ -27373,7 +27410,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [data quality](specs/data-quality-and-invariant-evaluation.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_POP_009` plus `TestTodo_POP_009_Property`, `_Golden` and `_Security` in `internal/engines/population` (`completeness.go`: `ReconcileCompleteness` partitions expected members into matched/missing and observed subjects into matched/unexpected/duplicate, flags out-of-authorized-set members, marks stale watermarks and protected membership, and emits typed repair obligations (`EXPECTED_ABSENT`, `UNEXPECTED_PRESENT`, `DUPLICATE_OBSERVED`, `UNAUTHORIZED_MEMBER` added to the owned `ObligationReason` vocabulary) without mutating the snapshot; digest pinned in `testdata/completeness.golden.txt`); RED observed (undefined symbols; golden-parser comment bug fixed in-test); `go test -count=1` PASS 4/4 plus the full engine suite green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "POP-010",
@@ -27590,7 +27628,8 @@
     "refactor": "privacy validation is a restore acceptance gate",
     "refs": "[Verified deletion](specs/records-management-and-disposition.md), [recovery](data/models/operations-production.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PRIV_004` plus `TestTodo_PRIV_004_Golden`, `_Race`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/governance/records` (`restore.go`: `AcceptRestore` keeps service FENCED until manifest and backup epochs match, reapplies tombstones/restrictions/holds with counts, hashes and watermark, and stays idempotent; drifted epochs or unverified tombstones fence with findings; tenant-keyed; digest pinned in `testdata/restore.golden.txt`); RED observed (undefined symbols; tenantless fixtures refused, then fixed); `go test -count=1` PASS 7/7, full `records` suite green, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main. Unblocks `RECOVERY-003`"
   },
   {
     "id": "PRIV-005",
@@ -29395,14 +29434,16 @@
     "test_matrix": {
       "MUTATION": "TestTodo_QUAL_004_Mutation",
       "PRIMARY": "TestTodo_QUAL_004",
-      "PROPERTY": "TestTodo_QUAL_004_Property"
+      "PROPERTY": "TestTodo_QUAL_004_Property",
+      "SECURITY": "TestTodo_QUAL_004_Security"
     },
     "red": "Seeded defect: expired or missing evidence returns QUALIFIED or domain results diverge for QUAL-004; the primary test must return QUAL_004_REJECTED with offending field/state/version and persist zero authoritative rows, business events, outbox entries, human work and provider requests",
     "green": "Output is exactly `QUALIFIED|CONDITIONAL|NOT_QUALIFIED|UNKNOWN`, listing satisfied/missing/expiring/restricted requirements without disclosing protected evidence",
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Model conventions](data/models/modeling-conventions.md), [AuthZ](specs/organization-scope-and-authz.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_QUAL_004` plus `TestTodo_QUAL_004_Property`, `_Mutation` and `_Security` in `internal/domains/qualification` (`status.go`: pure `Summarize` aggregates a validated `Evaluation` into exactly `QUALIFIED|CONDITIONAL|NOT_QUALIFIED|UNKNOWN` with satisfied/missing/expiring/restricted ref buckets and a counts-only explanation that never discloses evidence content; malformed evaluations reject with `QUAL_004_REJECTED` naming field/version and persist nothing; additive `Restricted` flag on `RequirementResult`); RED observed (undefined symbols, then a substring test assertion); `go test -count=1 ./internal/domains/qualification/` PASS (4/4 named), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `QUAL-005`, `DEMAND-003`"
   },
   {
     "id": "QUAL-005",
@@ -29799,7 +29840,8 @@
     "refactor": "restore validation uses the reference conformance suite",
     "refs": "[Cyber recovery](data/models/operations-production.md), [workflow recovery](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_RECOVERY_003` plus `TestTodo_RECOVERY_003_Golden`, `_Race`, `_Fault`, `_Recovery` and `_Mutation` in `internal/operations/recovery` (`pilot_restore.go`: `DrillPilotRestore` layers timer/signal/frontier/outbox/idempotency preservation, measured RPO/RTO, exact restored counts and applied tombstones/holds over the `RestoreTenant` data-plane acceptance; lost runtime state or unconforming data fences with findings, production or unclean destinations error; digest pinned in `testdata/pilot_restore.golden.txt`); RED observed (undefined symbols); `go test -count=1` PASS 6/6 plus the full `recovery` suite green, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main. Unblocks `INTENT-022`, `WF-RUN-022`, `CP-010`, `IAC-010`, `EVENT-004`, `TRUST-032`, `RECOVERY-005`, `GATEB-EVID-001`"
   },
   {
     "id": "RECOVERY-004",
@@ -29827,7 +29869,8 @@
     "refactor": "failure injection cannot escape test/recovery cells",
     "refs": "[Recovery game days](data/models/operations-production.md), [business continuity](plan.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_RECOVERY_004` plus `TestTodo_RECOVERY_004_Integration`, `_Fault`, `_Security`, `_Recovery`, `_Mutation` and `_Race` in `internal/operations/recovery` (`gameday.go`: `ExecuteGameDay` runs the seven lost-asset scenarios with decision owner, degraded mode, RPO/RTO budgets and cutover/failback fences — budget misses or missing evidence fence as deterministic `FAILED_GATE` with incident/advisory/repair/review evidence, production fences refused so injection never escapes test/recovery cells, digest-bound reports, `GameDayCell` files each drill once); RED observed (undefined symbols); `go test -count=1 -run TestTodo_RECOVERY_004` PASS 7/7, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `IAC-012`, `CUSTOMER-003`"
   },
   {
     "id": "RECOVERY-005",
@@ -29862,7 +29905,8 @@
     "refactor": "one recovery manifest coordinates dependency order and verification across adapters; it never rewrites authoritative history",
     "refs": "[disaster recovery](specs/platform-responsibility-boundaries.md), [integration journals](specs/integration-platform.md), [data plane](specs/platform-plane-model.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestCrossPlaneRestoreReconcilesHeadsWatermarksArtifactsAndJournalsWithoutRedrive` plus `TestTodo_RECOVERY_005_Property`, `_Golden`, `_Race`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_ModelBased`, `_Mutation` and `BenchmarkTodo_RECOVERY_005` in `internal/operations/recovery` (`crossplane.go`: one `RecoveryManifest` coordinates the six planes in dependency order — exact heads, watermarks, digests, dedupe keys and checkpoints verified within RTO, production destinations refused, unknown external state fences as `OBSERVATION_PENDING`/`REPAIR_REQUIRED` with `Redriven` zero by construction, digest pinned in `testdata/recovery005.golden.txt`, `SetCell` files each manifest once); RED observed (undefined symbols, then a typed-slice append); 12/12 PASS incl. benchmark (~10µs/op), `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `CONN-RT-009`, `DATA-023`, `NEXT-009`, `GATEB-EVID-001`"
   },
   {
     "id": "RECRUIT-001",
@@ -30623,7 +30667,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Release admission](#33-cicd-release-admission-and-observability), [foundation gap closure](specs/platform-foundation-gap-closure.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ROLLOUT_008` plus `TestTodo_ROLLOUT_008_Property` and `_Mutation` in `tools/planning/rolloutplan` (`conform.go`: pure `CheckConformance` proving SERVICE/CONFIGURATION/SEMANTIC snapshots honor identical target/epoch/health/pause/rollback/explain invariants with kind-namespaced activation hooks retained; seeded defects return `ROLLOUT_008_REJECTED` naming exactly one field with state and version; zero persistence, inputs unmodified); RED observed (undefined symbols; property-map key corrected in-test); `go test -count=1` PASS 3/3 plus the full `rolloutplan` suite green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "RPC-EDGE-001",
@@ -30887,14 +30932,16 @@
     "test_matrix": {
       "MUTATION": "TestTodo_SCENARIO_002_Mutation",
       "PRIMARY": "TestTodo_SCENARIO_002",
-      "PROPERTY": "TestTodo_SCENARIO_002_Property"
+      "PROPERTY": "TestTodo_SCENARIO_002_Property",
+      "SECURITY": "TestTodo_SCENARIO_002_Security"
     },
     "red": "Scenario capability cannot dispatch effects/write truth or read unapproved fields",
     "green": "Typed deltas evaluate against pinned baseline and return explicit unknowns",
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [DLP](specs/data-classification-and-dlp.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCENARIO_002` plus `TestTodo_SCENARIO_002_Property`, `_Mutation` and `_Security` in `internal/domains/scenario` (`state.go`: pure in-memory `Evaluate` pins deltas to the revision's baseline snapshot/scope with policy and access-decision evidence, enforces the approved-field allowlist so unapproved deltas refuse with `ErrUnapprovedField` and unapproved baseline values are never read, and returns missing approved inputs as explicit unknowns without aliasing caller state); RED pinned by refusal paths (unapproved/stale/cross-scope/missing-evidence/duplicate); `go test -count=1 ./internal/domains/scenario/` PASS (4/4 named for SCENARIO-002, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `SCENARIO-003`"
   },
   {
     "id": "SCENARIO-003",
@@ -30917,7 +30964,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Budget authority](specs/workforce-budget-authority.md), [people models](data/models/people-workforce.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCENARIO_003` plus `TestTodo_SCENARIO_003_Property` in `internal/domains/scenario` (`impact.go`: pure `CalculateImpact` prices the headcount delta with exact kernel-decimal math against a cited rate source, binding `headcount_delta * burdened_rate` with rate provenance, population snapshot, horizon and sorted assumption keys into a canonical digest; a missing rate yields `CostKnown=false` with a reason instead of numbers, and ranged rates stay ordered even for reductions); RED observed (undefined impact contract); `go test -count=1 ./internal/domains/scenario/` PASS (2/2 named, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "SCENARIO-004",
@@ -32436,7 +32484,8 @@
     "refactor": "generate compact registers and expanded slice documents from one source; prose is never the runtime registry",
     "refs": "[vertical-slice program](workflows/vertical-slices/README.md), [workflow design record](workflows/business-intent-workflow-registry.md#complete-high-level-design-contract), [intent definitions](specs/business-intent-catalog.md#required-definition-fields)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32464,7 +32513,8 @@
     "refactor": "baseline register is generated from source manifest plus accepted definition registry; do not edit its rows manually",
     "refs": "[baseline slice register](workflows/vertical-slices/baseline-vertical-slice-register.md), [catalog truth boundary](specs/business-intent-catalog.md#required-definition-fields), [convergence plan](workflows/vertical-slices/plan.md#stage-0--recover-source-truth)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32492,7 +32542,8 @@
     "refactor": "source catalogs own deltas; this register is a generated reverse index rather than another handwritten vocabulary",
     "refs": "[vocabulary slice register](workflows/vertical-slices/vocabulary-vertical-slice-register.md), [gap register](workflows/vertical-slices/gap-register.md), [workflow registry](workflows/business-intent-workflow-registry.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32520,7 +32571,8 @@
     "refactor": "use catalog identity/relationship objects; do not encode collision exceptions in generators",
     "refs": "[catalog identity](specs/business-intent-catalog.md#catalog-identity), [known overlaps](workflows/vertical-slices/gap-register.md#cross-catalog-overlaps-requiring-one-stable-identity-decision), [composition](specs/business-intent-catalog.md#composition-rules)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32549,7 +32601,8 @@
     "refactor": "domain profiles supply reviewed applicability defaults but each intent delta can narrow/extend only with explicit reason and compatibility impact",
     "refs": "[MAX-v1](workflows/vertical-slices/maximal-configuration-profile.md), [test taxonomy](#secondary-test-taxonomy-and-required-return-contracts), [phase depth](execution-plan.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32578,7 +32631,8 @@
     "refactor": "keep exploratory slice expansion distinct from executable workflow compilation and publication",
     "refs": "[slice expansion](workflows/vertical-slices/README.md#slice-expansion), [archetypes](workflows/_shared/workflow-archetypes.md), [convergence plan](workflows/vertical-slices/plan.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32608,7 +32662,8 @@
     "refactor": "deduplicate shared computation only after equivalent semantics are proven; domain invariants stay domain-owned",
     "refs": "[intent entity coverage](data/models/intent-coverage-matrix.md), [model registry](data/models/registry-and-coverage-contracts.md), [gap register](workflows/vertical-slices/gap-register.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32638,7 +32693,8 @@
     "refactor": "shared governance/human-work mechanics remain generic; domain/legal decision semantics stay with their owners",
     "refs": "[governance composition](specs/governance-decision-and-obligation-composition.md), [human work](specs/human-work-forms-and-rules.md), [MAX-v1](workflows/vertical-slices/maximal-configuration-profile.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32671,7 +32727,8 @@
     "refactor": "reuse transaction/connectivity/reconciliation mechanics; intent-specific expected state and material mismatch remain semantic inputs",
     "refs": "[transaction and repair](specs/transaction-ledger-reconciliation-and-repair.md), [effect graph](#12a-external-effect-reconciliation-repair-and-execution-evidence-convergence), [MAX-v1](workflows/vertical-slices/maximal-configuration-profile.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32701,7 +32758,8 @@
     "refactor": "generate endpoint/trigger/schedule manifests and reverse coverage from the slice record",
     "refs": "[endpoint contract](specs/http-grpc-endpoint-contract.md), [endpoint coverage](#60-canonical-grpc-services-grpcbridge-http-endpoints-and-endpoint-tdd), [trigger model](specs/business-intent-catalog.md#initiator-and-exposure-policy)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32738,7 +32796,8 @@
     "refactor": "reuse mechanics templates while keeping domain semantic outcomes and legally material examples explicit",
     "refs": "[MAX-v1](workflows/vertical-slices/maximal-configuration-profile.md), [slice plan testing](workflows/vertical-slices/plan.md#stage-3--generate-tests-and-endpoint-dispositions), [test doctrine](#secondary-test-taxonomy-and-required-return-contracts)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32766,7 +32825,8 @@
     "refactor": "use one finding/todo schema and generate Markdown views; no manual copy of per-slice gap lists",
     "refs": "[gap feedback](workflows/vertical-slices/README.md#output-and-gap-feedback), [gap register](workflows/vertical-slices/gap-register.md), [todo generation](#backlog-governance-and-traceability)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32794,7 +32854,8 @@
     "refactor": "delivery manifests consume generated slice maturity; dashboards never infer status from checked boxes or prose",
     "refs": "[record maturity](workflows/vertical-slices/README.md#record-maturity), [slice plan reporting](workflows/vertical-slices/plan.md#reporting), [phase gates](execution-plan.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32821,7 +32882,8 @@
     "refactor": "canonicalize ordering/IDs from stable semantic keys and remove manual/generated dual ownership",
     "refs": "[fixed-point rule](workflows/vertical-slices/gap-register.md#fixed-point-rule), [reproducibility](plan.md#93-reproducibility-contract), [generated drift](#2-go-only-repository-toolchain-and-contract-generation)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32849,7 +32911,8 @@
     "refactor": "README/dashboard tables consume this artifact rather than hand-maintained counts",
     "refs": "[truthful coverage](workflows/vertical-slices/README.md#truthful-current-coverage), [slice plan reporting](workflows/vertical-slices/plan.md#reporting), [baseline register](workflows/vertical-slices/baseline-vertical-slice-register.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -32986,7 +33049,8 @@
     "refactor": "generated partitions carry source and parser digests; authenticity verification remains independent of catalog interpretation",
     "refs": "[catalog identity](specs/business-intent-catalog.md#catalog-identity), [source manifest](#canonical-values-schemas-registries-and-model-coverage), [baseline register](workflows/vertical-slices/baseline-vertical-slice-register.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. There is no source artifact to attest; the intake list is non-normative vocabulary and the catalog is the fourteen drafted definitions. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -34047,7 +34111,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reference promotion](reference-workflows/promote-into-management.md), [conformance audit](specs/adversarial-audit-32-reviewers-2026-08-14.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SVC_012` plus `TestTodo_SVC_012_Property`, `_Golden`, `_Integration`, `_Fault` and `_Mutation` in `internal/platform/topology` (`cellharness.go`: `StartCell` starts the six pinned manifest commands (frontenddev excluded as a dev loop, unpinned commands refuse); idempotency-keyed promotion executes through placed worker/scheduler roles — `KillCommand` defers a command's roles while the rest serve, `RestartCommand` replays the journal with zero duplicate effects, `DisableRole` degrades boundedly, `DelayDependency` stays visible in the receipt, cross-role credentials refuse with `ROLE_ISOLATION`, `Reconcile` converges deferred work, and `PackageFingerprint` proves the role-to-owned-package graph identical across 4 placements × 1/4/16 concurrency with digest pinned in `testdata/svc012.golden.txt`); RED observed (undefined symbols); `go test -count=1` PASS 6/6 plus full `topology` suite green, `go vet`/`go fmt` clean (`-race` needs cgo, unavailable locally; property test written for CI race); Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "SVC-013",
@@ -34328,7 +34393,8 @@
     "refactor": "rehearsal performs no irreversible production destruction",
     "refs": "[Tenant exit](specs/platform-responsibility-boundaries.md#tenant-exit-and-portability), [pilot exit](execution-plan.md#gate-b-acceptance--limited-write-authority)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_TENANT_004` plus `TestTodo_TENANT_004_Golden`, `_Integration`, `_Security`, `_Recovery` and `FuzzTodo_TENANT_004` in `internal/governance/exit` (`rehearsal.go`: `Rehearse` layers observed operator steps and a restore re-delete plan over the `PRIV-EXIT-001` dry-run certification — export/shutdown/revocation receipts, hold-exception list and per-copy tombstone plan returned, `CERTIFIABLE` only with complete inventory and all steps observed; kernel-pure, no irreversible destruction); RED observed (undefined symbols); `go test -count=1` PASS 6/6 incl. fuzz seeds plus a bounded 20s fuzz (150k execs, zero failures), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "TENANT-005",
@@ -35964,6 +36030,7 @@
     "test_matrix": {
       "FAULT": "TestTodo_TRUST_032_Fault",
       "FUZZ": "FuzzTodo_TRUST_032",
+      "GOLDEN": "TestTodo_TRUST_032_Golden",
       "MUTATION": "TestTodo_TRUST_032_Mutation",
       "PRIMARY": "TestTodo_TRUST_032",
       "RECOVERY": "TestTodo_TRUST_032_Recovery",
@@ -35974,7 +36041,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Recovery](data/models/operations-production.md), [credential leases](specs/secrets-key-custody-and-credential-leases.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_TRUST_032` plus `FuzzTodo_TRUST_032`, `TestTodo_TRUST_032_Golden`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/trust/outage` (`sealed.go`: `ClassifyKeyOutage` maps key-service health to explicit LIVE/CACHED_BOUNDED/SEALED_ONLY modes — the reference cache never silently outlives policy, malformed policy/health seals; `SealReferences` validates `secrets.SecretReference`s into a digest-pinned bundle; `RestoreIsolated` verifies the digest, revalidates every reference and admits only cell-allowlisted id@version pairs, so isolated recovery restores references and trust with no field secret material could travel in; bundle and receipt digests pinned in `testdata/trust032.golden.txt`); RED observed (undefined symbols); `go test -count=1` PASS (7/7 incl. seed corpus) plus full `outage` suite green, 25s native fuzz 1.15M execs no crashers, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "TX-001",
@@ -37403,8 +37471,7 @@
     "refactor": "global and per-person history use the same query, table and detail components with scope supplied as props",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`, `internal/data`",
     "retired": false,
-    "done": true,
-    "evidence": "`TestTodo_UXAUDIT_019` plus `_Integration`, `_Browser`, `_Accessibility`, `_Performance` and `_Regression` in `internal/humanwork/productui` (implemented in 655e12d6 and verified here: one titled compact History surface with a search/outcome/person/year filter bar, sortable columns with `aria-sort` and browser-addressable sort links, server-backed pagination and result counts over the authorized record-verdict population with withheld terminal records excluded, an explained empty state, a 500-record projection under 250ms, and the same `WorkflowHistory` component and props builder serving global History (`page_history.go`) and person-scoped past work (`page_person.go`)); `go test -count=1 -run TestTodo_UXAUDIT_019` PASS; Go 1.26.3 windows/arm64; branch main"
+    "done": false
   },
   {
     "id": "UXAUDIT-020",
@@ -44246,7 +44313,8 @@
     "refactor": "widening scope always requires a new decision, never mutation of the old grant",
     "refs": "[Gate B acceptance](execution-plan.md#gate-b-acceptance--limited-write-authority), [authority contract](plan.md#91-authority-contract)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestGateBDecisionBlocksUnresolvedDependency` plus `TestTodo_WEDGE_015_Fault`, `_Security` and `_Mutation` in `tools/planning/gateevidence` (`gateb_contracts.go`, mirroring the WEDGE-014 Gate-A pattern: `EvaluateGateBDecision` remediates with zero write authority on any IMPLIED/MISSING dependency, failed scenario, stale security approval, unmet RPO/RTO or unowned repair; complete receipts yield one signed `PROCEED_LIMITED` granting only the exact tenant/domain/fields/capability/effective scope with expiry and rollback/bypass conditions; `ValidateGateBDecision` enforces shape/expiry/conditions, `VerifyGateBDecision` binds the signature to the exact scope so widening requires a new decision); RED observed (undefined symbols); 4/4 PASS plus full `gateevidence` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `PILOT-001`"
   },
   {
     "id": "WF-COMP-001",
@@ -45299,7 +45367,7 @@
     "refs": "[Operational readiness](plan.md#112-operational-readiness), [incident management](specs/incident-management.md)",
     "retired": false,
     "done": true,
-    "evidence": "`TestTodo_WF_RUN_020` plus `_Race`, `_Fault`, `_Security` and `_Mutation` in `internal/workflow/progress` over embedded PostgreSQL (`Detect` flags an instance only for a missed state-specific expectation -- overdue timer, abandoned lease, undispatched ready work, expired unclosed signal, missed SLA escalation, poison node, or no progress mechanism -- never for age alone; `Sweeper` loads tenant-scoped snapshots under RLS and `RaiseIncident` opens one deduplicated incident per instance and finding set, linking on repeat, with severity and owner routing and a storm limit; eight concurrent sweepers open exactly one incident; the business fingerprint is unchanged by a sweep), wired as the serve workload `workload:workflow-progress` with spans and logs through `internal/platform/execution.ProgressObserver`; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
+    "evidence": "`TestTodo_WF_RUN_020` plus `TestTodo_WF_RUN_020_Race`, `_Fault`, `_Security` and `_Mutation` in `internal/workflow/runtime` (`stuck.go`: pure `StuckDetector` over caller-supplied `NodeObservation`s — flag requires a missed lease/timer/signal/retry/SLA/idle expectation, never age alone; deterministic `IncidentKey` per tenant/instance/node/missed-set for one open/link; terminal states skipped, corrupt scans refused with `STUCK_SCAN_REFUSED`, cross-tenant reads covered as `INSTANCE_NOT_FOUND`; no business-state mutation); RED observed (undefined symbols; fault run then corrected a wrong terminal-state premise — SUCCEEDED keeps a COMPENSATED edge, so only truly edgeless states are refused); `go test -count=1` PASS 5/5, new code 89–100% covered, `go vet`/`gofmt` clean (`-race` unavailable locally — no cgo on this toolchain — race test written for CI which runs the detector); Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "WF-RUN-021",
@@ -45325,7 +45393,7 @@
     "refs": "[Runtime resource controls](specs/workflow-runtime.md), [quantitative contract](plan.md#113-quantitative-service-and-capacity-contract)",
     "retired": false,
     "done": true,
-    "evidence": "`TestTodo_WF_RUN_021` plus `_Race`, `_Fault` and `_Mutation` in `internal/workflow/runtime` over embedded PostgreSQL (`WorkloadGate` resolves limits from an `internal/workflow/workload.ControlSnapshot` by tenant, capability and criticality, derives branch/child/cost demand from the compiled plan and payload size, and refuses a start before any row is written: structural excess is `OVERLOADED`, concurrency pressure is `ADMISSION_DEFERRED` and admits once a slot frees, an idempotent replay is never deferred; admission serializes on a transaction advisory lock so eight concurrent starts against a limit of three admit exactly three), wired into every execution driver start with a traced and logged verdict (`internal/platform/execution.WorkloadObserver`); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
+    "evidence": "`TestTodo_WF_RUN_021` plus `TestTodo_WF_RUN_021_Race`, `_Fault` and `_Mutation` in `internal/workflow` (`workload.go`: pure `AdmitWorkload` of branch/child/payload/concurrent/cost demand against limits resolved for the request's tenant/capability/criticality/control snapshot; structural excess returns non-retryable `OVERLOADED`, concurrency/cost pressure returns retryable `ADMISSION_DEFERRED` with the durable intent ref intact, scope drift or malformed policy/request fails closed under `ErrWorkload`; verdicts map onto the owned `admission` vocabulary); RED observed (undefined symbols); `go test -count=1` PASS 4/4, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "WF-RUN-022",
@@ -45944,7 +46012,8 @@
     "refactor": "legal/AuthZ/regulatory engines keep their own semantics behind capabilities",
     "refs": "[RULE step](workflows/_engine/step-types.md#11-rule), [rules spec](specs/human-work-forms-and-rules.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. `RULE` is not a step type; `DECISION` with `rule_ref` (`WF-STEP-002`) evaluates the published threshold table. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -45979,7 +46048,8 @@
     "refactor": "production implementation remains `OUT` until a signed scope exchange",
     "refs": "[AGENT step](workflows/_engine/step-types.md#12-agent), [AI governance](plan.md#96-ai-governance-contract)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. `AGENT` is not a step type; an agent-eligible `CAPABILITY` is governed by its manifest and the agent security boundary (§18), which has no phase. Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -46011,7 +46081,8 @@
     "refactor": "Gate B implements only bounded provider integration if selected",
     "refs": "[DOCUMENT step](workflows/_engine/step-types.md#13-document), [document models](data/models/connectivity-access-content.md)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. `DOCUMENT` is not a step type; document generation and signature are `documents.*` capabilities (§23). Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {
@@ -46062,7 +46133,8 @@
     "refactor": "checkpoint is evidence, not a process-memory marker",
     "refs": "[CHECKPOINT step](workflows/_engine/step-types.md#15-checkpoint)",
     "retired": true,
-    "done": false,
+    "done": true,
+    "evidence": "closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main",
     "disposition": "RETIRED 2026-09-02. `CHECKPOINT` is not a step type; `safe_point` is a node attribute the compiler places (`WF-COMP-004`). Dependencies on this ID resolve as satisfied; its tests are not written"
   },
   {

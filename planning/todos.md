@@ -753,7 +753,8 @@ accessibility / delegation / representation / human escalation
   - **REFACTOR:** preserve evidence snapshot for later counterfactual review.
   - **Refs:** [Gate A acceptance](execution-plan.md#gate-a-acceptance--paid-observation), [authority expansion](specs/competitive-positioning-and-authority-expansion.md).
 
-- [ ] `WEDGE-015` **[GATE_B][SOL_HIGH] Execute the limited-write authority decision.**
+- [x] `WEDGE-015` **[GATE_B][SOL_HIGH] Execute the limited-write authority decision.**
+  - **Evidence (2026-09-14):** `TestGateBDecisionBlocksUnresolvedDependency` plus `TestTodo_WEDGE_015_Fault`, `_Security` and `_Mutation` in `tools/planning/gateevidence` (`gateb_contracts.go`, mirroring the WEDGE-014 Gate-A pattern: `EvaluateGateBDecision` remediates with zero write authority on any IMPLIED/MISSING dependency, failed scenario, stale security approval, unmet RPO/RTO or unowned repair; complete receipts yield one signed `PROCEED_LIMITED` granting only the exact tenant/domain/fields/capability/effective scope with expiry and rollback/bypass conditions; `ValidateGateBDecision` enforces shape/expiry/conditions, `VerifyGateBDecision` binds the signature to the exact scope so widening requires a new decision); RED observed (undefined symbols); 4/4 PASS plus full `gateevidence` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `PILOT-001`.
   - **Depends:** `WEDGE-014`, `NEXT-006`, `NEXT-009`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
   - **TEST:** `TestGateBDecisionBlocksUnresolvedDependency`.
@@ -1594,7 +1595,8 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** add dual-verification support without changing historical hashes.
   - **Refs:** [Canonical digest contract](specs/canonical-envelope-and-digest.md), [crypto agility](data/models/security-trust.md).
 
-- [ ] `MODEL-008` **[RETIRED][TERRA] RETIRED 2026-09-02: Check in the exact 530-candidate source manifest.**
+- [x] `MODEL-008` **[RETIRED][TERRA] RETIRED 2026-09-02: Check in the exact 530-candidate source manifest.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The intake name list is non-normative vocabulary; there is no source manifest to recover, count, or attest. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `GOV-008`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
@@ -1605,7 +1607,8 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** retain the original intake artifact alongside normalized partitions.
   - **Refs:** [Business intent catalog status](specs/business-intent-catalog.md#catalog-identity), [model coverage status](data/models/README.md#coverage-rule).
 
-- [ ] `MODEL-009` **[RETIRED][TERRA] RETIRED 2026-09-02: Generate all intent ownership partitions.**
+- [x] `MODEL-009` **[RETIRED][TERRA] RETIRED 2026-09-02: Generate all intent ownership partitions.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. There are no catalog partitions. A domain starts its own definition file when it contracts its first definition. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `MODEL-008`, `TOOL-004`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
@@ -1814,7 +1817,7 @@ or an explicit rejection and replacement decision.
   - **Refs:** [Records management](specs/records-management-and-disposition.md), [privacy model](data/models/assurance-intelligence-platform.md).
   - **Evidence (2026-09-03):** `TestTodo_MODEL_027`, Declared `MODEL-027` test matrix and acceptance behavior in `internal/governance/legalhold`; PASS; `go test -p 1 ./internal/governance/legalhold` and `go vet ./internal/governance/legalhold` on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
 
-- [ ] `MODEL-028` **[GATE_C][SOL_HIGH] Implement verified deletion and backup re-delete.**
+- [x] `MODEL-028` **[GATE_C][SOL_HIGH] Implement verified deletion and backup re-delete.**
   - **Depends:** `MODEL-026`, `RECOVERY-001`, `RECOVERY-002`, `RECORDS-COPY-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestTodo_MODEL_028`.
@@ -1823,6 +1826,7 @@ or an explicit rejection and replacement decision.
   - **GREEN:** completion returns destruction/anonymization/retention outcomes per copy, exceptions/holds and a signed certificate; restored backups reapply tombstones before service.
   - **REFACTOR:** sensitive cross-tenant deduplication is prohibited or tenant-keyed so one tenant cannot preserve/delete another's bytes.
   - **Refs:** [Records management](specs/records-management-and-disposition.md), [foundation gap closure](specs/platform-foundation-gap-closure.md).
+  - **Evidence (2026-09-14):** `TestTodo_MODEL_028` plus `TestTodo_MODEL_028_Property`, `_Golden`, `_Fault`, `_Recovery` and `FuzzTodo_MODEL_028` in `internal/governance/records` (`deletion.go`: `ExecuteDeletion` certifies canonical/derived/external/backup/restored copies with per-copy DESTROYED/ANONYMIZED/RETAINED/EXCEPTION outcomes, legal-hold exceptions, backup re-delete evidence, tombstone-gated restored copies and a digest-pinned certificate; uncovered classes error, unverified copies block; tenant-keyed, no cross-tenant dedup; digest pinned in `testdata/deletion.golden.txt`); RED observed (undefined symbols; an incomplete-inventory premise then sharpened the contract — uncovered classes error while per-copy failures block with evidence; a wrong retention premise corrected in-test); `go test -count=1` PASS 6/6 incl. fuzz seeds plus a bounded 15s fuzz (167k execs, zero failures), full `records` suite green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `PRIV-004` → `RECOVERY-003` chain.
 
 - [x] `MODEL-029` **[GATE_A][SOL_LOW] Implement content-addressed artifact storage.**
   - **Depends:** `MODEL-007`, `MODEL-023`, `MODEL-026`.
@@ -3051,7 +3055,7 @@ or an explicit rejection and replacement decision.
   - **GREEN:** each material operation resolves a typed operational/repair intent, JIT/dual-control policy, simulation/scope, idempotency and evidence receipt; emergency execution records declared bypass reason and mandatory review without rewriting business truth.
   - **REFACTOR:** diagnostic reads may remain governed capabilities, but any material change/effect has an IntentInstance and outcome.
   - **Refs:** [Incident management](specs/incident-management.md), [support access](specs/platform-responsibility-boundaries.md), [recovery](data/models/operations-production.md).
-  - **Evidence (2026-09-14):** `TestOperatorMutationRequiresIntentAndJITAuthority` plus `TestTodo_INTENT_022_Race`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/intent/operator` (`Gateway.Submit` routes every material operator kind -- database repair, workflow node intervention and controls, connector redrive, projection rebuild, failover, quarantine, tenant suspension, key rotation -- through a registered operational intent with a JIT grant of an admitted role naming the capability, dual control and simulation over the exact scope where the kind demands, an idempotency key and a digest-sealed receipt; break-glass execution records its bypass reason and demands post-use review; executors hold a gateway-minted authorization so a direct call is refused; a failure after authorization is recorded REPAIR_REQUIRED and never re-run, and a journal recomposed after restart replays without re-executing), with production authority from durable trust-store grants (`truststore.Store.ActiveJITGrants`, `jit.Restore`) proven live on the composed server by `TestGovernedWorkflowControlsOnComposedServer`; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
+  - **Evidence (2026-09-14):** `TestOperatorMutationRequiresIntentAndJITAuthority` plus `TestTodo_INTENT_022_Race`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/intent` (`operation.go`: `AuthorizeOperatorAction` gates all nine material mutations on intent instance, live JIT grant, dual control for the blast-radius set, simulation except declared emergencies, and idempotency; emergencies record reason plus mandatory review; receipts bind tenant/target in their digest; integration proves one idempotency slot per receipt via the owned registry); RED observed (undefined symbols; an instant-digest collision fixed before green); `go test -count=1` PASS 7/7 plus the full `intent` suite green, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main.
 
 - [x] `INTENT-023` **[GATE_A][SOL_HIGH] Preserve intent semantics across simulate, shadow, replay, test and execute modes.**
   - **Evidence (2026-09-05):** `TestIntentExecutionModesCannotEscalateEffects`, `TestTodo_INTENT_023_{Golden,Integration,Fault,Conformance,Recovery,Mutation}`, `FuzzTodo_INTENT_023` in `internal/intent` (fixed 5-mode × 4-environment ModeContract matrix pinned as `testdata/intent_023_mode_matrix.json`; only EXECUTE/PRODUCTION and REPAIR/PRODUCTION reach the real world, Permit composes the contract ceiling with the definition's effect class so neither lifts the other, CausalSeparation forbids a replay naming itself); `go test -count=1 ./internal/intent/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
@@ -3527,7 +3531,8 @@ or an explicit rejection and replacement decision.
   - **Refs:** [TRANSFORM step](workflows/_engine/step-types.md#10-transform).
   - **Evidence (2026-09-03):** `TestTodo_WF_STEP_010`, `_Golden` (deterministic TRANSFORM) in `internal/workflow` (`Compile`, `CompiledWorkflow` with digest and `Verify`, `CheckStepConformance`, JSON loader, promotion reference golden `testdata/promotion_plan.json`); `go test -count=1 ./internal/workflow/...` PASS; branch plan-revision-2026-09-02; on windows/arm64 (Go 1.26.3).
 
-- [ ] `WF-STEP-011` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Implement deterministic `RULE`.**
+- [x] `WF-STEP-011` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Implement deterministic `RULE`.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. `RULE` is not a step type; `DECISION` with `rule_ref` (`WF-STEP-002`) evaluates the published threshold table. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `RULE-001`, `RULE-002`, `RULE-003`, `WF-COMP-005`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
@@ -3538,7 +3543,8 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** legal/AuthZ/regulatory engines keep their own semantics behind capabilities.
   - **Refs:** [RULE step](workflows/_engine/step-types.md#11-rule), [rules spec](specs/human-work-forms-and-rules.md).
 
-- [ ] `WF-STEP-012` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Specify governed `AGENT` step behavior.**
+- [x] `WF-STEP-012` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Specify governed `AGENT` step behavior.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. `AGENT` is not a step type; an agent-eligible `CAPABILITY` is governed by its manifest and the agent security boundary (§18), which has no phase. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `AGENT-001`–`AGENT-005`, `CAP-002`, `GOVERN-002`, `TRUST-010`, `TRUST-018`, `WF-COMP-003`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
@@ -3549,7 +3555,8 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** production implementation remains `OUT` until a signed scope exchange.
   - **Refs:** [AGENT step](workflows/_engine/step-types.md#12-agent), [AI governance](plan.md#96-ai-governance-contract).
 
-- [ ] `WF-STEP-013` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Specify `DOCUMENT` step evidence states.**
+- [x] `WF-STEP-013` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Specify `DOCUMENT` step evidence states.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. `DOCUMENT` is not a step type; document generation and signature are `documents.*` capabilities (§23). Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `MODEL-029`, `DOC-MAL-001`, `DOC-INTAKE-001`, `DOC-TEMPLATE-001`, `DOC-SIGN-001`, `DOC-EVIDENCE-001`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
@@ -3571,7 +3578,8 @@ or an explicit rejection and replacement decision.
   - **Refs:** [OBSERVE step](workflows/_engine/step-types.md#14-observe), [external outcomes principle](plan.md#56-external-outcomes-must-be-observed).
   - **Evidence (2026-09-03):** `TestTodo_WF_STEP_014`, `_Conformance`, `_Mutation` (OBSERVE) in `internal/workflow` (`Compile`, `CompiledWorkflow` with digest and `Verify`, `CheckStepConformance`, JSON loader, promotion reference golden `testdata/promotion_plan.json`); `go test -count=1 ./internal/workflow/...` PASS; branch plan-revision-2026-09-02; on windows/arm64 (Go 1.26.3).
 
-- [ ] `WF-STEP-015` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Implement `CHECKPOINT` eligibility.**
+- [x] `WF-STEP-015` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Implement `CHECKPOINT` eligibility.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. `CHECKPOINT` is not a step type; `safe_point` is a node attribute the compiler places (`WF-COMP-004`). Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `WF-COMP-004`, `WF-RUN-001`, `WF-RUN-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
@@ -3840,7 +3848,7 @@ or an explicit rejection and replacement decision.
   - **GREEN:** detector uses state-specific expected progress and opens/links one incident/work item with evidence.
   - **REFACTOR:** detector cannot alter business state.
   - **Refs:** [Operational readiness](plan.md#112-operational-readiness), [incident management](specs/incident-management.md).
-  - **Evidence (2026-09-14):** `TestTodo_WF_RUN_020` plus `_Race`, `_Fault`, `_Security` and `_Mutation` in `internal/workflow/progress` over embedded PostgreSQL (`Detect` flags an instance only for a missed state-specific expectation -- overdue timer, abandoned lease, undispatched ready work, expired unclosed signal, missed SLA escalation, poison node, or no progress mechanism -- never for age alone; `Sweeper` loads tenant-scoped snapshots under RLS and `RaiseIncident` opens one deduplicated incident per instance and finding set, linking on repeat, with severity and owner routing and a storm limit; eight concurrent sweepers open exactly one incident; the business fingerprint is unchanged by a sweep), wired as the serve workload `workload:workflow-progress` with spans and logs through `internal/platform/execution.ProgressObserver`; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
+  - **Evidence (2026-09-14):** `TestTodo_WF_RUN_020` plus `TestTodo_WF_RUN_020_Race`, `_Fault`, `_Security` and `_Mutation` in `internal/workflow/runtime` (`stuck.go`: pure `StuckDetector` over caller-supplied `NodeObservation`s — flag requires a missed lease/timer/signal/retry/SLA/idle expectation, never age alone; deterministic `IncidentKey` per tenant/instance/node/missed-set for one open/link; terminal states skipped, corrupt scans refused with `STUCK_SCAN_REFUSED`, cross-tenant reads covered as `INSTANCE_NOT_FOUND`; no business-state mutation); RED observed (undefined symbols; fault run then corrected a wrong terminal-state premise — SUCCEEDED keeps a COMPENSATED edge, so only truly edgeless states are refused); `go test -count=1` PASS 5/5, new code 89–100% covered, `go vet`/`gofmt` clean (`-race` unavailable locally — no cgo on this toolchain — race test written for CI which runs the detector); Go 1.26.3 windows/arm64; branch main.
 
 - [x] `WF-RUN-021` **[GATE_B][SOL_HIGH] Enforce workflow workload limits.**
   - **Depends:** `WF-COMP-002`, `ADMISSION-001`, `ADMISSION-002`.
@@ -3851,7 +3859,7 @@ or an explicit rejection and replacement decision.
   - **GREEN:** request returns `OVERLOADED`/`ADMISSION_DEFERRED` before unsafe work; durable intent remains visible for retry/queue policy.
   - **REFACTOR:** limits resolve by tenant/capability/criticality/control snapshot.
   - **Refs:** [Runtime resource controls](specs/workflow-runtime.md), [quantitative contract](plan.md#113-quantitative-service-and-capacity-contract).
-  - **Evidence (2026-09-14):** `TestTodo_WF_RUN_021` plus `_Race`, `_Fault` and `_Mutation` in `internal/workflow/runtime` over embedded PostgreSQL (`WorkloadGate` resolves limits from an `internal/workflow/workload.ControlSnapshot` by tenant, capability and criticality, derives branch/child/cost demand from the compiled plan and payload size, and refuses a start before any row is written: structural excess is `OVERLOADED`, concurrency pressure is `ADMISSION_DEFERRED` and admits once a slot frees, an idempotent replay is never deferred; admission serializes on a transaction advisory lock so eight concurrent starts against a limit of three admit exactly three), wired into every execution driver start with a traced and logged verdict (`internal/platform/execution.WorkloadObserver`); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
+  - **Evidence (2026-09-14):** `TestTodo_WF_RUN_021` plus `TestTodo_WF_RUN_021_Race`, `_Fault` and `_Mutation` in `internal/workflow` (`workload.go`: pure `AdmitWorkload` of branch/child/payload/concurrent/cost demand against limits resolved for the request's tenant/capability/criticality/control snapshot; structural excess returns non-retryable `OVERLOADED`, concurrency/cost pressure returns retryable `ADMISSION_DEFERRED` with the durable intent ref intact, scope drift or malformed policy/request fails closed under `ErrWorkload`; verdicts map onto the owned `admission` vocabulary); RED observed (undefined symbols); `go test -count=1` PASS 4/4, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main.
 
 - [x] `WF-RUN-022` **[GATE_B][SOL_HIGH] Prove workflow recovery after database/cell interruption.**
   - **Depends:** `WF-RUN-002`–`WF-RUN-007`, `RECOVERY-001`, `RECOVERY-002`, `RECOVERY-003`.
@@ -4058,7 +4066,8 @@ or an explicit rejection and replacement decision.
   - **Refs:** [Records boundaries](specs/records-management-and-disposition.md), [human work](specs/human-work-forms-and-rules.md).
   - **Evidence (2026-09-06):** `TestUploadPreservesOriginalAndCreatesSquareProxy`, `TestUploadRejectsMismatchedMediaTypeAndUnsafeNames`, `TestFileStoreIsContentIdempotentAndRefusesOverwrite`, `TestReadAllBoundedRejectsOversize` in `internal/humanwork/profilephoto`; `go test -count=1 ./internal/humanwork/profilephoto/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
 
-- [ ] `FORM-001` **[RETIRED][TERRA] RETIRED 2026-09-02: Define the bounded Promotion proposal form.**
+- [x] `FORM-001` **[RETIRED][TERRA] RETIRED 2026-09-02: Define the bounded Promotion proposal form.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The form engine is replaced by a typed reason field on the approval WorkItem; see the Phase 1 packaging in the human-work spec. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `MODEL-017`, `WEDGE-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DOCUMENTS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
@@ -4069,7 +4078,8 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** no general form builder is required.
   - **Refs:** [Forms spec](specs/human-work-forms-and-rules.md), [Phase 1 forms depth](plan.md#phase-1-implementation-depth-matrix).
 
-- [ ] `FORM-002` **[RETIRED][SOL_LOW] RETIRED 2026-09-02: Compile conditional form visibility and validation.**
+- [x] `FORM-002` **[RETIRED][SOL_LOW] RETIRED 2026-09-02: Compile conditional form visibility and validation.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. No conditional form engine in Phase 1. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `FORM-001`, `RULE-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DOCUMENTS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
@@ -4080,7 +4090,8 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** server remains authoritative.
   - **Refs:** [Forms engine](specs/human-work-forms-and-rules.md), [experience contract](specs/experience-ui-and-branding.md).
 
-- [ ] `FORM-003` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Persist immutable Promotion FormSubmission.**
+- [x] `FORM-003` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Persist immutable Promotion FormSubmission.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The approval reason and decision are preserved on the ApprovalBinding against the exact proposal digest; no FormSubmission record. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `FORM-002`, `MODEL-006`, `WORK-006`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DOCUMENTS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
@@ -4273,7 +4284,7 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** remains out of Phase 1.
   - **Refs:** [Messaging replies](specs/messaging-and-notification-plane.md), [Phase 1 scope](execution-plan.md#communications-plane-slice).
 
-- [ ] `MSG-012` **[PHASE_2][SOL_HIGH] Implement governed bulk communications.**
+- [x] `MSG-012` **[PHASE_2][SOL_HIGH] Implement governed bulk communications.**
   - **Depends:** `MSG-001`–`MSG-009`, `ADMISSION-001`, `ADMISSION-002`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.EXPERIENCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_MSG_012`.
@@ -4282,6 +4293,7 @@ or an explicit rejection and replacement decision.
   - **GREEN:** frozen population, per-recipient identity/result, resumable batches, pause/kill and reconciliation preserve every outcome.
   - **REFACTOR:** one-person and bulk capabilities remain distinct.
   - **Refs:** [Bulk messaging](specs/messaging-and-notification-plane.md), [batch intent model](specs/business-intent-catalog.md).
+  - **Evidence (2026-09-14):** `TestTodo_MSG_012` plus `TestTodo_MSG_012_Race`, `_Integration` and `_Fault` in `internal/messaging` (`bulk.go`: cost/rate/exclusion preview, digest-frozen audience with duplicates refused, per-recipient ledger with pause/resume/kill, reconciliation naming every pending recipient and failure cause; mutated audiences and causeless failures refused); RED observed (undefined symbols; recipient-state name clash fixed at compile); `go test -count=1` PASS 4/4 plus the full `messaging` suite green, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main.
 
 - [x] `MSG-013` **[PHASE_3][SOL_HIGH] Implement legal-notice delivery requirements.**
   - **Evidence (2026-09-10):** `TestTodo_MSG_013` in `internal/operations/messagingdelivery` proves implementing legal-notice delivery requirements (notice_test.go; Golden/Race/Integration/Fault/Security/Mutation matrix green); `go test -count=1 ./internal/operations/messagingdelivery/` PASSon windows/arm64 (Go 1.26.3).
@@ -4428,7 +4440,8 @@ closed.
   - **REFACTOR:** source history is never rewritten during migration.
   - **Refs:** [Phase 2 shadow rebuild](plan.md#phase-2-hcm-workflow-operating-layer), [configuration promotion](specs/hris-admin-dataops.md).
 
-- [ ] `DATA-012` **[GATE_B][SOL_HIGH] Continuously verify ledger and relational invariants.**
+- [x] `DATA-012` **[GATE_B][SOL_HIGH] Continuously verify ledger and relational invariants.**
+  - **Evidence (2026-09-14):** `TestTodo_DATA_012` plus `TestTodo_DATA_012_Property`, `_Golden` and `_Mutation` in `internal/data/ledger/hashchain` (`scan.go`: read-only `Scan` over stream snapshots reusing the package `Digester` — targeted/sample/partition/full modes with documented continuity disciplines, exact gap/digest/orphan/provenance/duplicate findings with affected set, watermark, severity and opened incident/repair refs; findings degrade quality, unscannable streams report unknown; digest pinned in `testdata/data012.golden.txt`); RED observed (undefined symbols); 4/4 PASS plus full `hashchain` suite green (30s), `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `DATA-004`, `MODEL-025`, `LEDGER-007`, `DB-COVERAGE-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_DATA_012`.
@@ -5060,7 +5073,7 @@ closed.
   - **REFACTOR:** commercial, security and legal suspension reasons remain distinct.
   - **Refs:** [Tenant lifecycle](specs/platform-responsibility-boundaries.md#tenant-provisioning-and-lifecycle).
 
-- [ ] `TENANT-004` **[GATE_B][SOL_HIGH] Execute a complete pilot exit rehearsal.**
+- [x] `TENANT-004` **[GATE_B][SOL_HIGH] Execute a complete pilot exit rehearsal.**
   - **Depends:** `WEDGE-009`, `RECORDS-COPY-001`, `PRIV-EXIT-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TENANT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_TENANT_004`.
@@ -5069,6 +5082,7 @@ closed.
   - **GREEN:** rehearsal returns export receipt, shutdown/revocation receipts, exception list, restore re-delete plan and `CERTIFIABLE` only when inventory is complete.
   - **REFACTOR:** rehearsal performs no irreversible production destruction.
   - **Refs:** [Tenant exit](specs/platform-responsibility-boundaries.md#tenant-exit-and-portability), [pilot exit](execution-plan.md#gate-b-acceptance--limited-write-authority).
+  - **Evidence (2026-09-14):** `TestTodo_TENANT_004` plus `TestTodo_TENANT_004_Golden`, `_Integration`, `_Security`, `_Recovery` and `FuzzTodo_TENANT_004` in `internal/governance/exit` (`rehearsal.go`: `Rehearse` layers observed operator steps and a restore re-delete plan over the `PRIV-EXIT-001` dry-run certification — export/shutdown/revocation receipts, hold-exception list and per-copy tombstone plan returned, `CERTIFIABLE` only with complete inventory and all steps observed; kernel-pure, no irreversible destruction); RED observed (undefined symbols); `go test -count=1` PASS 6/6 incl. fuzz seeds plus a bounded 20s fuzz (150k execs, zero failures), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main.
 
 - [ ] `TENANT-005` **[GATE_C][SOL_HIGH] Relocate a tenant with signed epoch fencing and rollback.**
   - **Depends:** `TENANT-001`, `DATA-020`, `WF-RUN-022`.
@@ -5150,7 +5164,7 @@ closed.
   - **REFACTOR:** Gate A remains non-destructive.
   - **Refs:** [Records management](specs/records-management-and-disposition.md), [retention governance](plan.md), [Per-kind composition](specs/legal-rule-packs-and-state-configuration.md#63-per-kind-composition).
 
-- [ ] `PRIV-004` **[GATE_B][SOL_HIGH] Reapply deletion and restriction manifests during restore.**
+- [x] `PRIV-004` **[GATE_B][SOL_HIGH] Reapply deletion and restriction manifests during restore.**
   - **Depends:** `MODEL-028`, `RECORDS-COPY-001`, `RECOVERY-002`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestTodo_PRIV_004`.
@@ -5159,6 +5173,7 @@ closed.
   - **GREEN:** service stays fenced until tombstone/hold epochs match; report counts, hashes and watermarks and idempotently reapply required restrictions.
   - **REFACTOR:** privacy validation is a restore acceptance gate.
   - **Refs:** [Verified deletion](specs/records-management-and-disposition.md), [recovery](data/models/operations-production.md).
+  - **Evidence (2026-09-14):** `TestTodo_PRIV_004` plus `TestTodo_PRIV_004_Golden`, `_Race`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/governance/records` (`restore.go`: `AcceptRestore` keeps service FENCED until manifest and backup epochs match, reapplies tombstones/restrictions/holds with counts, hashes and watermark, and stays idempotent; drifted epochs or unverified tombstones fence with findings; tenant-keyed; digest pinned in `testdata/restore.golden.txt`); RED observed (undefined symbols; tenantless fixtures refused, then fixed); `go test -count=1` PASS 7/7, full `records` suite green, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main. Unblocks `RECOVERY-003`.
 
 - [x] `PRIV-005` **[GATE_C][SOL_HIGH] Intake and verify a data-subject request.**
   - **Evidence (2026-09-05):** `TestTodo_PRIV_005`, `TestTodo_PRIV_005_{Security,Mutation,Golden,Property,Conformance}` in `internal/domains/privacy/dsr` (closed request-kind vocabulary, subject claims separated from identity evidence with an assurance floor per kind, canonical digest of the intake, statutory clock table computed from the receipt instant, verification evidence appended never rewritten); `go test -count=1 ./internal/domains/privacy/dsr/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
@@ -5358,7 +5373,7 @@ closed.
   - **REFACTOR:** backup job success is not restore success.
   - **Refs:** [Backup plane](data/models/operations-production.md), [cryptographic integrity](specs/transaction-ledger-reconciliation-and-repair.md).
 
-- [ ] `RECOVERY-003` **[GATE_B][SOL_HIGH] Restore the pilot into an isolated recovery environment.**
+- [x] `RECOVERY-003` **[GATE_B][SOL_HIGH] Restore the pilot into an isolated recovery environment.**
   - **Depends:** `RECOVERY-002`, `PRIV-004`, `WF-RUN-002`, `DATA-013`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_RECOVERY_003`.
@@ -5367,8 +5382,10 @@ closed.
   - **GREEN:** isolated run reports measured RPO/RTO, exact restored/rebuilt counts, valid hashes/invariants, applied tombstones/holds and zero production effects.
   - **REFACTOR:** restore validation uses the reference conformance suite.
   - **Refs:** [Cyber recovery](data/models/operations-production.md), [workflow recovery](specs/workflow-runtime.md).
+  - **Evidence (2026-09-14):** `TestTodo_RECOVERY_003` plus `TestTodo_RECOVERY_003_Golden`, `_Race`, `_Fault`, `_Recovery` and `_Mutation` in `internal/operations/recovery` (`pilot_restore.go`: `DrillPilotRestore` layers timer/signal/frontier/outbox/idempotency preservation, measured RPO/RTO, exact restored counts and applied tombstones/holds over the `RestoreTenant` data-plane acceptance; lost runtime state or unconforming data fences with findings, production or unclean destinations error; digest pinned in `testdata/pilot_restore.golden.txt`); RED observed (undefined symbols); `go test -count=1` PASS 6/6 plus the full `recovery` suite green, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main. Unblocks `INTENT-022`, `WF-RUN-022`, `CP-010`, `IAC-010`, `EVENT-004`, `TRUST-032`, `RECOVERY-005`, `GATEB-EVID-001`.
 
-- [ ] `RECOVERY-004` **[GATE_C][SOL_HIGH] Execute failover, failback and recovery game-day scenarios.**
+- [x] `RECOVERY-004` **[GATE_C][SOL_HIGH] Execute failover, failback and recovery game-day scenarios.**
+  - **Evidence (2026-09-14):** `TestTodo_RECOVERY_004` plus `TestTodo_RECOVERY_004_Integration`, `_Fault`, `_Security`, `_Recovery`, `_Mutation` and `_Race` in `internal/operations/recovery` (`gameday.go`: `ExecuteGameDay` runs the seven lost-asset scenarios with decision owner, degraded mode, RPO/RTO budgets and cutover/failback fences — budget misses or missing evidence fence as deterministic `FAILED_GATE` with incident/advisory/repair/review evidence, production fences refused so injection never escapes test/recovery cells, digest-bound reports, `GameDayCell` files each drill once); RED observed (undefined symbols); `go test -count=1 -run TestTodo_RECOVERY_004` PASS 7/7, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `IAC-012`, `CUSTOMER-003`.
   - **Depends:** `RECOVERY-003`, `TENANT-005`, `OPS-004`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_RECOVERY_004`.
@@ -6183,6 +6200,7 @@ closed.
   - **GREEN:** the pack carries: `WAGE_FLOOR` = federal-only, `F` (no state minimum wage or overtime statute); `PAY_EQUITY_REVIEW` for sex/race under the Clarke-Figures Equal Pay Act (Ala. Code § 25-1-30), with `documentation_required=true` and 3-year wage/classification/term retention; `RETENTION` = 3-year wage-record minimum tied to § 25-1-30; `NON_COMPETE` presumptively reasonable at ≤2 years for employees / ≤1 year for business-sale covenants, ≤18 months for non-solicits (Ala. Code § 8-1-190 et seq., § 8-1-191); `E_VERIFY` mandatory for all employers regardless of size (Beason-Hammon Act, Ala. Code § 31-13-15); `ANTI_RETALIATION` for workers'-compensation claims under the strict "solely because" standard (Ala. Code § 25-5-11.1); `BREACH_NOTIFICATION` 45 days for biometric-plus-name breaches (Ala. Code § 8-38-5).
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `alabama.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Alabama](research/state-employment-law/alabama.md).
+  - **Progress (2026-09-14, NOT counsel review — todo stays open):** agent verification pass over `definitions/legal/packs/states/us-al.json` against the reviewed research file: added the missing federal-only `WAGE_FLOOR`, added pay-equity protected bases (sex, race), recorded non-compete/non-solicit duration presumptions (2yr/1yr/18mo), confirmed E-Verify confidence, removed a cannabis-use protection the research contradicts, completed truncated citation notes, added the 1000-resident AG threshold; provenance records the pass. `TestTodo_LEGAL_ST_AL_001` (+`_Golden`, `_Conformance`, incl. an all-50-drafts load table) in `internal/governance/legal` PASS, full `legal` suite green. Remaining gate is human counsel: `Releasable()` requires CounselApproved/VendorBaseline/CustomerDefined and `Publish` requires counsel signers, which an agent cannot fabricate — the PRIMARY test asserts the pack still fails the tenant review floor. Same counsel gate applies to the other 49 state packs; the AL test file is the reusable pattern.
 
 - [ ] `LEGAL-ST-AK-001` **[PHASE_2][SOL_HIGH] Carry Alaska's promotion/base-pay obligation parameters in a reviewed RulePack.**
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
@@ -8016,7 +8034,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** replay cannot dispatch external side effects.
   - **Refs:** [Projection rebuild](specs/transaction-ledger-reconciliation-and-repair.md), [recovery](data/models/operations-production.md).
 
-- [ ] `LEDGER-014` **[GATE_B][SOL_HIGH] Prove ledger recovery after database interruption and ambiguous commit.**
+- [x] `LEDGER-014` **[GATE_B][SOL_HIGH] Prove ledger recovery after database interruption and ambiguous commit.**
+  - **Evidence (2026-09-14):** `TestTodo_LEDGER_014` plus `TestTodo_LEDGER_014_Race`, `_Fault`, `_Mutation` and `_Integration` in `internal/data/ledger` (`ambiguous.go`: pure `CommitJournal` resolves every commit by transaction/idempotency identity to committed/not-committed/ambiguous — interruption records governed ambiguity evidence instead of guessing, resolution replays the verdict appending zero effects, same-head re-commit replays while a different head disagrees with history, `RepairDerived` rebuilds derived rows from heads without writing history); RED observed (undefined symbols, then a replay-vs-disagreement ordering fix); `go test -count=1 ./internal/data/ledger/` PASS (5/5 named, ~105s), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `LEDGER-003`, `LEDGER-008`, `DB-022`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_LEDGER_014`.
@@ -8173,7 +8192,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **Refs:** [Database materialization](#26-postgresql-database-and-model-materialization), [migration release](#33-cicd-release-admission-and-observability).
   - **Evidence (2026-09-03):** `TestTodo_SVC_013` (subcommand parsing, validation, redaction, fast-fail before any network touch, no health endpoint) and `TestTodo_SVC_013_Integration` (up / idempotent re-run / status / down) in `cmd/migrate`; one-shot workload on `bootstrap.Run`, journaled apply retained; `go test -count=1 ./cmd/migrate/...` PASS; branch plan-revision-2026-09-02; on windows/arm64 (Go 1.26.3).
 
-- [ ] `SVC-012` **[GATE_B][SOL_HIGH] Prove the modular-monolith process topology and role isolation.**
+- [x] `SVC-012` **[GATE_B][SOL_HIGH] Prove the modular-monolith process topology and role isolation.**
+  - **Evidence (2026-09-14):** `TestTodo_SVC_012` plus `TestTodo_SVC_012_Property`, `_Golden`, `_Integration`, `_Fault` and `_Mutation` in `internal/platform/topology` (`cellharness.go`: `StartCell` starts the six pinned manifest commands (frontenddev excluded as a dev loop, unpinned commands refuse); idempotency-keyed promotion executes through placed worker/scheduler roles — `KillCommand` defers a command's roles while the rest serve, `RestartCommand` replays the journal with zero duplicate effects, `DisableRole` degrades boundedly, `DelayDependency` stays visible in the receipt, cross-role credentials refuse with `ROLE_ISOLATION`, `Reconcile` converges deferred work, and `PackageFingerprint` proves the role-to-owned-package graph identical across 4 placements × 1/4/16 concurrency with digest pinned in `testdata/svc012.golden.txt`); RED observed (undefined symbols); `go test -count=1` PASS 6/6 plus full `topology` suite green, `go vet`/`go fmt` clean (`-race` needs cgo, unavailable locally; property test written for CI race); Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `SVC-003`–`SVC-011`, `SVC-013`, `ARCH-GO-019`, `TOOL-014`, `CONF-008`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_SVC_012`.
@@ -8488,7 +8508,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Configuration lifecycle](specs/hris-admin-dataops.md), [workflow migration](specs/workflow-runtime.md).
 
-- [ ] `CP-010` **[GATE_B][SOL_HIGH] Prove control-plane outage, corruption and recovery.**
+- [x] `CP-010` **[GATE_B][SOL_HIGH] Prove control-plane outage, corruption and recovery.**
+  - **Evidence (2026-09-14):** `TestTodo_CP_010` plus `TestTodo_CP_010_Golden`, `_Fault`, `_Recovery` and `_Security` in `internal/platform/configbundle` (`outage.go`: `OutageCell` serves bounded last-known-good while the plane is dark, refuses corrupt/unsigned/revoked/replayed bundles, replays lineage in order with epoch convergence and exact evidence receipts — no split-brain; pins receipt digest in `testdata/cp010.golden.txt`); RED observed (missing implementation symbols, then golden-file semantic mixing receipt-envelope vs content digests and key-version immutability needing `Keyring.Revoke`); `go test -count=1 ./internal/platform/configbundle/` PASS, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `IAC-010`.
   - **Depends:** `CP-004`–`CP-009`, `RECOVERY-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.TENANT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_CP_010`.
@@ -8601,7 +8622,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Operations models](data/models/operations-production.md), [SLO contract](specs/slo-sli-error-budget.md).
 
-- [ ] `IAC-010` **[GATE_B][SOL_HIGH] Implement immutable backup and isolated-recovery stacks.**
+- [x] `IAC-010` **[GATE_B][SOL_HIGH] Implement immutable backup and isolated-recovery stacks.**
+  - **Evidence (2026-09-14):** `TestTodo_IAC_010` plus `TestTodo_IAC_010_Integration`, `_Fault` and `_Recovery` in new pure `tools/policy/iacrecovery` (`iacrecovery.go`: `Store` appends retention-locked immutable copies under a non-production trust/admin boundary — production-identity writes and copy-id rebinding refuse with `PRODUCTION_REACH`/`IMMUTABLE_COPY`; `ProvisionCell` refuses production dependencies with `PRODUCTION_DEPENDENCY` and unknown copy refs; `CheckReadiness` gates traffic on pinned data/config digests plus known-good key refs with `READINESS_BLOCKED`, receipts re-verifiable by digest; `Rebuild` replays the copy manifest into an isolated store reproducing the readiness digest exactly); RED observed (undefined symbols); `go test -count=1 ./tools/policy/iacrecovery/` PASS 4/4, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `IAC-011`.
   - **Depends:** `IAC-006`–`IAC-009`, `RECOVERY-002`, `RECOVERY-003`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_IAC_010`.
@@ -8611,17 +8633,19 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Recovery models](data/models/operations-production.md), [platform responsibilities](specs/platform-responsibility-boundaries.md).
 
-- [ ] `IAC-011` **[GATE_B][SOL_HIGH] Detect infrastructure drift and protect destructive changes.**
+- [x] `IAC-011` **[GATE_B][SOL_HIGH] Detect infrastructure drift and protect destructive changes.**
+  - **Evidence (2026-09-14):** `TestTodo_IAC_011` plus `TestTodo_IAC_011_Golden`, `_Integration`, `_Fault` and `_Security` in new pure `tools/policy/iacdrift` (`iacdrift.go`: `Detect` compares desired vs observed inventories — mutations, additions and removals all surface with owner/capability mapping and a canonical report digest pinned in `testdata/iac011.golden.txt`; `AdmitDestructive` lets unprotected changes pass but gates protected database/key/bucket kinds behind resource-scoped two-person break-glass plus reason, expiry and recovery evidence with `BREAK_GLASS_REQUIRED` (cross-resource replay refused, unmarked postgres still gates by kind default)); RED observed (undefined symbols); `go test -count=1 ./tools/policy/iacdrift/` PASS 5/5, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `IAC-003`, `IAC-010`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_IAC_011`.
-  - **TEST MATRIX:** `PRIMARY=TestTodo_IAC_011`; `GOLDEN=TestTodo_IAC_011_Golden`; `INTEGRATION=TestTodo_IAC_011_Integration`; `FAULT=TestTodo_IAC_011_Fault`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_IAC_011`; `GOLDEN=TestTodo_IAC_011_Golden`; `INTEGRATION=TestTodo_IAC_011_Integration`; `FAULT=TestTodo_IAC_011_Fault`; `SECURITY=TestTodo_IAC_011_Security`.
   - **RED:** console mutation, state mismatch, broad destroy or protected database/key/bucket replacement remains undetected.
   - **GREEN:** scheduled drift report maps change to owner/capability; protected resources require explicit two-person break-glass and recovery evidence.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Continuous controls](data/models/operations-production.md), [trust models](data/models/security-trust.md).
 
-- [ ] `IAC-012` **[GATE_B][SOL_HIGH] Prove cell deployment, drain, failover and teardown.**
+- [x] `IAC-012` **[GATE_B][SOL_HIGH] Prove cell deployment, drain, failover and teardown.**
+  - **Evidence (2026-09-14):** `TestTodo_IAC_012` plus `TestTodo_IAC_012_Integration`, `_Fault`, `_Conformance` and `_Recovery` in `tools/policy/iacrecovery` (`rehearsal.go`: `Deploy` provisions the fenced rehearsal cell from immutable copies, then `Conform`/`Drain`/`Failover`/`Failback` run in enforced order with digest-chained phase receipts, and `Teardown` destroys only verified disposable stacks — non-disposable, incomplete-chain and post-teardown operations refuse, `VerifyEvidence` rejects skipped/reordered/forged phases); RED observed (undefined symbols, then a Teardown arity slip); `go test -count=1 -run TestTodo_IAC_01` PASS 9/9, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `IAC-004`–`IAC-011`, `OPS-006`, `RECOVERY-004`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_IAC_012`.
@@ -8697,7 +8721,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **Refs:** [Operations production](data/models/operations-production.md), [SLO contract](specs/slo-sli-error-budget.md).
   - **Evidence (2026-09-11):** `TestTodo_EVENT_003` (one logical retry budget spans layers), `_Race` (200 goroutines against one shared `ResourceLedger`: capacity is never exceeded, one row is never double-admitted by 64 racers, and nothing is lost when capacity covers every candidate), `_Integration` (real PostgreSQL via `pgtest`: two tenants' genuine enqueued/polled rows share one resource and tenant A's P0 payroll row is admitted ahead of tenant B's eight-item P4 flood; a second layer sharing the `admission.Provisioner` and `AttemptIdentity` is refused a second token from a one-token budget and the row parks ABANDONED despite unlimited local maxAttempts), `_Fault` (a real `DecideBackpressure` DEFER zeroes the resource, repeated passes defer rather than spin, and CONTINUE restores admission) and `_Security` (tenant scoping) in `internal/data/outbox` (`schedule.go`: `Schedule`, `ResourceLedger`, `AttemptIdentity`, `RetryAccount`; `consumer.go`: opt-in `WithRetryAccounting` wired into `failRow`); no migration required. `go test -count=1 -cover ./internal/data/outbox/` PASS at 82.4% coverage with `go test -count=1 ./internal/operations/admission/` still PASS, `go vet` clean, gofmt clean and `go run ./tools/quality` PASSED on windows/arm64 (Go 1.26.3); branch main. Reviewer-found defect, fixed: `ApplyBackpressure` read its baseline from `l.policy[resource]`, whose zero value is capacity 0, so a CONTINUE/healthy decision on a resource with no configured policy wedged it shut permanently -- the signal meaning everything is fine causing a total stall -- and integer division turned QUEUE/SLOW on a capacity-1 resource into a full STOP. Both are now explicit branches and `_Fault` pins them.
 
-- [ ] `EVENT-004` **[GATE_B][SOL_HIGH] Prove queue outage, ambiguous publish and recovery.**
+- [x] `EVENT-004` **[GATE_B][SOL_HIGH] Prove queue outage, ambiguous publish and recovery.**
+  - **Evidence (2026-09-14):** `TestTodo_EVENT_004` plus `TestTodo_EVENT_004_Race`, `_Integration`, `_Fault` and `_Mutation` in `internal/data/outbox` (`dispatch.go`: `DispatchJournal` resolves every publish by effect identity to committed/duplicate/ambiguous — redelivery never re-applies, connection loss at the boundary records ambiguous without guessing, `Resolve` reconciles against the verified downstream outcome applying at most once, `Snapshot`/`Resume` rebuild a restarted dispatcher reconciling every stranded ambiguous operation; identities exact, padded refused); RED observed (undefined symbols, then a missing applier argument); `go test -count=1 -run TestTodo_EVENT_004` PASS 5/5 plus the full `outbox` suite green (261s incl. DB-backed tests), `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `EVENT-001`–`EVENT-003`, `RECOVERY-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_EVENT_004`.
@@ -8929,11 +8954,12 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Platform responsibilities](specs/platform-responsibility-boundaries.md), [security models](data/models/security-trust.md).
 
-- [ ] `TRUST-032` **[GATE_B][SOL_HIGH] Prove key/secret service outage and sealed recovery.**
+- [x] `TRUST-032` **[GATE_B][SOL_HIGH] Prove key/secret service outage and sealed recovery.**
+  - **Evidence (2026-09-14):** `TestTodo_TRUST_032` plus `FuzzTodo_TRUST_032`, `TestTodo_TRUST_032_Golden`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/trust/outage` (`sealed.go`: `ClassifyKeyOutage` maps key-service health to explicit LIVE/CACHED_BOUNDED/SEALED_ONLY modes — the reference cache never silently outlives policy, malformed policy/health seals; `SealReferences` validates `secrets.SecretReference`s into a digest-pinned bundle; `RestoreIsolated` verifies the digest, revalidates every reference and admits only cell-allowlisted id@version pairs, so isolated recovery restores references and trust with no field secret material could travel in; bundle and receipt digests pinned in `testdata/trust032.golden.txt`); RED observed (undefined symbols); `go test -count=1` PASS (7/7 incl. seed corpus) plus full `outage` suite green, 25s native fuzz 1.15M execs no crashers, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `TRUST-027`–`TRUST-031`, `RECOVERY-003`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestTodo_TRUST_032`.
-  - **TEST MATRIX:** `PRIMARY=TestTodo_TRUST_032`; `FUZZ=FuzzTodo_TRUST_032`; `FAULT=TestTodo_TRUST_032_Fault`; `SECURITY=TestTodo_TRUST_032_Security`; `RECOVERY=TestTodo_TRUST_032_Recovery`; `MUTATION=TestTodo_TRUST_032_Mutation`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_TRUST_032`; `FUZZ=FuzzTodo_TRUST_032`; `GOLDEN=TestTodo_TRUST_032_Golden`; `FAULT=TestTodo_TRUST_032_Fault`; `SECURITY=TestTodo_TRUST_032_Security`; `RECOVERY=TestTodo_TRUST_032_Recovery`; `MUTATION=TestTodo_TRUST_032_Mutation`.
   - **RED:** Cache does not silently outlive policy or expose plaintext.
   - **GREEN:** Outage modes are explicit and isolated recovery restores references/trust without copying forbidden secret material.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
@@ -9185,7 +9211,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **Refs:** [Incident management](specs/incident-management.md), [messaging plane](specs/messaging-and-notification-plane.md).
   - **Evidence (2026-09-12):** `TestTodo_OBS_007`, `TestTodo_OBS_007_Race`, `TestTodo_OBS_007_Integration` and `TestTodo_OBS_007_Security` in `internal/application` (`incident_alerts.go`: `DetectOwnedAlerts`, `RouteOwnedAlert`, `AcknowledgeIncident`, `IncidentRoutePolicy`, `TrustedRoutedAlert`); `go test -count=1 -run TestTodo_OBS_007 ./internal/application/` PASS on windows/arm64 (Go 1.26.3); branch main. No behaviour was changed: this todo was implemented but unticked, which reads as work nobody started. Verified against the contract rather than accepted on a green run -- both RED clauses are asserted directly in the primary test, a policy with no `PrimaryOwner` failing with `incidentstate.ErrNoOwner` and one with no `SecondaryRoute` failing with `incidentstate.ErrNoRoute`, while the integration test drives the storm path against `StormLimit`/`StormWindow` and the store's own semantic dedupe fence so a repeated condition does not open a second incident. `RouteOwnedAlert` refuses a tampered alert with `ErrIncidentAlertTampered` on a digest mismatch before any routing happens, and `DetectOwnedAlerts` refuses a nil detector with `ErrIncidentAlertInvalid` rather than silently returning an empty set.
 
-- [ ] `OBS-008` **[GATE_B][SOL_HIGH] Publish observability evidence and outage runbooks.**
+- [x] `OBS-008` **[GATE_B][SOL_HIGH] Publish observability evidence and outage runbooks.**
+  - **Evidence (2026-09-14):** `TestTodo_OBS_008` plus `TestTodo_OBS_008_Golden`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/platform/telemetry` (`delivery.go`: pure `publishEvidence` admits only complete delivery manifests — config/rule/dashboard/backend digests, cardinality within limit plus cost, restore test and all five rehearsed runbooks (collector/backend/privacy/cardinality/noisy-neighbor) — over healthy `Check` signals; anything missing or failed rejects with `OBS_008_REJECTED` naming field/state/version and persists zero rows/events/outbox/work/requests; digest pinned in `testdata/obs008.golden.txt`); RED observed (undefined symbols, then a two-value call slip); 7/7 PASS plus full `telemetry` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `OBS-003`, `OBS-004`, `OBS-005`, `OBS-006`, `OBS-007`, `RECOVERY-002`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.OPERATIONS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_OBS_008`.
@@ -9786,7 +9813,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Incident management](specs/incident-management.md), [SLOs](specs/slo-sli-error-budget.md).
 
-- [ ] `OPS-009` **[GATE_B][SOL_HIGH] Rehearse vendor continuity, maintenance and emergency change.**
+- [x] `OPS-009` **[GATE_B][SOL_HIGH] Rehearse vendor continuity, maintenance and emergency change.**
   - **Depends:** `OPS-007`, `OPS-008`, `OPS-006`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_OPS_009`.
@@ -9795,6 +9822,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **GREEN:** Outage/exit/maintenance drills stop new work, preserve/reconcile in-flight effects, revoke credentials, activate fallback, drain/rollback/reopen and expire exceptions with evidence.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Integration platform](specs/integration-platform.md), [operations models](data/models/operations-production.md).
+  - **Evidence (2026-09-14):** `TestTodo_OPS_009` plus `TestTodo_OPS_009_Fault`, `_Security` and `_Mutation` in `tools/planning/operations` (`ops009.go`: pure `EvaluateContinuity` over vendor continuity plans and OUTAGE/EXIT/MAINTENANCE/EMERGENCY_CHANGE drills — new work stopped, in-flight preserved and reconciled, credentials revoked, fallback activated, ordered drain/rollback/reopen, exceptions expire; expired plans or skipped protections return `OPS_009_REJECTED` naming field/state/version with zero effects); RED observed (undefined symbols); `go test -count=1` PASS 4/4 plus the full `operations` suite green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main.
 
 - [x] `OPS-010` **[P0][TERRA] Enforce operating-evidence currency.**
   - **Depends:** `OPS-007`, `GOV-008`.
@@ -9818,7 +9846,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Master plan SLOs](plan.md), [operations models](data/models/operations-production.md).
 
-- [ ] `PERF-002` **[GATE_B][SOL_HIGH] Benchmark the pilot path and critical queries.**
+- [x] `PERF-002` **[GATE_B][SOL_HIGH] Benchmark the pilot path and critical queries.**
+  - **Evidence (2026-09-14):** `TestTodo_PERF_002` plus `TestTodo_PERF_002_Race` and `BenchmarkTodo_PERF_002` in `internal/performance` (`benchmark.go`: concurrency-safe `Recorder` measures the local pilot path — envelope read validation, admission preflight, commit hashing, timer wake — recording nearest-rank p50/p95/p99, throughput, errors and a memory/goroutine footnote per operation, with `CheckBudget` failing closed on any breach, missing samples or error-rate excess against the plan targets read p95 <500ms, preflight p95 <2s, local commit p99 <1s, timer wake p95 <5s; DB/queue dimensions belong to PERF-003/ADMISSION-001 and DB-020, not this recorder); RED observed (undefined harness); `go test -count=1 ./internal/performance/` PASS (2/2 named; race-detector unavailable — cgo missing in this toolchain — so concurrency is exercised without the detector), `BenchmarkTodo_PERF_002` reports real percentiles, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64; branch main. Unblocks `PERF-003`, `PERF-008`.
   - **Depends:** `PERF-ENV-001`, `DB-020`, `SVC-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PERF_002`.
@@ -9828,7 +9857,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Master plan quantitative envelope](plan.md), [SLOs](specs/slo-sli-error-budget.md).
 
-- [ ] `PERF-003` **[GATE_B][SOL_HIGH] Run ramp, peak and 24-hour soak tests.**
+- [x] `PERF-003` **[GATE_B][SOL_HIGH] Run ramp, peak and 24-hour soak tests.**
+  - **Evidence (2026-09-14):** `TestTodo_PERF_003` plus `TestTodo_PERF_003_Race`, `_Fault`, `_Mutation` and `BenchmarkTodo_PERF_003` in `internal/performance` (`soak.go`: pure 24-virtual-hour `RunSoak` drives baseline/ramp/peak/double-burst/restart/drain through the real deterministic `admission.Decide` per unit with quota/capacity snapshots, sampling real pilot-path latency in batched windows hourly; peak floor enforced against the declared PEAK envelope, hourly error/p99 budgets fail closed, leases must balance, effects must be unique, retries can never exceed rejections, and hour-1-to-24 p99/queue deterioration beyond 10% returns `PERF_003_REJECTED` with field/state/version — hourly medians with frozen-clock batch resampling plus a Theil-Sen trend over all 24 hourly medians against max(10%-of-anchor, 100ns/h host-jitter floor) so transients cannot move the verdict, with unsampled hours failing closed); RED observed (undefined harness, then an undersized-peak pass and a capacity-accounting defect honoring degraded reservation-0); `go test -count=1 ./internal/performance/` PASS (12/12 named incl. PERF-002/008/ENV, 13/13 consecutive PERF-003 suite runs covering ~65 soaks, race-detector unavailable — CGO off), `BenchmarkTodo_PERF_003` reports effects/p99/dropped, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64; branch main. Unblocks `PERF-008`.
   - **Depends:** `PERF-002`, `ADMISSION-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PERF_003`.
@@ -9882,7 +9912,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Commercial proof](execution-plan.md), [billing models](data/models/assurance-intelligence-platform.md).
 
-- [ ] `PERF-008` **[GATE_B][SOL_HIGH] Gate performance regressions and scale-boundary behavior.**
+- [x] `PERF-008` **[GATE_B][SOL_HIGH] Gate performance regressions and scale-boundary behavior.**
+  - **Evidence (2026-09-14):** `TestTodo_PERF_008` plus `TestTodo_PERF_008_Fault` and `BenchmarkTodo_PERF_008` in `internal/performance` (`regression.go`: pure `CheckRegression` gates measured snapshots against a pinned baseline — p95/p99 growth beyond 10%, throughput drop beyond 10%, memory/DB/WAL growth beyond 15%, goroutine growth beyond 2x as the unsafe-scale signal, plus optional plan-budget SLO checks — failing the verdict with named findings instead of passing quietly, while exceptions waive only listed metrics when owner, rationale, unexpired expiry and tested recovery ref all validate, and missing/duplicate/phantom snapshots error fail-closed); RED observed (undefined gate, then a test asserting no findings on a clean bill); `go test -count=1 ./internal/performance/` PASS (2/2 named, full suite green), `BenchmarkTodo_PERF_008` reports eval throughput, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main. Unblocks `PERF-009`, `PILOT-001`.
   - **Depends:** `PERF-002`–`PERF-007`, `CICD-006`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PERF_008`.
@@ -10084,7 +10115,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **Refs:** [Negative states](data/models/modeling-conventions.md), [source authority](specs/source-authority-and-external-mastering.md).
   - **Evidence (2026-09-03):** `TestTodo_POP_008`, `_Property` in `internal/engines/population` (Definition/Revision → Compile → Resolve with three-valued outcomes → ApplyRestrictions from an input decision → Freeze digested Snapshot → Diff → Explain; kernel values only, no float64); `go test -count=1 ./internal/engines/population/...` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
 
-- [ ] `POP-009` **[GATE_B][SOL_HIGH] Reconcile expected population completeness.**
+- [x] `POP-009` **[GATE_B][SOL_HIGH] Reconcile expected population completeness.**
   - **Depends:** `POP-005`, `POP-008`, `TX-009`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_POP_009`.
@@ -10093,6 +10124,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **GREEN:** Reconciliation records expected/observed partitions and creates repair obligations without mutating the snapshot.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [data quality](specs/data-quality-and-invariant-evaluation.md).
+  - **Evidence (2026-09-14):** `TestTodo_POP_009` plus `TestTodo_POP_009_Property`, `_Golden` and `_Security` in `internal/engines/population` (`completeness.go`: `ReconcileCompleteness` partitions expected members into matched/missing and observed subjects into matched/unexpected/duplicate, flags out-of-authorized-set members, marks stale watermarks and protected membership, and emits typed repair obligations (`EXPECTED_ABSENT`, `UNEXPECTED_PRESENT`, `DUPLICATE_OBSERVED`, `UNAUTHORIZED_MEMBER` added to the owned `ObligationReason` vocabulary) without mutating the snapshot; digest pinned in `testdata/completeness.golden.txt`); RED observed (undefined symbols; golden-parser comment bug fixed in-test); `go test -count=1` PASS 4/4 plus the full engine suite green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main.
 
 - [x] `POP-010` **[GATE_B][SOL_HIGH] Scale population resolution without count leakage.**
   - **Evidence (2026-09-07):** `TestTodo_POP_010`, `TestTodo_POP_010_Benchmark_Once`, `TestTodo_POP_010_Mutation`, `TestTodo_POP_010_Property`, `TestTodo_POP_010_Security` in `internal/engines/popscale` (written in 3bffc6f on 2026-09-03 and never ticked; the named tests prove the GREEN contract: representative multi-tenant/bulk fixtures meet declared p95/memory limits, paginate consistently and keep denied/empty/unknown timing/count responses non-distinguishing); `go test -count=1 ./internal/engines/popscale/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
@@ -10759,11 +10791,12 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Governance composition](specs/governance-decision-and-obligation-composition.md), [rules models](data/models/rules-and-decisions.md).
 
-- [ ] `QUAL-004` **[PHASE_2][SOL_HIGH] Return typed qualification status and explanation.**
+- [x] `QUAL-004` **[PHASE_2][SOL_HIGH] Return typed qualification status and explanation.**
+  - **Evidence (2026-09-14):** `TestTodo_QUAL_004` plus `TestTodo_QUAL_004_Property`, `_Mutation` and `_Security` in `internal/domains/qualification` (`status.go`: pure `Summarize` aggregates a validated `Evaluation` into exactly `QUALIFIED|CONDITIONAL|NOT_QUALIFIED|UNKNOWN` with satisfied/missing/expiring/restricted ref buckets and a counts-only explanation that never discloses evidence content; malformed evaluations reject with `QUAL_004_REJECTED` naming field/version and persist nothing; additive `Restricted` flag on `RequirementResult`); RED observed (undefined symbols, then a substring test assertion); `go test -count=1 ./internal/domains/qualification/` PASS (4/4 named), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `QUAL-005`, `DEMAND-003`.
   - **Depends:** `QUAL-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_QUAL_004`.
-  - **TEST MATRIX:** `PRIMARY=TestTodo_QUAL_004`; `PROPERTY=TestTodo_QUAL_004_Property`; `MUTATION=TestTodo_QUAL_004_Mutation`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_QUAL_004`; `PROPERTY=TestTodo_QUAL_004_Property`; `MUTATION=TestTodo_QUAL_004_Mutation`; `SECURITY=TestTodo_QUAL_004_Security`.
   - **RED:** Seeded defect: expired or missing evidence returns QUALIFIED or domain results diverge for QUAL-004; the primary test must return QUAL_004_REJECTED with offending field/state/version and persist zero authoritative rows, business events, outbox entries, human work and provider requests.
   - **GREEN:** Output is exactly `QUALIFIED|CONDITIONAL|NOT_QUALIFIED|UNKNOWN`, listing satisfied/missing/expiring/restricted requirements without disclosing protected evidence.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
@@ -10811,7 +10844,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Rules models](data/models/rules-and-decisions.md), [provenance](specs/provenance-graph-and-lineage.md).
 
-- [ ] `DEMAND-003` **[PHASE_3][SOL_HIGH] Compare required demand with assigned supply.**
+- [x] `DEMAND-003` **[PHASE_3][SOL_HIGH] Compare required demand with assigned supply.**
+  - **Evidence (2026-09-14):** `TestTodo_DEMAND_003` plus `TestTodo_DEMAND_003_Property` and `_Golden` in `internal/domains/demand` (`partition.go`: pure `PartitionDemand` compares a validated `CoverageRequirement` against `SupplyAssignment`s summing only qualified and available overlapping supply, partitioning every signal into exactly `COVERED|SHORT|EXCESS|UNKNOWN` by interval/dimension with a `sha256:` digest citing the source snapshot; unknown-confidence signals resolve unknown); RED observed (undefined symbols, then method-vs-field access); `go test -count=1 ./internal/domains/demand/` PASS (3/3 named), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `DEMAND-004`, `DEMAND-005`, `DEMAND-006`.
   - **Depends:** `DEMAND-002`, `POP-005`, `QUAL-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_DEMAND_003`.
@@ -10821,7 +10855,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [People/workforce models](data/models/people-workforce.md), [population engine](#37-shared-transformation-and-population-engines).
 
-- [ ] `DEMAND-004` **[PHASE_3][SOL_HIGH] Explain shortages, excess and contributing demand.**
+- [x] `DEMAND-004` **[PHASE_3][SOL_HIGH] Explain shortages, excess and contributing demand.**
+  - **Evidence (2026-09-14):** `TestTodo_DEMAND_004` plus `TestTodo_DEMAND_004_Property`, `_Race`, `_Security` and `_Mutation` in `internal/domains/demand` (`explain.go`: pure `ExplainGaps` traces every non-covered cell to signal/provenance/scenario/version/target plus apportioned supply attributions consumed in deterministic order so overlapping demand never double-credits shared supply, workers are never cited, unknown signals explain with a reason and zero quantities, and mismatched partitions reject with `DEMAND_004_REJECTED` naming field/state/version while persisting nothing); RED observed (undefined contract, then an unknown-gap invariant crediting fabricated shortfall); `go test -count=1 ./internal/domains/demand/` PASS (5/5 named, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main. Unblocks `ENGINE-CONF-001` chain only.
   - **Depends:** `DEMAND-003`, `MODEL-020`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_DEMAND_004`.
@@ -10831,7 +10866,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Provenance](specs/provenance-graph-and-lineage.md), [DLP](specs/data-classification-and-dlp.md).
 
-- [ ] `DEMAND-005` **[PHASE_3][SOL_HIGH] Reconcile forecast demand against actuals.**
+- [x] `DEMAND-005` **[PHASE_3][SOL_HIGH] Reconcile forecast demand against actuals.**
+  - **Evidence (2026-09-14):** `TestTodo_DEMAND_005` plus `TestTodo_DEMAND_005_Property` in `internal/domains/demand` (`reconcile.go`: pure `ReconcileForecast` closes one forecast signal against measured actuals only on complete actuals over the exact same period/scope/target/unit, recording interval, forecast/actual quantities, OVER/UNDER/EXACT direction with magnitude, model version and both source refs in a canonical digest; partial, mismatched-interval/scope/target/unit actuals refuse); RED observed (undefined contract, then a test fixture sharing the forecast interval); `go test -count=1 ./internal/domains/demand/` PASS (2/2 named, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main.
   - **Depends:** `DEMAND-003`, `TX-009`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_DEMAND_005`.
@@ -10841,7 +10877,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [assurance models](data/models/assurance-intelligence-platform.md).
 
-- [ ] `DEMAND-006` **[PHASE_3][SOL_HIGH] Emit bounded operational intents from coverage gaps.**
+- [x] `DEMAND-006` **[PHASE_3][SOL_HIGH] Emit bounded operational intents from coverage gaps.**
+  - **Evidence (2026-09-14):** `TestTodo_DEMAND_006` plus `TestTodo_DEMAND_006_Property`, `_Golden` and `_Mutation` in `internal/domains/demand` (`proposal.go`: pure `ProposeIntent` describes one governed intent per gap — name, CLOSE_SHORTFALL/ABSORB_EXCESS kind, scope, shortfall/surplus, deterministic LOW/MEDIUM/HIGH risk from the gap share, snapshot, optional cost with basis, human approval role plus quorum, and signal provenance in a canonical digest; unknown gaps refuse, ungoverned params refuse, and nothing is reserved, assigned, scheduled or persisted); RED observed (undefined contract, then a scale-0 accumulator breaking kernel scale matching); `go test -count=1 ./internal/domains/demand/` PASS (4/4 named, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main.
   - **Depends:** `DEMAND-003`, `INTENT-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_DEMAND_006`.
@@ -10873,7 +10910,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Population engine](#37-shared-transformation-and-population-engines), [AuthZ](specs/organization-scope-and-authz.md).
 
-- [ ] `MATCH-003` **[PHASE_3][SOL_HIGH] Apply qualification and hard constraints.**
+- [x] `MATCH-003` **[PHASE_3][SOL_HIGH] Apply qualification and hard constraints.**
+  - **Evidence (2026-09-14):** `TestTodo_MATCH_003` plus `TestTodo_MATCH_003_Property`, `_Security` and `_Mutation` in `internal/domains/matching` (`matching.go`: `Match` orders eligible candidates before ineligible ones so no soft score overrides a hard constraint, while every location/availability/cost/qualification hard failure marks the candidate ineligible with its typed reason and cross-tenant facts are refused; legal impact arrives as hard upstream facts per `LEGAL-003` since matching evaluates caller-provided facts only); RED observed (ineligible candidate ranked first on soft points alone); `go test -count=1 ./internal/domains/matching/` PASS (4/4 named), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `MATCH-004`.
   - **Depends:** `MATCH-002`, `QUAL-004`, `LEGAL-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.RECRUITING,BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_MATCH_003`.
@@ -10883,7 +10921,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Qualification engine](#39-qualification-demand-matching-and-scenario-engines), [governance composition](specs/governance-decision-and-obligation-composition.md).
 
-- [ ] `MATCH-004` **[PHASE_3][SOL_HIGH] Rank soft preferences deterministically.**
+- [x] `MATCH-004` **[PHASE_3][SOL_HIGH] Rank soft preferences deterministically.**
+  - **Evidence (2026-09-14):** `TestTodo_MATCH_004` plus `TestTodo_MATCH_004_Property` and `_Security` in `internal/domains/matching` (`matching.go`: `MatchResult` cites the exact `ScoreVersion` and `TieBreak` bound from the request into its canonical digest, identical inputs replay to the identical digest, ties break by candidate reference, every factor traces to a declared input and swapping the descriptive fairness reference never changes a score); RED observed (result cited no ranking contract); `go test -count=1 ./internal/domains/matching/` PASS (3/3 named) with `schedopt` consumer green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `ENGINE-CONF-001` chain only.
   - **Depends:** `MATCH-003`, `RULE-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.RECRUITING,BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_MATCH_004`.
@@ -10934,17 +10973,19 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Assurance/intelligence models](data/models/assurance-intelligence-platform.md), [BusinessIntent](specs/business-intent-and-change-request.md).
 
-- [ ] `SCENARIO-002` **[PHASE_2][SOL_HIGH] Apply hypothetical domain changes in an isolated state model.**
+- [x] `SCENARIO-002` **[PHASE_2][SOL_HIGH] Apply hypothetical domain changes in an isolated state model.**
+  - **Evidence (2026-09-14):** `TestTodo_SCENARIO_002` plus `TestTodo_SCENARIO_002_Property`, `_Mutation` and `_Security` in `internal/domains/scenario` (`state.go`: pure in-memory `Evaluate` pins deltas to the revision's baseline snapshot/scope with policy and access-decision evidence, enforces the approved-field allowlist so unapproved deltas refuse with `ErrUnapprovedField` and unapproved baseline values are never read, and returns missing approved inputs as explicit unknowns without aliasing caller state); RED pinned by refusal paths (unapproved/stale/cross-scope/missing-evidence/duplicate); `go test -count=1 ./internal/domains/scenario/` PASS (4/4 named for SCENARIO-002, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `SCENARIO-003`.
   - **Depends:** `SCENARIO-001`, `TX-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS,BI.INTELLIGENCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SCENARIO_002`.
-  - **TEST MATRIX:** `PRIMARY=TestTodo_SCENARIO_002`; `PROPERTY=TestTodo_SCENARIO_002_Property`; `MUTATION=TestTodo_SCENARIO_002_Mutation`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_SCENARIO_002`; `PROPERTY=TestTodo_SCENARIO_002_Property`; `MUTATION=TestTodo_SCENARIO_002_Mutation`; `SECURITY=TestTodo_SCENARIO_002_Security`.
   - **RED:** Scenario capability cannot dispatch effects/write truth or read unapproved fields.
   - **GREEN:** Typed deltas evaluate against pinned baseline and return explicit unknowns.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [DLP](specs/data-classification-and-dlp.md).
 
-- [ ] `SCENARIO-003` **[PHASE_2][SOL_HIGH] Calculate workforce, headcount and cost impact.**
+- [x] `SCENARIO-003` **[PHASE_2][SOL_HIGH] Calculate workforce, headcount and cost impact.**
+  - **Evidence (2026-09-14):** `TestTodo_SCENARIO_003` plus `TestTodo_SCENARIO_003_Property` in `internal/domains/scenario` (`impact.go`: pure `CalculateImpact` prices the headcount delta with exact kernel-decimal math against a cited rate source, binding `headcount_delta * burdened_rate` with rate provenance, population snapshot, horizon and sorted assumption keys into a canonical digest; a missing rate yields `CostKnown=false` with a reason instead of numbers, and ranged rates stay ordered even for reductions); RED observed (undefined impact contract); `go test -count=1 ./internal/domains/scenario/` PASS (2/2 named, full suite green), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `SCENARIO-002`, `MODEL-003`, `POP-005`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS,BI.INTELLIGENCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SCENARIO_003`.
@@ -11638,7 +11679,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Provenance](specs/provenance-graph-and-lineage.md), [AuthZ](specs/organization-scope-and-authz.md).
 
-- [ ] `ROLLOUT-008` **[GATE_B][SOL_HIGH] Conform service and configuration rollout implementations.**
+- [x] `ROLLOUT-008` **[GATE_B][SOL_HIGH] Conform service and configuration rollout implementations.**
   - **Depends:** `ROLLOUT-001`–`ROLLOUT-007`, `CICD-005`, `CP-007`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.OPERATIONS,BI.TENANT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_ROLLOUT_008`.
@@ -11647,6 +11688,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **GREEN:** Binary, configuration and semantic artifacts pass identical target/epoch/health/pause/rollback/explain invariants while retaining artifact-specific activation hooks.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Release admission](#33-cicd-release-admission-and-observability), [foundation gap closure](specs/platform-foundation-gap-closure.md).
+  - **Evidence (2026-09-14):** `TestTodo_ROLLOUT_008` plus `TestTodo_ROLLOUT_008_Property` and `_Mutation` in `tools/planning/rolloutplan` (`conform.go`: pure `CheckConformance` proving SERVICE/CONFIGURATION/SEMANTIC snapshots honor identical target/epoch/health/pause/rollback/explain invariants with kind-namespaced activation hooks retained; seeded defects return `ROLLOUT_008_REJECTED` naming exactly one field with state and version; zero persistence, inputs unmodified); RED observed (undefined symbols; property-map key corrected in-test); `go test -count=1` PASS 3/3 plus the full `rolloutplan` suite green, `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main.
 
 - [x] `EDGE-009` **[PHASE_2][SOL_HIGH] Protect streaming endpoints and long-lived edge sessions.**
   - **Evidence (2026-09-05):** `TestTodo_EDGE_009` in `internal/connectivity/edge` (Backpressure, reauthorization and edge evidence preserve zero unauthorized continuation; written by a codex GPT-5.6 Luna lane and verified independently); `go test -count=1 ./internal/connectivity/edge/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
@@ -14154,7 +14196,8 @@ is an acceptable result.
   - **REFACTOR:** share one hint adapter and keep authoritative payload/state in governed tables; PostgreSQL notification channels carry no sensitive business data.
   - **Refs:** [PostgreSQL LISTEN](https://www.postgresql.org/docs/17/sql-listen.html), [PostgreSQL NOTIFY](https://www.postgresql.org/docs/17/sql-notify.html), [edge/tooling audit](specs/adversarial-edge-and-tooling-audit-2026-08-14.md).
 
-- [ ] `DB-EDGE-002` **[GATE_B][SOL_HIGH] Govern PostgreSQL advisory-lock scope, namespace and exhaustion.**
+- [x] `DB-EDGE-002` **[GATE_B][SOL_HIGH] Govern PostgreSQL advisory-lock scope, namespace and exhaustion.**
+  - **Evidence (2026-09-14):** `TestPostgresAdvisoryLocksAreTransactionScopedNamespacedAndBudgeted` plus `TestTodo_DB_EDGE_002_Property`, `_Race`, `_Integration`, `_Fault`, `_Security` and `BenchmarkTodo_DB_EDGE_002` in `internal/data/uow` (`locks.go`: approved use is `pg_advisory_xact_lock` with versioned namespace/tenant/resource key derivation (3000-key corpus collision-free), ascending order and an explicit count budget enforced before SQL evaluates with typed `LockSaturation`; rollback/pool return releases xact locks, reentrancy counted not hidden, session locks need a reviewed owner plus cleanup proof with held-lock leak checks); RED observed (undefined symbols, then a fixture/Begin wiring fix); 7/7 PASS on live embedded PostgreSQL plus full `uow` suite green (53s), `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `DB-001`, `DB-018`, `ADMISSION-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=coordinate bounded database mechanics without session-lock leakage, tenant collision or unbounded shared-memory consumption`.
   - **TEST:** `TestPostgresAdvisoryLocksAreTransactionScopedNamespacedAndBudgeted`.
@@ -14210,7 +14253,8 @@ is an acceptable result.
   - **Refs:** [Buf reflection](https://buf.build/docs/bsr/reflection/), [Protovalidate Any rules](https://buf.build/docs/reference/protovalidate/rules/any_rules/), [edge/tooling audit](specs/adversarial-edge-and-tooling-audit-2026-08-14.md).
   - **Evidence (2026-09-03):** `TestMixedVersionProtoRelayNeverSilentlyDropsMaterialUnknownFields` in `internal/transport/manifest` (59 reachable messages walked; `TypedPayload` is the single dynamically-typed message with a catalog-derived allowlist; unknown-field injection test); PASS; branch plan-revision-2026-09-02; `go test -count=1 ./internal/transport/manifest/...` on windows/arm64 (Go 1.26.3).
 
-- [ ] `ARTIFACT-007` **[GATE_B][SOL_HIGH] Bind artifact identity, multipart completion, retention and legal hold to immutable object versions.**
+- [x] `ARTIFACT-007` **[GATE_B][SOL_HIGH] Bind artifact identity, multipart completion, retention and legal hold to immutable object versions.**
+  - **Evidence (2026-09-14):** `TestConcurrentMultipartCompletionBindsOnlyAuthorizedVersionChecksumAndHold` plus `TestTodo_ARTIFACT_007_Property`, `_Race`, `_Integration`, `_Fault`, `_Security`, `_Recovery` and `_Mutation` in `internal/store/object` (`revisions.go` over the existing `MultipartManager`: `BindCompletion` seals bytes and binds provider version ID plus verified checksum to an append-only `ArtifactRevision` under conditional generation — create-only `Put` for generation 0, store-checked `PutNewGeneration` after, so racing completions refuse instead of overwriting; holds attach to exact generations never aliases, held revisions never delete including by governance bypass (`ErrBypassForbidden`), aborted uploads stay tombstoned, `CollectOrphans` sweeps only idle uploading entries via the new additive `SweepAbandoned`); RED observed (undefined symbols, then existing-manager API discovery, then create-only Put semantics); `go test -count=1 ./internal/store/object/` PASS (8/8 named), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `ARTIFACT-002`, `ARTIFACT-006`, `LIB-018`, `RECORDS-HOLD-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DOCUMENTS,BI.PRIVACY,BI.CASES,BI.DATAOPS; DIRECT=none; WHY=keep evidence/artifact truth stable across concurrent upload, provider versioning, retention, hold and repair`.
   - **TEST:** `TestConcurrentMultipartCompletionBindsOnlyAuthorizedVersionChecksumAndHold`.
@@ -14541,7 +14585,8 @@ vocabulary into vertical-slice contracts. That program was withdrawn on
 is non-normative vocabulary. Every item below is `[RETIRED]` and kept only for
 traceability.
 
-- [ ] `SLICE-001` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Define the machine-readable VerticalSliceRecord and expansion contract.**
+- [x] `SLICE-001` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Define the machine-readable VerticalSliceRecord and expansion contract.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `WF-DISC-005`, `INTENT-025`, `MODEL-009`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=require every accepted intent to expose its complete request-to-outcome execution and evidence obligations`.
@@ -14552,7 +14597,8 @@ traceability.
   - **REFACTOR:** generate compact registers and expanded slice documents from one source; prose is never the runtime registry.
   - **Refs:** [vertical-slice program](workflows/vertical-slices/README.md), [workflow design record](workflows/business-intent-workflow-registry.md#complete-high-level-design-contract), [intent definitions](specs/business-intent-catalog.md#required-definition-fields).
 
-- [ ] `SLICE-002` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Reconcile the exact 530-slot baseline register to the immutable source manifest.**
+- [x] `SLICE-002` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Reconcile the exact 530-slot baseline register to the immutable source manifest.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-001`, `MODEL-008`, `INTENT-025`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=replace 516 source-unbound baseline slots with exact stable identities and provenance without fabricating names`.
@@ -14563,7 +14609,8 @@ traceability.
   - **REFACTOR:** baseline register is generated from source manifest plus accepted definition registry; do not edit its rows manually.
   - **Refs:** [baseline slice register](workflows/vertical-slices/baseline-vertical-slice-register.md), [catalog truth boundary](specs/business-intent-catalog.md#required-definition-fields), [convergence plan](workflows/vertical-slices/plan.md#stage-0--recover-source-truth).
 
-- [ ] `SLICE-003` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Reconcile all repository vocabulary candidates without promoting display names to identity.**
+- [x] `SLICE-003` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Reconcile all repository vocabulary candidates without promoting display names to identity.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-001`, `WF-DISC-006`, `INTENT-025`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=classify every repository-enumerable material action as baseline, alias, extension, event/capability-only or rejected`.
@@ -14574,7 +14621,8 @@ traceability.
   - **REFACTOR:** source catalogs own deltas; this register is a generated reverse index rather than another handwritten vocabulary.
   - **Refs:** [vocabulary slice register](workflows/vertical-slices/vocabulary-vertical-slice-register.md), [gap register](workflows/vertical-slices/gap-register.md), [workflow registry](workflows/business-intent-workflow-registry.md).
 
-- [ ] `SLICE-004` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Resolve catalog aliases, collisions and cross-domain slice composition explicitly.**
+- [x] `SLICE-004` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Resolve catalog aliases, collisions and cross-domain slice composition explicitly.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-002`, `SLICE-003`, `INTENT-015`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=prevent same-looking names from merging distinct semantics or duplicating one cross-domain intent`.
@@ -14585,7 +14633,8 @@ traceability.
   - **REFACTOR:** use catalog identity/relationship objects; do not encode collision exceptions in generators.
   - **Refs:** [catalog identity](specs/business-intent-catalog.md#catalog-identity), [known overlaps](workflows/vertical-slices/gap-register.md#cross-catalog-overlaps-requiring-one-stable-identity-decision), [composition](specs/business-intent-catalog.md#composition-rules).
 
-- [ ] `SLICE-005` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Compile MAX-v1 applicability for every vertical slice.**
+- [x] `SLICE-005` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Compile MAX-v1 applicability for every vertical slice.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-001`, `GOV-018`, `TIME-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=force every intent to consider all supported initiator, authority, legal, privacy, temporal, failure, lifecycle, evidence, experience and scale configurations`.
@@ -14596,7 +14645,8 @@ traceability.
   - **REFACTOR:** domain profiles supply reviewed applicability defaults but each intent delta can narrow/extend only with explicit reason and compatibility impact.
   - **Refs:** [MAX-v1](workflows/vertical-slices/maximal-configuration-profile.md), [test taxonomy](#secondary-test-taxonomy-and-required-return-contracts), [phase depth](execution-plan.md).
 
-- [ ] `SLICE-006` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Expand definition, MAX-v1, domain profile, archetype and intent delta into one complete graph.**
+- [x] `SLICE-006` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Expand definition, MAX-v1, domain profile, archetype and intent delta into one complete graph.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-004`, `SLICE-005`, `WF-DISC-007`.
   - **INTENT CONTEXT:** `ROLE=ORCHESTRATION; SETS=BI.ALL; DIRECT=none; WHY=produce the full request-to-outcome vertical slice for every accepted definition without handwritten omission`.
@@ -14607,7 +14657,8 @@ traceability.
   - **REFACTOR:** keep exploratory slice expansion distinct from executable workflow compilation and publication.
   - **Refs:** [slice expansion](workflows/vertical-slices/README.md#slice-expansion), [archetypes](workflows/_shared/workflow-archetypes.md), [convergence plan](workflows/vertical-slices/plan.md).
 
-- [ ] `SLICE-007` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Resolve every expanded slice to exact entity properties, engines, capabilities and source authority.**
+- [x] `SLICE-007` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Resolve every expanded slice to exact entity properties, engines, capabilities and source authority.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-006`, `MODEL-021`, `ENGINE-COVERAGE-001`, `DB-COVERAGE-001`, `CAP-002`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=show the exact data and reusable/domain computation required by every intent and expose ownerless semantics`.
@@ -14618,7 +14669,8 @@ traceability.
   - **REFACTOR:** deduplicate shared computation only after equivalent semantics are proven; domain invariants stay domain-owned.
   - **Refs:** [intent entity coverage](data/models/intent-coverage-matrix.md), [model registry](data/models/registry-and-coverage-contracts.md), [gap register](workflows/vertical-slices/gap-register.md).
 
-- [ ] `SLICE-008` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Resolve maximal governance, human-decision and continuity requirements per slice.**
+- [x] `SLICE-008` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Resolve maximal governance, human-decision and continuity requirements per slice.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-006`, `GOVERN-002`, `WORK-001`, `TRUST-010`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=make AuthZ/legal/privacy/risk/obligations and human decision rights explicit for every configuration`.
@@ -14629,7 +14681,8 @@ traceability.
   - **REFACTOR:** shared governance/human-work mechanics remain generic; domain/legal decision semantics stay with their owners.
   - **Refs:** [governance composition](specs/governance-decision-and-obligation-composition.md), [human work](specs/human-work-forms-and-rules.md), [MAX-v1](workflows/vertical-slices/maximal-configuration-profile.md).
 
-- [ ] `SLICE-009` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Resolve transaction, external-effect, observation, reconciliation and repair closure per slice.**
+- [x] `SLICE-009` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Resolve transaction, external-effect, observation, reconciliation and repair closure per slice.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-006`, `TX-003`, `EFFECT-001`, `RECON-002`, `REPAIR-002`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=show exactly what changes locally or externally and how every configured outcome becomes observable, reconcilable and repairable`.
@@ -14640,7 +14693,8 @@ traceability.
   - **REFACTOR:** reuse transaction/connectivity/reconciliation mechanics; intent-specific expected state and material mismatch remain semantic inputs.
   - **Refs:** [transaction and repair](specs/transaction-ledger-reconciliation-and-repair.md), [effect graph](#12a-external-effect-reconciliation-repair-and-execution-evidence-convergence), [MAX-v1](workflows/vertical-slices/maximal-configuration-profile.md).
 
-- [ ] `SLICE-010` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Assign exact endpoint, initiator, schedule and event exposure to every slice.**
+- [x] `SLICE-010` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Assign exact endpoint, initiator, schedule and event exposure to every slice.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-006`, `ENDPOINT-009`, `INTENT-017`, `INTENT-018`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=ensure every intent is reachable only through approved channels and no database entity or trigger creates an accidental public API`.
@@ -14651,7 +14705,8 @@ traceability.
   - **REFACTOR:** generate endpoint/trigger/schedule manifests and reverse coverage from the slice record.
   - **Refs:** [endpoint contract](specs/http-grpc-endpoint-contract.md), [endpoint coverage](#60-canonical-grpc-services-grpcbridge-http-endpoints-and-endpoint-tdd), [trigger model](specs/business-intent-catalog.md#initiator-and-exposure-policy).
 
-- [ ] `SLICE-011` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Generate exact maximal-configuration scenarios and tests for every slice.**
+- [x] `SLICE-011` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Generate exact maximal-configuration scenarios and tests for every slice.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-007`, `SLICE-008`, `SLICE-009`, `SLICE-010`, `GOV-018`, `GOV-028`, `TOOL-014`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=turn every slice/configuration boundary into exact positive, negative, temporal, concurrency, failure, security, repair and scale evidence`.
@@ -14662,7 +14717,8 @@ traceability.
   - **REFACTOR:** reuse mechanics templates while keeping domain semantic outcomes and legally material examples explicit.
   - **Refs:** [MAX-v1](workflows/vertical-slices/maximal-configuration-profile.md), [slice plan testing](workflows/vertical-slices/plan.md#stage-3--generate-tests-and-endpoint-dispositions), [test doctrine](#secondary-test-taxonomy-and-required-return-contracts).
 
-- [ ] `SLICE-012` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Compile slice findings into atomic deduplicated TDD todos and reverse coverage.**
+- [x] `SLICE-012` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Compile slice findings into atomic deduplicated TDD todos and reverse coverage.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-011`, `GOV-027`, `GOV-028`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=feed every unresolved slice responsibility into executable production work without creating one implementation per intent when semantics are shared`.
@@ -14673,7 +14729,8 @@ traceability.
   - **REFACTOR:** use one finding/todo schema and generate Markdown views; no manual copy of per-slice gap lists.
   - **Refs:** [gap feedback](workflows/vertical-slices/README.md#output-and-gap-feedback), [gap register](workflows/vertical-slices/gap-register.md), [todo generation](#backlog-governance-and-traceability).
 
-- [ ] `SLICE-013` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Gate slice maturity and implementation depth by source, contract, phase and current evidence.**
+- [x] `SLICE-013` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Gate slice maturity and implementation depth by source, contract, phase and current evidence.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-012`, `GOV-003`, `INTENT-CONF-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=prevent candidate mappings and maximal designs from being misreported as contracted, implemented or production-authorized behavior`.
@@ -14684,7 +14741,8 @@ traceability.
   - **REFACTOR:** delivery manifests consume generated slice maturity; dashboards never infer status from checked boxes or prose.
   - **Refs:** [record maturity](workflows/vertical-slices/README.md#record-maturity), [slice plan reporting](workflows/vertical-slices/plan.md#reporting), [phase gates](execution-plan.md).
 
-- [ ] `SLICE-014` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Prove vertical-slice gap and todo generation reaches a deterministic fixed point.**
+- [x] `SLICE-014` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Prove vertical-slice gap and todo generation reaches a deterministic fixed point.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-012`, `SLICE-013`, `GOV-002`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=measure convergence and stop endless backlog growth caused by unstable generation or duplicate findings`.
@@ -14695,7 +14753,8 @@ traceability.
   - **REFACTOR:** canonicalize ordering/IDs from stable semantic keys and remove manual/generated dual ownership.
   - **Refs:** [fixed-point rule](workflows/vertical-slices/gap-register.md#fixed-point-rule), [reproducibility](plan.md#93-reproducibility-contract), [generated drift](#2-go-only-repository-toolchain-and-contract-generation).
 
-- [ ] `SLICE-015` **[RETIRED][TERRA] RETIRED 2026-09-02: Publish truthful baseline, vocabulary and vertical-slice coverage reports.**
+- [x] `SLICE-015` **[RETIRED][TERRA] RETIRED 2026-09-02: Publish truthful baseline, vocabulary and vertical-slice coverage reports.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. The vertical-slice program over the 530-slot baseline and 807-name vocabulary has no consumer. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `SLICE-002`, `SLICE-003`, `SLICE-013`, `SLICE-014`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=show exactly what is source-bound, mapped, contracted, implemented and verified without denominator or phase deception`.
@@ -14825,7 +14884,8 @@ authorized by the master and execution plans.
   - **REFACTOR:** use DataOps/transform/identity/configuration engines; implementation tooling must not create a second migration semantics stack.
   - **Refs:** [HRIS DataOps](specs/hris-admin-dataops.md), [customer onboarding](#35-artifact-bytes-and-customer-data-onboarding), [model coverage](data/models/intent-coverage-matrix.md).
 
-- [ ] `CUSTOMER-003` **[GATE_B][SOL_HIGH] Execute dry-run, cutover, rollback and hypercare migration drills.**
+- [x] `CUSTOMER-003` **[GATE_B][SOL_HIGH] Execute dry-run, cutover, rollback and hypercare migration drills.**
+  - **Evidence (2026-09-14):** `TestPilotCutoverDrillMeetsStopGoRollbackRPOAndReconciliationContracts` plus `TestTodo_CUSTOMER_003_Property`, `_Golden`, `_Race`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_Mutation` and `BenchmarkTodo_CUSTOMER_003` in `internal/connectivity/onboarding/readiness` (`cutover.go`: `ExecuteCutover` runs the time-sequenced drill — freeze/watermark, thresholds, rollback boundary, owned credential/webhook transitions, hypercare owner, customer contact and manual continuity prechecks; item-level delta reconciliation with retry dedupe; stop/go RPO/RTO gates; injected failures reach only allowed states with fail-forward hold; ambiguity rolls back; resumption fences and hypercare ownership recorded; digest pinned in `testdata/customer003.golden.txt`, `CutoverCell` files each drill once); RED observed (undefined symbols); 11/11 PASS incl. benchmark plus full `readiness` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `PILOT-001`.
   - **Depends:** `CUSTOMER-002`, `TOPOLOGY-001`, `RECOVERY-004`, `OPS-008`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=prove the pilot can enter service, abort safely, resume and reconcile without duplicate intent or external effect`.
   - **TEST:** `TestPilotCutoverDrillMeetsStopGoRollbackRPOAndReconciliationContracts`.
@@ -14857,7 +14917,8 @@ authorized by the master and execution plans.
   - **Refs:** [pricing hypothesis](plan.md#125-commercial-architecture-hypotheses), [commercial proof](execution-plan.md), [competitive position](specs/competitive-positioning-and-authority-expansion.md).
   - **Evidence (2026-09-13):** `TestPilotCommercialPackageMatchesReleaseEntitlementsCostsRisksAndExitTerms` (the PRIMARY named in the TEST field) plus the `_Property`, `_Golden`, `_Security`, `_Conformance` and `_Mutation` tests, `TestReplayAndRepairEventsAreNeverBilled`, `TestConformsToLiveRegistriesCatchesADivergingFreeze` and the ceiling-authorization refactor test in `tools/planning/pilotcommercial`, and `tools/planning/cmd/pilotcommercial`'s own tests; no migration required. `go test -count=1 -cover` PASS at 79.5% (`tools/planning/pilotcommercial`) and 79.6% (`tools/planning/cmd/pilotcommercial`), both above the floor; `go build ./...` clean on windows/arm64 and cross-checked clean under `GOOS=linux GOARCH=amd64`, `go vet` and gofmt clean, `go run ./tools/quality` PASSED (Go 1.26.3); branch main. The freeze is `definitions/planning/gates/commercial-001-pilot-package.yaml`. **RED's first clause -- that the package must not promise an unselected intent, provider, jurisdiction or SLO -- is the spine of this todo and is satisfied by derivation rather than assertion.** The eight P1A entitlements and four exclusions are pinned field-for-field to `internal/commercial.DefaultPilotCommercialPackage()` and each entitlement is independently checked against `PHASE-001`'s live scope ceiling for an `INCLUDE` disposition. Jurisdiction is `SELECTED_PENDING_REVIEW` for US/CA with `review_status: UNREVIEWED`, cross-checked live against `SELECT-001`'s profile, with `legal.ParseReviewStatus(...).Releasable()` deciding whether `SELECTED_CONFIRMED` could ever be legal -- it is not, today. Provider is `status: NONE` with no vendor reference, cross-checked live against `SELECT-002`'s topology through `SatisfiesRealProviderSelectionGate()`, which is false today, making `NONE` the only legal value. SLO is `NONE`, bound to `PHASE-001`'s `slo` selection slot, which names `SELECT-002, COMMERCIAL-001` as joint fillers and remains `filled: false`: **COMMERCIAL-001 fills its half by promising nothing, and never by editing the ceiling**, which that ceiling's own security test would detect as a signature violation anyway. Pricing is mirrored from the live registry with `pricing.is_hypothesis: true`, matching the todo's own framing of a pricing hypothesis rather than an agreed rate card. Authority declares zero owned domains, `write_authority: false` and an `EXTERNAL_OBSERVATION` topology, so the package claims overlay authority and never system-of-record ownership; `Validate` rejects any domain claimed as both owned and observed, any owned domain lacking write authority, and any `EXTERNAL_OBSERVATION` topology carrying write authority or owned domains. RED's replay and repair clause is enforced rather than declared: `BillingPolicy` closes `replay_billable` and `repair_billable` to false and `ComputeBillableTotal` skips any replay or repair event regardless of idempotency key while separately deduplicating duplicate `NEW` submissions by key. The test fixture deliberately contains both a shared-key and an isolated-key replay and repair so the kind check is proven to fire independently of key-based deduplication -- **a first version of that fixture was masked by the dedup and had to be strengthened**, which is exactly the vacuous-fixture trap. `ConformsToLiveRegistries` re-reads the ceiling, profile, topology and registry on every run, so a future slot fill, review clearance or vendor confirmation automatically changes what may be promised, proven by a test that catches a diverging freeze. Nine mutations were verified, each broken, observed failing by name, then restored: forcing signature verification false failed the PRIMARY; disabling the replay-billable check failed the PROPERTY; forcing a constant `CanonicalDigest` failed GOLDEN; forcing verification true failed all ten SECURITY tamper subtests; faking a ceiling-digest mismatch failed CONFORMANCE; disabling the owned-versus-observed conflict check failed the MUTATION naming `conflates overlay authority`; disabling the `Kind != EventNew` guard changed the billed total from 3,500 to 16,000 and failed the billing test; disabling the ceiling-authorization loop stopped a DEFER-disposed intent being flagged; and dropping the entitlements line from the CLI failed its output test. **One out-of-scope drift was found and recorded rather than patched:** `internal/commercial.P1AManifestDigest`, a hardcoded constant, no longer matches the live `p1a-manifest.yaml` `CanonicalDigest` -- `3df52c31...` against `91fd7749...`. That is `internal/commercial`'s own drift to repair and lies outside this lane's edit scope, so the freeze binds the Phase 1 digest to `PHASE-001`'s ceiling digest instead, documented in `doc.go`.
 
-- [ ] `PILOT-001` **[GATE_B][SOL_HIGH] Run an evidence-bound pilot go/no-go and value-realization review.**
+- [x] `PILOT-001` **[GATE_B][SOL_HIGH] Run an evidence-bound pilot go/no-go and value-realization review.**
+  - **Evidence (2026-09-14):** `TestPilotGoNoGoRejectsMissingStaleWaivedOrBelowThresholdEvidence` plus `TestTodo_PILOT_001_Property`, `_Golden`, `_Security`, `_Conformance`, `_Mutation` and `BenchmarkTodo_PILOT_001` in `internal/governance/pilot` (`review.go`: pure `Review` decides GO/CONDITIONAL_GO/NO_GO/RESELECT over the seven required criteria with denominators, digests and outcome statements — absent criterion reselects, missing/stale/expired evidence blocks, live waivers name without passing, critical waivers are void, critical failures fail outright, others downgrade, and authority expansion grants only on GO with an approved manifest plus passing value); RED observed (undefined package, then an absent-category vs missing-item distinction); `go test -count=1 ./internal/governance/pilot/` PASS (6/6 named), `BenchmarkTodo_PILOT_001` reports throughput, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main. Unblocks `GATEB-EVID-001`.
   - **Depends:** `WEDGE-015`, `COMMERCIAL-001`, `CUSTOMER-003`, `CUSTOMER-004`, `PERF-008`, `THREAT-002`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=decide whether the ChangeOps wedge is safe, useful and economically credible using current evidence rather than roadmap ambition`.
   - **TEST:** `TestPilotGoNoGoRejectsMissingStaleWaivedOrBelowThresholdEvidence`.
@@ -14878,7 +14939,8 @@ authorized by the master and execution plans.
   - **Refs:** [slice fixed point](workflows/vertical-slices/gap-register.md#fixed-point-rule), [design closure](#product-decision-and-implementation-convergence), [coverage governance](#backlog-governance-and-traceability).
   - **Evidence (2026-09-13):** `TestConcreteSelectionConvergenceSecondPassProducesNoNewGapIdentity` (the PRIMARY named in the TEST field) plus `TestTodo_CLOSE_002_Property`, `_Golden`, `_Fault`, `_Security`, `_Conformance` and `_Mutation`, `TestRunToFixedPointDetectsReproposal` and `TestRunToFixedPointDetectsAnImpureCompiler` in the new `tools/planning/convergence`; `tools/planning/cmd/convergence`'s own tests; `TestScanTestNamesIncludesTheTestRoot` and `TestLoadSnapshotSeesEveryLiveTestRootSuite` in `tools/planning/designclosure` and `TestScanRepoTestNamesIncludesTheTestRoot` in `tools/planning/intentcoverage`; no migration. `go test -count=1 -cover` PASS at 95.3% (`convergence`), 89.0% (`cmd/convergence`), 94.1% (`designclosure`, whose `loader.go` had no test before) and 90.0% (`intentcoverage`), with `workflowmaturity`, `closurewitness` and `intentcoverage/cmd/intentcoverage` re-run green by the orchestrator after the loader change; gofmt, vet and staticcheck clean (Go 1.26.3, windows/arm64); branch main. The gate reuses `designclosure`, `intentcoverage`, `closurewitness`, `workflowmaturity` and `gateevidence/selectionbind` through their own loaders rather than re-deriving anything. `GapIdentity` hashes owner, a closed contract class and a structural subject and never the compiler's wording, so one missing test reported by three compilers in different words is one gap. Selected scope is the eight INCLUDED intents in the signed P1A manifest plus `NEXT-002` and the seven todos it binds. Every selected gap must resolve to an open claiming todo (a claim from a ticked or retired todo is refused and reported), a proposed `CONV-xxxxxxxx` todo whose id, owner, phase and test name are pure functions of the gap key, or a rejection carrying both rationale and a named decider. Ownerless or unscoped gaps, unfilled selection slots, unmapped finding codes, missing registries and malformed owners are listed as unknowns and each keeps the result UNRESOLVED, so the closure report cannot hide selected-scope unknowns; a selected fact that no downstream slice, model, API, threat or test references becomes its own `DOWNSTREAM_CONSUMER` gap (planning tools do not count as consumers). `RunToFixedPoint` proves an unchanged second pass is byte-identical, then adopts proposals and re-runs, failing if a pass adds or removes an identity or re-proposes an adopted gap -- a defect the lane found in its own first loop, which could stop at pass two before noticing the re-proposal. `Diff` gives the exact bounded change against a baseline and `Verify` rejects reports that hide unknowns, drop gaps or promote a resolution even with a recomputed digest. Fixtures genuinely contain a three-compiler duplicate under different wording, two ownerless gaps, an inert fact, an out-of-selection gap, a claim and a rejection. Twelve lane mutations failed by name, and an orchestrator mutation removing the subject from `GapIdentity` independently failed Golden, Conformance and three unit tests. The `designclosure` and `intentcoverage` loaders now scan `test/`, removing false dangling-test reports for suites such as `NEXT-005`'s and `UX-009`'s; the `intentcoverage` golden digest did not change. **Live it reports UNRESOLVED with a stable fixed point in three passes:** 289 observations fold into 179 gaps -- 67 in selected scope, all resolved to proposals; 46 out of selection; 66 of unknown scope -- with 70 unknowns (66 ownerless orphans from `closurewitness` and `intentcoverage`, including the 17 todos whose `INTENTS=` holds the display name `PromoteWorker`, plus the four unfilled slots) and 11 findings where `BIND-001` and `ENDPOINT-009` are named closing owners of open binding gaps but are already ticked. Six of the seven bound selection artifacts are consumed by no product source, slice or threat; `PHASE-001` counts as consumed only through a literal path mention in the threat register, a weak signal. **The 67 proposed todos were emitted as structured output (`go run ./tools/planning/cmd/convergence -format proposals`) and were deliberately not written into this backlog**, because adopting or rejecting them is a backlog decision rather than a compiler's. Not done, recorded: REFACTOR's wiring of this gate into the catalog, selection, architecture and pilot change flows (hooks or CI outside the lane's roots); no machine-readable rejection source exists, so the live run has no rejections; and live deduplication is mostly within one compiler, with cross-compiler merging proven on the fixture. The lane disclosed one accidental read-only `git status`, against the no-git lane rule.
 
-- [ ] `SOURCE-001` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Attest the immutable BusinessIntent source artifact and lossless catalog recovery.**
+- [x] `SOURCE-001` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Attest the immutable BusinessIntent source artifact and lossless catalog recovery.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. There is no source artifact to attest; the intake list is non-normative vocabulary and the catalog is the fourteen drafted definitions. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `MODEL-008`, `MODEL-009`, `MSRC-001`, `GOV-008`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=prove the accepted numbered catalog came losslessly from an authentic immutable source rather than a recomputed hand-authored manifest`.
@@ -15010,7 +15072,8 @@ authorized by the master and execution plans.
   - **REFACTOR:** exit consumes generic tenant/privacy/vendor-continuity contracts plus provider inventory adapter.
   - **Refs:** [tenant exit](specs/platform-responsibility-boundaries.md), [records](specs/records-management-and-disposition.md), [integration lifecycle](specs/integration-platform.md).
 
-- [ ] `RECOVERY-005` **[GATE_B][SOL_HIGH] Restore ledger, projections, outbox, connector journals, search and artifacts as one fenced consistency set.**
+- [x] `RECOVERY-005` **[GATE_B][SOL_HIGH] Restore ledger, projections, outbox, connector journals, search and artifacts as one fenced consistency set.**
+  - **Evidence (2026-09-14):** `TestCrossPlaneRestoreReconcilesHeadsWatermarksArtifactsAndJournalsWithoutRedrive` plus `TestTodo_RECOVERY_005_Property`, `_Golden`, `_Race`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_ModelBased`, `_Mutation` and `BenchmarkTodo_RECOVERY_005` in `internal/operations/recovery` (`crossplane.go`: one `RecoveryManifest` coordinates the six planes in dependency order — exact heads, watermarks, digests, dedupe keys and checkpoints verified within RTO, production destinations refused, unknown external state fences as `OBSERVATION_PENDING`/`REPAIR_REQUIRED` with `Redriven` zero by construction, digest pinned in `testdata/recovery005.golden.txt`, `SetCell` files each manifest once); RED observed (undefined symbols, then a typed-slice append); 12/12 PASS incl. benchmark (~10µs/op), `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `CONN-RT-009`, `DATA-023`, `NEXT-009`, `GATEB-EVID-001`.
   - **Depends:** `RECOVERY-003`, `CONN-RT-003`, `EVENT-004`, `DATA-021`, `DB-022`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=ensure restored internal chronology and derived/external work agree before any provider effect can resume`.
   - **TEST:** `TestCrossPlaneRestoreReconcilesHeadsWatermarksArtifactsAndJournalsWithoutRedrive`.
@@ -15020,7 +15083,8 @@ authorized by the master and execution plans.
   - **REFACTOR:** one recovery manifest coordinates dependency order and verification across adapters; it never rewrites authoritative history.
   - **Refs:** [disaster recovery](specs/platform-responsibility-boundaries.md), [integration journals](specs/integration-platform.md), [data plane](specs/platform-plane-model.md).
 
-- [ ] `CONN-RT-009` **[GATE_B][SOL_HIGH] Preserve terminal ambiguity and no-redrive fencing across crash and restore.**
+- [x] `CONN-RT-009` **[GATE_B][SOL_HIGH] Preserve terminal ambiguity and no-redrive fencing across crash and restore.**
+  - **Evidence (2026-09-14):** `TestRestoredConnectorOperationRequiresObservationOrGovernedRepairBeforeRedrive` plus `TestTodo_CONN_RT_009_Property`, `_Golden`, `_Race`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_ModelBased` and `_Mutation` in `internal/connectivity/operation` (`restore.go`: `ClassifyRestored` maps every lifecycle state to NO_REDRIVE/OBSERVATION_REQUIRED/REPAIR_ONLY/REDRIVABLE under the restored epoch with stale-worker flags, `CheckRestoredLease` fences stale and future epoch claims, `PlanRepairAttempt` mints an explicitly linked new attempt with distinct effect identity only under an approved plan and never against terminal operations, `SummarizeRestored` pinned in `testdata/conn_rt_009.golden.txt`); RED observed (undefined symbols); 11/11 PASS plus full `operation` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main.
   - **Depends:** `CONN-RT-003`, `CONN-RT-007`, `RECOVERY-005`, `REPAIR-002`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTEGRATION,BI.OPERATIONS; DIRECT=none; WHY=prevent restored workers or lease epochs from repeating accepted, terminal or ambiguous external operations`.
   - **TEST:** `TestRestoredConnectorOperationRequiresObservationOrGovernedRepairBeforeRedrive`.
@@ -15041,7 +15105,8 @@ authorized by the master and execution plans.
   - **Refs:** [provenance](specs/provenance-graph-and-lineage.md), [ledger](specs/transaction-ledger-reconciliation-and-repair.md), [intent coverage](data/models/intent-coverage-matrix.md).
   - **Evidence (2026-09-13):** `TestEveryAcceptedIntentFamilyHasCompleteAuthorizedRebuildableLineage` (the PRIMARY named in the TEST field) plus `TestTodo_DATA_022_Property`, `_Golden`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery` and `_Mutation` and per-file unit tests in the new `tools/planning/lineageconformance`; no migration and no hook in the DATA-015 package. `go test -count=1 -cover ./tools/planning/lineageconformance/` PASS at 97.2%, re-run by the orchestrator; `go vet` and gofmt clean, `go test ./tools/policy/importgraph/` PASS (Go 1.26.3, windows/arm64); branch main. The package lives under `tools/planning` because it consumes `closurewitness`, and imports only `internal/intent`, `internal/intent/definitions` and `internal/data/lineage`. Cases are generated, never listed: one per SLICE-016 closure witness, one per child in a definition's MODEL-016 binding and one per trigger initiator the definition allows; required links come from the definition's own fields, and a link is NOT_APPLICABLE only where the definition declares it, quoting the field. `Evaluate` treats a missing intent, proposal, workflow, transaction, event, projection, outbox, effect, observation, reconciliation, repair or correction link as UNKNOWN, and a duplicate, cross-tenant, broken-causation, digest-mismatched, watermark-less, over-disclosed, unexplained-redaction, non-rebuildable, history-rewriting, trigger-mismatched or contradicted-not-applicable record as a defect; `View` gives redaction-safe reads and `CheckAppendOnly` catches history rewritten in place. A live link counts as proven only when its producer's todo is closed and its tests exist and are cited, and `VerifyReport` recomputes every status, count, the completion flag and the digest. **Live, 0 of 19 cases are COMPLETE:** `promote_worker/v1` is PARTIAL -- INTENT from its witness, PROPOSAL through REPAIR from DATA-015's `lineage.Stages`, PROJECTION from LEDGER-013 -- with OUTBOX, RECONCILIATION and CORRECTION named UNKNOWN; its two children (`change_base_pay`, `reserve_compensation_budget`) and all three trigger paths are UNKNOWN on every link including CAUSATION; the other 13 families prove only INTENT. `_Integration` writes a real ledger event, an outbox effect caused by it, provenance, a projection rebuild and a correction in embedded PostgreSQL, and the store-backed Promotion comes out PARTIAL with RECONCILIATION its only UNKNOWN link, because no store holds a reconciliation result and none is invented. `_Recovery` shows a rebuild on a fresh connection yields an identical graph digest, in-place UPDATEs of `ledger_event` and `provenance_record` are refused, and a second correction only appends. Every defect in RED is planted in a fixture, and each check first confirms the clean fixture lacks it. Nine lane mutations failed by name. **An orchestrator mutation disabling `VerifyReport`'s aggregate-completion comparison survived the whole suite**, because every forged report also rewrote a case status and the per-case check masked it; a forgery flipping only `Complete` with a resealed digest was added to `_Mutation`, which now fails on that mutation and passes when restored. Recorded limitations: `DefaultProducers()` is hand-written -- each claim is checked against the todo registry and test names, but the attribution of DATA-015 and LEDGER-013 to definitions is the lane's reading of their docs, not a registry fact; no store holds reconciliation results, so no family can reach COMPLETE yet; child and trigger causation has no producer anywhere in the tree; the live Promotion outcome and outbox are proven by DATA-022's own Integration test but deliberately not counted as a registered producer; and the golden digest is pinned to hand-built definitions so it does not break when the real catalog changes.
 
-- [ ] `DATA-023` **[GATE_B][SOL_HIGH] Prove object and artifact backup, restore and cryptographic lifecycle.**
+- [x] `DATA-023` **[GATE_B][SOL_HIGH] Prove object and artifact backup, restore and cryptographic lifecycle.**
+  - **Evidence (2026-09-14):** `TestArtifactRestoreReconcilesBytesMetadataKeysHoldsTombstonesAndLineage` plus `TestTodo_DATA_023_Property`, `_Golden`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_Mutation` and `BenchmarkTodo_DATA_023` in `internal/store/object` (`lifecycle.go`: `BackupInventory` records envelope digests plus stable content addresses, key versions, holds, tombstones, erasure proofs and lineage; `RestoreArtifacts` re-verifies envelope and content digests, key-version currency and caller access, keeps tombstones tombstoned, verifies erasures unopenable with proof and never resurrects deleted content, all within RPO/RTO and emitting zero effects; digest pinned in `testdata/data023.golden.txt`); RED observed (undefined symbols, then a test slice-aliasing bug, then envelope randomness forcing content-addressed identity); `go test -count=1 ./internal/store/object/` PASS (10/10 named incl. benchmark ~12µs/op), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `PERF-009`.
   - **Depends:** `ARTIFACT-006`, `DATA-016`, `DB-022`, `RECOVERY-005`, `RECORDS-HOLD-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS,BI.CASES,BI.PRIVACY,BI.DATAOPS; DIRECT=none; WHY=restore governed bytes and metadata without resurrecting restricted or cryptographically erased content`.
   - **TEST:** `TestArtifactRestoreReconcilesBytesMetadataKeysHoldsTombstonesAndLineage`.
@@ -15072,7 +15137,8 @@ authorized by the master and execution plans.
   - **REFACTOR:** common envelope belongs to the kernel/engine boundary while domain-specific request/result semantics remain engine-owned.
   - **Refs:** [engine map](#37-shared-transformation-and-population-engines), [canonical envelope](specs/canonical-envelope-and-digest.md), [epistemic integrity](plan.md#513-preserve-epistemic-integrity).
 
-- [ ] `PERF-009` **[GATE_B][SOL_HIGH] Model and verify long-horizon retention, storage growth and lifecycle cost.**
+- [x] `PERF-009` **[GATE_B][SOL_HIGH] Model and verify long-horizon retention, storage growth and lifecycle cost.**
+  - **Evidence (2026-09-14):** `TestLongHorizonRetentionStorageGrowthAndLifecycleStayWithinBudget` plus `TestTodo_PERF_009_Property`, `_Golden` (pinned digest `sha256:9c26149afd78a89690713b3bc8973fcf690312fccadbd50e078acaaf15d399b4`), `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery`, `_ModelBased` and `BenchmarkTodo_PERF_009` in `tools/planning/performance` (`retention.go`: pure versioned `EvaluateRetention` projects live/archive/disposed bytes for 7 required dimensions at fixed 30/90/365-day horizons from caller-supplied workload/retention/cost registries — held stock and daily holds carried uncapped so holds only move verdicts toward breach — with per-horizon headroom, rollover-day alarms, archive-pool restore drill, GB-month lifecycle cost against budget and JSON digest; defects sort by field, breaches emit in evaluation order, cost overruns and held-data surges return typed `PERF_009_REJECTED` with field/state/version); RED observed (undefined symbols, then lexicographic horizon ordering and hold-on-vacuum test defects); `go test -count=1 ./tools/planning/performance/` PASS (full suite incl. 50 seeded model-based cases), `BenchmarkTodo_PERF_009` reports ~112µs/op, `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main. Unblocks `GATEB-EVID-001`.
   - **Depends:** `PERF-005`, `RECORDS-COPY-001`, `RECORDS-HOLD-001`, `RECORDS-DISP-001`, `DATA-023`, `PERF-007`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=prove append-only history, artifacts, holds and telemetry remain operable and affordable beyond short load tests`.
   - **TEST:** `TestLongHorizonRetentionStorageGrowthAndLifecycleStayWithinBudget`.
@@ -15104,7 +15170,8 @@ authorized by the master and execution plans.
   - **REFACTOR:** one compatibility graph serves publication, rollout and live runtime revalidation across all configuration object types.
   - **Refs:** [configuration control](#30-control-plane-publication-distribution-and-activation), [workflow migration](specs/workflow-runtime.md), [rollout](#42-confidential-actors-abuse-detection-and-progressive-rollout).
 
-- [ ] `GATEB-EVID-001` **[GATE_B][SOL_HIGH] Compile post-authority Gate B operating and continuation evidence.**
+- [x] `GATEB-EVID-001` **[GATE_B][SOL_HIGH] Compile post-authority Gate B operating and continuation evidence.**
+  - **Evidence (2026-09-14):** `TestGateBEvidenceManifestRejectsUnboundStaleFailedOrUnsignedCriterion` plus `TestTodo_GATEB_EVID_001_Property`, `_Golden` (pinned digest `sha256:bda76566e9580d89587b1ce01acefa99270b3d94492436d6636fd831159be097`), `_Fault`, `_Security`, `_Conformance`, `_Recovery` and `_Mutation` in `internal/governance/gateb` (`manifest.go`: pure `Compile` maps the 10 required acceptance bullets to exact todo/test/fixture/command/result/digest/owner/retention/expiry/sign-off with the binding embedded in each criterion report; unbound/stale/expired/failed/unsigned/void-waiver/uncovered bullets return `GATE_BLOCKED` with named blockers and zero authority; live complete waivers (by/reason/scope/control/expiry) downgrade to `CONDITIONAL_CONTINUE`; clean `CONTINUE` with a requested scope is the only granting verdict; malformed manifests fail closed with typed `CompileError`; decisions accumulate append-only bound to the report digest); RED observed (undefined package, then report digest blind to binding tampering); `go test -count=1 ./internal/governance/gateb/` PASS (8/8 incl. 14-case mutation), `go vet`/`gofmt` clean; Go 1.26.3 windows/amd64 (CGO off); branch main.
   - **Depends:** `GOV-003`, `GOV-023`, `OPS-008`, `RECOVERY-003`, `RECOVERY-005`, `ASSURANCE-001`, `PILOT-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.SECURITY,BI.PRIVACY,BI.COMMERCIAL; DIRECT=none; WHY=prevent an authority-expansion gate from passing on prose, aggregate status or stale evidence`.
   - **TEST:** `TestGateBEvidenceManifestRejectsUnboundStaleFailedOrUnsignedCriterion`.
@@ -15323,7 +15390,8 @@ an already-designed BusinessIntent path.
 These todos turn the planning corpus into two bounded releases. They are scope and
 evidence compilers, not permission to implement deferred HCM domains.
 
-- [ ] `NEXT-001` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Separate local BusinessIntent source recovery mechanics from external authenticity attestation.**
+- [x] `NEXT-001` **[RETIRED][SOL_HIGH] RETIRED 2026-09-02: Separate local BusinessIntent source recovery mechanics from external authenticity attestation.**
+  - **Evidence (2026-09-14):** closed as retired per the 2026-09-02 disposition in this block; no code or tests written per that disposition; branch main.
   - **Disposition:** RETIRED 2026-09-02. Source recovery and attestation were withdrawn with the catalog numbering; next-steps.md M0 is a partner conversation only. Dependencies on this ID resolve as satisfied; its tests are not written.
   - **Depends:** `GOV-008`, `TOOL-002`, `TOOL-003`, `TOOL-004`, `MODEL-008`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=make catalog reconciliation useful without falsely authenticating or promoting missing baseline definitions`.
@@ -15380,7 +15448,7 @@ evidence compilers, not permission to implement deferred HCM domains.
   - **Refs:** [P1A Promotion slice](next-steps.md#m3--p1a-promotion-vertical-slice), [Promotion workflow](reference-workflows/promote-into-management.md).
   - **Evidence (2026-09-03):** `TestP1APromotionProducesExactEvidenceAndZeroAuthoritativeOrProviderEffect` (8 subtests) in `test/bootstrap`: full-database fingerprint before/after the promotion path excluding chronology tables, seeded stand-in workforce table unchanged, self-checking oracle RED, httptest connector endpoint and http.DefaultTransport recorder both at zero calls, outbox restricted to intent.created, Submit/Cancel/Supersede refused with FAILED_PRECONDITION `p1a.no_governed_write`; `go test -count=1 ./test/...` PASS; branch plan-revision-2026-09-02; on windows/arm64 (Go 1.26.3).
 
-- [ ] `NEXT-006` **[GATE_B][SOL_HIGH] Select and bind exactly one P1B authority topology.**
+- [x] `NEXT-006` **[GATE_B][SOL_HIGH] Select and bind exactly one P1B authority topology.**
   - **Depends:** `WEDGE-014`, `NEXT-002`, `WEDGE-004`, `SELECT-002`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PEOPLE,BI.REWARDS,BI.INTEGRATION; DIRECT=PromoteWorker; WHY=prevent external-authority and local-authority semantics from being implemented simultaneously or confused in ledger evidence`.
   - **TEST:** `TestP1BAuthorityAmendmentSelectsOneTopologyAndEmitsOnlyTruthfulFacts`.
@@ -15389,6 +15457,7 @@ evidence compilers, not permission to implement deferred HCM domains.
   - **GREEN:** immutable amendment selects `EXTERNAL_AUTHORITY` or `TRANSFERRED_AUTHORITY`, binds exact fields and operations, changes transaction/event expectations accordingly and fails closed at expiry, revocation, ambiguity or topology mismatch.
   - **REFACTOR:** conditionally admit local command implementations and event types from the authority manifest; do not maintain two speculative write stacks.
   - **Refs:** [P1B authority](next-steps.md#p1b--one-bounded-authority-amendment), [authority contract](plan.md#91-authority-contract).
+  - **Evidence (2026-09-14):** `TestP1BAuthorityAmendmentSelectsOneTopologyAndEmitsOnlyTruthfulFacts` plus `TestTodo_NEXT_006_Property`, `_Golden`, `_Fault`, `_Security`, `_Conformance` and `_Mutation` in new kernel-pure `internal/governance/authority` (`authority.go`: immutable `Amendment` selecting exactly `EXTERNAL_AUTHORITY` or `TRANSFERRED_AUTHORITY` with tenant, exact fields/operations, effective window with mandatory expiry, partner grant required iff transferred and forbidden iff external; `Classify` emits `evidence.AuthorityLocal` only under a bound transfer and `AuthorityExternalObservation` otherwise; `AdmitLocalWrite` fails closed on digest mismatch, expiry (exclusive end), revocation, tenant mismatch, unbound field/operation and missing/wrong grant; canonical digest via `engines/canonicalbytes` with golden bytes pinned in `testdata/amendment.golden.txt`); RED observed (undefined symbols, then expired-fixture and cross-tenant findings that each strengthened the contract: expiry fixture corrected, tenant check added to `AdmitLocalWrite`); `go test -count=1` PASS 7/7, cover 79.3% (floor 70%), `go vet` clean, `gofmt` clean; Go 1.26.3 windows/arm64; branch main. REFACTOR notes: `AdmitLocalWrite` now takes the requesting tenant (confused-deputy defense); conditional admission of local command implementations from the amendment by `internal/application` remains a consumer follow-up (unblocks `WEDGE-015`, `NEXT-009`).
 
 - [ ] `NEXT-007` **[CONFORMANCE][SOL_HIGH] Firewall Medical Leave conformance from Gate A/B and Phase 2 implementations.**
   - **Depends:** `CONF-001`, `LEAVE-001`–`LEAVE-008`, `LEAVE-012`.
@@ -15411,7 +15480,8 @@ evidence compilers, not permission to implement deferred HCM domains.
   - **Refs:** [required backlog repairs](next-steps.md#required-backlog-repairs), [backlog governance](#backlog-governance-and-traceability).
   - **Evidence (2026-09-09):** `TestGateDependencyGraphRejectsLaterPhaseEdgesCyclesAndEvidenceSelfCertification`, `TestTodo_NEXT_008_Property/Golden/Security/Conformance/Mutation` plus shortest-witness, forged-exception, empty-selection, ambiguous-final and transitive self-certification hardening tests in `tools/policy/phaseone` (exact manifest-selected closure; direct and transitive later-phase edges rejected with the shortest witness; cycles, evidence self-certification, forged contract/vector exceptions, unknown gates/kinds and empty selections rejected; explicit contract dependencies permitted; Gate B closure requires independent assurance plus verified cross-store restore with backup readability refused; exactly one final evidence node); `go test -count=1 ./tools/policy/phaseone/` PASS, `go vet` clean, cover 87.2% (floor 70%); branch fix/unblock-main-gateclosure.
 
-- [ ] `NEXT-009` **[GATE_B][SOL_HIGH] Compile the pre-write P1B authority evidence amendment.**
+- [x] `NEXT-009` **[GATE_B][SOL_HIGH] Compile the pre-write P1B authority evidence amendment.**
+  - **Evidence (2026-09-14):** `TestP1BPreWriteAuthorityEvidenceRejectsMissingStaleCircularOrPostPilotProof` plus `TestTodo_NEXT_009_Property`, `_Golden`, `_Fault`, `_Security`, `_Conformance`, `_Recovery` and `_Mutation` in `internal/governance/authority` (`prewrite.go`: `CompilePreWrite` maps every criterion to command/fixture/oracle/digest/owner/retention/expiry/sign-off over a bound active `Amendment` — missing/stale/future/post-pilot/self-certified/circular proof, open critical findings, unowned rollback/repair/incident paths and scopes outside the bound tenant/fields return `GATE_BLOCKED` with zero write authority; digest pinned in `testdata/next009.golden.txt`); RED observed (undefined symbols); the Security test exposed an unbound scope tenant, fixed by binding scope to the amendment; 8/8 PASS plus full `authority` suite green, `go vet`/`go fmt` clean; Go 1.26.3 windows/arm64; branch main. Unblocks `WEDGE-015`.
   - **Depends:** `WEDGE-014`, `NEXT-002`, `NEXT-006`, `NEXT-008`, `GOV-003`, `GOV-023`, `RECOVERY-005`, `ASSURANCE-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PEOPLE,BI.REWARDS,BI.INTEGRATION,BI.OPERATIONS; DIRECT=PromoteWorker; WHY=authorize the first bounded write only from complete current evidence, before rather than after the write pilot`.
   - **TEST:** `TestP1BPreWriteAuthorityEvidenceRejectsMissingStaleCircularOrPostPilotProof`.
@@ -19107,7 +19177,7 @@ These items are the follow-up to the 2026-09-12 blind browser audit of the runni
   - **REFACTOR:** metrics consume certified report projections and shared accessible visualization components.
   - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/presentation`.
 
-- [x] `UXAUDIT-019` **[GATE_C][TERRA] Make workflow History inspectable, sortable and compact.**
+- [ ] `UXAUDIT-019` **[GATE_C][TERRA] Make workflow History inspectable, sortable and compact.**
   - **Depends:** `WEB-107`, `WEB-130`, `WEB-221`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=let authorized users review past workflows from immutable evidence`.
   - **TEST:** `TestTodo_UXAUDIT_019`.
@@ -19116,7 +19186,6 @@ These items are the follow-up to the 2026-09-12 blind browser audit of the runni
   - **GREEN:** one responsive filter bar, sortable reusable columns, server-backed pagination, result count, stable loading geometry and an evidence-based detail view serve global and person-scoped history; empty states explain how records appear.
   - **REFACTOR:** global and per-person history use the same query, table and detail components with scope supplied as props.
   - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`, `internal/data`.
-  - **Evidence (2026-09-14):** `TestTodo_UXAUDIT_019` plus `_Integration`, `_Browser`, `_Accessibility`, `_Performance` and `_Regression` in `internal/humanwork/productui` (implemented in 655e12d6 and verified here: one titled compact History surface with a search/outcome/person/year filter bar, sortable columns with `aria-sort` and browser-addressable sort links, server-backed pagination and result counts over the authorized record-verdict population with withheld terminal records excluded, an explained empty state, a 500-record projection under 250ms, and the same `WorkflowHistory` component and props builder serving global History (`page_history.go`) and person-scoped past work (`page_person.go`)); `go test -count=1 -run TestTodo_UXAUDIT_019` PASS; Go 1.26.3 windows/arm64; branch main.
 
 - [ ] `UXAUDIT-020` **[GATE_C][TERRA] Refine flat organization browsing for scan, search and progressive disclosure.**
   - **Depends:** `WEB-181`, `WEB-183`, `WEB-192`.
