@@ -268,6 +268,9 @@ func (s *server) WatchJourney(req *journeyv1.WatchJourneyRequest, stream journey
 	if depErr != nil {
 		return depErr
 	}
+	// Resolved once for the life of the stream: a caller's diagnostics
+	// authority is a fact about who they are, not about which poll this is.
+	diagAuthorized := s.diagnosticsAuthorized(ctx, principal)
 
 	intentID := req.GetIntentId()
 	// sent is the digest the client is known to hold: what it told us it
@@ -293,7 +296,7 @@ func (s *server) WatchJourney(req *journeyv1.WatchJourneyRequest, stream journey
 	if err != nil {
 		return ownedError(err, principal, inv, "watch")
 	}
-	if current := toDetail(detail); current.GetDetailDigest() != sent {
+	if current := toDetail(detail, diagAuthorized); current.GetDetailDigest() != sent {
 		if sendErr := sendWatch(stream, producer, current, principal, inv); sendErr != nil {
 			return sendErr
 		}
@@ -335,7 +338,7 @@ func (s *server) WatchJourney(req *journeyv1.WatchJourneyRequest, stream journey
 				}
 				return ownedError(err, principal, inv, "watch")
 			}
-			next := toDetail(detail)
+			next := toDetail(detail, diagAuthorized)
 			if next.GetDetailDigest() == sent {
 				continue
 			}

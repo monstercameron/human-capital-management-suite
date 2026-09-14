@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 )
 
@@ -142,6 +143,43 @@ func TestTodo_CAP_003(t *testing.T) {
 		}
 		assertSameMeaning(t, "grpc round trip", owned, roundTripped)
 	})
+}
+
+func TestTodo_PROMOUX_007_Regression_MoneyRangeDetailRoundTrip(t *testing.T) {
+	minimum, err := values.NewMoney("105.04", "USD", 2, values.RoundingExactRequired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	maximum, err := values.NewMoney("115.03", "USD", 2, values.RoundingExactRequired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owned := envelope.New(envelope.CodeInvalidArgument, "journey.propose_promotion.input", "the request input is not acceptable").
+		WithViolation("proposed_base", "review this field and try again", "promotion.ladder.base_increase_out_of_range").
+		WithViolationMoneyRange(minimum, maximum)
+	refusal := envelope.FromDetail(owned.Code(), owned.Message(), owned.Detail())
+	got := refusal.Violations()
+	if len(got) != 1 || got[0].MoneyRange != (envelope.MoneyRange{Minimum: "105.04", Maximum: "115.03", Currency: "USD"}) {
+		t.Fatalf("typed monetary correction changed across envelope: %+v", got)
+	}
+	plain := envelope.New(envelope.CodeInvalidArgument, "journey.propose_promotion.input", "the request input is not acceptable").
+		WithViolation("reason", "review this field and try again", "journey.input.invalid")
+	if plain.Detail().GetFieldViolations()[0].GetPermittedMoneyRange() != nil {
+		t.Fatal("an unrelated refusal acquired a pay range")
+	}
+	invalid := envelope.New(envelope.CodeInvalidArgument, "journey.propose_promotion.input", "the request input is not acceptable").
+		WithViolation("proposed_base", "review this field and try again", "promotion.ladder.base_increase_out_of_range").
+		WithViolationMoneyRange(maximum, minimum)
+	if invalid.Detail().GetFieldViolations()[0].GetPermittedMoneyRange() != nil {
+		t.Fatal("reversed bounds crossed the owned error boundary")
+	}
+	forged := &commonv1.ErrorDetail{FieldViolations: []*commonv1.FieldViolation{{
+		FieldPath: "proposed_base", RuleRef: "promotion.ladder.base_increase_out_of_range",
+		PermittedMoneyRange: &commonv1.MoneyRange{Minimum: "private SQL", Maximum: "115.03", Currency: "USD"},
+	}}}
+	if got := envelope.FromDetail(envelope.CodeInvalidArgument, "the request input is not acceptable", forged).Violations()[0].MoneyRange; got != (envelope.MoneyRange{}) {
+		t.Fatalf("malformed wire detail entered the owned model: %+v", got)
+	}
 }
 
 // TestTodo_CAP_003_Golden is the CAP-003 golden test. It pins the canonical

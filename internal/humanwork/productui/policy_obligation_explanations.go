@@ -13,6 +13,22 @@ import (
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 )
 
+// ObligationExplanation is the safe, reviewable projection used beside an
+// obligation status. Unknown enum values intentionally remain unexplained;
+// technical identifiers and provider details belong behind an authorized
+// disclosure owned by the workflow service.
+type ObligationExplanation struct {
+	Text      string
+	Explained bool
+}
+
+// ResolveObligationExplanation resolves the compact explanation model for a
+// status chip without exposing raw enum names or treating copy as authority.
+func ResolveObligationExplanation(locale LocaleContext, state intentsv1.ObligationState) ObligationExplanation {
+	text, ok := ExplainObligation(locale, state)
+	return ObligationExplanation{Text: text, Explained: ok}
+}
+
 // ExplainObligation explains one obligation state through
 // reviewed copy. It reports false for states the
 // lifecycle surface cannot tokenize.

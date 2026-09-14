@@ -63,7 +63,7 @@ func TestTodo_WEB_055_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(node))
 	got := hex.EncodeToString(digest[:])
-	const want = "fec579a16679e266f11ebec2e8416248d80713dfe10fd59f9b6a323021ea43d5"
+	const want = "181fb64f1e9752f1b6da412102d225193d2b8993f063e656a1e80f6e2650b973"
 	if got != want {
 		t.Fatalf("delegation selector golden digest = %s, want %s", got, want)
 	}

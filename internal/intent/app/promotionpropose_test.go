@@ -121,7 +121,6 @@ func TestTodo_PROMO_007(t *testing.T) {
 			"subject_worker_ref":        func(r *journeyv1.ProposePromotionRequest) { r.SubjectWorkerRef = "  " },
 			"desired_job_code":          func(r *journeyv1.ProposePromotionRequest) { r.DesiredJobCode = "" },
 			"desired_grade":             func(r *journeyv1.ProposePromotionRequest) { r.DesiredGrade = "" },
-			"desired_position_id":       func(r *journeyv1.ProposePromotionRequest) { r.DesiredPositionId = "" },
 			"desired_base_pay":          func(r *journeyv1.ProposePromotionRequest) { r.DesiredBasePay = "" },
 			"effective_date":            func(r *journeyv1.ProposePromotionRequest) { r.EffectiveDate = "" },
 			"reason":                    func(r *journeyv1.ProposePromotionRequest) { r.Reason = "" },
@@ -143,8 +142,9 @@ func TestTodo_PROMO_007(t *testing.T) {
 		}
 	})
 
-	t.Run("the three optional fields stay optional", func(t *testing.T) {
+	t.Run("the four optional fields stay optional", func(t *testing.T) {
 		req := promotionProposeFixture()
+		req.DesiredPositionId = ""
 		req.DesiredOrgUnit = ""
 		req.DesiredManagerRef = ""
 		req.DesiredPayCurrency = ""

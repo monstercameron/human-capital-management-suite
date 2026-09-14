@@ -498,19 +498,6 @@ func retryStart(execution *PromotionExecution, tenant uuid.UUID, key string, at 
 }
 
 func TestTodo_DB_EDGE_003_IntegrationPromotionCompositionRetriesSerializableAndRechecksApproval(t *testing.T) {
-	// This test drives real serializable retries against a real PostgreSQL,
-	// so its wall-clock cost tracks how contended the machine is rather than
-	// anything about the code under test. The original 20s budget was tight
-	// enough that the test failed on a busy developer machine -- verified
-	// against an unmodified checkout at 22.9s and 32.4s, with the same
-	// "context deadline exceeded" in place of the typed UNAPPROVED_PROPOSAL
-	// refusal it is actually asserting. A deadline that turns machine load
-	// into a false failure tests the machine, not the retry contract, so it
-	// is raised here. Every assertion below is unchanged: a genuine failure
-	// to refuse an unapproved proposal still fails, and the retry behaviour
-	// is still what is being measured.
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
 	database := pgtest.New(t)
 	tenant := uuid.New()
 	at := time.Date(2026, 9, 8, 12, 0, 0, 123456000, time.UTC)
@@ -518,6 +505,11 @@ func TestTodo_DB_EDGE_003_IntegrationPromotionCompositionRetriesSerializableAndR
 	database.Exec(t, `CREATE TABLE execution_retry_approval (tenant_id uuid PRIMARY KEY, approved boolean NOT NULL)`)
 	database.Exec(t, `INSERT INTO execution_retry_approval (tenant_id,approved) VALUES ($1,true)`, tenant)
 	conn, admin := database.NewConn(t), database.NewConn(t)
+	// The deadline protects the transaction exercise, not the one-time
+	// embedded PostgreSQL bootstrap. Slow Windows hosts can legitimately spend
+	// longer than this preparing the fixture before the first query runs.
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
 	defer conn.Close(ctx)
 	defer admin.Close(ctx)
 	beginner := &observedSerializableBeginner{conn: conn, admin: admin, tenant: tenant}

@@ -23,7 +23,7 @@ func TestTodo_WEB_159(t *testing.T) {
 	if !ok {
 		t.Fatal("pay-discrepancy intake unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("pay-discrepancy intake incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_159_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "0ef0ae478e011c4486dd0912809feab9dcaff14634591b76358991b9f47c608c"
+	const want = "598d2326763cf8533510c53b6f85c666f6dfe895f0216f7fb67eb2f738895ba3"
 	if got != want {
 		t.Fatalf("pay-discrepancy digest = %s, want %s", got, want)
 	}

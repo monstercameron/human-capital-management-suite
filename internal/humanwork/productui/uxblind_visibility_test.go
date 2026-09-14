@@ -34,26 +34,30 @@ func TestUXBLIND_023(t *testing.T) {
 			t.Fatalf("missing visibility editor for %q", roleID)
 		}
 		fieldset := findClassToken(editor, "organization-visibility-units")
-		if fieldset == nil {
-			t.Fatalf("missing unit fieldset for %q", roleID)
+		if fieldset != nil {
+			t.Errorf("irrelevant unit fieldset shown for %q", roleID)
 		}
-		if !hasUXAttr(fieldset, "disabled", "") {
-			t.Errorf("unit fieldset for %q is editable", roleID)
+		if findClassToken(editor, "mode-only") == nil {
+			t.Errorf("mode-only role %q did not use the balanced single-column form", roleID)
 		}
-		if !hasUXAttr(fieldset, "aria-disabled", "true") || !hasUXAttr(fieldset, "data-selection-state", "inactive") {
-			t.Errorf("unit fieldset for %q lacks an accessible inactive state", roleID)
+		if !hasUXAttr(editor, "name", "organization-visibility-editors") {
+			t.Errorf("%q is not in the exclusive native role editor group", roleID)
+		}
+		if !strings.Contains(doc, `name="organization-visibility-mode-`+roleID+`"`) {
+			t.Errorf("%q mode inputs were unmounted", roleID)
 		}
 	}
 
 	for _, want := range []string{
-		"Role grants are additive.",
-		"Manager: Their own organization unit",
-		"Support: Everyone",
-		"Selections are used by the allowlist and denylist modes.",
+		"Resolved from each viewer's organization unit",
+		"Worker preview unavailable",
 	} {
-		if !strings.Contains(doc, want) {
+		if !strings.Contains(textContent(root), want) {
 			t.Errorf("visibility document missing explanation %q", want)
 		}
+	}
+	if strings.Contains(web064RoleScope(t, root, "manager", "organization-scope-current"), "No enumerable units in scope") || findClassToken(root, "organization-visibility-role-selector") != nil || findClassToken(findVisibilityEditor(root, "manager"), "data-domain-scope") != nil {
+		t.Fatal("viewer-relative scope must not be presented as empty, and unsupported role/domain selector must not render")
 	}
 }
 
@@ -84,6 +88,22 @@ func TestUXBLIND_023_AllowAndDenyModesKeepUnitSelectionAvailable(t *testing.T) {
 		}
 		if hasUXAttr(fieldset, "disabled", "") || hasUXAttr(fieldset, "data-selection-state", "inactive") {
 			t.Errorf("unit fieldset for %q is inactive in a selectable mode", roleID)
+		}
+		if findClassToken(findVisibilityEditor(root, roleID), "mode-only") != nil {
+			t.Errorf("selected-unit role %q lost the two-column editor", roleID)
+		}
+	}
+}
+
+func TestUXAUDIT010_ModeOnlyFormUsesBalancedResponsiveGrid(t *testing.T) {
+	css := Stylesheet()
+	for _, selector := range []string{
+		".organization-visibility-form.mode-only",
+		".organization-visibility-form.mode-only .organization-visibility-modes",
+		"@media (max-width:620px)",
+	} {
+		if !strings.Contains(css, selector) {
+			t.Fatalf("mode-only editor stylesheet misses %q", selector)
 		}
 	}
 }

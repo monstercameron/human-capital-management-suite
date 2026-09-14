@@ -1,6 +1,8 @@
 package productui
 
 import (
+	"strings"
+
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -22,10 +24,37 @@ func ActingAuthorityBanner(props ContextSwitcherProps) ui.Node {
 	if !validAuthorityContext(props.Current) || !authorityNoticeworthy(props.Current) {
 		return nil
 	}
-	return html.Section(html.Props{ID: "acting-authority", Class: "acting-authority-banner", Aria: map[string]string{"labelledby": "acting-authority-title"}},
+	key := authorityContextKey(props.Current)
+	previous := ui.UseState(key)
+	noticed := ui.UseState("")
+	ui.UseEffectOf(func() func() {
+		if previous.Get() != key {
+			previous.Set(key)
+			noticed.Set(key)
+		}
+		return nil
+	}, key)
+	aria := map[string]string{"labelledby": "acting-authority-title"}
+	if noticed.Get() == key && key != "" {
+		// Page and locale rerenders do not repeatedly announce the context;
+		// only a changed authority gets live-region treatment.
+		aria["live"] = "polite"
+	}
+	return html.Section(html.Props{ID: "acting-authority", Class: "acting-authority-banner", Aria: aria},
 		html.H2(html.Props{ID: "acting-authority-title", Class: "acting-authority-title"}, ui.Text(props.Text("acting_authority.title"))),
 		html.P(html.Props{Class: "acting-authority-detail"}, ui.Text(currentContextDetail(props.Locale, props))),
 	)
+}
+
+func authorityContextKey(current AuthorityContext) string {
+	return strings.Join([]string{current.TenantID, current.ActingContextID, current.Delegator, current.ExpiresAt, fmtBool(current.Delegated), fmtBool(current.Elevated)}, "\x00")
+}
+
+func fmtBool(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
 }
 
 func actingAuthorityBanner(view View) ui.Node {

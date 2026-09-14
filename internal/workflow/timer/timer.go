@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/runtimestate"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/schedule"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait"
 )
@@ -232,7 +233,9 @@ type Scheduled struct {
 // condition that could not be resolved to an instant is not a promise anything
 // can keep, and internal/workflow/steps/wait routes such a node to its
 // declared failure route instead.
-func (s Scheduler) Schedule(ctx context.Context, ex Executor, req Request) (Scheduled, error) {
+func (s Scheduler) Schedule(ctx context.Context, ex Executor, req Request) (ret0 Scheduled, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.timer.schedule", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return Scheduled{}, err
 	}
@@ -305,7 +308,9 @@ func (s Scheduler) Pending(ctx context.Context, ex Executor, tenantID, instanceI
 // Due returns every pending timer across the tenant whose instant is at or
 // before asOf, soonest first, bounded by limit. It writes nothing: it is what
 // a caller reads to decide what to hand [Scheduler.Fire].
-func (s Scheduler) Due(ctx context.Context, ex Executor, tenantID uuid.UUID, asOf time.Time, limit int) ([]Timer, error) {
+func (s Scheduler) Due(ctx context.Context, ex Executor, tenantID uuid.UUID, asOf time.Time, limit int) (ret0 []Timer, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.timer.due", observe.Attrs{observe.KeyTenant: tenantID.String()})
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	rows, err := s.timers.Due(ctx, ex, tenantID, asOf, limit)
 	if err != nil {
 		return nil, wrapErr(CodeStorageFailed, ErrStorage, location{}, err, "read the tenant's due timers")
@@ -322,7 +327,9 @@ func (s Scheduler) Due(ctx context.Context, ex Executor, tenantID uuid.UUID, asO
 // It is a compare-and-swap on the timer's own version, so cancelling a timer a
 // concurrent [Scheduler.Fire] already settled is [ErrAlreadySettled] rather
 // than a silent overwrite.
-func (s Scheduler) Cancel(ctx context.Context, ex Executor, tenantID, timerID uuid.UUID, at time.Time, reason string) (Evidence, error) {
+func (s Scheduler) Cancel(ctx context.Context, ex Executor, tenantID, timerID uuid.UUID, at time.Time, reason string) (ret0 Evidence, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.timer.cancel", observe.Attrs{observe.KeyTenant: tenantID.String()}, observe.Attrs{observe.KeyTimer: timerID.String()})
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if at.IsZero() {
 		return Evidence{}, invalid(location{timerID: timerID}, "cancelling a timer needs the caller's own clock reading")
 	}
@@ -343,7 +350,9 @@ func (s Scheduler) Cancel(ctx context.Context, ex Executor, tenantID, timerID uu
 // caller invokes it in the same transaction that completes the instance; a
 // timer another caller settled first is skipped rather than fought over, so
 // the call is safe to repeat.
-func (s Scheduler) CancelInstance(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID, at time.Time, reason string) ([]Evidence, error) {
+func (s Scheduler) CancelInstance(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID, at time.Time, reason string) (ret0 []Evidence, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.timer.cancel_instance", observe.Attrs{observe.KeyTenant: tenantID.String()}, observe.Attrs{observe.KeyInstance: instanceID.String()})
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if at.IsZero() {
 		return nil, invalid(location{instanceID: instanceID}, "cancelling timers needs the caller's own clock reading")
 	}
@@ -454,7 +463,9 @@ type FireResult struct {
 //
 // Everything runs in the caller's transaction. Nothing here polls, sleeps or
 // schedules a future call.
-func (s Scheduler) Fire(ctx context.Context, ex Executor, req FireRequest) (FireResult, error) {
+func (s Scheduler) Fire(ctx context.Context, ex Executor, req FireRequest) (ret0 FireResult, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.timer.fire", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if req.TenantID == uuid.Nil {
 		return FireResult{}, invalid(location{}, "tenant id must not be the nil UUID")
 	}

@@ -157,6 +157,26 @@ func direction(l string) Direction {
 	return LTR
 }
 func pluralCase(locale string, n *big.Rat) string {
+	if strings.HasPrefix(canonicalLocale(locale), "ar") && n.IsInt() && n.Sign() >= 0 {
+		switch n.Cmp(big.NewRat(0, 1)) {
+		case 0:
+			return "zero"
+		}
+		if n.Cmp(big.NewRat(1, 1)) == 0 {
+			return "one"
+		}
+		if n.Cmp(big.NewRat(2, 1)) == 0 {
+			return "two"
+		}
+		remainder := new(big.Int).Mod(n.Num(), big.NewInt(100)).Int64()
+		if remainder >= 3 && remainder <= 10 {
+			return "few"
+		}
+		if remainder >= 11 && remainder <= 99 {
+			return "many"
+		}
+		return "other"
+	}
 	if n.IsInt() && n.Cmp(big.NewRat(1, 1)) == 0 {
 		return "one"
 	}
@@ -182,7 +202,23 @@ func FormatDate(ctx Context, t time.Time) (string, error) {
 	if strings.HasPrefix(canonicalLocale(ctx.Locale), "en-US") {
 		return fmt.Sprintf("%02d/%02d/%04d", t.Month(), t.Day(), t.Year()), nil
 	}
+	if strings.HasPrefix(canonicalLocale(ctx.Locale), "de") {
+		return fmt.Sprintf("%02d.%02d.%04d", t.Day(), t.Month(), t.Year()), nil
+	}
+	if strings.HasPrefix(canonicalLocale(ctx.Locale), "ar") {
+		months := [...]string{"", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"}
+		return arabicDigits(fmt.Sprintf("%d", t.Day())) + " " + months[t.Month()] + " " + arabicDigits(fmt.Sprintf("%04d", t.Year())), nil
+	}
 	return fmt.Sprintf("%04d-%02d-%02d", t.Year(), t.Month(), t.Day()), nil
+}
+
+func arabicDigits(value string) string {
+	return strings.Map(func(digit rune) rune {
+		if digit >= '0' && digit <= '9' {
+			return '٠' + digit - '0'
+		}
+		return digit
+	}, value)
 }
 
 func FormatNumber(locale, decimal string, fraction int) (string, error) {
@@ -232,6 +268,9 @@ func formatDecimal(locale, in string, fraction int, _ bool) (string, error) {
 	if strings.HasPrefix(l, "de") || strings.HasPrefix(l, "fr") {
 		sep = "."
 		dec = ","
+	} else if strings.HasPrefix(l, "ar") {
+		sep = "٬"
+		dec = "٫"
 	}
 	for i := len(parts[0]) - 3; i > 0; i -= 3 {
 		parts[0] = parts[0][:i] + sep + parts[0][i:]
@@ -242,6 +281,9 @@ func formatDecimal(locale, in string, fraction int, _ bool) (string, error) {
 	}
 	if neg {
 		out = "-" + out
+	}
+	if strings.HasPrefix(l, "ar") {
+		out = arabicDigits(out)
 	}
 	return out, nil
 }

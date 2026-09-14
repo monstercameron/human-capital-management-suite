@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // OpenInput is [Open]'s request: the compiled TASK node a WORK_ITEM_REQUIRED
@@ -38,7 +39,9 @@ type OpenInput struct {
 // separately -- and no form validation, which is [Submit]'s job once a
 // candidate submits. Open's only job is minting the one durable record
 // [NewContinuation] and [Submit] both bind against.
-func Open(ctx context.Context, tx workitem.Executor, store workitem.Port, in OpenInput) (workitem.WorkItem, error) {
+func Open(ctx context.Context, tx workitem.Executor, store workitem.Port, in OpenInput) (ret0 workitem.WorkItem, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.steps.task.open", in)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := validateNode(in.Node); err != nil {
 		return workitem.WorkItem{}, err
 	}

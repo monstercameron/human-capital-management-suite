@@ -177,7 +177,10 @@ type ServeInput struct {
 // shutdown that drains them.
 func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	cfg := in.Config
-	options := in.Options
+	options, err := optionsForServeConfig(cfg, in.Options)
+	if err != nil {
+		return nil, err
+	}
 	logger := in.Logger
 	if logger == nil {
 		logger = discardLogger{}
@@ -272,29 +275,35 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		if err := roleAccess.Bootstrap(ctx, kernelvalues.TenantId(cfg.Tenant), "system:bootstrap"); err != nil {
 			return nil, fmt.Errorf("bootstrap role access: %w", err)
 		}
+		if cfg.DevBrowserLogin && cfg.Tenant == demoworkforce.CompanyKey {
+			if err := roleAccess.BootstrapLocalDevPersonaPermissions(ctx, kernelvalues.TenantId(cfg.Tenant)); err != nil {
+				return nil, fmt.Errorf("bootstrap local development personas: %w", err)
+			}
+		}
 	}
 	cellConfig := app.CellConfig{
-		Store:           store,
-		Verifier:        verifier,
-		LegalEvidence:   legalEvidence,
-		Audience:        cfg.Audience,
-		MaxDeadline:     cfg.MaxDeadline,
-		Logger:          transport.LoggerFunc(RequestLogger(logger)),
-		Workspace:       &workspaceEnabled,
-		DevBrowserLogin: cfg.DevBrowserLogin,
-		DevPersonas:     composeDevPersonas(verifier, cfg, options.Now),
-		PublicOrigin:    cfg.PublicOrigin,
-		Evidence:        evidence,
-		Telemetry:       telemetryProvider,
-		Inputs:          options.Inputs,
-		Workers:         options.Workers,
-		Bands:           options.Bands,
-		Now:             options.Now,
-		Clock:           options.Clock,
-		IDs:             options.IDs,
-		Preferences:     preferencestore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)),
-		RoleAccess:      roleAccess,
-		WorkerIDs:       workerIDs,
+		Store:            store,
+		Verifier:         verifier,
+		LegalEvidence:    legalEvidence,
+		Audience:         cfg.Audience,
+		MaxDeadline:      cfg.MaxDeadline,
+		Logger:           transport.LoggerFunc(RequestLogger(logger)),
+		Workspace:        &workspaceEnabled,
+		DevBrowserLogin:  cfg.DevBrowserLogin,
+		DevPersonas:      composeDevPersonas(verifier, cfg, options.Now),
+		PublicOrigin:     cfg.PublicOrigin,
+		Evidence:         evidence,
+		Telemetry:        telemetryProvider,
+		WorkflowRecorder: schedulerRecorder(telemetryProvider, logger, options.Now),
+		Inputs:           options.Inputs,
+		Workers:          options.Workers,
+		Bands:            options.Bands,
+		Now:              options.Now,
+		Clock:            options.Clock,
+		IDs:              options.IDs,
+		Preferences:      preferencestore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)),
+		RoleAccess:       roleAccess,
+		WorkerIDs:        workerIDs,
 	}
 	graph.add(ComponentPresentationPrefs, KindAdapter, cellConfig.Preferences, ComponentDatabasePool)
 	graph.add(ComponentRoleAccess, KindAdapter, cellConfig.RoleAccess, ComponentDatabasePool)
@@ -340,11 +349,17 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	graph.add(ComponentIntentService, KindEngine, cell.Service, ComponentCell)
 	graph.add(ComponentJourneyEngine, KindWorkflow, cell.Journey, ComponentCell)
 
-	var schedulerWorkload bootstrap.Workload
+	var schedulerWorkload, progressWorkload bootstrap.Workload
 	if cfg.Scheduler {
-		schedulerWorkload, err = composeSchedulerWorkload(cfg, in.Pool, in.Identity, cell, logger)
+		schedulerWorkload, err = composeSchedulerWorkload(cfg, in.Pool, in.Identity, cell, telemetryProvider, logger, options.Now)
 		if err != nil {
 			return nil, fmt.Errorf("compose workflow scheduler: %w", err)
+		}
+		// WF-RUN-020: whatever runs the scheduler also watches for work the
+		// scheduler, a lease holder or a person was expected to move and did not.
+		progressWorkload, _, err = composeProgressWorkload(cfg, in.Pool, telemetryProvider, logger, options.Now)
+		if err != nil {
+			return nil, fmt.Errorf("compose workflow progress sweep: %w", err)
 		}
 	}
 
@@ -441,7 +456,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		},
 	}
 	if cfg.Scheduler {
-		workloads = append(workloads, schedulerWorkload)
+		workloads = append(workloads, schedulerWorkload, progressWorkload)
 	}
 	// Both surfaces drain gracefully first: in-flight requests finish and new
 	// ones are refused. A request that outlives the shutdown deadline is
@@ -481,6 +496,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	graph.add(ComponentWorkloadHTTP, KindWorkload, workloads[1].Run, ComponentHTTPEdge)
 	if cfg.Scheduler {
 		graph.add(ComponentWorkloadScheduler, KindWorkload, schedulerWorkload.Run, ComponentCell, ComponentDatabasePool)
+		graph.add(ComponentWorkloadProgress, KindWorkload, progressWorkload.Run, ComponentDatabasePool, ComponentTelemetryProvider)
 	}
 	graph.add(ComponentShutdownHTTP, KindShutdown, shutdown[0].Run, ComponentHTTPEdge)
 	graph.add(ComponentShutdownGRPC, KindShutdown, shutdown[1].Run, ComponentGRPCSurface)
@@ -501,6 +517,21 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		shutdown:  shutdown,
 		listeners: []net.Listener{grpcListener, httpListener},
 	}, nil
+}
+
+func optionsForServeConfig(cfg ServeConfig, options Options) (Options, error) {
+	if cfg.LocalDevNow == "" {
+		return options, nil
+	}
+	at, err := time.Parse(time.RFC3339, cfg.LocalDevNow)
+	if err != nil || cfg.Profile != ServeProfileLocalDev {
+		return Options{}, fmt.Errorf("application: invalid local development clock; validate configuration before composition")
+	}
+	if options.Now == nil {
+		pinned := at.UTC()
+		options.Now = func() time.Time { return pinned }
+	}
+	return options, nil
 }
 
 // composeStore builds the persistence adapter, or takes the supplied one.
@@ -534,6 +565,7 @@ func composeVerifier(cfg ServeConfig, options Options) (trust.Verifier, error) {
 		Key:      []byte(cfg.DevHMACKey),
 		Issuer:   cfg.Issuer,
 		Audience: cfg.Audience,
+		Now:      options.Now,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build the credential verifier: %w", err)
@@ -560,15 +592,34 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 		now = time.Now
 	}
 	timestamp := now().UTC()
+	// id, workerNumber, access, and purpose are the only facts specific to
+	// this demo-tenant binding; the role bundle each persona is issued comes
+	// from workspace.DevPersonaRoleSets, the one fixture the sign-in page's
+	// derived copy (loginPersonaDescription) and this package's own tests
+	// also read, so a persona's promised copy and its signed roles cannot
+	// drift apart (UXAUDIT-014 REFACTOR).
 	type personaSpec struct {
-		id, workerNumber, access, description, purpose string
-		roles                                          []string
+		id, workerNumber, access, purpose string
 	}
 	specs := []personaSpec{
-		{id: "admin", workerNumber: "HC-21050", access: "HCM administrator", description: "All product areas, people data, workflows, and organization configuration.", purpose: "compensation_review", roles: []string{"hcm_admin", "comp_admin", "intent_author", "promotion_operator"}},
-		{id: "hiring-manager", workerNumber: "HC-21052", access: "Hiring manager", description: "People, organization, insights, and governed workflow workspaces.", purpose: "compensation_review", roles: []string{"hiring_manager", "manager", "intent_author"}},
-		{id: "payroll-manager", workerNumber: "HC-21054", access: "Payroll manager", description: "Payroll-oriented people access, reporting, and assigned workflow workspaces.", purpose: "payroll_processing", roles: []string{"payroll_manager"}},
-		{id: "individual-contributor", workerNumber: "HC-21022", access: "Individual contributor", description: "Personal employment information, own organization context, help, and settings.", purpose: "self_service_view", roles: []string{"worker_self"}},
+		// PROMOUX-015: the four slots are one separated promotion. admin
+		// (Rafael Torres, Director of People Operations) is the manager
+		// approver -- he manages Linh Tran -- and the execution operator.
+		// hiring-manager (Darius Bennett, Chief People Officer) is the
+		// proposer: Linh's skip-level manager, so the reference workflow's
+		// CurrentManagerOf(worker) approval routes to somebody else.
+		// finance-partner (Thomas Baker, Finance Director) is the finance
+		// approver the local-dev profile's -execution-finance-partner names.
+		// individual-contributor (Linh Tran) is the employee.
+		{id: "admin", workerNumber: "HC-21050", access: "HCM administrator", purpose: "compensation_review"},
+		{id: "hiring-manager", workerNumber: "HC-21004", access: "Hiring manager", purpose: "compensation_review"},
+		// finance-partner replaced UXAUDIT-014's worker_self payroll-manager
+		// slot. Its finance_partner role is backed by authz.PolicyTable under
+		// compensation_review, the purpose it signs, and by roleaccess's
+		// narrow finance_partner page grant. Do not give this slot a payroll
+		// label or purpose: no role bundle backs one (UXAUDIT-014).
+		{id: "finance-partner", workerNumber: "HC-21054", access: "Finance partner", purpose: "compensation_review"},
+		{id: "individual-contributor", workerNumber: "HC-21051", access: "Individual contributor", purpose: "self_service_view"},
 	}
 	workers, err := demoworkforce.Plan(pgstore.TenantID(cfg.Tenant))
 	if err != nil {
@@ -584,16 +635,32 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 		if !found || worker.Row.WorkerKey == "" || worker.Row.LegalName == "" || worker.Row.LifecycleStatus != "active" {
 			continue
 		}
+		roles, ok := workspace.DevPersonaRoles(spec.id)
+		if !ok {
+			// No canonical role bundle is named for this persona id: issuing
+			// an unscoped credential would be worse than not offering the
+			// persona at all.
+			continue
+		}
 		token, err := issuer.Issue(trust.Claims{
 			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: worker.Row.WorkerKey, SubjectKind: "human", Tenant: cfg.Tenant,
-			OrganizationScopeID: "org:" + cfg.Tenant + ":people-ops", Roles: spec.roles, Purposes: []string{spec.purpose},
+			OrganizationScopeID: "org:" + cfg.Tenant + ":people-ops", Roles: roles, Purposes: []string{spec.purpose},
 			AuthenticationMethod: "bearer_token", Assurance: "substantial", SessionRef: "session-local-persona-" + spec.id,
 			IssuedAtUnix: timestamp.Add(-time.Minute).Unix(), ExpiresAtUnix: timestamp.Add(8 * time.Hour).Unix(),
 		})
 		if err != nil {
 			continue
 		}
-		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: spec.access, Description: spec.description, Token: token})
+		access := spec.access
+		if access == "" {
+			// Derived from this worker's own record (their real job title),
+			// not hand-written, so a slot with no access label of its own can
+			// only ever say what this specific credential actually is. No
+			// current spec leaves access blank; the fallback stays so a future
+			// one cannot re-assert a capability its role does not hold.
+			access = worker.JobTitle + " (self-service)"
+		}
+		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: access, Roles: roles, Token: token, WorkerRef: worker.Row.WorkerKey})
 	}
 	return personas
 }

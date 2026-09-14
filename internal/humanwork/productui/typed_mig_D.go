@@ -42,7 +42,7 @@ func declareColorModeControlStylesStyles() {
 		gwccss.Raw("background", "linear-gradient(135deg,#fff 0 50%,#101820 50%)"),
 		gwccss.Raw("content", "\"\""),
 	)
-	declareGlobal(".wordmark-mark,.appearance-preview-bar",
+	declareGlobal(".wordmark-mark",
 		gwccss.TextColor(gwccss.Var("on-brand")),
 	)
 	declareGlobal(":root[data-hcm-navigation=\"brand\"] .sidebar",
@@ -113,7 +113,7 @@ func declareLocaleStylesStyles() {
 	)
 	declareGlobal(".locale-option",
 		gwccss.Display.Flex,
-		gwccss.MinHeight(gwccss.Px(40)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.Items.Center,
 		gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(10)),
 		gwccss.Rounded(gwccss.VarLength("radius")),
@@ -133,8 +133,17 @@ func declareLocaleStylesStyles() {
 	declareGlobal("[dir=rtl] .nav-link[aria-current=page],[dir=rtl] .work-row.selected,[dir=rtl] .people-row.selected",
 		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(-3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
 	)
-	declareGlobal("[dir=rtl] .nav-chevron,[dir=rtl] .work-row>a:last-child",
+	declareGlobal("[dir=rtl] .nav-chevron,[dir=rtl] .work-row-chevron,[dir=rtl] .organization-unit-glyph,[dir=rtl] .sensitive-summary-chevron",
 		gwccss.Raw("transform", "scaleX(-1)"),
+	)
+	declareGlobal("[dir=rtl] .sensitive-details[open]>.sensitive-summary .sensitive-summary-chevron",
+		gwccss.Raw("transform", "scaleX(-1) rotate(90deg)"),
+	)
+	declareGlobal("[dir=rtl] .organization-unit-disclosure[open]>.org-node.manager .organization-unit-glyph",
+		gwccss.Raw("transform", "scaleX(-1) rotate(90deg)"),
+	)
+	declareGlobal("[dir=rtl] .nav-group[open]>.nav-group-summary .nav-chevron",
+		gwccss.Raw("transform", "scaleX(-1) rotate(90deg)"),
 	)
 	declareGlobal("[dir=rtl] .appearance-choice input",
 		gwccss.Right(gwccss.RawLength("auto")),
@@ -365,12 +374,12 @@ func declareAccessibilityStylesStyles() {
 		gwccss.FontSize(gwccss.Rem(.8)),
 	)
 	declareGlobal(".nav-favorite",
-		gwccss.MinWidth(gwccss.Px(40)),
-		gwccss.MinHeight(gwccss.Px(40)),
+		gwccss.MinWidth(gwccss.Px(44)),
+		gwccss.MinHeight(gwccss.Px(44)),
 	)
 	declareGlobal(".menu-filter-submit",
-		gwccss.W(gwccss.Px(36)),
-		gwccss.H(gwccss.Px(36)),
+		gwccss.W(gwccss.Px(44)),
+		gwccss.H(gwccss.Px(44)),
 	)
 	declareGlobal(".work-row[aria-current=true],.people-row[aria-current=true]",
 		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(4), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
@@ -605,7 +614,7 @@ func declareThemeCoverageBaseStylesStyles() {
 	declareGlobal(":where(.app-shell) :is(.work-row,.people-row,.history-row)",
 		gwccss.BorderColor(gwccss.Var("divider")),
 	)
-	declareGlobal(":where(.app-shell) :is(.button.primary,.wordmark-mark,.appearance-preview-bar)",
+	declareGlobal(":where(.app-shell) :is(.button.primary,.wordmark-mark)",
 		gwccss.TextColor(gwccss.Var("on-brand")),
 	)
 	declareGlobal(".button.secondary",
@@ -616,7 +625,7 @@ func declareThemeCoverageBaseStylesStyles() {
 	)
 	declareGlobal(".mini-page",
 		gwccss.Bg(gwccss.Var("canvas")),
-		gwccss.Raw("box-shadow", "var(--hcm-shadow-raised)"),
+		gwccss.Raw("box-shadow", "none"),
 	)
 	declareGlobal(".bar-track",
 		gwccss.Bg(gwccss.Var("surface-muted")),
@@ -713,8 +722,8 @@ func declareThemeCoverageBaseStylesStyles() {
 func darkModeDeclarationRules() []gwccss.Rule {
 	return gwccss.Rules(
 		gwccss.Raw("color-scheme", "dark"),
-		gwccss.Custom("accent", "color-mix(in srgb,var(--hcm-color-brand-primary) 62%,#fff)"),
-		gwccss.Custom("accent-hover", "color-mix(in srgb,var(--hcm-color-brand-primary) 72%,#fff)"),
+		gwccss.Custom("accent", "color-mix(in srgb,var(--hcm-color-brand-primary) 40%,#fff)"),
+		gwccss.Custom("accent-hover", "color-mix(in srgb,var(--hcm-color-brand-hover) 32%,#fff)"),
 		gwccss.Custom("soft", "color-mix(in srgb,var(--hcm-color-brand-primary) 18%,#16202a)"),
 		gwccss.Custom("ink", "#f3f7fb"),
 		gwccss.Custom("muted", "#aebdcb"),
@@ -772,6 +781,33 @@ func lightPrintDeclarationRules() []gwccss.Rule {
 	)
 }
 
+// The base high-contrast :root rule is deliberately earlier than dark mode.
+// Reassert a dark high-contrast palette after the dark declarations so an
+// explicit or system-dark choice cannot silently defeat that user preference.
+func darkHighContrastDeclarationRules() []gwccss.Rule {
+	return gwccss.Rules(
+		gwccss.Custom("ink", "#ffffff"),
+		gwccss.Custom("muted", "#e3e9ef"),
+		gwccss.Custom("canvas", "#000000"),
+		gwccss.Custom("surface", "#000000"),
+		gwccss.Custom("soft", "#102a21"),
+		gwccss.Custom("line", "#b6c4d0"),
+		gwccss.Custom("control-border", "#ffffff"),
+		gwccss.Custom("accent", "#9af5d0"),
+		gwccss.Custom("accent-hover", "#c4ffe8"),
+		gwccss.Custom("hcm-color-on-brand", "#000000"),
+		gwccss.Custom("hcm-color-focus", "#ffffff"),
+		gwccss.Custom("hcm-color-brand-primary", "#9af5d0"),
+		gwccss.Custom("hcm-color-brand-hover", "#c4ffe8"),
+		gwccss.Custom("hcm-color-brand-soft", "#102a21"),
+		gwccss.Custom("hcm-color-text", "#ffffff"),
+		gwccss.Custom("hcm-color-text-muted", "#e3e9ef"),
+		gwccss.Custom("hcm-color-canvas", "#000000"),
+		gwccss.Custom("hcm-color-surface", "#000000"),
+		gwccss.Custom("hcm-color-border", "#b6c4d0"),
+	)
+}
+
 func darkModeForcedColorsRules() []gwccss.Rule {
 	return gwccss.Rules(
 		gwccss.Raw("color-scheme", "light dark"),
@@ -794,6 +830,14 @@ func darkModeForcedColorsRules() []gwccss.Rule {
 		gwccss.Custom("hcm-color-info", "CanvasText"),
 		gwccss.Custom("hcm-color-info-surface", "Canvas"),
 		gwccss.Custom("hcm-color-focus", "Highlight"),
+		gwccss.Custom("hcm-color-brand-primary", "Highlight"),
+		gwccss.Custom("hcm-color-brand-hover", "Highlight"),
+		gwccss.Custom("hcm-color-brand-soft", "Canvas"),
+		gwccss.Custom("hcm-color-text", "CanvasText"),
+		gwccss.Custom("hcm-color-text-muted", "CanvasText"),
+		gwccss.Custom("hcm-color-canvas", "Canvas"),
+		gwccss.Custom("hcm-color-surface", "Canvas"),
+		gwccss.Custom("hcm-color-border", "CanvasText"),
 	)
 }
 
@@ -802,6 +846,46 @@ func darkModeStylesStylesheet() string {
 }
 
 func declareDarkModeStylesStyles() {
+	declareDarkModeStylesStylesWithCustomerModes(Theme{}, Theme{})
+}
+
+func darkModeStylesStylesheetForCustomer(light, dark Theme) string {
+	return buildTypedSheet(func() { declareDarkModeStylesStylesWithCustomerModes(light, dark) })
+}
+
+func customerLightPrintDeclarationRules(light Theme) []gwccss.Rule {
+	rules := lightPrintDeclarationRules()
+	for _, token := range registeredThemeTokens {
+		if token.Kind == ThemeColor {
+			value, _ := light.Value(token.Name)
+			rules = append(rules, gwccss.Custom(token.CSSVariable, value))
+		}
+	}
+	return rules
+}
+
+func customerDarkModeDeclarationRules(dark Theme) []gwccss.Rule {
+	value := func(name string) string { resolved, _ := dark.Value(name); return resolved }
+	rules := gwccss.Rules(
+		gwccss.Custom("accent", value("color.brand.primary")),
+		gwccss.Custom("accent-hover", value("color.brand.hover")),
+		gwccss.Custom("soft", value("color.brand.soft")),
+		gwccss.Custom("ink", value("color.text.primary")),
+		gwccss.Custom("muted", value("color.text.muted")),
+		gwccss.Custom("canvas", value("color.canvas")),
+		gwccss.Custom("surface", value("color.surface")),
+		gwccss.Custom("line", value("color.border")),
+	)
+	for _, token := range registeredThemeTokens {
+		if token.Kind == ThemeColor {
+			rules = append(rules, gwccss.Custom(token.CSSVariable, value(token.Name)))
+		}
+	}
+	return rules
+}
+
+func declareDarkModeStylesStylesWithCustomerModes(light, dark Theme) {
+	declareAppearancePreviewThemeStyles()
 	declareGlobal(`:root[data-hcm-color-mode="light"]`,
 		gwccss.Raw("color-scheme", "light"),
 	)
@@ -814,10 +898,41 @@ func declareDarkModeStylesStyles() {
 	declareGlobal(`:root[data-hcm-color-mode="system"]`,
 		mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark)"), darkModeDeclarationRules()),
 	)
+	if len(dark.values) != 0 {
+		declareGlobal(`:root[data-hcm-color-mode="dark"]`, customerDarkModeDeclarationRules(dark))
+		declareGlobal(`:root[data-hcm-color-mode="system"]`,
+			mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark)"), customerDarkModeDeclarationRules(dark)),
+		)
+	}
+	// The in-app contrast choice is independent of the operating-system media
+	// preference. Keep its dark palette after the ordinary dark declarations.
+	declareGlobal(`:root[data-hcm-color-mode="dark"][data-hcm-contrast="more"]`,
+		darkHighContrastDeclarationRules(),
+	)
+	declareGlobal(`:root[data-hcm-color-mode="system"][data-hcm-contrast="more"]`,
+		mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark)"), darkHighContrastDeclarationRules()),
+	)
+	declareGlobal(`:root[data-hcm-color-mode="dark"]`,
+		mediaRule(gwccss.RawMedia("(prefers-contrast:more)"), darkHighContrastDeclarationRules()),
+	)
+	declareGlobal(`:root[data-hcm-color-mode="system"]`,
+		mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark) and (prefers-contrast:more)"), darkHighContrastDeclarationRules()),
+	)
+	printRules := lightPrintDeclarationRules()
+	if len(light.values) != 0 {
+		printRules = customerLightPrintDeclarationRules(light)
+	}
 	declareGlobal(`:root:is([data-hcm-color-mode="dark"],[data-hcm-color-mode="system"])`,
-		mediaRule(gwccss.RawMedia("(print)"), lightPrintDeclarationRules()),
+		mediaRule(gwccss.RawMedia("(print)"), printRules),
 	)
 	declareGlobal(`:root:is([data-hcm-color-mode="dark"],[data-hcm-color-mode="system"])`,
+		mediaRule(gwccss.RawMedia("(forced-colors:active)"), darkModeForcedColorsRules()),
+	)
+	// The saved More contrast selector carries an extra attribute specificity.
+	// Keep the browser's print and forced-color palettes at the same specificity
+	// and later in source order so those accessibility modes always win.
+	declareGlobal(`:root:is([data-hcm-color-mode="dark"],[data-hcm-color-mode="system"])[data-hcm-contrast="more"]`,
+		mediaRule(gwccss.RawMedia("(print)"), printRules),
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"), darkModeForcedColorsRules()),
 	)
 	// Tail of darkModeStyles is themeCoverageStyles

@@ -23,7 +23,7 @@ func TestTodo_WEB_138(t *testing.T) {
 	if !ok {
 		t.Fatal("interview scheduling unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("interview scheduling incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_138_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "8852c28c01d17208dc3f6fd77ac002088353579861953009f59e15356c7ff049"
+	const want = "0f0f204eb73d39aebae56b9d1038a879b5d1f1d8c46f7f1553fefc06c8f15d1b"
 	if got != want {
 		t.Fatalf("interview digest = %s, want %s", got, want)
 	}

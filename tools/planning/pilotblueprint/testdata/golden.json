@@ -1,0 +1,19 @@
+{
+  "canonical_digest": "ccd25eb7bf6455e9946bbced47b4be7979d6f4f0bcfdbbfca7ae9f410ac57f17",
+  "signature_value": "a7347e5014e5d4685ffd1c281a06d1e6e1bb412cd8ee87f213b65b396645585d15ae044d7f89c490bce53601df232a6165bd8fa20a30a93960cb0a61b2e83d09",
+  "counts": {
+    "workstreams": 10
+  },
+  "workstream_order": [
+    "DISCOVERY",
+    "CONFIGURATION",
+    "DATA",
+    "IDENTITY",
+    "INTEGRATION",
+    "LEGAL_REVIEW",
+    "TESTING",
+    "TRAINING",
+    "CUTOVER",
+    "HYPERCARE"
+  ]
+}

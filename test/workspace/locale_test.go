@@ -78,7 +78,8 @@ func TestTodo_UX_004_Integration(t *testing.T) {
 
 // TestTodo_UX_004_Browser is the browser-equivalent Go check. It runs the
 // actual localized SSR response through the repository's DOM qualification
-// checks and verifies the progressive Go/WASM enhancement remains attached.
+// checks and verifies the localized server-rendered fallback does not expose
+// the legacy fixture-only Go/WASM client.
 func TestTodo_UX_004_Browser(t *testing.T) {
 	t.Parallel()
 	c := newCell(t, true)
@@ -93,8 +94,15 @@ func TestTodo_UX_004_Browser(t *testing.T) {
 			t.Errorf("%s: FAIL %s", criterion.Name, criterion.Detail)
 		}
 	}
-	if !strings.Contains(page.Body, `<script type="application/json" id="gwc-contract">`) || !strings.Contains(page.Body, workspace.PathWasm) {
-		t.Error("localized workspace dropped its progressive Go/WASM enhancement")
+	// The legacy uxqual.wasm enhancement is deliberately withheld (see
+	// internal/humanwork/workspace/assets.go), so a localized page must match
+	// whichever posture this build serves rather than assume the bundle.
+	if workspace.BundleBuilt() {
+		if !strings.Contains(page.Body, `<script type="application/json" id="gwc-contract">`) || !strings.Contains(page.Body, workspace.PathWasm) {
+			t.Error("localized workspace dropped its progressive Go/WASM enhancement")
+		}
+	} else if strings.Contains(page.Body, "<script") || strings.Contains(page.Body, workspace.PathWasm) {
+		t.Error("localized native-only workspace advertises a script or the withheld Go/WASM enhancement")
 	}
 	if !strings.Contains(page.Body, `<html lang="de-DE">`) {
 		t.Error("localized workspace does not publish its resolved document language")

@@ -23,7 +23,7 @@ func TestTodo_WEB_180(t *testing.T) {
 	if !ok {
 		t.Fatal("succession planning unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("succession planning incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_180_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "263eb8ae34bb72ef12bb41435e69bcb3b470a4f4aaa31086703d86757404e702"
+	const want = "47ddf78b81986f5e14555c9e0e8c0b741f70d92dd001a6e8707861fae6f02f9a"
 	if got != want {
 		t.Fatalf("succession planning digest = %s, want %s", got, want)
 	}

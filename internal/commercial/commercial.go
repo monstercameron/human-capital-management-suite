@@ -12,9 +12,18 @@ import (
 	"sort"
 )
 
+// P1AManifestDigest is the CanonicalDigest of the signed
+// definitions/planning/gates/p1a-manifest.yaml this package sells. It is a
+// golden value, not an independent fact: this package is a runtime registry
+// and does not read planning definitions, so commercial_test.go's
+// TestP1AManifestDigestIsTheLiveSignedManifestDigest recomputes the live
+// manifest digest and fails the moment the manifest is re-signed without
+// updating this constant (the drift that left it at 3df52c31... while the
+// manifest had moved on).
+const P1AManifestDigest = "e9d7ffe66f019dc8ea8b4252303cde9dfc6b22cf705a8de5c6a024d1fbcd34dc"
+
 const (
 	ReleaseP1A             = "P1A"
-	P1AManifestDigest      = "3df52c31a7267d2a4767ab594094db0adb35d2e54aa85256e1984278e84bc0c1"
 	PilotEntitlement       = "entitlement.pilot.p1a.v1"
 	PilotWorkflow          = "promotion.preflight-simulate-observe/v1"
 	PilotPriceCurrency     = "USD"

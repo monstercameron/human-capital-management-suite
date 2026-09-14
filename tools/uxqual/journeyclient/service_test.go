@@ -57,8 +57,8 @@ func TestEveryCallCarriesTheBearer(t *testing.T) {
 			_, err := svc.ListJourneys(ctx, &journeyv1.ListJourneysRequest{})
 			return err
 		},
-		"ProposeJourney": func() error {
-			_, err := svc.ProposeJourney(ctx, &journeyv1.ProposeJourneyRequest{})
+		"ProposePromotion": func() error {
+			_, err := svc.ProposePromotion(ctx, &journeyv1.ProposePromotionRequest{})
 			return err
 		},
 		"InspectJourney": func() error {
@@ -120,7 +120,7 @@ func TestTheRPCsAreTheCanonicalOnes(t *testing.T) {
 	ctx := context.Background()
 
 	_, _ = svc.ListJourneys(ctx, &journeyv1.ListJourneysRequest{})
-	_, _ = svc.ProposeJourney(ctx, &journeyv1.ProposeJourneyRequest{})
+	_, _ = svc.ProposePromotion(ctx, &journeyv1.ProposePromotionRequest{})
 	_, _ = svc.InspectJourney(ctx, &journeyv1.InspectJourneyRequest{})
 	_, _ = svc.ExecuteJourney(ctx, &journeyv1.ExecuteJourneyRequest{})
 	_, _ = svc.DecideJourney(ctx, &journeyv1.DecideJourneyRequest{})
@@ -130,7 +130,7 @@ func TestTheRPCsAreTheCanonicalOnes(t *testing.T) {
 
 	want := []string{
 		journeyv1.JourneyService_ListJourneys_FullMethodName,
-		journeyv1.JourneyService_ProposeJourney_FullMethodName,
+		journeyv1.JourneyService_ProposePromotion_FullMethodName,
 		journeyv1.JourneyService_InspectJourney_FullMethodName,
 		journeyv1.JourneyService_ExecuteJourney_FullMethodName,
 		journeyv1.JourneyService_DecideJourney_FullMethodName,

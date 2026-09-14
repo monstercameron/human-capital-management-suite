@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "total_definitions": 2,
+  "blocked_count": 1,
+  "results": [
+    {
+      "definition": "hcmnext.t.alpha/v1",
+      "intent": "Alpha",
+      "claimed_status": "VERIFIED",
+      "allowed_status": "VERIFIED",
+      "capped": false
+    },
+    {
+      "definition": "hcmnext.t.gamma/v1",
+      "intent": "Gamma",
+      "claimed_status": "CONTRACTED",
+      "allowed_status": "CATALOGUED",
+      "capped": true,
+      "blockers": [
+        {
+          "code": "CATALOG_NAME_ONLY",
+          "detail": "intent Gamma is placed in a WF-DISC-002 HR catalog with no workflow design record; it carries only a catalog name/archetype label"
+        },
+        {
+          "code": "DANGLING_TEST_EDGE",
+          "detail": "no executable oracle"
+        },
+        {
+          "code": "UNBOUND_DESIGN",
+          "detail": "no exact design record is bound to hcmnext.t.gamma/v1"
+        },
+        {
+          "code": "UNRESOLVED_DECISION",
+          "detail": "decision unresolved-modeling-decision-9 affecting hcmnext.t.gamma/v1 is still OPEN_OWNED"
+        },
+        {
+          "code": "UNRESOLVED_REFERENCE",
+          "detail": "UNOWNED_ENGINE: design engine ghost-engine resolves to no versioned semantic owner"
+        }
+      ]
+    }
+  ],
+  "digest": "sha256:2bacabe39e10a246b78d718e932eb432c881c3e195cc58700d3886a8b6e064a7"
+}

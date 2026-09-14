@@ -23,7 +23,7 @@ func TestTodo_WEB_166(t *testing.T) {
 	if !ok {
 		t.Fatal("benefit-plan comparison unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("benefit-plan comparison incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_166_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "00a05e0c40b4078dc21fa25dff7f26d6957f7a222cf4a30037969617f292039f"
+	const want = "3187aaca8c03c9bce8cdfdebb16edbcc6e04c30326b770359c7619ca48895e25"
 	if got != want {
 		t.Fatalf("benefits comparison digest = %s, want %s", got, want)
 	}

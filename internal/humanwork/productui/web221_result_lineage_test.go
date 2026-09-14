@@ -24,7 +24,7 @@ func TestTodo_WEB_221(t *testing.T) {
 	if !ok {
 		t.Fatal("result lineage presentation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("result lineage presentation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_221_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "b4141dc36cf34f4ea5bbc22fb4616b299134d9befcfc172442c6fc38c7420937"
+	const want = "caf042f728805454785f033bc6a655dff61224472e9a1577a8e894c0aa5afa5e"
 	if got != want {
 		t.Fatalf("result lineage presentation digest = %s, want %s", got, want)
 	}

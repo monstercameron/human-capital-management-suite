@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/conflict"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Stable refusal codes for the Promotion pre-execution boundaries.
@@ -83,7 +84,9 @@ type ConflictResult struct {
 
 // CheckConflict classifies the candidate against all current observations and
 // refuses HARD_CONFLICT before any runtime state can be written.
-func CheckConflict(ctx context.Context, ex Executor, req ConflictCheckRequest, facts ConflictFacts) (ConflictResult, error) {
+func CheckConflict(ctx context.Context, ex Executor, req ConflictCheckRequest, facts ConflictFacts) (ret0 ConflictResult, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.check_conflict", req, facts)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if req.TenantID == uuid.Nil {
 		return ConflictResult{}, refuse(CodeInvalidRecord, "", "", "conflict check requires a tenant id")
 	}
@@ -242,7 +245,9 @@ type ReapprovalParkRequest struct {
 // It is intentionally separate from EvaluatePromotionRevalidation: the
 // materiality result is pure evidence, while this function is the one
 // explicit runtime state transition that records the operational route.
-func ParkForReapproval(ctx context.Context, ex Executor, req ReapprovalParkRequest) (Instance, error) {
+func ParkForReapproval(ctx context.Context, ex Executor, req ReapprovalParkRequest) (ret0 Instance, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.park_for_reapproval", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if req.TenantID == uuid.Nil || req.InstanceID == uuid.Nil || req.ExpectedInstanceVersion < 1 || req.ReasonRef == "" {
 		return Instance{}, refuse(CodeInvalidRecord, req.InstanceID.String(), "",
 			"reapproval park requires tenant, instance, expected version and reason ref")

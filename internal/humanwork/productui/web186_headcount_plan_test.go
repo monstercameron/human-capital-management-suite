@@ -23,7 +23,7 @@ func TestTodo_WEB_186(t *testing.T) {
 	if !ok {
 		t.Fatal("headcount-plan workspace unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("headcount-plan workspace incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_186_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "21ad8d939f9a2c9e028caa43f13d0969d86bfb1c4d48df641c8408ac5082c1bb"
+	const want = "08df37f4f3fe4287edd1dab4f7f3ea246b85b902f49d3205f87d24d079c441fd"
 	if got != want {
 		t.Fatalf("headcount-plan digest = %s, want %s", got, want)
 	}

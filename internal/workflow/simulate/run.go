@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/timeauth"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Canonicalization profiles for the digests a run mints. Each is distinct, so
@@ -148,7 +149,9 @@ func (o Options) approvals() ApprovalPort {
 // refusal is structural rather than a suppression flag: a write-class node has
 // no path through this function, and the governed gateway underneath refuses
 // it a second time.
-func Run(ctx context.Context, plan *workflow.CompiledWorkflow, in Inputs, opts Options) (Receipt, error) {
+func Run(ctx context.Context, plan *workflow.CompiledWorkflow, in Inputs, opts Options) (ret0 Receipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.simulate.run", plan, in)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if plan == nil {
 		return Receipt{}, refuse(CodeInvalidOptions, "", "no compiled plan")
 	}

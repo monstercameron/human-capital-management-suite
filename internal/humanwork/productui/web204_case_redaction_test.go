@@ -23,7 +23,7 @@ func TestTodo_WEB_204(t *testing.T) {
 	if !ok {
 		t.Fatal("case-view redaction and audit unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("case-view redaction and audit incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_204_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "749c608eb56fc47bb2e9a6b97a118882fdc614d39961b1f3ef430f741582c794"
+	const want = "891ada46735f85931f555c6852f370aaf37d09dcf89a77f88987ebb61ab8338a"
 	if got != want {
 		t.Fatalf("case-view redaction and audit digest = %s, want %s", got, want)
 	}

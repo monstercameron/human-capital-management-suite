@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"context"
 	"encoding/json"
 	"html"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -48,34 +50,88 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		config.Roles = principal.Roles()
 		config.Purpose = principal.DefaultPurpose()
 	}
-	permissionConfigured := false
-	if principal != nil && h.roleAccess != nil {
-		snapshot, loadErr := h.roleAccess.Load(admitted.Context(), principal.Tenant(), principal.OrganizationScopeID())
-		if loadErr != nil {
-			h.writeProblem(w, http.StatusServiceUnavailable, "Access unavailable", "The role policy could not be resolved for this page.")
-			return
-		}
-		if len(snapshot.PagePermissions) > 0 {
-			permissionConfigured = true
-			config.Roles = roleaccess.AssignedRoles(snapshot, principal.Subject(), principal.Roles())
-			config.PagePermissions = roleaccess.EffectivePagePermissions(snapshot, config.Roles)
-		}
+	access, loadErr := h.resolveProductAccess(admitted.Context(), principal)
+	if loadErr != nil {
+		h.writeProblem(w, http.StatusServiceUnavailable, "Access unavailable", "The role policy could not be resolved for this page.")
+		return
 	}
-	allowed := productui.PageVisible(definition.ID, config.Roles)
-	if permissionConfigured {
-		allowed = roleaccess.CanPageAction(config.PagePermissions, string(definition.ID), roleaccess.ActionView)
-	}
-	if !allowed {
+	config.Roles, config.PagePermissions = access.roles, access.permissions
+	config.LauncherActions = resolveProductLauncherActions(access.configured, access.permissions)
+	if !access.can(definition.ID, roleaccess.ActionView) {
 		h.writeProblem(w, http.StatusForbidden, "Page unavailable", "Your current role does not grant access to this workspace page.")
 		return
 	}
-	locale := productui.ResolveProductLocale(r.URL.Query().Get("locale"))
-	doc, err := productShellDocumentForRouteQuery(config, JourneyBundleBuilt(), locale, definition.ID, r.URL.Query().Get("menu_q"))
+	query := r.URL.Query()
+	locale := productui.ResolveProductLocale(query.Get("locale"))
+	nav := ""
+	if values := query["nav"]; len(values) == 1 && values[0] == "collapsed" {
+		nav = "collapsed"
+	}
+	appearance := productui.DefaultCustomerTheme()
+	if h.preferences != nil && principal != nil {
+		snapshot, loadErr := h.preferences.Load(admitted.Context(), principal.Tenant(), principal.OrganizationScopeID(), principal.Subject())
+		if loadErr != nil {
+			h.writeProblem(w, http.StatusServiceUnavailable, "Appearance unavailable", "Organization appearance could not be loaded.")
+			return
+		}
+		appearance = productThemeFromPreference(snapshot.Theme.Theme)
+	}
+	appearance = productui.NormalizeCustomerTheme(appearance)
+	if productui.ValidateCustomerTheme(appearance) != nil {
+		appearance = productui.DefaultCustomerTheme()
+	}
+	stylesheet, err := productStylesheetForTheme(appearance)
+	if err != nil {
+		h.writeProblem(w, http.StatusServiceUnavailable, "Appearance unavailable", "Organization appearance could not be qualified.")
+		return
+	}
+	doc, err := productShellDocumentForRouteStateWithTheme(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, stylesheet)
 	if err != nil {
 		h.writeProblem(w, http.StatusInternalServerError, "Workspace unavailable", err.Error())
 		return
 	}
-	writeHTMLDocument(w, http.StatusOK, doc, ProductContentSecurityPolicy(h.policyHost(r)))
+	writeHTMLDocument(w, http.StatusOK, doc, productContentSecurityPolicyForStylesheet(h.policyHost(r), stylesheet))
+}
+
+func productThemeFromPreference(value preferences.Theme) productui.CustomerTheme {
+	return productui.CustomerTheme{BrandName: value.BrandName, BrandMark: value.BrandMark, BrandLogoURL: value.BrandLogoURL,
+		ColorMode: value.ColorMode, Palette: value.Palette, Shape: value.Shape, Density: value.Density,
+		Glyphs: value.Glyphs, Typeface: value.Typeface, Navigation: value.Navigation, Motion: value.Motion,
+		TokenOverrides: value.TokenOverrides, DarkTokenOverrides: value.DarkTokenOverrides}
+}
+
+// productAccess is the server-resolved policy the login cards and the product
+// shell both consume. A configured but empty effective grant remains a denial;
+// it must never fall back to the credential's broader role claims.
+type productAccess struct {
+	roles       []string
+	permissions []roleaccess.PagePermission
+	configured  bool
+}
+
+func (h *Handler) resolveProductAccess(ctx context.Context, principal *trust.Principal) (productAccess, error) {
+	if principal == nil {
+		return productAccess{}, nil
+	}
+	access := productAccess{roles: principal.Roles()}
+	if h.roleAccess == nil {
+		return access, nil
+	}
+	snapshot, err := h.roleAccess.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
+	if err != nil {
+		return productAccess{}, err
+	}
+	access.configured = true
+	access.roles = roleaccess.AssignedRoles(snapshot, principal.Subject(), access.roles)
+	access.permissions = roleaccess.EffectivePagePermissions(snapshot, access.roles)
+	return access, nil
+}
+
+func (access productAccess) can(page productui.PageID, action string) bool {
+	if access.configured {
+		return roleaccess.CanPageAction(access.permissions, string(page), action)
+	}
+	return action == roleaccess.ActionView && productui.PageVisible(page, access.roles)
 }
 
 func productShellDocument(config JourneyConfig, bundleBuilt bool) (string, error) {
@@ -91,6 +147,16 @@ func productShellDocumentForRoute(config JourneyConfig, bundleBuilt bool, locale
 }
 
 func productShellDocumentForRouteQuery(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery string) (string, error) {
+	return productShellDocumentForRouteState(config, bundleBuilt, locale, page, menuQuery, "")
+}
+
+// Explicit route state may shape the loading chrome, but never grants access
+// or claims a server-stored preference that has not yet been loaded.
+func productShellDocumentForRouteState(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string) (string, error) {
+	return productShellDocumentForRouteStateWithTheme(config, bundleBuilt, locale, page, menuQuery, nav, productui.DefaultCustomerTheme(), productStylesheet())
+}
+
+func productShellDocumentForRouteStateWithTheme(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string, theme productui.CustomerTheme, stylesheet string) (string, error) {
 	island, err := json.Marshal(config)
 	if err != nil {
 		return "", err
@@ -103,7 +169,7 @@ func productShellDocumentForRouteQuery(config JourneyConfig, bundleBuilt bool, l
 	if missing := len(productui.MissingProductTranslations(locale.Resolved)); missing > 0 {
 		b.WriteString(` data-hcm-message-fallback="en-US" data-hcm-message-fallback-count="` + strconv.Itoa(missing) + `"`)
 	}
-	appearance := productui.CustomerThemeAttributes(productui.DefaultCustomerTheme())
+	appearance := productui.CustomerThemeAttributes(theme)
 	for _, name := range []string{"data-hcm-color-mode", "data-hcm-palette", "data-hcm-shape", "data-hcm-density", "data-hcm-glyphs", "data-hcm-typeface", "data-hcm-navigation", "data-hcm-motion"} {
 		b.WriteString(` ` + name + `="` + html.EscapeString(appearance[name]) + `"`)
 	}
@@ -114,7 +180,7 @@ func productShellDocumentForRouteQuery(config JourneyConfig, bundleBuilt bool, l
 	b.WriteString(`><head><meta charset="utf-8"><meta name="color-scheme" content="light dark">`)
 	b.WriteString(`<meta name="viewport" content="width=device-width, initial-scale=1">`)
 	b.WriteString("<title>Human Capital Management Suite</title><style>")
-	b.WriteString(productStylesheet())
+	b.WriteString(stylesheet)
 	b.WriteString("</style></head><body>")
 	b.WriteString(`<div id="` + JourneyRootElementID + `">`)
 	if bundleBuilt {
@@ -133,14 +199,17 @@ func productShellDocumentForRouteQuery(config JourneyConfig, bundleBuilt bool, l
 		// tools/uxqual/cmd/journeywasm/product_wasm.go, untouched by this
 		// SSR loading shell.
 		view := productui.NewView(page, productui.DisplayLabel(config.Tenant), productui.DisplayLabel(config.Subject), "")
+		view.Appearance = theme
 		// Hydration preserves live input values. Seed the request's query in the
 		// loading shell so an empty SSR value cannot hide an active client filter.
 		view.MenuQuery = strings.TrimSpace(menuQuery)
+		view.NavCollapsed = nav == "collapsed"
 		view.LogoutHref = config.LogoutPath
 		view = productui.ApplyRoleVisibility(view, config.Roles)
 		if len(config.PagePermissions) > 0 {
 			view = productui.ApplyPagePermissions(view, productPagePermissions(config.PagePermissions))
 		}
+		view.LauncherActions = productLauncherActions(config.LauncherActions)
 		view = productui.ApplyLocale(view, locale)
 		loading, renderErr := ui.RenderToString(productui.BuildLoading(view))
 		if renderErr != nil {
@@ -165,6 +234,38 @@ func productShellDocumentForRouteQuery(config JourneyConfig, bundleBuilt bool, l
 	return b.String(), nil
 }
 
+func resolveProductLauncherActions(permissionConfigured bool, permissions []roleaccess.PagePermission) []LauncherActionConfig {
+	if !permissionConfigured {
+		return nil
+	}
+	if !roleaccess.CanPageAction(permissions, string(productui.PagePeople), roleaccess.ActionView) ||
+		!roleaccess.CanPageAction(permissions, string(productui.PageJourneys), roleaccess.ActionCreate) {
+		return nil
+	}
+	return []LauncherActionConfig{{
+		ID: productui.SemanticActionPromoteWorker, Availability: string(productui.ActionAvailable),
+	}}
+}
+
+func productLauncherActions(values []LauncherActionConfig) []productui.LauncherActionProjection {
+	result := make([]productui.LauncherActionProjection, 0, len(values))
+	for _, value := range values {
+		result = append(result, productui.LauncherActionProjection{
+			ID: value.ID,
+			State: productui.ActionState{
+				Availability: productui.ActionAvailability(value.Availability),
+				Reason:       value.Reason,
+				Recovery: productui.ActionLinkProps{
+					Label: value.RecoveryLabel,
+					Href:  value.RecoveryHref,
+				},
+			},
+			Priority: value.Priority,
+		})
+	}
+	return result
+}
+
 func productPagePermissions(values []roleaccess.PagePermission) []productui.RolePagePermission {
 	result := make([]productui.RolePagePermission, 0, len(values))
 	for _, value := range values {
@@ -179,13 +280,32 @@ func productStylesheet() string {
 	return journey.Stylesheet() + productui.Stylesheet()
 }
 
+func productStylesheetForTheme(theme productui.CustomerTheme) (string, error) {
+	if theme.Palette != "custom" {
+		return productStylesheet(), nil
+	}
+	stylesheet, err := productui.StylesheetForCustomerTheme(theme)
+	if err != nil {
+		return "", err
+	}
+	return journey.Stylesheet() + stylesheet, nil
+}
+
 var productStylesheetHash = sha256Source(productStylesheet())
 
 // ProductContentSecurityPolicy allows exactly the shared Go/WASM loader, the
 // same-origin gRPC tunnel, and the product component stylesheet.
 func ProductContentSecurityPolicy(host string) string {
+	return productContentSecurityPolicyForHash(host, productStylesheetHash)
+}
+
+func productContentSecurityPolicyForStylesheet(host, stylesheet string) string {
+	return productContentSecurityPolicyForHash(host, sha256Source(stylesheet))
+}
+
+func productContentSecurityPolicyForHash(host, stylesheetHash string) string {
 	return cspPolicy{
-		styleHashes:           []string{productStylesheetHash},
+		styleHashes:           []string{stylesheetHash},
 		scriptHash:            journeyLoaderHash,
 		formActionSelf:        true,
 		connectHost:           host,

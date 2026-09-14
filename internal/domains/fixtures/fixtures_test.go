@@ -102,7 +102,7 @@ func TestBand(t *testing.T) {
 	if len(c.bands) == 0 {
 		t.Fatal("no bands")
 	}
-	b, err := Band(c.bands[0].ID)
+	b, err := Band(c.bands[0].record.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,11 +180,15 @@ func TestBandScopesCoverEveryCatalogBand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BandScopes(): %v", err)
 	}
-	if len(scopes) != len(bands.Bands) {
-		t.Fatalf("listed %d scopes, want the catalog's own %d", len(scopes), len(bands.Bands))
+	all, err := catalogBands()
+	if err != nil {
+		t.Fatalf("catalogBands(): %v", err)
+	}
+	if len(scopes) != len(all) {
+		t.Fatalf("listed %d scopes, want the catalog's own %d", len(scopes), len(all))
 	}
 	for i, got := range scopes {
-		want := bands.Bands[i]
+		want := all[i].record
 		if got.JobCode != want.JobCode || got.Grade != want.Grade ||
 			got.PayZone != want.PayZone || got.Currency != want.Currency {
 			t.Errorf("scope[%d] = %+v, want %s/%s/%s in %s",

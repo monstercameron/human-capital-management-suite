@@ -6,16 +6,34 @@ package productui
 type WorkCollectionFilter int
 
 const (
-	// WorkCollectionAll is the tasks view: open work in
-	// admission order, matching the page's empty-filter tab.
+	// WorkCollectionAll is the tasks view, the page's empty-filter tab:
+	// open work the server says needs the viewer's action
+	// (PROMOUX-012, WorkNeedsViewerAction).
 	WorkCollectionAll WorkCollectionFilter = iota + 1
-	// WorkCollectionReview is the approvals view: items
-	// awaiting a decision.
+	// WorkCollectionReview is the approvals view: actionable items whose
+	// next step is any approval decision (manager, finance, repeat or
+	// generic), by server next-step code.
 	WorkCollectionReview
-	// WorkCollectionBlocked is the blocked view.
+	// WorkCollectionBlocked is the blocked view: actionable proposals the
+	// viewer must correct.
 	WorkCollectionBlocked
 	// WorkCollectionComplete is the completed view.
 	WorkCollectionComplete
+	// WorkCollectionMine is UXAUDIT-017's "assigned to me" view: open items
+	// whose current work item the server says the viewer holds or may claim.
+	WorkCollectionMine
+	// WorkCollectionTracked is PROMOUX-012's tracked requests view: open
+	// promotions the server names the viewer as initiating, whatever their
+	// next step -- including passive waits, which appear here and never in
+	// the actionable views.
+	WorkCollectionTracked
+	// WorkCollectionAction is the explicitly actionable queue, excluding
+	// resumable drafts and passive waits.
+	WorkCollectionAction
+	// WorkCollectionDraft is the resumable-draft view.
+	WorkCollectionDraft
+	// WorkCollectionWaiting is the passive-wait view.
+	WorkCollectionWaiting
 )
 
 // ParseWorkCollectionFilter resolves a request filter string
@@ -31,6 +49,16 @@ func ParseWorkCollectionFilter(raw string) WorkCollectionFilter {
 		return WorkCollectionBlocked
 	case "complete":
 		return WorkCollectionComplete
+	case "mine":
+		return WorkCollectionMine
+	case "tracked":
+		return WorkCollectionTracked
+	case "action":
+		return WorkCollectionAction
+	case "draft", "drafts":
+		return WorkCollectionDraft
+	case "waiting", "wait":
+		return WorkCollectionWaiting
 	}
 	return WorkCollectionFilter(0)
 }
@@ -44,13 +72,23 @@ func FilterWorkCollection(items []WorkItem, filter WorkCollectionFilter) []WorkI
 		var include bool
 		switch filter {
 		case WorkCollectionAll:
-			include = !item.Terminal
+			include = WorkNeedsViewerAction(item)
 		case WorkCollectionReview:
-			include = item.Status == "Awaiting approval"
+			include = WorkNeedsViewerAction(item) && WorkAwaitsDecision(item)
 		case WorkCollectionBlocked:
-			include = item.Status == "Blocked"
+			include = WorkNeedsViewerAction(item) && item.NextStep == "correct_proposal"
 		case WorkCollectionComplete:
 			include = item.Terminal
+		case WorkCollectionMine:
+			include = !item.Terminal && WorkViewerOwnershipRank(item) < 2
+		case WorkCollectionTracked:
+			include = !item.Terminal && WorkViewerInitiated(item)
+		case WorkCollectionAction:
+			include = ClassifyWork(item) == WorkDispositionAction
+		case WorkCollectionDraft:
+			include = ClassifyWork(item) == WorkDispositionDraft
+		case WorkCollectionWaiting:
+			include = ClassifyWork(item) == WorkDispositionPassive
 		}
 		if include {
 			filtered = append(filtered, item)

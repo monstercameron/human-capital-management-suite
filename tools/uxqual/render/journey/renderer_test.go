@@ -227,7 +227,7 @@ func TestDocumentShape(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			for _, want := range []string{
 				"<!doctype html>",
-				`<html lang="en">`,
+				`<html lang="en-US" dir="ltr">`,
 				`<meta charset="utf-8">`,
 				`<meta name="viewport" content="width=device-width, initial-scale=1">`,
 				"<title>" + p.Title + "</title>",

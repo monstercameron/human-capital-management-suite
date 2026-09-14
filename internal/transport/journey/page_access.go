@@ -33,3 +33,18 @@ func (s *server) requirePageAction(ctx context.Context, principal *trust.Princip
 	return envelope.New(envelope.CodePermissionDenied, "journey.page_action.denied", "the assigned role does not permit this action on the page").
 		WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
 }
+
+// requireAnyPageView admits a read that backs more than one page when the
+// caller may view at least one of them, and otherwise refuses exactly as
+// [server.requirePageAction] does.
+func (s *server) requireAnyPageView(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, pageIDs ...string) error {
+	var denied error
+	for _, pageID := range pageIDs {
+		err := s.requirePageAction(ctx, principal, inv, pageID, roleaccess.ActionView)
+		if err == nil {
+			return nil
+		}
+		denied = err
+	}
+	return denied
+}

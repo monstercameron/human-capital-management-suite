@@ -24,7 +24,7 @@ func TestTodo_WEB_233(t *testing.T) {
 	if !ok {
 		t.Fatal("integration operations unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("integration operations incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_233_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "1a3c3c438b1fd12b7570582751342b52ac38b50fa22d393e273aea76b8c45c46"
+	const want = "006457ca3105376345f6131c3eb7129db4443b31b45f584f8f27ead890eceefe"
 	if got != want {
 		t.Fatalf("integration operations digest = %s, want %s", got, want)
 	}

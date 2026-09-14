@@ -162,7 +162,22 @@ func liveComponent(s *Store, build func(Page) ui.Node) ui.Node {
 		// subscription alone can leave the initial loading snapshot stuck.
 		// The store dependency also releases/rebinds when the source changes.
 		ui.UseEffect(func() func() {
-			refresh := func() { revision.Set(revision.Get() + 1) }
+			refresh := func() {
+				// Service answers can arrive while the product router is
+				// committing a new leaf. Post the update to the framework's
+				// frame inbox so it targets the committed fiber, not the leaf
+				// being replaced.
+				ui.PostAsync(func() {
+					// The native review dialog owns its pending presentation.
+					// Reconciling the page here strips the browser-managed open
+					// state and hides the only visible progress control. Re-read
+					// inside the queued frame as earlier updates can be pending.
+					if reviewActionPending(s.Page()) {
+						return
+					}
+					revision.Update(func(previous int) int { return previous + 1 })
+				})
+			}
 			unsubscribe := s.Subscribe(refresh)
 			refresh()
 			return unsubscribe
@@ -245,6 +260,17 @@ func Wire(s *Store, p Page, nav func(href string), submit func(actionID string, 
 			href := p.List.Journeys[i].Href
 			if nav != nil {
 				p.List.Journeys[i].OnOpen = func() { nav(href) }
+			}
+		}
+		// The overview renders Groups when present, not Journeys. Bind the
+		// displayed copies too or a click falls through to the fragment href
+		// while the host history router remains on the list.
+		for group := range p.List.Groups {
+			for i := range p.List.Groups[group].Journeys {
+				href := p.List.Groups[group].Journeys[i].Href
+				if nav != nil {
+					p.List.Groups[group].Journeys[i].OnOpen = func() { nav(href) }
+				}
 			}
 		}
 		if submit != nil {

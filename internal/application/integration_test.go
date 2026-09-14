@@ -182,6 +182,7 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 	const tenant = string(fixtures.Tenant)
 	const subject = "principal:application-execute-plan"
 	const approver = "principal:promotion-approver"
+	const managerApprover = "principal:promotion-manager-approver"
 	const at = "2026-09-03T12:00:00Z"
 	clockAt, _ := time.Parse(time.RFC3339, at)
 	now := clockAt
@@ -192,7 +193,8 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 		Migrate: false, Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:application-execute-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: approver,
-		WorkflowPlan: WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
+		ExecutionManagerApprover: managerApprover,
+		WorkflowPlan:             WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
 		TimerCalendarVersion: DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
@@ -215,20 +217,25 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build verifier: %v", err)
 	}
-	token, err := verifier.Issue(trust.Claims{
-		Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: subject, SubjectKind: "human", Tenant: tenant,
-		OrganizationScopeID: "org-north-america", Roles: []string{"intent_author", "comp_admin", "promotion_operator"},
-		Purposes: []string{"compensation_review"}, AuthenticationMethod: "bearer_token", Assurance: "substantial",
-		SessionRef: "session:application-execute-plan", IssuedAtUnix: clockAt.Add(-time.Minute).Unix(), ExpiresAtUnix: clockAt.Add(time.Hour).Unix(),
-	})
-	if err != nil {
-		t.Fatalf("issue journey credential: %v", err)
+	contextFor := func(subjectID, session string) context.Context {
+		t.Helper()
+		token, issueErr := verifier.Issue(trust.Claims{
+			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: subjectID, SubjectKind: "human", Tenant: tenant,
+			OrganizationScopeID: "org-north-america", Roles: []string{"intent_author", "comp_admin", "promotion_operator"},
+			Purposes: []string{"compensation_review"}, AuthenticationMethod: "bearer_token", Assurance: "substantial",
+			SessionRef: session, IssuedAtUnix: clockAt.Add(-time.Minute).Unix(), ExpiresAtUnix: clockAt.Add(time.Hour).Unix(),
+		})
+		if issueErr != nil {
+			t.Fatalf("issue %s journey credential: %v", subjectID, issueErr)
+		}
+		principal, verifyErr := verifier.Verify(context.Background(), trust.Credential{Scheme: "Bearer", Token: token, Audience: cfg.Audience})
+		if verifyErr != nil {
+			t.Fatalf("verify %s journey credential: %v", subjectID, verifyErr)
+		}
+		return trust.WithPrincipal(context.Background(), principal)
 	}
-	principal, err := verifier.Verify(context.Background(), trust.Credential{Scheme: "Bearer", Token: token, Audience: cfg.Audience})
-	if err != nil {
-		t.Fatalf("verify journey credential: %v", err)
-	}
-	ctx := trust.WithPrincipal(context.Background(), principal)
+	ctx := contextFor(subject, "session:application-execute-plan")
+	financeCtx, managerCtx := routedApproverContexts(t, verifier, cfg, clockAt)
 	journey := composed.Cell().Journey
 	// TargetPositionID is deliberately absent: PROMOUX-004 checks a
 	// non-empty value against the real Position domain, and this
@@ -254,7 +261,7 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 		t.Fatalf("load original proposal snapshot: %v", err)
 	}
 	now = now.Add(10 * time.Minute)
-	finance, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
+	finance, err := journey.Decide(financeCtx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
 	if err != nil {
 		t.Fatalf("Journey.Decide(finance): %v", err)
 	}
@@ -262,7 +269,7 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 		t.Fatalf("after finance stage = %s, want MANAGER_APPROVAL", finance.Summary.Stage)
 	}
 	now = now.Add(10 * time.Minute)
-	waiting, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
+	waiting, err := journey.Decide(managerCtx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
 	if err != nil {
 		t.Fatalf("Journey.Decide(manager): %v", err)
 	}

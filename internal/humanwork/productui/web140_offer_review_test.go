@@ -23,7 +23,7 @@ func TestTodo_WEB_140(t *testing.T) {
 	if !ok {
 		t.Fatal("offer page unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("offer page incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_140_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "8357d82daac7f9359d38d9e7391ae239ada6167d0bbb00538b06599b1b6919fb"
+	const want = "43d6be48ed5bd85b071291e324a14db33284ff8aa7f8be450387ef6b3ede5231"
 	if got != want {
 		t.Fatalf("offer digest = %s, want %s", got, want)
 	}

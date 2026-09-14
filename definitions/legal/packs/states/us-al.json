@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
         "section": "Ala. Code § 25-1-30",
-        "note": "Clarke-Figures Equal Pay Act (Ala.",
+        "note": "Clarke-Figures Equal Pay Act requires 3-year retention of wages, wage rates, job classifications, and employment terms and conditions.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -35,18 +35,33 @@
       }
     },
     {
+      "kind": "WAGE_FLOOR",
+      "id": "us-al-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/alabama.md",
+        "section": "29 U.S.C. § 206; no Alabama statute",
+        "note": "No state minimum wage or overtime statute; federal FLSA $7.25/hour and 1.5x overtime past 40 hours apply. Overtime fully subject to state income tax withholding since 2025-07-01.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
+        "standard": "REQUIRED"
+      }
+    },
+    {
       "kind": "NON_COMPETE",
       "id": "us-al-non-compete",
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
-        "section": "Ala. Code § 8-1-190",
-        "note": "Non-compete and non-solicit agreements enforceable under Ala.",
+        "section": "Ala. Code §§ 8-1-190, 8-1-191",
+        "note": "Employee non-competes of 2 years or less presumed reasonable; business-sale non-competes of 1 year or less presumed reasonable; customer non-solicits of 18 months or less (or while post-employment consideration is paid) presumed reasonable; must be written, signed, tied to a protectable interest, reasonable in geography, and without undue hardship.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete and non-solicit agreements enforceable under Ala."
+        "rule": "Employee non-competes of 2 years or less presumed reasonable; business-sale non-competes of 1 year or less presumed reasonable; customer non-solicits of 18 months or less (or while post-employment consideration is paid) presumed reasonable; must be written, signed, tied to a protectable interest, reasonable in geography, and without undue hardship."
       }
     },
     {
@@ -55,13 +70,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
         "section": "Ala. Code § 31-13-15",
-        "note": "E-Verify Compliance: All new-hire records must confirm E-Verify case opened within 3 business days of hire date; no employer-size exceptions (Ala.",
+        "note": "All Alabama employers, public and private of any size, must open an E-Verify case within 3 business days of hire; no employer-size exceptions.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "required_on_new_hire_only": true,
-        "note": "E-Verify Compliance: All new-hire records must confirm E-Verify case opened within 3 business days of hire date; no employer-size exceptions (Ala."
+        "note": "All Alabama employers, public and private of any size, must open an E-Verify case within 3 business days of hire; no employer-size exceptions."
       }
     },
     {
@@ -70,11 +85,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
         "section": "Ala. Code § 25-1-30",
-        "note": "Equal Pay Audit Trail: Capture job classifications, skills, effort, responsibility, and working conditions for each promotion or pay change; enable proof of \"substantially similar work\" evaluation (Ala.",
+        "note": "Clarke-Figures Equal Pay Act prohibits wage discrimination based on sex or race for substantially similar work (skill, effort, responsibility, working conditions); capture classifications and working conditions for each promotion or pay change.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_bases": ["sex", "race"],
         "comparator_standard": "substantially similar work",
         "documentation_required": true,
         "standard": "REQUIRED"
@@ -86,7 +102,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
         "section": "Ala. Code § 25-5-11.1",
-        "note": "Workers' compensation retaliation protection (Ala.",
+        "note": "Termination solely because of a workers-compensation claim or safety-rule notice is prohibited under a strict solely-because standard; flag and block or require acknowledgment.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -101,14 +117,13 @@
       "id": "us-al-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
-        "section": "Ala. Code § 25-5-330",
-        "note": "Permitted.",
+        "section": "Ala. Code § 25-5-330 et seq.",
+        "note": "Drug testing permitted, including cannabis; certified drug-free workplace programs earn a workers-compensation premium discount.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "permitted_bases": ["reasonable_suspicion", "post_accident"],
-        "protected_status": ["lawful_off_duty_cannabis_use"],
         "standard": "REQUIRED"
       }
     },
@@ -118,12 +133,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alabama.md",
         "section": "Ala. Code § 8-38-5",
-        "note": "Breach Notification (Biometric): 45-day notification deadline for breaches exposing biometric data with name (Ala.",
+        "note": "Breach exposing biometric data with name requires resident notification within 45 days when substantial harm is reasonably likely; Attorney General notification when more than 1000 residents are affected.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "subject_deadline_days": 45,
+        "authority_threshold_count": 1000,
         "standard": "REQUIRED"
       }
     }
@@ -132,6 +148,6 @@
   "provenance": {
     "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
     "source_files": ["planning/research/state-employment-law/alabama.md"],
-    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in. Agent verification 2026-09-14 (LEGAL-ST-AL-001, not counsel review): added the missing federal-only WAGE_FLOOR; added pay-equity protected bases (sex, race); recorded non-compete and non-solicit duration presumptions (2yr/1yr/18mo); confirmed E-Verify confidence against the research; removed a cannabis-use protection the research contradicts; completed truncated citation notes; added the 1000-resident Attorney General threshold. Counsel approval remains the release gate; pack stays UNREVIEWED."
   }
 }

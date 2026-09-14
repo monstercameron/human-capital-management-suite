@@ -135,3 +135,12 @@ func wrap(code string, sentinel error, instanceID, nodeID string, cause error, f
 func invalid(format string, args ...any) *Error {
 	return refuse(CodeInvalid, ErrInvalid, "", "", format, args...)
 }
+
+// ErrorCode reports the refusal's stable code for telemetry classification
+// (internal/workflow/observe.ErrorCode); it never carries message text.
+func (e *Error) ErrorCode() string {
+	if e == nil {
+		return ""
+	}
+	return e.Code
+}

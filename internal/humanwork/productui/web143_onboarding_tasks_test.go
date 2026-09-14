@@ -24,7 +24,7 @@ func TestTodo_WEB_143(t *testing.T) {
 	if !ok {
 		t.Fatal("onboarding task completion unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("onboarding task completion incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_143_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "dbd6fa14bcd3578e6e2a60f64ffc204fefb844c84771440dc9d8f13efc724c63"
+	const want = "bb9afeebd00184d33aa053477de16bf454d3423f4b2d08122f7f2ec5b4b9924e"
 	if got != want {
 		t.Fatalf("onboarding task digest = %s, want %s", got, want)
 	}

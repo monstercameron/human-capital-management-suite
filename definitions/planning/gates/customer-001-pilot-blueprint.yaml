@@ -1,0 +1,487 @@
+# CUSTOMER-001 pilot implementation blueprint and responsibility matrix.
+#
+# Schema: tools/planning/pilotblueprint.Blueprint. Validated by
+# tools/planning/pilotblueprint.Blueprint.Validate, verified by
+# tools/planning/pilotblueprint.VerifyBlueprintSignature, and reported by
+# `go run ./tools/planning/cmd/pilotblueprint`.
+#
+# THIS IS A REUSABLE TEMPLATE, NOT A CUSTOMER RECORD: WEDGE-001 selected a
+# problem (a Promotion/Compensation-change failure class), never a partner.
+# No named customer, customer contact, or customer capability evidence
+# exists anywhere in this repository. Every owner below is a ROLE TITLE
+# ("Design-Partner Executive Sponsor"), never a named human; every due/expiry
+# below is a RELATIVE OFFSET in days from pilot kickoff, never a real date.
+# tools/planning/pilotblueprint.Instantiate binds this template to one
+# tenant's real facts (a named CustomerFacts, the real SELECT-002 provider
+# topology, and the real SELECT-001 jurisdiction profile) without ever
+# mutating it (REFACTOR; see tools/planning/pilotblueprint's doc.go and
+# refactor_test.go). Instantiating this checked-in template against today's
+# real repository state - no design partner, a PLACEHOLDER_UNVERIFIED
+# provider topology, an unreviewed jurisdiction profile - reports BLOCKED
+# for every workstream and names exactly what is missing
+# (instantiate_test.go's
+# TestInstantiateAgainstRealRepositoryStateReportsBlockedNamingMissingCustomerAndProviderInputs
+# proves this against the live files, not a fixture).
+#
+# Ten workstreams, discovery through hypercare
+# (tools/planning/pilotblueprint.AllWorkstreamKinds), exactly matching
+# CUSTOMER-001's own INTENT CONTEXT: "make customer discovery,
+# configuration, data, identity, integration, legal review, testing,
+# training, cutover and steady-state ownership explicit". Every workstream
+# below carries a customer/HCM Next/provider owner, at least one
+# prerequisite bound to exact evidence and a stop/go gate, an input and an
+# output artifact, a due/expiry, an acceptance oracle, a data-processing
+# boundary, an escalation path and a fallback (RED).
+#
+# Built from, and binding to rather than restating:
+#   - execution-plan.md's Gate A/B workstream tables and acceptance lists
+#     (Design-partner lead, Read connector + diff, Workspace, transaction
+#     correctness, operability, customer evidence)
+#   - specs/platform-responsibility-boundaries.md's owner/state/API/failure/
+#     evidence/phase register (Data Import/Staging/Migration, Developer and
+#     Application Identity, Customer Configuration Package Manager, Test
+#     Scenario and Conformance Harness, Customer Support Access)
+#   - definitions/planning/gates/select-002-provider-topology.yaml (every
+#     PROVIDER-party prerequisite below points at this file and is checked
+#     through SatisfiesRealProviderSelectionGate, never through the
+#     selection_status flag alone - a placeholder provider is never treated
+#     as confirmed)
+#   - definitions/planning/gates/select-001-jurisdiction-profile.yaml (the
+#     LEGAL_REVIEW workstream's customer-side prerequisite is the named,
+#     qualified reviewer that profile's own reviewer.name field requires)
+#   - planning/todos.md's CUSTOMER-002/003/004 (already-evidenced pilot
+#     readiness/migration/adoption drills this blueprint's TESTING/CUTOVER/
+#     TRAINING workstreams cite as their acceptance oracle)
+#
+# REFACTOR: this template's workstream kind, owners, prerequisites,
+# artifacts, acceptance oracle, data-processing boundary, escalation and
+# fallback are the platform's semantic contract for what a pilot requires.
+# tools/planning/pilotblueprint.Instantiate reads real tenant facts against
+# this contract; it can never rewrite the contract itself. See doc.go for
+# what a stronger REFACTOR enforcement (a leak-scan like
+# tools/planning/pilotprovider's) would need once a real onboarding
+# consumer package exists.
+#
+# CanonicalDigest hashes every field below except `signature`; do not
+# hand-edit any field above `signature` without re-signing (see
+# security_test.go's TestTodo_CUSTOMER_001_Security for what breaks).
+schema_version: 1
+todo_id: CUSTOMER-001
+signed_date: "2026-09-13"
+template_version: "1.0.0"
+
+provider_topology_ref: definitions/planning/gates/select-002-provider-topology.yaml
+jurisdiction_profile_ref: definitions/planning/gates/select-001-jurisdiction-profile.yaml
+scope_ceiling_ref: definitions/planning/gates/phase1-scope-ceiling.yaml
+
+workstreams:
+  - kind: DISCOVERY
+    sequence: 1
+    owners:
+      - party: CUSTOMER
+        raci_role: ACCOUNTABLE
+        role_title: Design-Partner Executive Sponsor
+      - party: HCM_NEXT
+        raci_role: RESPONSIBLE
+        role_title: Design-Partner Lead (execution-plan.md Gate A workstream)
+      - party: PROVIDER
+        raci_role: CONSULTED
+        role_title: Incumbent System Administrator (customer-designated contact)
+    prerequisites:
+      - description: signed design-partner agreement naming the paid problem, baseline, target metric and numeric stop/proceed thresholds
+        party: CUSTOMER
+        evidence_ref: "execution-plan.md#gate-a--paid-design-partner-observation (Design-partner lead exit artifact)"
+        gate:
+          metric: design_partner_agreement_signed
+          threshold: signed and dated within 30 days of kickoff
+          action: STOP
+      - description: dated incumbent edition/topology and native-capability assessment naming a real, contracted provider
+        party: PROVIDER
+        evidence_ref: "definitions/planning/gates/select-002-provider-topology.yaml (ProviderTopology.SatisfiesRealProviderSelectionGate)"
+        gate:
+          metric: provider_real_selection_gate
+          threshold: "SatisfiesRealProviderSelectionGate() == true"
+          action: STOP
+    input_artifacts:
+      - name: Design-partner agreement draft
+        description: unsigned draft naming the candidate incumbent system, fields, baseline and target
+        ref: "execution-plan.md#gate-a--paid-design-partner-observation"
+    output_artifacts:
+      - name: Signed design-partner agreement
+        description: paid agreement with exact incumbent system/fields, baseline, target, price and stop criteria
+        ref: "execution-plan.md#gate-a-acceptance--paid-observation"
+      - name: Incumbent edition/topology assessment
+        description: dated assessment of licensed native functionality proving the failure class is not already governed
+        ref: "definitions/planning/gates/select-002-provider-topology.yaml"
+    timing:
+      due_offset_days: 14
+      expiry_offset_days: 30
+    acceptance_oracle: "execution-plan.md's Gate A Acceptance list is satisfied: the paid agreement identifies exact incumbent system/fields, baseline, target, eligible volume, adoption denominator and numeric stop/proceed thresholds; tools/planning/pilotprovider's TestPilotProviderSelectionProvesEditionAuthorityOperationsAndExitViability passes against a VENDOR_CONFIRMED topology."
+    data_processing_boundary: "no worker data crosses to HCM Next during discovery; only incumbent edition/topology metadata and de-identified baseline metrics are exchanged (plan.md Gate A read-only-observation scope)."
+    escalation: "unresolved discovery blockers escalate from the HCM Next design-partner lead to the product lead within 5 business days; unresolved after 10 days escalates to the Gate A gate owner for a stop/reselect decision (execution-plan.md Scope-Exchange Rule)."
+    fallback: "if no design-partner agreement is signed within the due window, WEDGE-001's problem selection stands but every downstream workstream stays BLOCKED; the pilot cannot proceed past discovery."
+
+  - kind: CONFIGURATION
+    sequence: 2
+    owners:
+      - party: CUSTOMER
+        raci_role: RESPONSIBLE
+        role_title: Customer Configuration Approver
+      - party: HCM_NEXT
+        raci_role: ACCOUNTABLE
+        role_title: "Configuration Package Service Owner (specs/platform-responsibility-boundaries.md Customer Configuration Package Manager)"
+      - party: PROVIDER
+        raci_role: INFORMED
+        role_title: Provider Field-Mapping Contact
+    prerequisites:
+      - description: Promotion workflow/config bundle scoped to Gate A, signed and simulated before install
+        party: HCM_NEXT
+        evidence_ref: "specs/platform-responsibility-boundaries.md#customer-configuration-package-manager (Phase: Promotion workflow/config bundle only)"
+        gate:
+          metric: config_package_simulation_clean
+          threshold: zero unresolved dependency/compatibility violations on the signed installation plan
+          action: STOP
+    input_artifacts:
+      - name: Promotion workflow/config bundle manifest
+        description: the manifest/hash/signature and included objects for the pilot's configuration package
+        ref: "specs/platform-responsibility-boundaries.md#customer-configuration-package-manager"
+    output_artifacts:
+      - name: Signed installation plan and applied fingerprint
+        description: the installation receipt proving the package installed as simulated
+        ref: "specs/platform-responsibility-boundaries.md#customer-configuration-package-manager"
+    timing:
+      due_offset_days: 10
+      expiry_offset_days: 30
+    acceptance_oracle: "the customer configuration package installs with a signed manifest/hash, an approved simulation, and an applied fingerprint receipt (specs/platform-responsibility-boundaries.md Customer Configuration Package Manager Evidence)."
+    data_processing_boundary: "the configuration package contains HCM Next's Promotion workflow/config bundle only; no customer worker data is embedded in the package (Customer Configuration Package Manager Failure clause: unresolved/incompatible dependencies block installation)."
+    escalation: "a failed installation simulation escalates to the HCM Next configuration owner immediately; a second consecutive failure escalates to the product lead."
+    fallback: "the pilot proceeds on the platform's default configuration and the customer-specific package is deferred to a later pilot cycle; no Gate A/B behavior depends on this workstream completing."
+
+  - kind: DATA
+    sequence: 3
+    owners:
+      - party: CUSTOMER
+        raci_role: ACCOUNTABLE
+        role_title: Customer HRIS Data Owner
+      - party: HCM_NEXT
+        raci_role: RESPONSIBLE
+        role_title: "Data Onboarding Service Owner (specs/platform-responsibility-boundaries.md Data Import, Staging, and Migration)"
+      - party: PROVIDER
+        raci_role: RESPONSIBLE
+        role_title: Incumbent System Data Export Contact
+    prerequisites:
+      - description: signed tenant onboarding manifest with owner, source authority/classification/residency/retention and rollback policy
+        party: CUSTOMER
+        evidence_ref: "internal/connectivity/onboarding (ONBOARD-001, TestTodo_ONBOARD_001)"
+        gate:
+          metric: onboarding_manifest_signed
+          threshold: signed manifest present with zero unresolved authority fields
+          action: STOP
+      - description: provider read/observe connector for the extracted population, matching SELECT-002's read entitlement
+        party: PROVIDER
+        evidence_ref: "definitions/planning/gates/select-002-provider-topology.yaml (api_entitlements: worker.read)"
+        gate:
+          metric: provider_real_selection_gate
+          threshold: "SatisfiesRealProviderSelectionGate() == true"
+          action: STOP
+    input_artifacts:
+      - name: Signed tenant onboarding manifest
+        description: ONBOARD-001's signed manifest naming owner, source authority, budgets and rollback policy
+        ref: "internal/connectivity/onboarding"
+    output_artifacts:
+      - name: Source-consistent resumable snapshot
+        description: ONBOARD-002's durable-checkpointed, identical-digest streamed artifact
+        ref: "internal/connectivity/onboarding (ONBOARD-002)"
+    timing:
+      due_offset_days: 21
+      expiry_offset_days: 45
+    acceptance_oracle: "ONBOARD-001's Preflight.Run and ONBOARD-002's durable cursor/watermark checkpoints both pass, producing an identical-digest streamed artifact (planning/todos.md ONBOARD-001/ONBOARD-002 evidence)."
+    data_processing_boundary: "customer worker/employment/assignment data crosses from the provider to HCM Next's staged extraction only after a signed onboarding manifest; it never reaches HCM Next production tables until CommitBatch reconciles counts, totals and identities (specs/platform-responsibility-boundaries.md Data Import, Staging, and Migration)."
+    escalation: "a staging validation failure escalates to the customer HRIS data owner and the HCM Next data onboarding owner within 2 business days; an unresolved cutover-blocking defect escalates to the Gate A/B gate owner."
+    fallback: "CUSTOMER-002's rehearsal evidence substitutes for a live extraction; the pilot proceeds on the synthetic Promotion fixture until real data access is granted."
+
+  - kind: IDENTITY
+    sequence: 4
+    owners:
+      - party: CUSTOMER
+        raci_role: RESPONSIBLE
+        role_title: Customer Identity/Access Administrator
+      - party: HCM_NEXT
+        raci_role: ACCOUNTABLE
+        role_title: "Application Identity Service Owner (specs/platform-responsibility-boundaries.md Developer and Application Identity)"
+      - party: PROVIDER
+        raci_role: INFORMED
+        role_title: Provider Identity/API Credential Contact
+    prerequisites:
+      - description: pilot connector/customer app registered with least-scope credentials
+        party: HCM_NEXT
+        evidence_ref: "specs/platform-responsibility-boundaries.md#developer-and-application-identity (Phase: implement internal services and the pilot connector/customer app)"
+        gate:
+          metric: application_identity_registered
+          threshold: scoped credential issued and rotation policy recorded
+          action: STOP
+    input_artifacts:
+      - name: Customer identity/access requirements
+        description: the customer's required scopes, redirect endpoints and rotation policy
+        ref: "specs/platform-responsibility-boundaries.md#developer-and-application-identity"
+    output_artifacts:
+      - name: Registered application identity with scoped credential
+        description: an issued, rotatable credential bound to the pilot connector/customer app
+        ref: "specs/platform-responsibility-boundaries.md#developer-and-application-identity"
+    timing:
+      due_offset_days: 10
+      expiry_offset_days: 30
+    acceptance_oracle: "the pilot connector/customer app authenticates with a scoped, rotatable credential and every request carries a server-derived principal (specs/platform-responsibility-boundaries.md Developer and Application Identity Evidence; execution-plan.md Gate A Acceptance's 'every request has a server-derived principal')."
+    data_processing_boundary: "the identity workstream exchanges credential/scope metadata only; no worker PII crosses this boundary."
+    escalation: "a credential provisioning delay escalates from the HCM Next identity owner to the product lead after 5 business days."
+    fallback: "the pilot uses a time-boxed development credential under the read-only safety controls until customer-issued credentials are available; Gate B write authority is withheld until real credentials are confirmed."
+
+  - kind: INTEGRATION
+    sequence: 5
+    owners:
+      - party: CUSTOMER
+        raci_role: RESPONSIBLE
+        role_title: Customer Integration Technical Contact
+      - party: HCM_NEXT
+        raci_role: ACCOUNTABLE
+        role_title: Integration Platform Owner
+      - party: PROVIDER
+        raci_role: RESPONSIBLE
+        role_title: Provider Connector/API Support Contact
+    prerequisites:
+      - description: one read/observe connector, mappings, provenance, comparison and reconciliation view
+        party: HCM_NEXT
+        evidence_ref: "execution-plan.md#gate-a--paid-design-partner-observation (Read connector + diff exit artifact)"
+        gate:
+          metric: read_connector_operational
+          threshold: "connector passes internal/connectivity/providercontract's pinned semantic/fault conformance suite"
+          action: STOP
+      - description: provider API entitlements, quotas, credential model and fault behavior confirmed for the pilot's read/write operations
+        party: PROVIDER
+        evidence_ref: "definitions/planning/gates/select-002-provider-topology.yaml (operations, faults)"
+        gate:
+          metric: provider_real_selection_gate
+          threshold: "SatisfiesRealProviderSelectionGate() == true"
+          action: STOP
+    input_artifacts:
+      - name: Provider API entitlement grant
+        description: the scopes and quotas SELECT-002's topology names
+        ref: "definitions/planning/gates/select-002-provider-topology.yaml"
+    output_artifacts:
+      - name: Operational read/observe connector with reconciliation view
+        description: a connector passing the pinned semantic and fault-injection conformance suite
+        ref: "internal/connectivity/providercontract"
+    timing:
+      due_offset_days: 28
+      expiry_offset_days: 45
+    acceptance_oracle: "the connector passes internal/connectivity/providercontract's pinned semantic and fault-injection conformance suite for every fault class SELECT-002's topology names, and the cross-system observation proves independence from any write acknowledgement."
+    data_processing_boundary: "only the fields SELECT-002's field_authorities name cross the provider boundary, each tagged with its declared authority (HCM_NEXT/PROVIDER/SHARED_WITH_CONFLICT_POLICY); no field crosses without a named authority."
+    escalation: "a connector fault outside the fault matrix's defined classes escalates to the integration platform owner immediately and blocks further pilot writes until classified."
+    fallback: "the pilot runs entirely against internal/connectivity/providercontract's synthetic fixture (the sandbox fidelity SELECT-002 declares today) until a real vendor sandbox tenant is provisioned."
+
+  - kind: LEGAL_REVIEW
+    sequence: 6
+    owners:
+      - party: CUSTOMER
+        raci_role: CONSULTED
+        role_title: Customer Legal/HR Compliance Contact
+      - party: HCM_NEXT
+        raci_role: ACCOUNTABLE
+        role_title: Regulatory Content Operations Owner
+      - party: PROVIDER
+        raci_role: INFORMED
+        role_title: Provider Data-Processing/Compliance Contact
+    prerequisites:
+      - description: a named, qualified legal reviewer raises the pinned jurisdiction profile's review_status above UNREVIEWED
+        party: CUSTOMER
+        evidence_ref: "definitions/planning/gates/select-001-jurisdiction-profile.yaml (reviewer.name)"
+        gate:
+          metric: jurisdiction_reviewer_assigned
+          threshold: reviewer.name and reviewer.qualification are both non-empty
+          action: STOP
+      - description: a real, executed data-processing agreement for the pilot's provider connection
+        party: PROVIDER
+        evidence_ref: "definitions/planning/gates/select-002-provider-topology.yaml (data_processing.dpa_reference)"
+        gate:
+          metric: provider_real_selection_gate
+          threshold: "SatisfiesRealProviderSelectionGate() == true"
+          action: STOP
+    input_artifacts:
+      - name: Pinned SELECT-001 jurisdiction profile
+        description: the signed, currently-unreviewed profile awaiting a named reviewer
+        ref: "definitions/planning/gates/select-001-jurisdiction-profile.yaml"
+    output_artifacts:
+      - name: Reviewed jurisdiction profile and executed DPA reference
+        description: review_status raised above UNREVIEWED and a real, non-placeholder DPA reference
+        ref: "definitions/planning/gates/select-001-jurisdiction-profile.yaml"
+    timing:
+      due_offset_days: 30
+      expiry_offset_days: 90
+    acceptance_oracle: "tools/planning/pilotjurisdiction.JurisdictionProfile.Validate reports zero violations (a reviewer is named) and tools/planning/pilotprovider.ProviderTopology.SatisfiesRealProviderSelectionGate reports true (a DPA is executed)."
+    data_processing_boundary: "no promotion/compensation transaction may resolve to a jurisdiction outside SELECT-001's reviewed scope (pilotjurisdiction.Authorize returns UNKNOWN for any resolution outside US-CA), and no worker data crosses to the provider without the executed DPA this workstream confirms."
+    escalation: "an unassigned reviewer or unexecuted DPA past the due offset escalates to the product lead and the Gate A/B gate owner jointly, since neither Gate A nor Gate B evidence can close without both."
+    fallback: "the pilot remains confined to internal/governance/legal.Resolve's HUMAN_REVIEW_REQUIRED / UNKNOWN paths - every transaction outside the reviewed, DPA-covered scope is refused rather than silently processed."
+
+  - kind: TESTING
+    sequence: 7
+    owners:
+      - party: CUSTOMER
+        raci_role: RESPONSIBLE
+        role_title: Customer UAT Participant Lead
+      - party: HCM_NEXT
+        raci_role: ACCOUNTABLE
+        role_title: Conformance Platform Owner
+      - party: PROVIDER
+        raci_role: CONSULTED
+        role_title: Provider Sandbox/Test Support Contact
+    prerequisites:
+      - description: "Promotion happy path, conflict, stale approval, revalidation, connector ambiguity, repair, access, accessibility and recovery reference scenarios pass"
+        party: HCM_NEXT
+        evidence_ref: "specs/platform-responsibility-boundaries.md#test-scenario-and-conformance-harness (Phase: execute Promotion happy path, conflict, stale approval, revalidation, connector ambiguity, repair, access, accessibility, and recovery)"
+        gate:
+          metric: conformance_suite_green
+          threshold: zero required reference-workflow failures
+          action: STOP
+    input_artifacts:
+      - name: Conformance scenario plan
+        description: the scenario/fixture/environment plan the Conformance Platform executes
+        ref: "specs/platform-responsibility-boundaries.md#test-scenario-and-conformance-harness"
+    output_artifacts:
+      - name: Signed conformance evidence bundle
+        description: the EvidenceBundle naming source/build/config fingerprints, expected/actual results and assertions
+        ref: "specs/platform-responsibility-boundaries.md#test-scenario-and-conformance-harness"
+    timing:
+      due_offset_days: 21
+      expiry_offset_days: 30
+    acceptance_oracle: "the Conformance Platform's signed EvidenceBundle names zero required reference-workflow failures across happy path, conflict, stale approval, revalidation, connector ambiguity, repair, access, accessibility and recovery scenarios."
+    data_processing_boundary: "testing uses masked/synthetic data only (specs/platform-responsibility-boundaries.md Sandbox and Test Data Platform); no real customer worker data is used in any test scenario."
+    escalation: "a required reference-workflow failure blocks Gate A/B progression and escalates to the product lead the same business day."
+    fallback: "the pilot defers customer-observed UAT and relies on the Conformance Platform's own signed evidence bundle until customer UAT participants are available."
+
+  - kind: TRAINING
+    sequence: 8
+    owners:
+      - party: CUSTOMER
+        raci_role: RESPONSIBLE
+        role_title: Customer Training Coordinator
+      - party: HCM_NEXT
+        raci_role: ACCOUNTABLE
+        role_title: Design-Partner Lead (workspace enablement)
+      - party: PROVIDER
+        raci_role: INFORMED
+        role_title: Provider Documentation Contact
+    prerequisites:
+      - description: "the GWC Promotion workspace passes the UI qualification fixture (keyboard, screen reader, contrast, reflow, provenance, available-action rendering)"
+        party: HCM_NEXT
+        evidence_ref: "execution-plan.md#gate-b-acceptance--limited-write-authority (Operability: workspace passes the UI qualification fixture)"
+        gate:
+          metric: ui_qualification_fixture_pass
+          threshold: zero accessibility/reflow/provenance defects on GWC or the Go SSR fallback
+          action: STOP
+    input_artifacts:
+      - name: Workspace enablement/training materials
+        description: the training curriculum covering the qualified Promotion workspace
+        ref: "execution-plan.md#gate-b-acceptance--limited-write-authority"
+    output_artifacts:
+      - name: Trained administrator, approver and employee cohort sign-off
+        description: CUSTOMER-004's adoption-readiness sign-off for the trained cohort
+        ref: "planning/todos.md (CUSTOMER-004)"
+    timing:
+      due_offset_days: 14
+      expiry_offset_days: 30
+    acceptance_oracle: "CUSTOMER-004's administrator/approver/employee/support adoption-readiness evidence names measured task completion, comprehension and support thresholds met."
+    data_processing_boundary: "training uses the same masked/synthetic fixtures as TESTING; no real worker data is shown to trainees before Gate B write authority is granted."
+    escalation: "a cohort failing the adoption-readiness threshold escalates to the HCM Next design-partner lead; a repeated failure escalates to the product lead."
+    fallback: "the pilot proceeds with a reduced administrator-only cohort and defers broader employee/approver training to a later pilot cycle, narrowing Gate B's initial claim accordingly."
+
+  - kind: CUTOVER
+    sequence: 9
+    owners:
+      - party: CUSTOMER
+        raci_role: ACCOUNTABLE
+        role_title: Customer Executive Sponsor (cutover approval)
+      - party: HCM_NEXT
+        raci_role: RESPONSIBLE
+        role_title: Product Lead
+      - party: PROVIDER
+        raci_role: RESPONSIBLE
+        role_title: Incumbent System Change-Control Contact
+    prerequisites:
+      - description: Gate A repeated-value evidence and a signed Gate A PROCEED decision
+        party: HCM_NEXT
+        evidence_ref: "execution-plan.md#gate-a-acceptance--paid-observation"
+        gate:
+          metric: gate_a_proceed_signed
+          threshold: "signed PROCEED decision recorded in tools/planning/authoritygate (GOV-010)"
+          action: STOP
+      - description: a real, contracted provider selection authorizing the bounded external write path
+        party: PROVIDER
+        evidence_ref: "definitions/planning/gates/select-002-provider-topology.yaml (SatisfiesRealProviderSelectionGate)"
+        gate:
+          metric: provider_real_selection_gate
+          threshold: "SatisfiesRealProviderSelectionGate() == true"
+          action: STOP
+    input_artifacts:
+      - name: Signed Gate A PROCEED decision
+        description: the authority-gate decision record authorizing incremental Gate B work
+        ref: "tools/planning/authoritygate (GOV-010)"
+    output_artifacts:
+      - name: Executed cutover runbook and dry-run/rollback evidence
+        description: CUSTOMER-003's dry-run, cutover, rollback and hypercare migration drill evidence
+        ref: "planning/todos.md (CUSTOMER-003)"
+    timing:
+      due_offset_days: 14
+      expiry_offset_days: 21
+    acceptance_oracle: "CUSTOMER-003's dry-run, cutover, rollback and hypercare migration drill evidence closes clean and Gate B's transaction-correctness acceptance list (execution-plan.md) is satisfied."
+    data_processing_boundary: "the first governed external write to the provider may only occur after this workstream's stop/go gate passes; every write remains bounded to the job/manager/organization/compensation field family Gate B names."
+    escalation: "a failed dry-run or rollback drill blocks cutover and escalates to the product lead and the customer executive sponsor jointly within 1 business day."
+    fallback: "the pilot remains on Gate A's read-only observation path indefinitely; no cutover occurs and no external write is ever attempted."
+
+  - kind: HYPERCARE
+    sequence: 10
+    owners:
+      - party: CUSTOMER
+        raci_role: RESPONSIBLE
+        role_title: Customer Support Escalation Contact
+      - party: HCM_NEXT
+        raci_role: ACCOUNTABLE
+        role_title: On-Call Owner (execution-plan.md Gate B Operability)
+      - party: PROVIDER
+        raci_role: CONSULTED
+        role_title: Provider Support/Incident Contact
+    prerequisites:
+      - description: a named on-call owner, support hours, customer advisory route and exercised redrive/rollback procedure
+        party: HCM_NEXT
+        evidence_ref: "execution-plan.md#gate-b-acceptance--limited-write-authority (Operability)"
+        gate:
+          metric: oncall_and_redrive_exercised
+          threshold: redrive/rollback procedure exercised at least once before steady state
+          action: STOP
+      - description: provider stop/reselect thresholds continue to be met through the hypercare window
+        party: PROVIDER
+        evidence_ref: "definitions/planning/gates/select-002-provider-topology.yaml (stop_reselect_thresholds)"
+        gate:
+          metric: provider_real_selection_gate
+          threshold: "SatisfiesRealProviderSelectionGate() == true and every stop_reselect_threshold reports PROCEED"
+          action: STOP
+    input_artifacts:
+      - name: Hypercare support runbook
+        description: the on-call, escalation and advisory-route procedure exercised at least once
+        ref: "execution-plan.md#gate-b-acceptance--limited-write-authority"
+    output_artifacts:
+      - name: Steady-state ownership handoff record
+        description: the record naming the on-call owner and support hours now governing steady-state operation
+        ref: "specs/platform-responsibility-boundaries.md#shared-interaction-and-decision-services"
+    timing:
+      due_offset_days: 30
+      expiry_offset_days: 60
+    acceptance_oracle: "the named on-call owner has exercised the redrive/rollback procedure at least once, and SELECT-002's stop_reselect_thresholds all report PROCEED over the trailing measurement window."
+    data_processing_boundary: "steady-state ownership never expands the field/effect boundary Gate B granted; any expansion requires a new signed blueprint instantiation, not a hypercare exception."
+    escalation: "any stop_reselect_threshold reporting STOP during hypercare escalates immediately to the product lead and triggers this workstream's fallback."
+    fallback: "the pilot's compensation-change effect reverts to OBSERVE-only per SELECT-002's exit.activate_fallback, and steady-state ownership reverts to Gate A's read-only posture until a replacement provider topology or jurisdiction profile is signed."
+
+signature:
+  algorithm: ed25519
+  public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
+  value: "a7347e5014e5d4685ffd1c281a06d1e6e1bb412cd8ee87f213b65b396645585d15ae044d7f89c490bce53601df232a6165bd8fa20a30a93960cb0a61b2e83d09"
+  key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml

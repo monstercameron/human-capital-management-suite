@@ -39,10 +39,10 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 		FieldIssuer, FieldAudience, FieldTenant, FieldCellID, FieldMaxDeadline,
 		FieldMigrate, FieldWorkspace, FieldDevBrowserLogin, FieldOTelExporter,
 		FieldOTelEndpoint, FieldExecutionAuthority, FieldExecutionAuthorityDigest,
-		FieldExecutionAuthorityRole, FieldExecutionApprover,
+		FieldExecutionAuthorityRole, FieldExecutionApprover, FieldExecutionManagerApprover, FieldExecutionFinancePartner,
 		FieldWorkflowPlan, FieldLegalEvidenceIssuerKeys,
 		FieldExecutionRetry, FieldExecutionRetryVersion, FieldExecutionRetryMaxAttempts,
-		FieldExecutionRetryResolutionAttempts, FieldPublicOrigin,
+		FieldExecutionRetryResolutionAttempts, FieldPublicOrigin, FieldLocalDevNow,
 	} {
 		if _, ok := declared[name]; !ok {
 			t.Errorf("field %q is read by the composition but not declared", name)
@@ -79,6 +79,7 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		"-otel-exporter=otlphttp", "-otel-endpoint=http://collector:4318",
 		"-execution-authority=true", "-execution-authority-digest=sha256:abc",
 		"-execution-authority-role=promo_op", "-execution-authority-approver=principal:approver",
+		"-execution-authority-manager-approver=principal:manager-approver",
 		"-timer-tzdb-version=2026b", "-timer-calendar-version=2026.2", "-health-addr=127.0.0.1:9",
 		"-workflow-plan=execute",
 		"-execution-retry=true", "-execution-retry-version=retry-v1",
@@ -100,8 +101,9 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		OTelExporter: OTelExporterOTLPHTTP, OTelEndpoint: "http://collector:4318",
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:abc",
 		ExecutionAuthorityRole: "promo_op", ExecutionApprover: "principal:approver",
-		WorkflowPlan:   WorkflowPlanExecute,
-		ExecutionRetry: true, ExecutionRetryVersion: "retry-v1",
+		ExecutionManagerApprover: "principal:manager-approver",
+		WorkflowPlan:             WorkflowPlanExecute,
+		ExecutionRetry:           true, ExecutionRetryVersion: "retry-v1",
 		ExecutionRetryMaxAttempts: 3, ExecutionRetryResolutionAttempts: 4,
 		LegalEvidenceIssuerKeys: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 		TimerTzdbVersion:        "2026b", TimerCalendarVersion: "2026.2", HealthAddr: "127.0.0.1:9",
@@ -204,8 +206,51 @@ func TestLocalDevProfileAppliesFastSafeDefaultsAndKeepsExplicitOverrides(t *test
 	if !cfg.DevBrowserLogin || !cfg.ExecutionAuthority || !cfg.Scheduler || cfg.WorkflowPlan != WorkflowPlanExecute {
 		t.Fatalf("local profile runtime defaults = %+v", cfg)
 	}
+	// PROMOUX-015: the demo tenant's finance approvals route to its Finance
+	// Director by profile default; the standard profile names no partner.
+	if cfg.ExecutionFinancePartner != LocalDevFinancePartner {
+		t.Fatalf("local profile finance partner = %q, want %q", cfg.ExecutionFinancePartner, LocalDevFinancePartner)
+	}
+	for _, field := range ServeConfigFields() {
+		if field.Name == FieldExecutionFinancePartner && field.Default != "" {
+			t.Fatalf("standard profile -%s defaults to %q, want empty", FieldExecutionFinancePartner, field.Default)
+		}
+	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("local profile defaults do not validate: %v", err)
+	}
+}
+
+func TestLocalDevClockIsExplicitStrictAndUnavailableToProduction(t *testing.T) {
+	const pinned = "2026-12-01T12:00:00Z"
+	values, err := bootstrap.ParseConfig(
+		[]string{"-profile=local-dev", "-local-dev-now=" + pinned},
+		func(string) (string, bool) { return "", false },
+		ServeConfigFieldsForArgs([]string{"-profile=local-dev"}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := ServeConfigFromValues(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.LocalDevNow != pinned {
+		t.Fatalf("LocalDevNow = %q, want %q", cfg.LocalDevNow, pinned)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid local development clock rejected: %v", err)
+	}
+
+	production := cfg
+	production.Profile = ServeProfileStandard
+	if err := production.Validate(); err == nil || !strings.Contains(err.Error(), FieldLocalDevNow) {
+		t.Fatalf("production clock override Validate() = %v, want a %s refusal", err, FieldLocalDevNow)
+	}
+	malformed := cfg
+	malformed.LocalDevNow = "1 December 2026"
+	if err := malformed.Validate(); err == nil || !strings.Contains(err.Error(), "RFC3339") {
+		t.Fatalf("malformed clock Validate() = %v, want an RFC3339 refusal", err)
 	}
 }
 

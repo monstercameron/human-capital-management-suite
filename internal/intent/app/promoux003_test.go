@@ -26,45 +26,36 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 )
 
-func TestApproverForNodeDerivesDistinctPrincipalsForFinanceAndManager(t *testing.T) {
-	engine := newJourneyEngine(nil, nil, "principal:promoux003-base", nil, nil)
-
-	finance, err := engine.approverForNode(promotionexec.NodeApproveFinance)
-	if err != nil {
-		t.Fatalf("approverForNode(finance): %v", err)
+// TestRoutedApprovalRequirementRebuildsTheRoutedFinanceAndManagerRequirements
+// replaces PROMOUX-003's approverForNode test. PROMOUX-015 removed the
+// engine's own per-node approver identity: a decision is made as the caller,
+// and the requirement a completed item resolves against is recompiled for the
+// routed candidate that reproduces the recorded digest. The finance and
+// manager fixtures route to distinct principals, and each rebuilds only its
+// own node's requirement.
+func TestRoutedApprovalRequirementRebuildsTheRoutedFinanceAndManagerRequirements(t *testing.T) {
+	finance, _, _, _ := journeyPromotionexecFixture(
+		t, promotionexec.NodeApproveFinance, promotionexec.CompileFinanceApprovalRequirement, promotionexec.FinanceApproverFor, true)
+	manager, _, _, _ := journeyPromotionexecFixture(
+		t, promotionexec.NodeApproveManager, promotionexec.CompileManagerApprovalRequirement, promotionexec.ManagerApproverFor, true)
+	if err := approverclass.RequireDistinct(finance.Assignment.Resolution.Candidates[0].PrincipalID, manager.Assignment.Resolution.Candidates[0].PrincipalID); err != nil {
+		t.Fatalf("fixture candidates are not distinct: %v", err)
 	}
-	manager, err := engine.approverForNode(promotionexec.NodeApproveManager)
-	if err != nil {
-		t.Fatalf("approverForNode(manager): %v", err)
+	for name, item := range map[string]workitem.WorkItem{"finance": finance, "manager": manager} {
+		requirement, err := routedApprovalRequirement(item)
+		if err != nil {
+			t.Fatalf("routedApprovalRequirement(%s): %v", name, err)
+		}
+		if requirement.Digest() != item.Assignment.Resolution.RequirementDigest {
+			t.Fatalf("%s rebuilt digest %q, want the recorded %q", name, requirement.Digest(), item.Assignment.Resolution.RequirementDigest)
+		}
 	}
-	if finance == manager {
-		t.Fatalf("finance %q and manager %q must not be the same principal (RED clause 2)", finance, manager)
-	}
-	wantFinance, err := promotionexec.FinanceApproverFor(engine.approver)
-	if err != nil {
-		t.Fatalf("FinanceApproverFor: %v", err)
-	}
-	wantManager, err := promotionexec.ManagerApproverFor(engine.approver)
-	if err != nil {
-		t.Fatalf("ManagerApproverFor: %v", err)
-	}
-	if finance != wantFinance || manager != wantManager {
-		t.Fatalf("approverForNode = (%q, %q), want the exact derivation execution.go's factory uses: (%q, %q)",
-			finance, manager, wantFinance, wantManager)
-	}
-	if err := approverclass.RequireDistinct(finance, manager); err != nil {
-		t.Fatalf("RequireDistinct(finance, manager) = %v, want nil", err)
-	}
-
-	// A node that is neither finance nor manager (the prototype's own
-	// approval node, or a plain Task) has no authority class to
-	// differentiate and keeps the base approver unchanged.
-	other, err := engine.approverForNode("some_other_node")
-	if err != nil {
-		t.Fatalf("approverForNode(other): %v", err)
-	}
-	if other != engine.approver {
-		t.Fatalf("approverForNode for an undifferentiated node = %q, want the base approver %q", other, engine.approver)
+	// A manager item presented as a finance node recompiles the wrong
+	// requirement and reproduces no recorded digest.
+	swapped := manager
+	swapped.NodeID = promotionexec.NodeApproveFinance
+	if _, err := routedApprovalRequirement(swapped); err == nil {
+		t.Fatal("a manager item rebuilt as a finance requirement must not match its recorded digest")
 	}
 }
 
@@ -137,7 +128,7 @@ func journeyPromotionexecFixture(
 func TestJourneyApprovalOutcomeDerivesTheFinanceApproverFromTheBase(t *testing.T) {
 	item, revision, decision, at := journeyPromotionexecFixture(
 		t, promotionexec.NodeApproveFinance, promotionexec.CompileFinanceApprovalRequirement, promotionexec.FinanceApproverFor, true)
-	outcome, err := journeyApprovalOutcome(item, "principal:promoux003-fixture-base", revision, decision, at)
+	outcome, err := journeyApprovalOutcome(item, revision, decision, at)
 	if err != nil {
 		t.Fatalf("journeyApprovalOutcome(finance): %v", err)
 	}
@@ -149,7 +140,7 @@ func TestJourneyApprovalOutcomeDerivesTheFinanceApproverFromTheBase(t *testing.T
 func TestJourneyApprovalOutcomeDerivesTheManagerApproverFromTheBase(t *testing.T) {
 	item, revision, decision, at := journeyPromotionexecFixture(
 		t, promotionexec.NodeApproveManager, promotionexec.CompileManagerApprovalRequirement, promotionexec.ManagerApproverFor, false)
-	outcome, err := journeyApprovalOutcome(item, "principal:promoux003-fixture-base", revision, decision, at)
+	outcome, err := journeyApprovalOutcome(item, revision, decision, at)
 	if err != nil {
 		t.Fatalf("journeyApprovalOutcome(manager): %v", err)
 	}
@@ -172,7 +163,7 @@ func TestJourneyApprovalOutcomeRefusesTheUndifferentiatedBaseForPromotionexecNod
 	item.Assignment.Resolution.Candidates = []humanwork.Candidate{
 		{PrincipalID: "principal:promoux003-fixture-base", Via: humanwork.SourceDirect},
 	}
-	if _, err := journeyApprovalOutcome(item, "principal:promoux003-fixture-base", revision, decision, at); err == nil {
+	if _, err := journeyApprovalOutcome(item, revision, decision, at); err == nil {
 		t.Fatal("an item whose candidate is the undifferentiated base approver must not resolve against the class-derived requirement")
 	}
 }

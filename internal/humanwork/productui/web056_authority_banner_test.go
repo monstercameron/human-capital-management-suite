@@ -14,7 +14,8 @@ import (
 // projects a valid current authority context, the shell must carry a
 // persistent strip naming exactly that authority — tenant, acting context,
 // delegator, expiry, elevation — straight from the same projection that
-// feeds the switcher, never a second record. No projection means no strip.
+// feeds the switcher, never a second record. Direct or missing authority is
+// intentionally quiet.
 func TestTodo_WEB_056(t *testing.T) {
 	view := testView(PageHome)
 	view.ContextSwitcher = web056Fixture()
@@ -163,6 +164,9 @@ func TestTodo_WEB_056_Conformance(t *testing.T) {
 	for name, props := range map[string]ContextSwitcherProps{
 		"empty":   {},
 		"invalid": {Current: AuthorityContext{Delegated: true, Delegator: "Maya Chen"}},
+		"direct": {Current: AuthorityContext{
+			TenantID: "tenant-a", TenantName: "HarborCare", ActingContextID: "self-a", ActingContextName: "Your own authority",
+		}},
 	} {
 		node, err := ui.RenderToString(ActingAuthorityBanner(props))
 		if err != nil {

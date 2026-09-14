@@ -5,6 +5,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // PromotionProposalTransformRef is the transform reference the promotion
@@ -24,7 +25,9 @@ type PromotionTransforms struct {
 }
 
 // Transform implements TransformPort.
-func (t PromotionTransforms) Transform(ctx context.Context, req TransformRequest) (TransformResult, error) {
+func (t PromotionTransforms) Transform(ctx context.Context, req TransformRequest) (ret0 TransformResult, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.simulate.transform", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if t.Env == nil {
 		return TransformResult{}, refuse(CodeInvalidOptions, req.NodeID, "no environment is bound")
 	}

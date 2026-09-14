@@ -184,6 +184,18 @@ func (e *fakeConformanceEngine) Decide(ctx context.Context, intentID string, _ w
 	return e.Inspect(ctx, intentID)
 }
 
+func (e *fakeConformanceEngine) EditProposal(context.Context, string, uint64, string, string, workspace.EditProposalInput) (workspace.JourneySummary, string, error) {
+	return workspace.JourneySummary{}, "", nil
+}
+
+func (e *fakeConformanceEngine) PreviewIntervention(context.Context, string, workspace.JourneyInterventionKind) (workspace.JourneyInterventionPreview, error) {
+	return workspace.JourneyInterventionPreview{}, nil
+}
+
+func (e *fakeConformanceEngine) RequestIntervention(context.Context, string, workspace.JourneyInterventionRequest) (workspace.JourneyInterventionResult, error) {
+	return workspace.JourneyInterventionResult{}, nil
+}
+
 func (e *fakeConformanceEngine) ListWorkers(context.Context) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	return nil, workspace.WorkforceOptions{}, nil
 }

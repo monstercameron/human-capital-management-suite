@@ -1,4 +1,5 @@
-// Package workflow exposes the read-only workflow inspection surface.
+// Package workflow exposes the workflow inspection surface and the governed
+// operator controls (EP-WF-002).
 package workflow
 
 import (
@@ -21,6 +22,7 @@ import (
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -105,6 +107,11 @@ type Dependencies struct {
 	Instances Reader
 	Authorize func(*trust.Principal, string) bool
 	CursorKey []byte
+	// Control runs governed Pause/Resume/Cancel/RetryNode controls. Nil (or a
+	// nil TenantIDs) refuses every control with FAILED_PRECONDITION and
+	// performs no transition.
+	Control   ControlHandler
+	TenantIDs workflowcontrol.TenantIDs
 }
 
 type server struct {
@@ -142,6 +149,7 @@ func NewHandler(deps Dependencies, opts ...connect.HandlerOption) http.Handler {
 		}
 		return connect.NewResponse(res), nil
 	}, opts...))
+	registerControlHandlers(mux, s, opts...)
 	return mux
 }
 

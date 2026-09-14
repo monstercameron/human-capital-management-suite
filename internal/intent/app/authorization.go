@@ -78,6 +78,13 @@ type authorizationRequest struct {
 	// partial denial is passed through and reported per field; a total denial
 	// refuses.
 	Read []authz.FieldID
+	// Relationships are trusted, source-attributed facts that scope this
+	// principal to the subject. Most reads leave this empty and therefore rely
+	// on the caller's own administrative or self scope. A workflow approval may
+	// supply the exact durable assignment fact that authorizes its current
+	// owner to review that one proposal; it never widens population access.
+	// Manager-chain facts are also supplied for worker reads.
+	Relationships []authz.RelationshipFact
 }
 
 // authorizationResult is the evaluated decision plus the projections the
@@ -110,7 +117,8 @@ func authorizeRead(principal *trust.Principal, purpose string, req authorization
 		// PrincipalOrg is authz's documented single-company default, which
 		// resolves the tenant boundary as the whole of the authority rather
 		// than guessing an org closure the cell cannot read.
-		Fields: fields,
+		Fields:        fields,
+		Relationships: req.Relationships,
 	})
 	if err != nil {
 		return authorizationResult{}, fmt.Errorf("app: evaluate the bootstrap authorization policy: %w", err)

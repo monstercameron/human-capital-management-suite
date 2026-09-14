@@ -159,7 +159,7 @@ func TestJourneyCreatedWorkerCompletesTheWholePromotion(t *testing.T) {
 	if executed.Summary.Stage != workspace.JourneyStageAwaitingApproval {
 		t.Fatalf("stage = %s, want AWAITING_APPROVAL", executed.Summary.Stage)
 	}
-	decided, err := h.engine.Decide(ctx, proposed.IntentID, workspace.Decision{
+	decided, err := h.engine.Decide(h.approverCtx(t), proposed.IntentID, workspace.Decision{
 		Approve: true, Reason: "promotion_approved_for_created_worker",
 	})
 	if err != nil {

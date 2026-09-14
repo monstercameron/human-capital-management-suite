@@ -86,9 +86,11 @@ func ThemeTokens() []ThemeToken {
 // unvalidated string can be inserted after resolution.
 type Theme struct{ values map[string]string }
 
-// ResolveTheme applies one BrandPack layer over platform defaults. Storage,
-// publication, inheritance, and effective dating remain outside this package;
-// this function is the safe rendering boundary they ultimately call.
+// ResolveTheme is the production customer-theme admission boundary. It applies
+// one BrandPack layer over platform defaults and qualifies both the light
+// values and the effective dark-mode values before returning a renderable
+// theme. Storage, publication, inheritance, and effective dating remain
+// outside this package; callers must not render an unadmitted map directly.
 func ResolveTheme(overrides map[string]string) (Theme, error) {
 	values := make(map[string]string, len(registeredThemeTokens))
 	definitions := make(map[string]ThemeToken, len(registeredThemeTokens))
@@ -120,10 +122,19 @@ func ResolveTheme(overrides map[string]string) (Theme, error) {
 		values[name] = value
 	}
 	if len(failures) == 0 {
-		failures = append(failures, validateThemeContrast(values)...)
+		for _, failure := range validateThemeContrast(values) {
+			failures = append(failures, fmt.Errorf("light theme qualification: %w", failure))
+		}
+	}
+	if len(failures) == 0 {
+		for _, failure := range validateThemeContrast(darkThemeValues(values)) {
+			failures = append(failures, fmt.Errorf("dark theme qualification: %w", failure))
+		}
 	}
 	if err := errors.Join(failures...); err != nil {
-		return Theme{}, err
+		// Keep the rejection actionable for a customer-theme editor while
+		// retaining the per-token/pair reason for preview and diagnostics.
+		return Theme{}, fmt.Errorf("customer theme admission rejected: %w", err)
 	}
 	return Theme{values: values}, nil
 }

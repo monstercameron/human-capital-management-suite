@@ -69,6 +69,18 @@ func (e *streamEngine) Decide(ctx context.Context, id string, _ workspace.Decisi
 	return e.Inspect(ctx, id)
 }
 
+func (e *streamEngine) EditProposal(context.Context, string, uint64, string, string, workspace.EditProposalInput) (workspace.JourneySummary, string, error) {
+	return workspace.JourneySummary{}, "", nil
+}
+
+func (e *streamEngine) PreviewIntervention(context.Context, string, workspace.JourneyInterventionKind) (workspace.JourneyInterventionPreview, error) {
+	return workspace.JourneyInterventionPreview{}, nil
+}
+
+func (e *streamEngine) RequestIntervention(context.Context, string, workspace.JourneyInterventionRequest) (workspace.JourneyInterventionResult, error) {
+	return workspace.JourneyInterventionResult{}, nil
+}
+
 func (e *streamEngine) ListWorkers(context.Context) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	return nil, workspace.WorkforceOptions{}, nil
 }

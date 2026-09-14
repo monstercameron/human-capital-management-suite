@@ -194,11 +194,21 @@ func journeyOperatorRoles() []string {
 
 // issue mints a credential carrying exactly the named roles.
 func (h *journeyHarness) issue(t *testing.T, roles ...string) string {
+	return h.issueFor(t, testSubject, roles...)
+}
+
+func (h *journeyHarness) issueFor(t *testing.T, subject string, roles ...string) string {
+	t.Helper()
+	return h.issueAs(t, subject, roles...)
+}
+
+// issueAs mints a credential for subject carrying exactly the named roles.
+func (h *journeyHarness) issueAs(t *testing.T, subject string, roles ...string) string {
 	t.Helper()
 	token, err := h.verifier.Issue(trust.Claims{
 		Issuer:               testIssuer,
 		Audience:             testAudience,
-		Subject:              testSubject,
+		Subject:              subject,
 		SubjectKind:          "human",
 		Tenant:               testTenant,
 		OrganizationScopeID:  testOrgScope,
@@ -222,12 +232,33 @@ func (h *journeyHarness) issue(t *testing.T, roles ...string) string {
 // principal the transport would have put in the context, verified through the
 // same verifier the served cell was composed with.
 func (h *journeyHarness) ctx(t *testing.T, roles ...string) context.Context {
+	return h.ctxAs(t, testSubject, roles...)
+}
+
+func (h *journeyHarness) ctxAs(t *testing.T, subject string, roles ...string) context.Context {
 	t.Helper()
 	principal, err := h.verifier.Verify(context.Background(), trust.Credential{
-		Scheme: "Bearer", Token: h.issue(t, roles...), Audience: testAudience,
+		Scheme: "Bearer", Token: h.issueFor(t, subject, roles...), Audience: testAudience,
 	})
 	if err != nil {
 		t.Fatalf("verify journey credential: %v", err)
+	}
+	return trust.WithPrincipal(context.Background(), principal)
+}
+
+// approverCtx is the principal the approval WorkItem is routed to. PROMOUX-015
+// refuses a decision by the journey's initiator, so every test that decides
+// does so as the routed approver rather than as the operator who proposed and
+// executed. It holds no execution role -- membership of the routed item, not
+// that role, is a decision's authority -- only the read role that lets it
+// re-simulate the proposal it decides.
+func (h *journeyHarness) approverCtx(t *testing.T) context.Context {
+	t.Helper()
+	principal, err := h.verifier.Verify(context.Background(), trust.Credential{
+		Scheme: "Bearer", Token: h.issueAs(t, journeyApprover, testRole), Audience: testAudience,
+	})
+	if err != nil {
+		t.Fatalf("verify routed approver credential: %v", err)
 	}
 	return trust.WithPrincipal(context.Background(), principal)
 }
@@ -242,13 +273,15 @@ func (h *journeyHarness) operatorCtx(t *testing.T) context.Context {
 // base, the effective date and the reason. Everything else the engine reads.
 func journeyProposal() workspace.ProposalInput {
 	return workspace.ProposalInput{
-		WorkerRef:        "omar-reyes",
-		TargetJobCode:    "OPS-HRBP3",
-		TargetGrade:      "P3",
-		TargetPositionID: "POS-HRBP-301",
-		ProposedBase:     "98000.00",
-		EffectiveDate:    "2026-06-01",
-		BusinessReason:   "promotion_into_senior_hrbp",
+		WorkerRef:     "omar-reyes",
+		TargetJobCode: "OPS-HRBP3",
+		TargetGrade:   "P3",
+		// No TargetPositionID: PROMOUX-004 refuses any position reference no
+		// picker issued, and POS-HRBP-301 is not a corpus position at all
+		// (see internal/platform/sandbox's promotionInput).
+		ProposedBase:   "98000.00",
+		EffectiveDate:  "2026-06-01",
+		BusinessReason: "promotion_into_senior_hrbp",
 	}
 }
 
@@ -309,8 +342,7 @@ func TestJourneyProposeListsThePromotionAtProposed(t *testing.T) {
 	if found.Current.JobCode != "OPS-HRBP2" || found.Current.Grade != "P2" {
 		t.Errorf("current placement = %+v, want the governed read's own OPS-HRBP2/P2", found.Current)
 	}
-	if found.Target.JobCode != "OPS-HRBP3" || found.Target.Grade != "P3" ||
-		found.Target.PositionID != "POS-HRBP-301" {
+	if found.Target.JobCode != "OPS-HRBP3" || found.Target.Grade != "P3" || found.Target.PositionID != "" {
 		t.Errorf("target placement = %+v, want the form's own target", found.Target)
 	}
 	if found.Current.OrgUnit != "people-ops" || found.Current.PayZone != "US-EAST" {
@@ -368,8 +400,8 @@ func TestJourneyExecuteParksAtTheRoutedApproval(t *testing.T) {
 	if detail.Instance.PlanDigest == "" || detail.Instance.InstanceVersion == 0 {
 		t.Errorf("instance = %+v, want a pinned plan digest and a version", detail.Instance)
 	}
-	if detail.Approver != journeyApprover {
-		t.Errorf("approver = %q, want %q", detail.Approver, journeyApprover)
+	if detail.Approver != "Assigned reviewer" {
+		t.Errorf("approver = %q, want the protected reviewer label", detail.Approver)
 	}
 	if len(detail.WorkItems) != 1 {
 		t.Fatalf("work items = %d, want exactly one", len(detail.WorkItems))
@@ -462,7 +494,7 @@ func TestJourneyDecideApproveCompletesWithOneGovernedWrite(t *testing.T) {
 	if _, err := h.engine.Execute(ctx, proposed.IntentID); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	detail, err := h.engine.Decide(ctx, proposed.IntentID, workspace.Decision{
+	detail, err := h.engine.Decide(h.approverCtx(t), proposed.IntentID, workspace.Decision{
 		Approve: true, Reason: "reason.promotion_supported/v1",
 	})
 	if err != nil {
@@ -509,8 +541,8 @@ func TestJourneyDecideApproveCompletesWithOneGovernedWrite(t *testing.T) {
 	}
 
 	// The approval work item is COMPLETED, claimed and decided by the routed
-	// approver - never by the signed-in principal, who is recorded as the
-	// actor of every transition and nothing more.
+	// approver who signed in to decide it - never by the operator who proposed
+	// and executed the journey.
 	if len(detail.WorkItems) != 1 {
 		t.Fatalf("work items = %d, want exactly one", len(detail.WorkItems))
 	}
@@ -519,11 +551,11 @@ func TestJourneyDecideApproveCompletesWithOneGovernedWrite(t *testing.T) {
 		t.Fatalf("approval item status = %s, want COMPLETED", item.Status)
 	}
 	if journeyApprover == testSubject {
-		t.Fatal("the fixture approver and the signed-in subject must differ for this assertion to mean anything")
+		t.Fatal("the fixture approver and the initiating subject must differ for this assertion to mean anything")
 	}
 	// workitem.Store.Complete releases the claim as it completes the item, so
 	// the completed row carries no claimant; what must never appear there is
-	// the signed-in principal.
+	// the initiating operator.
 	if item.ClaimedBy != "" && item.ClaimedBy != journeyApprover {
 		t.Errorf("claimed by %q, want the routed approver %q or a released claim", item.ClaimedBy, journeyApprover)
 	}
@@ -544,16 +576,18 @@ func TestJourneyDecideApproveCompletesWithOneGovernedWrite(t *testing.T) {
 	}
 	// The routing transitions (CREATED, ROUTED, ASSIGNED) are the work-item
 	// factory's, made when Execute parked the instance; only the journey's
-	// own claim, start and decision name the person who pressed the button.
+	// own claim, start and decision name the person who pressed the button --
+	// under PROMOUX-015 the routed approver who decided, never the operator
+	// (testSubject) who proposed and executed.
 	decided := false
 	for _, tr := range detail.Transitions {
-		if strings.HasPrefix(tr.Reason, "journey.") && tr.Actor != testSubject {
-			t.Errorf("transition %s -> %s (%s) names actor %q, want the signed-in principal %q",
-				tr.From, tr.To, tr.Reason, tr.Actor, testSubject)
+		if strings.HasPrefix(tr.Reason, "journey.") && tr.Actor != journeyApprover {
+			t.Errorf("transition %s -> %s (%s) names actor %q, want the deciding approver %q",
+				tr.From, tr.To, tr.Reason, tr.Actor, journeyApprover)
 		}
-		if !strings.HasPrefix(tr.Reason, "journey.") && tr.Actor == testSubject {
-			t.Errorf("routing transition %s -> %s (%s) names the signed-in principal; the factory must own it",
-				tr.From, tr.To, tr.Reason)
+		if tr.Actor == testSubject {
+			t.Errorf("transition %s -> %s (%s) names the initiator %q; neither routing nor the decision is theirs",
+				tr.From, tr.To, tr.Reason, testSubject)
 		}
 		if tr.To == string(workitem.StatusCompleted) {
 			decided = true
@@ -684,7 +718,7 @@ func TestJourneyDecideRejectReachesTheRejectedTerminal(t *testing.T) {
 	if _, err := h.engine.Execute(ctx, approvedJourney.IntentID); err != nil {
 		t.Fatalf("Execute(first): %v", err)
 	}
-	approvedDetail, err := h.engine.Decide(ctx, approvedJourney.IntentID, workspace.Decision{
+	approvedDetail, err := h.engine.Decide(h.approverCtx(t), approvedJourney.IntentID, workspace.Decision{
 		Approve: true, Reason: "reason.promotion_supported/v1",
 	})
 	if err != nil {
@@ -711,7 +745,7 @@ func TestJourneyDecideRejectReachesTheRejectedTerminal(t *testing.T) {
 	if _, err := h.engine.Execute(ctx, rejectedJourney.IntentID); err != nil {
 		t.Fatalf("Execute(second): %v", err)
 	}
-	detail, err := h.engine.Decide(ctx, rejectedJourney.IntentID, workspace.Decision{
+	detail, err := h.engine.Decide(h.approverCtx(t), rejectedJourney.IntentID, workspace.Decision{
 		Approve: false, Reason: "reason.not_supported/v1",
 	})
 	if err != nil {
@@ -781,18 +815,19 @@ func TestJourneyDecideTwiceIsAStageRefusal(t *testing.T) {
 	if _, err := h.engine.Execute(ctx, proposed.IntentID); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	first, err := h.engine.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "yes"})
+	approver := h.approverCtx(t)
+	first, err := h.engine.Decide(approver, proposed.IntentID, workspace.Decision{Approve: true, Reason: "yes"})
 	if err != nil {
 		t.Fatalf("Decide: %v", err)
 	}
-	replay, err := h.engine.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "yes"})
+	replay, err := h.engine.Decide(approver, proposed.IntentID, workspace.Decision{Approve: true, Reason: "yes"})
 	if err != nil {
 		t.Fatalf("identical second Decide = %v, want the idempotent replay of the stored decision", err)
 	}
 	if replay.Summary.Stage != first.Summary.Stage {
 		t.Fatalf("replayed Decide moved the journey from %s to %s", first.Summary.Stage, replay.Summary.Stage)
 	}
-	if _, err := h.engine.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: false, Reason: "changed my mind"}); err == nil {
+	if _, err := h.engine.Decide(approver, proposed.IntentID, workspace.Decision{Approve: false, Reason: "changed my mind"}); err == nil {
 		t.Fatal("a contradicting decision on a closed approval must be refused")
 	}
 }

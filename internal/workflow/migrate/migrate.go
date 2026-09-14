@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/runtimestate"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/migrationpreview"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -180,7 +181,9 @@ func latestExecution(rows []runtime.NodeExecution, nodeID string) (runtime.NodeE
 // evidence. The instance is left PAUSED on the new version: a caller resumes
 // it separately through [runtime.ResumeFromPause] with the target plan once
 // it is satisfied the migration committed.
-func Migrate(ctx context.Context, tx Executor, req Request) (Receipt, error) {
+func Migrate(ctx context.Context, tx Executor, req Request) (ret0 Receipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.migrate", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return Receipt{}, err
 	}

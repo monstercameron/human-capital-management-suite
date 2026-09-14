@@ -21,6 +21,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
@@ -240,7 +241,9 @@ func (r *Runner) HandlesNode(nodeID string) bool {
 // Run dispatches one READY promotion node. It never schedules a successor,
 // creates human work or creates a timer; those are derived by execute.Driver
 // and runtime.Advance from the pinned compiled plan.
-func (r *Runner) Run(ctx context.Context, req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
+func (r *Runner) Run(ctx context.Context, req execute.StepRequest) (ret0 frontier.NodeOutcome, ret1 runtime.GovernanceRefs, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.promotion_steps.run", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0, ret1) }()
 	if !r.HandlesNode(req.Node.ID) {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("promotionsteps: unsupported node %q", req.Node.ID)
 	}
@@ -588,7 +591,9 @@ type RulesThresholdPort struct {
 var _ ThresholdPort = RulesThresholdPort{}
 
 // RaiseThreshold evaluates the published promotion threshold table.
-func (p RulesThresholdPort) RaiseThreshold(ctx context.Context, req execute.StepRequest) (ThresholdResult, error) {
+func (p RulesThresholdPort) RaiseThreshold(ctx context.Context, req execute.StepRequest) (ret0 ThresholdResult, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.promotion_steps.raise_threshold", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if p.Inputs == nil {
 		return ThresholdResult{}, errors.New("promotionsteps: RULE-003 input resolver is not configured")
 	}

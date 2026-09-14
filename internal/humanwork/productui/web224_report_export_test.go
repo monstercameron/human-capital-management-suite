@@ -23,7 +23,7 @@ func TestTodo_WEB_224(t *testing.T) {
 	if !ok {
 		t.Fatal("governed report export unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("governed report export incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_224_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "2571cbde055ecebf2a1a5c71ea358e3d3478ec75bc33f641f7a10409e6de0882"
+	const want = "335b0ffcb57cd83521f50d0db41f60df84404b074fb4ccaf4eae409de3650da5"
 	if got != want {
 		t.Fatalf("governed report export digest = %s, want %s", got, want)
 	}

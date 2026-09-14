@@ -15,6 +15,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/conflict"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -181,6 +182,11 @@ type StartRequest struct {
 	// JoinDeclarations is passed through to [frontier.Seed] unchanged. It is
 	// empty for every plan this phase compiles, none of which declare a JOIN.
 	JoinDeclarations []frontier.JoinDeclaration
+
+	// Workload, when non-nil, is WF-RUN-021's admission gate: the start is
+	// refused OVERLOADED or ADMISSION_DEFERRED before any row is written when
+	// its demand exceeds the resolved limits.
+	Workload *WorkloadGate
 
 	CreatedAt time.Time
 }
@@ -420,7 +426,9 @@ func newStartReceipt(inst Instance, cv version.CompiledVersion, replay bool, app
 // idempotency key, same bound digests) returns the original instance and its
 // initial READY frontier without writing anything a second time; a retry
 // under the same key with any bound digest changed is [CodeStartConflict].
-func Start(ctx context.Context, tx Executor, req StartRequest) (StartReceipt, error) {
+func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.start", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return StartReceipt{}, err
 	}
@@ -483,6 +491,10 @@ func Start(ctx context.Context, tx Executor, req StartRequest) (StartReceipt, er
 	}
 	inst.BusinessSubjectRefs = append([]string(nil), req.BusinessSubjectRefs...)
 	inst.BusinessTransactionID = req.BusinessTransactionID
+
+	if err := admitWorkload(ctx, tx, req, sel.Plan, sel.WorkflowID, instanceID); err != nil {
+		return StartReceipt{}, err
+	}
 
 	store := Store{}
 	stored, created, err := insertInstanceIfAbsent(ctx, tx, inst)

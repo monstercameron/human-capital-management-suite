@@ -126,23 +126,40 @@ func LoadSnapshot(root string) (Snapshot, []string, error) {
 		snap.OpenGaps[feature.BoundIntentID] = append(snap.OpenGaps[feature.BoundIntentID], feature.FeatureID)
 	}
 
-	snap.TestExists = make(map[string]bool)
-	for _, sub := range []string{"tools", "internal", "cmd", "gen"} {
+	snap.TestExists, err = scanTestNames(root)
+	if err != nil {
+		return Snapshot{}, nil, err
+	}
+	return snap, accepted, nil
+}
+
+// testSourceRoots are the Go source roots scanned for executable test
+// names. test/ holds the acceptance, bootstrap, tunnel and workflow suites
+// that ticked evidence cites; omitting it reported those tests as dangling.
+// The bare repository root is not walked because other sessions create and
+// delete build-cache directories directly under it.
+var testSourceRoots = []string{"cmd", "gen", "internal", "test", "tools"}
+
+// scanTestNames returns every executable test, fuzz and benchmark name
+// declared below the present test source roots of root.
+func scanTestNames(root string) (map[string]bool, error) {
+	out := make(map[string]bool)
+	for _, sub := range testSourceRoots {
 		dir := filepath.Join(root, sub)
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
 		} else if err != nil {
-			return Snapshot{}, nil, err
+			return nil, err
 		}
 		names, err := traceability.ScanTestNames(dir)
 		if err != nil {
-			return Snapshot{}, nil, fmt.Errorf("scan executable test names below %s: %w", dir, err)
+			return nil, fmt.Errorf("scan executable test names below %s: %w", dir, err)
 		}
 		for name := range names {
-			snap.TestExists[name] = true
+			out[name] = true
 		}
 	}
-	return snap, accepted, nil
+	return out, nil
 }
 
 // directIntents extracts the exact accepted-intent id tokens from a todo's

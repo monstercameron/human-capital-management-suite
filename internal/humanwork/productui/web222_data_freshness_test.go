@@ -24,7 +24,7 @@ func TestTodo_WEB_222(t *testing.T) {
 	if !ok {
 		t.Fatal("data-freshness presentation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("data-freshness presentation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_222_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "93addcfd347614905c89daed0941af9d0afabe304318a12e32d5549173fb86ed"
+	const want = "66f372deac34eb010527f1048527366024d1367a9cb93972a88fd8f54317f75e"
 	if got != want {
 		t.Fatalf("data-freshness presentation digest = %s, want %s", got, want)
 	}

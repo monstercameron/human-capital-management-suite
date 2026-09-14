@@ -1,8 +1,6 @@
 package productui
 
 import (
-	"strings"
-
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -13,6 +11,14 @@ type BreadcrumbItem struct {
 	Label   string
 	Href    string
 	Current bool
+}
+
+// BreadcrumbTrailProps is the resolved, view-independent trail presentation.
+// Route authorization and localized labels are supplied by the shell adapter.
+type BreadcrumbTrailProps struct {
+	Items     []BreadcrumbItem
+	AriaLabel string
+	Navigate  func(string)
 }
 
 // ResolveBreadcrumbs walks the canonical PageDefinitions ParentNav chain for
@@ -46,8 +52,8 @@ func ResolveBreadcrumbs(view View) []BreadcrumbItem {
 	if view.Page == PagePerson {
 		// An unadmitted record keeps the generic page label: naming the
 		// worker in the chrome would leak what the page withholds.
-		if person, ok := exactPerson(view); ok && strings.TrimSpace(person.Name) != "" && DiscoveryAdmitted(person.ID, view.RecordVerdicts) {
-			current.Label = person.Name
+		if label, ok := resolvedPersonPageLabel(view); ok {
+			current.Label = label
 		}
 	}
 	return append(items, current)
@@ -75,21 +81,27 @@ func Breadcrumbs(view View, items []BreadcrumbItem) ui.Node {
 	if !showBreadcrumbTrail(view, items) {
 		return ui.Text("")
 	}
-	entries := make([]ui.Node, 0, len(items))
-	for index, item := range items {
+	return ui.CreateElement(BreadcrumbTrail, BreadcrumbTrailProps{Items: items, AriaLabel: view.Locale.Text("shell.breadcrumbs"), Navigate: view.Navigate})
+}
+
+// BreadcrumbTrail renders already-admitted items without access to the page
+// projection or registry. It leaves the current item as non-interactive text.
+func BreadcrumbTrail(props BreadcrumbTrailProps) ui.Node {
+	entries := make([]ui.Node, 0, len(props.Items))
+	for index, item := range props.Items {
 		var entry ui.Node
 		if item.Current {
 			entry = html.Span(html.Props{Aria: map[string]string{"current": "page"}}, ui.Text(item.Label))
 		} else {
-			entry = appLink(view, html.Props{}, item.Href, ui.Text(item.Label))
+			entry = softwareLink(props.Navigate, html.Props{}, item.Href, ui.Text(item.Label))
 		}
 		children := []ui.Node{entry}
-		if index < len(items)-1 {
+		if index < len(props.Items)-1 {
 			children = append(children, html.Span(html.Props{Class: "breadcrumb-separator", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text("/")))
 		}
 		entries = append(entries, html.Li(html.Props{}, children...))
 	}
-	return html.Nav(html.Props{Class: "breadcrumbs", Aria: map[string]string{"label": view.Locale.Text("shell.breadcrumbs")}},
+	return html.Nav(html.Props{Class: "breadcrumbs", Aria: map[string]string{"label": props.AriaLabel}},
 		html.Ol(html.Props{}, entries...),
 	)
 }

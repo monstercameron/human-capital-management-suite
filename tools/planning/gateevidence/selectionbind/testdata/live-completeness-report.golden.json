@@ -1,0 +1,125 @@
+{
+  "manifest_digest": "e9d7ffe66f019dc8ea8b4252303cde9dfc6b22cf705a8de5c6a024d1fbcd34dc",
+  "as_of": "2026-09-13",
+  "status": "INCOMPLETE",
+  "manifest_reasons": null,
+  "bindings": [
+    {
+      "todo_id": "PHASE-001",
+      "path": "definitions/planning/gates/phase1-scope-ceiling.yaml",
+      "digest": "2e73dc174fcf32e247adc506a8a4d9c82dc8fb78900aff5566de6cea24f2d1eb",
+      "ready": true,
+      "reasons": null
+    },
+    {
+      "todo_id": "SELECT-001",
+      "path": "definitions/planning/gates/select-001-jurisdiction-profile.yaml",
+      "digest": "fb8dfca360a4ea907de5f5f16b04234deeef32f99578cadf55dede866a54a9e1",
+      "ready": false,
+      "reasons": [
+        "reviewer.name: missing - a qualified legal owner/reviewer is required; this profile is HUMAN_REVIEW_REQUIRED pending a named reviewer",
+        "review_status \"UNREVIEWED\" is not releasable - the jurisdiction profile is unreviewed"
+      ]
+    },
+    {
+      "todo_id": "SELECT-002",
+      "path": "definitions/planning/gates/select-002-provider-topology.yaml",
+      "digest": "a01c8c9ac1785d299a4990914cbf0bf1ae1a3176b5f2a0d36aab6fd48eeaabc1",
+      "ready": false,
+      "reasons": [
+        "real provider-selection gate: selection_status: a real provider selection gate requires VENDOR_CONFIRMED, got \"PLACEHOLDER_UNVERIFIED\"",
+        "real provider-selection gate: provider.vendor_id: carries the placeholder suffix \"-PLACEHOLDER-UNVERIFIED\" - a real selection gate cannot accept a placeholder-marked vendor identifier",
+        "real provider-selection gate: vendor_confirmation.confirmed_by_contact: missing - a real selection gate requires a named confirming contact",
+        "real provider-selection gate: vendor_confirmation.contract_document_ref: missing - a real selection gate requires a contract document reference",
+        "real provider-selection gate: vendor_confirmation.signed_effective_date: missing - a real selection gate requires a signed effective date"
+      ]
+    },
+    {
+      "todo_id": "CUSTOMER-001",
+      "path": "definitions/planning/gates/customer-001-pilot-blueprint.yaml",
+      "digest": "ccd25eb7bf6455e9946bbced47b4be7979d6f4f0bcfdbbfca7ae9f410ac57f17",
+      "ready": false,
+      "reasons": [
+        "Instantiate reports BLOCKED (10 of 10 workstreams not READY)",
+        "BLOCKED: customer input missing: no design partner has been selected anywhere in this repository (WEDGE-001 selected a problem, not a partner)",
+        "BLOCKED: provider input missing: selection_status: a real provider selection gate requires VENDOR_CONFIRMED, got \"PLACEHOLDER_UNVERIFIED\"",
+        "BLOCKED: provider input missing: provider.vendor_id: carries the placeholder suffix \"-PLACEHOLDER-UNVERIFIED\" - a real selection gate cannot accept a placeholder-marked vendor identifier",
+        "BLOCKED: provider input missing: vendor_confirmation.confirmed_by_contact: missing - a real selection gate requires a named confirming contact",
+        "BLOCKED: provider input missing: vendor_confirmation.contract_document_ref: missing - a real selection gate requires a contract document reference",
+        "BLOCKED: provider input missing: vendor_confirmation.signed_effective_date: missing - a real selection gate requires a signed effective date",
+        "BLOCKED: provider/legal input missing: the pinned SELECT-001 jurisdiction profile has no named reviewer (reviewer.name is missing)"
+      ]
+    },
+    {
+      "todo_id": "TOPOLOGY-001",
+      "path": "internal/platform/topology/topology.go",
+      "digest": "b52560e1f59b979ec3ff81c59bef58c8e3a8f6aeaa74fc6aa2e75354269dd29e",
+      "ready": false,
+      "reasons": [
+        "no deployable topology decision artifact is checked in; internal/platform/topology/topology.go pins only the TOPOLOGY-001 contract source, so topology.Compile has no decision to evaluate"
+      ]
+    },
+    {
+      "todo_id": "COMMERCIAL-001",
+      "path": "definitions/planning/gates/commercial-001-pilot-package.yaml",
+      "digest": "0d9c703b602031ae36c40ec84bb69013fc648e6ec55956e8d0a81b648d065ad6",
+      "ready": true,
+      "reasons": null
+    },
+    {
+      "todo_id": "THREAT-001",
+      "path": "definitions/planning/gates/threat-001-register.yaml",
+      "digest": "09fd51d86d607f5372d185af7b7f366613f2299e6e723287ac8f1e0a369b4322",
+      "ready": false,
+      "reasons": [
+        "slices[0].residual_risks[0].accepted_by: missing - no accountable owner has been designated to accept this residual risk",
+        "release blocked: slices[promotion].threats[THR-07]: unmitigated critical threat has no accountable, unexpired residual-risk acceptance - release blocked"
+      ]
+    }
+  ],
+  "slots": [
+    {
+      "slot": "provider",
+      "filling_todo_ids": [
+        "SELECT-002"
+      ],
+      "filled": false,
+      "reasons": [
+        "SELECT-002 has not passed its own gate (5 reason(s))"
+      ]
+    },
+    {
+      "slot": "jurisdiction",
+      "filling_todo_ids": [
+        "SELECT-001"
+      ],
+      "filled": false,
+      "reasons": [
+        "SELECT-001 has not passed its own gate (2 reason(s))"
+      ]
+    },
+    {
+      "slot": "topology",
+      "filling_todo_ids": [
+        "SELECT-002"
+      ],
+      "filled": false,
+      "reasons": [
+        "SELECT-002 has not passed its own gate (5 reason(s))",
+        "TOPOLOGY-001 has not passed its own gate (1 reason(s))"
+      ]
+    },
+    {
+      "slot": "slo",
+      "filling_todo_ids": [
+        "SELECT-002",
+        "COMMERCIAL-001"
+      ],
+      "filled": false,
+      "reasons": [
+        "SELECT-002 has not passed its own gate (5 reason(s))",
+        "COMMERCIAL-001 promises no SLO (evidence.slo_status NONE) - no SLO has been selected"
+      ]
+    }
+  ]
+}

@@ -82,6 +82,18 @@ func (f *fakeJourneyEngine) Decide(ctx context.Context, intentID string, _ works
 	return f.Inspect(ctx, intentID)
 }
 
+func (f *fakeJourneyEngine) EditProposal(context.Context, string, uint64, string, string, workspace.EditProposalInput) (workspace.JourneySummary, string, error) {
+	return workspace.JourneySummary{}, "", nil
+}
+
+func (f *fakeJourneyEngine) PreviewIntervention(context.Context, string, workspace.JourneyInterventionKind) (workspace.JourneyInterventionPreview, error) {
+	return workspace.JourneyInterventionPreview{}, nil
+}
+
+func (f *fakeJourneyEngine) RequestIntervention(context.Context, string, workspace.JourneyInterventionRequest) (workspace.JourneyInterventionResult, error) {
+	return workspace.JourneyInterventionResult{}, nil
+}
+
 func (f *fakeJourneyEngine) ListWorkers(context.Context) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	return nil, workspace.WorkforceOptions{}, nil
 }

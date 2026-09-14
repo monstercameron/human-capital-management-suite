@@ -48,7 +48,7 @@ func TestTodo_PROTO_003(t *testing.T) {
 		// its file-level registration init(), and referencing a type here
 		// keeps that import from reading as unused-for-linting purposes.
 		_ = (&workflowv1.WorkflowInstance{}).ProtoReflect().Descriptor()
-		assertEnumsHaveUnspecifiedZero(t, "hcmnext.workflow.v1", 4)
+		assertEnumsHaveUnspecifiedZero(t, "hcmnext.workflow.v1", 5)
 	})
 
 	t.Run("HumanworkEnumsHaveUnspecifiedZero", func(t *testing.T) {

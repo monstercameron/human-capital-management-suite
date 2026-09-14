@@ -23,7 +23,7 @@ func TestTodo_WEB_230(t *testing.T) {
 	if !ok {
 		t.Fatal("Policy Studio unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("Policy Studio incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_230_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "847d8ff743c9044c1477fdef030c92d3425f95d6fc4fa80285f2a5eb383b85a1"
+	const want = "e27212921cf683b66101b689dd2d706a843c3d93b4fe0f72546b49d58599e013"
 	if got != want {
 		t.Fatalf("Policy Studio digest = %s, want %s", got, want)
 	}

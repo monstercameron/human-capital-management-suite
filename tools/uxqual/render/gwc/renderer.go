@@ -24,6 +24,7 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
+	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/page"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
 )
 
@@ -38,6 +39,7 @@ import (
 // tokens.WorkspaceCSS.
 func Build(c contract.WorkspaceContract) ui.Node {
 	return html.Div(html.Props{Class: "workspace"},
+		html.A(html.Props{Class: "visually-hidden", Href: "#main-content"}, html.Text("Skip to main content")),
 		header(c),
 		nav(),
 		html.Main(html.Props{ID: "main-content"},
@@ -67,7 +69,7 @@ var titleEscaper = strings.NewReplacer(`&`, "&amp;", `<`, "&lt;", `>`, "&gt;")
 // the same way as GWC's own css.CriticalCSS()/StyleBlock(), string
 // concatenation rather than a text ui.Node -- so selectors and attribute
 // values are never HTML-entity-escaped.
-func Stylesheet() string { return tokens.WorkspaceCSS() }
+func Stylesheet() string { return tokens.WorkspaceCSS() + page.LayoutCSS() }
 
 // Document renders the full standalone HTML document (doctype, head with
 // the literal stylesheet, and the component tree) for the given contract:
@@ -128,6 +130,7 @@ func fieldNode(f contract.RequestField) ui.Node {
 	var control ui.Node
 	inputProps := html.Props{ID: f.ID, Name: f.ID, Value: f.Value}
 	if f.Validation.Required {
+		inputProps.Required = true
 		inputProps.Aria = map[string]string{"required": "true"}
 	}
 	if f.Validation.Message != "" {
@@ -224,7 +227,7 @@ func actionsSection(c contract.WorkspaceContract) ui.Node {
 		if a.RequiresReason {
 			formChildren = append(formChildren,
 				html.Label(html.Props{Class: "visually-hidden", For: "reason-" + a.Transition}, html.Text("Reason")),
-				html.Input(html.Props{Type: "text", ID: "reason-" + a.Transition, Name: "reason", Aria: map[string]string{"required": "true"}}),
+				html.Input(html.Props{Type: "text", ID: "reason-" + a.Transition, Name: "reason", Required: true, Aria: map[string]string{"required": "true"}}),
 			)
 		}
 		formChildren = append(formChildren, html.Button(html.Props{Type: "submit", Raw: map[string]any{"data-variant": string(a.Variant)}}, html.Text(a.Label)))

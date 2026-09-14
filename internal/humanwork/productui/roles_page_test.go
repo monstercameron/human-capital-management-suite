@@ -92,7 +92,7 @@ func TestRolesPageComposesCatalogCreationAndEmployeeAssignments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Roles and employee access", "Role catalog", "Create a role", "Priya Patel", "People manager", "Recruiter", `name="role"`, "Save employee roles", "Page and action access", "Insights", "View", "Create", "Update", "Delete"} {
+	for _, want := range []string{`href="#role-catalog"`, `href="#role-assignments"`, "Role catalog", "Create a role", "Priya Patel", "People manager", "Recruiter", `name="role"`, "Save employee roles", "Page and action access", "Insights", "View", "Create", "Update", "Delete"} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("roles page missing %q", want)
 		}
@@ -117,5 +117,41 @@ func TestRolesPageHidesMutatingAffordancesForReadOnlyViewer(t *testing.T) {
 		if strings.Contains(doc, forbidden) {
 			t.Errorf("read-only roles page exposes %q", forbidden)
 		}
+	}
+}
+
+func TestRolesPageUsesScannableAssignmentTable(t *testing.T) {
+	view := testView(PageRoles)
+	view.AccessRoles = []AccessRole{{ID: "manager", Name: "People manager", Active: true}}
+	view.People = []Person{{ID: "worker-1", Name: "Priya Patel", Role: "Engineer", Team: "Product"}}
+	view.RoleAssignments = []WorkerRoleAssignment{{WorkerRef: "worker-1", RoleIDs: []string{"manager"}}}
+	doc, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(doc, `class="employee-role-table`) || !strings.Contains(doc, `scope="col"`) || !strings.Contains(doc, `data-worker-ref="worker-1"`) {
+		t.Fatal("role assignment directory should render as an accessible table")
+	}
+	if !strings.Contains(doc, `class="muted role-page-scroll-hint role-effective-boundary">`+view.Locale.Text("roles.scroll_hint")) {
+		t.Fatal("narrow assignment table must explain how to reach off-screen Save controls")
+	}
+	if strings.Contains(doc, `class="employee-role-editor"><summary`) {
+		t.Fatal("workforce assignment should not use one accordion per employee")
+	}
+}
+
+func TestRoleAssignmentUsesSharedAvatarFallback(t *testing.T) {
+	view := testView(PageRoles)
+	markup, err := ui.RenderToString(ui.CreateElement(WorkerRoleEditor, workerRoleEditorProps{
+		I18n: I18nProps{Locale: view.Locale}, Person: Person{ID: "worker-1", Name: "Priya Patel"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(markup, `class="avatar small"`) || !strings.Contains(markup, ">PP</span>") {
+		t.Fatalf("assignment row did not use the shared initials fallback: %s", markup)
+	}
+	if strings.Contains(markup, ">Priya Patel</span>") {
+		t.Fatal("assignment avatar printed the full name in an initials slot")
 	}
 }

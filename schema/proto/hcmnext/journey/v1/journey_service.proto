@@ -5,6 +5,7 @@ package hcmnext.journey.v1;
 option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1;journeyv1";
 
 import "google/protobuf/timestamp.proto";
+import "hcmnext/common/v1/common.proto";
 
 // JourneyService is the wire form of the Promotion journey engine port
 // (internal/humanwork/workspace.JourneyEngine): one governed promotion
@@ -123,6 +124,59 @@ service JourneyService {
   // is not the routed approver is refused PERMISSION_DENIED by the engine,
   // not by this service.
   rpc DecideJourney(DecideJourneyRequest) returns (DecideJourneyResponse);
+
+  // EditProposal corrects an unstarted or not-yet-approved promotion
+  // proposal (PROMOUX-013). Effect class: governed write through the intent
+  // service - it is workspace.JourneyEngine.EditProposal, which is
+  // [CancelIntent] plus a fresh ProposeJourney, not SupersedeIntent:
+  // promote_worker's own declared lifecycle transitions
+  // (definitions.simulateOnlyChangeTransitions) reach SUPERSEDED only from
+  // SIMULATED, SUBMITTED or APPROVED, and a journey's stored intent never
+  // durably leaves DRAFT (SimulateIntent persists nothing), so
+  // SupersedeIntent is structurally unusable here. EditProposal instead
+  // cancels the original first - the same governed disposition CancelIntent
+  // already reports, safe-point-aware for a mid-flight journey exactly as
+  // RequestJourneyIntervention's CANCEL kind is - and only once that
+  // disposition reports the original genuinely and cleanly stopped
+  // (CANCELLED) does it mint the edited successor through the ordinary
+  // ProposeJourney path. Any other disposition (CANCELLATION_PENDING,
+  // TOO_LATE, REPAIR_REQUIRED) refuses the edit outright rather than minting
+  // a successor next to an original that was not actually stopped. Because
+  // the original carries any recorded approval and the original is what is
+  // durably cancelled, the successor inherits nothing from it, including no
+  // approval - which is how an edit invalidates material approvals. A
+  // caller presenting a stale expected_instance_version, or naming an
+  // already-terminal original, is refused FAILED_PRECONDITION.
+  rpc EditProposal(EditProposalRequest) returns (EditProposalResponse);
+
+  // PreviewJourneyIntervention answers, for one journey and one typed
+  // intervention kind (WITHDRAW or CANCEL), whether the intervention is
+  // available right now, and if not, why - by a stable reason reference
+  // computed only from the journey's own durable stage. Effect class:
+  // READ_ONLY. It mutates nothing and runs no capability; a caller not
+  // authorized to read this journey at all is refused exactly as
+  // InspectJourney would refuse them (NOT_FOUND or PERMISSION_DENIED),
+  // before this method's own logic ever runs - so the presence or shape of
+  // a preview answer never discloses more than InspectJourney already
+  // would.
+  rpc PreviewJourneyIntervention(PreviewJourneyInterventionRequest) returns (PreviewJourneyInterventionResponse);
+
+  // RequestJourneyIntervention runs a typed WITHDRAW (before any approval)
+  // or CANCEL (during an eligible wait) intervention. Effect class:
+  // governed write through the intent service - it is
+  // workspace.JourneyEngine.RequestIntervention, which is [CancelIntent]
+  // scoped to journeys: both kinds are the same governed capability,
+  // reporting the same four dispositions CancelIntent already reports
+  // (CANCELLED, CANCELLATION_PENDING, TOO_LATE, REPAIR_REQUIRED) projected
+  // onto the shared hcmnext.common.v1.InterventionOutcome vocabulary; Kind
+  // only selects which stages [PreviewJourneyIntervention] offers the
+  // action at. A caller who races this call against a concurrent approval,
+  // timer fire or terminal commit is resolved to exactly one durable
+  // outcome by the intent record's own optimistic instance-version
+  // compare-and-swap - the same single serialization point CancelIntent and
+  // SupersedeIntent already use - so no partial domain write is possible: a
+  // losing caller's request never touches durable state at all.
+  rpc RequestJourneyIntervention(RequestJourneyInterventionRequest) returns (RequestJourneyInterventionResponse);
 
   // WatchJourney is a server-streaming change feed over the same read
   // InspectJourney performs. Effect class: READ_ONLY.
@@ -321,6 +375,159 @@ message Journey {
   int64 instance_version = 16;
   google.protobuf.Timestamp created_at = 17;
   google.protobuf.Timestamp updated_at = 18;
+  // governance_version is the underlying intent record's own optimistic-
+  // concurrency version (hcmnext.intents.v1.IntentInstance.instance_version)
+  // -- unrelated to instance_version above, which names the *workflow*
+  // instance once executed. It is required as expected_instance_version on
+  // EditProposal and RequestJourneyIntervention (PROMOUX-013): those two
+  // calls act on the intent record itself, not on the workflow instance.
+  uint64 governance_version = 19;
+  // current_work_item summarizes the journey's one open human work item as
+  // the calling viewer is entitled to see it (UXAUDIT-017). It is unset when
+  // the journey has no open work item, or when the internal/humanwork/workitem
+  // visibility rules do not admit this viewer to that item at all -- never a
+  // partially guessed value.
+  JourneyWorkItemSummary current_work_item = 20;
+  // viewer is the calling viewer's relationship to this journey and the
+  // journey's next transition, resolved by the engine (PROMOUX-012). Every
+  // surface -- My Work, tracked requests, Journeys and the person profile --
+  // reads responsibility, next step and lifecycle closure from here rather
+  // than re-deriving them from stage. It is unset only on a response the
+  // engine did not resolve for a viewer.
+  JourneyViewerProjection viewer = 21;
+}
+
+// JourneyViewerProjection is one journey as it stands for the calling viewer
+// (workspace.JourneyViewerProjection). It discloses nothing about any other
+// principal: relationships name only how the viewer themself stands, so a
+// viewer with no relationship receives the same projection whoever
+// initiated the journey or holds its work item.
+message JourneyViewerProjection {
+  // relationships is how the viewer stands to the journey, sorted and
+  // unique. Empty means the viewer has no relationship beyond visibility.
+  repeated JourneyViewerRelationship relationships = 1;
+  // responsibility is what the journey asks of the viewer right now.
+  JourneyViewerResponsibility responsibility = 2;
+  // next_step is the journey's single next transition, unset when the
+  // journey is closed or its stage is unknown.
+  JourneyNextStep next_step = 3;
+  // next_step_owner is the role class that holds next_step.
+  JourneyStepOwner next_step_owner = 4;
+  // awaits_person is true when a person rather than the workflow or the
+  // calendar holds next_step. A journey whose next step no person holds is
+  // a passive wait.
+  bool awaits_person = 5;
+  // closed is true when the journey reached a terminal stage (COMPLETED,
+  // REJECTED, FAILED or RECORDED) and will not move again.
+  bool closed = 6;
+}
+
+// JourneyViewerRelationship is one way the calling viewer stands to a
+// journey. There is no follower relationship: nothing records followers.
+enum JourneyViewerRelationship {
+  // JOURNEY_VIEWER_RELATIONSHIP_UNSPECIFIED is the proto3 zero value and is
+  // never reported.
+  JOURNEY_VIEWER_RELATIONSHIP_UNSPECIFIED = 0;
+  // JOURNEY_VIEWER_RELATIONSHIP_INITIATOR: the viewer is the principal the
+  // intent records as its initiator.
+  JOURNEY_VIEWER_RELATIONSHIP_INITIATOR = 1;
+  // JOURNEY_VIEWER_RELATIONSHIP_ASSIGNEE: the viewer holds the current work
+  // item (routed assignee or claimant).
+  JOURNEY_VIEWER_RELATIONSHIP_ASSIGNEE = 2;
+  // JOURNEY_VIEWER_RELATIONSHIP_CANDIDATE: the viewer may claim the current
+  // work item.
+  JOURNEY_VIEWER_RELATIONSHIP_CANDIDATE = 3;
+}
+
+// JourneyViewerResponsibility is what a journey asks of the calling viewer.
+enum JourneyViewerResponsibility {
+  // JOURNEY_VIEWER_RESPONSIBILITY_UNSPECIFIED means the engine did not
+  // resolve a responsibility; clients treat it as nothing to act on.
+  JOURNEY_VIEWER_RESPONSIBILITY_UNSPECIFIED = 0;
+  // JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED: the viewer holds or may
+  // claim the current work item, or initiated the journey and its next step
+  // is the proposer's.
+  JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED = 1;
+  // JOURNEY_VIEWER_RESPONSIBILITY_TRACKING: the viewer initiated the journey
+  // and its next step belongs to someone else or to the workflow.
+  JOURNEY_VIEWER_RESPONSIBILITY_TRACKING = 2;
+  // JOURNEY_VIEWER_RESPONSIBILITY_OBSERVING: the journey is open and visible
+  // to the viewer, who has no relationship to it.
+  JOURNEY_VIEWER_RESPONSIBILITY_OBSERVING = 3;
+  // JOURNEY_VIEWER_RESPONSIBILITY_CLOSED: the journey is closed.
+  JOURNEY_VIEWER_RESPONSIBILITY_CLOSED = 4;
+}
+
+// JourneyNextStep is the closed vocabulary of a journey's next transition.
+enum JourneyNextStep {
+  // JOURNEY_NEXT_STEP_UNSPECIFIED: no next step (closed or unknown stage).
+  JOURNEY_NEXT_STEP_UNSPECIFIED = 0;
+  // JOURNEY_NEXT_STEP_START_APPROVAL: the proposal is ready for approval.
+  JOURNEY_NEXT_STEP_START_APPROVAL = 1;
+  // JOURNEY_NEXT_STEP_CORRECT_PROPOSAL: the proposal is blocked and must be
+  // corrected.
+  JOURNEY_NEXT_STEP_CORRECT_PROPOSAL = 2;
+  // JOURNEY_NEXT_STEP_APPROVAL_DECISION: an approval decision.
+  JOURNEY_NEXT_STEP_APPROVAL_DECISION = 3;
+  // JOURNEY_NEXT_STEP_MANAGER_DECISION: the manager's approval decision.
+  JOURNEY_NEXT_STEP_MANAGER_DECISION = 4;
+  // JOURNEY_NEXT_STEP_FINANCE_DECISION: finance's approval decision.
+  JOURNEY_NEXT_STEP_FINANCE_DECISION = 5;
+  // JOURNEY_NEXT_STEP_REAPPROVAL_DECISION: an approval decision required
+  // again after a material change.
+  JOURNEY_NEXT_STEP_REAPPROVAL_DECISION = 6;
+  // JOURNEY_NEXT_STEP_REPAIR: governed repair.
+  JOURNEY_NEXT_STEP_REPAIR = 7;
+  // JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE: the workflow waits for the
+  // effective date safe point.
+  JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE = 8;
+  // JOURNEY_NEXT_STEP_SYSTEM_PROCESSING: the workflow is processing.
+  JOURNEY_NEXT_STEP_SYSTEM_PROCESSING = 9;
+}
+
+// JourneyStepOwner is the role class that holds a journey's next step.
+enum JourneyStepOwner {
+  // JOURNEY_STEP_OWNER_UNSPECIFIED: no owner is stated.
+  JOURNEY_STEP_OWNER_UNSPECIFIED = 0;
+  // JOURNEY_STEP_OWNER_PROPOSER: the journey's proposer.
+  JOURNEY_STEP_OWNER_PROPOSER = 1;
+  // JOURNEY_STEP_OWNER_APPROVER: an approver.
+  JOURNEY_STEP_OWNER_APPROVER = 2;
+  // JOURNEY_STEP_OWNER_MANAGER: the manager.
+  JOURNEY_STEP_OWNER_MANAGER = 3;
+  // JOURNEY_STEP_OWNER_FINANCE: finance.
+  JOURNEY_STEP_OWNER_FINANCE = 4;
+  // JOURNEY_STEP_OWNER_SYSTEM: the workflow or the calendar.
+  JOURNEY_STEP_OWNER_SYSTEM = 5;
+}
+
+// JourneyWorkItemSummary is the list-level view of a journey's current open
+// WorkItem, disclosed under the same rules WorkService applies
+// (internal/humanwork/workitem: MembershipOf, Visible, ContextVisible,
+// PermittedActions). It deliberately carries no work item id: raw identifiers
+// on the list are diagnostics-only (PROMOUX-008).
+message JourneyWorkItemSummary {
+  // kind is one of APPROVAL, TASK (workitem.Kind).
+  string kind = 1;
+  // status is the workitem.Status token, e.g. ASSIGNED, AVAILABLE, CLAIMED.
+  string status = 2;
+  // assignee_principal_id is the principal the item is routed to directly.
+  // It is empty when the item is owned by a candidate set, and empty whenever
+  // workitem.ContextVisible does not admit this viewer.
+  string assignee_principal_id = 3;
+  // assignee_display_name is the assignee's worker display name when the
+  // principal id is a stable worker identifier this cell resolves; empty
+  // otherwise. It is never derived from anything but that identity join.
+  string assignee_display_name = 4;
+  // due_at is the item's deadline, unset when it has none.
+  google.protobuf.Timestamp due_at = 5;
+  // viewer_permitted_actions is workitem.PermittedActions for this viewer:
+  // the action tokens ("claim", "release", "complete", "decide_approval")
+  // the viewer could exercise on the item right now, sorted.
+  repeated string viewer_permitted_actions = 6;
+  // viewer_membership is how the viewer stands to the item: one of NONE,
+  // CANDIDATE, ASSIGNEE, CLAIMANT (workitem.Membership).
+  string viewer_membership = 7;
 }
 
 // Finding is one simulation finding, as the artifact reports it
@@ -459,12 +666,28 @@ message JourneyDetail {
   // computed by internal/transport/journey, not by the engine, and is not a
   // governance artifact: the material proposal digest on Journey is.
   string detail_digest = 12;
+  // These are server-authorized, viewer-relative presentation capabilities.
+  // Clients must not infer them from locally held role strings.
+  bool diagnostics_available = 13;
+  bool can_decide = 14;
 }
 
-message ListJourneysRequest {}
+message ListJourneysRequest {
+  hcmnext.common.v1.PageRequest page = 1;
+  string worker_ref = 2;
+  string query = 3;
+  string sort = 4;
+  string direction = 5;
+  int32 page_number = 6;
+  string outcome = 7;
+  string year = 8;
+  bool terminal_only = 9;
+}
 
 message ListJourneysResponse {
   repeated Journey journeys = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+  int32 total_count = 3;
 }
 
 // ProposeJourneyRequest is what the manager fills in
@@ -618,6 +841,96 @@ message DecideJourneyResponse {
   JourneyDetail detail = 1;
 }
 
+// JourneyInterventionKind is the closed set of typed interventions
+// PROMOUX-013 adds beyond Execute and Decide. Both kinds run the same
+// underlying governed capability (CancelIntent); the kind exists so the
+// page can offer the right affordance at the right stage and so the
+// consequence preview can speak to what the caller is actually about to
+// do.
+enum JourneyInterventionKind {
+  JOURNEY_INTERVENTION_KIND_UNSPECIFIED = 0;
+  // JOURNEY_INTERVENTION_KIND_WITHDRAW: stop a proposal before any approval
+  // has been recorded against it.
+  JOURNEY_INTERVENTION_KIND_WITHDRAW = 1;
+  // JOURNEY_INTERVENTION_KIND_CANCEL: request cancellation while the
+  // journey is in an eligible wait (for example, waiting on approval or on
+  // its effective-date safe point).
+  JOURNEY_INTERVENTION_KIND_CANCEL = 2;
+}
+
+// EditProposalRequest carries the corrected fields for an unstarted or
+// not-yet-approved proposal. The worker is not editable here: an edit
+// changes the promotion being proposed, never who it is for.
+message EditProposalRequest {
+  string intent_id = 1;
+  uint64 expected_instance_version = 2;
+  string idempotency_key = 3;
+  // reason is the business reason for the edit and is required: it becomes
+  // the successor intent's own SupersedeIntent reason_ref, retained as
+  // evidence.
+  string reason = 4;
+  Placement target = 5;
+  // proposed_base is a decimal string in the worker's current currency.
+  string proposed_base = 6;
+  // effective_date is ISO-8601 (YYYY-MM-DD).
+  string effective_date = 7;
+  string business_reason = 8;
+}
+
+message EditProposalResponse {
+  // journey is the new successor proposal, at JOURNEY_STAGE_PROPOSED or
+  // JOURNEY_STAGE_BLOCKED.
+  Journey journey = 1;
+  // superseded_intent_id names the original, now at RequestState CANCELLED
+  // (see EditProposal's own doc comment for why CANCELLED, not SUPERSEDED).
+  string superseded_intent_id = 2;
+}
+
+message PreviewJourneyInterventionRequest {
+  string intent_id = 1;
+  JourneyInterventionKind kind = 2;
+}
+
+message PreviewJourneyInterventionResponse {
+  bool available = 1;
+  // unavailable_reason_ref names, by stable reference, why the intervention
+  // is not offered at this stage. It is present whenever available is
+  // false and absent otherwise; its value never varies by anything other
+  // than the journey's own durable stage.
+  string unavailable_reason_ref = 2;
+  // consequence_summary is a server-composed, human-readable explanation of
+  // what confirming this intervention right now would do. Empty when
+  // available is false.
+  string consequence_summary = 3;
+  // likely_outcome is the outcome this intervention would most likely
+  // resolve to if confirmed right now. It is advisory: the actual call to
+  // RequestJourneyIntervention re-evaluates durable state at that instant
+  // and may resolve differently if the journey's state changed in between.
+  hcmnext.common.v1.InterventionOutcome likely_outcome = 4;
+  // current_governance_version is the journey's current
+  // Journey.governance_version, present whenever available is true, so a
+  // client can confirm the intervention with RequestJourneyIntervention
+  // without a second read.
+  uint64 current_governance_version = 5;
+}
+
+message RequestJourneyInterventionRequest {
+  string intent_id = 1;
+  JourneyInterventionKind kind = 2;
+  uint64 expected_instance_version = 3;
+  string idempotency_key = 4;
+  string reason = 5;
+}
+
+message RequestJourneyInterventionResponse {
+  Journey journey = 1;
+  hcmnext.common.v1.InterventionOutcome outcome = 2;
+  // retained_evidence_ref names the durable evidence record this
+  // intervention retained (the same id CancelIntentResponse's own
+  // CancellationDecision carries).
+  string retained_evidence_ref = 3;
+}
+
 message WatchJourneyRequest {
   string intent_id = 1;
   // since_digest is the JourneyDetail.detail_digest the client already
@@ -721,6 +1034,12 @@ message Worker {
   // job_title is the human-readable title; job_code remains the governed
   // classification used by workflows and compensation rules.
   string job_title = 20;
+  // Authoritative compensation revision a canonical promotion proposal must
+  // bind through expected_subject_revision.
+  string subject_revision = 21;
+  // Authorization-safe reporting relationship used by organization views.
+  // It is always present in ListWorkers responses; UNSPECIFIED fails closed.
+  ManagerRelationshipProjection manager_relationship = 22;
 }
 
 // WorkforceOptions is the closed set of placements a created worker may be
@@ -860,6 +1179,12 @@ message CustomerTheme {
   string typeface = 10;
   string navigation = 11;
   string motion = 12;
+  // Validated semantic token values for an authored organization theme.
+  // This is data, never a CSS declaration or selector supplied by a client.
+  map<string, string> token_overrides = 13;
+  // Optional separately admitted dark-mode colors; omitted values inherit
+  // the platform's qualified dark derivation from the light palette.
+  map<string, string> dark_token_overrides = 14;
 }
 
 message GetProductPreferencesRequest {}
@@ -953,4 +1278,30 @@ message SaveWorkerIDPolicyRequest { WorkerIDPolicy policy = 1; }
 message SaveWorkerIDPolicyResponse {
   WorkerIDPolicy policy = 1;
   repeated string previews = 2;
+}
+
+// ManagerRelationshipProjection is the authorization-safe reporting edge for
+// one returned worker. The raw relationship reference is not an endpoint: the
+// service resolves it before disclosure and only returns a manager worker
+// reference when that endpoint is also visible to the caller.
+message ManagerRelationshipProjection {
+  enum Disposition {
+    // UNSPECIFIED is fail-closed and must never be interpreted as a root.
+    DISPOSITION_UNSPECIFIED = 0;
+    // ROOT means the authoritative worker projection has no direct manager.
+    DISPOSITION_ROOT = 1;
+    // VISIBLE means manager_worker_ref names another returned worker.
+    DISPOSITION_VISIBLE = 2;
+    // WITHHELD says a manager exists but the endpoint is outside the caller's
+    // authorized population. No relationship or worker reference is exposed.
+    DISPOSITION_WITHHELD = 3;
+    // ORPHAN says the authorized relationship cannot be attached to a worker
+    // in this directory, including an external governance endpoint.
+    DISPOSITION_ORPHAN = 4;
+  }
+
+  Disposition disposition = 1;
+  // Set exactly when disposition is VISIBLE. It is a worker_ref, never the
+  // relationship identifier carried by Worker's legacy manager_ref field.
+  string manager_worker_ref = 2;
 }

@@ -148,6 +148,11 @@ func TestAllEightP1AIntentsSimulateOverBothTransportsWithZeroEffects(t *testing.
 		for _, surface := range []string{"grpc", "edge"} {
 			t.Run(tc.name+"/"+surface, func(t *testing.T) {
 				key := tc.name + "-" + surface
+				if tc.typeID == promotion.IntentType {
+					// Both transports simulate the same active promotion. A
+					// second material request for Omar would rightly conflict.
+					key = tc.name + "-transport-parity"
+				}
 				req := tc.newRequest(t, c, key, transactionRef)
 
 				var (

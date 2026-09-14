@@ -79,6 +79,7 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(doc))
 	got := hex.EncodeToString(digest[:])
+
 	// Closed launcher omits active-option references and does not claim modality.
 	// UXAUDIT-007 removed the page-identity header's unconditional
 	// "Acting as yourself" span; re-pinned for the same reason as
@@ -91,7 +92,20 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// (no PersonWorkflows/People) makes the launcher label itself "Go to"
 	// rather than "Start an action". Verified against the rendered
 	// markup before re-pinning.
-	const want = "2c2596a188367cc642e272ba34dd40af3cf88b0bb26ba0365bb7c3778b6918a8"
+	// UIPOLISH-004 re-pins again for the same reason as
+	// TestTodo_WEB_037_Golden's latest pin: ".main-scroll", ".primary-nav"
+	// and ".sidebar" now render through the shared ScrollRegion component
+	// (each gains tabIndex="0", ".primary-nav" also gains
+	// id="primary-nav") and the inlined stylesheet gains ScrollRegion's
+	// shared rules plus ".main-scroll"'s scrollbar tokens.
+	// PROMOUX-012 re-pins: the notification summary now counts only work
+	// the viewer must act on and says so ("N promotion items need your
+	// action.") instead of "N promotion journeys are visible in this
+	// scope.", and the My Work subtitle no longer says every journey needs
+	// attention. Verified before re-pinning by substituting exactly those
+	// two old strings back into the new document, which reproduced the
+	// previous digest byte for byte.
+	const want = "76dbf1730f0cce2b9cfeeb09953d1f66b0b8aafaee7eddc204337ca66380bae7"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

@@ -172,6 +172,8 @@ func fieldVisibility(r Reading) contract.FieldVisibility {
 	visible := contract.FieldVisibility{
 		FieldProposedJobTitle: true,
 		FieldProposedGrade:    true,
+		FieldTargetPosition:   true,
+		FieldTargetOrgUnit:    true,
 		FieldEffectiveDate:    true,
 		FieldBusinessReason:   true,
 	}
@@ -301,6 +303,14 @@ func requestFields(q Query, r Reading, messages map[string]string) []contract.Re
 			ID: FieldProposedGrade, Label: "Proposed grade",
 			Kind: contract.FieldKindText, Value: q.TargetGrade,
 			Validation: withMessage(FieldProposedGrade, required),
+		},
+		{
+			ID: FieldTargetPosition, Label: "Target position",
+			Kind: contract.FieldKindReadOnly, Value: q.TargetPositionID,
+		},
+		{
+			ID: FieldTargetOrgUnit, Label: "Target organization",
+			Kind: contract.FieldKindReadOnly, Value: q.TargetOrgUnit,
 		},
 		{
 			ID: FieldProposedComp, Label: "Proposed base pay",

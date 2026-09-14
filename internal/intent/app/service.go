@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
@@ -204,6 +206,11 @@ type IntentService struct {
 	// idempotency is ENDPOINT-004's Coordinator, shared by SubmitIntent,
 	// CancelIntent and SupersedeIntent. Nil leaves all three unavailable.
 	idempotency *endpoint.Coordinator
+	// promotionAdmissionMu closes the scan/append window for promotion
+	// creation within one service. The store's idempotency constraint remains
+	// the cross-process replay fence; this lock makes the active-worker guard
+	// itself atomic for concurrent callers of this service.
+	promotionAdmissionMu sync.Mutex
 	// safePoints is CancelIntent's safe-point resolver. Nil means "unknown"
 	// for every EXECUTING intent.
 	safePoints SafePoints
@@ -453,6 +460,16 @@ func (s *IntentService) CreateIntent(ctx context.Context, req *intentsv1.CreateI
 	if ownedErr != nil {
 		return nil, ownedErr
 	}
+	// Promotion admission is the integrity boundary for overlapping starts.
+	// Hold the service-local lock across the active scan and append below: a
+	// UI suppression or a read-only availability projection cannot prevent two
+	// callers from racing here.
+	promotionAdmission := def.Ref.TypeID == promotion.IntentType
+	promotionPreGuarded := promotionAdmissionAlreadyGuarded(req.GetIdempotencyKey())
+	if promotionAdmission && !promotionPreGuarded {
+		s.promotionAdmissionMu.Lock()
+		defer s.promotionAdmissionMu.Unlock()
+	}
 
 	var (
 		inst intent.Instance
@@ -465,6 +482,47 @@ func (s *IntentService) CreateIntent(ctx context.Context, req *intentsv1.CreateI
 	}
 	if err != nil {
 		return nil, kernelRejection(err)
+	}
+	if promotionAdmission && !promotionPreGuarded {
+		workerID := promotionEmploymentSubject(inst.Subjects)
+		if workerID != "" {
+			active, found, scanErr := s.findActivePromotion(ctx, string(inst.Tenant), workerID)
+			if scanErr != nil {
+				return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
+					"the operation could not be completed").WithDiagnostic(scanErr)
+			}
+			if found {
+				// Exact replays resolve to the original intent, preserving the
+				// normal idempotency contract even though the active guard runs
+				// before the store's append path.
+				if active.IdempotencyKey == inst.IdempotencyKey {
+					// The digest reference is scoped to its intent ID. A newly
+					// drafted replay has a fresh ID even though its material is
+					// identical, so comparing the two references directly rejects
+					// every legitimate replay. Recompute the candidate under the
+					// stored intent's scope before deciding whether it is exact.
+					candidate := inst
+					candidate.IntentID = active.IntentID
+					replayDigest, digestErr := s.digester.RequestDigest(candidate)
+					if digestErr != nil {
+						return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
+							"the operation could not be completed").WithDiagnostic(digestErr)
+					}
+					if active.CanonicalRequestDigest.AlgorithmID == replayDigest.AlgorithmID &&
+						active.CanonicalRequestDigest.Digest == replayDigest.Digest {
+						msg, convertErr := protomap.InstanceToProto(active)
+						if convertErr != nil {
+							return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
+								"the operation could not be completed").WithDiagnostic(convertErr)
+						}
+						return &intentsv1.CreateIntentResponse{Intent: msg}, nil
+					}
+				}
+				return nil, envelope.New(envelope.CodeAlreadyExists, reasonPromotionActive,
+					"an active promotion already exists for this employee").
+					WithViolation("subjects", "open or complete the existing promotion before starting another", reasonPromotionActive)
+			}
+		}
 	}
 
 	envelopeBytes, err := encodeEnvelope(inst)
@@ -506,6 +564,15 @@ func (s *IntentService) CreateIntent(ctx context.Context, req *intentsv1.CreateI
 			"the operation could not be completed").WithDiagnostic(err)
 	}
 	return &intentsv1.CreateIntentResponse{Intent: msg}, nil
+}
+
+// promotionAdmissionAlreadyGuarded identifies the two owned callers that
+// reserve the worker/effective-date window in promotion_active_intent_guard
+// before creating the intent. Re-running the legacy worker-wide scan for those
+// calls would erase the effective-date distinction the database guard owns.
+func promotionAdmissionAlreadyGuarded(idempotencyKey string) bool {
+	return strings.HasPrefix(idempotencyKey, "journey:propose:") ||
+		strings.HasPrefix(idempotencyKey, "promotion.propose:")
 }
 
 // specFor projects the wire request plus the server-derived trusted context
@@ -869,11 +936,28 @@ func (s *IntentService) simulateDetailed(
 	inst intent.Instance,
 	def intent.Definition,
 ) (simulationResult, *envelope.Error) {
+	return s.simulateDetailedWithRelationships(ctx, principal, purpose, inst, def, nil)
+}
+
+// simulateDetailedWithRelationships is the narrow journey-inspection variant
+// of simulateDetailed. The public simulation API always calls the wrapper
+// above with no additional scope facts; only the current owner of a durable
+// approval work item receives the one assignment-derived relationship used to
+// review that proposal.
+func (s *IntentService) simulateDetailedWithRelationships(
+	ctx context.Context,
+	principal *trust.Principal,
+	purpose string,
+	inst intent.Instance,
+	def intent.Definition,
+	relationships []authz.RelationshipFact,
+) (simulationResult, *envelope.Error) {
 	call, err := s.inputs.Resolve(ctx, ResolveRequest{
-		Instance:   inst,
-		Definition: def,
-		Principal:  principal,
-		Purpose:    purpose,
+		Instance:      inst,
+		Definition:    def,
+		Principal:     principal,
+		Purpose:       purpose,
+		Relationships: relationships,
 	})
 	if err != nil {
 		if errors.Is(err, ErrAuthorizationDenied) {
@@ -1185,26 +1269,35 @@ func preflightStatus(s promotion.Status) intent.PreflightStatus {
 func domainFindings(result promotion.PreflightResult) []intent.Finding {
 	out := make([]intent.Finding, 0, len(result.Findings))
 	for _, f := range result.Findings {
-		code := intent.FindingUnknownReference
-		status := intent.PreflightBlocked
-		switch f.Severity {
-		case promotion.SeverityNeedsData:
-			code, status = intent.FindingMissingRequired, intent.PreflightNeedsData
-		case promotion.SeverityDenied:
-			code, status = intent.FindingAuthorityDenied, intent.PreflightDenied
-		case promotion.SeverityBlocking:
-			code, status = intent.FindingUnknownReference, intent.PreflightBlocked
-		case promotion.SeverityAdvisory:
-			code, status = intent.FindingUnknownReference, intent.PreflightReady
-		}
-		out = append(out, intent.Finding{
-			Code:      code,
-			FieldPath: f.Field,
-			Detail:    f.Code + ": " + f.Message,
-			Status:    status,
-		})
+		out = append(out, domainFindingKernelProjection(f))
 	}
 	return out
+}
+
+// domainFindingKernelProjection is the single typed bridge used both when a
+// promotion finding participates in the kernel preflight status and when the
+// wire projection identifies that bridge row again. Keeping the comparison on
+// typed source values prevents presentation wording or locale from becoming a
+// deduplication key.
+func domainFindingKernelProjection(f promotion.Finding) intent.Finding {
+	code := intent.FindingUnknownReference
+	status := intent.PreflightBlocked
+	switch f.Severity {
+	case promotion.SeverityNeedsData:
+		code, status = intent.FindingMissingRequired, intent.PreflightNeedsData
+	case promotion.SeverityDenied:
+		code, status = intent.FindingAuthorityDenied, intent.PreflightDenied
+	case promotion.SeverityBlocking:
+		code, status = intent.FindingUnknownReference, intent.PreflightBlocked
+	case promotion.SeverityAdvisory:
+		code, status = intent.FindingUnknownReference, intent.PreflightReady
+	}
+	return intent.Finding{
+		Code:      code,
+		FieldPath: f.Field,
+		Detail:    f.Code + ": " + f.Message,
+		Status:    status,
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -1248,6 +1341,9 @@ func plannedEffectsProto(plan intent.TransactionPlan) []*intentsv1.PlannedEffect
 func findingsProto(kernelResult intent.PreflightResult, domain promotion.PreflightResult) []*intentsv1.Finding {
 	out := make([]*intentsv1.Finding, 0, len(kernelResult.Findings)+len(domain.Findings))
 	for _, f := range kernelResult.Findings {
+		if mirrorsPromotionFinding(f, domain.Findings) {
+			continue
+		}
 		out = append(out, &intentsv1.Finding{
 			Code:     string(f.Code),
 			Message:  f.Detail,
@@ -1257,11 +1353,27 @@ func findingsProto(kernelResult intent.PreflightResult, domain promotion.Preflig
 	for _, f := range domain.Findings {
 		out = append(out, &intentsv1.Finding{
 			Code:     f.Code,
-			Message:  f.Message,
+			Message:  promotionFindingMessage(f),
 			Severity: f.Severity.String(),
 		})
 	}
 	return out
+}
+
+func mirrorsPromotionFinding(kernel intent.Finding, domain []promotion.Finding) bool {
+	for _, finding := range domain {
+		if kernel == domainFindingKernelProjection(finding) {
+			return true
+		}
+	}
+	return false
+}
+
+func promotionFindingMessage(f promotion.Finding) string {
+	if f.Code == promotion.CodeBudgetObservationOnly {
+		return "Finance confirmed the current budget baseline. Funds are reserved only when the promotion is recorded."
+	}
+	return f.Message
 }
 
 func uncertaintyProto(sim promotion.SimulationResult) []*intentsv1.UncertaintyNote {

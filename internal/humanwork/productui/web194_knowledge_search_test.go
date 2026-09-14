@@ -24,7 +24,7 @@ func TestTodo_WEB_194(t *testing.T) {
 	if !ok {
 		t.Fatal("authorized knowledge search unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("authorized knowledge search incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_194_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "18121e340cd14849e12603bbb5c432779998bd6595c0d806d4e45396d894a4f3"
+	const want = "e7a6936117cd77db202a25ea6f79748960394b0d619c7983ccd7924cfa713bb0"
 	if got != want {
 		t.Fatalf("authorized knowledge search digest = %s, want %s", got, want)
 	}

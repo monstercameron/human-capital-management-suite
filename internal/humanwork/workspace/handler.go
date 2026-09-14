@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -12,7 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/forms"
@@ -72,6 +75,9 @@ type Options struct {
 	// RoleAccess resolves durable employee roles and page/action grants for
 	// the product shell. Nil retains the signed-role compatibility policy.
 	RoleAccess roleaccess.Store
+	// Preferences supplies the organization-scoped admitted appearance for the
+	// initial CSP-pinned product document. Nil keeps the default presentation.
+	Preferences preferences.Store
 	// PublicOrigin is the canonical http(s) origin (for example
 	// "https://hcm.example.com") this cell is publicly reached at. It is a
 	// deployment fact the request cannot carry: a proxy that terminates TLS
@@ -101,6 +107,7 @@ type Handler struct {
 	devBrowserLogin bool
 	devPersonas     map[string]DevPersona
 	roleAccess      roleaccess.Store
+	preferences     preferences.Store
 	// publicScheme and publicAuthority are Options.PublicOrigin resolved:
 	// its scheme and its sanitized host[:port]. Empty means the shell
 	// derives both from each request.
@@ -112,6 +119,17 @@ type Handler struct {
 // deliberately never rendered; only ID crosses the browser boundary.
 type DevPersona struct {
 	ID, Name, Access, Description, Token string
+	// Roles are the exact roles signed into Token. loginPersonaDescription
+	// derives the persona's sign-in copy from these against the live
+	// productui page registry (UXAUDIT-014), so the rendered promise can
+	// never name a destination the persona's own credential does not admit.
+	// Description is kept only for callers that construct a DevPersona
+	// without roles (e.g. a componentized preview); the sign-in page never
+	// reads it directly.
+	Roles []string
+	// WorkerRef is an optional server-owned binding checked against the verified
+	// credential before its persona card advertises any access.
+	WorkerRef string
 }
 
 // NewHandler builds the workspace HTTP surface.
@@ -172,6 +190,7 @@ func NewHandler(opts Options) (*Handler, error) {
 		devBrowserLogin:   opts.DevBrowserLogin,
 		devPersonas:       personas,
 		roleAccess:        opts.RoleAccess,
+		preferences:       opts.Preferences,
 		publicScheme:      publicScheme,
 		publicAuthority:   publicAuthority,
 	}
@@ -542,6 +561,7 @@ func (h *Handler) serveLoginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := ""
+	var selected *DevPersona
 	if personaID := strings.TrimSpace(r.PostFormValue(paramLoginPersona)); personaID != "" {
 		persona, ok := h.devPersonas[personaID]
 		if !ok {
@@ -549,6 +569,7 @@ func (h *Handler) serveLoginSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		token = persona.Token
+		selected = &persona
 	} else {
 		token = normalizeBearerInput(r.PostFormValue(paramLoginToken))
 	}
@@ -556,11 +577,29 @@ func (h *Handler) serveLoginSubmit(w http.ResponseWriter, r *http.Request) {
 		h.writeLoginPage(w, http.StatusBadRequest, "Choose a development persona or paste a bearer credential.")
 		return
 	}
-	if _, err := h.config.Verifier.Verify(r.Context(), trust.Credential{
+	principal, err := h.config.Verifier.Verify(r.Context(), trust.Credential{
 		Token: token, Audience: h.config.Audience,
-	}); err != nil {
+	})
+	if err != nil || principal == nil {
 		h.writeLoginPage(w, http.StatusUnauthorized, "We couldn't sign you in right now. Try again; if the problem continues, use a bearer credential or contact the workspace administrator.")
 		return
+	}
+	destination := PathProductHome
+	if selected != nil {
+		if worker := strings.TrimSpace(selected.WorkerRef); worker != "" && worker != principal.Subject() {
+			h.writeLoginPage(w, http.StatusUnauthorized, "This workspace persona is unavailable. Choose another account or contact the workspace administrator.")
+			return
+		}
+		access, loadErr := h.resolveProductAccess(r.Context(), principal)
+		if loadErr != nil {
+			h.writeLoginPage(w, http.StatusServiceUnavailable, "Workspace access is temporarily unavailable. Try again later.")
+			return
+		}
+		destination = loginPersonaLanding(access)
+		if destination == "" {
+			h.writeLoginPage(w, http.StatusForbidden, "This account has no available workspace pages. Contact the workspace administrator.")
+			return
+		}
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     loginSessionCookie,
@@ -571,7 +610,33 @@ func (h *Handler) serveLoginSubmit(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 		Expires:  h.now().Add(12 * time.Hour),
 	})
-	writeRedirect(w, r, PathProductHome, http.StatusSeeOther)
+	writeRedirect(w, r, destination, http.StatusSeeOther)
+}
+
+func loginPersonaLanding(access productAccess) string {
+	candidates := []productui.PageID{productui.PageHome}
+	for _, role := range access.roles {
+		switch role {
+		case "hiring_manager":
+			candidates = append([]productui.PageID{productui.PagePeople}, candidates...)
+		case "payroll_manager":
+			candidates = append([]productui.PageID{productui.PageWork}, candidates...)
+		case "worker_self":
+			candidates = append([]productui.PageID{productui.PageMyself}, candidates...)
+		}
+	}
+	for _, page := range candidates {
+		definition, ok := productui.LookupPage(page)
+		if ok && definition.NavigationPublished && access.can(page, roleaccess.ActionView) {
+			return definition.Route
+		}
+	}
+	for _, definition := range productui.PageDefinitions() {
+		if definition.NavigationPublished && access.can(definition.ID, roleaccess.ActionView) {
+			return definition.Route
+		}
+	}
+	return ""
 }
 
 // serveLogout clears the session cookie PathLogin set.
@@ -608,15 +673,16 @@ func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem stri
 		banner = `<div class="status-banner" data-status="failed" role="alert">` + html.EscapeString(problem) + ` <a href="#credential-sign-in">Use a bearer credential</a></div>`
 	}
 	var personaForms strings.Builder
-	for _, id := range []string{"admin", "hiring-manager", "payroll-manager", "individual-contributor"} {
-		persona, ok := h.devPersonas[id]
+	for _, set := range DevPersonaRoleSets() {
+		persona, ok := h.devPersonas[set.ID]
 		if !ok {
 			continue
 		}
 		personaForms.WriteString(`<form class="persona" method="post" action="` + PathLogin + `">`)
-		personaForms.WriteString(`<span class="persona-access">` + html.EscapeString(persona.Access) + `</span>`)
+		access, description := h.loginPersonaCopy(persona)
+		personaForms.WriteString(`<span class="persona-access">` + html.EscapeString(access) + `</span>`)
 		personaForms.WriteString(`<strong>` + html.EscapeString(persona.Name) + `</strong>`)
-		personaForms.WriteString(`<span>` + html.EscapeString(loginPersonaDescription(persona)) + `</span>`)
+		personaForms.WriteString(`<span>` + html.EscapeString(description) + `</span>`)
 		// Put the selected persona on the successful submit control itself.
 		// Besides making the association explicit to assistive technology, this
 		// avoids depending on a hidden input surviving browser form mediation.
@@ -653,19 +719,147 @@ func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem stri
 	h.writeLoginDocument(w, status, doc, stylesheet)
 }
 
+// loginPersonaDescription derives the persona's sign-in copy from the same
+// effective-capability projection that decides its rendered navigation menu
+// and its route admission (UXAUDIT-014 REFACTOR). A promise here is
+// therefore never able to outrun what the persona's own signed roles admit:
+// naming a page this function did not compute from that projection is not
+// possible, so a future page that loses its admission, or a persona whose
+// roles no longer reach it, silently correct the copy instead of leaving it
+// to drift into an overpromise that only a manual review would catch.
+//
+// UXAUDIT-014 REFACTOR (two projections disagreeing): this used to reflect
+// productui.PageVisible on the theory that a tenant-configured
+// roleaccess.Store override can only ever widen a role's reach beyond that
+// floor, never narrow it, so describing the floor could understate but never
+// overstate real capability. That theory was live-verified false: for
+// worker_self on PageInsights, productui.PageVisible's workforce bucket
+// denies (it omits "worker_self" from the role list PageInsights checks),
+// while roleaccess.DefaultPagePermissions grants worker_self View on
+// "insights" explicitly. serveProduct (product_shell.go) always prefers the
+// roleaccess-derived allowance whenever a snapshot carries any page
+// permissions at all, and productShellDocumentForRouteQuery's loading shell
+// builds its navigation the same way (ApplyPagePermissions, when
+// config.PagePermissions is non-empty, replaces ApplyRoleVisibility's
+// productui.PageVisible projection). Every real deployment bootstraps a
+// roleaccessstore.Store and seeds it from roleaccess.DefaultPagePermissions
+// the first time a tenant has none (internal/data/roleaccessstore.Store.
+// Bootstrap), so roleaccess's effective permissions -- not
+// productui.PageVisible -- are what a signed-in worker_self persona actually
+// sees on the live menu and can actually open. Describing the productui
+// floor therefore understated a real, always-on capability instead of
+// merely describing a conservative one. This function now derives from
+// roleaccess.DefaultPagePermissions (through roleaccess.EffectivePagePermissions
+// and roleaccess.CanPageAction), the same primitives serveProduct calls,
+// evaluated against the registry's own default state -- these dev personas
+// carry no per-tenant roleaccess.Assignment or PagePermission override, so
+// DefaultPagePermissions is exactly the snapshot they resolve against.
 func loginPersonaDescription(persona DevPersona) string {
-	switch persona.ID {
-	case "admin":
-		return "Review people data, approve compensation changes, and manage workspace settings."
-	case "hiring-manager":
-		return "Review hiring and organization requests, and follow up on team changes."
-	case "payroll-manager":
-		return "Review payroll information, reports, and assigned workflow requests."
-	case "individual-contributor":
-		return "View your employment details, personal tasks, and organization information."
-	default:
-		return persona.Description
+	labels := admittedDestinationLabels(persona.Roles)
+	if len(labels) == 0 {
+		return "No workspace product area beyond Help and Settings is available to this role yet."
 	}
+	return "Reaches " + joinWithAnd(labels) + "."
+}
+
+// admittedDestinationLabels lists the top-level product destinations
+// (Admitted, PrimaryNav pages) that roles can reach, in registry order.
+// Home, Help, and Settings are every signed-in identity's baseline -- naming
+// them would not distinguish one persona's promise from another's, so they
+// are left out of the list a description names explicitly.
+//
+// Visibility is decided by roleaccess's effective page permissions, not
+// productui.PageVisible -- see loginPersonaDescription's doc comment for why
+// that is the projection serveProduct and the rendered menu actually honor.
+func admittedDestinationLabels(roles []string) []string {
+	permissions := roleaccess.EffectivePagePermissions(roleaccess.Snapshot{PagePermissions: roleaccess.DefaultPagePermissions()}, roles)
+	var labels []string
+	for _, definition := range productui.PageDefinitions() {
+		if !definition.Admitted || !definition.PrimaryNav {
+			continue
+		}
+		switch definition.ID {
+		case productui.PageHome, productui.PageHelp, productui.PageSettings:
+			continue
+		}
+		if roleaccess.CanPageAction(permissions, string(definition.ID), roleaccess.ActionView) {
+			labels = append(labels, definition.Label)
+		}
+	}
+	return labels
+}
+
+// joinWithAnd renders a label list as prose: "A", "A and B", or
+// "A, B, and C".
+func joinWithAnd(labels []string) string {
+	switch len(labels) {
+	case 0:
+		return ""
+	case 1:
+		return labels[0]
+	case 2:
+		return labels[0] + " and " + labels[1]
+	default:
+		return strings.Join(labels[:len(labels)-1], ", ") + ", and " + labels[len(labels)-1]
+	}
+}
+
+// loginPersonaCopy describes only capabilities admitted by the persona's
+// verified credential. A persona ID is a display selector, not authority: two
+// IDs may carry different roles and the card must never promise access merely
+// because an ID happens to be named "admin".
+func (h *Handler) loginPersonaCopy(persona DevPersona) (string, string) {
+	principal, err := h.config.Verifier.Verify(context.Background(), trust.Credential{
+		Token: persona.Token, Audience: h.config.Audience,
+	})
+	if err != nil || principal == nil {
+		return "Workspace member", "Available pages and actions depend on your assigned access."
+	}
+	// The descriptor is only a display selector. A supplied worker binding
+	// must agree with the verified subject, and role hints cannot add grants.
+	if worker := strings.TrimSpace(persona.WorkerRef); worker != "" && worker != principal.Subject() {
+		return "Workspace member", "Available pages and actions depend on your assigned access."
+	}
+	access, err := h.resolveProductAccess(context.Background(), principal)
+	if err != nil {
+		return "Workspace member", "Access is temporarily unavailable. Try again later."
+	}
+	labels := admittedDestinationLabelsForAccess(access)
+	title := "Workspace member"
+	if access.can(productui.PageAdmin, roleaccess.ActionView) {
+		title = "HCM administrator"
+	} else if access.can(productui.PagePeople, roleaccess.ActionView) {
+		title = "Hiring manager"
+	} else if access.can(productui.PageMyself, roleaccess.ActionView) {
+		title = "Individual contributor"
+	}
+	if len(labels) == 0 {
+		return title, "No workspace product area beyond Help and Settings is available to this role yet."
+	}
+	if title == "Individual contributor" && access.can(productui.PageMyself, roleaccess.ActionView) {
+		return title, "View your employment profile. Reaches " + joinWithAnd(labels) + "."
+	}
+	return title, "Reaches " + joinWithAnd(labels) + "."
+}
+
+// admittedDestinationLabelsForAccess uses the same resolved tenant permission
+// snapshot as the page shell, so local-dev cards cannot overpromise when an
+// organization has narrowed a role's default grants.
+func admittedDestinationLabelsForAccess(access productAccess) []string {
+	var labels []string
+	for _, definition := range productui.PageDefinitions() {
+		if !definition.Admitted || !definition.PrimaryNav {
+			continue
+		}
+		switch definition.ID {
+		case productui.PageHome, productui.PageHelp, productui.PageSettings:
+			continue
+		}
+		if access.can(definition.ID, roleaccess.ActionView) {
+			labels = append(labels, definition.Label)
+		}
+	}
+	return labels
 }
 
 func loginStylesheet() string {

@@ -1,0 +1,831 @@
+# PHASE-001 Phase 1 scope-ceiling manifest.
+#
+# Schema: tools/planning/scopeceiling.ScopeCeilingManifest. Validated by
+# tools/planning/scopeceiling.ScopeCeilingManifest.Validate, verified by
+# tools/planning/scopeceiling.VerifyManifestSignature, and reported by
+# `go run ./tools/planning/cmd/scopeceiling`.
+#
+# This is the maximum candidate Phase 1 scope ceiling: every intent,
+# capability, workflow, user flow, endpoint, model and effect this document
+# names INCLUDE is the outer bound Phase 1 build work may ever draw from
+# across BOTH P1A and P1B; everything else in the wider catalog is named
+# DEFER or REJECT below or bucketed under deferred_domains. It is NOT the
+# selection-bound P1A release manifest - that sibling document is
+# definitions/planning/gates/p1a-manifest.yaml (NEXT-002), which this
+# manifest's own tests (tools/planning/scopeceiling's Conformance suite)
+# check is a SUBSET of this ceiling, never an input to it. The four
+# selection_slots below (provider, jurisdiction, topology, slo) are
+# deliberately empty: filling them here would make this ceiling BE the
+# NEXT-002 selection it is supposed to bound, defeating PHASE-001's REFACTOR
+# clause ("selection cannot logically depend on a manifest that already
+# requires the selection").
+#
+# Built independently from p1a-manifest.yaml, from:
+#   - definitions/planning/capability-coverage.yaml (the fourteen
+#     DRAFT_CONTRACT business intents and ten bootstrap capabilities;
+#     cross-checked live by scopeceiling's Conformance/PRIMARY tests)
+#   - definitions/planning/product-slices.yaml (the one live "promotion"
+#     vertical slice; cross-checked live)
+#   - definitions/api/endpoint-manifest.json (the fourteen generated
+#     endpoint definitions; cross-checked live)
+#   - planning/specs/business-intent-catalog.md (kernel family / side
+#     effect / P1A-P1B-conformance release column for all fourteen intents)
+#   - planning/specs/http-grpc-endpoint-contract.md (the nineteen additional
+#     specified-but-not-yet-generated endpoints, and the endpoint
+#     disposition enum)
+#   - planning/user-flows/catalog.md (the twenty UF-001..UF-020 flows)
+#   - planning/execution-plan.md (the Phase 1 Implementation-Depth Matrix
+#     and the Plane Dependency Rule's named domain/kernel model specs)
+#   - planning/next-steps.md (the P1A eight-intent / P1B six-contract lists,
+#     and the "Explicitly deferred" bucket list)
+#   - planning/plan.md (Phase 1: ChangeOps Overlay; 3.12 Portfolio
+#     Discipline's native payroll/WFM/benefits authority-absorption gate)
+#
+# CanonicalDigest hashes every field below except `signature`; do not hand-
+# edit any field above `signature` without re-signing (see ceiling_test.go's
+# TestPhaseOneManifestContainsOnlyAuthorizedSourceBoundExecutableScope and
+# security_test.go's TestTodo_PHASE_001_Security for what breaks).
+schema_version: 1
+todo_id: PHASE-001
+signed_date: "2026-09-13"
+freshness_window_days: 30
+
+# The fourteen source-bound BusinessIntent definitions
+# (planning/specs/business-intent-catalog.md's DRAFT_CONTRACT catalog,
+# cross-checked live against definitions/planning/capability-coverage.yaml's
+# `kind: intent` entries). This is the entire catalog: the ~530-name intake
+# list is non-normative vocabulary and is bucketed under deferred_domains
+# instead of enumerated here one by one.
+intents:
+  - id: hcmnext.people.explain_worker_state/v1
+    owner_domain: PEOPLE
+    kernel_family: ANALYTICAL_REQUEST
+    side_effect: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "next-steps.md P1A executable intent #1; ANALYTICAL_REQUEST/READ_ONLY carries no mutation risk."
+  - id: hcmnext.people.promote_worker/v1
+    owner_domain: PEOPLE
+    kernel_family: CHANGE_REQUEST
+    side_effect: INTERNAL_MUTATION
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "next-steps.md P1A executable intent #2 in DRAFT/PREFLIGHT/SIMULATE modes only; EXECUTE mode is bounded to P1B (next-steps.md P1B contract #1) and requires a signed Gate A PROCEED that authority-gate-decision.yaml does not yet record."
+  - id: hcmnext.rewards.simulate_compensation/v1
+    owner_domain: REWARDS
+    kernel_family: CALCULATION_REQUEST
+    side_effect: PURE
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "next-steps.md P1A executable intent #3; CALCULATION_REQUEST/PURE, no domain mutation possible."
+  - id: hcmnext.rewards.evaluate_pay_band_position/v1
+    owner_domain: REWARDS
+    kernel_family: CALCULATION_REQUEST
+    side_effect: PURE
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "next-steps.md P1A executable intent #4; CALCULATION_REQUEST/PURE."
+  - id: hcmnext.intelligence.explain_transaction/v1
+    owner_domain: PROVENANCE
+    kernel_family: ANALYTICAL_REQUEST
+    side_effect: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "next-steps.md P1A executable intent #5."
+  - id: hcmnext.operations.detect_drift/v1
+    owner_domain: RECONCILIATION
+    kernel_family: ANALYTICAL_REQUEST
+    side_effect: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "next-steps.md P1A executable intent #6."
+  - id: hcmnext.operations.create_repair_plan/v1
+    owner_domain: REPAIR
+    kernel_family: ANALYTICAL_REQUEST
+    side_effect: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "next-steps.md P1A executable intent #7, recommendation-only; RepairPlan is never executable in P1A."
+  - id: hcmnext.operations.simulate_repair/v1
+    owner_domain: REPAIR
+    kernel_family: CALCULATION_REQUEST
+    side_effect: PURE
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "next-steps.md P1A executable intent #8; CALCULATION_REQUEST/PURE."
+  - id: hcmnext.rewards.change_base_pay/v1
+    owner_domain: REWARDS
+    kernel_family: CHANGE_REQUEST
+    side_effect: INTERNAL_MUTATION
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "next-steps.md P1B contract #2, bounded to the job/manager/organization/compensation field family plan.md's Phase 1 primary scope names; execution requires a signed Gate A PROCEED, which authority-gate-decision.yaml's empty decisions list confirms has not happened."
+  - id: hcmnext.rewards.reserve_compensation_budget/v1
+    owner_domain: WORKFORCE_BUDGET
+    kernel_family: CHANGE_REQUEST
+    side_effect: INTERNAL_MUTATION
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "next-steps.md P1B contract #3, one bounded scarce-resource reservation for the Promotion vertical slice only."
+  - id: hcmnext.rewards.release_compensation_budget/v1
+    owner_domain: WORKFORCE_BUDGET
+    kernel_family: CHANGE_REQUEST
+    side_effect: INTERNAL_MUTATION
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "next-steps.md P1B contract #4, the compensating release of the same bounded reservation."
+  - id: hcmnext.work.approve_proposal/v1
+    owner_domain: HUMAN_WORK
+    kernel_family: CHANGE_REQUEST
+    side_effect: INTERNAL_MUTATION
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "next-steps.md P1B contract #5, the one approval task the Workflow kernel row of the Phase 1 Implementation-Depth Matrix authorizes at Gate B."
+  - id: hcmnext.work.reject_proposal/v1
+    owner_domain: HUMAN_WORK
+    kernel_family: CHANGE_REQUEST
+    side_effect: INTERNAL_MUTATION
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "next-steps.md P1B contract #6, the same one approval task's rejection path."
+  - id: hcmnext.people.change_manager/v1
+    owner_domain: PEOPLE
+    kernel_family: CHANGE_REQUEST
+    side_effect: INTERNAL_MUTATION
+    gate: NONE
+    disposition: DEFER
+    rationale: "business-intent-catalog.md's own draft-contract table marks this a conformance fixture only; no row of the Phase 1 Implementation-Depth Matrix assigns it IMPLEMENT or MINIMAL CONTRACT depth, so it stays a compilation/negative-test fixture and never gates Phase 1 build work."
+
+# The ten bootstrap capability-registry entries
+# (internal/capability/bootstrap.go bootstrapDefinitions), cross-checked
+# live against definitions/planning/capability-coverage.yaml's
+# `kind: capability` entries. Every one is READ_ONLY; the ceiling grants no
+# other effect class to a capability because none exists in the live
+# registry yet - a future P1B capability entry would need its own signed
+# ceiling amendment, not silent inclusion here.
+capabilities:
+  - id: hcmnext.people.explain_worker_state
+    owner_domain: people
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability backing the explain_worker_state intent; READ_ONLY."
+  - id: hcmnext.people.promote_worker
+    owner_domain: people
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability backing promote_worker's DRAFT/PREFLIGHT/SIMULATE modes; READ_ONLY at this gate."
+  - id: hcmnext.rewards.simulate_compensation
+    owner_domain: rewards
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability backing simulate_compensation; READ_ONLY."
+  - id: hcmnext.rewards.evaluate_pay_band_position
+    owner_domain: rewards
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability backing evaluate_pay_band_position; READ_ONLY."
+  - id: hcmnext.intelligence.explain_transaction
+    owner_domain: intelligence
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability backing explain_transaction; READ_ONLY."
+  - id: hcmnext.operations.detect_drift
+    owner_domain: operations
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability backing detect_drift; READ_ONLY."
+  - id: hcmnext.operations.create_repair_plan
+    owner_domain: operations
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability backing create_repair_plan; READ_ONLY, recommendation-only."
+  - id: hcmnext.operations.simulate_repair
+    owner_domain: operations
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability backing simulate_repair; READ_ONLY."
+  - id: hcmnext.registry.resolve_capability
+    owner_domain: registry
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability discovery primitive every other P1A capability call depends on; READ_ONLY."
+  - id: hcmnext.registry.explain_capability
+    owner_domain: registry
+    effect_class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "bootstrap capability discovery/explanation primitive; READ_ONLY."
+
+# The one Phase 1 vertical slice (definitions/planning/product-slices.yaml
+# names exactly one live slice_id: "promotion") and its two compiled
+# workflows, P1A's no-effect variant and P1B's bounded-write variant.
+workflows:
+  - id: promotion.preflight-simulate-observe/v1
+    vertical_slice: promotion
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "next-steps.md P1A's single compiled workflow; thin CAPABILITY/TRANSFORM/DECISION/OBSERVE/END steps only, ExecutionState never leaves NOT_PLANNED."
+  - id: promotion.execute/v1
+    vertical_slice: promotion
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "next-steps.md M5's P1B workflow, adding APPROVAL/TASK/WAIT/SIGNAL/COMPENSATE with compiler-placed safe points; gated behind a signed Gate A PROCEED."
+
+# The twenty user flows in planning/user-flows/catalog.md. UF-001..UF-007
+# are the generic and Promotion-specific flows the pilot workspace actually
+# needs; UF-008 is explicitly a conformance-track-only flow
+# (next-steps.md's Medical Leave conformance track); UF-009..UF-020 belong
+# to other domains next-steps.md's "Explicitly deferred" list names
+# (onboarding/ATS, cases, payroll, batch, analytics, operator intervention,
+# headcount planning, interview scheduling, assisted channel).
+user_flows:
+  - id: UF-001
+    archetype: "UF-A1/A2/A3/A5/A7/A8"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "action discovery is required for any permitted principal to find the Promotion workspace (product-slices.yaml promotion exit_criteria)."
+  - id: UF-002
+    archetype: "UF-A1/A2/A3"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "draft create/save/resume backs Promotion's proposal-drafting step."
+  - id: UF-003
+    archetype: "UF-A2/A6"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "simulate/compare/submit is the core P1A Promotion preflight-simulate-observe path."
+  - id: UF-004
+    archetype: "UF-A4"
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "reviewer decision backs the one P1B approve_proposal/reject_proposal task the Implementation-Depth Matrix authorizes."
+  - id: UF-005
+    archetype: "all"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "tracking a long-running intent backs the Promotion timeline/status surface named in product-slices.yaml exit_criteria."
+  - id: UF-006
+    archetype: "all"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "cancel/correct/supersede backs IntentService.CancelIntent/SupersedeIntent, already in the generated endpoint manifest for the Promotion intent lifecycle."
+  - id: UF-007
+    archetype: "UF-A2/A4/A6"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "the detailed reference flow for the Promotion + Compensation Change workflow itself (planning/user-flows/reference/promote-into-management.md)."
+  - id: UF-008
+    archetype: "UF-A3/A4/A6"
+    gate: NONE
+    disposition: DEFER
+    rationale: "next-steps.md's Medical Leave conformance track keeps this contract/vector conformance only, explicitly outside Gate A/B production; stop after two unchanged clean gap passes."
+  - id: UF-009
+    archetype: "UF-A9/A4"
+    gate: NONE
+    disposition: DEFER
+    rationale: "candidate onboarding flow; next-steps.md Explicitly deferred names ATS/onboarding scope out of P1A/P1B."
+  - id: UF-010
+    archetype: "UF-A5/A4"
+    gate: NONE
+    disposition: DEFER
+    rationale: "confidential HR case flow; next-steps.md Explicitly deferred names general cases/forms out of P1A/P1B."
+  - id: UF-011
+    archetype: "UF-A5/A4"
+    gate: NONE
+    disposition: DEFER
+    rationale: "HR case resolution flow; same general-cases deferral as UF-010."
+  - id: UF-012
+    archetype: "UF-A6"
+    gate: NONE
+    disposition: DEFER
+    rationale: "HRIS DataOps operator flow; execution-plan.md's HRIS DataOps Operator-Surface Rule keeps this operator-only unless a design partner needs it independently, which is not yet selected."
+  - id: UF-013
+    archetype: "UF-A6/A4"
+    gate: NONE
+    disposition: DEFER
+    rationale: "payroll exception flow; next-steps.md Explicitly deferred names native payroll out of P1A/P1B."
+  - id: UF-014
+    archetype: "UF-A7/A2"
+    gate: NONE
+    disposition: DEFER
+    rationale: "population/batch action flow; next-steps.md Explicitly deferred names bulk/batch/event automation out of P1A/P1B."
+  - id: UF-015
+    archetype: "UF-A8/A2"
+    gate: NONE
+    disposition: DEFER
+    rationale: "analytics/ask flow; next-steps.md Explicitly deferred names broad analytics/search/reports out of P1A/P1B."
+  - id: UF-016
+    archetype: "UF-A10/A6"
+    gate: NONE
+    disposition: DEFER
+    rationale: "operator workflow-intervention flow beyond the Promotion workflow's own inspect/replay/recovery; the Implementation-Depth Matrix's Workflow kernel row bounds Gate B to Promotion nodes only."
+  - id: UF-017
+    archetype: "UF-A1"
+    gate: NONE
+    disposition: DEFER
+    rationale: "self-service contact-change flow is not part of the Promotion + Compensation Change reference workflow plan.md defines as the only fully executable Phase 1 workflow."
+  - id: UF-018
+    archetype: "UF-A2/A4"
+    gate: NONE
+    disposition: DEFER
+    rationale: "headcount/requisition flow; Position/headcount row of the Implementation-Depth Matrix bounds Phase 1 to read/simulate capacity, not headcount request creation."
+  - id: UF-019
+    archetype: "UF-A9/A4"
+    gate: NONE
+    disposition: DEFER
+    rationale: "interview scheduling flow; recruiting/ATS is named in next-steps.md's Explicitly deferred list."
+  - id: UF-020
+    archetype: "composed source archetype"
+    gate: NONE
+    disposition: DEFER
+    rationale: "assisted/manual-continuity channel for any enabled self-service intent; scoped only once a concrete Phase 1 self-service intent set is selected, which is CUSTOMER-001/SELECT-002 territory, not this ceiling."
+
+# Thirty-three candidate typed endpoints: the fourteen already generated in
+# definitions/api/endpoint-manifest.json (generated: true, cross-checked
+# live by scopeceiling's Conformance/PRIMARY tests) plus the nineteen more
+# planning/specs/http-grpc-endpoint-contract.md's initial inventory names
+# but that have no generated descriptor yet (generated: false). Every entry
+# carries the closed five-value endpoint_disposition enum from that spec's
+# #expansion-rule, so none of the nineteen not-yet-generated endpoints is an
+# "endpoint without disposition".
+endpoints:
+  - endpoint_id: hcmnext.intents.v1.IntentService/CreateIntent
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: CreateIntent
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A; create one typed draft/root or child intent idempotently."
+  - endpoint_id: hcmnext.intents.v1.IntentService/GetIntent
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: GetIntent
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A."
+  - endpoint_id: hcmnext.intents.v1.IntentService/ListIntents
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: ListIntents
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A."
+  - endpoint_id: hcmnext.intents.v1.IntentService/SimulateIntent
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: SimulateIntent
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A; the P1A no-effect simulation path."
+  - endpoint_id: hcmnext.intents.v1.IntentService/ExplainIntent
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: ExplainIntent
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A."
+  - endpoint_id: hcmnext.intents.v1.IntentService/ListIntentTimeline
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: ListIntentTimeline
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A."
+  - endpoint_id: hcmnext.intents.v1.IntentService/CancelIntent
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: CancelIntent
+    generated: true
+    gate: P1B
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition REFUSED_P1A/GATE_B; exists in the compiled descriptor now so P1B needs no breaking wire change, refused for the duration of P1A."
+  - endpoint_id: hcmnext.intents.v1.IntentService/SubmitIntent
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: SubmitIntent
+    generated: true
+    gate: P1B
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition REFUSED_P1A/GATE_B."
+  - endpoint_id: hcmnext.intents.v1.IntentService/SupersedeIntent
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: SupersedeIntent
+    generated: true
+    gate: P1B
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition REFUSED_P1A/GATE_B."
+  - endpoint_id: hcmnext.intents.v1.IntentService/ExecuteIntent
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: ExecuteIntent
+    generated: true
+    gate: P1B
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition REFUSED_P1A/GATE_B; the bounded write path next-steps.md's P1B section gates behind Gate A PROCEED."
+  - endpoint_id: hcmnext.registry.v1.RegistryService/GetCapability
+    service_full_name: hcmnext.registry.v1.RegistryService
+    method_name: GetCapability
+    generated: true
+    gate: P1A
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A; one immutable capability descriptor."
+  - endpoint_id: hcmnext.registry.v1.RegistryService/GetIntentDefinition
+    service_full_name: hcmnext.registry.v1.RegistryService
+    method_name: GetIntentDefinition
+    generated: true
+    gate: P1A
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A."
+  - endpoint_id: hcmnext.registry.v1.RegistryService/ListCapabilities
+    service_full_name: hcmnext.registry.v1.RegistryService
+    method_name: ListCapabilities
+    generated: true
+    gate: P1A
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A; authorized semantic action discovery."
+  - endpoint_id: hcmnext.registry.v1.RegistryService/ListIntentDefinitions
+    service_full_name: hcmnext.registry.v1.RegistryService
+    method_name: ListIntentDefinitions
+    generated: true
+    gate: P1A
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A."
+  - endpoint_id: hcmnext.promotion.v1.PromotionService/ProposeIntoManagement
+    service_full_name: hcmnext.promotion.v1.PromotionService
+    method_name: ProposeIntoManagement
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md's Gate B Promotion slice: a typed semantic facade over the same capability/intent kernel, not an alternate implementation; not yet in the generated descriptor."
+  - endpoint_id: hcmnext.work.v1.WorkService/ListWorkItems
+    service_full_name: hcmnext.work.v1.WorkService
+    method_name: ListWorkItems
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Human work and approvals; backs the one P1B approval task the Implementation-Depth Matrix authorizes."
+  - endpoint_id: hcmnext.work.v1.WorkService/GetWorkItem
+    service_full_name: hcmnext.work.v1.WorkService
+    method_name: GetWorkItem
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Human work and approvals."
+  - endpoint_id: hcmnext.work.v1.WorkService/ClaimWorkItem
+    service_full_name: hcmnext.work.v1.WorkService
+    method_name: ClaimWorkItem
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Human work and approvals."
+  - endpoint_id: hcmnext.work.v1.WorkService/ReleaseWorkItem
+    service_full_name: hcmnext.work.v1.WorkService
+    method_name: ReleaseWorkItem
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Human work and approvals."
+  - endpoint_id: hcmnext.work.v1.WorkService/CompleteWorkItem
+    service_full_name: hcmnext.work.v1.WorkService
+    method_name: CompleteWorkItem
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Human work and approvals."
+  - endpoint_id: hcmnext.work.v1.WorkService/DecideApproval
+    service_full_name: hcmnext.work.v1.WorkService
+    method_name: DecideApproval
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Human work and approvals; approve/reject/abstain bound to the exact proposal digest backing approve_proposal/reject_proposal."
+  - endpoint_id: hcmnext.workflow.v1.WorkflowService/GetWorkflow
+    service_full_name: hcmnext.workflow.v1.WorkflowService
+    method_name: GetWorkflow
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Workflow operations; the Workflow kernel row requires inspect/replay/recovery at Gate B."
+  - endpoint_id: hcmnext.workflow.v1.WorkflowService/ListNodeExecutions
+    service_full_name: hcmnext.workflow.v1.WorkflowService
+    method_name: ListNodeExecutions
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Workflow operations; stable execution inspection for the one Promotion workflow."
+  - endpoint_id: hcmnext.workflow.v1.WorkflowService/PauseWorkflow
+    service_full_name: hcmnext.workflow.v1.WorkflowService
+    method_name: PauseWorkflow
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Workflow operations; governed operational intent, no direct row edit."
+  - endpoint_id: hcmnext.workflow.v1.WorkflowService/ResumeWorkflow
+    service_full_name: hcmnext.workflow.v1.WorkflowService
+    method_name: ResumeWorkflow
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Workflow operations; governed resume after revalidation."
+  - endpoint_id: hcmnext.workflow.v1.WorkflowService/CancelWorkflow
+    service_full_name: hcmnext.workflow.v1.WorkflowService
+    method_name: CancelWorkflow
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Workflow operations; cancellation boundary/irreversible-effect aware."
+  - endpoint_id: hcmnext.workflow.v1.WorkflowService/RetryNode
+    service_full_name: hcmnext.workflow.v1.WorkflowService
+    method_name: RetryNode
+    generated: false
+    gate: P1B
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Workflow operations; retry exact failed attempt under idempotency and current authority."
+  - endpoint_id: hcmnext.evidence.v1.EvidenceService/GetExecutionReceipt
+    service_full_name: hcmnext.evidence.v1.EvidenceService
+    method_name: GetExecutionReceipt
+    generated: false
+    gate: P1A
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Evidence and long-running operations; the Ledger/projections row's Gate A MINIMAL observation/proposal/decision evidence read model."
+  - endpoint_id: hcmnext.evidence.v1.EvidenceService/ExportIntentEvidence
+    service_full_name: hcmnext.evidence.v1.EvidenceService
+    method_name: ExportIntentEvidence
+    generated: false
+    gate: P1A
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Evidence and long-running operations; starts a governed resumable export operation, required for Gate A evidence review."
+  - endpoint_id: hcmnext.operations.v1.OperationsService/GetOperation
+    service_full_name: hcmnext.operations.v1.OperationsService
+    method_name: GetOperation
+    generated: false
+    gate: P1A
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Evidence and long-running operations; current long-running operation state backing ExportIntentEvidence."
+  - endpoint_id: hcmnext.operations.v1.OperationsService/CancelOperation
+    service_full_name: hcmnext.operations.v1.OperationsService
+    method_name: CancelOperation
+    generated: false
+    gate: P1A
+    endpoint_disposition: TYPED_PUBLIC_METHOD
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Evidence and long-running operations; cancellation of a long-running export/observation operation."
+  - endpoint_id: grpc.health.v1.Health/Check:healthz
+    service_full_name: grpc.health.v1.Health
+    method_name: Check
+    generated: false
+    gate: P1A
+    endpoint_disposition: NO_ENDPOINT_WITH_JUSTIFICATION
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Non-material service endpoints; process liveness only, no BusinessIntent behavior to disposition, required for any deployed cell (TOPOLOGY-001)."
+  - endpoint_id: grpc.health.v1.Health/Check:readyz
+    service_full_name: grpc.health.v1.Health
+    method_name: Check
+    generated: false
+    gate: P1A
+    endpoint_disposition: NO_ENDPOINT_WITH_JUSTIFICATION
+    disposition: INCLUDE
+    rationale: "http-grpc-endpoint-contract.md Non-material service endpoints; admission readiness only, no BusinessIntent behavior to disposition."
+
+# The domain and kernel model contracts planning/execution-plan.md's Plane
+# Dependency Rule names directly for the Phase 1 vertical slice - not the
+# 530-name, source-unbound planning/data/models/intent-coverage-matrix.md
+# entity matrix, which is bucketed under deferred_domains instead.
+models:
+  - id: people-employment-assignment-domain
+    spec_ref: "specs/people-employment-assignment-domain.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "Implementation-Depth Matrix People/Organization/Compensation row: Gate A authorized as-of reads and deterministic promotion simulation."
+  - id: organization-and-relationship-domain
+    spec_ref: "specs/organization-and-relationship-domain.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "same Implementation-Depth Matrix row; manager/org relationship fields the Promotion workflow reads and, at Gate B, bounded-mutates."
+  - id: compensation-domain
+    spec_ref: "specs/compensation-domain.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "same Implementation-Depth Matrix row; compensation fields the Promotion workflow simulates and, at Gate B, bounded-mutates."
+  - id: position-and-headcount-domain
+    spec_ref: "specs/position-and-headcount-domain.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "Implementation-Depth Matrix Position/headcount row: Gate A read/simulate capacity and compatibility only; Gate B adds the reservation/conflict/revalidation slice already named in the reserve/release_compensation_budget intents."
+  - id: source-authority-and-external-mastering
+    spec_ref: "specs/source-authority-and-external-mastering.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "Plane Dependency Rule shared governed input; Implementation-Depth Matrix Source authority row requires IMPLEMENT at Gate A."
+  - id: identity-resolution-and-entity-linkage
+    spec_ref: "specs/identity-resolution-and-entity-linkage.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "Plane Dependency Rule shared governed input backing Identity/AuthZ/data safety row's Gate A IMPLEMENT for read-only tenant/org/field/purpose scope."
+  - id: workforce-budget-authority
+    spec_ref: "specs/workforce-budget-authority.md"
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "backs the WORKFORCE_BUDGET-owned reserve/release_compensation_budget P1B intents."
+  - id: canonical-envelope-and-digest
+    spec_ref: "specs/canonical-envelope-and-digest.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "Plane Dependency Rule: approval, idempotency, event, configuration and evidence hashes across both gates use this contract."
+  - id: business-intent-and-change-request
+    spec_ref: "specs/business-intent-and-change-request.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "the Business Intent Kernel; Implementation-Depth Matrix BusinessIntent/ChangeRequest row requires IMPLEMENT proposal/simulation identity and immutable revisions at Gate A."
+  - id: cross-workflow-conflict-and-write-intent
+    spec_ref: "specs/cross-workflow-conflict-and-write-intent.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "Implementation-Depth Matrix Approval/conflict/reservation row: Gate A demonstrates exact proposal binding and incumbent-conflict detection; Gate B implements current authority/write-set/reservation."
+  - id: data-classification-and-dlp
+    spec_ref: "specs/data-classification-and-dlp.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "owns the labels and propagation the field-mask/classification policy in http-grpc-endpoint-contract.md requires for every read endpoint at Gate A."
+  - id: transaction-plan-and-commit-coordinator
+    spec_ref: "specs/transaction-plan-and-commit-coordinator.md"
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "Implementation-Depth Matrix Ledger/projections row: Gate B IMPLEMENT ACID multi-stream transaction/outbox and corrections; next-steps.md M5 names the immutable TransactionPlan and prepare/fence/commit sequence explicitly."
+  - id: secrets-key-custody-and-credential-leases
+    spec_ref: "specs/secrets-key-custody-and-credential-leases.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "Implementation-Depth Matrix Secrets/workload access row: Gate A connector and service secret references, least privilege."
+  - id: data-quality-and-invariant-evaluation
+    spec_ref: "specs/data-quality-and-invariant-evaluation.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "Implementation-Depth Matrix Data quality/invariants row: Gate A pilot read/simulation validation and plausibility."
+  - id: provenance-graph-and-lineage
+    spec_ref: "specs/provenance-graph-and-lineage.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "backs the PROVENANCE-owned explain_transaction intent's authorization-aware lineage completeness."
+  - id: capability-registry-and-lifecycle
+    spec_ref: "specs/capability-registry-and-lifecycle.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "the only source of active semantic operations; backs both registry.resolve_capability and registry.explain_capability."
+  - id: governance-decision-and-obligation-composition
+    spec_ref: "specs/governance-decision-and-obligation-composition.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "the Governance Coordinator composing authoritative policy results every Gate A AuthZ decision depends on."
+  - id: incident-management
+    spec_ref: "specs/incident-management.md"
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "already produces Gate A adversarial-journey evidence via THREAT-002 (internal/operations/adversarial, internal/trust/adversarial); owns operational incident truth for the pilot."
+  - id: records-management-and-disposition
+    spec_ref: "specs/records-management-and-disposition.md"
+    gate: NONE
+    disposition: DEFER
+    rationale: "no Implementation-Depth Matrix row assigns record declaration/disposition an IMPLEMENT or MINIMAL CONTRACT depth for Phase 1; execution-plan.md's Phase 2 section names Document workflows as later expansion."
+  - id: slo-sli-error-budget
+    spec_ref: "specs/slo-sli-error-budget.md"
+    gate: NONE
+    disposition: DEFER
+    rationale: "Implementation-Depth Matrix Recovery/supply-chain row only requires signed build/SBOM and restore evidence at Gate A; formal SLI/SLO error-budget consequence enforcement is named as Phase 3 promotion evidence, not Phase 1."
+
+# The five effect classes Phase 1 build work may ever produce, plus the
+# irreversible-external-mutation class it must never reach without a
+# separate signed scope exchange.
+effects:
+  - class: READ_ONLY
+    gate: P1A
+    disposition: INCLUDE
+    rationale: "the entire P1A capability surface; p1a-manifest.yaml's own effect_ceiling requires zero worker/employment/assignment/organization/position/compensation/budget mutations, zero reservations/WorkItems/timers, zero committed external effects."
+  - class: INTERNAL_MUTATION
+    gate: P1B
+    disposition: INCLUDE
+    rationale: "bounded to the job, manager, organization and compensation fields plan.md's Phase 1 primary scope names; carried by promote_worker/EXECUTE, change_base_pay, reserve/release_compensation_budget, approve/reject_proposal."
+  - class: EXTERNAL_PROVIDER_WRITE
+    gate: P1B
+    disposition: INCLUDE
+    provider_dependency: "UNBOUND_PENDING_SELECT-002"
+    rationale: "plan.md Phase 1 primary scope: exactly one primary HCM connector gains narrowly scoped writeback only after the authority gate; which provider is SELECT-002's open selection, not this ceiling's."
+  - class: IRREVERSIBLE_EXTERNAL_MUTATION
+    gate: NONE
+    disposition: REJECT
+    rationale: "plan.md 3.12 Portfolio Discipline: native payroll, WFM, benefits or other suite-depth investment must pass the authority-absorption gate, which has not happened; next-steps.md's Explicitly deferred list names native payroll/benefits/time/ATS/IAM out of P1A/P1B."
+  - class: OUTBOUND_MESSAGE_INTENT
+    gate: P1B
+    disposition: DEFER
+    rationale: "execution-plan.md's Communications Plane Slice: P1A sends nothing, P1B sends one kind of message only if the selected customer path needs it - conditional on CUSTOMER-001/SELECT-002, which this ceiling does not resolve."
+
+# Four selection slots, deliberately empty. NEXT-002's dependency chain
+# fills them; a filled slot here is a PHASE-001 REFACTOR violation.
+selection_slots:
+  - name: provider
+    filling_todo_id: "SELECT-002"
+    filled: false
+  - name: jurisdiction
+    filling_todo_id: "SELECT-001"
+    filled: false
+  - name: topology
+    filling_todo_id: "SELECT-002"
+    filled: false
+  - name: slo
+    filling_todo_id: "SELECT-002, COMMERCIAL-001"
+    filled: false
+
+# Everything else in the wider catalog: named buckets, each visibly
+# deferred, so "all other catalog items remain visibly deferred" is a
+# checkable list rather than a sentence in a comment. No bucket here may
+# ever be silently promoted into the intents/capabilities/workflows/
+# user_flows/endpoints/models/effects sections above without a new signed
+# scope exchange (next-steps.md's stop rules).
+deferred_domains:
+  - name: remaining_catalog_vocabulary
+    source_ref: "specs/business-intent-catalog.md#vocabulary-list-non-normative"
+    rationale: "the ~530-name intake vocabulary minus the fourteen source-bound intents above (516 unbound names); business-intent-catalog.md itself: 'no work item may depend on ingesting, partitioning, or attesting it.'"
+  - name: native_payroll_benefits_time_ats_iam
+    source_ref: "next-steps.md#explicitly-deferred"
+    rationale: "must pass the authority-absorption gate (plan.md 3.12 Portfolio Discipline), which has not happened."
+  - name: medical_leave_implementation
+    source_ref: "next-steps.md#medical-leave-conformance-track"
+    rationale: "contract/vector conformance only; a real jurisdiction, provider write or production leave endpoint requires a separately staffed and legally reviewed product gate."
+  - name: general_cases_forms_dataops
+    source_ref: "next-steps.md#explicitly-deferred"
+    rationale: "HRIS DataOps productizes only the slices a design partner uses independently (execution-plan.md HRIS DataOps Operator-Surface Rule); none selected yet."
+  - name: agents
+    source_ref: "plan.md#phase-1-changeops-overlay"
+    rationale: "Implementation-Depth Matrix: 'OUT unless scope-exchanged' at every gate; Phase 1 product core is Go only, agent code is not included."
+  - name: broad_analytics_search_reports
+    source_ref: "plan.md#phase-1-changeops-overlay"
+    rationale: "Implementation-Depth Matrix Search/OLAP/vector/Kafka/full billing row: OUT at every Phase 1 gate."
+  - name: bulk_batch_event_automation
+    source_ref: "next-steps.md#explicitly-deferred"
+    rationale: "no Phase 1 workflow requires population-scope batch operations."
+  - name: advanced_workflow_steps
+    source_ref: "next-steps.md#m5--p1b-bounded-write-path"
+    rationale: "PARALLEL, JOIN, SUBWORKFLOW, live migration and shadow execution are explicitly not P1B prerequisites."
+  - name: multiple_connectors
+    source_ref: "execution-plan.md#integration-platform-slice"
+    rationale: "Phase 1 does not promise other named connectors, bidirectional coverage for every vendor object, or marketplace certification."
+  - name: webhooks_sync_mft
+    source_ref: "next-steps.md#explicitly-deferred"
+    rationale: "outside the one reusable external-system path Phase 1 builds."
+  - name: omnichannel_messaging
+    source_ref: "execution-plan.md#communications-plane-slice"
+    rationale: "no omnichannel, preference, thread, bulk, or legal-notice work is in Phase 1; the secure inbox is a minimal contract only."
+  - name: kafka_cache_search_vector_clickhouse
+    source_ref: "plan.md#phase-1-changeops-overlay"
+    rationale: "Implementation-Depth Matrix: OUT at every Phase 1 gate; adopt only after measured need (Phase 2 promotion evidence)."
+  - name: multi_cell_relocation
+    source_ref: "next-steps.md#explicitly-deferred"
+    rationale: "Implementation-Depth Matrix Tenant placement row: logical tenant/cell identity and per-tenant limits only at Phase 1; multiple cells/live relocation is later phase scope."
+  - name: legacy_node_typescript_production_paths
+    source_ref: "execution-plan.md#legacy-baseline-rule"
+    rationale: "the P1B release image contains no Node, TypeScript, React, or Vite runtime; legacy may only run beside the Go slice through P1A as a comparison baseline."
+  - name: workforce_os_broader_platform_planes
+    source_ref: "plan.md#3-portfolio-discipline"
+    rationale: "the Workforce Operating System is a destination architecture, not a mandate to build the whole catalog at once; every proposed product family must separately pass the four investment tests before scope enters any ceiling."
+
+signature:
+  algorithm: ed25519
+  public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
+  key_fixture: "tools/planning/gateevidence/testdata/dev-signing-key.yaml"
+  value: "7dad858b72a8251e61df76dda713cc3b09097f46e342a9fe814016bd83cf181c9722a070a9283659cfc7cd8109ed698e6c4227480c6e8d31c99d7ee88b07c106"

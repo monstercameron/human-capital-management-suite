@@ -23,7 +23,7 @@ func TestTodo_WEB_181(t *testing.T) {
 	if !ok {
 		t.Fatal("organization explorer unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("organization explorer incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_181_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "0221edec632e5bc905483cf9d2de234414edb3a7f81967cb1e3edc97643f8f70"
+	const want = "9d9f06cc8a6ce60d60ccce468e1ead15ebcc8f7102c0c49f089427c19364f316"
 	if got != want {
 		t.Fatalf("organization explorer digest = %s, want %s", got, want)
 	}

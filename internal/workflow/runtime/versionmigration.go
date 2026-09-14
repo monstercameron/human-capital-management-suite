@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // VersionMigration is the one additive write internal/workflow/migrate needs
@@ -72,7 +73,9 @@ func (m VersionMigration) validate() error {
 // not currently PAUSED -- WF-RUN-018 requires a reviewed safe point, and a
 // running instance is never one -- and, like every other write here, a
 // version the caller no longer holds.
-func (s Store) RecordVersionMigration(ctx context.Context, ex Executor, m VersionMigration) (Instance, error) {
+func (s Store) RecordVersionMigration(ctx context.Context, ex Executor, m VersionMigration) (ret0 Instance, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.version_migration", m)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := m.validate(); err != nil {
 		return Instance{}, err
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/schedule"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/timer"
 )
 
@@ -115,6 +116,12 @@ type Config struct {
 	// Logger receives one line per lease transition, timer settle, claim and
 	// settle. Nil discards them.
 	Logger Logger
+
+	// Recorder is the workflow-engine telemetry recorder attached to every
+	// tick's context that does not already carry one: each claim served and
+	// every lease, timer and runtime operation it reaches emits a span and a
+	// structured log line. Nil attaches none.
+	Recorder observe.Recorder
 
 	Roles      RoleConfig
 	SignalRole SignalRole
@@ -303,8 +310,13 @@ func (s *Scheduler) Tick(ctx context.Context) (TickResult, error) {
 	now := s.clock().UTC()
 	out := TickResult{At: now}
 	var lastErr error
+	if observe.RecorderFrom(ctx) == nil {
+		ctx = observe.WithRecorder(ctx, s.cfg.Recorder)
+	}
 	for _, claim := range s.cfg.Claims {
-		one, err := s.serve(ctx, claim, now)
+		claimCtx, op := observe.Begin(ctx, "workflow.scheduler.serve", claim)
+		one, err := s.serve(claimCtx, claim, now)
+		observe.Done(op, err)
 		out.add(one)
 		if err != nil {
 			lastErr = err

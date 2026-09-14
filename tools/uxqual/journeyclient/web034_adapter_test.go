@@ -161,6 +161,7 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 	want := strings.Split(strings.TrimSpace(`
 /hcmnext.journey.v1.JourneyService/CreateWorker|1|hcmnext.journey.v1.CreateWorkerRequest|hcmnext.journey.v1.CreateWorkerResponse
 /hcmnext.journey.v1.JourneyService/DecideJourney|1|hcmnext.journey.v1.DecideJourneyRequest|hcmnext.journey.v1.DecideJourneyResponse
+/hcmnext.journey.v1.JourneyService/EditProposal|1|hcmnext.journey.v1.EditProposalRequest|hcmnext.journey.v1.EditProposalResponse
 /hcmnext.journey.v1.JourneyService/ExecuteJourney|1|hcmnext.journey.v1.ExecuteJourneyRequest|hcmnext.journey.v1.ExecuteJourneyResponse
 /hcmnext.journey.v1.JourneyService/GetProductPreferences|1|hcmnext.journey.v1.GetProductPreferencesRequest|hcmnext.journey.v1.GetProductPreferencesResponse
 /hcmnext.journey.v1.JourneyService/GetRoleAccess|1|hcmnext.journey.v1.GetRoleAccessRequest|hcmnext.journey.v1.GetRoleAccessResponse
@@ -168,9 +169,11 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 /hcmnext.journey.v1.JourneyService/InspectJourney|1|hcmnext.journey.v1.InspectJourneyRequest|hcmnext.journey.v1.InspectJourneyResponse
 /hcmnext.journey.v1.JourneyService/ListJourneys|1|hcmnext.journey.v1.ListJourneysRequest|hcmnext.journey.v1.ListJourneysResponse
 /hcmnext.journey.v1.JourneyService/ListWorkers|1|hcmnext.journey.v1.ListWorkersRequest|hcmnext.journey.v1.ListWorkersResponse
+/hcmnext.journey.v1.JourneyService/PreviewJourneyIntervention|1|hcmnext.journey.v1.PreviewJourneyInterventionRequest|hcmnext.journey.v1.PreviewJourneyInterventionResponse
 /hcmnext.journey.v1.JourneyService/ProposeJourney|1|hcmnext.journey.v1.ProposeJourneyRequest|hcmnext.journey.v1.ProposeJourneyResponse
 /hcmnext.journey.v1.JourneyService/ProposePromotion|1|hcmnext.journey.v1.ProposePromotionRequest|hcmnext.journey.v1.ProposePromotionResponse
 /hcmnext.journey.v1.JourneyService/RecordWorkflowUse|1|hcmnext.journey.v1.RecordWorkflowUseRequest|hcmnext.journey.v1.RecordWorkflowUseResponse
+/hcmnext.journey.v1.JourneyService/RequestJourneyIntervention|1|hcmnext.journey.v1.RequestJourneyInterventionRequest|hcmnext.journey.v1.RequestJourneyInterventionResponse
 /hcmnext.journey.v1.JourneyService/SaveAccessRole|1|hcmnext.journey.v1.SaveAccessRoleRequest|hcmnext.journey.v1.SaveAccessRoleResponse
 /hcmnext.journey.v1.JourneyService/SaveOrganizationVisibility|1|hcmnext.journey.v1.SaveOrganizationVisibilityRequest|hcmnext.journey.v1.SaveOrganizationVisibilityResponse
 /hcmnext.journey.v1.JourneyService/SaveRoleOrganizationVisibility|1|hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest|hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse

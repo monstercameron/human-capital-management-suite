@@ -9,6 +9,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Additional stable refusal codes this file introduces for WF-RUN-025, on top
@@ -156,7 +157,9 @@ func (r AdvanceReceipt) Digest() string { return r.digest }
 // complete request returns its durable receipt without reapplying anything,
 // but only while the instance remains at that receipt's resulting version.
 // Once a later advancement moves the instance again, the old request is stale.
-func Advance(ctx context.Context, tx Executor, req AdvanceRequest) (AdvanceReceipt, error) {
+func Advance(ctx context.Context, tx Executor, req AdvanceRequest) (ret0 AdvanceReceipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.advance", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return AdvanceReceipt{}, err
 	}

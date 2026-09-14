@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"strings"
 	"time"
 )
@@ -139,7 +140,9 @@ type Executor struct {
 	Now        func() time.Time
 }
 
-func (e *Executor) Execute(ctx context.Context, r Request) (Result, error) {
+func (e *Executor) Execute(ctx context.Context, r Request) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.steps.compensate.execute", r)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := r.Validate(); err != nil {
 		return Result{}, err
 	}

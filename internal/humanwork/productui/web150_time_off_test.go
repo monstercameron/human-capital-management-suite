@@ -23,7 +23,7 @@ func TestTodo_WEB_150(t *testing.T) {
 	if !ok {
 		t.Fatal("time-off balance and calendar unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("time-off balance and calendar incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_150_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "590d2003ecb46befbc55319481d7e529ce27aae28aa4aed35c025be6909748d0"
+	const want = "c0d2e51a631035c592ad4acb3e669ed3cbe690fb184cb3db48e022fadb644354"
 	if got != want {
 		t.Fatalf("time-off digest = %s, want %s", got, want)
 	}

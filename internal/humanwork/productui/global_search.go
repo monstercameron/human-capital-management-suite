@@ -114,16 +114,23 @@ func globalSearchItems(view View) []GlobalSearchItem {
 		})
 	}
 
+	workerVerdicts := workerIdentityVerdicts(view)
 	if allowed[PagePeople] {
 		for _, person := range view.People {
-			if !DiscoveryAdmitted(person.ID, view.RecordVerdicts) {
+			if !DiscoveryAdmitted(person.ID, workerVerdicts) {
 				continue
 			}
+			identity := ResolveWorkerIdentity(view.Locale, person, workerVerdicts)
+			role := discoverySearchValue(view.Locale, person.ID, person.Role, "role", workerVerdicts)
+			team := discoverySearchValue(view.Locale, person.ID, person.Team, "organization_unit", workerVerdicts)
+			location := discoverySearchValue(view.Locale, person.ID, person.Location, "work_location", workerVerdicts)
+			workerNumber := discoverySearchKeyword(person.ID, person.WorkerNumber, "worker_number", workerVerdicts)
+			jobCode := discoverySearchKeyword(person.ID, person.JobCode, "job_code", workerVerdicts)
 			items = append(items, GlobalSearchItem{
 				ID: "person:" + person.ID, Kind: "person", KindLabel: globalSearchKindLabel(view.Locale, "person"),
-				Label: DiscoveryLabel(view.Locale, person.ID, person.Name, "name", view.RecordVerdicts), Description: strings.Trim(strings.Join([]string{person.Role, person.Team, person.Location}, " · "), " ·"),
+				Label: identity.Label, Description: strings.Trim(strings.Join([]string{role, team, location}, " · "), " ·"),
 				Href: statefulHref(view, PagePerson, "person", person.ID), Initials: person.Initials, PhotoURL: person.PhotoURL,
-				Keywords: []string{person.WorkerNumber, person.JobCode, person.Team, person.Location, "employee", "worker", "profile"},
+				Keywords: compactDiscoveryKeywords(workerNumber, jobCode, team, location, "employee", "worker", "profile"),
 			})
 		}
 		items = append(items, GlobalSearchItem{
@@ -134,12 +141,20 @@ func globalSearchItems(view View) []GlobalSearchItem {
 	}
 
 	if allowed[PageJourneys] {
+		// Promotion is an executable action only when the same authorized
+		// semantic projection used by the action launcher is available. Its
+		// destination is the worker-selection step, while the Journeys page
+		// below remains the tracker destination.
+		if allowed[PagePeople] && globalSearchCanStartPromotion(view) {
+			if definition, ok := semanticLauncherDefinitionByID(SemanticActionPromoteWorker); ok {
+				items = append(items, GlobalSearchItem{
+					ID: "action:promotion", Kind: "action", KindLabel: globalSearchKindLabel(view.Locale, "action"),
+					Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.DescriptionKey),
+					Href: definition.Href(view), Icon: definition.Icon, Keywords: append([]string(nil), definition.Keywords...),
+				})
+			}
+		}
 		seenWorkflows := map[string]bool{"promotion": true}
-		items = append(items, GlobalSearchItem{
-			ID: "workflow:promotion", Kind: "workflow", KindLabel: globalSearchKindLabel(view.Locale, "workflow"),
-			Label: view.Locale.Text("history.promotion"), Description: view.Locale.Text("page.journeys.subtitle"),
-			Href: statefulHref(view, PageJourneys), Icon: "journeys", Keywords: []string{"promote", "career", "compensation", "approval", "employee workflow"},
-		})
 		for _, workflow := range view.PersonWorkflows {
 			if seenWorkflows[workflow.ID] {
 				continue
@@ -157,19 +172,28 @@ func globalSearchItems(view View) []GlobalSearchItem {
 				Href: href, Icon: "journeys", Keywords: []string{workflow.ID, workflow.Category, workflow.Description, "employee workflow"},
 			})
 		}
+		canStartPromotion := globalSearchCanStartPromotion(view)
 		for _, person := range view.People {
-			if !DiscoveryAdmitted(person.ID, view.RecordVerdicts) {
+			if !DiscoveryAdmitted(person.ID, workerVerdicts) {
 				continue
+			}
+			if !canStartPromotion {
+				break
 			}
 			if !personPromotionEligible(person) {
 				continue
 			}
+			identity := ResolveWorkerIdentity(view.Locale, person, workerVerdicts)
+			role := discoverySearchValue(view.Locale, person.ID, person.Role, "role", workerVerdicts)
+			team := discoverySearchValue(view.Locale, person.ID, person.Team, "organization_unit", workerVerdicts)
+			workerNumber := discoverySearchKeyword(person.ID, person.WorkerNumber, "worker_number", workerVerdicts)
+			jobCode := discoverySearchKeyword(person.ID, person.JobCode, "job_code", workerVerdicts)
 			items = append(items, GlobalSearchItem{
 				ID: "action:promotion:" + person.ID, Kind: "action", KindLabel: globalSearchKindLabel(view.Locale, "action"),
-				Label:       view.Locale.Text("global_search.promote_person", map[string]string{"name": DiscoveryLabel(view.Locale, person.ID, person.Name, "name", view.RecordVerdicts)}),
-				Description: strings.Trim(strings.Join([]string{person.Role, person.Team}, " · "), " ·"),
+				Label:       view.Locale.Text("global_search.promote_person", map[string]string{"name": identity.Label}),
+				Description: strings.Trim(strings.Join([]string{role, team}, " · "), " ·"),
 				Href:        JourneyProposalHref(view, person.ID), Icon: "journeys",
-				Keywords: []string{"promotion", "promote", "start workflow", person.WorkerNumber, person.JobCode},
+				Keywords: compactDiscoveryKeywords("promotion", "promote", "start workflow", workerNumber, jobCode),
 			})
 		}
 	}
@@ -187,10 +211,13 @@ func globalSearchItems(view View) []GlobalSearchItem {
 			if !DiscoveryAdmitted(work.ID, view.RecordVerdicts) {
 				continue
 			}
-			details := []string{work.Status, work.Summary}
-			if work.CompletedAt != "" {
+			details := []string{
+				discoverySearchValue(view.Locale, work.ID, work.Status, "status", view.RecordVerdicts),
+				discoverySearchValue(view.Locale, work.ID, work.Summary, "summary", view.RecordVerdicts),
+			}
+			if work.CompletedAt != "" && discoverySearchFieldAllowed(work.ID, "completed_at", view.RecordVerdicts) {
 				details = append(details, view.Locale.Text("global_search.closed", map[string]string{"value": work.CompletedAt}))
-			} else if work.EffectiveDate != "" {
+			} else if work.EffectiveDate != "" && discoverySearchFieldAllowed(work.ID, "effective_date", view.RecordVerdicts) {
 				details = append(details, view.Locale.Text("global_search.effective", map[string]string{"value": work.EffectiveDate}))
 			}
 			items = append(items, GlobalSearchItem{
@@ -198,7 +225,11 @@ func globalSearchItems(view View) []GlobalSearchItem {
 				Label:       strings.TrimSpace(DiscoveryLabel(view.Locale, work.ID, work.Title, "title", view.RecordVerdicts) + " · " + DiscoveryLabel(view.Locale, work.ID, work.Person, "person", view.RecordVerdicts)),
 				Description: strings.Trim(strings.Join(details, " · "), " ·"),
 				Href:        JourneyDetailHref(view, work.ID), Icon: "journeys", Initials: work.Initials, PhotoURL: work.PhotoURL,
-				Keywords: []string{work.PersonRef, work.InstanceID, work.MaterialDigest, "workflow record", "journey"},
+				Keywords: compactDiscoveryKeywords(
+					discoverySearchKeyword(work.ID, work.PersonRef, "person_ref", view.RecordVerdicts),
+					discoverySearchKeyword(work.ID, work.InstanceID, "instance_id", view.RecordVerdicts),
+					discoverySearchKeyword(work.ID, work.MaterialDigest, "material_digest", view.RecordVerdicts),
+					"workflow record", "journey"),
 			})
 		}
 	}
@@ -239,6 +270,69 @@ func searchComponent(view View, id, labelKey, descriptionKey string, page PageID
 	}
 }
 
+func globalSearchCanStartPromotion(view View) bool {
+	projection, ok := uniqueLauncherActionProjection(view.LauncherActions, SemanticActionPromoteWorker)
+	return ok && projection.State.Availability == ActionAvailable &&
+		view.Allows(PageJourneys, "create") && view.Allows(PagePeople, "view")
+}
+
+// discoverySearchValue is the only path for record fields into search copy.
+// A governed record gets the same field projection as its page; raw service
+// values never become a search side channel.
+func discoverySearchValue(locale LocaleContext, id, value, field string, verdicts map[string]AuthorizedRecord) string {
+	if len(verdicts) == 0 {
+		return value
+	}
+	verdict, ok := verdicts[id]
+	if !ok || !verdict.Disclosable {
+		return ""
+	}
+	fieldVerdict, ok := verdict.Fields[field]
+	if !ok || fieldVerdict.Effect != PresentationAllow {
+		return ""
+	}
+	return ProjectAuthorizedValue(locale, value, fieldVerdict).Text
+}
+
+func discoverySearchKeyword(id, value, field string, verdicts map[string]AuthorizedRecord) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	if len(verdicts) == 0 {
+		return value
+	}
+	verdict, ok := verdicts[id]
+	if !ok || !verdict.Disclosable {
+		return ""
+	}
+	if !discoverySearchFieldAllowed(id, field, verdicts) {
+		return ""
+	}
+	return value
+}
+
+func discoverySearchFieldAllowed(id, field string, verdicts map[string]AuthorizedRecord) bool {
+	if len(verdicts) == 0 {
+		return true
+	}
+	verdict, ok := verdicts[id]
+	if !ok || !verdict.Disclosable {
+		return false
+	}
+	fieldVerdict, ok := verdict.Fields[field]
+	return ok && fieldVerdict.Effect == PresentationAllow
+}
+
+func compactDiscoveryKeywords(values ...string) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
 func globalSearchKindLabel(locale LocaleContext, kind string) string {
 	return locale.Text("global_search.kind_" + kind)
 }
@@ -259,6 +353,12 @@ func SearchGlobalItems(items []GlobalSearchItem, query string, limit int) []Glob
 	scored := make([]scoredGlobalSearchItem, 0, len(items))
 	for _, item := range items {
 		if score := globalSearchScore(item, tokens); score > 0 {
+			// A semantic action is the executable entry point. Keep it ahead of
+			// individual worker shortcuts when a broad workflow term matches
+			// both, so the selection step remains discoverable in a short list.
+			if item.Kind == "action" && strings.Count(item.ID, ":") == 1 {
+				score += 20
+			}
 			scored = append(scored, scoredGlobalSearchItem{item: item, score: score})
 		}
 	}
@@ -350,11 +450,14 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 		}
 	}
 	inputAria := map[string]string{
-		"label": props.Text("global_search.label"), "autocomplete": "list", "controls": "global-search-results",
+		"label": props.Text("global_search.label"), "autocomplete": "list",
 		"expanded": fmt.Sprint(open.Get() && strings.TrimSpace(query.Get()) != ""),
 	}
-	if open.Get() && len(results) > 0 {
-		inputAria["activedescendant"] = "global-search-result-" + fmt.Sprint(activeIndex)
+	if open.Get() && strings.TrimSpace(query.Get()) != "" {
+		inputAria["controls"] = "global-search-results"
+		if len(results) > 0 {
+			inputAria["activedescendant"] = "global-search-result-" + fmt.Sprint(activeIndex)
+		}
 	}
 	inputProps := html.Props{
 		ID: "global-search-input", Name: "q", Value: query.Get(), Class: "global-search-input", Aria: inputAria,
@@ -394,7 +497,8 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 
 	children := []ui.Node{
 		html.Div(html.Props{Class: "global-search-control"},
-			html.Span(html.Props{Class: "global-search-glyph", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text("⌕")),
+			html.Label(html.Props{Class: "sr-only", For: "global-search-input"}, ui.Text(props.Text("global_search.label"))),
+			productIcon("search", "global-search-glyph"),
 			html.Tag("input", inputProps),
 		),
 	}

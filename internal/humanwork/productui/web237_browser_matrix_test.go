@@ -24,7 +24,7 @@ func TestTodo_WEB_237(t *testing.T) {
 	if !ok {
 		t.Fatal("production browser matrix unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("production browser matrix incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_237_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "5925458174a29eecec3372be8e6cafe7729fbe7ed42c05c7d5c550e0f5c16909"
+	const want = "090e25a05b91b38c1d2aed17ab95fbc0d9a18078e34449636bc60a30becadee9"
 	if got != want {
 		t.Fatalf("production browser matrix digest = %s, want %s", got, want)
 	}

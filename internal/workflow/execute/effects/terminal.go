@@ -14,11 +14,13 @@ import (
 	datalogger "github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	ledgerport "github.com/monstercameron/human-capital-management-suite/internal/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // PromotionOutcomeSchema names the payload schema [LedgerTerminalWriter]
@@ -214,7 +216,9 @@ type LedgerTerminalWriter struct {
 var _ execute.TerminalWriter = (*LedgerTerminalWriter)(nil)
 
 // Write implements [execute.TerminalWriter].
-func (w *LedgerTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (idempotency.ResultIdentity, error) {
+func (w *LedgerTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (ret0 idempotency.ResultIdentity, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.effects.ledger_terminal_write", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if w.Appender == nil {
 		return idempotency.ResultIdentity{}, fmt.Errorf("effects: LedgerTerminalWriter has no ledger Appender bound")
 	}
@@ -282,6 +286,15 @@ func (w *LedgerTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req exec
 	})
 	if err != nil {
 		return idempotency.ResultIdentity{}, fmt.Errorf("effects: commit workflow outcome ledger write: %w", err)
+	}
+	// The admission guard protects nonterminal promotion work. Release it in
+	// this same transaction as the terminal ledger/outbox fact so a crash
+	// cannot leave a completed request occupying the worker's window. A
+	// synthetic non-UUID intent cannot have a confirmed guard row.
+	if intentID, parseErr := uuid.Parse(req.Proposal.Revision.IntentID); parseErr == nil {
+		if releaseErr := promotionguard.Release(ctx, tx, req.TenantID, intentID, req.RecordedAt); releaseErr != nil {
+			return idempotency.ResultIdentity{}, fmt.Errorf("effects: release terminal promotion admission guard: %w", releaseErr)
+		}
 	}
 
 	return idempotency.ResultIdentity{

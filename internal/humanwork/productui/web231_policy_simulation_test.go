@@ -24,7 +24,7 @@ func TestTodo_WEB_231(t *testing.T) {
 	if !ok {
 		t.Fatal("authorization-policy simulation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("authorization-policy simulation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_231_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "ce2a0038920f4acad19a5b01b48084dce27a45dfc47064aa8e063282c5b0af73"
+	const want = "750155ff7d90b2a54b81add74cfa7771dd235c8679bda2bacf9f3fc59de7fcdd"
 	if got != want {
 		t.Fatalf("authorization-policy simulation digest = %s, want %s", got, want)
 	}

@@ -111,6 +111,18 @@ func (portStub) Decide(context.Context, string, workspace.Decision) (workspace.J
 	return workspace.JourneyDetail{}, nil
 }
 
+func (portStub) EditProposal(context.Context, string, uint64, string, string, workspace.EditProposalInput) (workspace.JourneySummary, string, error) {
+	return workspace.JourneySummary{}, "", nil
+}
+
+func (portStub) PreviewIntervention(context.Context, string, workspace.JourneyInterventionKind) (workspace.JourneyInterventionPreview, error) {
+	return workspace.JourneyInterventionPreview{}, nil
+}
+
+func (portStub) RequestIntervention(context.Context, string, workspace.JourneyInterventionRequest) (workspace.JourneyInterventionResult, error) {
+	return workspace.JourneyInterventionResult{}, nil
+}
+
 func (portStub) ListWorkers(context.Context) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	return []workspace.WorkerSummary{{
 		WorkerRef: "ada-1a2b3c4d", Source: workspace.WorkerSourceCreated, CreatedAt: time.Unix(0, 0).UTC(),

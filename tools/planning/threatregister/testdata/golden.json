@@ -1,0 +1,25 @@
+{
+  "canonical_digest": "09fd51d86d607f5372d185af7b7f366613f2299e6e723287ac8f1e0a369b4322",
+  "signature_value": "c87949f5a0c51776e026885e0bf9b9ef29c281de62638c6f0e223351e342c062efbec3aab75b0f0a50dfa5017f81fcc8aa01af566b5218ac557ae03611fdf703",
+  "counts": {
+    "actors": 7,
+    "assets": 6,
+    "trust_boundaries": 6,
+    "entry_points": 5,
+    "edges": 9,
+    "threats": 9,
+    "mitigations": 7,
+    "residual_risks": 1
+  },
+  "attack_class_order": [
+    "STALE_AUTHORIZATION",
+    "CONFUSED_DEPUTY",
+    "TENANT_CROSSOVER",
+    "INSIDER_ABUSE",
+    "METADATA_LEAKAGE",
+    "REPLAY",
+    "AMBIGUOUS_EFFECT",
+    "SUPPLY_CHAIN",
+    "HUMAN_SOCIAL"
+  ]
+}

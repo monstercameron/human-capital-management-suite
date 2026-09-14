@@ -168,6 +168,29 @@ func TestWireBindsEveryCallbackTheRendererUnderstands(t *testing.T) {
 	}
 }
 
+func TestWireBindsGroupedJourneyCards(t *testing.T) {
+	page := SampleListPage()
+	first := page.List.Journeys[0]
+	second := page.List.Journeys[1]
+	page.List.Groups = []JourneySubjectGroup{
+		{Subject: "Jane", Journeys: []JourneyCard{first}},
+		{Subject: "Priya", Journeys: []JourneyCard{second}},
+	}
+	var navigated []string
+	page = Wire(NewStore(page), page, func(href string) { navigated = append(navigated, href) }, nil)
+	for group := range page.List.Groups {
+		for _, card := range page.List.Groups[group].Journeys {
+			if card.OnOpen == nil {
+				t.Fatalf("group %q card %q has no live navigation", page.List.Groups[group].Subject, card.IntentID)
+			}
+			card.OnOpen()
+		}
+	}
+	if len(navigated) != 2 || navigated[0] != first.Href || navigated[1] != second.Href {
+		t.Fatalf("grouped navigation = %q, want [%q %q]", navigated, first.Href, second.Href)
+	}
+}
+
 func TestWireBindsOneCallbackPerAction(t *testing.T) {
 	s := NewStore(Page{})
 	var fired []string
@@ -222,10 +245,10 @@ func TestWireOnANilStoreIsANoOp(t *testing.T) {
 // What the wiring does to the markup
 // ----------------------------------------------------------------------
 
-// TestLiveFormsSubmitThroughTheClientNotTheBrowser: once a form has a live
-// callback, its control stops being a type="submit" that asks the browser
-// to POST. The form keeps its own submit handler as well, so pressing Enter
-// inside a field does the same thing as clicking.
+// TestLiveFormsSubmitThroughTheClientNotTheBrowser: live forms retain a real
+// submit control so browser constraint validation runs consistently for a
+// pointer click and Enter. The form handler prevents the fallback POST only
+// after the browser admits the submission.
 func TestLiveFormsSubmitThroughTheClientNotTheBrowser(t *testing.T) {
 	plain := mustRender(t, SampleListPage())
 	if !strings.Contains(plain, `type="submit"`) {
@@ -235,11 +258,8 @@ func TestLiveFormsSubmitThroughTheClientNotTheBrowser(t *testing.T) {
 	s := NewStore(Page{})
 	livePage := Wire(s, SampleListPage(), nil, func(string, map[string]string) {})
 	out := mustRender(t, livePage)
-	if strings.Contains(out, `type="submit"`) {
-		t.Error("a live form still renders a browser submit button")
-	}
-	if !strings.Contains(out, `type="button"`) {
-		t.Error("a live form has no button at all")
+	if !strings.Contains(out, `type="submit"`) {
+		t.Error("a live form bypasses native form submission and validation")
 	}
 	// The route survives, so a client that fails to boot degrades to a POST.
 	if !strings.Contains(out, `action="`+SampleListPage().List.Form.Action+`"`) {
@@ -247,15 +267,6 @@ func TestLiveFormsSubmitThroughTheClientNotTheBrowser(t *testing.T) {
 	}
 	if !strings.Contains(out, `method="post"`) {
 		t.Error("the live form dropped its fallback method")
-	}
-}
-
-func TestSubmitButtonTypeFollowsTheCallback(t *testing.T) {
-	if got := submitButtonType(nil); got != "submit" {
-		t.Errorf("submitButtonType(nil) = %q, want submit", got)
-	}
-	if got := submitButtonType(func(map[string]string) {}); got != "button" {
-		t.Errorf("submitButtonType(fn) = %q, want button", got)
 	}
 }
 
@@ -369,8 +380,8 @@ func TestHandlersNeverReachTheMarkup(t *testing.T) {
 
 // TestLiveAndPlainTreesAgreeOnStructure: the live client and the no-browser
 // test path must render the same page, or every assertion made without a
-// browser is about a document nobody sees. Only the interaction affordances
-// are allowed to differ.
+// browser is about a document nobody sees. Event handlers are runtime values
+// and deliberately do not alter the serialized structure.
 func TestLiveAndPlainTreesAgreeOnStructure(t *testing.T) {
 	plain := mustRender(t, SampleDetailPage())
 	s := NewStore(Page{})
@@ -384,9 +395,6 @@ func TestLiveAndPlainTreesAgreeOnStructure(t *testing.T) {
 		if !strings.Contains(plain, marker) || !strings.Contains(livened, marker) {
 			t.Errorf("%q is not present on both the plain and the live tree", marker)
 		}
-	}
-	if plain == livened {
-		t.Error("the live tree is byte-identical to the plain one; the wiring changed nothing at all")
 	}
 }
 

@@ -32,6 +32,8 @@ const (
 	FieldCurrentBasePay       = "currentBasePay"
 	FieldProposedJobTitle     = "proposedJobTitle"
 	FieldProposedGrade        = "proposedGrade"
+	FieldTargetPosition       = "targetPosition"
+	FieldTargetOrgUnit        = "targetOrgUnit"
 	FieldProposedComp         = "proposedCompensation"
 	FieldEffectiveDate        = "effectiveDate"
 	FieldBusinessReason       = "businessReason"
@@ -167,7 +169,7 @@ func (q Query) WithFormAnswers(answers map[string]string) Query {
 // would have posted are the same intent.
 func (q Query) Intent() (forms.IntentInstance, error) {
 	return forms.FromCapabilityCall(forms.PromotionRequestInputs{
-		WorkerID:             q.WorkerRef,
+		WorkerID:             strings.TrimSpace(q.WorkerRef),
 		ProposedJobTitle:     q.TargetJobCode,
 		ProposedGrade:        q.TargetGrade,
 		ProposedCompensation: q.ProposedBase,
@@ -212,7 +214,8 @@ type Request struct {
 // Typed turns the string query into the typed domain request, or reports
 // exactly which field could not be read.
 func (q Query) Typed() (Request, error) {
-	if strings.TrimSpace(q.WorkerRef) == "" {
+	workerRef := strings.TrimSpace(q.WorkerRef)
+	if workerRef == "" {
 		return Request{}, fmt.Errorf("%w: no worker", ErrQueryInvalid)
 	}
 	effective, err := values.ParseLocalDate(q.EffectiveDate)
@@ -223,7 +226,7 @@ func (q Query) Typed() (Request, error) {
 	if err != nil {
 		return Request{}, fmt.Errorf("%w: evaluation date: %w", ErrQueryInvalid, err)
 	}
-	watermark, err := values.NewSequenceRevision(revisionStreamPrefix+sanitizeStream(q.WorkerRef), 1)
+	watermark, err := values.NewSequenceRevision(revisionStreamPrefix+sanitizeStream(workerRef), 1)
 	if err != nil {
 		return Request{}, fmt.Errorf("%w: compensation revision: %w", ErrQueryInvalid, err)
 	}
@@ -243,7 +246,7 @@ func (q Query) Typed() (Request, error) {
 		return Request{}, fmt.Errorf("%w: business reason is required", ErrQueryInvalid)
 	}
 	return Request{
-		WorkerRef: q.WorkerRef,
+		WorkerRef: workerRef,
 		Fields:    promotion.RequiredWorkerFields(),
 		Target: promotion.TargetPlacement{
 			JobCode:    q.TargetJobCode,

@@ -23,7 +23,7 @@ func TestTodo_WEB_175(t *testing.T) {
 	if !ok {
 		t.Fatal("governed skills profile unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("governed skills profile incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_175_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "d44dd75bc186341ca93726ade94a5b0a60531a5d2b2c3171cc4271f5e2519159"
+	const want = "f9058e623c85424f1965095b2db49bb9bbc97cf1036ccd30ba6e18e4edb6e10f"
 	if got != want {
 		t.Fatalf("skills profile digest = %s, want %s", got, want)
 	}

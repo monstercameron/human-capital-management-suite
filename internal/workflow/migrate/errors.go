@@ -107,3 +107,12 @@ func refuse(code, ref, format string, args ...any) *Error {
 func wrap(code, ref string, err error, format string, args ...any) *Error {
 	return &Error{Code: code, Ref: ref, Detail: fmt.Sprintf(format, args...), Err: err}
 }
+
+// ErrorCode reports the refusal's stable code for telemetry classification
+// (internal/workflow/observe.ErrorCode); it never carries message text.
+func (e *Error) ErrorCode() string {
+	if e == nil {
+		return ""
+	}
+	return e.Code
+}

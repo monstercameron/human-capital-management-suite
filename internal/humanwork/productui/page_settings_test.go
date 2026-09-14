@@ -40,7 +40,7 @@ func TestLocalePreferencesPanelIsAccessibleAndDirectionAware(t *testing.T) {
 	for _, want := range []string{
 		`aria-labelledby="locale-preferences-title"`, `aria-current="page"`,
 		`dir="ltr" lang="en-US"`, `dir="rtl" lang="ar"`,
-		`href="/workspace/app/settings?locale=de-DE"`, `>Language &amp; region</h2>`, `>Current</span>`,
+		`href="/workspace/app/settings?locale=de-DE"`, `>Language &amp; region</h3>`, `>Current</span>`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("locale preferences missing %q in %s", want, markup)

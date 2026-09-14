@@ -2,6 +2,7 @@ package latencygate
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -53,5 +54,40 @@ func TestBudgetValidationRejectsStatisticallyWeakGate(t *testing.T) {
 	_, err := Measure(Budget{Name: "fixture", P95: time.Second, Samples: 19}, func() error { return nil })
 	if err == nil || !strings.Contains(err.Error(), "at least 20 samples") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestCheckRejectsMismatchedOrForgedPercentiles(t *testing.T) {
+	budget := Budget{Name: "route", P95: 20 * time.Millisecond, Samples: 20}
+	for name, result := range map[string]Result{
+		"wrong name":             {Name: "other", Samples: 20, P50: time.Millisecond, P95: time.Millisecond, Max: time.Millisecond},
+		"descending percentiles": {Name: budget.Name, Samples: 20, P50: 3 * time.Millisecond, P95: 2 * time.Millisecond, Max: 4 * time.Millisecond},
+		"p95 above max":          {Name: budget.Name, Samples: 20, P50: time.Millisecond, P95: 4 * time.Millisecond, Max: 2 * time.Millisecond},
+		"negative":               {Name: budget.Name, Samples: 20, P50: -time.Millisecond, P95: time.Millisecond, Max: time.Millisecond},
+	} {
+		if err := Check(budget, result); err == nil {
+			t.Errorf("%s: forged result passed", name)
+		}
+	}
+}
+
+func TestLayoutShiftGateSumsEntriesAndRejectsMalformedTelemetry(t *testing.T) {
+	budget := LayoutShiftBudget{Name: "route transition", Max: DefaultCLS}
+	result := EvaluateLayoutShift(budget.Name, []float64{0.02, 0.03, 0.01})
+	if result.Samples != 3 || math.Abs(result.Score-0.06) > 1e-12 || math.Abs(result.Max-0.03) > 1e-12 || result.Invalid {
+		t.Fatalf("layout-shift result = %+v", result)
+	}
+	if err := CheckLayoutShift(budget, result); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckCLS(budget, EvaluateCLS(budget.Name, []float64{0.08, 0.03})); err == nil {
+		t.Fatal("over-budget CLS passed")
+	}
+	malformed := EvaluateLayoutShift(budget.Name, []float64{0.01, -0.01})
+	if !malformed.Invalid {
+		t.Fatal("negative layout-shift entry was not marked invalid")
+	}
+	if err := CheckLayoutShift(budget, malformed); err == nil {
+		t.Fatal("malformed layout-shift result passed")
 	}
 }

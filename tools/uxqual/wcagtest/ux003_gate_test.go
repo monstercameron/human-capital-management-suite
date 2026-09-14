@@ -74,3 +74,34 @@ func TestUX003ScoreRace(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// TestUX003StructuralContracts keeps the release gate honest for the
+// browser-facing mechanics that the original fixture scorecard could not
+// observe: visible focus paint, unique ARIA references, modality-safe
+// controls, and a real reduced-motion disablement policy.
+func TestUX003StructuralContracts(t *testing.T) {
+	f := forms.FixtureWithValidationError()
+	ssrDoc, err := ssr.Render(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gwcDoc, err := gwc.Document(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for renderer, doc := range map[string]string{"ssr": ssrDoc, "gwc": gwcDoc} {
+		for _, result := range []struct {
+			name string
+			pass bool
+		}{
+			{"focus", wcag.CheckFocusContract(doc).Pass},
+			{"focus-indicator", wcag.CheckFocusIndicator(doc).Pass},
+			{"input-modes", wcag.CheckInputModes(doc).Pass},
+			{"screen-reader", wcag.CheckScreenReaderContract(doc).Pass},
+		} {
+			if !result.pass {
+				t.Errorf("%s: %s contract failed", renderer, result.name)
+			}
+		}
+	}
+}

@@ -368,18 +368,32 @@ func callCatchUp(ctx context.Context, catchUp CatchUp, request CatchUpRequest) (
 	if contextErr := ctx.Err(); contextErr != nil {
 		return CatchUpResult{}, contextErr
 	}
-	defer func() {
-		if recover() != nil {
-			result = CatchUpResult{}
-			err = ErrCatchUpFailed
-		}
+	completed := make(chan catchUpCompletion, 1)
+	go func() {
+		var completion catchUpCompletion
+		defer func() {
+			if recover() != nil {
+				completion.err = ErrCatchUpFailed
+			}
+			completed <- completion
+		}()
+		completion.result, completion.err = catchUp(ctx, request)
 	}()
-	result, err = catchUp(ctx, request)
-	if contextErr := ctx.Err(); contextErr != nil {
-		return CatchUpResult{}, contextErr
+	select {
+	case completion := <-completed:
+		if contextErr := ctx.Err(); contextErr != nil {
+			return CatchUpResult{}, contextErr
+		}
+		if completion.err != nil {
+			return CatchUpResult{}, ErrCatchUpFailed
+		}
+		return completion.result, nil
+	case <-ctx.Done():
+		return CatchUpResult{}, ctx.Err()
 	}
-	if err != nil {
-		return CatchUpResult{}, ErrCatchUpFailed
-	}
-	return result, nil
+}
+
+type catchUpCompletion struct {
+	result CatchUpResult
+	err    error
 }

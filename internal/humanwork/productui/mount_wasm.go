@@ -8,4 +8,5 @@ import "github.com/monstercameron/GoWebComponents/v5/ui"
 // shell owns the CSP-pinned stylesheet; this function owns only the DOM tree.
 func Mount(view View, selector string) {
 	ui.Render(Build(view), selector)
+	bindOrganizationBrowseControls()
 }

@@ -22,8 +22,12 @@ func TestPromotionUnavailableHidesActionButNotPerson(t *testing.T) {
 			t.Fatal("profile offers unavailable promotion")
 		}
 	}
-	if props.UnavailableDetail == "" {
-		t.Fatal("profile needs a recovery explanation")
+	activeRecovery := false
+	for _, workflow := range props.Workflows {
+		activeRecovery = activeRecovery || workflow.ActionLabel == view.Locale.Text("people.open_active_promotion")
+	}
+	if props.UnavailableDetail == "" && !activeRecovery {
+		t.Fatal("profile needs a recovery explanation or active-request link")
 	}
 }
 

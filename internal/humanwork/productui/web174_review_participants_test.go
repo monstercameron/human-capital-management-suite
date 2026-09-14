@@ -24,7 +24,7 @@ func TestTodo_WEB_174(t *testing.T) {
 	if !ok {
 		t.Fatal("review-participant visibility unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("review-participant visibility incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_174_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "d3052d2e1e4cdd6a64bbae09124461cd5cb788e86045d0e158c5a5ca264f7a76"
+	const want = "3b984599111cc3cbca995aaad6ec75064627e55c337bcba77b5c01ad8c8c0364"
 	if got != want {
 		t.Fatalf("review participants digest = %s, want %s", got, want)
 	}

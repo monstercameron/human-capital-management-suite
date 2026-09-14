@@ -10,7 +10,6 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
 )
 
 // Route paths this workspace serves. They are constants because the
@@ -305,10 +304,10 @@ func ContentSecurityPolicy(host string, enhanced bool) string {
 	return policy.header()
 }
 
-// stylesheetHash pins the exact stylesheet the frozen renderer inlines. It is
-// computed once from tokens.WorkspaceCSS(), which is the same string the
-// renderer emits, so the policy cannot drift from the document.
-var stylesheetHash = sha256Source(tokens.WorkspaceCSS())
+// stylesheetHash pins the exact stylesheet emitted by the selected GWC
+// document renderer, including its shared page-layout layer. Hashing the
+// renderer's complete stylesheet keeps the policy aligned with the document.
+var stylesheetHash = sha256Source(gwc.Stylesheet())
 
 // sha256Source renders one CSP source expression for an inline block.
 func sha256Source(body string) string {

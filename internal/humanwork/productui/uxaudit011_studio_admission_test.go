@@ -65,7 +65,7 @@ func TestTodo_UXAUDIT_011(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(studioDoc, "Custom page editing is not enabled") {
+	if !strings.Contains(studioDoc, "Custom pages cannot be edited here yet") {
 		t.Fatal("Studio route stopped rendering its explanatory unavailable state")
 	}
 	if strings.Contains(studioDoc, "Validation passed") || strings.Contains(studioDoc, "Request publication") {

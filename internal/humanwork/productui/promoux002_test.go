@@ -95,6 +95,9 @@ func TestTodo_PROMOUX_002_Browser(t *testing.T) {
 		person := Person{ID: "worker-conflict", Name: "Conflicted Worker", PromotionAvailability: PromotionActiveConflict}
 
 		props := personWorkflowLauncherProps(view, person, PagePerson)
+		if props.Heading != view.Locale.Text("workflow.continue_heading") || props.Description == "" || !props.HideCount {
+			t.Fatalf("active request still framed as a new workflow: %+v", props)
+		}
 		if props.UnavailableDetail != "" {
 			t.Errorf("UnavailableDetail = %q, want empty -- the Open active promotion card already carries continuity", props.UnavailableDetail)
 		}
@@ -105,6 +108,9 @@ func TestTodo_PROMOUX_002_Browser(t *testing.T) {
 			}
 			if card.Name == view.Locale.Text("people.open_active_promotion") {
 				found = true
+				if card.ActionLabel != card.Name {
+					t.Fatalf("active request link still says Start: %+v", card)
+				}
 				if card.Href != JourneyDetailHref(view, "intent-active-2") {
 					t.Errorf("Open active promotion card href = %q, want the active journey's own", card.Href)
 				}

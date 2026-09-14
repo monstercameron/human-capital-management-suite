@@ -236,9 +236,9 @@ func TestStylesheetAnimationNamesHaveKeyframes(t *testing.T) {
 func TestResponsiveCompositionProtectsEveryJourneySurface(t *testing.T) {
 	css := Stylesheet()
 	for _, want := range []string{
-		`img,svg,video,canvas{max-width:100%;}`,
+		`:where(.jn-page,.jn-embedded) :is(img,svg,video,canvas){max-width:100%;}`,
 		`:where(.jn-shell,.jn-page,.jn-pagehead,.jn-card,.jn-cardhead,.jn-grid,.jn-griditem,`,
-		`:where(input,select,textarea,button){max-width:100%;}`,
+		`:where(.jn-page,.jn-embedded) :is(input,select,textarea,button){max-width:100%;}`,
 		`:where(.jn-pagehead,.jn-cardhead,.jn-toolbar,.jn-actions,.jn-provenance){flex-wrap:wrap;}`,
 		`.jn-tablewrap{max-width:100%;overscroll-behavior-inline:contain;scrollbar-width:thin;}`,
 	} {

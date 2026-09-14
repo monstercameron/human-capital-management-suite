@@ -7,14 +7,17 @@ import (
 	"time"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestUXBlindPromotionWithoutPublishedPathIsActionable(t *testing.T) {
 	worker := &journeyv1.Worker{JobCode: "SAL-AE3", Grade: "P4"}
 	form := focusedProposalForm(nil, "adrian", &journeyv1.WorkforceOptions{}, worker)
-	if !form.Disabled || !strings.Contains(form.DisabledReason, "job ladder") {
+	if !form.Disabled || !strings.Contains(form.DisabledReason, "career path") {
 		t.Fatalf("missing promotion path must disable submission with recovery guidance: %+v", form)
 	}
 	if strings.Contains(form.DisabledReason, "access role") {
@@ -49,10 +52,71 @@ func testConfig() Config {
 		TunnelURL:    "wss://cell.example/grpc",
 		Bearer:       "tok",
 		Tenant:       "Northwind Trading · US",
-		Subject:      "avery.okafor@northwind.example",
+		Subject:      testApprover,
 		Roles:        []string{"hr.business_partner", "promotion.approver"},
 		Purpose:      "promotion_review",
 		JourneysPath: DefaultJourneysPath,
+	}
+}
+
+// testDiagnosticsAuthorizedConfig is testConfig plus PROMOUX-008 diagnostics
+// authorization, for the handful of tests whose whole point is that every
+// projected section reaches the renderer -- not testConfig itself, because
+// a non-empty PagePermissions also flips DetailPage's unrelated back-compat
+// default for its own action-visibility check (CanPageAction("journeys" /
+// "work", "update")), which every other action-focused test here still
+// relies on being permissive by default.
+func testDiagnosticsAuthorizedConfig() Config {
+	cfg := testConfig()
+	cfg.PagePermissions = []PagePermission{
+		{RoleID: "hr.business_partner", PageID: diagnosticsPageID, View: true},
+		{RoleID: "hr.business_partner", PageID: "journeys", View: true, Update: true},
+		{RoleID: "hr.business_partner", PageID: "work", View: true, Update: true},
+	}
+	return cfg
+}
+
+func TestTodo_UXAUDIT_006_I18N_RecoveryNotices(t *testing.T) {
+	notices := []*journey.Notice{
+		keyedNotice(toneWarning, "journey.refusal_busy_title", "journey.refusal_busy_detail"),
+		keyedNotice(toneDanger, "journey.refusal_unknown_action_title", "journey.refusal_unknown_action_detail"),
+		keyedNotice(toneWarning, "journey.refusal_worker_title", "journey.refusal_worker_detail"),
+		keyedNotice(toneWarning, "journey.refusal_target_title", "journey.refusal_target_detail"),
+		keyedNotice(toneWarning, "journey.refusal_stale_title", "journey.refusal_stale_detail"),
+		keyedNotice(toneWarning, "journey.refusal_reason_title", "journey.refusal_reason_detail"),
+		routeReadNotice(nil),
+		routeReadNotice(status.Error(codes.PermissionDenied, "secret journey")),
+		keyedNotice(toneWarning, "journey.watch_stopped_title", "journey.watch_stopped_detail"),
+	}
+	for _, language := range productui.SupportedProductLocales() {
+		cfg := testConfig()
+		cfg.Locale = language
+		copy := productui.ResolveProductLocale(language)
+		for _, notice := range notices {
+			if notice == nil {
+				continue
+			}
+			page := chrome(cfg, "Promotion", notice, nil, true)
+			if page.Notice == nil || page.Notice.Title != copy.Text(notice.TitleKey) || page.Notice.Detail != copy.Text(notice.MessageKey) {
+				t.Errorf("%s notice %q did not resolve from locale catalog: %+v", language, notice.TitleKey, page.Notice)
+			}
+			if notice.Title != productui.ResolveProductLocale("").Text(notice.TitleKey) {
+				t.Errorf("%s source notice was mutated: %+v", language, notice)
+			}
+		}
+	}
+}
+
+func TestDetailPageDoesNotOfferAnotherApproversDecision(t *testing.T) {
+	cfg := testConfig()
+	cfg.Subject = "avery.okafor@northwind.example"
+	detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL)
+	detail.CanDecide = false
+	p := DetailPage(cfg, detail, nil, nil)
+	for _, action := range p.Detail.Actions {
+		if action.ID == ActionApprove || action.ID == ActionReject {
+			t.Fatalf("non-assignee received approval control: %+v", action)
+		}
 	}
 }
 
@@ -101,10 +165,12 @@ func testDetail(t *testing.T, stage journeyv1.JourneyStage) *journeyv1.JourneyDe
 			{Severity: "BLOCKING", Code: "policy.two_step", Message: "Two grade steps route a second approval."},
 			{Severity: "chatty", Code: "note.unknown_severity", Message: "An unrecognised severity."},
 		},
-		PlannedWrites: []string{"worker:NW-40118/promotion"},
-		EvidenceIds:   []string{"evd_cap_01_worker_read", "evd_gate_01_p1b"},
-		Approver:      testApprover,
-		DetailDigest:  "sha256:aaaa1111",
+		PlannedWrites:        []string{"worker:NW-40118/promotion"},
+		EvidenceIds:          []string{"evd_cap_01_worker_read", "evd_gate_01_p1b"},
+		Approver:             testApprover,
+		DetailDigest:         "sha256:aaaa1111",
+		CanDecide:            true,
+		DiagnosticsAvailable: true,
 		Timeline: []*journeyv1.TimelineEvent{
 			{At: stamp(t, "2026-05-12T08:58:00Z"), Kind: eventIntentCreated, Title: "Promotion proposed", Ref: testIntentID},
 			{At: stamp(t, "2026-05-12T08:58:30Z"), Kind: eventSimulated, Title: "Proposal simulated", Ref: "rev_01"},
@@ -120,6 +186,12 @@ func testDetail(t *testing.T, stage journeyv1.JourneyStage) *journeyv1.JourneyDe
 		PlanDigest: "sha256:a41d0be8c37f5219", Status: "RUNNING",
 		CurrentNodeIds: []string{"approval"}, CorrelationId: "cor_01JX6Y8B2C7D9EFG",
 		CreatedAt: stamp(t, "2026-05-12T09:12:00Z"), StartedAt: stamp(t, "2026-05-12T09:12:00Z"),
+	}
+	// Durable stage fixtures represent successive workflow snapshots. Give
+	// them the ordering metadata a real engine publishes so response-order
+	// tests do not accidentally model distinct stages with equal timestamps.
+	if ordinal := fixtureStageOrdinal(stage); ordinal > 0 {
+		detail.Journey.UpdatedAt = timestamppb.New(stamp(t, "2026-05-12T09:12:00Z").AsTime().Add(time.Duration(ordinal) * time.Second).UTC())
 	}
 	detail.Nodes = []*journeyv1.NodeExecution{
 		{NodeId: "gate.p1b", StepType: "GATE", Status: "COMPLETED", Attempt: 1,
@@ -169,6 +241,33 @@ func testDetail(t *testing.T, stage journeyv1.JourneyStage) *journeyv1.JourneyDe
 	return detail
 }
 
+func fixtureStageOrdinal(stage journeyv1.JourneyStage) int {
+	switch stage {
+	case journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED:
+		return 1
+	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL:
+		return 2
+	case journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL:
+		return 3
+	case journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL:
+		return 4
+	case journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL:
+		return 5
+	case journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE:
+		return 6
+	case journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS:
+		return 7
+	case journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED:
+		return 8
+	case journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED:
+		return 9
+	case journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED, journeyv1.JourneyStage_JOURNEY_STAGE_FAILED:
+		return 9
+	default:
+		return 0
+	}
+}
+
 // ---------------------------------------------------------------------
 // The list
 // ---------------------------------------------------------------------
@@ -180,7 +279,7 @@ func TestListPageChrome(t *testing.T) {
 	if p.Brand != "Human Capital Management Suite" {
 		t.Errorf("Brand = %q, want Human Capital Management Suite", p.Brand)
 	}
-	if p.Title != "Promotion journeys · Human Capital Management Suite" {
+	if p.Title != "Promotion requests · Human Capital Management Suite" {
 		t.Errorf("Title = %q", p.Title)
 	}
 	if p.TenantLabel != cfg.Tenant {
@@ -308,22 +407,23 @@ func TestStageLabelsAndTones(t *testing.T) {
 		label string
 		tone  string
 	}{
-		{journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED, stageProposed, "Proposed", toneInfo},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED, stageBlocked, "Blocked", toneDanger},
+		// PROMOUX-012: one vocabulary shared with My Work (StagePresentation).
+		{journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED, stageProposed, "Ready to start approval", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED, stageBlocked, "Blocked", toneWarning},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL, stageAwaitingApproval, "Awaiting approval", toneWarning},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED, stageCompleted, "Completed", toneSuccess},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED, stageRejected, "Rejected", toneDanger},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED, stageRejected, "Rejected", toneNeutral},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_FAILED, stageFailed, "Failed", toneDanger},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL, stageFinanceApproval, "Finance approval", toneWarning},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL, stageManagerApproval, "Manager approval", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE, stageWaitingEffective, "Waiting for effective date", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION, stageRevalidation, "Revalidation", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL, stageReapproval, "Reapproval", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED, stageExecuted, "Executed", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS, stageObservingEffects, "Observing effects", toneWarning},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE, stageWaitingEffective, "Waiting for effective date", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION, stageRevalidation, "Final checks", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL, stageReapproval, "Approval required again", toneWarning},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED, stageExecuted, "Recording promotion", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS, stageObservingEffects, "Checking downstream effects", toneNeutral},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED, stageRecorded, "Recorded", toneSuccess},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED, stageRepairRequired, "Repair required", toneDanger},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_UNSPECIFIED, "UNSPECIFIED", "Unknown stage", toneNeutral},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED, stageRepairRequired, "Needs repair", toneDanger},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_UNSPECIFIED, "UNSPECIFIED", "Status unavailable", toneWarning},
 	}
 	for _, c := range cases {
 		t.Run(c.token, func(t *testing.T) {
@@ -340,10 +440,33 @@ func TestStageLabelsAndTones(t *testing.T) {
 	}
 }
 
+func TestTodo_UXAUDIT_006_JourneyHeaderLocale(t *testing.T) {
+	for _, tc := range []struct {
+		locale, title, stage, back string
+	}{
+		{"en-US", "Promotion journey", "Finance approval", "Back to Omar Reyes's profile"},
+		{"de-DE", "Beförderungsantrag", "Finanzprüfung", "Zurück zum Profil von Omar Reyes"},
+		{"ar", "طلب الترقية", "مراجعة المالية", "العودة إلى الملف الشخصي لـOmar Reyes"},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			cfg := testConfig()
+			cfg.Locale = tc.locale
+			p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL), nil, nil)
+			if !strings.Contains(p.Title, tc.title) || p.Detail.Journey.StageLabel != tc.stage || p.Detail.BackLink.Label != tc.back {
+				t.Fatalf("unlocalized detail header: title=%q stage=%q back=%q", p.Title, p.Detail.Journey.StageLabel, p.Detail.BackLink.Label)
+			}
+			list := ListPage(cfg, ListData{Journeys: []*journeyv1.Journey{testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL)}}, nil, nil)
+			if got := list.List.Journeys[0].StageLabel; got != tc.stage {
+				t.Fatalf("list stage label = %q, want %q", got, tc.stage)
+			}
+		})
+	}
+}
+
 func TestProposalFormShape(t *testing.T) {
 	form := ProposalForm(map[string]string{FieldEffective: "2026-12-01"}, nil, "")
 	for _, field := range form.Fields {
-		if field.ID == FieldEffective && (strings.Contains(field.Help, "today") || !strings.Contains(field.Help, "Simulation checks")) {
+		if field.ID == FieldEffective && (strings.Contains(field.Help, "today") || !strings.Contains(field.Help, "date and final outcome still need review")) {
 			t.Fatalf("effective-date guidance promises a wall-clock rule: %q", field.Help)
 		}
 	}
@@ -362,7 +485,7 @@ func TestProposalFormShape(t *testing.T) {
 		{FieldWorker, NameWorker, kindSelect, "", true},
 		{FieldJobCode, NameJobCode, kindSelect, "", true},
 		{FieldGrade, NameGrade, kindSelect, "", true},
-		{FieldPosition, NamePosition, kindText, "", true},
+		{FieldPosition, NamePosition, kindText, "", false},
 		{FieldBase, NameBase, kindNumber, "", true},
 		{FieldEffective, NameEffective, kindDate, "2026-12-01", true},
 		{FieldReason, NameReason, kindTextarea, "", true},
@@ -385,7 +508,7 @@ func TestProposalFormShape(t *testing.T) {
 
 	// With no workforce answer in hand the picker offers nobody: the page
 	// lists the employees the cell named and never a population of its own.
-	if got := form.Fields[0].Options; len(got) != 1 || got[0].Value != "" || got[0].Label != "Select a worker" {
+	if got := form.Fields[0].Options; len(got) != 1 || got[0].Value != "" || got[0].Label != "Select an employee" {
 		t.Errorf("the worker options = %+v, want the empty prompt alone", got)
 	}
 
@@ -465,22 +588,25 @@ func TestDefaultEffectiveDate(t *testing.T) {
 func TestDetailPageStepsPerStage(t *testing.T) {
 	cases := []struct {
 		stage journeyv1.JourneyStage
-		want  [4]string
+		want  [5]string
 	}{
-		{journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED, [4]string{stepDone, stepActive, stepUpcoming, stepUpcoming}},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED, [4]string{stepFailed, stepUpcoming, stepUpcoming, stepUpcoming}},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL, [4]string{stepDone, stepDone, stepActive, stepUpcoming}},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED, [4]string{stepDone, stepDone, stepDone, stepDone}},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED, [4]string{stepDone, stepDone, stepFailed, stepUpcoming}},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_FAILED, [4]string{stepDone, stepFailed, stepUpcoming, stepUpcoming}},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_UNSPECIFIED, [4]string{stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED, [5]string{stepDone, stepActive, stepUpcoming, stepUpcoming, stepUpcoming}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED, [5]string{stepFailed, stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL, [5]string{stepDone, stepActive, stepUpcoming, stepUpcoming, stepUpcoming}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL, [5]string{stepDone, stepActive, stepUpcoming, stepUpcoming, stepUpcoming}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL, [5]string{stepDone, stepDone, stepActive, stepUpcoming, stepUpcoming}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE, [5]string{stepDone, stepDone, stepDone, stepActive, stepUpcoming}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED, [5]string{stepDone, stepDone, stepDone, stepDone, stepDone}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED, [5]string{stepDone, stepFailed, stepUpcoming, stepUpcoming, stepUpcoming}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_FAILED, [5]string{stepDone, stepFailed, stepUpcoming, stepUpcoming, stepUpcoming}},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_UNSPECIFIED, [5]string{stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming}},
 	}
 	for _, c := range cases {
 		t.Run(stageOf(c.stage), func(t *testing.T) {
 			p := DetailPage(testConfig(), testDetail(t, c.stage), nil, nil)
 			steps := p.Detail.Steps
-			if len(steps) != 4 {
-				t.Fatalf("steps = %d, want 4", len(steps))
+			if len(steps) != 5 {
+				t.Fatalf("steps = %d, want 5", len(steps))
 			}
 			for i, want := range c.want {
 				if steps[i].State != want {
@@ -490,8 +616,8 @@ func TestDetailPageStepsPerStage(t *testing.T) {
 					t.Errorf("step %q has no label or explanation", steps[i].ID)
 				}
 			}
-			if got, want := []string{steps[0].ID, steps[1].ID, steps[2].ID, steps[3].ID},
-				[]string{"proposed", "executed", "approval", "recorded"}; strings.Join(got, ",") != strings.Join(want, ",") {
+			if got, want := []string{steps[0].ID, steps[1].ID, steps[2].ID, steps[3].ID, steps[4].ID},
+				[]string{"proposal", "finance-review", "manager-review", "effective-date", "recorded"}; strings.Join(got, ",") != strings.Join(want, ",") {
 				t.Errorf("step ids = %v, want %v", got, want)
 			}
 		})
@@ -503,8 +629,9 @@ func TestDetailPageStepTimesComeFromTheTimeline(t *testing.T) {
 	steps := p.Detail.Steps
 	want := []string{
 		"2026-05-12 08:58 UTC", // INTENT_CREATED
-		"2026-05-12 09:12 UTC", // INSTANCE_STARTED
-		"2026-05-12 10:02 UTC", // the last WORK_ITEM transition
+		"2026-05-12 10:02 UTC", // the finance WORK_ITEM transition
+		"",                     // the legacy fixture has no separate manager work item
+		"1 Jun 2026",           // immutable proposal effective date
 		"2026-05-12 10:04 UTC", // LEDGER_RECORDED
 	}
 	for i, w := range want {
@@ -514,17 +641,40 @@ func TestDetailPageStepTimesComeFromTheTimeline(t *testing.T) {
 	}
 }
 
+// findAction returns the one action carrying id, or fails the test: a test
+// that indexed into Actions positionally would silently start asserting on
+// the wrong action the moment PROMOUX-013's three interventions were
+// inserted at a new position, which is exactly the fragility this helper
+// removes.
+func findAction(t *testing.T, actions []journey.Action, id string) journey.Action {
+	t.Helper()
+	for _, a := range actions {
+		if a.ID == id {
+			return a
+		}
+	}
+	t.Fatalf("no action %q among %+v", id, actions)
+	return journey.Action{}
+}
+
+// wantInterventionIDs is the three ids [interventionActions] always appends
+// once a real journey has loaded, present or absent from the count checks
+// below by name rather than by number so they read as what they are: a
+// fixed, always-offered trio, never accidentally miscounted with the
+// lifecycle actions that vary by stage.
+var wantInterventionIDs = []string{ActionWithdraw, ActionCancel, ActionEditProposal}
+
 func TestDetailPageActionsPerStage(t *testing.T) {
 	cfg := testConfig()
 
 	t.Run("proposed offers execution", func(t *testing.T) {
 		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil)
 		actions := p.Detail.Actions
-		if len(actions) != 1 {
-			t.Fatalf("actions = %d, want 1", len(actions))
+		if len(actions) != 1+len(wantInterventionIDs) {
+			t.Fatalf("actions = %d, want %d (execute plus the three interventions)", len(actions), 1+len(wantInterventionIDs))
 		}
-		a := actions[0]
-		if a.ID != ActionExecute || a.Variant != "primary" || a.Disabled {
+		a := findAction(t, actions, ActionExecute)
+		if a.Variant != "primary" || a.Disabled {
 			t.Errorf("action = %+v, want an enabled primary execute", a)
 		}
 		if a.Label != "Start approval workflow" {
@@ -536,40 +686,53 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		if len(a.Confirmation) == 0 || a.ConfirmationNote == "" {
 			t.Error("execute bypasses its review-and-confirm summary")
 		}
+		// An unstarted proposal: Withdraw is offered live, Cancel and Edit
+		// are not yet (nothing has started to cancel), Edit is available
+		// (an unstarted proposal is still correctable).
+		if w := findAction(t, actions, ActionWithdraw); w.Disabled {
+			t.Errorf("Withdraw is disabled on an unstarted proposal: %+v", w)
+		}
+		if c := findAction(t, actions, ActionCancel); !c.Disabled || c.DisabledReason == "" {
+			t.Errorf("Cancel is offered (or offers no reason) on an unstarted proposal: %+v", c)
+		}
+		if e := findAction(t, actions, ActionEditProposal); e.Disabled {
+			t.Errorf("EditProposal is disabled on an unstarted (still correctable) proposal: %+v", e)
+		}
 	})
 
-	t.Run("blocked refuses execution with a reason", func(t *testing.T) {
+	t.Run("blocked explains refusal without a fake action", func(t *testing.T) {
 		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED), nil, nil)
 		actions := p.Detail.Actions
-		if len(actions) != 1 || actions[0].ID != ActionExecute {
-			t.Fatalf("actions = %+v, want one execute", actions)
+		if len(actions) != len(wantInterventionIDs) {
+			t.Fatalf("blocked journey should show intervention availability, not Start: %+v", actions)
 		}
-		if !actions[0].Disabled || actions[0].DisabledReason == "" {
-			t.Error("execution is offered on a blocked journey with no stated reason")
+		if p.Detail.PendingOutcome == "" || p.Detail.JourneysLink.Href == "" {
+			t.Fatal("blocked journey lacks its explanation or escape route")
 		}
 	})
 
 	t.Run("awaiting approval offers both decisions", func(t *testing.T) {
 		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL), nil, nil)
 		actions := p.Detail.Actions
-		if len(actions) != 2 {
-			t.Fatalf("actions = %d, want 2", len(actions))
+		if len(actions) != 2+len(wantInterventionIDs) {
+			t.Fatalf("actions = %d, want %d (approve, reject, plus the three interventions)", len(actions), 2+len(wantInterventionIDs))
 		}
-		approve, reject := actions[0], actions[1]
-		if approve.ID != ActionApprove || approve.Variant != "primary" {
-			t.Errorf("first action = %+v, want a primary approve", approve)
+		approve := findAction(t, actions, ActionApprove)
+		reject := findAction(t, actions, ActionReject)
+		if approve.Variant != "primary" {
+			t.Errorf("approve = %+v, want primary", approve)
 		}
-		if reject.ID != ActionReject || reject.Variant != "danger" {
-			t.Errorf("second action = %+v, want a danger reject", reject)
+		if reject.Variant != "danger" {
+			t.Errorf("reject = %+v, want danger", reject)
 		}
-		for _, a := range actions {
+		for _, a := range []journey.Action{approve, reject} {
 			if a.ActsAs != testApprover {
 				t.Errorf("action %q ActsAs = %q, want the routed approver %q", a.ID, a.ActsAs, testApprover)
 			}
 			if len(a.Fields) != 1 || a.Fields[0].Name != NameDecisionReason {
 				t.Fatalf("action %q fields = %+v, want one reason field", a.ID, a.Fields)
 			}
-			if a.ActsAsLabel != "Compensation Approver authorization" || len(a.Confirmation) == 0 || a.ConfirmationNote == "" {
+			if a.ActsAsLabel != "Your compensation review" || len(a.Confirmation) == 0 || a.ConfirmationNote == "" {
 				t.Errorf("action %q does not explain authority and require confirmation: %+v", a.ID, a)
 			}
 		}
@@ -579,34 +742,159 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		if reject.Fields[0].ID != FieldRejectReason || !reject.Fields[0].Required {
 			t.Errorf("the rejection reason = %+v, want %s and required", reject.Fields[0], FieldRejectReason)
 		}
+		// Mid-flight, with an approval underway: Withdraw is no longer
+		// offered live, Cancel and Edit are (this is exactly the
+		// EditInvalidatesAMidFlightApproval scenario PROMOUX-013's own
+		// integration test proved end to end against real PostgreSQL).
+		if w := findAction(t, actions, ActionWithdraw); !w.Disabled || w.DisabledReason == "" {
+			t.Errorf("Withdraw is offered (or offers no reason) once approval has started: %+v", w)
+		}
+		if c := findAction(t, actions, ActionCancel); c.Disabled {
+			t.Errorf("Cancel is disabled during an eligible wait: %+v", c)
+		}
+		if e := findAction(t, actions, ActionEditProposal); e.Disabled {
+			t.Errorf("EditProposal is disabled while Cancel is still available: %+v", e)
+		}
 	})
 
 	t.Run("awaiting approval waits for the durable work item", func(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL)
 		detail.WorkItems = nil
 		actions := DetailPage(cfg, detail, nil, nil).Detail.Actions
-		if len(actions) != 1 || actions[0].ID != ActionApprove || !actions[0].Disabled || actions[0].Label != "Preparing approval" {
+		approve := findAction(t, actions, ActionApprove)
+		if !approve.Disabled || approve.Label != "Preparing approval" {
+			t.Fatalf("approve before durable routing = %+v", approve)
+		}
+		if len(actions) != 1+len(wantInterventionIDs) {
 			t.Fatalf("actions before durable routing = %+v", actions)
 		}
 	})
 
+	// These stages offer none of the ordinary lifecycle actions (execute,
+	// approve, reject): PROMOUX-013 added Withdraw/Cancel/EditProposal,
+	// which behave differently across the three groups below, so "offers
+	// nothing" is no longer one true sentence for every stage in this list
+	// -- it is checked per group instead.
 	for _, stage := range []journeyv1.JourneyStage{
 		journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE,
 		journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION,
+		journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED,
+	} {
+		t.Run(stageOf(stage)+" offers no lifecycle action but an eligible cancel/edit", func(t *testing.T) {
+			p := DetailPage(cfg, testDetail(t, stage), nil, nil)
+			actions := p.Detail.Actions
+			for _, id := range []string{ActionExecute, ActionApprove, ActionReject} {
+				for _, a := range actions {
+					if a.ID == id {
+						t.Errorf("stage %s unexpectedly offers %q", stageOf(stage), id)
+					}
+				}
+			}
+			if len(actions) != len(wantInterventionIDs) {
+				t.Fatalf("actions = %+v, want exactly the three interventions", actions)
+			}
+			if w := findAction(t, actions, ActionWithdraw); !w.Disabled || w.DisabledReason == "" {
+				t.Errorf("Withdraw is offered (or offers no reason) at %s: %+v", stageOf(stage), w)
+			}
+			if c := findAction(t, actions, ActionCancel); c.Disabled {
+				t.Errorf("Cancel is disabled during an eligible wait at %s: %+v", stageOf(stage), c)
+			}
+			if e := findAction(t, actions, ActionEditProposal); e.Disabled {
+				t.Errorf("EditProposal is disabled while Cancel is still available at %s: %+v", stageOf(stage), e)
+			}
+		})
+	}
+
+	for _, stage := range []journeyv1.JourneyStage{
 		journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED,
 		journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS,
+	} {
+		t.Run(stageOf(stage)+" has already committed: all three interventions explain why", func(t *testing.T) {
+			p := DetailPage(cfg, testDetail(t, stage), nil, nil)
+			actions := p.Detail.Actions
+			if len(actions) != len(wantInterventionIDs) {
+				t.Fatalf("actions = %+v, want exactly the three interventions, all disabled", actions)
+			}
+			for _, id := range wantInterventionIDs {
+				a := findAction(t, actions, id)
+				if !a.Disabled || a.DisabledReason == "" {
+					t.Errorf("%q is offered (or offers no reason) once execution has committed at %s: %+v", id, stageOf(stage), a)
+				}
+			}
+		})
+	}
+
+	for _, stage := range []journeyv1.JourneyStage{
 		journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED,
-		journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED,
 		journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED,
 		journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED,
 		journeyv1.JourneyStage_JOURNEY_STAGE_FAILED,
 	} {
-		t.Run(stageOf(stage)+" offers nothing", func(t *testing.T) {
+		t.Run(stageOf(stage)+" is terminal: all three interventions explain why, identically", func(t *testing.T) {
 			p := DetailPage(cfg, testDetail(t, stage), nil, nil)
-			if len(p.Detail.Actions) != 0 {
-				t.Errorf("actions = %+v, want none on a terminal journey", p.Detail.Actions)
+			actions := p.Detail.Actions
+			if len(actions) != len(wantInterventionIDs) {
+				t.Fatalf("actions = %+v, want exactly the three interventions, all disabled", actions)
+			}
+			for _, id := range wantInterventionIDs {
+				a := findAction(t, actions, id)
+				if !a.Disabled || a.DisabledReason != interventionReasonText(reasonAlreadyTerminal) {
+					t.Errorf("%q at a terminal stage %s = %+v, want disabled with the byte-identical already-terminal text", id, stageOf(stage), a)
+				}
 			}
 		})
+	}
+}
+
+func TestTodo_UXAUDIT_006_I18N_ActionCards(t *testing.T) {
+	for _, tc := range []struct {
+		locale, start, approve, reject, reason, review string
+	}{
+		{"en-US", "Start approval workflow", "Approve", "Reject", "Reason for the record", "Your compensation review"},
+		{"de-DE", "Genehmigungsablauf starten", "Genehmigen", "Ablehnen", "Begründung für den Verlauf", "Ihre Vergütungsprüfung"},
+		{"ar", "بدء مسار الموافقة", "موافقة", "رفض", "سبب القرار في السجل", "مراجعتك للتعويضات"},
+	} {
+		cfg := testConfig()
+		cfg.Locale = tc.locale
+		proposed := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil).Detail.Actions
+		if len(proposed) == 0 || proposed[0].ID != ActionExecute || proposed[0].Label != tc.start || proposed[0].Confirmation[0].Label == "" {
+			t.Errorf("%s proposed action = %+v", tc.locale, proposed)
+		}
+		approval := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL), nil, nil).Detail.Actions
+		if len(approval) < 2 || approval[0].ID != ActionApprove || approval[1].ID != ActionReject || approval[0].Label != tc.approve || approval[1].Label != tc.reject || approval[0].Fields[0].Label != tc.reason || approval[0].ActsAsLabel != tc.review {
+			t.Errorf("%s approval actions = %+v", tc.locale, approval)
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_I18N_BusyNotice(t *testing.T) {
+	for _, tc := range []struct{ locale, title, detail string }{
+		{"en-US", "Working…", "Loading employees and promotion requests."},
+		{"de-DE", "Wird bearbeitet…", "Mitarbeitende und Beförderungsanträge werden geladen."},
+		{"ar", "جارٍ العمل…", "جارٍ تحميل الموظفين وطلبات الترقية."},
+	} {
+		cfg := testConfig()
+		cfg.Locale = tc.locale
+		p := ListPage(cfg, ListData{}, busy("journey.busy_list", "Loading employees and promotion requests."), nil)
+		if p.Notice == nil || !p.Notice.Busy || p.Notice.Title != tc.title || p.Notice.Detail != tc.detail {
+			t.Errorf("%s busy notice = %+v", tc.locale, p.Notice)
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_I18N_ApprovalOutcomeNotice(t *testing.T) {
+	for _, tc := range []struct{ locale, title string }{
+		{"en-US", "Approvals complete"},
+		{"de-DE", "Genehmigungen abgeschlossen"},
+		{"ar", "اكتملت الموافقات"},
+	} {
+		cfg := testConfig()
+		cfg.Locale = tc.locale
+		notice := &journey.Notice{Tone: toneSuccess, Title: "Approvals complete", Detail: "English fallback", TitleKey: "journey.notice_waiting_title", MessageKey: "journey.notice_waiting_detail"}
+		p := ListPage(cfg, ListData{}, notice, nil)
+		if p.Notice == nil || p.Notice.Title != tc.title || p.Notice.Detail == "English fallback" || p.Notice.Busy {
+			t.Errorf("%s outcome notice = %+v", tc.locale, p.Notice)
+		}
 	}
 }
 
@@ -617,7 +905,7 @@ func TestDetailPageSections(t *testing.T) {
 	if p.Title != "Omar Reyes · Promotion journey · Human Capital Management Suite" {
 		t.Errorf("Title = %q", p.Title)
 	}
-	if d.BackLink.Label != "Back to Omar Reyes in People" || d.BackLink.Href != "/workspace/app/person?person=worker%3ANW-40118" || d.JourneysLink.Href != ListHref() {
+	if d.BackLink.Label != "Back to Omar Reyes's profile" || d.BackLink.Href != "/workspace/app/person?person=worker%3ANW-40118" || d.JourneysLink.Href != ListHref() {
 		t.Errorf("detail context links = back %+v, journeys %+v", d.BackLink, d.JourneysLink)
 	}
 
@@ -742,16 +1030,57 @@ func TestDetailPageSections(t *testing.T) {
 	}
 }
 
+func TestTodo_UXAUDIT_006_I18N_PromotionDetailBusinessProjection(t *testing.T) {
+	for _, tc := range []struct {
+		locale, reason, base, date, recorded string
+	}{
+		{"de-DE", "Geschäftliche Begründung", "Grundgehalt", "01.06.2026", "Beförderung erfasst"},
+		{"ar", "مبرر العمل", "الأجر الأساسي", "١ يونيو ٢٠٢٦", "سُجلت الترقية"},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			cfg := testConfig()
+			cfg.Locale = tc.locale
+			page := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
+			facts := map[string]string{}
+			for _, fact := range page.Detail.Proposal {
+				facts[fact.Label] = fact.Value
+			}
+			if facts[tc.reason] == "" {
+				t.Errorf("business reason not localized: %+v", page.Detail.Proposal)
+			}
+			rows := map[string]journey.ComparisonRow{}
+			for _, r := range page.Detail.Comparison {
+				rows[r.Label] = r
+			}
+			if row := rows[tc.base]; !row.Changed || row.Delta == "" || row.Current == "USD 93,000.00" {
+				t.Errorf("base-pay comparison not localized: %+v", row)
+			}
+			if row := rows[productui.ResolveProductLocale(tc.locale).Text("journey.compare_effective")]; row.Proposed != tc.date {
+				t.Errorf("effective-date comparison = %+v, want %q", row, tc.date)
+			}
+			if got := page.Detail.Timeline[0].Title; got != tc.recorded {
+				t.Errorf("recorded history title = %q, want %q", got, tc.recorded)
+			}
+			if got := page.Detail.Timeline[0].At; got == "2026-05-12 10:04 UTC" || got == "" {
+				t.Errorf("history time not localized: %q", got)
+			}
+			if page.Detail.Ledger == nil || page.Detail.Ledger.EffectiveAt != tc.date {
+				t.Errorf("recorded outcome date not localized: %+v", page.Detail.Ledger)
+			}
+		})
+	}
+}
+
 func TestTimelineIsNewestFirstAndToned(t *testing.T) {
 	p := DetailPage(testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
 	events := p.Detail.Timeline
-	if len(events) != 7 {
-		t.Fatalf("timeline = %d entries, want 7", len(events))
+	if len(events) != 6 {
+		t.Fatalf("business timeline = %d entries, want 6 without the diagnostic node", len(events))
 	}
-	if events[0].Title != "Promotion outcome recorded" || events[0].Tone != toneSuccess {
+	if events[0].Title != "Promotion recorded" || events[0].Tone != toneSuccess {
 		t.Errorf("newest entry = %+v, want the ledger write in success", events[0])
 	}
-	if events[len(events)-1].Title != "Promotion proposed" {
+	if events[len(events)-1].Title != "Promotion requested" {
 		t.Errorf("oldest entry = %+v, want the proposal", events[len(events)-1])
 	}
 	if events[0].At != "2026-05-12 10:04 UTC" {
@@ -763,17 +1092,19 @@ func TestTimelineIsNewestFirstAndToned(t *testing.T) {
 		tones[e.Title] = e.Tone
 	}
 	for title, want := range map[string]string{
-		"Promotion outcome recorded": toneSuccess,
-		"COMPLETED":                  toneSuccess,
-		"OPEN":                       toneInfo,
-		"gate.p1b":                   toneInfo,
-		"Execution admitted and instance started": toneInfo,
-		"Promotion proposed":                      toneNeutral,
-		"Proposal simulated":                      toneNeutral,
+		"Promotion recorded":        toneSuccess,
+		"Approval completed":        toneSuccess,
+		"Approval assigned":         toneInfo,
+		"Approval process started":  toneInfo,
+		"Promotion requested":       toneNeutral,
+		"Proposal checks completed": toneNeutral,
 	} {
 		if tones[title] != want {
 			t.Errorf("timeline entry %q tone = %q, want %q", title, tones[title], want)
 		}
+	}
+	if _, leaked := tones["gate.p1b"]; leaked {
+		t.Fatal("internal workflow node escaped the diagnostics disclosure")
 	}
 }
 
@@ -790,6 +1121,21 @@ func TestLedgerEffectiveDateFallsBackToTheProposal(t *testing.T) {
 	}
 }
 
+func TestPendingOutcomeMatchesTheDurableBusinessStage(t *testing.T) {
+	waiting := pendingOutcome(stageWaitingEffective, "1 Dec 2026")
+	if !strings.Contains(waiting, "Approvals are complete") || !strings.Contains(waiting, "1 Dec 2026") {
+		t.Fatalf("waiting outcome = %q", waiting)
+	}
+	finance := pendingOutcome(stageFinanceApproval, "1 Dec 2026")
+	if !strings.Contains(finance, "Finance and manager reviews") {
+		t.Fatalf("finance outcome = %q", finance)
+	}
+	blocked := pendingOutcome(stageBlocked, "")
+	if !strings.Contains(blocked, "was not changed") {
+		t.Fatalf("blocked outcome = %q", blocked)
+	}
+}
+
 func TestDetailPageApprovalActionsForEveryApprovalStage(t *testing.T) {
 	for _, stage := range []journeyv1.JourneyStage{
 		journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL,
@@ -799,11 +1145,14 @@ func TestDetailPageApprovalActionsForEveryApprovalStage(t *testing.T) {
 	} {
 		t.Run(stageOf(stage), func(t *testing.T) {
 			p := DetailPage(testConfig(), testDetail(t, stage), nil, nil)
-			if len(p.Detail.Actions) != 2 {
-				t.Fatalf("actions = %d, want approve and reject", len(p.Detail.Actions))
+			actions := p.Detail.Actions
+			if len(actions) != 2+len(wantInterventionIDs) {
+				t.Fatalf("actions = %d, want approve, reject, plus the three interventions", len(actions))
 			}
-			if p.Detail.Actions[0].ID != ActionApprove || p.Detail.Actions[1].ID != ActionReject {
-				t.Fatalf("actions = %+v, want approve and reject", p.Detail.Actions)
+			findAction(t, actions, ActionApprove)
+			findAction(t, actions, ActionReject)
+			for _, id := range wantInterventionIDs {
+				findAction(t, actions, id)
 			}
 		})
 	}
@@ -814,12 +1163,53 @@ func TestTimelineTonesARefusal(t *testing.T) {
 		{Kind: eventWorkItem, Title: "CANCELLED", Detail: "The gate refused the plan."},
 		{Kind: eventNode, Title: "gate.p1b", Detail: "FAILED"},
 	})
-	if len(events) != 2 {
-		t.Fatalf("events = %d, want 2", len(events))
+	if len(events) != 1 {
+		t.Fatalf("business events = %d, want only the review refusal", len(events))
 	}
 	for _, e := range events {
 		if e.Tone != toneDanger {
 			t.Errorf("entry %q tone = %q, want danger", e.Title, e.Tone)
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_I18N_RealReviewHistoryTitles(t *testing.T) {
+	for _, tc := range []struct{ locale, finance, manager, system string }{
+		{"de-DE", "Finanzprüfung: zugewiesen", "Prüfung durch Führungskraft: abgeschlossen", "System"},
+		{"ar", "مراجعة المالية: أُسندت", "مراجعة المدير: اكتملت", "النظام"},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			events := timelineLocale(tc.locale, []*journeyv1.TimelineEvent{
+				{Kind: eventWorkItem, Actor: "workflow", Title: "Finance review assigned"},
+				{Kind: eventWorkItem, Actor: "reviewer@example.test", Title: "Manager review completed"},
+				{Kind: eventNode, Title: "approval.manager", Detail: "COMPLETED"},
+			})
+			if len(events) != 2 {
+				t.Fatalf("history = %+v, want only two business events", events)
+			}
+			if events[0].Title != tc.manager || events[1].Title != tc.finance || events[1].Actor != tc.system {
+				t.Errorf("localized history = %+v", events)
+			}
+			if got := timelineTitleLocale(tc.locale, &journeyv1.TimelineEvent{Kind: eventWorkItem, Title: "UNKNOWN_INTERNAL_STATE"}); strings.Contains(got, "INTERNAL") || got == "" {
+				t.Errorf("unrecognized internal status escaped to the reader: %q", got)
+			}
+		})
+	}
+}
+
+func TestTodo_UXAUDIT_006_I18N_CodeBackedFinding(t *testing.T) {
+	input := []*journeyv1.Finding{
+		{Code: "promotion.budget_authority_observation_only", Severity: "INFO", Message: "server English wording must not leak"},
+		{Code: "other.finding", Severity: "WARNING", Message: "Unmapped finding"},
+	}
+	for _, tc := range []struct{ locale, want string }{
+		{"en-US", "Finance confirmed the current budget baseline."},
+		{"de-DE", "Die Finanzprüfung bestätigte die aktuelle Budgetgrundlage."},
+		{"ar", "أكدت المالية أساس الميزانية الحالي."},
+	} {
+		got := findingsLocale(tc.locale, input)
+		if len(got) != 2 || !strings.HasPrefix(got[0].Message, tc.want) || got[0].Code != input[0].Code || got[1].Message != "Unmapped finding" {
+			t.Errorf("%s finding projection = %+v", tc.locale, got)
 		}
 	}
 }
@@ -848,6 +1238,21 @@ func TestDetailPageOfNothing(t *testing.T) {
 	if p.Notice != notice {
 		t.Error("the notice was dropped")
 	}
+	if !p.Detail.Unavailable || len(p.Detail.Steps) != 0 || p.Detail.Journey.StageLabel != "" {
+		t.Error("the refused route rendered an invented journey state")
+	}
+	if p.Detail.BackLink.Href != "" || p.Detail.JourneysLink.Href == "" {
+		t.Error("the refused route did not retain only its safe recovery link")
+	}
+	markup, err := journey.RenderToString(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"Unknown stage", "Stages", "Recorded outcome", "No employee record has changed yet"} {
+		if strings.Contains(markup, forbidden) {
+			t.Errorf("the refused route rendered misleading content %q", forbidden)
+		}
+	}
 	if len(p.Nav) != 2 {
 		t.Error("the navigation was dropped, leaving no way back")
 	}
@@ -872,6 +1277,7 @@ func TestSeverityOf(t *testing.T) {
 	cases := map[string]string{
 		"BLOCKING": severityBlocking, "error": severityBlocking, "Fatal": severityBlocking,
 		"WARNING": severityWarning, "warn": severityWarning,
+		"NEEDS_DATA": "needs-data", "needs-data": "needs-data",
 		"SUCCESS": severitySuccess, "ok": severitySuccess,
 		"INFO": severityInfo, "anything else": severityInfo, "": severityInfo,
 	}
@@ -879,6 +1285,41 @@ func TestSeverityOf(t *testing.T) {
 		if got := severityOf(in); got != want {
 			t.Errorf("severityOf(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestFinanceStageCopyDistinguishesUnstartedFromAssignedReview(t *testing.T) {
+	proposed := steps(stageProposed, nil, "2026-12-01")
+	assigned := steps(stageFinanceApproval, nil, "2026-12-01")
+	if !strings.Contains(proposed[1].Detail, "has not begun") {
+		t.Fatalf("unstarted proposal implies finance assignment: %q", proposed[1].Detail)
+	}
+	if assigned[1].Detail != "Waiting for the assigned finance reviewer." {
+		t.Fatalf("started approval still asks to start the workflow: %q", assigned[1].Detail)
+	}
+}
+
+func TestTodo_UXAUDIT_006_PromotionStagesLocale(t *testing.T) {
+	for _, tc := range []struct {
+		locale, proposal, finance, waiting string
+	}{
+		{"en-US", "Proposal", "Finance review", "Waiting for the assigned finance reviewer."},
+		{"de-DE", "Antrag", "Finanzprüfung", "Die zuständige Person in der Finanzabteilung muss entscheiden."},
+		{"ar", "الطلب", "مراجعة المالية", "بانتظار قرار المراجع المالي المكلّف."},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			stages := stepsLocale(tc.locale, stageFinanceApproval, nil, "2026-12-01")
+			if len(stages) != 5 || stages[0].Label != tc.proposal || stages[1].Label != tc.finance || stages[1].Detail != tc.waiting {
+				t.Fatalf("unlocalized stages: %+v", stages)
+			}
+			for stage := range stepStates {
+				for _, step := range stepsLocale(tc.locale, stage, nil, "2026-12-01") {
+					if strings.HasPrefix(step.Label, "journey.") || strings.HasPrefix(step.Detail, "journey.") || step.Label == "" || step.Detail == "" {
+						t.Fatalf("%s %s has unresolved step: %+v", tc.locale, stage, step)
+					}
+				}
+			}
+		})
 	}
 }
 
@@ -909,17 +1350,17 @@ func TestProjectionPassesRawStringsToTheRenderer(t *testing.T) {
 // TestProjectedPagesRender is the end-to-end shape check: both projections
 // go through the real renderer without error and carry their own facts.
 func TestProjectedPagesRender(t *testing.T) {
-	cfg := testConfig()
+	cfg := testDiagnosticsAuthorizedConfig()
 
 	list, err := journey.RenderToString(ListPage(cfg, ListData{
 		Journeys: []*journeyv1.Journey{testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL)},
 		Workers:  testWorkers(),
 		Options:  testWorkforceOptions(),
-	}, &journey.Notice{Tone: toneInfo, Title: "Working…"}, nil))
+	}, &journey.Notice{Tone: toneInfo, Title: "Working…", Busy: true}, nil))
 	if err != nil {
 		t.Fatalf("rendering the list: %v", err)
 	}
-	for _, want := range []string{"Human Capital Management Suite", "Omar Reyes", "USD 93,000.00", "Awaiting approval", "Propose and simulate"} {
+	for _, want := range []string{"Human Capital Management Suite", "Omar Reyes", "USD 93,000.00", "Awaiting approval", "Review and submit"} {
 		if !strings.Contains(list, want) {
 			t.Errorf("the rendered list page does not carry %q", want)
 		}
@@ -955,7 +1396,8 @@ func testWorkers() []*journeyv1.Worker {
 	return []*journeyv1.Worker{
 		{
 			WorkerRef: testCreatedRef, WorkerId: "99999999-9999-4999-8999-999999999999",
-			LegalName: "Rosa Iglesias", PreferredName: "Rosa", WorkerNumber: "W-2001",
+			SubjectRevision: "rewards.package.worker-created-rosa@1",
+			LegalName:       "Rosa Iglesias", PreferredName: "Rosa", WorkerNumber: "W-2001",
 			JobCode: "OPS-HRBP2", Grade: "P2", OrgUnit: "people-ops", PositionId: "POS-NEW-001",
 			Location: "Barcelona, ES", PayZone: "US-EAST",
 			BasePay: "72500", Currency: "USD", BonusTarget: "0.0500",
@@ -963,14 +1405,16 @@ func testWorkers() []*journeyv1.Worker {
 		},
 		{
 			WorkerRef: "jane-doe", WorkerId: testJaneID,
-			LegalName: "Jane Doe", PreferredName: "Jane", WorkerNumber: "W-1001",
+			SubjectRevision: "rewards.package.jane-doe@1",
+			LegalName:       "Jane Doe", PreferredName: "Jane", WorkerNumber: "W-1001",
 			JobCode: "ENG-SWE3", Grade: "P3", OrgUnit: "eng-platform", PositionId: "POS-SWE-118",
 			Location: "San Francisco, CA", PayZone: "US-WEST",
 			HireDate: "2019-03-04", Source: "CORPUS",
 		},
 		{
 			WorkerRef: "omar-reyes", WorkerId: "22222222-2222-4222-8222-222222222222",
-			LegalName: "Omar Reyes", WorkerNumber: "W-1002",
+			SubjectRevision: "rewards.package.omar-reyes@1",
+			LegalName:       "Omar Reyes", WorkerNumber: "W-1002",
 			JobCode: "OPS-HRBP2", Grade: "P2", OrgUnit: "people-ops", PositionId: "POS-HRBP-204",
 			Location: "Boston, MA", PayZone: "US-EAST",
 			HireDate: "2019-07-15", Source: "CORPUS",
@@ -1011,6 +1455,8 @@ func workerJourneys(t *testing.T) []*journeyv1.Journey {
 	byID.WorkerRef = testJaneID
 	done := testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED)
 	done.WorkerRef = "omar-reyes"
+	// PROMOUX-012: closure is the server's projection, never read off stage.
+	done.Viewer = &journeyv1.JourneyViewerProjection{Closed: true, Responsibility: journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_CLOSED}
 	return []*journeyv1.Journey{open, byID, done, nil}
 }
 
@@ -1064,7 +1510,7 @@ func TestListPageProjectsThePeoplePanel(t *testing.T) {
 	if people.Note != PeopleNote || people.Empty != PeopleEmpty {
 		t.Error("the panel is missing its note or its empty state")
 	}
-	if !strings.Contains(people.Note, "workforce table") {
+	if !strings.Contains(people.Note, "directory") {
 		t.Errorf("the note = %q, want it to say what adding an employee does", people.Note)
 	}
 
@@ -1075,7 +1521,7 @@ func TestListPageProjectsThePeoplePanel(t *testing.T) {
 	want := journey.WorkerCard{
 		Ref: testCreatedRef, Name: "Rosa", Number: "W-2001",
 		Title: "HR Business Partner", JobCode: "OPS-HRBP2", Grade: "P2",
-		OrgUnit: "people-ops", Location: "Barcelona, ES",
+		OrgUnit: "People Ops", Location: "Barcelona, ES",
 		PayLine: "USD 72,500.00", HireDate: "1 Oct 2026",
 		Source: "CREATED", SourceLabel: "Created", Tone: toneInfo,
 		ProposeHref: "#/journeys/new?worker=worker%3Acreated-rosa",
@@ -1152,9 +1598,94 @@ func TestProposalPageOffersOnlyPublishedNextRolesAndExplainsTheirRules(t *testin
 		}
 	}
 	base, _ := fieldByID(form.Fields, FieldBase)
-	for _, want := range []string{"5.00%", "15.00%", "promotion-rules@2026.1", "professional-benefit-eligibility@2026.1"} {
+	for _, want := range []string{"5.00%", "15.00%", "Benefit eligibility is reviewed separately"} {
 		if !strings.Contains(base.Help, want) {
 			t.Errorf("base-pay guidance %q does not explain %q", base.Help, want)
+		}
+	}
+	for _, forbidden := range []string{"promotion-rules@", "professional-benefit-eligibility@", "ladder edge"} {
+		if strings.Contains(base.Help, forbidden) {
+			t.Errorf("base-pay guidance leaks implementation term %q: %q", forbidden, base.Help)
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_PromotionFormLocale(t *testing.T) {
+	cases := []struct {
+		locale, title, role, grade, rule string
+	}{
+		{"en-US", "Promote Omar Reyes", "Next role", "Target grade", "For this role, base pay must increase"},
+		{"de-DE", "Omar Reyes befördern", "Nächste Rolle", "Zielstufe", "Für diese Rolle muss das Grundgehalt"},
+		{"ar", "ترقية Omar Reyes", "الوظيفة التالية", "الدرجة المستهدفة", "يجب أن يرتفع الأجر الأساسي"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.locale, func(t *testing.T) {
+			cfg := testConfig()
+			cfg.Locale = tc.locale
+			p := ProposalPage(cfg, testListData(t, "omar-reyes"), nil, map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3"})
+			if p.Locale != tc.locale || !strings.Contains(p.Title, tc.title) {
+				t.Fatalf("locale/title = %q / %q", p.Locale, p.Title)
+			}
+			role, _ := fieldByID(p.Proposal.Form.Fields, FieldJobCode)
+			grade, _ := fieldByID(p.Proposal.Form.Fields, FieldGrade)
+			base, _ := fieldByID(p.Proposal.Form.Fields, FieldBase)
+			if role.Label != tc.role || grade.Label != tc.grade || !strings.Contains(base.Help, tc.rule) || !strings.Contains(base.Help, "5.00%") || !strings.Contains(base.Help, "15.00%") {
+				t.Fatalf("localized form = role %q, grade %q, rule %q", role.Label, grade.Label, base.Help)
+			}
+			for _, forbidden := range []string{"promotion-rules@", "professional-benefit-eligibility@", "ladder edge", "⟦"} {
+				if strings.Contains(base.Help, forbidden) {
+					t.Fatalf("locale %s leaked %q in %q", tc.locale, forbidden, base.Help)
+				}
+			}
+		})
+	}
+}
+
+func TestTodo_UXAUDIT_006_MissingPromotionRangeIsExplained(t *testing.T) {
+	path := &journeyv1.PromotionPathOption{BenefitRuleRefs: []string{"internal-benefit-ref"}}
+	for _, tc := range []struct{ locale, expected string }{
+		{"en-US", "An exact base-pay range is not available here"},
+		{"de-DE", "Hier ist keine genaue Grundgehaltsspanne verfügbar"},
+		{"ar", "نطاق الأجر الأساسي الدقيق غير متاح هنا"},
+	} {
+		result := promotionPathRuleHelpLocale(path, productui.ResolveProductLocale(tc.locale))
+		if !strings.Contains(result, tc.expected) || strings.Contains(result, "from  to") || strings.Contains(result, "من إلى") || strings.Contains(result, "internal-benefit-ref") {
+			t.Errorf("locale %s missing-range guidance = %q", tc.locale, result)
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_PromotionSubjectUsesAuthorizedJobTitle(t *testing.T) {
+	worker := &journeyv1.Worker{WorkerRef: "demo-worker", JobCode: "SAL-AE3", JobTitle: "Senior Account Executive"}
+	subject := promotionSubject(worker, nil, productui.ResolveProductLocale("en-US"))
+	if subject == nil || subject.Title != "Senior Account Executive" {
+		t.Fatalf("promotion subject displayed raw code instead of title: %+v", subject)
+	}
+}
+
+func TestTodo_UXAUDIT_006_PromotionSubjectFormatsPayForLocale(t *testing.T) {
+	worker := &journeyv1.Worker{WorkerRef: "demo-worker", JobCode: "SAL-AE3", JobTitle: "Senior Account Executive", Grade: "P4", BasePay: "135000.00", Currency: "USD"}
+	for _, tc := range []struct{ locale, want string }{
+		{"en-US", "USD\u00a0135,000.00"},
+		{"de-DE", "135.000,00\u00a0USD"},
+	} {
+		subject := promotionSubject(worker, nil, productui.ResolveProductLocale(tc.locale))
+		if subject == nil || subject.PayLine != tc.want {
+			t.Errorf("%s subject pay = %+v, want %q", tc.locale, subject, tc.want)
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_NoPromotionPathUsesLocale(t *testing.T) {
+	for _, tc := range []struct{ locale, expected string }{
+		{"de-DE", "Für diese Person ist keine nächste Rolle verfügbar"},
+		{"ar", "لا توجد وظيفة تالية متاحة لهذا الموظف"},
+	} {
+		cfg := testConfig()
+		cfg.Locale = tc.locale
+		p := ProposalPage(cfg, ListData{SelectedRef: "adrian", Workers: []*journeyv1.Worker{{WorkerRef: "adrian", JobCode: "SAL-AE3", Grade: "P4"}}, Options: &journeyv1.WorkforceOptions{}}, nil, nil)
+		if !p.Proposal.Form.Disabled || !strings.Contains(p.Proposal.Form.DisabledReason, tc.expected) {
+			t.Errorf("locale %s no-path reason = %q", tc.locale, p.Proposal.Form.DisabledReason)
 		}
 	}
 }
@@ -1176,7 +1707,7 @@ func TestProposalPageRefusesAnUnreadableSubject(t *testing.T) {
 }
 
 func TestProposalPageDoesNotMountItsFormWhileWorkerContextLoads(t *testing.T) {
-	p := ProposalPage(testConfig(), ListData{SelectedRef: "jane-doe"}, busy("Reading the employee."), nil)
+	p := ProposalPage(testConfig(), ListData{SelectedRef: "jane-doe"}, busy("journey.busy_employee", "Reading the employee."), nil)
 	if p.Proposal == nil || !p.Proposal.Loading {
 		t.Fatalf("loading proposal = %+v", p.Proposal)
 	}
@@ -1449,6 +1980,25 @@ func TestThePeoplePanelRenders(t *testing.T) {
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("the rendered People panel does not carry %q", want)
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_PromotionRuleHelpHidesPolicyIdentifiers(t *testing.T) {
+	path := &journeyv1.PromotionPathOption{
+		MinimumBaseIncrease: "0.0500", MaximumBaseIncrease: "0.1800",
+		CompensationPolicyRef: "promotion-rules@2026.1",
+		BenefitRuleRefs:       []string{"people-manager-benefit-eligibility@2026.1"},
+	}
+	help := promotionPathRuleHelp(path)
+	for _, want := range []string{"5.00%", "18.00%", "Benefit eligibility is reviewed separately"} {
+		if !strings.Contains(help, want) {
+			t.Errorf("promotion help missing %q: %q", want, help)
+		}
+	}
+	for _, forbidden := range []string{"ladder edge", "promotion-rules@", "benefit-eligibility@"} {
+		if strings.Contains(help, forbidden) {
+			t.Errorf("promotion help exposed %q: %q", forbidden, help)
 		}
 	}
 }

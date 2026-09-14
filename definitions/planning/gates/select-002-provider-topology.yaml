@@ -1,0 +1,223 @@
+# SELECT-002 pilot provider topology.
+#
+# Schema: tools/planning/pilotprovider.ProviderTopology. Validated by
+# tools/planning/pilotprovider.ProviderTopology.Validate, verified by
+# tools/planning/pilotprovider.VerifyTopologySignature, and reported by
+# `go run ./tools/planning/cmd/pilotprovider`.
+#
+# STRUCTURAL PLACEHOLDER, BY DESIGN: WEDGE-001 selected a problem (a
+# Promotion/Compensation-change failure class), not a partner. No named
+# provider - with a real product, edition, region, API entitlements, quotas,
+# credential model or data-processing terms - exists anywhere else in this
+# repository. selection_status: PLACEHOLDER_UNVERIFIED below, the mandatory
+# "-PLACEHOLDER-UNVERIFIED" suffix on provider.vendor_id, and the honestly
+# empty vendor_confirmation block are all Validate()-enforced (see
+# tools/planning/pilotprovider's doc.go): a topology cannot claim
+# PLACEHOLDER_UNVERIFIED while its vendor id looks like a real vendor's, and
+# cannot claim VENDOR_CONFIRMED without a fully populated vendor_confirmation
+# and a vendor id that has dropped the placeholder suffix.
+#
+# This placeholder models specs/integration-platform.md's own Initial Named
+# Connector Hypothesis #1 ("One major HCM used by the first design partners,
+# likely Workday or an equivalent incumbent") and its Core HCM connector
+# family (Workday, UKG, Oracle, SAP, Dayforce) WITHOUT naming any real
+# company: vendor_display_name says so explicitly. Every quota, entitlement,
+# fault-matrix and data-processing fact below is an illustrative value
+# chosen to exercise this schema's structure, not a claim about a real
+# vendor's actual terms; data_processing.dpa_reference states plainly that
+# no data-processing agreement has been executed rather than inventing one.
+#
+# STRUCTURALLY INCAPABLE OF SATISFYING A REAL SELECTION GATE:
+# tools/planning/pilotprovider.ProviderTopology.SatisfiesRealProviderSelectionGate
+# is what any downstream gate (NEXT-002, or a future release gate) must call
+# before trusting a topology as a procured, contracted selection. This
+# checked-in placeholder fails that gate by VALUE (placeholder vendor_id
+# suffix + empty vendor_confirmation), not merely because selection_status
+# says so - placeholder_gate_test.go proves flipping selection_status alone
+# still fails the gate. See doc.go for the full rationale and the exact path
+# to swap in a real vendor (a data change to this file plus a re-sign, no
+# code change).
+#
+# REFACTOR: provider-specific facts above remain configuration/adapter-
+# qualification inputs. No semantic workflow or capability package may
+# branch on provider.vendor_id; refactor_test.go scans the real internal/
+# tree (excluding internal/connectivity, the adapter boundary) and fails if
+# it ever does.
+#
+# CanonicalDigest hashes every field below except `signature`; do not
+# hand-edit any field above `signature` without re-signing (see
+# security_test.go's TestTodo_SELECT_002_Security for what breaks).
+schema_version: 1
+todo_id: SELECT-002
+signed_date: "2026-09-13"
+selection_status: PLACEHOLDER_UNVERIFIED
+provider:
+  vendor_id: legacyhcm-incumbent-PLACEHOLDER-UNVERIFIED
+  vendor_display_name: Unselected Incumbent Core HCM (Workday-class placeholder, not a real vendor)
+  product: Core HCM Suite (placeholder product name, unverified)
+  edition: Enterprise Edition (placeholder edition, unverified)
+  region: US-EAST (placeholder region, unverified)
+  api_version: v1-placeholder (unverified)
+vendor_confirmation:
+  confirmed_by_contact: ""
+  contract_document_ref: ""
+  signed_effective_date: ""
+api_entitlements:
+  - scope: worker.read
+    description: read worker/employment/assignment records for reconciliation and observation
+    granted: true
+  - scope: worker.compensation.change
+    description: submit a governed compensation-change write for one worker record
+    granted: true
+  - scope: worker.compensation.observe
+    description: poll/observe the external compensation record independently of any write acknowledgement
+    granted: true
+sandbox:
+  fidelity: SYNTHETIC_FIXTURE_ONLY
+  description: No real vendor sandbox tenant has been provisioned. Sandbox behavior is exercised entirely through internal/connectivity/providercontract's pinned fake and fault-injection fixtures (PROVIDER-001), not a real vendor sandbox tenant.
+  evidence_ref: internal/connectivity/providercontract (TestSelectedProviderAdapterPassesPinnedSemanticAndFaultConformanceSuite)
+  executed_at: "2026-09-05"
+field_authorities:
+  - field: compensation.base
+    authority: HCM_NEXT
+    rationale: HCM Next remains authoritative for the proposed compensation change through approval and execution; the provider receives a governed write only after Gate A/B authorization.
+  - field: person.name.given
+    authority: PROVIDER
+    rationale: "competitive-positioning-and-authority-expansion.md's Phase 1 default disposition for person/worker/employment facts is OBSERVE: the incumbent core-HCM system remains system of record."
+  - field: person.name.family
+    authority: PROVIDER
+    rationale: same Phase 1 default OBSERVE disposition as person.name.given.
+  - field: relationship.manager
+    authority: SHARED_WITH_CONFLICT_POLICY
+    rationale: "competitive-positioning-and-authority-expansion.md disposes manager/org changes ORCHESTRATE: either system may propose a value, and cross-workflow conflict detection (specs/cross-workflow-conflict-and-write-intent.md) resolves disagreement rather than either side winning by default."
+observation:
+  mechanism: BOTH
+  poll_interval_seconds: 900
+  webhook_signature_scheme: HMAC_SHA256_SIGNED_WEBHOOK_SECRET
+  independent_of_write_ack: true
+quota:
+  limit_window: 60s
+  request_limit: 600
+  concurrency_limit: 10
+  burst_policy: token bucket, burst ceiling 50 requests, refill 10/s (placeholder - no vendor rate-limit documentation reviewed)
+timeout:
+  request_timeout_seconds: 30
+  ambiguous_outcome_action: OBSERVE_BEFORE_RETRY
+credential:
+  scheme: OAUTH2_CLIENT_CREDENTIALS
+  rotation_days: 90
+  scope_granted:
+    - worker.read
+    - worker.compensation.change
+    - worker.compensation.observe
+data_processing:
+  residency_region: US (placeholder - no residency commitment confirmed with any real vendor)
+  retention_days: 400
+  subprocessor_disclosure: No subprocessor list has been reviewed for this placeholder; a real vendor's subprocessor disclosure must be reviewed before pilot use.
+  dpa_reference: NONE EXECUTED - this is a placeholder topology; no data processing agreement exists for this vendor identity. Replace this field with a real DPA reference before any real worker data crosses this connection.
+operations:
+  - verb: READ
+    capability_or_intent_id: worker.read
+    contract_id: legacyhcm-incumbent-PLACEHOLDER-UNVERIFIED/worker-read-v1
+    contract_version: 0.0.0-placeholder
+    owner: Integration Platform (placeholder owner, unassigned pending real selection)
+  - verb: WRITE
+    capability_or_intent_id: worker.compensation.change
+    contract_id: legacyhcm-incumbent-PLACEHOLDER-UNVERIFIED/compensation-write-v1
+    contract_version: 0.0.0-placeholder
+    owner: Integration Platform (placeholder owner, unassigned pending real selection)
+  - verb: SUBSCRIBE
+    capability_or_intent_id: worker.change.events
+    contract_id: legacyhcm-incumbent-PLACEHOLDER-UNVERIFIED/webhook-worker-change-v1
+    contract_version: 0.0.0-placeholder
+    owner: Integration Platform (placeholder owner, unassigned pending real selection)
+  - verb: OBSERVE
+    capability_or_intent_id: worker.compensation.observe
+    contract_id: legacyhcm-incumbent-PLACEHOLDER-UNVERIFIED/compensation-observe-v1
+    contract_version: 0.0.0-placeholder
+    owner: Integration Platform (placeholder owner, unassigned pending real selection)
+  - verb: RECONCILE
+    capability_or_intent_id: worker.compensation.reconcile
+    contract_id: legacyhcm-incumbent-PLACEHOLDER-UNVERIFIED/compensation-reconcile-v1
+    contract_version: 0.0.0-placeholder
+    owner: Integration Platform (placeholder owner, unassigned pending real selection)
+faults:
+  - class: AUTHENTICATION
+    example_response: Expired/revoked OAuth2 client-credentials token
+    default_action: Suspend writes, notify owner, require revalidation
+    simulated_in_sandbox: true
+    evidence_ref: internal/connectivity/providercontract fault-injection fixtures (AUTHENTICATION case)
+  - class: AUTHORIZATION_SCOPE
+    example_response: External privilege/scope missing for worker.compensation.change
+    default_action: Final until consent/config changes
+    simulated_in_sandbox: true
+    evidence_ref: internal/connectivity/providercontract fault-injection fixtures (AUTHORIZATION_SCOPE case)
+  - class: VALIDATION
+    example_response: Vendor rejected field/value on compensation write
+    default_action: Repair mapping/data; no blind retry
+    simulated_in_sandbox: true
+    evidence_ref: internal/connectivity/providercontract fault-injection fixtures (VALIDATION case)
+  - class: CONFLICT
+    example_response: External version/state changed since read
+    default_action: Observe, revalidate, conflict workflow
+    simulated_in_sandbox: true
+    evidence_ref: internal/connectivity/providercontract fault-injection fixtures (CONFLICT case)
+  - class: RATE_LIMITED
+    example_response: Quota exhausted (HTTP 429)
+    default_action: Queue until reset under retry budget
+    simulated_in_sandbox: true
+    evidence_ref: internal/connectivity/providercontract fault-injection fixtures (RATE_LIMITED case)
+  - class: TRANSIENT_DEPENDENCY
+    example_response: Timeout or temporary server failure
+    default_action: Bounded retry with jitter
+    simulated_in_sandbox: true
+    evidence_ref: internal/connectivity/providercontract fault-injection fixtures (TRANSIENT_DEPENDENCY case)
+  - class: AMBIGUOUS_OUTCOME
+    example_response: Timeout after compensation write may have applied
+    default_action: Observe before retry
+    simulated_in_sandbox: true
+    evidence_ref: internal/connectivity/providercontract fault-injection fixtures (AMBIGUOUS_OUTCOME case)
+  - class: SCHEMA_INCOMPATIBILITY
+    example_response: Field/shape/enum no longer supported
+    default_action: Quarantine affected operation/version
+    simulated_in_sandbox: true
+    evidence_ref: internal/connectivity/providercontract fault-injection fixtures (SCHEMA_INCOMPATIBILITY case)
+  - class: FINAL_BUSINESS_REJECT
+    example_response: Vendor accepted request semantics but refused business outcome
+    default_action: Surface governed failure/repair
+    simulated_in_sandbox: true
+    evidence_ref: internal/connectivity/providercontract fault-injection fixtures (FINAL_BUSINESS_REJECT case)
+cross_system_observation:
+  description: After a compensation-change write is acknowledged, the pilot independently polls worker.compensation.observe - not the write response - to confirm the provider's own state reflects the new base pay before the workflow's OBSERVE step reports success.
+  method: POLLING
+  proves_independent_of_write_acknowledgement: true
+  evidence_ref: internal/connectivity/providercontract (TestSelectedProviderAdapterPassesPinnedSemanticAndFaultConformanceSuite observation cases)
+exit:
+  stop_new_work: The connection's kill switch (specs/integration-platform.md Security and Isolation) suspends new ConnectorOperation leases for this connection without disabling deterministic HCM Next behavior or hiding already-queued obligations.
+  preserve_or_reconcile_in_flight: In-flight ConnectorOperations drain to OBSERVING or FINAL per the operation lifecycle in specs/integration-platform.md; RECONCILE runs against the last observed state before the connection is suspended, so nothing is dropped mid-flight.
+  revoke_credentials: The connection's scoped OAuth2 client-credentials lease is revoked at the credential broker; the egress gateway then refuses any further outbound request on this connection.
+  activate_fallback: The Promotion workflow's compensation-change effect reverts to OBSERVE-only (no external write) until a replacement provider topology is signed; existing approvals remain valid but EXECUTE is blocked.
+  drain_rollback_reopen: Queued but unsent operations are cancelled and returned to their originating BusinessIntent as HUMAN_REVIEW_REQUIRED; a later reopened connection must revalidate source authority and writer fence before resuming.
+  exception_expiry: Any signed waiver permitting continued write access during exit rehearsal expires automatically 30 days after issuance, matching OPS-009's vendor-continuity rehearsal cadence.
+commercial:
+  metric: pilot transaction volume (compensation-change writes per month)
+  limit: no commercial agreement exists for this placeholder vendor; illustrative ceiling of 500 writes/month pending a real contract
+  overage_policy: undefined - a real vendor contract must name an overage policy before this limit can be enforced; until then the platform's Vendor Capacity Manager fails closed on unknown capacity per specs/integration-platform.md.
+stop_reselect_thresholds:
+  - metric: vendor_confirmation_age_days
+    threshold: no vendor contact/contract confirmed within 30 days of pilot start
+    action: STOP
+  - metric: fault_class_sandbox_fidelity
+    threshold: any fault class still SYNTHETIC_FIXTURE_ONLY (never exercised against a real vendor sandbox tenant) at pilot go-live
+    action: RESELECT_WEDGE
+  - metric: cross_system_observation_mismatch_rate
+    threshold: ">5% of pilot compensation-change writes fail independent observation within 24 hours, over a rolling 20-transaction window"
+    action: STOP
+  - metric: cross_system_observation_mismatch_rate
+    threshold: vendor confirmed, sandbox fidelity at or above VENDOR_SANDBOX_TENANT, and observation-mismatch rate <=5% over a rolling 20-transaction window
+    action: PROCEED
+signature:
+  algorithm: ed25519
+  public_key: 93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b
+  value: 5c12614fe22d29bf07ed50ead95535358194218d788eab0659609574884dc83196bf5692c7ade2aac4af2d106b68265403eb84ac2de5424666a5aa62e0cc1d0d
+  key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml

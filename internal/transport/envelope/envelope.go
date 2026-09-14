@@ -44,6 +44,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 // Code is the canonical owned error condition. Values match
@@ -226,6 +227,15 @@ type Violation struct {
 	Description string
 	// RuleRef is the stable identifier of the rule that rejected it.
 	RuleRef string
+	// MoneyRange is an optional, typed server-owned correction for a monetary
+	// field. An empty Minimum means no range is published.
+	MoneyRange MoneyRange
+}
+
+type MoneyRange struct {
+	Minimum  string
+	Maximum  string
+	Currency string
 }
 
 // Evidence references one durable evidence record.
@@ -300,6 +310,40 @@ func (e *Error) WithViolation(fieldPath, description, ruleRef string) *Error {
 		RuleRef:     ruleRef,
 	})
 	return e
+}
+
+// WithViolationMoneyRange attaches exact monetary bounds to the most recent
+// field violation. Invalid values are omitted rather than published.
+func (e *Error) WithViolationMoneyRange(minimum, maximum values.Money) *Error {
+	if safe, ok := safeMoneyRange(minimum, maximum); ok && len(e.violations) > 0 {
+		e.violations[len(e.violations)-1].MoneyRange = safe
+	}
+	return e
+}
+
+func safeMoneyRange(minimum, maximum values.Money) (MoneyRange, bool) {
+	if minimum.Validate() != nil || maximum.Validate() != nil || minimum.Currency() != maximum.Currency() ||
+		minimum.Amount().Scale() != 2 || maximum.Amount().Scale() != 2 ||
+		minimum.Amount().Sign() <= 0 || minimum.Amount().Cmp(maximum.Amount()) > 0 {
+		return MoneyRange{}, false
+	}
+	return MoneyRange{Minimum: minimum.Amount().String(), Maximum: maximum.Amount().String(), Currency: minimum.Currency()}, true
+}
+
+func moneyRangeFromDetail(raw *commonv1.MoneyRange) MoneyRange {
+	if raw == nil {
+		return MoneyRange{}
+	}
+	minimum, err := values.NewMoney(raw.GetMinimum(), raw.GetCurrency(), 2, values.RoundingExactRequired)
+	if err != nil {
+		return MoneyRange{}
+	}
+	maximum, err := values.NewMoney(raw.GetMaximum(), raw.GetCurrency(), 2, values.RoundingExactRequired)
+	if err != nil {
+		return MoneyRange{}
+	}
+	rangeValue, _ := safeMoneyRange(minimum, maximum)
+	return rangeValue
 }
 
 // WithRetryable overrides the canonical retry classification and returns e.
@@ -389,6 +433,11 @@ func (e *Error) Detail() *commonv1.ErrorDetail {
 			Description: v.Description,
 			RuleRef:     v.RuleRef,
 		}
+		if v.MoneyRange.Minimum != "" {
+			detail.FieldViolations[i].PermittedMoneyRange = &commonv1.MoneyRange{
+				Minimum: v.MoneyRange.Minimum, Maximum: v.MoneyRange.Maximum, Currency: v.MoneyRange.Currency,
+			}
+		}
 	}
 	if e.evidence.ID != "" || e.evidence.Kind != "" || e.evidence.Digest != "" {
 		detail.EvidenceRef = &commonv1.EvidenceRef{
@@ -445,6 +494,9 @@ func FromDetail(code Code, message string, detail *commonv1.ErrorDetail) *Error 
 				FieldPath:   v.GetFieldPath(),
 				Description: v.GetDescription(),
 				RuleRef:     v.GetRuleRef(),
+			}
+			if r := v.GetPermittedMoneyRange(); r != nil {
+				e.violations[i].MoneyRange = moneyRangeFromDetail(r)
 			}
 		}
 	}
