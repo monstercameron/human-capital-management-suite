@@ -44,6 +44,51 @@ func TestLoadingProxyUsesPageShapedAccessibleShells(t *testing.T) {
 	}
 }
 
+func TestLoadingProxyPublishesStableRegionAndGeometryContract(t *testing.T) {
+	for _, page := range []PageID{PageHome, PagePeople, PagePerson, PageOrganization, PageSettings} {
+		geometry := LoadingProxyGeometry(page)
+		if geometry.Layout == "" || geometry.Rows <= 0 || geometry.Columns <= 0 {
+			t.Fatalf("page %q has incomplete loading geometry: %+v", page, geometry)
+		}
+		markup, err := ui.RenderToString(ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: page}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{
+			`data-async-region="page-content"`,
+			`data-loading-contract="v1"`,
+			`data-loading-layout="` + geometry.Layout + `"`,
+			`data-preserve-scroll="true"`,
+			`data-preserve-focus="true"`,
+		} {
+			if !strings.Contains(markup, want) {
+				t.Errorf("page %q loading proxy missing %q: %s", page, want, markup)
+			}
+		}
+	}
+
+	// A malformed route still gets a deterministic, non-interactive proxy;
+	// it must not produce a blank outlet or a forged page class.
+	geometry := LoadingProxyGeometry(PageID("not-a-page"))
+	if geometry.Layout == "" || geometry.Rows <= 0 || geometry.Columns <= 0 {
+		t.Fatalf("unknown page has no safe loading fallback: %+v", geometry)
+	}
+}
+
+func TestUnknownFocusedRefreshFallsBackToPageBusyState(t *testing.T) {
+	view := testView(PagePeople)
+	view.RefreshingRegion = "unregistered-region"
+	markup, err := ui.RenderToString(BuildRefreshing(view))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`class="app-shell is-refreshing"`, `data-network-state="refreshing"`, `class="loading-progress network-progress"`} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("unknown refresh region did not preserve page busy state %q", want)
+		}
+	}
+}
+
 func TestLoadingProxyMotionHonorsExplicitAndOperatingSystemPreferences(t *testing.T) {
 	css := Stylesheet()
 	for _, want := range []string{

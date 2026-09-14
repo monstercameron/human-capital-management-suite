@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -28,7 +29,9 @@ type StartResolution struct {
 // ResolveStartOutcome checks the durable instance for one exact logical START.
 // It performs only reads through tx and never calls Start, inserts, updates,
 // or treats not-found as a definitive rollback.
-func ResolveStartOutcome(ctx context.Context, tx dbport.Tx, req StartRequest, selection WorkflowSelection) (StartResolution, error) {
+func ResolveStartOutcome(ctx context.Context, tx dbport.Tx, req StartRequest, selection WorkflowSelection) (ret0 StartResolution, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.resolve_start_outcome", req, selection)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if tx == nil || req.Versions == nil || req.TenantID == uuid.Nil || req.StartIdempotencyKey == "" ||
 		selection.WorkflowID == "" || selection.Plan == nil {
 		return StartResolution{}, fmt.Errorf("%w: incomplete exact start identity", ErrStartOutcomeUnresolved)

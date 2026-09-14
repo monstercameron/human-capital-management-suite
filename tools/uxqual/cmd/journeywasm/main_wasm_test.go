@@ -3,10 +3,10 @@
 package main
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 )
@@ -21,8 +21,9 @@ import (
 // the failure page, and the two identifiers this command shares with the
 // shell that loads it.
 
-func TestStartupFailurePageSaysWhatWentWrong(t *testing.T) {
-	page := startupFailurePage(errors.New("the journey-config island carries no bearer"))
+func TestStartupFailurePageOffersRecovery(t *testing.T) {
+	locale := productui.ResolveProductLocale("en-US")
+	page := startupFailurePage(locale)
 
 	if page.Notice == nil {
 		t.Fatal("the failure page carries no notice")
@@ -30,8 +31,8 @@ func TestStartupFailurePageSaysWhatWentWrong(t *testing.T) {
 	if page.Notice.Tone != "danger" {
 		t.Errorf("notice tone = %q, want danger", page.Notice.Tone)
 	}
-	if !strings.Contains(page.Notice.Detail, "no bearer") {
-		t.Errorf("notice detail = %q, want the cause in it", page.Notice.Detail)
+	if page.Notice.Detail != locale.Text("journey.startup_detail") {
+		t.Errorf("notice detail = %q, want the reviewed recovery step", page.Notice.Detail)
 	}
 	if page.Brand != journeyclient.Brand {
 		t.Errorf("brand = %q, want %q", page.Brand, journeyclient.Brand)
@@ -46,22 +47,25 @@ func TestStartupFailurePageSaysWhatWentWrong(t *testing.T) {
 }
 
 func TestStartupFailurePageRenders(t *testing.T) {
-	html, err := journey.RenderToString(startupFailurePage(errors.New("no tunnel")))
+	html, err := journey.RenderToString(startupFailurePage(productui.ResolveProductLocale("en-US")))
 	if err != nil {
 		t.Fatalf("rendering the failure page: %v", err)
 	}
 	if !strings.Contains(html, "This page could not start") {
 		t.Error("the rendered failure page does not carry its own title")
 	}
-	if !strings.Contains(html, "no tunnel") {
-		t.Error("the rendered failure page does not carry the cause")
+	if !strings.Contains(html, "Return to the workspace and try again") || strings.Contains(html, "no tunnel") {
+		t.Error("the rendered failure page lost recovery guidance or exposed a technical cause")
 	}
 }
 
-func TestStartupFailurePageWithNoError(t *testing.T) {
-	page := startupFailurePage(nil)
-	if page.Notice == nil || page.Notice.Detail != "" {
-		t.Errorf("notice = %+v, want an empty detail rather than a panic", page.Notice)
+func TestStartupFailurePageUsesRequestedLocale(t *testing.T) {
+	for _, language := range productui.SupportedProductLocales() {
+		locale := productui.ResolveProductLocale(language)
+		page := startupFailurePage(locale)
+		if page.Notice == nil || page.Notice.Title != locale.Text("journey.startup_title") || page.Notice.Detail != locale.Text("journey.startup_detail") {
+			t.Errorf("%s notice = %+v, want localized recovery copy", language, page.Notice)
+		}
 	}
 }
 

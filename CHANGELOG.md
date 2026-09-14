@@ -1,5 +1,557 @@
 # Changelog
 
+## 2026-09-14 (Live-UI regression fixes, customer theming and role visibility)
+
+- UXSCAN-001-007, 009-011: every person selection and action surface shows the full permitted name with a stable disambiguator and matching accessible names; the action launcher lists only executable actions; the Promotion search result opens its real destination; Home's all-empty state points at the next useful action; desktop tables and filters no longer cramp; the dark appearance preview meets contrast; zero-data Insights explains itself without inventing metrics; misleading settings labels and hierarchy are corrected; the expanded sidebar scrollbar stays unobtrusive; and Appearance keeps section links, a draft summary, a guarded Save and a reachable preview during long-form edits.
+- Customer theming: the appearance engine gains custom components, a preview modal with scroll preservation, and a customer theme stylesheet; theme tokens flow through the journey preferences contract to the WASM client.
+- Role visibility: additive unit visibility policies compile into a pure, precomputed evaluator shared with the live workforce transport path. UXSCAN-008 (effective-access preview) stays open until the role store supplies credential inheritance and governed scope simulation.
+
+## 2026-09-14 (Gate B resilience evidence, planning domains and product theming)
+
+- Recovery and resilience (Gate B): the pilot restores into an isolated recovery environment, failover/failback game days run end to end, deletion and restriction manifests are reapplied during restore, and ledger recovery is proven after database interruption and ambiguous commit, with continuous ledger and relational invariant scans (RECOVERY-003/004, PRIV-004, LEDGER-014, DATA-012).
+- Outage proofs: queue outage and ambiguous publish (EVENT-004), key/secret service outage with sealed recovery (TRUST-032), control-plane outage and corruption (CP-010), observability evidence and outage runbooks (OBS-008), lock and database-edge behavior (DB-EDGE-002), artifact identity, retention and backup lifecycle (ARTIFACT-007, DATA-023), connector terminal ambiguity across crash and restore (CONN-RT-009), cutover and rollback migration drills (CUSTOMER-003) and full ledger, projection, outbox and journal restore (RECOVERY-005).
+- Topology, infrastructure and operations: modular-monolith process topology and role isolation (SVC-012), immutable backup and isolated-recovery stacks, drift detection with destructive-change protection, and cell deploy/drain/failover/teardown (IAC-010/011/012), vendor continuity and emergency change rehearsal (OPS-009), and rollout conformance (ROLLOUT-008).
+- Performance: pilot-path and critical-query benchmarks, ramp/peak/24-hour soak, regression and scale-boundary gates, and evidence retention (PERF-002/003/008/009).
+- Governance: the pre-write P1B authority evidence amendment (NEXT-009), pilot exit rehearsal (TENANT-004), the Gate B evidence manifest (GATEB-EVID-001), the pilot go/no-go review (PILOT-001), verified deletion and backup re-delete (MODEL-028), and the Alabama state legal pack.
+- Planning domains: population completeness reconciliation (POP-009), typed qualification status (QUAL-004), demand coverage, explanation, forecast reconciliation and bounded intents (DEMAND-003-006), hard-constraint matching and deterministic soft ranking (MATCH-003/004), scenario impact (SCENARIO-002/003), governed bulk communications (MSG-012) and a typed intent operation catalog.
+- Product UI: the appearance theming engine gains custom components, modal and preview behavior, and theme tokens flow through the journey preferences contract to the WASM client.
+
+## 2026-09-14 (Workflow engine completion, industry packs and host telemetry)
+
+- Cancel is live under dual control: a JIT grant narrowed to the addressed workflow instance and approved by a second person is the second approval. RetryNode is dry-run in a rolled-back transaction first and the sealed prediction is its simulation evidence on the receipt. Both are proven on the composed server.
+- PACK-003-007: industry packs bind workflows, forms, skills and metrics with explicit side effects, authority, locales, accessibility and metric definitions; publication is gated on compatibility, dependencies, parent lineage, running-workflow impact and resolved migrations; versions activate only from ed25519-signed, second-person-approved envelopes; platform, country, industry and customer layers compose by explicit per-family strategy without weakening mandatory security or legal settings; Healthcare, Retail and Manufacturing compositions produce pinned deterministic config, workflow, model and bundle digests.
+- Telemetry reaches every workflow path: gRPC-originated controls and the journey's direct approval step carry the serve composition's recorder, each parallel branch is its own operation, failed repair-evidence writes are recorded, and step runs, threshold raises, work-item routing, timer creation, retry admission, terminal writes and authority resolution open operations. The execution host and operator gateway now have the same enforced coverage test as the engine, and a guard test refuses discarded context-bound failures.
+
+## 2026-09-14 (Live governed workflow controls and enforced workflow telemetry)
+
+- Pause and Resume are now live on a composed server: operator authority comes from the operator's current JIT grant in the durable trust store, rebuilt through `jit.Restore` so a widened or tampered record is never authority. Cancel and RetryNode stay governed denials until dual-control and simulation evidence is supplied.
+- Every remaining context-taking workflow entry point (effect dispatch, currency checks, approval completion and authority recheck, instance creation, node execution, incidents, continuations, terminal writers, per-artifact migration, gateway submissions and controls) now emits a span and structured log, and a test fails when a new one does not or an exemption goes stale.
+- WF-RUN-020, WF-RUN-021, INTENT-022 and UXAUDIT-019 are closed against their committed implementations.
+
+## 2026-09-14 (Workflow todo prerequisites: product alignment, import commit, onboarding cutover)
+
+- ALIGN-024-029: product views refetch authoritatively after an invalidation hint; intent drafts have durable owner-scoped, revisioned, expiring persistence and bind to the immutable proposal revision they produced; simulation is proven write-free across every table of a composed cell; every human decision pins its proposal revision digest; the promotion journey stage is projected from durable workflow state only.
+- ALIGN-052-055: a bounded operator repair workbench routes typed repairs through the governed operator gateway; product telemetry correlates across UI, intent, workflow and ledger without protected payloads; product-slice releases are sealed evidence bound to binary, schema and definition digests, and cells detect binary, migration and definition skew against them.
+- DATAOPS-006, ONBOARD-005/006: an approved import commits resumably and exactly once with full lineage; authority cutover signs an epoch only after freeze, delta, validation, simulation, approval, lag and reconciliation gates; onboarding results reconcile row by row with append-only compensation.
+
+## 2026-09-14 (Workflow engine telemetry and WF-RUN-022)
+
+- Every state-changing workflow operation (lease, timer, runtime start/advance/pause/resume, recovery, migration, approval and task steps, compensation, replay, shadow, driver entry points, scheduler claims) now emits an `hcmnext.workflow.*` span and a structured log line: DEBUG on success, WARN on a governed refusal, ERROR on a failure, with bounded ids, duration, trace id and a stable error code, never message text.
+- The timer scheduler's serve workload runs a stuck-workflow progress sweep beside it, and workflow starts are admitted against resolved workload limits with a traced verdict.
+- WF-RUN-022: a composed cell interrupted by killing every database connection and restarting resumes its parked promotion with a new queue fence, commits it exactly once, and refuses the stale replica.
+- EP-WF-002: Pause, Resume, Cancel and RetryNode are governed operator controls. Each one runs through the new operator gateway (`internal/intent/operator`) as a registered operational intent with a JIT grant, dual control or simulation where required, and an idempotency key, then applies only the runtime's own fenced transition and returns APPLIED, PENDING_SAFE_POINT, DENIED, TOO_LATE or REPAIR_REQUIRED in a new `WorkflowControlReceipt`. Repeats replay the recorded outcome; a cell without a governed controller refuses controls with FAILED_PRECONDITION.
+
+## 2026-09-14 (Go UI component decomposition)
+
+- Extracted view-independent page headings, breadcrumbs, labeled form controls, section headings, empty states, and search inputs for reuse across the production Go UI.
+- Shared pagination bounds across People, History, and Roles, and removed People-specific styling from the generic data table through explicit caller-owned style hooks.
+- Added component-contract and rendered-output regressions, rebuilt the Go/WASM asset, and verified the affected pages in the browser.
+
+## 2026-09-14 (UX reconciliation and PROMOUX-015)
+
+- Reconciled the UX workspace with promotion approval routing: finance approvals reach the configured finance partner, manager approvals use the worker's current manager when that relationship exists, and the two deciders remain separate from the requester and employee.
+- The development sign-in set now includes a finance-partner account that can act on its own assigned approval without broad promotion execution authority. Historical journey reads use the current manager relationship when authorized.
+- Rebuilt the Go/WASM bundle and integrity manifest from the reconciled source. Promotion path selection and demo pay-band reads remain bounded by the published path and tenant.
+
+## 2026-09-13 (UXAUDIT-014)
+
+- Development persona copy is derived, not written. `loginPersonaDescription`
+  was a hand-written `switch` on persona ID promising payroll reports and
+  hiring requests while no payroll or recruiting destination is admitted
+  anywhere. Each card now names exactly the destinations its own credential
+  reaches, computed from `roleaccess`, which is what a live server enforces.
+
+- `hiring-manager` and `payroll-manager` rendered byte-identical menus
+  despite disjoint role bundles. The payroll slot now carries `worker_self`,
+  its card is headed from the worker's own record, and its token no longer
+  claims a payroll purpose it cannot use.
+
+- Two `test/workspace` tests still expected the `uxqual.wasm` enhancement
+  that is deliberately withheld because it rebuilt the request form without
+  CSRF binding. They now pin whichever posture the build serves, and the
+  native-only page must refuse script execution outright.
+
+## 2026-09-13 (PROMOUX-012)
+
+- Each journey now carries the viewer's own relationship to it, resolved on
+  the server: initiator, assignee or candidate, and whether the next step is
+  theirs to act on. Every page reads that one answer, and the two status
+  vocabularies that disagreed are now one.
+
+- My Work lists only work you must act on, and its count and notification
+  badge match. Future-date waits no longer count as needing attention. A
+  new Tracked requests tab holds the promotions you started, marked "No
+  action needed from you" when the next step is someone else's. Awaiting
+  approval now includes manager and finance approvals.
+
+- The Person page shows active workflows with Resume or Open links. The
+  utility drawer no longer offers to start a second promotion while one is
+  open.
+
+## 2026-09-13 (UXAUDIT-017, CLOSE-002, DATA-022)
+
+- My Work is now an action queue and Journeys a lifecycle tracker. Journey
+  list rows carry a summary of the current work item: assignee, due date and
+  the viewer's permitted actions, disclosed only when the existing work-item
+  visibility rules admit the viewer. My Work orders by urgency, then by
+  whether the viewer holds or may claim the item, then by the real due date,
+  and gains an "Assigned to me" tab. A saved My Work filter can now be
+  cleared.
+
+- A narrow-screen style rule hid every row line after the first below
+  1190px, so on phones and tablets the queue showed no next action,
+  assignee or due date. It had also been hiding the approval disposition
+  line. Only the grade-change line is dropped now, and a test pins that.
+
+- A single convergence gate re-runs the design, slice, selection and
+  workflow compilers and proves a second unchanged pass produces no new gap
+  identity. Today it reports 179 gaps, 67 of them in selected scope, each
+  resolved to a proposed todo that has not been added to the backlog, plus
+  70 unknowns. The design-closure and intent-coverage loaders now see tests
+  under `test/`.
+
+- Lineage conformance is generated per intent family, child and trigger
+  from the closure witnesses. None of 19 cases is complete: Promotion is
+  partial, missing outbox, reconciliation and correction producers, and the
+  rest are unknown.
+
+## 2026-09-13 (NEXT-002, SLICE-016)
+
+- The P1A manifest is now bound to the selections it was always supposed to
+  rest on. It pins the scope ceiling, jurisdiction profile, provider
+  topology, pilot blueprint, topology, commercial package and threat
+  register by path and digest, and a changed artifact makes the binding
+  stale. Whether the selections are complete is computed from each
+  artifact's own gate. Today the answer is incomplete, with named reasons:
+  placeholder provider, unreviewed jurisdiction, no topology decision, no
+  design partner, no SLO, and THR-07 blocking release.
+
+- The P1B template is signed separately, names only the six candidate
+  contracts, and cannot activate without Gate A plus a new authority digest.
+  `internal/commercial.P1AManifestDigest` had drifted from the live manifest;
+  it is now checked by a test. The manifest was also missing migrations
+  00284–00288, which had been failing its checksum test.
+
+- Each source-bound definition now has one generated closure witness
+  tracing it from source through slice, model, engine, capability, handler,
+  endpoint, scenario, test, todo and evidence. None of the 14 closes today,
+  and there are 61 orphan edges. The witness also found that UX-009 was
+  closed naming a primary test that was never written.
+
+## 2026-09-13 (THREAT-001, CUSTOMER-001, COMMERCIAL-001)
+
+- The Phase 1 threat register blocks release today, and that is its point.
+  THR-07 (ambiguous effect, critical) is unmitigated because the
+  observe-before-retry mechanism has not been built, and it carries no
+  accepting owner because none has been designated. Rather than fabricate
+  an accountable party, the field is required-and-empty: validation reports
+  exactly one violation and the release decision reports blocked. Someone
+  must accept that residual risk, or the mitigation must be built.
+
+- Threat identity dedupes on asset, boundary and attack class, never on a
+  free-text id, and a shared mitigation must declare exactly the union of
+  edges that name it -- no drop, no over-claim. Real data exercises that: one
+  mitigation is genuinely shared between a stale-authorization threat and a
+  replay threat.
+
+- The design-partner blueprint reports BLOCKED across all ten workstreams
+  when instantiated today, naming why: no partner has been selected, the
+  provider is a placeholder, and the jurisdiction profile has no reviewer.
+  A blueprint reporting ready would have been the defect its own RED names.
+  It is not rigged to fail -- confirmed facts report ready, stale facts
+  report unknown -- so a permanent blocked is distinguishable from a broken
+  instantiator.
+
+- The commercial freeze promises nothing that has not been selected. No SLO,
+  because the ceiling's SLO slot is empty; no provider, because the
+  placeholder cannot satisfy a real selection gate; California only as
+  pending review, because its profile is unreviewed. Each is derived from
+  live registries on every run rather than asserted, so a future selection
+  changes what may be promised automatically.
+
+- Replay and repair are never billed, enforced in the billing computation
+  rather than declared in prose. The first fixture proving it was masked by
+  key-based deduplication and had to be strengthened so the event-kind check
+  fires independently.
+
+- Recorded, not patched: internal/commercial's hardcoded P1A manifest digest
+  no longer matches the live manifest. That is its own drift to repair; the
+  freeze binds to the scope ceiling's digest instead.
+
+## 2026-09-13 (SELECT-002)
+
+- The pilot provider topology exists, as a deliberate placeholder. No real
+  provider is recorded anywhere in this repository -- WEDGE-001 selected a
+  problem, not a partner -- so rather than assert edition, quota and
+  data-processing facts about a real vendor inside a signed manifest, the
+  placeholder is made structurally impossible to mistake for fact.
+
+- No real company is named as the provider. The vendor id carries a
+  mandatory PLACEHOLDER-UNVERIFIED suffix that validation enforces, and the
+  display name says "not a real vendor" inline. Real vendor names appear
+  only as a citation of the integration spec's own wording.
+
+- It provably cannot satisfy a real selection gate, by value rather than by
+  flag: flipping the status alone still fails, because the vendor-id suffix
+  and the empty confirmation fields keep it failing. Only a fully
+  consistent swap of status, real vendor id and complete confirmation
+  passes.
+
+- The fault matrix covers the integration spec's nine error-taxonomy
+  classes exactly once each with distinct actions and evidence refs, tested
+  for exactness rather than non-emptiness. Sandbox fidelity is declared
+  synthetic-fixture-only, stating plainly that no vendor sandbox exists.
+
+- Provider neutrality is enforced by a scan of the live internal tree
+  rather than asserted, and its limitation is stated in the test itself: it
+  proves no current direct reference outside the adapter boundary, not that
+  no code could branch on provider identity indirectly.
+
+## 2026-09-13 (PROMOUX-013)
+
+- Governed edit, withdraw and cancel paths now exist end to end. Three RPCs
+  were added to JourneyService, because DecideJourney carried only an
+  approve/reject boolean with no room for any of them, plus a shared
+  intervention-outcome enum and the intent's own governance version, which
+  nothing on this wire exposed before.
+
+- SupersedeIntent turned out to be structurally unusable for journeys: a
+  journey's intent never durably leaves DRAFT, and neither the promotion
+  definition nor the kernel profile has a DRAFT-to-SUPERSEDED edge. Edit
+  therefore composes the existing CancelIntent with an ordinary Propose,
+  which makes "invalidate material approvals" literally true rather than
+  asserted -- the original carries the approval and is what gets cancelled.
+
+- Three real defects surfaced by running the code. SupersedeIntent minted
+  and durably appended the successor before validating the original's own
+  transition, so a refused or raced supersede left an orphaned successor --
+  a genuine partial write. Decide and Execute checked no terminal state, so
+  a journey cancelled mid-flight could still be decided or executed. And
+  promotionguard.Release was dead code, so a cancelled-then-reproposed
+  journey would have refused itself as a duplicate.
+
+- The race test asserts durable state rather than return codes: eight
+  concurrent goroutines against one journey, then exactly one successor if
+  an edit won and zero if a withdraw won. That is what would have caught
+  the orphaned successor directly.
+
+- The client mirrors the server's stage-availability rule so availability
+  cannot go stale between watch pushes. An untested mirror drifts silently,
+  so a test now runs both implementations across all 15 stages by 2 kinds,
+  reading the enum name maps rather than a hardcoded list, so a new stage
+  fails the test instead of being skipped.
+
+- Withdraw, Cancel and Edit render at every stage, disabled with a named
+  reason when unavailable rather than omitted -- an omitted action is
+  indistinguishable from one that does not exist.
+
+## 2026-09-13 (WF-DISC-012, SELECT-001)
+
+- Workflow maturity is now gated on generated evidence instead of trusted
+  prose. `planning/workflows/catalog.md` asserts per-flow maturity by hand
+  across 268 Status lines; the new gate does not read them as truth, it
+  compares its own generated report against them. Live result: 30
+  disagreements. Every one of the 14 accepted BusinessIntent definitions
+  carries a real unresolved-reference blocker, so each EXISTING claim
+  naming them is unsupported past CATALOGUED today.
+
+- The gate emits one row per definition with an exact blocker per failure
+  kind, never an aggregate boolean, and composes the existing WF-DISC
+  producers by import rather than re-deriving any of them.
+
+- Two of its checks are vacuous against today's data and say so rather than
+  posing as coverage: the status cap cannot bite while the capability-gap
+  floor holds every definition lower, and the unresolved-decision check
+  cannot fire because no decisions sidecar exists yet. Both are proven by
+  mutation-tested fixtures instead of by live data.
+
+- The pilot jurisdiction is California. Its profile pins the research
+  document and the state rule-pack by content digest, partitions all 22
+  obligation kinds into 18 mapped and 4 excluded by name, and binds to the
+  existing LegalContext resolver rather than duplicating it -- a
+  contradictory input fails exactly as that resolver fails, and a confident
+  resolution to any other jurisdiction returns UNKNOWN instead of silently
+  applying California's rules elsewhere.
+
+- That profile is unreviewed on purpose. The reviewer is a required field
+  that validation rejects when empty, so the checked-in file reports
+  exactly one violation, reviewer.name missing. No name was invented into a
+  signed governance artifact, and the repository already models unverified
+  legal content this way.
+
+## 2026-09-13 (UIPOLISH-004)
+
+- One scroll-region component now owns overflow, scrollbar tokens, focus
+  and accessible naming across the page shell, navigation, drawer, table
+  and overlay. Before, three regions were configured ad hoc and disagreed:
+  the page shell had a 15px native untokenized scrollbar against the nav
+  and table's themed thin ones, and it scrolled 466px while carrying no
+  role, no tabindex and no accessible name -- unreachable by keyboard.
+
+- All five regions now agree, verified live at 1440x900: thin themed
+  scrollbars throughout, the page shell focusable and named through its
+  heading, and the launcher dialog tokenized but deliberately not focusable
+  itself since focus belongs on its input.
+
+- UXAUDIT-008's matched max-height/overflow pair survived the
+  consolidation, which was the real regression risk -- that pairing's split
+  clipped 16 workers unreachably earlier the same day, and its rule-level
+  invariant test still guards it.
+
+- Three RED clauses did not reproduce and were left alone rather than
+  rebuilt: scroll chaining is already contained, the document already
+  refuses body scroll, and sticky headers do not detach.
+
+- The page shell keeps overflow-x hidden deliberately: every region beneath
+  it that can need horizontal scroll owns its own, and a regression test
+  pins the table keeping horizontal overflow so wide content cannot be
+  stranded by the shell's hidden axis.
+
+## 2026-09-13 (PHASE-001)
+
+- The Phase 1 scope ceiling now exists, independently of the release it was
+  supposed to bound. `definitions/planning/gates/phase1-scope-ceiling.yaml`
+  names the maximum candidate intents, capabilities, workflows, user flows,
+  endpoints, models and effects, with every item carrying an explicit
+  include/defer/reject rationale and four genuinely empty selection slots
+  for provider, jurisdiction, topology and SLO.
+
+- The ordering hazard this todo warns about was real. The selection-bound
+  P1A release manifest was published on 2026-09-10 -- 912 lines, signed,
+  with its own compiler and tests -- while the ceiling it should have been
+  selected from was never built. Deriving the ceiling from that manifest
+  would have been circular and would have proved nothing, so it was built
+  from the catalogs instead and the manifest was read only as a check
+  target.
+
+- That check is the load-bearing one, and it passed: every P1A intent and
+  capability, every P1B contract and every generated endpoint appears in
+  the independently-built ceiling. No unauthorized scope entered the
+  release. Mutation-verified by deleting an intent and watching the test
+  name it as absent.
+
+- The selection slots are provably empty and tamper-evident: validation
+  rejects a filled slot, and a quietly-filled provider slot invalidates the
+  manifest signature, so NEXT-002 still has real slots to fill.
+
+## 2026-09-13 (PROMOUX-014)
+
+- A promotion waiting on its effective date now explains itself. Before, the
+  card said only "Waiting for effective date" with a bare date: no instant,
+  no timezone, no owner, no scheduled action, no explanation. All five are
+  now server-sourced -- the instant and timezone from the durable pending
+  timer paired with the workflow's own zone id, the owner from the latest
+  completed approval work item, and the scheduled action read from the
+  compiled workflow definition's real FIRED route rather than written as
+  prose.
+
+- The proposer is deliberately not shown as owner. That would need
+  IntentInstance.Initiator, which has no wire slot on the journey messages,
+  so it is named as not carried rather than approximated with something
+  plausible.
+
+- A local-dev clock driver can now advance a same-day fixture through END.
+  There was no such mechanism at all before, so the supported local-dev
+  profile could not exercise terminal recording without waiting on
+  wall-clock time.
+
+- The fence is structural rather than a runtime refusal. The driver lives
+  behind a devtools build tag: the default stub never imports the timer's
+  Fire path, so the capability is absent from the ordinary binary, from CI
+  and from the amd64 cross-compile. Profile gating is defence in depth on
+  top, fail-closed and exact-match, and an unexported ready field leaves a
+  hand-constructed driver literal inert.
+
+- Live verification of the rendered panel was blocked three ways and the
+  reasons are recorded on the todo: browser-pane sign-in is origin-refused,
+  the journey workspace runs under a fixed dev identity whose scope cannot
+  open any of the three waiting journeys, and the Connect RPC is reachable
+  only through the tunnel. The integration test against real PostgreSQL is
+  what proves the server attaches these facts.
+
+## 2026-09-13 (PROMOUX-010)
+
+- One shared review surface now guards every consequential promotion action
+  through typed content props, keeping the existing <details>/<summary>
+  disclosure byte-for-byte as the zero-JS baseline and using GWC's own
+  ui.Overlay modal primitive for the focus trap rather than hand-rolling it.
+
+- Live before: clicking Start left the submit control 473px below the fold,
+  shifted two sections, collapsed document height from 4984 to 1423, and
+  dropped focus to BODY. There was no Cancel control at all, and Escape did
+  nothing.
+
+- Live after: opening the surface moves nothing outside it (0 sections, 1427
+  to 1427), the surface is position:fixed with max-height 736px and its own
+  scroll, the action bar sits in view with Cancel at 3232px² against Submit
+  at 7101px², and Escape closes it completely and returns focus to the exact
+  trigger that opened it.
+
+- Three passes were sent back and the reasons are worth keeping. The first
+  built the component and wired it to nothing -- Approve and Reject set
+  Confirmation, the Start path set it nowhere, so the live page was
+  unchanged. The second left the surface's own trigger 484px below the fold,
+  within 5px of the original defect. The third focused the page heading,
+  which renders at top 143 already inside the viewport and so could never
+  scroll the trigger into view.
+
+- The fourth pass found why the focus effect had never fired: GWC hooks are
+  positional and attach to the current fiber, and only a ui.CreateElement
+  boundary creates one. The hook had been a plain nested call reached
+  through the page-type switch, so it landed in whatever slot that flat hook
+  sequence happened to reach -- the hazard live.go's own doc comment warns
+  about. Wrapping it as a real element gives it its own fiber, and focus now
+  lands on the trigger with the browser's own scroll-on-focus bringing it
+  into view, no scroll call.
+
+- Residual, named: Start still swaps the page wholesale, which is separate
+  and deliberately untouched. Busy/BusyLabel are real tested props that no
+  caller sets yet; wiring them is filed separately.
+
+## 2026-09-13 (PROMOUX-009)
+
+- Promotion simulation findings now have a typed identity and deduplicate
+  before presentation. Nothing deduplicated before: `sortFindings` is a
+  total order that collapses nothing, `Assemble` did a straight clone, and
+  eight append sites fed findings with no coordination. Findings also had no
+  owner at all, though it is part of the identity GREEN asks for.
+
+- Identity is (Code, Field, Severity). Code belongs in it: it is a small
+  closed vocabulary of rule-assigned constants, not a display string.
+  Message stays out -- it is the freeform field REFACTOR's "never on
+  rendered strings" is about -- so the same rule firing twice with different
+  wording collapses, picking the canonical message deterministically.
+
+- Owner sits outside identity on purpose. Two owners reporting the same
+  observation are corroboration, not two observations, so they collapse to
+  one row that records every contributing owner; a same-owner repeat
+  collapses with no corroboration recorded.
+
+- Dedup runs inside Assemble, upstream of status derivation and the digest,
+  so the digest cannot vary with how many times a rule happened to fire and
+  the reloaded count is exactly the assembled one.
+
+- A first implementation was rejected for defining identity as (Field,
+  Severity) alone, which silently discarded distinct observations rather
+  than duplicates. checkCompensation raises both
+  compensation.proposed_amount_invalid and compensation.not_a_raise on
+  proposed.base at BLOCKING for one proposal carrying a present-but-zero
+  proposed base, since the early return guards only !currentOK || !proposedOK.
+  Those collapsed into one and the lexicographically smaller code won, so a
+  reviewer was told the amount was not a raise and never told it was
+  invalid. The same collision exists on target.grade and on
+  proposed.base.currency, and nothing keeps such pairs mutually exclusive as
+  rules are added.
+
+- The regression test drives the real rule engine rather than a hand-built
+  literal, and asserts the fixture still reproduces both codes before
+  asserting both survive, so it cannot quietly go vacuous. The property test
+  was rebuilt for the same trap: it had passed under the broken identity
+  because its generator only ever produced genuine duplicates.
+
+## 2026-09-13 (PROMOUX-008)
+
+- The Technical details disclosure had no authorization check at all. Both
+  render sites gated on `WorkerRef != "" || InstanceID != ""` -- data
+  presence -- so every viewer who could see a journey card received the
+  worker entity ref and the instance UUID. Diagnostics is now a first-class
+  page id, `journey-diagnostics`, granted to hcm_admin/comp_admin and
+  explicitly to promotion_operator, and to nobody else: managers and HR
+  partners who can approve a promotion still cannot read its machinery.
+
+- The identifiers are withheld from the payload, not just the view. An
+  unauthorized caller no longer receives material digests, correlation ids,
+  instance ids, the whole Instance message, planned writes, ledger entries,
+  evidence ids, nodes, transitions or work-item ids on any journey RPC.
+  Worker ref and intent id are deliberately kept -- they are the routing
+  keys the profile link and the journey's own address need.
+
+- Presence was its own leak. Because the disclosure appeared exactly when
+  internals existed, a viewer could infer "this journey has an instance"
+  from the summary alone; gating only the contents would have left that
+  open. Presence now derives from a server-computed authorization verdict,
+  so unauthorized viewers see no disclosure at all, uniformly. The detail
+  page's workflow, outcome and evidence panels -- which had rendered
+  unconditionally whenever they held content -- are gated the same way.
+
+- My Work rendered a raw work-item UUID in its default view on a page with
+  no disclosure of any kind. It now appears only inside the authorized one.
+
+- The server gate fails closed: a nil role-access store, an empty permission
+  table and a missing grant all deny. That is deliberately unlike the
+  existing permissive rolling-upgrade default, because this authority never
+  existed before and a permissive default would have handed it to everyone.
+
+- Authorized viewers see redacted values (`••••0020`) with per-row copy
+  controls that write the full value to the clipboard.
+
+## 2026-09-13 (UXAUDIT-024)
+
+- This todo closed with no production change, and that is the finding. The
+  live audit could not reproduce a single RED clause: identity wraps rather
+  than truncating (a 67-character tenant name measured scrollWidth ==
+  clientWidth), the nav groups are native disclosures with no inner
+  scrollbar at all -- scrolling is one thin edge scrollbar on the whole menu,
+  which is what GREEN asks for -- and global search is structurally distinct
+  from menu filtering, fuzzy, ranked and typed across people, workflows,
+  settings and pages.
+
+- Earlier work had fixed the behavior and never written the six tests this
+  todo names. Authoring a suite against behavior that already passes is the
+  one case where a green first run proves nothing, so every test was
+  mutation-verified against a real break in production code: dropping the
+  keyword half of the shared navigation metadata, replacing the native
+  disclosure with a div, weakening the search authorization filter, removing
+  the search scorer's early exit, forking menu filtering off the shared
+  aliases, fabricating a default brand logo, and dropping the global search
+  input's id. Each failed naming the thing it covers, then passed on revert.
+
+- Search authorization is now a property over sixteen role bundles resolved
+  through roleaccess -- the authority product_shell.go actually enforces --
+  rather than through the registry fallback it overrides.
+
+- A latent weakness was found and left in place with coverage rather than
+  papered over: the search catalog injects Help and Settings candidates
+  unconditionally and relies entirely on the authorization filter to strip
+  them. Every real role happens to hold help, so no named-role test can see
+  that reliance; the zero-grant bundle stays first in the security matrix.
+
+## 2026-09-13 (UXAUDIT-008)
+
+- The People directory keeps a real, dense table down to 761px instead of the
+  shared component's stacked-card mode at 1050px. At 1024x768 -- a desktop
+  viewport by this todo's own RED -- each worker had been costing 199px as a
+  `display:grid` card; rows are 63px now, and 9 of 20 fit above the fold
+  against 0 at the original audit. History and Organization keep the shared
+  breakpoint untouched; the change is scoped entirely to `.people-directory`.
+
+- Sticky headers detached because CSS `position` never inherits. The existing
+  rules stuck `<thead>` and the header `<tr>`, but a plain `<th>`'s own
+  computed position stays `static` regardless of what its ancestor declares.
+  The header cells now establish their own sticky context, and all six columns
+  hold 0px alignment drift even when the region is scrolled fully right.
+
+- A bounded `max-height` and a scrolling `overflow` are a matched pair. The
+  first pass at this todo scoped a taller cap unconditionally; being two
+  classes deep it beat the card-mode reset's `max-height:none` even inside
+  that media query, but did not restate `overflow`, leaving a clamped box
+  still declared `overflow:visible` inside a `section` that clips. 16 of 20
+  workers rendered below the clipping edge, unreachable at the page's maximum
+  scroll, and no test caught it. The cap now lives inside its own
+  `min-width:761px` context with `overflow:auto` in the same rule, and the
+  invariant is asserted at rule level rather than by substring: any block for
+  that selector carrying a bounded max-height must declare scrolling overflow
+  in the same block.
+
+- The repeated unavailable-workflow sentence left the visible layout without
+  being deleted. PROMOUX-001 requires that server-provided reason; it now
+  travels in `title` and an `sr-only` span referenced by `aria-describedby`
+  behind a compact badge, and PROMOUX-001's tests pass unmodified.
+
+- Toggling the promotion-eligible filter was triggering a full page reload:
+  `eligible` was missing from the directory-only route-change key set. Fixed
+  and covered.
+
 ## 2026-09-13 (LEGAL-ST series)
 
 - All fifty-one jurisdiction RulePacks now exist, are reviewed, and are
@@ -35,6 +587,8 @@
   PackRelease digest plus the PERFOPT-003 extraction golden were repinned to
   the reviewed output. Matrix edits were made only where the research file
   carries the cited statute — no invented law.
+
+||||||| 5931d57c
 
 ## 2026-09-13 (UXAUDIT-004)
 
@@ -269,6 +823,243 @@
 - Known gap, already covered by the escalation raised at PROMOUX-006: this is
   the fourth component in a row that is fully built and tested but rendered on
   no page a user reaches, because no live promotion-proposal form exists yet.
+
+## 2026-09-13 (workspace visual polish in progress)
+
+- Localized History headings, filters, actions, columns, outcomes and dates in
+  German and Arabic. Recorded outcomes now pass the Completed filter, and
+  searches match the localized text users can see. Arabic plural counts and
+  decimal digits follow the locale rather than English fallback behavior.
+- Changed the narrow History filter stack from flex-basis sizing to an
+  intrinsic-height grid, removing oversized controls on phones. Narrow rows
+  now identify the Change field visibly and give Change/Outcome cells
+  contextual accessible names.
+- Rebalanced Home into independent primary and supporting rails, removing a
+  large desktop gap while preserving a linear narrow-screen reading order.
+- Extended the shared 44px interactive target floor to utility, recovery,
+  policy, dismissal, delegation and mobile profile controls.
+- Fenced unorderable equal-version Journey stage responses so a late update
+  cannot rewind the visible request or displace its confirmation notice.
+- Localized Home recent-activity promotion labels from semantic adapter keys
+  so terminal request titles and stages follow English, German and Arabic.
+- Kept the Home document title generic while authorized worker identity is
+  loading, avoiding a brief raw-principal greeting before the preferred name.
+- Prevented an older same-route Journey response from replacing a newer
+  durable request state or its confirmation notice. The client compares
+  instance identity and version before timestamps, including the first
+  proposal-to-execution transition; native regression tests cover response
+  reordering and atomic detail/notice publication.
+- Routed search focus and workspace status/count radii through production
+  semantic tokens. A review caught an undefined status-radius reference;
+  the final shared alias derives from the validated customer control radius,
+  and its definition and consumers are regression-tested.
+- Replaced literal checkmarks in the shared activity list and Myself
+  read-only notice with a registered, decorative SVG, preserving their
+  textual meaning for assistive technology.
+- At narrow phone widths, the Myself read-only notice now gives its copy the
+  full card measure and hides only the decorative glyph; the localized
+  "View only" badge remains after the explanation in reading order.
+- Clarified the Myself view-only notice with a workflow-based next step and
+  localized its full message in English, German, and RTL Arabic.
+- Kept the embedded Journeys header action inside narrow phone layouts by
+  allowing its label to wrap, including long German and RTL Arabic copy.
+- Raised the context switcher and generic popover triggers to the shared 44px
+  touch-target minimum, and made mobile drawer travel immediate under the
+  explicit Limited motion preference. The visible mobile drawer trigger now
+  also closes on Escape while it retains keyboard focus.
+- Contained action, utility-drawer, and People workflow overlay scrolling in
+  the owning panel. Scoped the Journey stylesheet's generic link, focus,
+  typography, media, and reduced-motion rules to Journey roots so its
+  embedded CSS cannot recolor unrelated workspace controls; live dark-mode
+  launcher hover now keeps readable text.
+- Moved page and navigation scrollbar widths to shared CSS size tokens and
+  included table and overlay scroll owners in the same semantic treatment,
+  preserving the existing desktop and mobile dimensions and edge placement.
+- Bounded finite Journey RPC work in the standalone WASM composition and
+  retained duplicate-mutation suppression in native embeddings that omit
+  the scheduler. Updated Journey refusal assertions to the current localized
+  product copy.
+- Routed the sidebar menu-search glyph through the governed icon registry and
+  replaced favorite stars, submenu chevrons, Organization disclosures and
+  Work-row arrows, context/delegation selectors, sensitive-detail disclosure,
+  and People workflow-menu arrows with semantic SVGs, including RTL disclosure
+  behavior and responsive Work-row placement. The reusable People row now
+  supplies its table cells instead of panicking during direct render, and
+  workflow options have a nonempty accessible-label fallback. The personal-
+  information disclosure now uses a governed, decorative lock icon, and
+  workflow cards use a governed launch mark instead of a text arrow. Profile
+  facts no longer repeat an "Available" badge beside every present value or
+  a "Not supplied" badge when the localized value already says "Not reported";
+  unknown and restricted states remain explicit. An empty workflow launcher
+  no longer repeats a zero-result count. Profile sections now lead with
+  available facts and keep two or more unreported fields in a localized,
+  keyboard-accessible disclosure. The Settings sign-out utility no
+  longer stretches to match the taller session card. German sidebar group names now wrap
+  without truncation; Settings account/session messages use localized catalog
+  keys while missing viewer identities remain privacy-safe. The full UIPOLISH
+  visual and accessibility matrices remain open.
+
+## 2026-09-13 (development persona access)
+
+- Local development sign-in now describes only capabilities admitted by the
+  same effective role policy as the workspace. The four seeded worker
+  identities land on role-appropriate pages; payroll can review assigned
+  promotion work without a promotion-start or organization-browsing path.
+  Empty or unavailable policy and mismatched worker bindings fail closed,
+  while administrator-edited grants survive local-dev bootstrap replay.
+
+## 2026-09-13 (task-oriented workspace copy)
+
+- Replaced protocol and service vocabulary in ordinary page, loading, empty
+  and error states with localized task and recovery language. Appearance no
+  longer exposes internal asset paths or offers logo actions without a working
+  handler; the full governed asset picker remains follow-up work.
+
+## 2026-09-13 (promotion refusal recovery)
+
+- Typed promotion refusals now keep exact server-owned pay bounds even when a
+  generic field violation arrives first. The field-linked correction preserves
+  entered values, moves focus to the invalid field and exposes a copyable
+  request reference only inside Support details. A real gRPC-to-render
+  regression and desktop/mobile light/dark browser checks cover the path.
+
+## 2026-09-13 (promotion chronology, in progress)
+
+- Promotion request headers and list cards now derive their updated time from
+  the latest durable business transition, including in-flight approvals. The
+  simulation timeline keeps its original timestamp, and a created-but-unstarted
+  workflow no longer claims that approval processing started.
+
+## 2026-09-13 (promotion confirmation review)
+
+- Start, Approve and Reject now keep a compact shared confirmation open through
+  server latency, with a visible in-place pending state and disabled actions;
+  outcome focus moves to the resolved notice. Review geometry and keyboard
+  behavior were checked in the Codex browser at desktop and narrow widths.
+- Added blocked-RPC duplicate-submit regressions for all three actions and a
+  five-action render latency budget. The review listener now binds only after
+  successful product-shell hydration.
+
+## 2026-09-13 (People directory viewport)
+
+- Tightened the People page's desktop information density and kept its filter,
+  table and compact row actions inside one stable, sticky-header scroll layout.
+  Searching, sorting, eligibility filtering and page-size changes update the
+  directory without replacing the application shell; saved page size still
+  comes from server-side user preferences.
+- Added focused regression, accessibility, locale and 100-row performance
+  coverage. The live Go/WASM page was exercised in the Codex browser at desktop
+  and narrow widths; the same Go components were visually checked in light
+  mode without altering the organization's saved appearance.
+
+## 2026-09-12 (honest workspace navigation)
+
+- Live navigation, search and the utility drawer now include only published,
+  authorized destinations. Unavailable Admin modules retain honest direct
+  fallback pages but no longer appear as working product areas.
+- Home uses task-oriented headings for work and activity, with promotion-only
+  figures explicitly scoped; the new headings are localized in English,
+  German and Arabic.
+
+## 2026-09-12 (authorized organization hierarchy)
+
+- Organization, explorer, outline, responsive and Myself views now share one
+  expandable reporting-line composition backed by a typed authorized manager
+  projection. Stable worker identities replace display-name joins, while root,
+  visible, orphan and withheld relationships remain explicit and privacy-safe.
+
+- Flat and tree views retain selection and equivalent facts, filtered trees keep
+  admitted ancestor context, and the tree-only outline route canonicalizes its
+  address without discarding search or shell state. Native disclosures, logical
+  connectors, RTL localization and narrow-screen layouts were exercised directly
+  in the Codex browser for administrative and employee visibility scopes.
+
+## 2026-09-12 (authorized action launcher)
+
+- The production Go/WASM launcher now ranks server-authorized semantic actions,
+  starts promotion through the shared software router, and falls back to a
+  clearly labelled destination launcher when the viewer has no executable
+  actions. Missing, malformed, unknown and revoked action projections fail
+  closed instead of being reconstructed by the browser.
+
+- Fuzzy search, Escape and outside-focus dismissal, focus restoration, localized
+  English/German/Arabic copy, RTL layout, dark/light themes, reduced motion and
+  fixed viewport-safe phone presentation are covered by focused regressions and
+  manual Codex-browser checks at desktop, 390px and 320px.
+
+## 2026-09-12 (browser runtime and UX quality harness)
+
+- The production Go/WASM client now preserves page scroll and focus on local
+  table/filter updates while resetting only for genuine resource navigation.
+  Route changes retain the persistent shell, network work uses sequenced
+  invalidation and loading regions, and the promotion client presents distinct
+  finance, manager, effective-date and recorded states using business language.
+
+- Workspace sign-in, locale propagation, gateway origin handling and browser
+  session recovery have focused regressions. The latency and WCAG tooling now
+  records production evidence, while hydration and page-definition helpers keep
+  loading geometry aligned with the resolved components.
+
+## 2026-09-12 (product UI component refinement)
+
+- Shared Go web components now carry the current product refinements across
+  Home, My Work, People, Person, Journeys, History, Organization, Insights,
+  Help, Settings, Appearance and administration surfaces. The work keeps
+  tables, loading states, navigation, popovers, worker identity, validation,
+  role controls and page sections as reusable typed compositions instead of
+  page-local markup.
+
+- The component regressions cover directory filtering and sorting, page-level
+  loading continuity, readable visual tokens, keyboard and screen-reader
+  semantics, localized text, organization metadata and the promotion entry
+  points. This checkpoint changes no client transport behavior; that remains a
+  separate browser-runtime group.
+
+## 2026-09-12 (promotion execution and review hardening)
+
+- The production promotion plan now routes finance and manager approvals to
+  distinct configured principals, propagates the application clock and
+  telemetry through the composed executor, and gives the local-development
+  profile an explicit RFC3339 clock override. That override is rejected by
+  every production profile and drives authentication, workflow execution and
+  the scheduler together, allowing a future effective-date wait to be tested
+  without weakening production time authority.
+
+- Journey inspection completed history now comes from durable execution state,
+  with runtime identifiers and evidence omitted at the server boundary for
+  ordinary reviewers. The recorded manager reviewer retains narrow access to
+  the case they decided after completion; another manager, a reassigned owner,
+  and an unattributed completion do not gain that access.
+
+- Promotion candidates, lifecycle findings and duplicate-active-request
+  admission are projected through the governed application boundary. Finance
+  and manager work-item events remain distinct in the business timeline.
+
+- The serializable-start integration fixture now starts its 20-second operation
+  deadline after embedded PostgreSQL has booted. This removes a Windows-host
+  timing race without lengthening the transaction deadline or weakening the
+  typed withdrawn-approval assertion.
+
+## 2026-09-12 (OBS-023 trace-pivot hardening)
+
+- Workflow advancement and terminal spans now retain the same bounded instance,
+  node, attempt and terminal vocabulary used by the inspector. The instrumentation
+  previously emitted private attribute names that the shared telemetry allowlist
+  correctly discarded, leaving operators unable to pivot from a durable execution
+  row to its span. The canonical `logical_operation_id`, `node_id`, `attempt_id`
+  and `terminal_code` keys are now admitted for spans only; none is a metric label
+  or an authority input.
+
+- The golden and terminal-span regressions exercise the real filtered in-memory
+  exporter, so they fail if policy drops any required pivot again. No payload,
+  approver identity or unbounded baggage was added.
+
+## 2026-09-12 (main synchronization)
+
+- Merged PROMOUX-004 and PROMOUX-005 from `main` into the UX topic branch.
+  The sandbox promotion proof now signs in a separate routed approval principal
+  after its author proposes and executes, preserving the real separation-of-
+  duties and WorkItem-owner checks in the combined tree.
 
 ## 2026-09-12 (PROMOUX-006)
 

@@ -25,6 +25,14 @@ var registeredIcons = []IconDefinition{
 	{Name: "collapse", Path: "M15 18l-6-6 6-6"},
 	{Name: "expand", Path: "M9 18l6-6-6-6"},
 	{Name: "menu", Path: "M4 6h16M4 12h16M4 18h16"},
+	{Name: "close", Path: "M6 6l12 12M18 6 6 18"},
+	{Name: "search", Path: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM17 17l5 5"},
+	{Name: "favorite", Path: "m12 2 3.1 6.3 7 .9-5.1 5 .9 7-6.9-3.6-6.9 3.6.9-7-5.1-5 7-.9z"},
+	{Name: "privacy", Path: "M6 10V7a6 6 0 0 1 12 0v3M5 10h14v11H5zM12 14v3"},
+	{Name: "launch", Path: "M5 19 19 5M9 5h10v10"},
+	{Name: "check", Path: "M20 6 9 17l-5-5"},
+	{Name: "history-back", Path: "M20 12H4M10 18l-6-6 6-6"},
+	{Name: "history-forward", Path: "M4 12h16M14 6l6 6-6 6"},
 }
 
 const fallbackIconPath = "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"

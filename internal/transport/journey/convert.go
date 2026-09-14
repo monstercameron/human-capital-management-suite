@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
@@ -142,6 +143,51 @@ func toPlacement(p workspace.JourneyPlacement) *journeyv1.Placement {
 	}
 }
 
+// fromInterventionKind maps the wire intervention kind onto the port's own
+// closed set. An unrecognized or unspecified value maps to the empty
+// string, which the port's own validation (never this conversion) refuses.
+func fromInterventionKind(k journeyv1.JourneyInterventionKind) workspace.JourneyInterventionKind {
+	switch k {
+	case journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_WITHDRAW:
+		return workspace.JourneyInterventionWithdraw
+	case journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL:
+		return workspace.JourneyInterventionCancel
+	default:
+		return ""
+	}
+}
+
+// toInterventionOutcome maps the port's own outcome vocabulary onto the
+// shared hcmnext.common.v1.InterventionOutcome wire enum. An unrecognized
+// port value maps to UNSPECIFIED rather than being guessed at.
+func toInterventionOutcome(o workspace.JourneyInterventionOutcome) commonv1.InterventionOutcome {
+	switch o {
+	case workspace.InterventionApplied:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_APPLIED
+	case workspace.InterventionPendingSafePoint:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_PENDING_SAFE_POINT
+	case workspace.InterventionDenied:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_DENIED
+	case workspace.InterventionTooLate:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_TOO_LATE
+	case workspace.InterventionRepairRequired:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_REPAIR_REQUIRED
+	default:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_UNSPECIFIED
+	}
+}
+
+// toInterventionPreview renders one [workspace.JourneyInterventionPreview].
+func toInterventionPreview(p workspace.JourneyInterventionPreview) *journeyv1.PreviewJourneyInterventionResponse {
+	return &journeyv1.PreviewJourneyInterventionResponse{
+		Available:                p.Available,
+		UnavailableReasonRef:     p.UnavailableReasonRef,
+		ConsequenceSummary:       p.ConsequenceSummary,
+		LikelyOutcome:            toInterventionOutcome(p.LikelyOutcome),
+		CurrentGovernanceVersion: p.CurrentGovernanceVersion,
+	}
+}
+
 // fromPlacement is [toPlacement]'s inverse. A nil message is the zero
 // placement, so a request that omits the field is not a decoding failure.
 func fromPlacement(p *journeyv1.Placement) workspace.JourneyPlacement {
@@ -158,10 +204,18 @@ func fromPlacement(p *journeyv1.Placement) workspace.JourneyPlacement {
 // canonical text encoding (values.EntityRef.String), which is empty for a
 // reference the kernel would not accept - an invalid reference must not be
 // re-rendered into a shape a client could echo back as if it were valid.
-func toJourney(s workspace.JourneySummary) *journeyv1.Journey {
-	return &journeyv1.Journey{
+// WorkerRef and IntentId always travel: both are routing keys ordinary
+// business navigation needs (the person profile link, this journey's own
+// address), never displayed as diagnostic content on their own. diagAuthor-
+// ized (PROMOUX-008) instead gates the fields with no business rendering
+// path at all -- the material/plan digest, the correlation id, and the
+// workflow instance identity -- by omitting them from the wire message
+// itself for a principal [server.diagnosticsAuthorized] denies, so an
+// unauthorized viewer never has them to withhold from the view; they are
+// simply not in the payload.
+func toJourney(s workspace.JourneySummary, diagAuthorized bool) *journeyv1.Journey {
+	out := &journeyv1.Journey{
 		IntentId:           s.IntentID,
-		CorrelationId:      s.CorrelationID,
 		WorkerRef:          s.Worker.String(),
 		WorkerName:         s.WorkerName,
 		Current:            toPlacement(s.Current),
@@ -173,12 +227,62 @@ func toJourney(s workspace.JourneySummary) *journeyv1.Journey {
 		BusinessReason:     s.BusinessReason,
 		Stage:              stageToProto(s.Stage),
 		ProposalRevisionId: s.ProposalRevisionID,
-		MaterialDigest:     s.MaterialDigest,
-		InstanceId:         s.InstanceID,
-		InstanceVersion:    s.InstanceVersion,
 		CreatedAt:          toTimestamp(s.CreatedAt),
 		UpdatedAt:          toTimestamp(s.UpdatedAt),
+		GovernanceVersion:  s.GovernanceVersion,
 	}
+	out.CurrentWorkItem = toJourneyWorkItemSummary(s.CurrentWorkItem)
+	out.Viewer = toJourneyViewerProjection(s.Viewer)
+	if diagAuthorized {
+		out.CorrelationId = s.CorrelationID
+		out.MaterialDigest = s.MaterialDigest
+		out.InstanceId = s.InstanceID
+		out.InstanceVersion = s.InstanceVersion
+	}
+	return out
+}
+
+// toJourneyWorkItemSummary renders the engine's viewer-scoped work item
+// summary. The engine has already applied the work item read rules; this is a
+// field copy, and nil stays nil.
+func toJourneyWorkItemSummary(s *workspace.JourneyWorkItemSummary) *journeyv1.JourneyWorkItemSummary {
+	if s == nil {
+		return nil
+	}
+	out := &journeyv1.JourneyWorkItemSummary{
+		Kind:                   s.Kind,
+		Status:                 s.Status,
+		AssigneePrincipalId:    s.AssigneePrincipalID,
+		AssigneeDisplayName:    s.AssigneeDisplayName,
+		ViewerPermittedActions: append([]string(nil), s.ViewerPermittedActions...),
+		ViewerMembership:       s.ViewerMembership,
+	}
+	if !s.DueAt.IsZero() {
+		out.DueAt = toTimestamp(s.DueAt)
+	}
+	return out
+}
+
+// toJourneyViewerProjection renders the engine's PROMOUX-012 viewer
+// projection. It is a token-to-enum copy: the engine resolved every value, and
+// an unresolved projection (empty responsibility) stays unset on the wire.
+func toJourneyViewerProjection(v workspace.JourneyViewerProjection) *journeyv1.JourneyViewerProjection {
+	if v.Responsibility == "" {
+		return nil
+	}
+	out := &journeyv1.JourneyViewerProjection{
+		Responsibility: journeyv1.JourneyViewerResponsibility(journeyv1.JourneyViewerResponsibility_value["JOURNEY_VIEWER_RESPONSIBILITY_"+string(v.Responsibility)]),
+		NextStep:       journeyv1.JourneyNextStep(journeyv1.JourneyNextStep_value["JOURNEY_NEXT_STEP_"+string(v.NextStep)]),
+		NextStepOwner:  journeyv1.JourneyStepOwner(journeyv1.JourneyStepOwner_value["JOURNEY_STEP_OWNER_"+string(v.NextStepOwner)]),
+		AwaitsPerson:   v.AwaitsPerson,
+		Closed:         v.Closed,
+	}
+	for _, relationship := range v.Relationships {
+		if value, ok := journeyv1.JourneyViewerRelationship_value["JOURNEY_VIEWER_RELATIONSHIP_"+string(relationship)]; ok && value != 0 {
+			out.Relationships = append(out.Relationships, journeyv1.JourneyViewerRelationship(value))
+		}
+	}
+	return out
 }
 
 // toFinding renders one simulation finding.
@@ -187,9 +291,13 @@ func toFinding(f workspace.JourneyFinding) *journeyv1.Finding {
 }
 
 // toInstance renders the workflow instance, or nil when the journey has not
-// been executed.
-func toInstance(i *workspace.JourneyInstance) *journeyv1.Instance {
-	if i == nil {
+// been executed or the caller is not [server.diagnosticsAuthorized]. The
+// instance is diagnostic-only end to end (no page has ever rendered its
+// fields for a business purpose), so an unauthorized caller gets nil
+// regardless of whether the journey actually has one -- the same absent
+// shape either way, never a hint that distinguishes the two.
+func toInstance(i *workspace.JourneyInstance, diagAuthorized bool) *journeyv1.Instance {
+	if i == nil || !diagAuthorized {
 		return nil
 	}
 	return &journeyv1.Instance{
@@ -228,9 +336,21 @@ func toNode(n workspace.JourneyNode) *journeyv1.NodeExecution {
 // identifiers travel as their canonical strings because
 // definitions/architecture/dependency-roles.yaml does not admit
 // internal/transport as an import root for github.com/google/uuid.
-func toWorkItem(w workitem.WorkItem) *journeyv1.WorkItem {
+//
+// WorkItemId is withheld unless diagAuthorized: PROMOUX-008 names "work-item
+// UUIDs" as an internal the ordinary approver never needs, and no RPC this
+// service exposes accepts a work item id back as input (DecideJourney acts
+// on the intent id) -- so it is pure diagnostic identity, while every other
+// field here (status, owner, claim, deadline) is what the approval
+// disposition card actually renders and must keep carrying regardless of
+// diagnostics authority.
+func toWorkItem(w workitem.WorkItem, diagAuthorized bool) *journeyv1.WorkItem {
+	workItemID := ""
+	if diagAuthorized {
+		workItemID = w.WorkItemID.String()
+	}
 	return &journeyv1.WorkItem{
-		WorkItemId:     w.WorkItemID.String(),
+		WorkItemId:     workItemID,
 		Kind:           string(w.Kind),
 		Status:         string(w.Status),
 		WorkType:       w.WorkType,
@@ -293,26 +413,48 @@ func toTimelineEvent(e workspace.JourneyEvent) *journeyv1.TimelineEvent {
 // toDetail renders the whole detail and stamps its change-detection digest.
 // The digest is computed last, over the finished message, so it covers every
 // field the page can see.
-func toDetail(d workspace.JourneyDetail) *journeyv1.JourneyDetail {
+//
+// diagAuthorized (PROMOUX-008) is the one boolean [server.diagnosticsAuthor
+// ized] computes for the caller; it decides which of the two projections
+// over this single, already-fetched d a caller receives. Timeline is the
+// business projection -- already human-readable history, sent unconditionally
+// to every caller who could reach InspectJourney at all. PlannedWrites (raw
+// SET operations), Instance (workflow/instance internals), Nodes (node
+// executions and trace ids) and Ledger (the stream key, schema ref and
+// digest of the terminal write) and EvidenceIds are the diagnostic
+// projection: every one of them is withheld -- nil or empty, never merely
+// hidden -- for a caller this todo does not authorize, because nothing this
+// service or any page built on it renders from them for an ordinary
+// reviewer. WorkItems is not part of either list: it stays populated either
+// way because the approval disposition an ordinary approver needs comes
+// from it (see toWorkItem); only its WorkItemId is diagnostic-only and is
+// blanked per item instead.
+func toDetail(d workspace.JourneyDetail, diagAuthorized bool) *journeyv1.JourneyDetail {
 	out := &journeyv1.JourneyDetail{
-		Journey:       toJourney(d.Summary),
-		PlannedWrites: append([]string(nil), d.PlannedWrites...),
-		Instance:      toInstance(d.Instance),
-		Ledger:        toLedger(d.Ledger),
-		EvidenceIds:   append([]string(nil), d.EvidenceIDs...),
-		Approver:      d.Approver,
+		Journey:              toJourney(d.Summary, diagAuthorized),
+		Instance:             toInstance(d.Instance, diagAuthorized),
+		Approver:             d.Approver,
+		DiagnosticsAvailable: d.DiagnosticsAvailable,
+		CanDecide:            d.CanDecide,
+	}
+	if diagAuthorized {
+		out.PlannedWrites = append([]string(nil), d.PlannedWrites...)
+		out.Ledger = toLedger(d.Ledger)
+		out.EvidenceIds = append([]string(nil), d.EvidenceIDs...)
 	}
 	for _, f := range d.Findings {
 		out.Findings = append(out.Findings, toFinding(f))
 	}
-	for _, n := range d.Nodes {
-		out.Nodes = append(out.Nodes, toNode(n))
+	if diagAuthorized {
+		for _, n := range d.Nodes {
+			out.Nodes = append(out.Nodes, toNode(n))
+		}
+		for _, t := range d.Transitions {
+			out.Transitions = append(out.Transitions, toTransition(t))
+		}
 	}
 	for _, w := range d.WorkItems {
-		out.WorkItems = append(out.WorkItems, toWorkItem(w))
-	}
-	for _, t := range d.Transitions {
-		out.Transitions = append(out.Transitions, toTransition(t))
+		out.WorkItems = append(out.WorkItems, toWorkItem(w, diagAuthorized))
 	}
 	for _, e := range d.Timeline {
 		out.Timeline = append(out.Timeline, toTimelineEvent(e))
@@ -366,52 +508,104 @@ func detailDigest(d *journeyv1.JourneyDetail) string {
 // asserting a salary it was never told.
 func toWorker(w workspace.WorkerSummary) *journeyv1.Worker {
 	return &journeyv1.Worker{
-		WorkerRef:       w.WorkerRef,
-		WorkerId:        w.WorkerID,
-		LegalName:       w.LegalName,
-		PreferredName:   w.PreferredName,
-		WorkerNumber:    w.WorkerNumber,
-		JobCode:         w.JobCode,
-		JobTitle:        w.JobTitle,
-		Grade:           w.Grade,
-		OrgUnit:         w.OrgUnit,
-		PositionId:      w.PositionID,
-		Location:        w.Location,
-		PayZone:         w.PayZone,
-		BasePay:         w.BasePay,
-		Currency:        w.Currency,
-		BonusTarget:     w.BonusTarget,
-		HireDate:        w.HireDate,
-		Source:          w.Source,
-		CreatedAt:       toTimestamp(w.CreatedAt),
-		ManagerRef:      w.ManagerRef,
-		ProfilePhotoUrl: w.ProfilePhotoURL,
+		WorkerRef:           w.WorkerRef,
+		WorkerId:            w.WorkerID,
+		SubjectRevision:     w.SubjectRevision,
+		LegalName:           w.LegalName,
+		PreferredName:       w.PreferredName,
+		WorkerNumber:        w.WorkerNumber,
+		JobCode:             w.JobCode,
+		JobTitle:            w.JobTitle,
+		Grade:               w.Grade,
+		OrgUnit:             w.OrgUnit,
+		PositionId:          w.PositionID,
+		Location:            w.Location,
+		PayZone:             w.PayZone,
+		BasePay:             w.BasePay,
+		Currency:            w.Currency,
+		BonusTarget:         w.BonusTarget,
+		HireDate:            w.HireDate,
+		Source:              w.Source,
+		CreatedAt:           toTimestamp(w.CreatedAt),
+		ManagerRef:          w.ManagerRef,
+		ManagerRelationship: toManagerRelationship(w.ManagerDisposition, w.ManagerWorkerRef),
+		ProfilePhotoUrl:     w.ProfilePhotoURL,
 	}
+}
+
+func toManagerRelationship(disposition, managerWorkerRef string) *journeyv1.ManagerRelationshipProjection {
+	if disposition == "" && managerWorkerRef == "" {
+		return nil
+	}
+	value := journeyv1.ManagerRelationshipProjection_DISPOSITION_UNSPECIFIED
+	switch disposition {
+	case workspace.ManagerRelationshipRoot:
+		value = journeyv1.ManagerRelationshipProjection_DISPOSITION_ROOT
+	case workspace.ManagerRelationshipVisible:
+		value = journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE
+	case workspace.ManagerRelationshipWithheld:
+		value = journeyv1.ManagerRelationshipProjection_DISPOSITION_WITHHELD
+	case workspace.ManagerRelationshipOrphan:
+		value = journeyv1.ManagerRelationshipProjection_DISPOSITION_ORPHAN
+	}
+	return &journeyv1.ManagerRelationshipProjection{Disposition: value, ManagerWorkerRef: managerWorkerRef}
 }
 
 // fromWorker is [toWorker]'s inverse.
 func fromWorker(w *journeyv1.Worker) workspace.WorkerSummary {
 	return workspace.WorkerSummary{
-		WorkerRef:       w.GetWorkerRef(),
-		WorkerID:        w.GetWorkerId(),
-		LegalName:       w.GetLegalName(),
-		PreferredName:   w.GetPreferredName(),
-		WorkerNumber:    w.GetWorkerNumber(),
-		JobCode:         w.GetJobCode(),
-		JobTitle:        w.GetJobTitle(),
-		Grade:           w.GetGrade(),
-		OrgUnit:         w.GetOrgUnit(),
-		PositionID:      w.GetPositionId(),
-		Location:        w.GetLocation(),
-		PayZone:         w.GetPayZone(),
-		BasePay:         w.GetBasePay(),
-		Currency:        w.GetCurrency(),
-		BonusTarget:     w.GetBonusTarget(),
-		HireDate:        w.GetHireDate(),
-		Source:          w.GetSource(),
-		CreatedAt:       fromTimestamp(w.GetCreatedAt()),
-		ManagerRef:      w.GetManagerRef(),
-		ProfilePhotoURL: w.GetProfilePhotoUrl(),
+		WorkerRef:          w.GetWorkerRef(),
+		WorkerID:           w.GetWorkerId(),
+		SubjectRevision:    w.GetSubjectRevision(),
+		LegalName:          w.GetLegalName(),
+		PreferredName:      w.GetPreferredName(),
+		WorkerNumber:       w.GetWorkerNumber(),
+		JobCode:            w.GetJobCode(),
+		JobTitle:           w.GetJobTitle(),
+		Grade:              w.GetGrade(),
+		OrgUnit:            w.GetOrgUnit(),
+		PositionID:         w.GetPositionId(),
+		Location:           w.GetLocation(),
+		PayZone:            w.GetPayZone(),
+		BasePay:            w.GetBasePay(),
+		Currency:           w.GetCurrency(),
+		BonusTarget:        w.GetBonusTarget(),
+		HireDate:           w.GetHireDate(),
+		Source:             w.GetSource(),
+		CreatedAt:          fromTimestamp(w.GetCreatedAt()),
+		ManagerRef:         w.GetManagerRef(),
+		ManagerDisposition: fromManagerRelationship(w.GetManagerRelationship()),
+		ManagerWorkerRef:   managerWorkerRef(w.GetManagerRelationship()),
+		ProfilePhotoURL:    w.GetProfilePhotoUrl(),
+	}
+}
+
+func fromManagerRelationship(value *journeyv1.ManagerRelationshipProjection) string {
+	if value == nil {
+		return ""
+	}
+	return fromManagerRelationshipDisposition(value.GetDisposition())
+}
+
+func managerWorkerRef(value *journeyv1.ManagerRelationshipProjection) string {
+	if value == nil {
+		return ""
+	}
+	return value.GetManagerWorkerRef()
+}
+
+func fromManagerRelationshipDisposition(value journeyv1.ManagerRelationshipProjection_Disposition) string {
+	switch value {
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_ROOT:
+		return workspace.ManagerRelationshipRoot
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE:
+		return workspace.ManagerRelationshipVisible
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_WITHHELD:
+		return workspace.ManagerRelationshipWithheld
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_ORPHAN:
+		return workspace.ManagerRelationshipOrphan
+	default:
+		return ""
 	}
 }
 

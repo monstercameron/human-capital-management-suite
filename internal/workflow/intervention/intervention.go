@@ -424,3 +424,12 @@ func CodeOf(err error) string {
 	return ""
 }
 func refuse(code, ref, detail string) *Error { return &Error{Code: code, Ref: ref, Detail: detail} }
+
+// ErrorCode reports the refusal's stable code for telemetry classification
+// (internal/workflow/observe.ErrorCode); it never carries message text.
+func (e *Error) ErrorCode() string {
+	if e == nil {
+		return ""
+	}
+	return e.Code
+}

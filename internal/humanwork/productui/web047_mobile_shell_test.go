@@ -42,6 +42,14 @@ func TestTodo_WEB_047(t *testing.T) {
 	for _, want := range []string{
 		`@media (max-width:430px){.action-launcher-trigger .action-launcher-label{display:none;}`,
 		`@media (max-width:430px){.utility-drawer-trigger .utility-drawer-label{display:none;}`,
+		`@media (max-width:430px){.global-search .global-search-input{`,
+		`@media (max-width:430px){.global-search .global-search-input::placeholder{color:transparent;}`,
+		`@media (max-width:430px){.global-search:focus-within .global-search-input::placeholder{color:var(--muted);}`,
+		`@media (max-width:350px){.topbar,.app-shell.nav-collapsed .topbar{`,
+		`grid-template-columns:minmax(0,1fr) auto auto;grid-template-rows:44px 44px;`,
+		`@media (max-width:350px){.topbar>.header-navigation-tools{`,
+		`@media (max-width:350px){.topbar>.notifications{`,
+		`@media (max-width:350px){.topbar>.viewer-profile-link{`,
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("mobile shell stylesheet missing %q", want)
@@ -53,7 +61,7 @@ func TestTodo_WEB_047(t *testing.T) {
 func TestTodo_WEB_047_Golden(t *testing.T) {
 	digest := sha256.Sum256([]byte(MobileShellStylesheet()))
 	got := hex.EncodeToString(digest[:])
-	const want = "96b75252491251a2a0e226bd4f090f83f6738b96dbb8f6c320e781c0167a166c"
+	const want = "7e60e773f2671541115c3a8f3093d3fc9572d681a996af860abcb026cf19a4b8"
 	if got != want {
 		t.Fatalf("mobile shell stylesheet golden digest = %s, want %s", got, want)
 	}

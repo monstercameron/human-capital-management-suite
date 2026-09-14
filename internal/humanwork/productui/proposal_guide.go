@@ -29,6 +29,10 @@ type ProposalGuideStep struct {
 	Title    string
 	Detail   string
 	Complete bool
+	// State is a truthful collection-stage state: done, current, or
+	// upcoming. It is presentation metadata only and never means the
+	// proposal passed service validation or policy.
+	State string
 }
 
 // ProposalGuide is the resolved collection guide: ordered
@@ -57,6 +61,18 @@ func ResolveProposalGuide(locale LocaleContext, input ProposalCollection) Propos
 			guide.Current = i
 			guide.Complete = false
 			break
+		}
+	}
+	for i := range guide.Steps {
+		switch {
+		case i == guide.Current:
+			guide.Steps[i].State = "current"
+		case guide.Current >= 0 && i > guide.Current:
+			guide.Steps[i].State = "upcoming"
+		case guide.Steps[i].Complete:
+			guide.Steps[i].State = "done"
+		default:
+			guide.Steps[i].State = "upcoming"
 		}
 	}
 	return guide

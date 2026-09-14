@@ -1,21 +1,265 @@
 package productui
 
+import "sort"
+
+// WorkUrgencyRank ranks one work item's urgency for the My Work queue: lower
+// values sort first. UXAUDIT-017 requires the queue to order by urgency
+// rather than by admission/recency, and requires that ordering to be a
+// computed, testable property of the data rather than a status list buried
+// in the renderer -- so this is that property, and workCollectionProps calls
+// it rather than switching on Status itself.
+//
+// The rank is derived from Tone, the presentation dimension the server's own
+// stage already resolves to (see tools/uxqual/productclient's
+// stagePresentation): Tone is shared with the row's status chip, so ranking
+// from it is ordering what the server already disclosed, never a new client
+// guess about what a status permits. Terminal items always rank last
+// regardless of tone: a completed or historical journey never outranks an
+// item still open for the viewer's attention. Danger-toned items (a journey
+// that needs repair) outrank warning-toned ones (blocked, or awaiting
+// someone's approval), which in turn outrank neutral/success-toned items
+// merely waiting on a future date or step.
+func WorkUrgencyRank(item WorkItem) int {
+	if item.Terminal {
+		return 3
+	}
+	switch item.Tone {
+	case "danger":
+		return 0
+	case "warning":
+		return 1
+	default:
+		return 2
+	}
+}
+
+// WorkViewerOwnershipRank ranks how the viewer stands to an item's current
+// work item, from the server's summary: 0 when the viewer holds it (claimant
+// or direct assignee), 1 when the viewer may claim it (candidate), 2
+// otherwise -- including every item the server disclosed no summary for.
+func WorkViewerOwnershipRank(item WorkItem) int {
+	switch item.ViewerMembership {
+	case "CLAIMANT", "ASSIGNEE":
+		return 0
+	case "CANDIDATE":
+		return 1
+	default:
+		return 2
+	}
+}
+
+// WorkNextAction is the single next executable action for the viewer: the
+// most decisive token the server placed in PermittedActions, or "" when the
+// viewer has none. It never infers an action the server did not grant.
+func WorkNextAction(item WorkItem) string {
+	for _, preferred := range []string{"decide_approval", "complete", "claim", "release"} {
+		for _, granted := range item.PermittedActions {
+			if granted == preferred {
+				return preferred
+			}
+		}
+	}
+	return ""
+}
+
+// SortWorkByUrgency orders a work stream as an action queue, most urgent
+// first. The keys, in order:
+//
+//  1. WorkUrgencyRank (repair, then blocked/approval, then the rest, then
+//     terminal);
+//  2. ownership from the server's work item summary
+//     (WorkViewerOwnershipRank): held by the viewer, then claimable by the
+//     viewer, then everything else;
+//  3. the stage-derived fallback: an item whose next step a person holds
+//     (AwaitsPerson) before one the workflow or the calendar is carrying;
+//  4. the work item's real deadline (WorkDue), soonest first, undated last;
+//  5. the row's effective date (Due), soonest first, undated last.
+//
+// Dates are ISO-8601 (YYYY-MM-DD), so string order is date order. Items equal
+// on every key keep their relative (server-admission) order, and the input is
+// never mutated.
+func SortWorkByUrgency(items []WorkItem) []WorkItem {
+	sorted := make([]WorkItem, len(items))
+	copy(sorted, items)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return workQueueLess(sorted[i], sorted[j])
+	})
+	return sorted
+}
+
+func workQueueLess(a, b WorkItem) bool {
+	if rankA, rankB := WorkUrgencyRank(a), WorkUrgencyRank(b); rankA != rankB {
+		return rankA < rankB
+	}
+	if ownA, ownB := WorkViewerOwnershipRank(a), WorkViewerOwnershipRank(b); ownA != ownB {
+		return ownA < ownB
+	}
+	if a.AwaitsPerson != b.AwaitsPerson {
+		return a.AwaitsPerson
+	}
+	if a.WorkDue != b.WorkDue {
+		return isoDateLess(a.WorkDue, b.WorkDue)
+	}
+	if a.Due != b.Due {
+		return isoDateLess(a.Due, b.Due)
+	}
+	return false
+}
+
+// isoDateLess orders two distinct ISO dates soonest first, with "" last.
+func isoDateLess(a, b string) bool {
+	if a == "" || b == "" {
+		return b == ""
+	}
+	return a < b
+}
+
+// MyWorkBuckets is the viewer-scoped composition for My Work. The slices are
+// independent projections, so an item can never appear both as something to
+// do and as a passive status update. Completed items remain available to the
+// existing history surface rather than being presented as pending work.
+type MyWorkBuckets struct {
+	ActionQueue  []WorkItem
+	Drafts       []WorkItem
+	Tracked      []WorkItem
+	PassiveWaits []WorkItem
+}
+
+// ResolveMyWorkBuckets scopes first, then classifies. Keeping authorization
+// before categorization prevents denied records from influencing counts or
+// leaking through a secondary summary.
+func ResolveMyWorkBuckets(items []WorkItem, viewer ViewerProfile) MyWorkBuckets {
+	mine := MyWorkItems(items, viewer)
+	return classifyMyWorkBuckets(mine)
+}
+
+// pageWorkBuckets is the page adapter for the same fail-closed collection.
+// An unbound preview therefore cannot accidentally expose an assigned draft
+// or tracked request merely because it was included in a broad projection.
+func pageWorkBuckets(items []WorkItem, viewer ViewerProfile) MyWorkBuckets {
+	return ResolveMyWorkBuckets(items, viewer)
+}
+
+func classifyMyWorkBuckets(mine []WorkItem) MyWorkBuckets {
+	buckets := MyWorkBuckets{
+		ActionQueue:  make([]WorkItem, 0, len(mine)),
+		Drafts:       make([]WorkItem, 0, len(mine)),
+		Tracked:      make([]WorkItem, 0, len(mine)),
+		PassiveWaits: make([]WorkItem, 0, len(mine)),
+	}
+	for _, item := range mine {
+		switch ClassifyWork(item) {
+		case WorkDispositionDraft:
+			buckets.Drafts = append(buckets.Drafts, item)
+		case WorkDispositionPassive:
+			buckets.PassiveWaits = append(buckets.PassiveWaits, item)
+		case WorkDispositionAction:
+			buckets.ActionQueue = append(buckets.ActionQueue, item)
+		default:
+			if !item.Terminal {
+				buckets.Tracked = append(buckets.Tracked, item)
+			}
+		}
+	}
+	return buckets
+}
+
+// ResumableDrafts is the viewer-scoped draft slice used by Home and My Work.
+// The historical DraftCenterItems helper remains the compatibility surface;
+// this name makes the resume affordance explicit at composition call sites.
+func ResumableDrafts(items []WorkItem, viewer ViewerProfile) []WorkItem {
+	mine := MyWorkItems(items, viewer)
+	drafts := make([]WorkItem, 0, len(mine))
+	for _, item := range mine {
+		if ClassifyWork(item) == WorkDispositionDraft {
+			drafts = append(drafts, item)
+		}
+	}
+	return drafts
+}
+
 // MyWorkItems scopes one work stream to the viewer's
-// collection for the My Work page: items whose PersonRef
-// equals the viewer's PersonID, in admission order. Empty
-// viewer identities and empty refs match nothing
-// fail-closed, so unassigned work never leaks into a
-// collection and logged-out viewers see none. Items pass
-// through untouched.
+// collection for the My Work page. A server-selected AssigneeRef owns active
+// human work; older/draft projections without one retain the subject-based
+// compatibility rule. Empty viewer identities and empty refs match nothing
+// fail-closed, so unassigned work never leaks into a collection and logged-out
+// viewers see none. Items pass through untouched.
 func MyWorkItems(items []WorkItem, viewer ViewerProfile) []WorkItem {
 	mine := make([]WorkItem, 0, len(items))
 	if viewer.PersonID == "" {
 		return mine
 	}
 	for _, item := range items {
-		if item.PersonRef != "" && item.PersonRef == viewer.PersonID {
+		// Newer journey projections express responsibility relative to the
+		// authenticated viewer, independently of the promotion subject. A
+		// subject/assignee comparison would drop a manager's assigned queue.
+		// Such records still enter here only from the admitted View.Work slice.
+		if item.ViewerResponsibility != "" || len(item.ViewerRelationships) != 0 {
+			if WorkNeedsViewerAction(item) || WorkViewerInitiated(item) || WorkViewerOwnershipRank(item) < 2 {
+				mine = append(mine, item)
+			}
+			continue
+		}
+		owner := item.AssigneeRef
+		if owner == "" {
+			owner = item.PersonRef
+		}
+		if owner == viewer.PersonID {
 			mine = append(mine, item)
 		}
 	}
 	return mine
+}
+
+// Viewer projection tokens (PROMOUX-012), as tools/uxqual/journeyclient
+// projects them off the server's JourneyViewerProjection.
+const (
+	workResponsibilityActionRequired = "ACTION_REQUIRED"
+	workResponsibilityTracking       = "TRACKING"
+	workRelationshipInitiator        = "INITIATOR"
+)
+
+// WorkNeedsViewerAction reports whether the server says this open item asks
+// the viewer to act: they hold or may claim its work item, or they proposed
+// it and its next step is the proposer's. Nothing else is actionable -- in
+// particular not a passive wait, and not an item the server resolved no
+// responsibility for -- so My Work and every attention count built from this
+// never include work the viewer cannot do.
+func WorkNeedsViewerAction(item WorkItem) bool {
+	return !item.Terminal && item.ViewerResponsibility == workResponsibilityActionRequired
+}
+
+// ActionableWorkItems is the My Work queue population and the source of every
+// actionable count (navigation badge, notification summary): open items the
+// viewer must act on, in input order.
+func ActionableWorkItems(items []WorkItem) []WorkItem {
+	return FilterWorkCollection(items, WorkCollectionAll)
+}
+
+// WorkViewerInitiated reports whether the server names the viewer as this
+// item's initiator.
+func WorkViewerInitiated(item WorkItem) bool {
+	for _, relationship := range item.ViewerRelationships {
+		if relationship == workRelationshipInitiator {
+			return true
+		}
+	}
+	return false
+}
+
+// WorkAwaitsDecision reports whether the item's next step is an approval
+// decision of any kind -- the generic, manager, finance or repeat approval --
+// read from the server's next-step code rather than a status label.
+func WorkAwaitsDecision(item WorkItem) bool {
+	switch item.NextStep {
+	case "approval_decision", "manager_decision", "finance_decision", "reapproval_decision":
+		return true
+	}
+	return false
+}
+
+// WorkIsPassiveWait reports whether an open item's next step is held by the
+// workflow or the calendar rather than by any person.
+func WorkIsPassiveWait(item WorkItem) bool {
+	return !item.Terminal && item.NextStep != "" && !item.AwaitsPerson
 }

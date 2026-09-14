@@ -21,7 +21,21 @@ func navigationSearchScore(item NavItem, query string) int {
 	}{
 		{text: item.Label, weight: 32, shortQuery: true},
 		{text: string(item.Page), weight: 20, shortQuery: true},
+		{text: item.LabelKey, weight: 18},
 		{text: item.Description, weight: 4},
+	}
+	// The registry supplies stable, non-user-authored metadata that remains
+	// available even when a projection localizes the visible label. Searching
+	// route/title vocabulary makes deep pages discoverable without treating a
+	// fuzzy match as authorization.
+	if definition, ok := LookupPage(item.Page); ok {
+		for _, value := range []string{definition.Route, definition.Label, definition.Title, definition.LabelKey, definition.TitleKey, definition.SubtitleKey} {
+			fields = append(fields, struct {
+				text       string
+				weight     int
+				shortQuery bool
+			}{text: value, weight: 16})
+		}
 	}
 	for _, keyword := range item.Keywords {
 		fields = append(fields, struct {

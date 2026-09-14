@@ -2,24 +2,62 @@ package productui
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
 type OrganizationPageProps struct {
+	I18nProps
 	Title       string
 	Description string
 	ViewLabel   string
 	FlatAction  ActionLinkProps
 	TreeAction  ActionLinkProps
 	TreeActive  bool
+	TreeLocked  bool
 	Metadata    BusinessMetadataProps
+	Summary     OrganizationSummaryProps
+	Density     string
 	Groups      []OrganizationGroupProps
 	Tree        []OwnershipNodeProps
 	TreeLabel   string
+	Search      OrganizationSearchProps
 	Empty       EmptyStateProps
+}
+
+// OrganizationSummaryProps is deliberately derived from the admitted
+// projection. It gives people an at-a-glance orientation without claiming
+// totals for records outside the viewer's server-authorized scope.
+type OrganizationSummaryProps struct {
+	VisiblePeople    int
+	Units            int
+	Scope            string
+	CompactLabel     string
+	ComfortableLabel string
+	SpaciousLabel    string
+	ExpandAllLabel   string
+	CollapseAllLabel string
+}
+
+// OrganizationSearchProps is an SSR-first, authorized organization search.
+// The input only changes the view over an already admitted projection; it
+// never asks the browser to discover records on its own.
+type OrganizationSearchProps struct {
+	I18nProps
+	Query     string
+	Action    string
+	ClearHref string
+	Summary   string
+	// HiddenInputs preserves addressable view state through a native GET
+	// submit. Browsers replace an action URL's query with successful form
+	// controls, so query state must be represented as controls explicitly.
+	HiddenInputs map[string]string
+	Navigate     func(string)
+	OnFilter     func(string)
 }
 
 // BusinessMetadataProps is the narrow, reusable contract for an authorized
@@ -47,6 +85,29 @@ type OrganizationGroupProps struct {
 	Members    []OwnershipNodeProps
 }
 
+// OrganizationRelationshipState describes the server-admitted relationship
+// for a worker. Empty manager references are deliberately not treated as
+// edges: a root has no manager, while a withheld relationship is explained to
+// the viewer without inventing a parent.
+type OrganizationRelationshipState string
+
+const (
+	OrganizationRelationshipRoot     OrganizationRelationshipState = "root"
+	OrganizationRelationshipVisible  OrganizationRelationshipState = "visible"
+	OrganizationRelationshipOrphan   OrganizationRelationshipState = "orphan"
+	OrganizationRelationshipWithheld OrganizationRelationshipState = "withheld"
+)
+
+// OrganizationRelationshipProjection is the one authorized relationship
+// projection shared by the flat directory, reporting tree, and Myself
+// subtree. The maps are keyed by the worker's stable product ID.
+type OrganizationRelationshipProjection struct {
+	ManagerByWorker      map[string]string
+	ManagerLabelByWorker map[string]string
+	StateByWorker        map[string]OrganizationRelationshipState
+	ExplanationByWorker  map[string]string
+}
+
 // OwnershipNodeProps is the recursive, presentation-only reporting-line
 // contract. Every person has already passed the page's visibility boundary.
 // UXAUDIT-004: this is the ONE organization-node contract the flat
@@ -55,6 +116,10 @@ type OrganizationGroupProps struct {
 // every field here comes from the one authorized relationship projection
 // (see organization_relationships.go), never from a name match.
 type OwnershipNodeProps struct {
+	I18nProps
+	Manager, ManagerRef, Location              string
+	RelationshipState, RelationshipExplanation string
+	Open                                       bool
 	// ID is the person's public routing reference (Person.ID), used to find
 	// and re-root a subtree (Myself) and to compare against View.SelectedPerson.
 	ID                                         string
@@ -87,6 +152,7 @@ type OwnershipNodeProps struct {
 }
 
 func OrganizationPage(props OrganizationPageProps) ui.Node {
+	props.Search.I18nProps = props.I18nProps
 	sections := make([]ui.Node, 0, 2)
 	if props.Metadata.Title != "" {
 		sections = append(sections, ui.CreateElement(BusinessMetadata, props.Metadata))
@@ -99,19 +165,94 @@ func OrganizationPage(props OrganizationPageProps) ui.Node {
 	if props.TreeActive {
 		content = organizationTree(props.Tree, props.TreeLabel)
 	}
-	body := html.Div(html.Props{Class: "org"},
-		html.Div(html.Props{Class: "organization-view-head"},
-			html.P(html.Props{Class: "definition"}, ui.Text(props.Description)),
-			html.Div(html.Props{Class: "organization-view-toggle", Raw: map[string]any{"role": "group", "aria-label": props.ViewLabel}},
-				organizationViewAction(props.FlatAction, !props.TreeActive),
-				organizationViewAction(props.TreeAction, props.TreeActive),
-			),
-		),
+	viewHead := []ui.Node{html.P(html.Props{Class: "definition"}, ui.Text(props.Description))}
+	if !props.TreeLocked {
+		viewHead = append(viewHead, html.Div(html.Props{Class: "organization-view-toggle", Raw: map[string]any{"role": "group", "aria-label": props.ViewLabel}},
+			organizationViewAction(props.FlatAction, !props.TreeActive),
+			organizationViewAction(props.TreeAction, props.TreeActive),
+		))
+	}
+	density := normalizeOrganizationDensity(props.Density)
+	body := html.Div(html.Props{Class: "org organization-density-" + density},
+		organizationBrowseSummary(props),
+		ui.CreateElement(OrganizationSearch, props.Search),
+		html.Div(html.Props{Class: "organization-view-head"}, viewHead...),
 		content,
 	)
 	// Exploration is the primary task; business context remains available below it.
 	sections = append([]ui.Node{ui.CreateElement(Panel, PanelProps{Title: props.Title, Body: body})}, sections...)
 	return html.Div(html.Props{Class: "organization-page"}, sections...)
+}
+
+func normalizeOrganizationDensity(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "compact", "comfortable", "spacious":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return "comfortable"
+	}
+}
+
+// organizationBrowseSummary keeps the high-value orientation and controls
+// before the potentially long list. Native details/summary remain the source
+// of truth for disclosure; data hooks allow a progressive client enhancer to
+// operate on these same nodes without inventing records or replacing links.
+func organizationBrowseSummary(props OrganizationPageProps) ui.Node {
+	count := props.Text("organization.visible_workforce")
+	units := props.Text("organization.units")
+	scope := strings.TrimSpace(props.Summary.Scope)
+	if scope == "" {
+		scope = props.Text("common.not_reported")
+	}
+	return html.Div(html.Props{Class: "organization-browse-summary", Raw: map[string]any{"aria-label": props.Text("organization.structure_title"), "data-organization-summary": "true"}},
+		html.Div(html.Props{Class: "organization-summary-facts"},
+			html.Span(html.Props{Class: "organization-summary-fact"}, html.Strong(html.Props{}, ui.Text(props.Locale.FormatNumber(strconv.Itoa(props.Summary.VisiblePeople), 0))), html.Small(html.Props{}, ui.Text(count))),
+			html.Span(html.Props{Class: "organization-summary-fact"}, html.Strong(html.Props{}, ui.Text(props.Locale.FormatNumber(strconv.Itoa(props.Summary.Units), 0))), html.Small(html.Props{}, ui.Text(units))),
+			html.Span(html.Props{Class: "organization-summary-scope"}, html.Small(html.Props{}, ui.Text(props.Text("organization.access_scope"))), html.Span(html.Props{}, ui.Text(scope))),
+		),
+	)
+}
+
+func OrganizationSearch(props OrganizationSearchProps) ui.Node {
+	query := props.Query
+	input := SearchInputProps{ID: "organization-search", Name: "q", Value: props.Query,
+		Placeholder: props.Text("people.filter_placeholder"), AriaLabel: props.Text("people.filter_aria")}
+	form := html.Props{Class: "organization-search", Action: props.Action, Method: "get", Raw: map[string]any{"role": "search"}}
+	if props.OnFilter != nil {
+		input.OnInput = func(value string) { query = value }
+		onFilter := props.OnFilter
+		form.OnSubmit = ui.UseEvent(func(event ui.FormEvent) {
+			event.PreventDefault()
+			onFilter(strings.TrimSpace(query))
+		})
+	}
+	hiddenNames := make([]string, 0, len(props.HiddenInputs))
+	for name := range props.HiddenInputs {
+		hiddenNames = append(hiddenNames, name)
+	}
+	sort.Strings(hiddenNames)
+	children := make([]ui.Node, 0, len(hiddenNames)+4)
+	for _, name := range hiddenNames {
+		children = append(children, html.Tag("input", html.Props{Name: name, Value: props.HiddenInputs[name], Raw: map[string]any{"type": "hidden"}}))
+	}
+	children = append(children,
+		html.Label(html.Props{For: "organization-search"}, ui.Text(props.Text("people.find"))),
+		html.Div(html.Props{Class: "organization-search-control"},
+			ui.CreateElement(SearchInput, input),
+			html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(props.Text("people.filter"))),
+		),
+	)
+	status := make([]ui.Node, 0, 2)
+	if props.Query != "" {
+		status = append(status, softwareLink(props.Navigate, html.Props{Class: "button secondary compact"}, props.ClearHref, ui.Text(props.Text("people.clear"))))
+	}
+	if props.Summary != "" {
+		status = append(status, html.Span(html.Props{Class: "muted organization-search-summary", Raw: map[string]any{"aria-live": "polite"}}, ui.Text(props.Summary)))
+	}
+	if len(status) != 0 {
+		children = append(children, html.Div(html.Props{Class: "organization-search-status"}, status...))
+	}
+	return html.Form(form, children...)
 }
 
 func organizationViewAction(action ActionLinkProps, active bool) ui.Node {
@@ -134,7 +275,7 @@ func organizationFlat(values []OrganizationGroupProps) ui.Node {
 		groups = append(groups, html.Li(html.Props{Class: "organization-unit"},
 			html.Details(html.Props{Class: "organization-unit-disclosure"},
 				html.Summary(html.Props{Class: "org-node manager"},
-					html.Span(html.Props{Class: "organization-unit-glyph", Aria: map[string]string{"hidden": "true"}}, ui.Text("›")),
+					html.Span(html.Props{Class: "organization-unit-glyph", Aria: map[string]string{"hidden": "true"}}, productIcon("expand", "organization-unit-chevron")),
 					html.Span(html.Props{Class: "row-main"}, html.Strong(html.Props{}, ui.Text(group.Name)), html.Small(html.Props{}, ui.Text(group.CountLabel))),
 				),
 				html.Ul(html.Props{Class: "organization-unit-members", Raw: map[string]any{"role": "list"}}, members...),
@@ -164,6 +305,7 @@ type OrganizationOwnershipTreeProps struct {
 func OrganizationOwnershipTree(props OrganizationOwnershipTreeProps) ui.Node {
 	nodes := make([]ui.Node, 0, len(props.Nodes))
 	for _, value := range props.Nodes {
+
 		nodes = append(nodes, ui.CreateElement(organizationTreeItem, value))
 	}
 	treeProps := html.Props{Class: "ownership-tree", Raw: map[string]any{"role": "tree", "data-organization-view": "tree"}}
@@ -203,13 +345,18 @@ func organizationTreeItem(props OwnershipNodeProps) ui.Node {
 		for _, report := range props.Reports {
 			children = append(children, ui.CreateElement(organizationTreeItem, report))
 		}
-		groupProps := html.Props{Raw: map[string]any{"role": "group"}}
+		groupProps := html.Props{Class: "ownership-reports", Raw: map[string]any{"role": "group"}}
 		if !expanded.Get() {
 			groupProps.Hidden = true
 		}
 		content = append(content, html.Ul(groupProps, children...))
 	}
-	return html.Li(html.Props{Raw: map[string]any{"role": "treeitem"}, Aria: aria}, content...)
+
+	liProps := html.Props{Raw: map[string]any{"role": "treeitem"}, Aria: aria}
+	if props.RelationshipState != "" {
+		liProps.Raw["data-relationship-state"] = props.RelationshipState
+	}
+	return html.Li(liProps, content...)
 }
 
 func organizationToggleGlyph(expanded bool) string {
@@ -223,15 +370,23 @@ func organizationToggleGlyph(expanded bool) string {
 // UXAUDIT-004's flat organization list, organization tree, and Myself
 // subtree all render every person through this one function.
 func organizationPersonCard(props OwnershipNodeProps) ui.Node {
+	identityLabel := ResolveWorkerIdentity(props.Locale, Person{Name: props.Name, WorkerNumber: props.WorkerNumber}, nil).Label
 	class := "ownership-card"
 	if props.Current {
 		class += " current-person"
 	}
 	if props.Selected {
-		class += " selected"
+
+		class += " selected selected-person"
 	}
-	metadata := []ui.Node{html.Strong(html.Props{}, ui.Text(props.Name))}
-	for _, value := range []string{props.WorkerNumber, props.Role, props.Team} {
+	metadata := []ui.Node{html.Strong(html.Props{}, ui.Text(identityLabel))}
+	if props.Current {
+		metadata = append(metadata, html.Span(html.Props{Class: "sr-only"}, ui.Text(props.Text("organization.current_you"))))
+	}
+	if props.Selected {
+		metadata = append(metadata, html.Span(html.Props{Class: "sr-only"}, ui.Text(props.Text("organization.selected_person"))))
+	}
+	for _, value := range []string{props.Role, props.Team} {
 		if value != "" {
 			metadata = append(metadata, html.Small(html.Props{}, ui.Text(value)))
 		}
@@ -247,19 +402,55 @@ func organizationPersonCard(props OwnershipNodeProps) ui.Node {
 		html.Span(html.Props{Class: "row-main"}, metadata...),
 	}
 	linkProps := html.Props{Class: class}
-	if props.Current {
-		linkProps.Raw = map[string]any{"aria-current": "true"}
+	if props.Current || props.Selected {
+		linkProps.Raw = map[string]any{}
+		if props.Current {
+			linkProps.Raw["data-current-viewer"] = "true"
+		}
+		if props.Selected {
+			linkProps.Raw["data-selected-person"] = "true"
+		}
 	}
+
 	if props.Selected {
 		if linkProps.Data == nil {
 			linkProps.Data = map[string]string{}
 		}
 		linkProps.Data["selected"] = "true"
 	}
+	var card ui.Node
 	if props.Href == "" {
-		return html.Div(linkProps, children...)
+		card = html.Div(linkProps, children...)
+	} else {
+		card = softwareLink(props.Navigate, linkProps, props.Href, children...)
 	}
-	return softwareLink(props.Navigate, linkProps, props.Href, children...)
+	// Keep the compact card scannable while making secondary employee facts
+	// available on demand. The disclosure is separate from the profile link,
+	// so keyboard users never encounter nested interactive controls in summary.
+	details := make([]ui.Node, 0, 2)
+	if props.WorkerNumber != "" {
+		details = append(details, html.Div(html.Props{Class: "ownership-person-detail"}, html.Small(html.Props{}, ui.Text(props.Text("person.worker_number"))), html.Span(html.Props{}, ui.Text(props.WorkerNumber))))
+	}
+	if props.Manager != "" {
+		details = append(details, html.Div(html.Props{Class: "ownership-person-detail"}, html.Small(html.Props{}, ui.Text(props.Text("person.manager"))), html.Span(html.Props{}, ui.Text(props.Manager))))
+	}
+	if props.Location != "" {
+		details = append(details, html.Div(html.Props{Class: "ownership-person-detail"}, html.Small(html.Props{}, ui.Text(props.Text("person.work_location"))), html.Span(html.Props{}, ui.Text(props.Location))))
+	}
+	nodes := []ui.Node{card}
+	if props.RelationshipExplanation != "" {
+		nodes = append(nodes, html.P(html.Props{Class: "relationship-explanation", Raw: map[string]any{"role": "note"}}, ui.Text(props.RelationshipExplanation)))
+	}
+	if len(details) == 0 && len(nodes) == 1 {
+		return card
+	}
+	if len(details) > 0 {
+		nodes = append(nodes, html.Details(html.Props{Class: "ownership-person-disclosure"},
+			html.Summary(html.Props{Aria: map[string]string{"label": props.Text("organization.employee_details_for", map[string]string{"name": identityLabel})}}, ui.Text(props.Text("organization.employee_details"))),
+			html.Div(html.Props{Class: "ownership-person-details"}, details...),
+		))
+	}
+	return html.Div(html.Props{Class: "ownership-person"}, nodes...)
 }
 
 func BusinessMetadata(props BusinessMetadataProps) ui.Node {
@@ -285,10 +476,9 @@ func BusinessMetadata(props BusinessMetadataProps) ui.Node {
 		body = append(body, html.P(html.Props{Class: "business-metadata-boundary"}, ui.Text(props.Boundary)))
 	}
 	return html.Section(html.Props{Class: "surface organization-metadata", Raw: map[string]any{"aria-labelledby": "business-metadata-title"}},
-		html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{},
-			html.H2(html.Props{ID: "business-metadata-title"}, ui.Text(props.Title)),
-			html.P(html.Props{Class: "muted"}, ui.Text(props.Description)),
-		)),
+		ui.CreateElement(SectionHeading, SectionHeadingProps{
+			ID: "business-metadata-title", Title: props.Title, Description: props.Description,
+		}),
 		html.Div(html.Props{Class: "business-metadata-body"}, body...),
 	)
 }

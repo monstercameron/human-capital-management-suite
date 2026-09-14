@@ -1,6 +1,7 @@
 package intentcoverage
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -107,5 +108,33 @@ func TestSplitTrimIgnoresBlankTokens(t *testing.T) {
 	got := splitTrim("BI.PEOPLE, , BI.REWARDS")
 	if len(got) != 2 || got[0] != "BI.PEOPLE" || got[1] != "BI.REWARDS" {
 		t.Fatalf("splitTrim = %v", got)
+	}
+}
+
+// TestScanRepoTestNamesIncludesTheTestRoot proves a suite declared only
+// under test/ is an executable oracle name, and that a build-cache directory
+// at the bare repository root is still not walked.
+func TestScanRepoTestNamesIncludesTheTestRoot(t *testing.T) {
+	root := t.TempDir()
+	for rel, name := range map[string]string{
+		"test/workflow/flow_test.go":        "TestOnlyUnderTestRoot",
+		"internal/sample/sample_test.go":    "TestUnderInternal",
+		".gocache-lane/stray/stray_test.go": "TestInABuildCache",
+	} {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		src := "package sample\n\nimport \"testing\"\n\nfunc " + name + "(t *testing.T) {}\n"
+		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	names, err := scanRepoTestNames(root)
+	if err != nil {
+		t.Fatalf("scanRepoTestNames: %v", err)
+	}
+	if !names["TestOnlyUnderTestRoot"] || !names["TestUnderInternal"] || names["TestInABuildCache"] || len(names) != 2 {
+		t.Fatalf("scanned names = %v, want exactly the test/ and internal/ suites", names)
 	}
 }

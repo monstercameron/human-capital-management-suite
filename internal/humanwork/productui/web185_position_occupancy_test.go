@@ -24,7 +24,7 @@ func TestTodo_WEB_185(t *testing.T) {
 	if !ok {
 		t.Fatal("position occupancy presentation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("position occupancy presentation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_185_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "14effa014a6f6ef56ce0ba58ed7e90560daefad77192f96c1a115764bac10a78"
+	const want = "d5b8885c025faf6294fe3b72b2c4e82ed9ee1f5ffe9fd4c11fbd3e2b7152976a"
 	if got != want {
 		t.Fatalf("position occupancy digest = %s, want %s", got, want)
 	}

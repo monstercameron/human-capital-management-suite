@@ -1,0 +1,6 @@
+# CP-010 epoch-2 adoption receipt oracle.
+# receipt_digest is the execution-receipt envelope digest (over tenant,
+# lineage, authority and dimension verdicts); the bundle content digest
+# rides inside the explain line as the verification dimension digest.
+receipt_digest: sha256:9ffae9bceea0844fe1e17faa86960525443bb6b765f2be04f25aa40c96399fa5
+explain: activation receipt bundle=cp009-bundle epoch=2 tenant=cp010-tenant environment=PRODUCTION trust_profile=control-plane digest=sha256:784a3ef607dc7f1e9ec9809e98827e6d1e132eb12e68fda7c29faddb0ed8e72b

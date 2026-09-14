@@ -41,6 +41,7 @@ func TestTodo_WEB_068(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := web063BodyText(t, doc)
+
 	for _, want := range []string{"connection didn't respond", "Page configuration isn't available"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("admin page shows no unavailability reason for %q", want)
@@ -50,7 +51,7 @@ func TestTodo_WEB_068(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	journeysCard := findCardByTitle(root, "Journey service")
+	journeysCard := findCardByTitle(root, "Promotion workflows")
 	if journeysCard == nil {
 		t.Fatal("admin page loses the journey card")
 	}
@@ -97,7 +98,7 @@ func TestTodo_WEB_068(t *testing.T) {
 		t.Fatal(err)
 	}
 	saveBody := web063BodyText(t, saveDoc)
-	if !strings.Contains(saveBody, "update grant") {
+	if !strings.Contains(saveBody, "permission to update organization visibility") {
 		t.Fatal("unavailable save shows no reason")
 	}
 	saveRoot, err := xhtml.Parse(strings.NewReader(saveDoc))
@@ -336,7 +337,7 @@ func TestTodo_WEB_068_Security(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, title := range []string{"Journey service", "Experience configuration"} {
+		for _, title := range []string{ResolveProductLocale(locale).Text("admin.promotion_title"), ResolveProductLocale(locale).Text("admin.custom_title")} {
 			card := findCardByTitle(root, title)
 			if card == nil {
 				t.Fatalf("%s admin page loses the %q card", locale, title)

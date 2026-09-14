@@ -8,6 +8,7 @@ type PageRequest struct {
 	Page               PageID
 	Locale             string
 	Query              string
+	RolePage           int
 	PeoplePage         int
 	PeoplePageSize     int
 	PeopleTeam         string
@@ -43,6 +44,10 @@ type PageRequest struct {
 func ApplyRequest(view View, request PageRequest) View {
 	view = ApplyLocale(view, ResolveProductLocale(request.Locale))
 	view.Query = strings.TrimSpace(request.Query)
+	view.RolePage = request.RolePage
+	if view.RolePage < 1 {
+		view.RolePage = 1
+	}
 	view.PeoplePage = request.PeoplePage
 	if view.PeoplePage < 1 {
 		view.PeoplePage = 1
@@ -54,6 +59,12 @@ func ApplyRequest(view View, request PageRequest) View {
 	view.PeopleSort = normalizePeopleSort(request.PeopleSort)
 	view.PeopleDirection = normalizePeopleDirection(request.PeopleDirection)
 	view.OrganizationView = normalizeOrganizationView(request.OrganizationView)
+	if view.Page == PageOrgOutline {
+		// The outline route has one intentionally fixed semantic presentation.
+		// Keep shell, search, and navigation links aligned with what it renders
+		// even when the incoming address omitted (or contradicted) org_view.
+		view.OrganizationView = organizationViewTree
+	}
 	view.WorkflowQuery = strings.TrimSpace(request.WorkflowQuery)
 	view.HistoryQuery = strings.TrimSpace(request.HistoryQuery)
 	view.HistoryOutcome = strings.ToLower(strings.TrimSpace(request.HistoryOutcome))
@@ -78,6 +89,9 @@ func ApplyRequest(view View, request PageRequest) View {
 	}
 	if person := strings.TrimSpace(request.SelectedPerson); person != "" {
 		view.SelectedPerson = stablePersonID(view.People, person)
+		if isOrganizationRoute(view.Page) && !personIDPresent(view.People, view.SelectedPerson) {
+			view.SelectedPerson = ""
+		}
 	}
 	if filter := strings.TrimSpace(request.WorkFilter); filter != "" {
 		view.WorkFilter = filter
@@ -85,6 +99,9 @@ func ApplyRequest(view View, request PageRequest) View {
 	}
 	if view.Page == PagePeople || view.Page == PagePerson {
 		view.PeoplePage = paginatePeople(filteredPeople(view), view.PeoplePage, view.PeoplePageSize).Page
+	}
+	if view.Page == PageRoles {
+		view.RolePage = roleDirectoryWindowPage(view.People, view.Query, view.RolePage)
 	}
 	switch view.Page {
 	case PageHistory:
@@ -99,6 +116,15 @@ func ApplyRequest(view View, request PageRequest) View {
 		view.HistoryPage = paginateHistory(filteredHistory(view, personID), view.HistoryPage, view.HistoryPageSize).Page
 	}
 	return view
+}
+
+func isOrganizationRoute(page PageID) bool {
+	switch page {
+	case PageOrganization, PageOrgExplorer, PageOrgOutline, PageOrgResponsive:
+		return true
+	default:
+		return false
+	}
 }
 
 func authorizedFavoritePages(navigation []NavItem, requested []PageID) []PageID {
@@ -143,6 +169,15 @@ func stablePersonID(people []Person, ref string) string {
 		}
 	}
 	return ref
+}
+
+func personIDPresent(people []Person, id string) bool {
+	for _, person := range people {
+		if person.ID != "" && person.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func filterWork(items []WorkItem, filter string) []WorkItem {

@@ -15,7 +15,7 @@
 // remain someone else's domain, and this package would rather fail closed on
 // a stale or missing projection than invent one.
 //
-// Policy is the [PolicyTable], a compiled-in table for five P1A role
+// Policy is the [PolicyTable], a compiled-in table for six P1A role
 // templates (worker self, manager, HR partner, compensation admin, auditor).
 // A later policy engine plugs in behind the same [Evaluate] entry point;
 // nothing downstream of this package should need to change when it does.

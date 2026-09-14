@@ -21,6 +21,14 @@ const (
 
 	ApprovalFinance = "approval.promotion.finance_partner/v1"
 	ApprovalManager = "approval.promotion.current_manager/v1"
+
+	// EffectiveDateZoneID is the IANA zone [NodeWaitEffectiveDate] resolves
+	// its wake instant against. It is named here, once, so a caller that
+	// needs to explain the wait (PROMOUX-014: internal/intent/app's
+	// journeyWaitFindings) states the same zone the compiled WAIT node
+	// actually carries rather than a second literal that could drift from
+	// it.
+	EffectiveDateZoneID = "America/New_York"
 )
 
 const (
@@ -272,7 +280,7 @@ func promotionNodes() []workflow.Node {
 			InputSchema: schema("EffectiveDateWaitInput"), OutputSchema: schema("EffectiveDateWaitResult"),
 			Inputs:        []workflow.Field{{Path: "effective_date", Type: localDate()}},
 			InputMappings: []workflow.Mapping{{Target: "effective_date", Source: input("effective_date")}},
-			Wait:          &workflow.WaitSpec{WakeKind: workflow.WaitWakeAtLocalDate, WakeLocalDate: "FROM_WORKFLOW_INPUT:effective_date", Disambiguation: "REJECT_GAP", ZoneID: "America/New_York", ZoneTzdbVersion: "2026a", CalendarRef: "us-federal", CalendarVersion: "2026.1", ReferenceUpdatePolicy: "REVIEW_REQUIRED"},
+			Wait:          &workflow.WaitSpec{WakeKind: workflow.WaitWakeAtLocalDate, WakeLocalDate: "FROM_WORKFLOW_INPUT:effective_date", Disambiguation: "REJECT_GAP", ZoneID: EffectiveDateZoneID, ZoneTzdbVersion: "2026a", CalendarRef: "us-federal", CalendarVersion: "2026.1", ReferenceUpdatePolicy: "REVIEW_REQUIRED"},
 			Governance:    nonCapabilityGovernance(nil, workflow.RevalidatePreExecution),
 		},
 		{

@@ -15,12 +15,16 @@
 #
 # CanonicalDigest hashes every field below except `signature`; do not hand-
 # edit any field above `signature` without re-signing (see
-# manifest_test.go's TestP1AAndP1BManifestsAreDisjointOrderedBoundedAndSelectionComplete
-# and TestTamperedP1AManifestFailsSignatureVerification for what breaks).
+# tools/planning/gateevidence/selectionbind's
+# TestP1AAndP1BManifestsAreDisjointOrderedBoundedAndSelectionComplete and
+# TestTodo_NEXT_002_Security, and manifest_test.go's
+# TestTamperedP1AManifestFailsSignatureVerification, for what breaks).
+# internal/commercial.P1AManifestDigest is golden-checked against this
+# document's CanonicalDigest, so re-signing requires updating that constant.
 schema_version: 1
 release: P1A
 todo_id: NEXT-002
-signed_date: "2026-09-10"
+signed_date: "2026-09-13"
 freshness_window_days: 30
 workflow: promotion.preflight-simulate-observe/v1
 
@@ -550,6 +554,21 @@ migrations:
     - version: 283
       name: 00283_admission_retry_force_rls.sql
       checksum: "sha256:2920b205aa78e1f02c52aa144b1cca3e91a912291518f02b9d62acbdc82e7fc8"
+    - version: 284
+      name: 00284_records_hold_001_release_and_notices.sql
+      checksum: "sha256:8b353078fa51e06e077a3b9a1b164cf92d61ac4fec56ccff7a511cce5993c5af"
+    - version: 285
+      name: 00285_ledger_011_payload_disposition.sql
+      checksum: "sha256:7969ebd2cda3746b94dea1c5150d57573632761dbe89c4731098aad9b7c65bd5"
+    - version: 286
+      name: 00286_promoux002_active_promotion_guard.sql
+      checksum: "sha256:e4f27dc27f2692a7dc8921aa18774bb505278a69e8d1ac062e5a7df92a70e93c"
+    - version: 287
+      name: 00287_promoux004_position_slot_guard.sql
+      checksum: "sha256:98670a3ca1e35ce7c0f6d135b7f1d6bd5d5ae9548fc77d11ad3eef2cd39536a8"
+    - version: 288
+      name: 00288_promoux011_transition_sequence.sql
+      checksum: "sha256:05eceb91a09b5a468533e9e07f5114cffc9fc2af9fa750196a212d010b68d433"
   gaps:
     - version: 9
       reason: "No 00009_*.sql file exists under migrations/. Not documented anywhere in planning/todos.md, migrations/migrations.go or the DB-* todo evidence as of 2026-09-03. Recorded here as a NEXT-002 finding rather than silently renumbered or hidden; migrations.Files() (the Goose loader) is unaffected because Goose numbers by version, not by contiguous sequence."
@@ -905,8 +924,66 @@ forbidden_import_prefixes:
   - github.com/monstercameron/human-capital-management-suite/internal/transport/clients/providerwrite
   - github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/execute
 
+# The machine-readable zero-effect ceiling: workforce mutation, reservation,
+# WorkItem, timer, message, outbox effect and provider write. Validate
+# requires exactly this list, in this order; it is the same vocabulary
+# internal/commercial.DefaultPilotCommercialPackage().Authority.ForbiddenEffects
+# carries, cross-checked by selectionbind's TestTodo_NEXT_002_Conformance.
+forbidden_effects:
+  - domain_mutation
+  - reservation
+  - work_item
+  - timer
+  - message
+  - outbox
+  - provider_write
+
+# Selection bindings (NEXT-002, 2026-09-13). Every selecting and readiness
+# artifact this release depends on, pinned by path and digest, in NEXT-002's
+# Depends order plus THREAT-001. CANONICAL_JSON is the artifact's own
+# CanonicalDigest; TOPOLOGY-001 has no checked-in topology decision, so its
+# binding pins the contract source file bytes (FILE_SHA256) and the
+# evaluator reports that no decision exists.
+#
+# These bindings pin WHAT was selected; they do not claim the selections are
+# complete. tools/planning/gateevidence/selectionbind.Evaluate recomputes
+# every digest (a stale binding fails), verifies every bound signature
+# against the trusted key and runs each artifact's own gate. As signed, it
+# reports INCOMPLETE: placeholder provider, unreviewed jurisdiction, no
+# topology decision, no design partner, no SLO, and an unaccepted critical
+# threat. The PHASE-001 ceiling's slots stay unfilled there by design.
+selection_bindings:
+  - todo_id: PHASE-001
+    path: definitions/planning/gates/phase1-scope-ceiling.yaml
+    digest_kind: CANONICAL_JSON
+    digest: "2e73dc174fcf32e247adc506a8a4d9c82dc8fb78900aff5566de6cea24f2d1eb"
+  - todo_id: SELECT-001
+    path: definitions/planning/gates/select-001-jurisdiction-profile.yaml
+    digest_kind: CANONICAL_JSON
+    digest: "febb6b41e25c7b95275e13be7e5dcf7226f8dab07cd0c198367cb8f8f9f8645e"
+  - todo_id: SELECT-002
+    path: definitions/planning/gates/select-002-provider-topology.yaml
+    digest_kind: CANONICAL_JSON
+    digest: "a01c8c9ac1785d299a4990914cbf0bf1ae1a3176b5f2a0d36aab6fd48eeaabc1"
+  - todo_id: CUSTOMER-001
+    path: definitions/planning/gates/customer-001-pilot-blueprint.yaml
+    digest_kind: CANONICAL_JSON
+    digest: "ccd25eb7bf6455e9946bbced47b4be7979d6f4f0bcfdbbfca7ae9f410ac57f17"
+  - todo_id: TOPOLOGY-001
+    path: internal/platform/topology/topology.go
+    digest_kind: FILE_SHA256
+    digest: "b52560e1f59b979ec3ff81c59bef58c8e3a8f6aeaa74fc6aa2e75354269dd29e"
+  - todo_id: COMMERCIAL-001
+    path: definitions/planning/gates/commercial-001-pilot-package.yaml
+    digest_kind: CANONICAL_JSON
+    digest: "0d9c703b602031ae36c40ec84bb69013fc648e6ec55956e8d0a81b648d065ad6"
+  - todo_id: THREAT-001
+    path: definitions/planning/gates/threat-001-register.yaml
+    digest_kind: CANONICAL_JSON
+    digest: "09fd51d86d607f5372d185af7b7f366613f2299e6e723287ac8f1e0a369b4322"
+
 signature:
   algorithm: ed25519
   public_key: 93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b
   key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml
-  value: "cd259e2d3818443b3e3322c978a540ed4b80547372c0db9e9c3657ee549179fc1218a6dd9aa4a07ab8705fb7cd754ca920f6f774672d6368d8b03af549ef110e"
+  value: "962ea6af2830180e1bf1f22aa96bc918db6f6eb65a45f9aea0f97c7f254a229222287588d79c1624a02973d4ca53a7464b2747ff37b0124b7315688a66fd7302"

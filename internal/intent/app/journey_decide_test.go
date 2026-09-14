@@ -17,7 +17,34 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
+
+func TestTodo_PROMOUX_015_Recovery_CompletedApprovalStillAtFrontierNeedsResume(t *testing.T) {
+	decision := decidedApproval{
+		item: workitem.WorkItem{NodeID: "approve_finance"},
+		instance: runtime.Instance{
+			RuntimeStatus: runtime.InstanceWaiting, CurrentNodeIDs: []string{"approve_finance"},
+		},
+		replayed: true,
+	}
+	if !decision.needsResume() {
+		t.Fatal("a committed approval left at its frontier was treated as fully resumed")
+	}
+	decision.instance.CurrentNodeIDs = []string{"approve_manager"}
+	if decision.needsResume() {
+		t.Fatal("an earlier approval tried to resume a later review")
+	}
+	decision.instance.CurrentNodeIDs = []string{"approve_finance"}
+	decision.instance.RuntimeStatus = runtime.InstanceCompleted
+	if decision.needsResume() {
+		t.Fatal("a terminal instance tried to resume a completed approval")
+	}
+	decision.replayed = false
+	if !decision.needsResume() {
+		t.Fatal("a fresh approval must resume the driver")
+	}
+}
 
 // journeyDecideFixtures is the durable state one Decide acts on: the routed,
 // started approval WorkItem and the intent it belongs to.
@@ -206,7 +233,7 @@ func journeyRoutedFixtures(t *testing.T, approve bool) (
 // Resolve names.
 func TestJourneyApprovalOutcomeIsResolvedFromTheRoutedRequirement(t *testing.T) {
 	item, revision, decision, at := journeyRoutedFixtures(t, true)
-	approved, err := journeyApprovalOutcome(item, DefaultJourneyApprover, revision, decision, at)
+	approved, err := journeyApprovalOutcome(item, revision, decision, at)
 	if err != nil {
 		t.Fatalf("journeyApprovalOutcome(approve): %v", err)
 	}
@@ -225,7 +252,7 @@ func TestJourneyApprovalOutcomeIsResolvedFromTheRoutedRequirement(t *testing.T) 
 	}
 
 	item, revision, decision, at = journeyRoutedFixtures(t, false)
-	rejected, err := journeyApprovalOutcome(item, DefaultJourneyApprover, revision, decision, at)
+	rejected, err := journeyApprovalOutcome(item, revision, decision, at)
 	if err != nil {
 		t.Fatalf("journeyApprovalOutcome(reject): %v", err)
 	}
@@ -240,17 +267,22 @@ func TestJourneyApprovalOutcomeIsResolvedFromTheRoutedRequirement(t *testing.T) 
 // rather than to an outcome the driver would happily route.
 func TestJourneyApprovalOutcomeRefusesABindingResolveRejects(t *testing.T) {
 	item, revision, decision, at := journeyRoutedFixtures(t, true)
-	if _, err := journeyApprovalOutcome(item, "principal:somebody-else", revision, decision, at); err == nil {
+	// PROMOUX-015: the requirement is recompiled for the routed candidate
+	// whose compilation reproduces the recorded digest, so an item whose
+	// recorded candidate is somebody else has no requirement to rebuild.
+	rerouted := item
+	rerouted.Assignment.Resolution.Candidates = []humanwork.Candidate{{PrincipalID: "principal:somebody-else", Via: humanwork.SourceDirect}}
+	if _, err := journeyApprovalOutcome(rerouted, revision, decision, at); err == nil {
 		t.Fatal("a continuation rebuilt for another approver must not resolve the routed item")
 	}
 	tampered := item
 	tampered.CompletedOutputDigest = "sha256:" + strings.Repeat("f", 64)
-	if _, err := journeyApprovalOutcome(tampered, DefaultJourneyApprover, revision, decision, at); err == nil {
+	if _, err := journeyApprovalOutcome(tampered, revision, decision, at); err == nil {
 		t.Fatal("a completed output that is not the decision's digest must not resolve")
 	}
 	stale := revision
 	stale.ProposalRevisionID = "revision-2"
-	if _, err := journeyApprovalOutcome(item, DefaultJourneyApprover, stale, decision, at); err == nil {
+	if _, err := journeyApprovalOutcome(item, stale, decision, at); err == nil {
 		t.Fatal("a decision bound to another proposal revision must not resolve")
 	}
 }

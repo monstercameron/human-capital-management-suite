@@ -150,6 +150,16 @@ attribute_allowlist:
     signals: [span]
     max_cardinality: 0
     description: Bounded durable attempt identifier; span context only, never authority or a metric label.
+  - key: node_id
+    class: OPERATIONAL_RESTRICTED
+    signals: [span]
+    max_cardinality: 0
+    description: Workflow node identifier for trace-to-inspector pivoting; span context only, never authority or a metric label.
+  - key: terminal_code
+    class: OPERATIONAL_RESTRICTED
+    signals: [span]
+    max_cardinality: 32
+    description: Closed workflow terminal outcome vocabulary; span context only, never payload or authority.
   - key: timer_id
     class: OPERATIONAL_RESTRICTED
     signals: [span]

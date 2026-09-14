@@ -10,13 +10,32 @@ import (
 )
 
 func organizationPage(view View) ui.Node {
-	relationships := newOrganizationRelationshipIndex(view)
+	return organizationPageWithCopy(view, view.Locale.Text("organization.structure_title"), view.Locale.Text("organization.structure_description"), false)
+}
+
+func organizationRoutePage(view View, forceTree bool) ui.Node {
+	return organizationPageWithCopy(view, view.Title, view.Subtitle, forceTree)
+}
+
+func organizationPageWithCopy(view View, title, description string, forceTree bool) ui.Node {
+	population := admittedPeople(view)
+	filtered := filterOrganizationPeople(population, view.Query)
+	scoped := view
+	scoped.People = population
+	relationships := newOrganizationRelationshipIndex(scoped)
+	visible := make(map[string]bool, len(filtered))
+	for _, person := range filtered {
+		visible[person.ID] = true
+	}
 	members := map[string][]OwnershipNodeProps{}
 	locations := map[string]bool{}
 	payZones := map[string]bool{}
 	for index, person := range relationships.people {
+		if !visible[person.ID] {
+			continue
+		}
 		team := valueOrUnavailable(person.Team)
-		members[team] = append(members[team], relationships.annotate(view, index))
+		members[team] = append(members[team], relationships.annotate(scoped, index))
 		if value := strings.TrimSpace(person.Location); value != "" {
 			locations[value] = true
 		}
@@ -39,17 +58,31 @@ func organizationPage(view View) ui.Node {
 	visibleLocations := sortedOrganizationValues(locations)
 	number := func(value int) string { return view.Locale.FormatNumber(strconv.Itoa(value), 0) }
 	return ui.CreateElement(OrganizationPage, OrganizationPageProps{
-		Title: view.Locale.Text("organization.structure_title"), Description: view.Locale.Text("organization.structure_description"), Groups: groups,
-		ViewLabel: view.Locale.Text("organization.view_label"), TreeActive: view.OrganizationView == organizationViewTree,
-		FlatAction: ActionLinkProps{Label: view.Locale.Text("organization.view_flat"), Href: statefulHref(view, PageOrganization, "org_view", organizationViewFlat), Class: "organization-view-option", Navigate: view.Navigate},
-		TreeAction: ActionLinkProps{Label: view.Locale.Text("organization.view_tree"), Href: statefulHref(view, PageOrganization, "org_view", organizationViewTree), Class: "organization-view-option", Navigate: view.Navigate},
-		Tree:       relationships.tree(view),
-		TreeLabel:  view.Locale.Text("organization.tree_label"),
+
+		I18nProps: I18nProps{Locale: view.Locale}, Title: title, Description: description, Groups: groups,
+		Summary: OrganizationSummaryProps{VisiblePeople: len(population), Units: len(groups), Scope: view.Scope,
+			CompactLabel: densityLabel(view.Locale, "compact"), ComfortableLabel: densityLabel(view.Locale, "comfortable"), SpaciousLabel: densityLabel(view.Locale, "spacious"),
+			ExpandAllLabel: view.Locale.Text("nav.expand"), CollapseAllLabel: view.Locale.Text("nav.collapse")}, Density: view.Appearance.Density,
+		ViewLabel: view.Locale.Text("organization.view_label"), TreeActive: forceTree || view.OrganizationView == organizationViewTree, TreeLocked: forceTree,
+		FlatAction: ActionLinkProps{Label: view.Locale.Text("organization.view_flat"), Href: statefulHref(view, view.Page, "org_view", organizationViewFlat, "q", view.Query, "person", view.SelectedPerson), Class: "organization-view-option", Navigate: view.Navigate},
+		TreeAction: ActionLinkProps{Label: view.Locale.Text("organization.view_tree"), Href: statefulHref(view, view.Page, "org_view", organizationViewTree, "q", view.Query, "person", view.SelectedPerson), Class: "organization-view-option", Navigate: view.Navigate},
+		Search: OrganizationSearchProps{
+			Query: view.Query, Action: statefulHref(view, view.Page, "org_view", normalizeOrganizationView(view.OrganizationView), "person", view.SelectedPerson),
+			ClearHref: withExplicitEmptyQuery(statefulHref(view, view.Page, "org_view", normalizeOrganizationView(view.OrganizationView), "person", view.SelectedPerson), "q"),
+			Summary:   organizationSearchSummary(view, len(filtered), len(population)), HiddenInputs: organizationSearchHiddenInputs(view), Navigate: view.Navigate,
+			OnFilter: func(query string) {
+				if view.Navigate != nil {
+					view.Navigate(organizationFilterHref(view, query))
+				}
+			},
+		},
+		Tree:      filterOwnershipTree(relationships.tree(scoped), visible),
+		TreeLabel: view.Locale.Text("organization.tree_label"),
 		Metadata: BusinessMetadataProps{
 			Title: view.Locale.Text("organization.metadata_title"), Description: view.Locale.Text("organization.metadata_description"),
 			Items: []BusinessMetadataItemProps{
 				{Label: view.Locale.Text("organization.business_name"), Value: valueOrUnavailableFor(view.Locale, view.Tenant)},
-				{Label: view.Locale.Text("organization.visible_workforce"), Value: number(len(view.People))},
+				{Label: view.Locale.Text("organization.visible_workforce"), Value: number(len(population))},
 				{Label: view.Locale.Text("organization.units"), Value: number(len(groups))},
 				{Label: view.Locale.Text("organization.locations"), Value: number(len(locations))},
 				{Label: view.Locale.Text("organization.pay_zones"), Value: number(len(payZones))},
@@ -60,6 +93,131 @@ func organizationPage(view View) ui.Node {
 		},
 		Empty: EmptyStateProps{Title: view.Locale.Text("organization.empty_title"), Description: view.Locale.Text("organization.empty_description")},
 	})
+}
+
+func organizationFilterHref(view View, query string) string {
+	href := statefulHref(view, view.Page, "org_view", normalizeOrganizationView(view.OrganizationView), "person", view.SelectedPerson, "q", strings.TrimSpace(query))
+	if strings.TrimSpace(query) == "" {
+		return withExplicitEmptyQuery(href, "q")
+	}
+	return href
+}
+
+func organizationSearchHiddenInputs(view View) map[string]string {
+	values := currentPageAddressState(view, view.NavCollapsed)
+	values.Del("q")
+	result := make(map[string]string, len(values))
+	for name, entries := range values {
+		if len(entries) != 0 && entries[0] != "" {
+			result[name] = entries[0]
+		}
+	}
+	return result
+}
+
+func organizationSearchSummary(view View, filtered, total int) string {
+	if strings.TrimSpace(view.Query) == "" {
+		return organizationCountLabel(view, "organization.members_count", total)
+	}
+	return view.Locale.Text("people.filtered_count", map[string]string{
+		"filtered": view.Locale.FormatNumber(strconv.Itoa(filtered), 0),
+		"total":    view.Locale.FormatNumber(strconv.Itoa(total), 0),
+	})
+}
+
+func densityLabel(locale LocaleContext, option string) string {
+	for _, choice := range DensityOptions() {
+		if choice.ID == option {
+			return choice.Label
+		}
+	}
+	return locale.Text("appearance.density")
+}
+
+// filterOrganizationPeople keeps search scoped to the already-admitted
+// worker projection. Each query token may match a field directly or with a
+// small edit distance, which makes common misspellings useful without broad
+// enumerating a population outside the server's disclosure boundary.
+func filterOrganizationPeople(people []Person, query string) []Person {
+	query = strings.TrimSpace(strings.ToLower(query))
+	if query == "" {
+		return append([]Person(nil), people...)
+	}
+	tokens := strings.Fields(query)
+	result := make([]Person, 0, len(people))
+	for _, person := range people {
+		searchable := organizationSearchText(person)
+		matched := true
+		for _, token := range tokens {
+			if !organizationFuzzyTokenMatch(searchable, token) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			result = append(result, person)
+		}
+	}
+	return result
+}
+
+func organizationSearchText(person Person) string {
+	return strings.ToLower(strings.Join([]string{
+		normalizedPerson(person).search, person.Initials, person.LegalName,
+		person.PreferredName, person.WorkerID,
+	}, " "))
+}
+
+func organizationFuzzyTokenMatch(searchable, query string) bool {
+	if strings.Contains(searchable, query) {
+		return true
+	}
+	if len([]rune(query)) < 4 {
+		return false
+	}
+	for _, candidate := range strings.Fields(searchable) {
+		if organizationEditDistance(candidate, query) <= 1 {
+			return true
+		}
+	}
+	return false
+}
+
+func organizationEditDistance(left, right string) int {
+	leftRunes, rightRunes := []rune(left), []rune(right)
+	if len(leftRunes) < len(rightRunes) {
+		leftRunes, rightRunes = rightRunes, leftRunes
+	}
+	if len(leftRunes)-len(rightRunes) > 1 {
+		return 2
+	}
+	previous := make([]int, len(rightRunes)+1)
+	for index := range previous {
+		previous[index] = index
+	}
+	for i, leftRune := range leftRunes {
+		current := make([]int, len(rightRunes)+1)
+		current[0] = i + 1
+		for j, rightRune := range rightRunes {
+			cost := 0
+			if leftRune != rightRune {
+				cost = 1
+			}
+			current[j+1] = minOrganizationInt(current[j]+1, previous[j+1]+1, previous[j]+cost)
+		}
+		previous = current
+	}
+	return previous[len(rightRunes)]
+}
+
+func minOrganizationInt(values ...int) int {
+	minimum := values[0]
+	for _, value := range values[1:] {
+		if value < minimum {
+			minimum = value
+		}
+	}
+	return minimum
 }
 
 const (
@@ -154,7 +312,8 @@ func (idx organizationRelationshipIndex) annotate(view View, index int) Ownershi
 	if placement.explanation != "" {
 		node.Explanation = view.Locale.Text(placement.explanation)
 	} else if placement.nested {
-		node.ManagerSummary = fmt.Sprintf(view.Locale.Text("organization.reports_to"), idx.people[idx.parentOf[index]].Name)
+		manager := idx.people[idx.parentOf[index]]
+		node.ManagerSummary = fmt.Sprintf(view.Locale.Text("organization.reports_to"), organizationFieldLabel(view, manager.ID, "name", manager.Name))
 	}
 	return node
 }
@@ -206,7 +365,22 @@ func (idx organizationRelationshipIndex) findAndReroot(view View, personID strin
 // ownershipTree is the organization page's own forest -- kept as a thin
 // wrapper so existing call sites and tests naming it need not change.
 func ownershipTree(view View) []OwnershipNodeProps {
-	return newOrganizationRelationshipIndex(view).tree(view)
+	scoped := view
+	scoped.People = admittedPeople(view)
+	return newOrganizationRelationshipIndex(scoped).tree(scoped)
+}
+
+// A search result retains its admitted reporting ancestors so a filtered
+// tree cannot turn a report into an apparent root or invent a new parent.
+func filterOwnershipTree(nodes []OwnershipNodeProps, matching map[string]bool) []OwnershipNodeProps {
+	result := make([]OwnershipNodeProps, 0, len(nodes))
+	for _, node := range nodes {
+		node.Reports = filterOwnershipTree(node.Reports, matching)
+		if matching[node.ID] || len(node.Reports) > 0 {
+			result = append(result, node)
+		}
+	}
+	return result
 }
 
 // breakOwnershipCycles forces every node on a nesting cycle to an explained
@@ -252,18 +426,44 @@ func breakOwnershipCycles(parentOf []int, placements []organizationPlacement) {
 }
 
 func ownershipPerson(view View, person Person) OwnershipNodeProps {
+	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
+	workerNumber := ""
+	if identity.WorkerNumberStatus == WorkerFactPresent {
+		workerNumber = identity.WorkerNumber
+	}
 	current := person.ID != "" && person.ID == view.Viewer.PersonID
 	selected := person.ID != "" && person.ID == view.SelectedPerson
 	href := ""
-	if PageVisible(PagePerson, view.Roles) {
+	if view.Can(PagePerson, "view") {
 		href = statefulHref(view, PagePerson, "person", person.ID)
-	} else if current {
+	} else if current && view.Can(PageMyself, "view") {
 		href = statefulHref(view, PageMyself)
 	}
+
 	return OwnershipNodeProps{
-		ID: person.ID, Name: person.Name, WorkerNumber: person.WorkerNumber, Role: person.Role, Team: person.Team,
+		I18nProps: I18nProps{Locale: view.Locale}, ID: person.ID, Name: identity.Name, WorkerNumber: workerNumber, Role: identity.Role, Team: organizationFieldLabel(view, person.ID, "organization_unit", person.Team), Manager: organizationFieldLabel(view, person.ID, "manager", person.Manager), Location: organizationFieldLabel(view, person.ID, "work_location", person.Location),
 		Initials: person.Initials, PhotoURL: person.PhotoURL, Href: href, Navigate: view.Navigate, Current: current, Selected: selected,
 	}
+}
+
+// organizationFieldLabel preserves the legacy record-level discovery
+// contract when no field verdict was supplied, but honors every explicit
+// field verdict before a worker fact reaches an organization node. This keeps
+// a manager-name denial from leaking through a report's summary while older
+// record-only projections remain compatible.
+func organizationFieldLabel(view View, recordID, field, raw string) string {
+	if len(view.RecordVerdicts) == 0 {
+		return raw
+	}
+	record, ok := view.RecordVerdicts[recordID]
+	if !ok || !record.Disclosable {
+		return ""
+	}
+	verdict, explicit := record.Fields[field]
+	if !explicit {
+		return raw
+	}
+	return ProjectAuthorizedValue(view.Locale, raw, verdict).Text
 }
 
 func organizationCountLabel(view View, key string, count int) string {

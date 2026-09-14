@@ -23,7 +23,7 @@ func TestTodo_WEB_196(t *testing.T) {
 	if !ok {
 		t.Fatal("confidential case intake unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("confidential case intake incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_196_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "5a23b5f8b87c2e03c38c3e56d71c3129080b990f7da1b814f025a3da8a6d5c4e"
+	const want = "bb72d65fabd09caf9558b7121ad1f6e43a3bd60a8727c03361d8ec5b1f0d1713"
 	if got != want {
 		t.Fatalf("confidential case intake digest = %s, want %s", got, want)
 	}

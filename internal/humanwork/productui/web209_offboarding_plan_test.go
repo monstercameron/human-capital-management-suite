@@ -23,7 +23,7 @@ func TestTodo_WEB_209(t *testing.T) {
 	if !ok {
 		t.Fatal("offboarding plan unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("offboarding plan incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_209_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "0da03c54607c5a5e9e6af9ca90c4e607473a61f325adbedc1640df2bf078c1b9"
+	const want = "ee4fb3cf6aa33503874a3d5181fd3dbaf8fb64ac03aa41ce2bc47f18d58691ee"
 	if got != want {
 		t.Fatalf("offboarding plan digest = %s, want %s", got, want)
 	}

@@ -22,7 +22,7 @@ func TestTodo_WEB_157(t *testing.T) {
 	if !ok {
 		t.Fatal("employee pay summary unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("employee pay summary incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -61,7 +61,7 @@ func TestTodo_WEB_157_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "b867c641dd030c9ed755e5f88f958ab1cfb7921fad4f658c74181e8730e9b320"
+	const want = "ea2208fbe7bf579b33e877db1cdbd6a10a5c5e64cc8a44cd2e18fa6ceec8805f"
 	if got != want {
 		t.Fatalf("pay summary digest = %s, want %s", got, want)
 	}

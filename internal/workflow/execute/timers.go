@@ -9,6 +9,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -115,7 +116,9 @@ type ResumeTimerRequest struct {
 // internal/workflow/timer's job, done by a caller with its own clock reading
 // and its own lease fence. By the time this method runs, the timer row must
 // already say FIRED -- that is the evidence the advancement rests on.
-func (d *Driver) ResumeTimer(ctx context.Context, req ResumeTimerRequest) (Result, error) {
+func (d *Driver) ResumeTimer(ctx context.Context, req ResumeTimerRequest) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(d.observed(ctx), "workflow.execute.resume_timer", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	selection, err := validateResumeTimerConfig(ctx, req, d.opts.TimerReader)
 	if err != nil {
 		return Result{}, err

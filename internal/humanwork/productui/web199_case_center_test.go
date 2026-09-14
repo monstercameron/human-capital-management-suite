@@ -23,7 +23,7 @@ func TestTodo_WEB_199(t *testing.T) {
 	if !ok {
 		t.Fatal("specialist Case Center unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("specialist Case Center incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_199_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "9b05c0e989a54b83d3f452d4a48bfa11bd2db9e0cdb11f6ee4b8670079d2429a"
+	const want = "ed2e6065dc1371d33efd9e390e6dc137c387499bf3348a12aad33f348c69da80"
 	if got != want {
 		t.Fatalf("specialist Case Center digest = %s, want %s", got, want)
 	}

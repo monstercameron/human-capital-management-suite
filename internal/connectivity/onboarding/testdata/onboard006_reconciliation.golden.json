@@ -1,0 +1,184 @@
+{
+  "import_id": "import-1",
+  "rows": [
+    {
+      "row_id": "r1",
+      "subject_id": "emp-1",
+      "classification": "MATCHED"
+    },
+    {
+      "row_id": "r2",
+      "subject_id": "emp-2",
+      "classification": "FIELD_DRIFT",
+      "diffs": [
+        {
+          "field": "title",
+          "source": "Manager",
+          "target": "Analyst"
+        }
+      ]
+    },
+    {
+      "row_id": "r3",
+      "subject_id": "emp-3",
+      "classification": "EFFECTIVE_DATE_DRIFT",
+      "diffs": [
+        {
+          "field": "effective_date",
+          "source": "2026-10-01",
+          "target": "2026-11-01"
+        }
+      ]
+    },
+    {
+      "row_id": "r4",
+      "subject_id": "emp-4",
+      "classification": "OBSERVATION_DRIFT",
+      "diffs": [
+        {
+          "field": "grade",
+          "source": "P2",
+          "target": "P1"
+        }
+      ]
+    },
+    {
+      "row_id": "r5",
+      "subject_id": "emp-5",
+      "classification": "MISSING_IN_TARGET",
+      "diffs": [
+        {
+          "field": "grade",
+          "source": "P3",
+          "target": ""
+        },
+        {
+          "field": "title",
+          "source": "Lead",
+          "target": ""
+        }
+      ]
+    },
+    {
+      "subject_id": "emp-9",
+      "classification": "UNEXPECTED_IN_TARGET",
+      "diffs": [
+        {
+          "field": "grade",
+          "source": "",
+          "target": "P9"
+        },
+        {
+          "field": "title",
+          "source": "",
+          "target": "Ghost"
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "EFFECTIVE_DATE_DRIFT": 1,
+    "FIELD_DRIFT": 1,
+    "MATCHED": 1,
+    "MISSING_IN_TARGET": 1,
+    "OBSERVATION_DRIFT": 1,
+    "UNEXPECTED_IN_TARGET": 1
+  },
+  "compensations": [
+    {
+      "subject_id": "emp-2",
+      "classification": "FIELD_DRIFT",
+      "corrections": [
+        {
+          "field": "title",
+          "source": "Analyst",
+          "target": "Manager"
+        }
+      ],
+      "appends_after": [
+        "ev-2"
+      ],
+      "idempotency_key": "onboard-compensate:dd149507693a18060e422fab",
+      "deletes_history": false
+    },
+    {
+      "subject_id": "emp-3",
+      "classification": "EFFECTIVE_DATE_DRIFT",
+      "corrections": [
+        {
+          "field": "effective_date",
+          "source": "2026-11-01",
+          "target": "2026-10-01"
+        }
+      ],
+      "appends_after": [
+        "ev-3"
+      ],
+      "idempotency_key": "onboard-compensate:e935418783fb4f8a63679374",
+      "deletes_history": false
+    },
+    {
+      "subject_id": "emp-4",
+      "classification": "OBSERVATION_DRIFT",
+      "corrections": [
+        {
+          "field": "grade",
+          "source": "P1",
+          "target": "P2"
+        }
+      ],
+      "appends_after": [
+        "ev-4"
+      ],
+      "idempotency_key": "onboard-compensate:b40475ccbfeca96e857ec578",
+      "deletes_history": false,
+      "irreversible_effects": [
+        "payroll:release-77"
+      ]
+    },
+    {
+      "subject_id": "emp-5",
+      "classification": "MISSING_IN_TARGET",
+      "corrections": [
+        {
+          "field": "grade",
+          "source": "",
+          "target": "P3"
+        },
+        {
+          "field": "title",
+          "source": "",
+          "target": "Lead"
+        }
+      ],
+      "appends_after": [],
+      "idempotency_key": "onboard-compensate:deb6d49df1961b1e64de538c",
+      "deletes_history": false
+    },
+    {
+      "subject_id": "emp-9",
+      "classification": "UNEXPECTED_IN_TARGET",
+      "corrections": [
+        {
+          "field": "grade",
+          "source": "P9",
+          "target": ""
+        },
+        {
+          "field": "title",
+          "source": "Ghost",
+          "target": ""
+        }
+      ],
+      "appends_after": [
+        "ev-9"
+      ],
+      "idempotency_key": "onboard-compensate:33ec2036159415d3657bb1bf",
+      "deletes_history": false
+    }
+  ],
+  "irreversible": [
+    "emp-4"
+  ],
+  "digest": "sha256:f20e4c9dea8471b47b9db10b46ff9780ed8fe8c67d3035653a744f6f9c9212a8"
+}

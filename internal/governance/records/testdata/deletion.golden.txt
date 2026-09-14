@@ -1,0 +1,3 @@
+# MODEL-028 golden oracle: canonical/derived/external destroyed, derived
+# held copy excepted, backup re-deleted, restored copy tombstoned.
+sha256:6c6939d462388d8b7559cc08b7b39942945a594feb3d2f5342e55ea0dfed344e

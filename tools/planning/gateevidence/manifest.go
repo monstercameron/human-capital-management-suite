@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -29,7 +30,116 @@ type P1AManifest struct {
 	QualificationDecisions  []QualificationDecision `yaml:"qualification_decisions" json:"qualification_decisions"`
 	Evidence                []EvidenceEntry         `yaml:"evidence" json:"evidence"`
 	ForbiddenImportPrefixes []string                `yaml:"forbidden_import_prefixes" json:"forbidden_import_prefixes"`
-	Signature               *Signature              `yaml:"signature,omitempty" json:"signature,omitempty"`
+	// ForbiddenEffects is the machine-readable form of EffectCeiling: the
+	// closed effect vocabulary internal/commercial.AuthorityBoundary also
+	// forbids, so the commercial view and the release manifest share one
+	// identity (see P1AForbiddenEffects).
+	ForbiddenEffects []string `yaml:"forbidden_effects" json:"forbidden_effects"`
+	// SelectionBindings pins every selecting and readiness artifact this
+	// release depends on by path and digest (see RequiredSelectionBindingTodoIDs).
+	// The bindings are signed with the rest of the manifest; whether the
+	// selections they pin are actually complete is computed from those
+	// artifacts' own gates by tools/planning/gateevidence/selectionbind, never
+	// asserted here.
+	SelectionBindings []SelectionBinding `yaml:"selection_bindings" json:"selection_bindings"`
+	Signature         *Signature         `yaml:"signature,omitempty" json:"signature,omitempty"`
+}
+
+// Digest kinds a SelectionBinding may use. CANONICAL_JSON is the artifact's
+// own CanonicalDigest (the JSON projection its signature covers, so a
+// comment-only edit does not stale the binding); FILE_SHA256 hashes the raw
+// file bytes, for artifacts that have no canonical projection.
+const (
+	DigestKindCanonicalJSON = "CANONICAL_JSON"
+	DigestKindFileSHA256    = "FILE_SHA256"
+)
+
+// SelectionBinding binds one selecting artifact by repository-relative path
+// and digest.
+type SelectionBinding struct {
+	TodoID     string `yaml:"todo_id" json:"todo_id"`
+	Path       string `yaml:"path" json:"path"`
+	DigestKind string `yaml:"digest_kind" json:"digest_kind"`
+	Digest     string `yaml:"digest" json:"digest"`
+}
+
+// RequiredSelectionBindingTodoIDs is the exact, ordered set of todos a P1A
+// manifest must bind: NEXT-002's Depends in their declared order, then
+// THREAT-001, whose release decision blocks any Phase 1 release.
+var RequiredSelectionBindingTodoIDs = []string{
+	"PHASE-001", "SELECT-001", "SELECT-002", "CUSTOMER-001", "TOPOLOGY-001", "COMMERCIAL-001", "THREAT-001",
+}
+
+// P1AZeroEffectCeiling is next-steps.md's P1A effect ceiling, verbatim.
+var P1AZeroEffectCeiling = []string{
+	"zero worker, employment, assignment, organization, position, compensation or budget mutations",
+	"zero reservations, WorkItems and timers",
+	"zero committed external effects, provider writes and MessageIntents",
+}
+
+// P1AForbiddenEffects is the closed effect vocabulary P1A may never produce:
+// workforce mutation, reservation, WorkItem, timer, message, outbox effect
+// and provider write. It is the same vocabulary, in the same order, as
+// internal/commercial.DefaultPilotCommercialPackage().Authority.ForbiddenEffects.
+var P1AForbiddenEffects = []string{
+	"domain_mutation", "reservation", "work_item", "timer", "message", "outbox", "provider_write",
+}
+
+func isHex64(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(s)
+	return err == nil && strings.ToLower(s) == s
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// ValidBindingPath reports whether p is a clean repository-relative path:
+// forward slashes, no leading slash or drive, no "." or ".." segment. A
+// binding path that can escape the repository root is refused rather than
+// resolved.
+func ValidBindingPath(p string) bool {
+	if p == "" || strings.Contains(p, `\`) || strings.HasPrefix(p, "/") || strings.Contains(p, ":") {
+		return false
+	}
+	for _, seg := range strings.Split(p, "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+func validateSelectionBindings(bindings []SelectionBinding, add func(field, issue string)) {
+	if len(bindings) != len(RequiredSelectionBindingTodoIDs) {
+		add("selection_bindings", fmt.Sprintf("got %d bindings, want exactly %d (%s)", len(bindings), len(RequiredSelectionBindingTodoIDs), strings.Join(RequiredSelectionBindingTodoIDs, ", ")))
+	}
+	for i, b := range bindings {
+		field := fmt.Sprintf("selection_bindings[%d]", i)
+		if i < len(RequiredSelectionBindingTodoIDs) && b.TodoID != RequiredSelectionBindingTodoIDs[i] {
+			add(field+".todo_id", fmt.Sprintf("got %q, want %q - bindings are ordered and none may be omitted or substituted", b.TodoID, RequiredSelectionBindingTodoIDs[i]))
+		}
+		if !ValidBindingPath(b.Path) {
+			add(field+".path", fmt.Sprintf("%q is not a clean repository-relative path", b.Path))
+		}
+		if b.DigestKind != DigestKindCanonicalJSON && b.DigestKind != DigestKindFileSHA256 {
+			add(field+".digest_kind", fmt.Sprintf("unknown digest kind %q", b.DigestKind))
+		}
+		if !isHex64(b.Digest) {
+			add(field+".digest", "missing or not a lowercase 64-hex-character sha256 digest")
+		}
+	}
 }
 
 // Intent is one of the eight P1A executable intent contracts
@@ -136,8 +246,8 @@ func (m P1AManifest) Validate() []Violation {
 	if m.SchemaVersion == 0 {
 		add("schema_version", "missing")
 	}
-	if m.Release == "" {
-		add("release", "missing")
+	if m.Release != "P1A" {
+		add("release", fmt.Sprintf("must be P1A, got %q - one blended release manifest is refused", m.Release))
 	}
 	if m.TodoID == "" {
 		add("todo_id", "missing")
@@ -153,7 +263,23 @@ func (m P1AManifest) Validate() []Violation {
 	}
 	if len(m.EffectCeiling) == 0 {
 		add("effect_ceiling", "missing - a P1A manifest must state its zero-effect ceiling")
+	} else if !equalStrings(m.EffectCeiling, P1AZeroEffectCeiling) {
+		add("effect_ceiling", "differs from next-steps.md's P1A zero-effect ceiling")
 	}
+	if !equalStrings(m.ForbiddenEffects, P1AForbiddenEffects) {
+		add("forbidden_effects", fmt.Sprintf("got %v, want exactly %v", m.ForbiddenEffects, P1AForbiddenEffects))
+	}
+	for _, intent := range m.Intents {
+		for _, mode := range intent.Modes {
+			if mode == "EXECUTE" {
+				add("intents", fmt.Sprintf("%s grants EXECUTE; P1A grants no write mode before Gate A", intent.ID))
+			}
+		}
+		if intent.Disposition != "INCLUDED" {
+			add("intents", fmt.Sprintf("%s has disposition %q; a P1A manifest includes no unbound or deferred intent", intent.ID, intent.Disposition))
+		}
+	}
+	validateSelectionBindings(m.SelectionBindings, add)
 	if len(m.Capabilities) == 0 {
 		add("capabilities", "missing")
 	}
@@ -209,6 +335,8 @@ type digestPayload struct {
 	QualificationDecisions  []QualificationDecision `json:"qualification_decisions"`
 	Evidence                []EvidenceEntry         `json:"evidence"`
 	ForbiddenImportPrefixes []string                `json:"forbidden_import_prefixes"`
+	ForbiddenEffects        []string                `json:"forbidden_effects"`
+	SelectionBindings       []SelectionBinding      `json:"selection_bindings"`
 }
 
 func (m P1AManifest) payload() digestPayload {
@@ -227,6 +355,8 @@ func (m P1AManifest) payload() digestPayload {
 		QualificationDecisions:  m.QualificationDecisions,
 		Evidence:                m.Evidence,
 		ForbiddenImportPrefixes: m.ForbiddenImportPrefixes,
+		ForbiddenEffects:        m.ForbiddenEffects,
+		SelectionBindings:       m.SelectionBindings,
 	}
 }
 

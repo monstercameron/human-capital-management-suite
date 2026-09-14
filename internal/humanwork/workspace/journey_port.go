@@ -50,6 +50,33 @@ var (
 	ErrJourneyActiveConflict = errors.New("workspace: an active promotion already claims this worker and effective window")
 )
 
+// JourneyInputError carries a machine-readable correction target across the
+// journey port. Detail is for internal diagnostics; transport must project only
+// FieldPath, ReasonRef and an optional exact pay range, never infer any of
+// them from or expose the detail text.
+type JourneyInputError struct {
+	FieldPath string
+	ReasonRef string
+	Detail    string
+	PayRange  *JourneyPayRange
+}
+
+// JourneyPayRange is the inclusive server-owned correction for a rejected
+// salary. Both values are exact Money in the same currency.
+type JourneyPayRange struct {
+	Minimum values.Money
+	Maximum values.Money
+}
+
+func (e *JourneyInputError) Error() string {
+	if e == nil {
+		return ErrJourneyInput.Error()
+	}
+	return ErrJourneyInput.Error() + ": " + e.FieldPath + ": " + e.Detail
+}
+
+func (e *JourneyInputError) Unwrap() error { return ErrJourneyInput }
+
 // JourneyStage is where one promotion journey currently stands. It is
 // derived by the engine from durable state (the intent record, the workflow
 // instance, its work items and the ledger), never asserted by the page.
@@ -102,6 +129,17 @@ const (
 	JourneyStageRepairRequired JourneyStage = "REPAIR_REQUIRED"
 )
 
+// Manager relationship dispositions are the closed, authorization-safe
+// reporting-line states exposed by a workforce listing. They deliberately do
+// not expose the raw relationship reference when its endpoint is hidden.
+const (
+	ManagerRelationshipUnspecified = "UNSPECIFIED"
+	ManagerRelationshipRoot        = "ROOT"
+	ManagerRelationshipVisible     = "VISIBLE"
+	ManagerRelationshipWithheld    = "WITHHELD"
+	ManagerRelationshipOrphan      = "ORPHAN"
+)
+
 // JourneyPlacement is one side (current or target) of the placement change.
 type JourneyPlacement struct {
 	JobCode    string
@@ -143,9 +181,154 @@ type JourneySummary struct {
 	// executed; empty/zero before.
 	InstanceID      string
 	InstanceVersion int64
+	// Approver is the chosen owner of the currently open human-work item. It
+	// is presentation evidence for personal queues, never action authority.
+	Approver string
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
+
+	// GovernanceVersion is the underlying intent record's own optimistic-
+	// concurrency version -- unrelated to InstanceVersion above, which
+	// names the workflow instance. It is required as
+	// expectedInstanceVersion on [JourneyEngine.EditProposal] and as
+	// JourneyInterventionRequest.ExpectedInstanceVersion on
+	// [JourneyEngine.RequestIntervention]: those two calls act on the
+	// intent record itself, not on the workflow instance.
+	GovernanceVersion uint64
+
+	// CurrentWorkItem is the journey's one open human work item as the
+	// calling viewer is entitled to see it (UXAUDIT-017), or nil when there
+	// is none or the work item visibility rules do not admit the viewer.
+	CurrentWorkItem *JourneyWorkItemSummary
+
+	// Viewer is how the calling viewer stands to this journey and what its
+	// next transition is (PROMOUX-012). The engine resolves it for every
+	// summary it returns; the zero value (empty Responsibility) means it was
+	// not resolved, and clients treat that as nothing to act on.
+	Viewer JourneyViewerProjection
+}
+
+// JourneyViewerRelationship is one way the calling viewer stands to a
+// journey. Nothing records followers, so there is no follower relationship.
+type JourneyViewerRelationship string
+
+const (
+	// JourneyViewerInitiator: the viewer is the intent's recorded initiator.
+	JourneyViewerInitiator JourneyViewerRelationship = "INITIATOR"
+	// JourneyViewerAssignee: the viewer holds the current work item.
+	JourneyViewerAssignee JourneyViewerRelationship = "ASSIGNEE"
+	// JourneyViewerCandidate: the viewer may claim the current work item.
+	JourneyViewerCandidate JourneyViewerRelationship = "CANDIDATE"
+)
+
+// JourneyViewerResponsibility is what a journey asks of the calling viewer.
+type JourneyViewerResponsibility string
+
+const (
+	// JourneyResponsibilityActionRequired: the viewer holds or may claim the
+	// current work item, or initiated the journey and its next step is the
+	// proposer's.
+	JourneyResponsibilityActionRequired JourneyViewerResponsibility = "ACTION_REQUIRED"
+	// JourneyResponsibilityTracking: the viewer initiated the journey and its
+	// next step is someone else's or the workflow's.
+	JourneyResponsibilityTracking JourneyViewerResponsibility = "TRACKING"
+	// JourneyResponsibilityObserving: open, visible, no relationship.
+	JourneyResponsibilityObserving JourneyViewerResponsibility = "OBSERVING"
+	// JourneyResponsibilityClosed: the journey is closed.
+	JourneyResponsibilityClosed JourneyViewerResponsibility = "CLOSED"
+)
+
+// JourneyNextStep and JourneyStepOwner are the closed vocabularies of a
+// journey's next transition. Empty means none / unstated.
+type (
+	JourneyNextStep  string
+	JourneyStepOwner string
+)
+
+const (
+	JourneyNextStepStartApproval      JourneyNextStep = "START_APPROVAL"
+	JourneyNextStepCorrectProposal    JourneyNextStep = "CORRECT_PROPOSAL"
+	JourneyNextStepApprovalDecision   JourneyNextStep = "APPROVAL_DECISION"
+	JourneyNextStepManagerDecision    JourneyNextStep = "MANAGER_DECISION"
+	JourneyNextStepFinanceDecision    JourneyNextStep = "FINANCE_DECISION"
+	JourneyNextStepReapprovalDecision JourneyNextStep = "REAPPROVAL_DECISION"
+	JourneyNextStepRepair             JourneyNextStep = "REPAIR"
+	JourneyNextStepAwaitEffectiveDate JourneyNextStep = "AWAIT_EFFECTIVE_DATE"
+	JourneyNextStepSystemProcessing   JourneyNextStep = "SYSTEM_PROCESSING"
+
+	JourneyStepOwnerProposer JourneyStepOwner = "PROPOSER"
+	JourneyStepOwnerApprover JourneyStepOwner = "APPROVER"
+	JourneyStepOwnerManager  JourneyStepOwner = "MANAGER"
+	JourneyStepOwnerFinance  JourneyStepOwner = "FINANCE"
+	JourneyStepOwnerSystem   JourneyStepOwner = "SYSTEM"
+)
+
+// JourneyViewerProjection is one journey as it stands for the calling viewer.
+// It names only the viewer's own standing: it never carries another
+// principal's identity, so a viewer with no relationship receives the same
+// projection whoever initiated the journey or holds its work item.
+type JourneyViewerProjection struct {
+	// Relationships are sorted and unique; empty means none.
+	Relationships  []JourneyViewerRelationship
+	Responsibility JourneyViewerResponsibility
+	NextStep       JourneyNextStep
+	NextStepOwner  JourneyStepOwner
+	// AwaitsPerson is true when a person holds NextStep; an open journey
+	// whose next step no person holds is a passive wait.
+	AwaitsPerson bool
+	// Closed is true at a terminal stage.
+	Closed bool
+}
+
+// JourneyWorkItemSummary is the list-level, viewer-scoped view of a journey's
+// current open work item. The engine fills it under
+// internal/humanwork/workitem's own read rules; every string is a token or an
+// identifier, never presentation copy.
+type JourneyWorkItemSummary struct {
+	// Kind and Status are the workitem.Kind and workitem.Status tokens.
+	Kind   string
+	Status string
+	// AssigneePrincipalID is set only for a directly routed item whose
+	// identity-bearing context the viewer may see (workitem.ContextVisible).
+	AssigneePrincipalID string
+	// AssigneeDisplayName is the assignee's worker display name when the
+	// principal id resolves to a worker; empty otherwise.
+	AssigneeDisplayName string
+	// DueAt is the item's deadline; zero when it has none.
+	DueAt time.Time
+	// ViewerPermittedActions is workitem.PermittedActions for the viewer,
+	// sorted.
+	ViewerPermittedActions []string
+	// ViewerMembership is NONE, CANDIDATE, ASSIGNEE or CLAIMANT.
+	ViewerMembership string
+}
+
+// JourneyListRequest is the server-owned query for the history projection.
+// Cursor is opaque to callers; the engine validates it before use.
+type JourneyListRequest struct {
+	PageSize  int
+	Page      int
+	Cursor    string
+	WorkerRef string
+	Query     string
+	Outcome   string
+	Year      string
+	Sort      string
+	Direction string
+}
+
+type JourneyListPage struct {
+	Journeys   []JourneySummary
+	NextCursor string
+	TotalCount int
+}
+
+// HistoryEngine is an optional extension implemented by live engines that
+// can resolve history queries server-side. Keeping it separate preserves the
+// small JourneyEngine test seam and makes uncomposed cells fail closed.
+type HistoryEngine interface {
+	ListJourneysPage(context.Context, JourneyListRequest) (JourneyListPage, error)
 }
 
 // ProposalInput is what the manager fills in. Everything else the intent
@@ -257,12 +440,104 @@ type JourneyDetail struct {
 	// Approver is the principal the approval WorkItem is routed to. The
 	// page shows who will decide; the engine decides as that principal.
 	Approver string
+
+	// Server-authorized, viewer-relative presentation capabilities. A client
+	// must not reconstruct either from roles or principal identifiers.
+	DiagnosticsAvailable bool
+	CanDecide            bool
 }
 
 // Decision is the approver's answer.
 type Decision struct {
 	Approve bool
 	Reason  string
+}
+
+// ---------------------------------------------------------------------------
+// Interventions (PROMOUX-013)
+// ---------------------------------------------------------------------------
+
+// JourneyInterventionKind is the closed set of typed interventions beyond
+// Execute and Decide. Both kinds run the same underlying governed capability
+// ([JourneyEngine.RequestIntervention] composes [intent.CancelInstance]); the
+// kind only selects which stage offers the affordance and what the
+// consequence preview says.
+type JourneyInterventionKind string
+
+const (
+	// JourneyInterventionWithdraw stops a proposal before any approval has
+	// been recorded against it.
+	JourneyInterventionWithdraw JourneyInterventionKind = "WITHDRAW"
+	// JourneyInterventionCancel requests cancellation while the journey is
+	// in an eligible wait (for example, waiting on approval or on its
+	// effective-date safe point).
+	JourneyInterventionCancel JourneyInterventionKind = "CANCEL"
+)
+
+// JourneyInterventionOutcome is the shared, closed disposition an
+// intervention resolves to (hcmnext.common.v1.InterventionOutcome). It is
+// deliberately the same vocabulary a future workflow-level intervention
+// endpoint (EP-WF-002) is designed to adopt, rather than each surface
+// inventing its own.
+type JourneyInterventionOutcome string
+
+const (
+	InterventionApplied          JourneyInterventionOutcome = "APPLIED"
+	InterventionPendingSafePoint JourneyInterventionOutcome = "PENDING_SAFE_POINT"
+	InterventionDenied           JourneyInterventionOutcome = "DENIED"
+	InterventionTooLate          JourneyInterventionOutcome = "TOO_LATE"
+	InterventionRepairRequired   JourneyInterventionOutcome = "REPAIR_REQUIRED"
+)
+
+// EditProposalInput carries the corrected fields for an unstarted or
+// not-yet-approved proposal. The worker is not editable: an edit changes the
+// promotion being proposed, never who it is for.
+type EditProposalInput struct {
+	TargetJobCode    string
+	TargetGrade      string
+	TargetPositionID string
+	// ProposedBase is a decimal string in the worker's current currency.
+	ProposedBase string
+	// EffectiveDate is ISO-8601 (YYYY-MM-DD).
+	EffectiveDate  string
+	BusinessReason string
+}
+
+// JourneyInterventionPreview answers, without mutating anything, whether a
+// typed intervention is available right now and what it would likely do. Its
+// UnavailableReasonRef never varies by anything other than the journey's own
+// durable stage, so its presence discloses no more than the stage itself
+// already does.
+type JourneyInterventionPreview struct {
+	Available            bool
+	UnavailableReasonRef string
+	ConsequenceSummary   string
+	LikelyOutcome        JourneyInterventionOutcome
+	// CurrentGovernanceVersion is the journey's current
+	// JourneySummary.GovernanceVersion, present whenever Available is true,
+	// so a caller can confirm with RequestIntervention without a second
+	// read.
+	CurrentGovernanceVersion uint64
+}
+
+// JourneyInterventionRequest is one typed WITHDRAW or CANCEL request's
+// governance envelope: which kind, a reason, the idempotency key the
+// retained evidence is bound to, and the expected instance version that
+// pins which revision this caller believes they are acting against.
+type JourneyInterventionRequest struct {
+	Kind                    JourneyInterventionKind
+	ExpectedInstanceVersion uint64
+	IdempotencyKey          string
+	Reason                  string
+}
+
+// JourneyInterventionResult is what a WITHDRAW or CANCEL intervention left
+// behind: the journey at its resulting stage, the outcome, and the durable
+// evidence reference retained for the intervention itself.
+type JourneyInterventionResult struct {
+	Journey             JourneySummary
+	Outcome             JourneyInterventionOutcome
+	RetainedEvidenceRef string
 }
 
 // ---------------------------------------------------------------------------
@@ -304,6 +579,9 @@ type WorkerSummary struct {
 	WorkerRef string
 	// WorkerID is the entity id the governed read names the worker by.
 	WorkerID string
+	// SubjectRevision is the server-projected revision a canonical promotion
+	// proposal must bind through expected_subject_revision.
+	SubjectRevision string
 
 	LegalName     string
 	PreferredName string
@@ -331,8 +609,13 @@ type WorkerSummary struct {
 	// ManagerRef is the stable relationship reference. ProfilePhotoURL is
 	// always the display-safe proxy; the retained original is never exposed
 	// through this listing surface.
-	ManagerRef      string
-	ProfilePhotoURL string
+	ManagerRef string
+	// ManagerDisposition and ManagerWorkerRef form the authorization-safe
+	// reporting-edge projection. ManagerWorkerRef is set exactly for VISIBLE
+	// and names a returned Worker's WorkerRef.
+	ManagerDisposition string
+	ManagerWorkerRef   string
+	ProfilePhotoURL    string
 
 	// Source is [WorkerSourceCorpus] or [WorkerSourceCreated].
 	Source string
@@ -450,6 +733,36 @@ type JourneyEngine interface {
 	// approver with the given decision, resumes the driver, and returns the
 	// journey at its resulting stage.
 	Decide(ctx context.Context, intentID string, d Decision) (JourneyDetail, error)
+
+	// EditProposal corrects an unstarted or not-yet-approved proposal
+	// (PROMOUX-013). It is [intent.SupersedeOriginal] scoped to journeys: the
+	// edited fields are re-proposed as an authorized successor intent under
+	// a fresh proposal revision, and the original's request state moves to
+	// SUPERSEDED without otherwise mutating it -- so any approval recorded
+	// against the original's proposal revision is left referring to a
+	// revision that can never execute, which is how an edit invalidates
+	// material approvals without touching the approval record itself. It
+	// returns the successor summary and the original's own intent id. A
+	// stale expectedInstanceVersion, or an already-terminal original, is
+	// refused.
+	EditProposal(ctx context.Context, intentID string, expectedInstanceVersion uint64, idempotencyKey, reason string, in EditProposalInput) (successor JourneySummary, supersededIntentID string, err error)
+
+	// PreviewIntervention answers, for one journey and one typed
+	// intervention kind, whether the intervention is available right now,
+	// and if not, why -- computed only from the journey's own durable
+	// stage. It mutates nothing and runs no capability.
+	PreviewIntervention(ctx context.Context, intentID string, kind JourneyInterventionKind) (JourneyInterventionPreview, error)
+
+	// RequestIntervention runs a typed WITHDRAW or CANCEL intervention. It
+	// is [intent.CancelInstance] scoped to journeys: both kinds are the same
+	// governed capability, reporting the same four dispositions
+	// CancelIntent already reports, projected onto
+	// [JourneyInterventionOutcome]. Racing this call against a concurrent
+	// approval, timer fire or terminal commit resolves to exactly one
+	// durable outcome, because the intent record's own optimistic
+	// instance-version compare-and-swap is the single serialization point a
+	// losing caller's request never gets past.
+	RequestIntervention(ctx context.Context, intentID string, req JourneyInterventionRequest) (JourneyInterventionResult, error)
 
 	// ListWorkers returns every employee a journey can be proposed for --
 	// the release's corpus population and the tenant's own created one,

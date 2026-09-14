@@ -14,6 +14,7 @@ func namedIcons() map[string]ui.Node {
 		"brand mark":  BrandMark(),
 		"check":       iconCheck("c"),
 		"arrow right": iconArrowRight("c"),
+		"arrow left":  iconArrowLeft("c"),
 		"info":        iconInfo("c"),
 		"success":     iconSuccess("c"),
 		"warning":     iconWarning("c"),

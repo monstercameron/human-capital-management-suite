@@ -27,28 +27,37 @@ import (
 type fakeService struct {
 	mu sync.Mutex
 
-	list       []*journeyv1.Journey
-	listErr    error
-	detail     *journeyv1.JourneyDetail
-	detailErr  error
-	proposed   *journeyv1.Journey
-	proposeErr error
-	executed   *journeyv1.JourneyDetail
-	executeErr error
-	decided    *journeyv1.JourneyDetail
-	decideErr  error
-	watchErr   error
-	workers    []*journeyv1.Worker
-	workforce  *journeyv1.WorkforceOptions
-	workersErr error
-	created    *journeyv1.Worker
-	createErr  error
+	list         []*journeyv1.Journey
+	listErr      error
+	detail       *journeyv1.JourneyDetail
+	detailErr    error
+	proposed     *journeyv1.Journey
+	proposeErr   error
+	executed     *journeyv1.JourneyDetail
+	executeErr   error
+	decided      *journeyv1.JourneyDetail
+	decideErr    error
+	edited       *journeyv1.EditProposalResponse
+	editErr      error
+	preview      *journeyv1.PreviewJourneyInterventionResponse
+	previewErr   error
+	intervened   *journeyv1.RequestJourneyInterventionResponse
+	interveneErr error
+	watchErr     error
+	workers      []*journeyv1.Worker
+	workforce    *journeyv1.WorkforceOptions
+	workersErr   error
+	created      *journeyv1.Worker
+	createErr    error
 
 	calls        []string
-	proposeReq   *journeyv1.ProposeJourneyRequest
+	proposeReq   *journeyv1.ProposePromotionRequest
 	decideReq    *journeyv1.DecideJourneyRequest
 	inspectReq   *journeyv1.InspectJourneyRequest
 	executeReq   *journeyv1.ExecuteJourneyRequest
+	editReq      *journeyv1.EditProposalRequest
+	previewReqs  []*journeyv1.PreviewJourneyInterventionRequest
+	interveneReq *journeyv1.RequestJourneyInterventionRequest
 	createReq    *journeyv1.CreateWorkerRequest
 	watchReqs    []*journeyv1.WatchJourneyRequest
 	streams      []*fakeStream
@@ -96,15 +105,15 @@ func (f *fakeService) ListJourneys(context.Context, *journeyv1.ListJourneysReque
 	return &journeyv1.ListJourneysResponse{Journeys: f.list}, nil
 }
 
-func (f *fakeService) ProposeJourney(_ context.Context, in *journeyv1.ProposeJourneyRequest) (*journeyv1.ProposeJourneyResponse, error) {
+func (f *fakeService) ProposePromotion(_ context.Context, in *journeyv1.ProposePromotionRequest) (*journeyv1.ProposePromotionResponse, error) {
 	f.mu.Lock()
 	f.proposeReq = in
 	f.mu.Unlock()
-	f.record("ProposeJourney")
+	f.record("ProposePromotion")
 	if f.proposeErr != nil {
 		return nil, f.proposeErr
 	}
-	return &journeyv1.ProposeJourneyResponse{Journey: f.proposed}, nil
+	return &journeyv1.ProposePromotionResponse{IntentId: f.proposed.GetIntentId()}, nil
 }
 
 func (f *fakeService) InspectJourney(_ context.Context, in *journeyv1.InspectJourneyRequest) (*journeyv1.InspectJourneyResponse, error) {
@@ -138,6 +147,39 @@ func (f *fakeService) DecideJourney(_ context.Context, in *journeyv1.DecideJourn
 		return nil, f.decideErr
 	}
 	return &journeyv1.DecideJourneyResponse{Detail: f.decided}, nil
+}
+
+func (f *fakeService) EditProposal(_ context.Context, in *journeyv1.EditProposalRequest) (*journeyv1.EditProposalResponse, error) {
+	f.mu.Lock()
+	f.editReq = in
+	f.mu.Unlock()
+	f.record("EditProposal")
+	if f.editErr != nil {
+		return nil, f.editErr
+	}
+	return f.edited, nil
+}
+
+func (f *fakeService) PreviewJourneyIntervention(_ context.Context, in *journeyv1.PreviewJourneyInterventionRequest) (*journeyv1.PreviewJourneyInterventionResponse, error) {
+	f.mu.Lock()
+	f.previewReqs = append(f.previewReqs, in)
+	f.mu.Unlock()
+	f.record("PreviewJourneyIntervention")
+	if f.previewErr != nil {
+		return nil, f.previewErr
+	}
+	return f.preview, nil
+}
+
+func (f *fakeService) RequestJourneyIntervention(_ context.Context, in *journeyv1.RequestJourneyInterventionRequest) (*journeyv1.RequestJourneyInterventionResponse, error) {
+	f.mu.Lock()
+	f.interveneReq = in
+	f.mu.Unlock()
+	f.record("RequestJourneyIntervention")
+	if f.interveneErr != nil {
+		return nil, f.interveneErr
+	}
+	return f.intervened, nil
 }
 
 // ListWorkers answers with the fake cell's current population.
@@ -279,6 +321,10 @@ type harness struct {
 func newHarness(t *testing.T) *harness {
 	t.Helper()
 	svc := newFakeService()
+	svc.workers = []*journeyv1.Worker{{
+		WorkerRef: "omar-reyes", SubjectRevision: "rewards.package.omar-reyes@1",
+		JobCode: "OPS-HRBP2", Grade: "P2", PayZone: "US-1", Currency: "USD",
+	}}
 	store := journey.NewStore(journey.Page{})
 	app := New(testConfig(), svc, store, func() time.Time {
 		return time.Date(2026, 9, 3, 14, 5, 0, 0, time.UTC)
@@ -334,6 +380,25 @@ func TestStartLoadsTheListAndSeedsTheForm(t *testing.T) {
 	}
 	if got := p.List.Form.Fields[5].Value; got != "2026-12-01" {
 		t.Errorf("the form's effective date = %q, want the seeded value", got)
+	}
+}
+
+func TestTodo_UXAUDIT_006_LocaleChangeKeepsTheLoadedJourney(t *testing.T) {
+	h := newHarness(t)
+	h.svc.list = []*journeyv1.Journey{testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)}
+	h.app.Start(context.Background(), "")
+	before := h.awaitPage(t, "the list", listLoaded)
+	if before.Locale != "en-US" || len(before.List.Journeys) != 1 {
+		t.Fatalf("initial projection = locale %q, journeys %d", before.Locale, len(before.List.Journeys))
+	}
+	reads := h.svc.called("ListJourneys")
+	h.app.SetLocale("ar")
+	after := h.store.Page()
+	if after.Locale != "ar" || len(after.List.Journeys) != 1 || after.List.Form.Submit != "مراجعة وتقديم" {
+		t.Fatalf("localized projection = locale %q, journeys %d, submit %q", after.Locale, len(after.List.Journeys), after.List.Form.Submit)
+	}
+	if got := h.svc.called("ListJourneys"); got != reads {
+		t.Fatalf("locale change made %d extra workforce reads", got-reads)
 	}
 }
 
@@ -539,6 +604,66 @@ func TestTypedValuesSurviveARedraw(t *testing.T) {
 	}
 }
 
+func TestStartingAnotherPromotionOpensTheEmployeesActiveJourney(t *testing.T) {
+	h := staffed(t)
+	active := testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+	active.IntentId = "int_jane_active"
+	active.WorkerRef = "eref:v1:harborcare-demo:worker:" + testJaneID
+	active.WorkerName = "Jane"
+	h.svc.list = []*journeyv1.Journey{active}
+	h.svc.detail = testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+	h.svc.detail.Journey.IntentId = active.IntentId
+	h.svc.detail.Journey.WorkerRef = active.WorkerRef
+
+	h.app.Start(context.Background(), ProposalHref("jane-doe"))
+	p := h.awaitPage(t, "Jane's existing journey", detailShown)
+	if p.Detail.Journey.IntentID != active.IntentId || h.svc.inspectReq.GetIntentId() != active.IntentId {
+		t.Fatalf("existing journey = %q, inspect = %+v", p.Detail.Journey.IntentID, h.svc.inspectReq)
+	}
+	if h.svc.called("ProposePromotion") != 0 {
+		t.Fatal("opening an active journey proposed another promotion")
+	}
+}
+
+func TestBlockedPromotionIsStillAnActiveConflict(t *testing.T) {
+	h := staffed(t)
+	blocked := testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED)
+	blocked.IntentId = "int_jane_blocked"
+	blocked.WorkerRef = "eref:v1:harborcare-demo:worker:" + testJaneID
+	blocked.WorkerName = "Jane"
+	h.svc.list = []*journeyv1.Journey{blocked}
+	h.svc.detail = testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED)
+	h.svc.detail.Journey.IntentId = blocked.IntentId
+	h.svc.detail.Journey.WorkerRef = blocked.WorkerRef
+
+	h.app.Start(context.Background(), ProposalHref("jane-doe"))
+	p := h.awaitPage(t, "Jane's blocked request", detailShown)
+	if p.Detail.Journey.IntentID != blocked.IntentId {
+		t.Fatalf("blocked request did not open as read-only active detail: %+v", p.Detail)
+	}
+	for _, action := range p.Detail.Actions {
+		if action.ID == ActionExecute {
+			t.Fatalf("blocked request advertised Start: %+v", action)
+		}
+	}
+	if h.svc.called("ProposePromotion") != 0 {
+		t.Fatal("opening a blocked request created another promotion")
+	}
+}
+
+func TestStartingAfterATerminalPromotionKeepsTheNewPromotionForm(t *testing.T) {
+	h := staffed(t)
+	closed := testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED)
+	closed.WorkerRef = "eref:v1:harborcare-demo:worker:" + testJaneID
+	h.svc.list = []*journeyv1.Journey{closed}
+
+	h.app.Start(context.Background(), ProposalHref("jane-doe"))
+	h.awaitPage(t, "Jane's new promotion form", proposalFor("jane-doe"))
+	if h.svc.called("InspectJourney") != 0 {
+		t.Fatal("a terminal journey intercepted a new promotion")
+	}
+}
+
 // ---------------------------------------------------------------------
 // Writes
 // ---------------------------------------------------------------------
@@ -563,16 +688,35 @@ func TestProposeCreatesTheJourneyAndOpensIt(t *testing.T) {
 	h.awaitPage(t, "the new journey", detailShown)
 
 	req := h.svc.proposeReq
-	if req.GetWorkerRef() != "omar-reyes" || req.GetProposedBase() != "98000.00" ||
-		req.GetEffectiveDate() != "2026-12-01" || req.GetBusinessReason() != "promotion_into_senior_hrbp" {
-		t.Errorf("ProposeJourney request = %+v", req)
+	if req.GetSubjectWorkerRef() != "omar-reyes" || req.GetDesiredBasePay() != "98000.00" ||
+		req.GetEffectiveDate() != "2026-12-01" || req.GetReason() != "promotion_into_senior_hrbp" {
+		t.Errorf("ProposePromotion request = %+v", req)
 	}
-	if req.GetTarget().GetJobCode() != "OPS-HRBP3" || req.GetTarget().GetGrade() != "P3" ||
-		req.GetTarget().GetPositionId() != "POS-HRBP-301" {
-		t.Errorf("the target placement = %+v", req.GetTarget())
+	if req.GetDesiredJobCode() != "OPS-HRBP3" || req.GetDesiredGrade() != "P3" ||
+		req.GetDesiredPositionId() != "POS-HRBP-301" {
+		t.Errorf("the target placement = %+v", req)
+	}
+	if req.GetExpectedSubjectRevision() != "rewards.package.omar-reyes@1" || req.GetClientRequestId() == "" {
+		t.Errorf("canonical concurrency coordinates = revision %q request %q", req.GetExpectedSubjectRevision(), req.GetClientRequestId())
 	}
 	if h.svc.called("InspectJourney") != 1 {
 		t.Error("the client did not read the journey it had just created")
+	}
+}
+
+func TestPromotionWithoutAnUnconfirmedPositionReachesTheServer(t *testing.T) {
+	h := newHarness(t)
+	h.svc.proposed = testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+	h.svc.detail = testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the proposal", proposalFor("omar-reyes"))
+	h.app.Submit(ActionPropose, map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NameBase: "98000.00", NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
+	})
+	h.awaitPage(t, "the new journey", detailShown)
+	if got := h.svc.proposeReq.GetDesiredPositionId(); got != "" {
+		t.Fatalf("unconfirmed target position was invented as %q", got)
 	}
 }
 
@@ -594,14 +738,117 @@ func TestTaskMuxSuppressesADuplicateProposalClick(t *testing.T) {
 	h.app.Submit(ActionPropose, values)
 
 	deadline := time.Now().Add(time.Second)
-	for h.svc.called("ProposeJourney") == 0 && time.Now().Before(deadline) {
+	for h.svc.called("ProposePromotion") == 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if got := h.svc.called("ProposeJourney"); got != 1 {
-		t.Fatalf("ProposeJourney called %d times while the first click was in flight, want once", got)
+	if got := h.svc.called("ProposePromotion"); got != 1 {
+		t.Fatalf("ProposePromotion called %d times while the first click was in flight, want once", got)
 	}
 	close(h.svc.gate)
 	h.awaitPage(t, "the new journey", detailShown)
+}
+
+func TestProposalRetryKeepsTheSemanticRequestIDForUnchangedValues(t *testing.T) {
+	h := newHarness(t)
+	h.svc.proposeErr = status.Error(codes.Unavailable, "transient upstream detail")
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+	values := map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NamePosition: "POS-HRBP-301", NameBase: "98000.00",
+		NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
+	}
+
+	h.app.Submit(ActionPropose, values)
+	h.awaitPage(t, "the retryable refusal", noticeTitled("Service temporarily unavailable"))
+	firstID := h.svc.proposeReq.GetClientRequestId()
+	if firstID == "" {
+		t.Fatal("the first proposal has no semantic request id")
+	}
+
+	h.svc.mu.Lock()
+	h.svc.proposeErr = nil
+	h.svc.proposed = testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+	h.svc.detail = testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+	h.svc.mu.Unlock()
+	h.app.Submit(ActionPropose, values)
+	h.awaitPage(t, "the retried journey", detailShown)
+	if got := h.svc.proposeReq.GetClientRequestId(); got != firstID {
+		t.Errorf("unchanged retry request id = %q, want retained %q", got, firstID)
+	}
+}
+
+func TestChangingProposalValuesStartsANewSemanticRequest(t *testing.T) {
+	h := newHarness(t)
+	h.svc.proposeErr = status.Error(codes.Unavailable, "transient upstream detail")
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+	values := map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NamePosition: "POS-HRBP-301", NameBase: "98000.00",
+		NameEffective: "2026-12-01", NameReason: "first business reason",
+	}
+
+	h.app.Submit(ActionPropose, values)
+	h.awaitPage(t, "the retryable refusal", noticeTitled("Service temporarily unavailable"))
+	firstID := h.svc.proposeReq.GetClientRequestId()
+	values[NameReason] = "materially changed business reason"
+	h.app.Submit(ActionPropose, values)
+	deadline := time.Now().Add(time.Second)
+	for h.svc.called("ProposePromotion") < 2 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := h.svc.proposeReq.GetClientRequestId(); got == "" || got == firstID {
+		t.Errorf("changed proposal request id = %q, want a new id after %q", got, firstID)
+	}
+}
+
+func TestChangingSubjectRevisionStartsANewSemanticRequest(t *testing.T) {
+	h := newHarness(t)
+	h.svc.proposeErr = status.Error(codes.Unavailable, "transient upstream detail")
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+	values := map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NamePosition: "POS-HRBP-301", NameBase: "98000.00",
+		NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
+	}
+
+	h.app.Submit(ActionPropose, values)
+	h.awaitPage(t, "the retryable refusal", noticeTitled("Service temporarily unavailable"))
+	firstID := h.svc.proposeReq.GetClientRequestId()
+	h.app.mu.Lock()
+	h.app.workers[0].SubjectRevision = "rewards.package.omar-reyes@2"
+	h.app.mu.Unlock()
+	h.app.Submit(ActionPropose, values)
+	deadline := time.Now().Add(time.Second)
+	for h.svc.called("ProposePromotion") < 2 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := h.svc.proposeReq.GetClientRequestId(); got == "" || got == firstID {
+		t.Errorf("new subject revision request id = %q, want a new id after %q", got, firstID)
+	}
+	if got := h.svc.proposeReq.GetExpectedSubjectRevision(); got != "rewards.package.omar-reyes@2" {
+		t.Errorf("retried subject revision = %q", got)
+	}
+}
+
+func TestProposalWithoutASubjectRevisionRefusesBeforeTheNetwork(t *testing.T) {
+	h := newHarness(t)
+	h.svc.workers[0].SubjectRevision = ""
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+
+	h.app.Submit(ActionPropose, map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NamePosition: "POS-HRBP-301", NameBase: "98000.00",
+		NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
+	})
+
+	h.awaitPage(t, "the revision refusal", noticeTitled("Refresh the employee record"))
+	if got := h.svc.called("ProposePromotion"); got != 0 {
+		t.Errorf("proposal without a subject revision made %d network calls", got)
+	}
 }
 
 func TestProposeWithoutAWorkerAsksNothing(t *testing.T) {
@@ -611,8 +858,8 @@ func TestProposeWithoutAWorkerAsksNothing(t *testing.T) {
 
 	h.app.Submit(ActionPropose, map[string]string{NameWorker: "  ", NameBase: "98000.00"})
 
-	h.awaitPage(t, "the refusal", noticeTitled("Choose a worker"))
-	if h.svc.called("ProposeJourney") != 0 {
+	h.awaitPage(t, "the refusal", noticeTitled("Choose an employee"))
+	if h.svc.called("ProposePromotion") != 0 {
 		t.Error("a proposal with no worker was sent to the engine anyway")
 	}
 }
@@ -625,13 +872,77 @@ func TestProposeWithMissingRequiredFieldsStaysInTheBrowser(t *testing.T) {
 	h.app.Submit(ActionPropose, map[string]string{NameWorker: "omar-reyes", NameEffective: "2026-12-01"})
 
 	p := h.awaitPage(t, "the refusal", noticeTitled("Complete the required fields"))
-	for _, field := range []string{"target job code", "target grade", "target position", "proposed base pay", "business reason"} {
-		if !strings.Contains(p.Notice.Detail, field) {
-			t.Errorf("missing-fields notice %q does not name %q", p.Notice.Detail, field)
+	for _, id := range []string{FieldJobCode, FieldGrade, FieldBase, FieldReason} {
+		field, ok := fieldByID(p.List.Form.Fields, id)
+		if !ok || field.Error != "Complete this field." {
+			t.Errorf("missing field %s was not linked to corrective guidance: %+v", id, field)
 		}
 	}
-	if h.svc.called("ProposeJourney") != 0 {
+	if strings.Contains(p.Notice.Detail, "job code") || !strings.Contains(p.Notice.Detail, "highlighted fields") {
+		t.Errorf("summary should direct the reader to highlighted fields: %q", p.Notice.Detail)
+	}
+	if h.svc.called("ProposePromotion") != 0 {
 		t.Error("an incomplete proposal was sent to the engine")
+	}
+}
+
+func TestTodo_UXAUDIT_006_MissingPromotionFieldsUseLocaleAndClearIndividually(t *testing.T) {
+	for _, tc := range []struct{ locale, title, fieldError string }{
+		{"de-DE", "Pflichtfelder ausfüllen", "Füllen Sie dieses Feld aus."},
+		{"ar", "أكمل الحقول المطلوبة", "أكمل هذا الحقل."},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			h := newHarness(t)
+			h.app.Start(context.Background(), ListHref())
+			h.awaitPage(t, "the list", listLoaded)
+			h.app.SetLocale(tc.locale)
+			h.app.Submit(ActionPropose, map[string]string{NameWorker: "omar-reyes", NameEffective: "2026-12-01"})
+			p := h.awaitPage(t, "the localized refusal", noticeTitled(tc.title))
+			job, ok := fieldByID(p.List.Form.Fields, FieldJobCode)
+			if !ok || job.Error != tc.fieldError {
+				t.Fatalf("job field = %+v, want %q", job, tc.fieldError)
+			}
+			p.OnFieldChange(FieldPosition, "POS-1")
+			p = h.store.Page()
+			position, _ := fieldByID(p.List.Form.Fields, FieldPosition)
+			job, _ = fieldByID(p.List.Form.Fields, FieldJobCode)
+			if position.Error != "" || position.Value != "POS-1" || job.Error != tc.fieldError {
+				t.Errorf("editing one field changed unrelated guidance: position=%+v job=%+v", position, job)
+			}
+			if h.svc.called("ProposePromotion") != 0 {
+				t.Error("incomplete localized proposal reached the service")
+			}
+		})
+	}
+}
+
+func TestTodo_PROMOUX_007_InvalidPromotionAttemptHasRepeatableFocusCue(t *testing.T) {
+	h := newHarness(t)
+	var focused string
+	h.app.FocusField = func(id string) { focused = id }
+	h.app.Start(context.Background(), ListHref())
+	h.awaitPage(t, "the list", listLoaded)
+	values := map[string]string{NameWorker: "omar-reyes", NameEffective: "2026-12-01"}
+	h.app.Submit(ActionPropose, values)
+	first := h.awaitPage(t, "first refusal", noticeTitled("Complete the required fields"))
+	if first.FocusInvalidRevision == 0 || first.OnFocusField == nil {
+		t.Fatalf("first rejected form has no focus cue or field navigation: %+v", first)
+	}
+	first.OnFocusField(FieldBase)
+	if focused != FieldBase {
+		t.Fatalf("summary navigation focused %q, want %q", focused, FieldBase)
+	}
+	h.app.Submit(ActionPropose, values)
+	second := h.awaitPage(t, "repeated refusal", noticeTitled("Complete the required fields"))
+	if second.FocusInvalidRevision <= first.FocusInvalidRevision {
+		t.Fatalf("repeated submit focus revision %d did not advance from %d", second.FocusInvalidRevision, first.FocusInvalidRevision)
+	}
+	second.OnFieldChange(FieldPosition, "POS-1")
+	if got := h.store.Page().FocusInvalidRevision; got != second.FocusInvalidRevision {
+		t.Fatalf("typing unexpectedly requested focus again: %d", got)
+	}
+	if h.svc.called("ProposePromotion") != 0 {
+		t.Fatal("incomplete proposal was sent to the service")
 	}
 }
 
@@ -644,7 +955,7 @@ func TestExecuteAdmitsThePlan(t *testing.T) {
 
 	h.app.Submit(ActionExecute, map[string]string{})
 
-	p := h.awaitPage(t, "the admission", noticeTitled("The plan was admitted"))
+	p := h.awaitPage(t, "the admission", noticeTitled("Approval process started"))
 	if p.Notice.Tone != toneSuccess {
 		t.Errorf("notice tone = %q, want success", p.Notice.Tone)
 	}
@@ -675,8 +986,16 @@ func TestApproveCompletesTheJourney(t *testing.T) {
 	if p.Detail.Ledger == nil {
 		t.Error("the completed journey shows no ledger fact")
 	}
-	if len(p.Detail.Actions) != 0 {
-		t.Error("a completed journey still offers decisions")
+	for _, a := range p.Detail.Actions {
+		if a.ID == ActionApprove || a.ID == ActionReject || a.ID == ActionExecute {
+			t.Errorf("a completed journey still offers a decision: %+v", a)
+		}
+		// PROMOUX-013: Withdraw/Cancel/EditProposal still render on a
+		// terminal journey, but only as Disabled actions explaining why --
+		// never as something the reader could actually submit.
+		if !a.Disabled {
+			t.Errorf("action %q is not disabled on a terminal (COMPLETED) journey: %+v", a.ID, a)
+		}
 	}
 }
 
@@ -739,6 +1058,28 @@ func TestChangingProposalSubjectClearsConsequentialDraftValues(t *testing.T) {
 	}
 }
 
+func TestLeavingJourneysReentersSameProposalWithFreshAuthorityAndDraft(t *testing.T) {
+	h := staffed(t)
+	h.app.Start(context.Background(), ProposalHref("jane-doe"))
+	h.awaitPage(t, "Jane's proposal", proposalFor("jane-doe"))
+	h.store.SetValue(FieldJobCode, "ENG-MGR1")
+	h.store.SetValue(FieldGrade, "P3")
+	h.store.SetValue(FieldBase, "180000.00")
+	h.store.SetValue(FieldReason, "Draft from an earlier visit")
+
+	h.app.Suspend()
+	h.app.OnHashChange(ProposalHref("jane-doe"))
+	h.awaitPage(t, "Jane's new visit", proposalFor("jane-doe"))
+	for _, field := range []string{FieldJobCode, FieldGrade, FieldBase, FieldReason} {
+		if got := h.store.Values()[field]; got != "" {
+			t.Errorf("%s carried into a new visit as %q", field, got)
+		}
+	}
+	if h.svc.called("ListWorkers") != 2 || h.svc.called("ListJourneys") != 2 {
+		t.Fatalf("return visit read %d workers and %d journeys; want two rounds", h.svc.called("ListWorkers"), h.svc.called("ListJourneys"))
+	}
+}
+
 func TestProposalRefusesAnUnpublishedJobGradeCombination(t *testing.T) {
 	h := staffed(t)
 	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
@@ -749,11 +1090,11 @@ func TestProposalRefusesAnUnpublishedJobGradeCombination(t *testing.T) {
 		NamePosition: "POS-HRBP-301", NameBase: "98000.00",
 		NameEffective: "2026-12-01", NameReason: "Invalid cross-product",
 	})
-	p := h.awaitPage(t, "the governed-target refusal", noticeTitled("Choose a governed target role"))
-	if !strings.Contains(p.Notice.Detail, "published next step") || !strings.Contains(p.Notice.Detail, "pay zone and currency") {
+	p := h.awaitPage(t, "the governed-target refusal", noticeTitled("Choose an available target role"))
+	if !strings.Contains(p.Notice.Detail, "available next step") || !strings.Contains(p.Notice.Detail, "location and currency") {
 		t.Errorf("notice = %+v", p.Notice)
 	}
-	if h.svc.called("ProposeJourney") != 0 {
+	if h.svc.called("ProposePromotion") != 0 {
 		t.Fatal("the unsupported target was sent to the engine")
 	}
 }
@@ -768,8 +1109,8 @@ func TestProposalRefusesAPayableButUnrelatedRole(t *testing.T) {
 		NamePosition: "POS-NURSE-401", NameBase: "100000.00",
 		NameEffective: "2026-12-01", NameReason: "A pay band is not a ladder edge",
 	})
-	h.awaitPage(t, "the ladder refusal", noticeTitled("Choose a governed target role"))
-	if h.svc.called("ProposeJourney") != 0 {
+	h.awaitPage(t, "the ladder refusal", noticeTitled("Choose an available target role"))
+	if h.svc.called("ProposePromotion") != 0 {
 		t.Fatal("a payable but unrelated role was sent to the engine")
 	}
 }
@@ -800,6 +1141,60 @@ func TestTaskMuxSerializesMutuallyExclusiveDecisions(t *testing.T) {
 	h.awaitPage(t, "the approval", noticeTitled("Promotion recorded"))
 }
 
+func TestTodo_PROMOUX_010_Regression_DuplicateSubmit(t *testing.T) {
+	for _, tc := range []struct {
+		name, action, busyKey, call, outcome, reason string
+		initial, final                               journeyv1.JourneyStage
+	}{
+		{"start", ActionExecute, "journey.busy_start", "ExecuteJourney", "Approval process started", "", journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED, journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL},
+		{"approve", ActionApprove, "journey.busy_approve", "DecideJourney", "Approval recorded", "Within the approved budget.", journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL, journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL},
+		{"reject", ActionReject, "journey.busy_reject", "DecideJourney", "Promotion request declined", "The budget is not approved.", journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL, journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			h.app.Tasks = taskmux.New(taskmux.Options{MaxRunning: 2, MaxQueued: 8})
+			h.svc.detail = testDetail(t, tc.initial)
+			if tc.action == ActionExecute {
+				h.svc.executed = testDetail(t, tc.final)
+			} else {
+				h.svc.decided = testDetail(t, tc.final)
+			}
+			h.app.Start(context.Background(), DetailHref(testIntentID))
+			h.awaitPage(t, "the review", detailShown)
+
+			h.svc.gate = make(chan struct{})
+			values := map[string]string{NameDecisionReason: tc.reason}
+			h.app.Submit(tc.action, values)
+			busyPage := h.awaitPage(t, "the in-place review state", func(p journey.Page) bool {
+				return p.Notice != nil && p.Notice.Busy && p.Detail != nil
+			})
+			if busyPage.Notice.MessageKey != tc.busyKey {
+				t.Errorf("busy notice = %q, want %q", busyPage.Notice.MessageKey, tc.busyKey)
+			}
+			if busyPage.Detail.Journey.IntentID != testIntentID {
+				t.Fatalf("the busy review changed subjects to %q", busyPage.Detail.Journey.IntentID)
+			}
+			if len(busyPage.Detail.Actions) == 0 {
+				t.Fatal("the busy review lost its action surface")
+			}
+
+			h.app.Submit(tc.action, map[string]string{NameDecisionReason: "Accidental duplicate."})
+			deadline := time.Now().Add(time.Second)
+			for h.svc.called(tc.call) == 0 && time.Now().Before(deadline) {
+				time.Sleep(time.Millisecond)
+			}
+			if got := h.svc.called(tc.call); got != 1 {
+				t.Fatalf("%s RPCs during the pending review = %d, want one", tc.call, got)
+			}
+			close(h.svc.gate)
+			h.awaitPage(t, "the review outcome", noticeTitled(tc.outcome))
+			if tc.action != ActionExecute && h.svc.decideReq.GetReason() != tc.reason {
+				t.Errorf("recorded reason = %q, want %q", h.svc.decideReq.GetReason(), tc.reason)
+			}
+		})
+	}
+}
+
 func TestRejectNeedsAReasonAndSendsIt(t *testing.T) {
 	h := newHarness(t)
 	h.svc.detail = testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL)
@@ -808,13 +1203,13 @@ func TestRejectNeedsAReasonAndSendsIt(t *testing.T) {
 	h.awaitPage(t, "the detail", detailShown)
 
 	h.app.Submit(ActionReject, map[string]string{NameDecisionReason: "   "})
-	h.awaitPage(t, "the refusal", noticeTitled("Say what needs to change"))
+	h.awaitPage(t, "the refusal", noticeTitled("Add a reason for declining"))
 	if h.svc.called("DecideJourney") != 0 {
 		t.Fatal("a rejection with no reason was sent to the engine")
 	}
 
 	h.app.Submit(ActionReject, map[string]string{NameDecisionReason: "The budget line is not approved yet."})
-	h.awaitPage(t, "the rejection", noticeTitled("Returned to the manager"))
+	h.awaitPage(t, "the rejection", noticeTitled("Promotion request declined"))
 	if h.svc.decideReq.GetApprove() {
 		t.Error("the decision was recorded as an approval")
 	}
@@ -846,12 +1241,15 @@ func TestARefusalBecomesTheNotice(t *testing.T) {
 
 	h.app.Start(context.Background(), ListHref())
 
-	p := h.awaitPage(t, "the refusal", noticeTitled("Refused"))
+	p := h.awaitPage(t, "the refusal", noticeTitled("You can't complete this action"))
 	if p.Notice.Tone != toneDanger {
 		t.Errorf("notice tone = %q, want danger", p.Notice.Tone)
 	}
-	if !strings.Contains(p.Notice.Detail, "may not read journeys") {
-		t.Errorf("notice detail = %q, want the engine's own message", p.Notice.Detail)
+	if p.Notice.Detail != "You do not have permission to complete this action." {
+		t.Errorf("notice detail = %q", p.Notice.Detail)
+	}
+	if strings.Contains(p.Notice.Detail, "tenant") || strings.Contains(p.Notice.Detail, "journeys") {
+		t.Errorf("notice leaked the server refusal: %q", p.Notice.Detail)
 	}
 	// The chrome survives a refusal, so the reader still has a way out.
 	if len(p.Nav) != 2 {
@@ -859,7 +1257,7 @@ func TestARefusalBecomesTheNotice(t *testing.T) {
 	}
 }
 
-func TestNoticeFromErrorCarriesTheOwnedErrorModelsViolations(t *testing.T) {
+func TestNoticeFromErrorWithholdsOwnedDiagnosticDetails(t *testing.T) {
 	st, err := status.New(codes.InvalidArgument, "the proposal is not valid").WithDetails(&commonv1.ErrorDetail{
 		FieldViolations: []*commonv1.FieldViolation{
 			{FieldPath: "effective_date", Description: "must not be in the past", RuleRef: "promotion.effective_date"},
@@ -876,28 +1274,80 @@ func TestNoticeFromErrorCarriesTheOwnedErrorModelsViolations(t *testing.T) {
 	if notice.Title != "That proposal is not valid" {
 		t.Errorf("title = %q", notice.Title)
 	}
-	for _, want := range []string{
+	if notice.Detail != "Review the highlighted fields and try again." {
+		t.Errorf("notice detail = %q", notice.Detail)
+	}
+	for _, forbidden := range []string{
 		"the proposal is not valid",
 		"effective_date: must not be in the past (promotion.effective_date)",
 		"proposed_base: outside the target grade's band",
 		"Correlation: cor_01JX6Y8B2C7D9EFG",
 	} {
-		if !strings.Contains(notice.Detail, want) {
-			t.Errorf("notice detail %q does not carry %q", notice.Detail, want)
+		if strings.Contains(notice.Detail, forbidden) {
+			t.Errorf("notice detail %q leaked %q", notice.Detail, forbidden)
 		}
+	}
+	errors := proposalFieldErrors(st.Err())
+	if errors[FieldEffective] != "Choose an effective date allowed by the promotion policy." ||
+		errors[FieldBase] != "Enter an exact amount within the approved pay range for this role." {
+		t.Fatalf("safe proposal field errors = %#v", errors)
+	}
+}
+
+func TestTodo_PROMOUX_007_I18N_ServerPayRefusalUsesActiveLocale(t *testing.T) {
+	owned, err := status.New(codes.InvalidArgument, "private pay band and worker facts").WithDetails(&commonv1.ErrorDetail{
+		ReasonRef: "promotion.private_pay_rule", CorrelationId: "cor-secret-789",
+		FieldViolations: []*commonv1.FieldViolation{{FieldPath: "desired_base_pay", Description: "98000.00 exceeds a private band", RuleRef: "private.pay.rule"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ locale, title, fieldError string }{
+		{"de-DE", "Antrag kann nicht eingereicht werden", "Geben Sie einen genauen Betrag innerhalb der zulässigen Gehaltsspanne ein."},
+		{"ar", "لا يمكن تقديم الطلب", "أدخل مبلغًا دقيقًا ضمن نطاق الأجر المعتمد لهذا الدور."},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			h := newHarness(t)
+			h.svc.proposeErr = owned.Err()
+			h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+			h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+			h.app.SetLocale(tc.locale)
+			h.app.Submit(ActionPropose, map[string]string{
+				NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+				NamePosition: "POS-HRBP-301", NameBase: "98000.00",
+				NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
+			})
+			p := h.awaitPage(t, "the localized refusal", noticeTitled(tc.title))
+			base, ok := fieldByID(p.Proposal.Form.Fields, FieldBase)
+			if !ok || base.Error != tc.fieldError || p.FocusInvalidRevision == 0 {
+				t.Fatalf("localized pay correction = %+v, focus revision=%d", base, p.FocusInvalidRevision)
+			}
+			markup, renderErr := journey.RenderToString(p)
+			if renderErr != nil {
+				t.Fatal(renderErr)
+			}
+			for _, secret := range []string{"private pay band", "cor-secret-789", "private.pay.rule", "98000.00 exceeds"} {
+				if strings.Contains(markup, secret) {
+					t.Errorf("%s refusal leaked %q", tc.locale, secret)
+				}
+			}
+			if h.svc.called("ProposePromotion") != 1 {
+				t.Fatal("localized test did not reach the actual proposal refusal")
+			}
+		})
 	}
 }
 
 func TestNoticeTitlesReadAsSentencesNotCodes(t *testing.T) {
 	cases := map[codes.Code]string{
-		codes.PermissionDenied:   "Refused",
+		codes.PermissionDenied:   "You can't complete this action",
 		codes.Unauthenticated:    "This page is no longer signed in",
-		codes.NotFound:           "No such journey",
+		codes.NotFound:           "Request not found",
 		codes.InvalidArgument:    "That proposal is not valid",
 		codes.FailedPrecondition: "Not available at this stage",
-		codes.Unavailable:        "The cell is not answering",
-		codes.DeadlineExceeded:   "The engine did not answer in time",
-		codes.Internal:           "The engine refused this",
+		codes.Unavailable:        "Service temporarily unavailable",
+		codes.DeadlineExceeded:   "This is taking longer than expected",
+		codes.Internal:           "Something went wrong",
 	}
 	for code, want := range cases {
 		notice := NoticeFromError(status.Error(code, "message"))
@@ -910,6 +1360,104 @@ func TestNoticeTitlesReadAsSentencesNotCodes(t *testing.T) {
 	}
 	if NoticeFromError(nil) != nil {
 		t.Error("NoticeFromError(nil) invented a notice")
+	}
+}
+
+func TestPromotionRefusalAssociatesSafeErrorsWithoutLeakingDiagnostics(t *testing.T) {
+	h := newHarness(t)
+	st, err := status.New(codes.InvalidArgument, "database secret: proposal rejected").WithDetails(&commonv1.ErrorDetail{
+		FieldViolations: []*commonv1.FieldViolation{
+			{FieldPath: "desired_base_pay", Description: "98000.00 exceeds secret band", RuleRef: "private.pay.rule"},
+			{FieldPath: "unknown_internal_field", Description: "must never render", RuleRef: "private.rule"},
+		},
+		CorrelationId: "cor-secret-123",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.svc.proposeErr = st.Err()
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+	h.app.Submit(ActionPropose, map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NamePosition: "POS-HRBP-301", NameBase: "98000.00",
+		NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
+	})
+
+	p := h.awaitPage(t, "the safe refusal", noticeTitled("That proposal is not valid"))
+	base, ok := fieldByID(p.Proposal.Form.Fields, FieldBase)
+	if !ok || base.Error != "Enter an exact amount within the approved pay range for this role." {
+		t.Fatalf("base-pay field = %+v", base)
+	}
+	markup, renderErr := journey.RenderToString(p)
+	if renderErr != nil {
+		t.Fatal(renderErr)
+	}
+	for _, secret := range []string{"database secret", "98000.00 exceeds", "unknown_internal_field", "private.pay.rule", "cor-secret-123"} {
+		if strings.Contains(markup, secret) {
+			t.Errorf("rendered promotion refusal leaked %q", secret)
+		}
+	}
+}
+
+func TestEditingARefusedProposalFieldClearsItsInlineErrorImmediately(t *testing.T) {
+	h := newHarness(t)
+	st, err := status.New(codes.InvalidArgument, "private refusal").WithDetails(&commonv1.ErrorDetail{
+		FieldViolations: []*commonv1.FieldViolation{{FieldPath: "proposed_base", Description: "private detail"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.svc.proposeErr = st.Err()
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+	h.app.Submit(ActionPropose, map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NamePosition: "POS-HRBP-301", NameBase: "98000.00",
+		NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
+	})
+	h.awaitPage(t, "the refused proposal", noticeTitled("That proposal is not valid"))
+
+	p := h.store.Page()
+	p.OnFieldChange(FieldBase, "97000.00")
+	p = h.store.Page()
+	base, ok := fieldByID(p.Proposal.Form.Fields, FieldBase)
+	if !ok || base.Error != "" || base.Value != "97000.00" {
+		t.Fatalf("edited base-pay field = %+v", base)
+	}
+	if p.Notice != nil {
+		t.Fatalf("resolved one-field refusal left notice %+v", p.Notice)
+	}
+}
+
+func TestLegacyProposalFieldAliasesReceiveSafeErrors(t *testing.T) {
+	cases := map[string]string{
+		"job_code":    FieldJobCode,
+		"grade":       FieldGrade,
+		"position_id": FieldPosition,
+		"base_pay":    FieldBase,
+	}
+	for path, wantField := range cases {
+		field, message := safeProposalFieldError(path)
+		if field != wantField || message == "" {
+			t.Errorf("safeProposalFieldError(%q) = %q/%q, want field %q", path, field, message, wantField)
+		}
+	}
+}
+
+func TestRequestLevelInvalidArgumentDoesNotPromiseHighlightedFields(t *testing.T) {
+	notice := NoticeFromError(status.Error(codes.InvalidArgument, "private request refusal"))
+	if strings.Contains(notice.Detail, "highlighted") || notice.Detail != "Review the information you entered and try again." {
+		t.Errorf("request-level invalid detail = %q", notice.Detail)
+	}
+}
+
+func TestUncertainWriteErrorsNeverClaimNothingWasSubmitted(t *testing.T) {
+	for _, code := range []codes.Code{codes.Unavailable, codes.DeadlineExceeded, codes.Internal} {
+		notice := NoticeFromError(status.Error(code, "private transport detail"))
+		if strings.Contains(strings.ToLower(notice.Detail), "not submitted") || !strings.Contains(strings.ToLower(notice.Detail), "confirm") {
+			t.Errorf("uncertain %s detail = %q", code, notice.Detail)
+		}
 	}
 }
 
@@ -1159,7 +1707,7 @@ func TestProposeForOpensAFocusedTransactionWithoutWriting(t *testing.T) {
 	if focused.List != nil || focused.Proposal.Form.Fields[0].Kind != kindHidden || focused.Proposal.Form.Fields[0].Value != testCreatedRef {
 		t.Fatalf("focused proposal = %+v", focused.Proposal)
 	}
-	if h.svc.called("ProposeJourney") != 0 {
+	if h.svc.called("ProposePromotion") != 0 {
 		t.Error("a row action proposed a promotion nobody had described")
 	}
 }
@@ -1197,8 +1745,8 @@ func TestProposeFallsBackToTheSelection(t *testing.T) {
 	})
 
 	h.awaitPage(t, "the new journey", detailShown)
-	if got := h.svc.proposeReq.GetWorkerRef(); got != "omar-reyes" {
-		t.Errorf("ProposeJourney asked about %q, want the selected employee", got)
+	if got := h.svc.proposeReq.GetSubjectWorkerRef(); got != "omar-reyes" {
+		t.Errorf("ProposePromotion asked about %q, want the selected employee", got)
 	}
 }
 
@@ -1243,7 +1791,7 @@ func TestCreateWorkerRecordsSelectsAndRefreshes(t *testing.T) {
 		t.Errorf("notice tone = %q, want success", p.Notice.Tone)
 	}
 	if !strings.Contains(p.Notice.Detail, "Nadia") ||
-		!strings.Contains(p.Notice.Detail, "propose their promotion below") {
+		!strings.Contains(p.Notice.Detail, "start a promotion below") {
 		t.Errorf("notice detail = %q, want it to name the employee and the next step", p.Notice.Detail)
 	}
 
@@ -1326,8 +1874,8 @@ func TestCreateWorkerInputErrorLandsOnTheField(t *testing.T) {
 	if p.Notice.Tone != toneDanger {
 		t.Errorf("notice tone = %q, want danger", p.Notice.Tone)
 	}
-	if !strings.Contains(p.Notice.Detail, "must be greater than zero") {
-		t.Errorf("notice detail = %q, want the engine's own violation", p.Notice.Detail)
+	if p.Notice.Detail != "Review the highlighted fields and try again." {
+		t.Errorf("notice detail = %q", p.Notice.Detail)
 	}
 
 	pay, ok := fieldByID(p.List.People.Form.Fields, FieldWorkerBasePay)
@@ -1371,11 +1919,11 @@ func TestCreateWorkerRefusalsAboutTheCallerAreOnlyANotice(t *testing.T) {
 	}{
 		"no execution authority": {
 			status.Error(codes.Unavailable, "this cell was composed without the execution authority"),
-			"The cell is not answering",
+			"Service temporarily unavailable",
 		},
 		"not an operator": {
 			status.Error(codes.PermissionDenied, "the caller does not carry the operator role"),
-			"Refused",
+			"You can't complete this action",
 		},
 	}
 	for name, c := range cases {
@@ -1409,7 +1957,7 @@ func TestAWorkforceRefusalStillShowsTheJourneys(t *testing.T) {
 
 	h.app.Start(context.Background(), ListHref())
 
-	p := h.awaitPage(t, "the refusal", noticeTitled("Refused"))
+	p := h.awaitPage(t, "the refusal", noticeTitled("You can't complete this action"))
 	if p.List == nil || len(p.List.Journeys) != 1 {
 		t.Fatal("a refused workforce read took the journeys with it")
 	}

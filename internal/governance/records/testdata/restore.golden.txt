@@ -1,0 +1,5 @@
+# PRIV-004 golden oracle: epoch-matched manifests open the restore with
+# one tombstone, one restriction and one hold reapplied at watermark 42.
+digest: sha256:83500f7f46d6cad3965cd16269e7958f0593fdaf9748637567ebf6f27658dafc
+status: OPEN
+explain: restore acceptance v1 id=restore-1 tenant=tenant-1 status=OPEN tombstones=1 restrictions=1 holds=1 watermark=42 digest=sha256:83500f7f46d6cad3965cd16269e7958f0593fdaf9748637567ebf6f27658dafc

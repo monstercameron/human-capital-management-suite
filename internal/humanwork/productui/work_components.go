@@ -9,18 +9,27 @@ import (
 
 type WorkPageProps struct {
 	I18nProps
-	Collection  WorkCollectionProps
-	Preview     WorkPreviewProps
-	HidePreview bool
+	Collection    WorkCollectionProps
+	Preview       WorkPreviewProps
+	HidePreview   bool
+	Drafts        WorkCollectionProps
+	Tracked       TrackedRequestsProps
+	ShowSecondary bool
 }
 
 type WorkCollectionProps struct {
 	I18nProps
-	Title      string
-	CountLabel string
-	Tabs       []WorkTabProps
-	Rows       []WorkRowProps
-	Footer     WorkCollectionFooterProps
+	// EmptyTitle and EmptyDetail are the localized empty state for the
+	// current view; empty falls back to the action-queue copy.
+	Title       string
+	Description string
+	EmptyTitle  string
+	EmptyDetail string
+	Kind        string
+	CountLabel  string
+	Tabs        []WorkTabProps
+	Rows        []WorkRowProps
+	Footer      WorkCollectionFooterProps
 }
 
 type WorkTabProps struct {
@@ -43,6 +52,21 @@ type WorkRowProps struct {
 	// BusinessIntent lifecycle tuple. Never derive StatusProjection from it.
 	JourneyStage     string
 	StatusProjection StatusProjection
+	// NextStep ("Next step: Manager decision") and WaitingOn ("Waiting on
+	// the manager") are UXAUDIT-017's localized stage dimension. Empty
+	// renders nothing.
+	NextStep  string
+	WaitingOn string
+	// Assignment ("Assigned to you"), WorkDue ("Due 2026-10-01") and
+	// NextAction ("Your next action: Decide approval") are the localized
+	// server work item summary. Empty renders nothing; a row with Assignment
+	// does not repeat the stage-derived WaitingOn.
+	Assignment string
+	WorkDue    string
+	NextAction string
+	// Tracking ("No action needed from you") marks a tracked request whose
+	// next step belongs to someone else or the workflow (PROMOUX-012).
+	Tracking string
 	// Disposition is PROMOUX-003's approval verdict for this item, already
 	// localized by approvalDispositionCardProps. Show is false when the item
 	// carries no disposition (not an approval, or none was resolved), and
@@ -84,7 +108,11 @@ type ApprovalDispositionCardProps struct {
 }
 
 type WorkCollectionFooterProps struct {
-	Label  string
+	Label string
+	// Note, when set, is one collection-level sentence stating what the rows
+	// deliberately do not carry (UXAUDIT-017: named assignees and action-by
+	// dates live on each journey's work items, not on the list).
+	Note   string
 	Action ActionLinkProps
 }
 
@@ -105,6 +133,11 @@ type WorkPreviewProps struct {
 	Disposition ApprovalDispositionCardProps
 	FactsTitle  string
 	Facts       []FactProps
+	// Diagnostics is PROMOUX-008's authorized-only journey id disclosure.
+	// The raw identifier no longer travels in Facts (GREEN: an ordinary
+	// reviewer sees no work-item UUID); it lives only here, gated by
+	// Diagnostics.Available.
+	Diagnostics TechnicalDetailsProps
 	Action      ActionLinkProps
 	EmptyTitle  string
 	EmptyDetail string
@@ -113,13 +146,26 @@ type WorkPreviewProps struct {
 func WorkPage(props WorkPageProps) ui.Node {
 	props.Collection.I18nProps = props.I18nProps
 	props.Preview.I18nProps = props.I18nProps
+	var primary ui.Node
 	if props.HidePreview {
-		return html.Div(html.Props{Class: "page-stack"}, ui.CreateElement(WorkCollection, props.Collection))
+		primary = html.Div(html.Props{Class: "page-stack"}, ui.CreateElement(WorkCollection, props.Collection))
+	} else {
+		primary = html.Div(html.Props{Class: "workbench"},
+			ui.CreateElement(WorkCollection, props.Collection),
+			ui.CreateElement(WorkPreview, props.Preview),
+		)
 	}
-	return html.Div(html.Props{Class: "workbench"},
-		ui.CreateElement(WorkCollection, props.Collection),
-		ui.CreateElement(WorkPreview, props.Preview),
-	)
+	if !props.ShowSecondary {
+		return primary
+	}
+	secondary := make([]ui.Node, 0, 2)
+	if len(props.Drafts.Rows) > 0 {
+		secondary = append(secondary, ui.CreateElement(WorkCollection, props.Drafts))
+	}
+	if len(props.Tracked.Items) > 0 {
+		secondary = append(secondary, ui.CreateElement(TrackedRequests, props.Tracked))
+	}
+	return html.Div(html.Props{Class: "page-stack"}, primary, html.Div(html.Props{Class: "work-secondary"}, secondary...))
 }
 
 func WorkCollection(props WorkCollectionProps) ui.Node {
@@ -133,21 +179,44 @@ func WorkCollection(props WorkCollectionProps) ui.Node {
 		rows = append(rows, ui.CreateElement(WorkRow, item))
 	}
 	if len(rows) == 0 {
+		emptyTitle, emptyDetail := props.EmptyTitle, props.EmptyDetail
+		if emptyTitle == "" {
+			emptyTitle = props.Text("work.empty_title")
+		}
+		if emptyDetail == "" {
+			emptyDetail = props.Text("work.empty_detail")
+		}
 		rows = append(rows, html.Li(html.Props{Class: "collection-empty"},
-			html.Strong(html.Props{}, ui.Text(props.Text("work.empty_title"))),
-			html.Small(html.Props{}, ui.Text(props.Text("work.empty_detail"))),
+			html.Strong(html.Props{}, ui.Text(emptyTitle)),
+			html.Small(html.Props{}, ui.Text(emptyDetail)),
 		))
 	}
-	foot := []ui.Node{html.Span(html.Props{}, ui.Text(props.Footer.Label))}
+	foot := []ui.Node{}
+	if props.Footer.Label != "" {
+		foot = append(foot, html.Span(html.Props{}, ui.Text(props.Footer.Label)))
+	}
+	if props.Footer.Note != "" {
+		foot = append(foot, html.Small(html.Props{Class: "work-list-note"}, ui.Text(props.Footer.Note)))
+	}
 	if props.Footer.Action.Href != "" {
 		foot = append(foot, ui.CreateElement(ActionLink, props.Footer.Action))
 	}
-	return html.Section(html.Props{Class: "surface work-list", Aria: map[string]string{"label": props.Text("work.collection_label")}},
-		html.Div(html.Props{Class: "section-head"}, html.H2(html.Props{}, ui.Text(props.Title)), html.Span(html.Props{Class: "count"}, ui.Text(props.CountLabel))),
-		html.Nav(html.Props{Class: "tabs", Aria: map[string]string{"label": props.Text("work.filter_label")}}, tabs...),
-		html.Ul(html.Props{Class: "work-rows", Raw: map[string]any{"role": "list"}}, rows...),
-		html.Div(html.Props{Class: "panel-foot"}, foot...),
-	)
+	sectionProps := html.Props{Class: "surface work-list", Aria: map[string]string{"label": props.Text("work.collection_label")}}
+	if props.Kind != "" {
+		sectionProps.DataAttr = html.DataAttribute{Name: "work-kind", Value: props.Kind}
+	}
+	children := []ui.Node{ui.CreateElement(SectionHeading, SectionHeadingProps{
+		Title: props.Title, Description: props.Description,
+		Trailing: html.Span(html.Props{Class: "count"}, ui.Text(props.CountLabel)),
+	})}
+	if len(tabs) > 0 {
+		children = append(children, html.Nav(html.Props{Class: "tabs", Aria: map[string]string{"label": props.Text("work.filter_label")}}, tabs...))
+	}
+	children = append(children, html.Ul(html.Props{Class: "work-rows", Raw: map[string]any{"role": "list"}}, rows...))
+	if len(foot) > 0 {
+		children = append(children, html.Div(html.Props{Class: "panel-foot"}, foot...))
+	}
+	return html.Section(sectionProps, children...)
 }
 
 func WorkTab(props WorkTabProps) ui.Node {
@@ -174,21 +243,57 @@ func WorkRow(props WorkRowProps) ui.Node {
 	main := []ui.Node{
 		html.Strong(html.Props{}, ui.Text(props.Title)),
 		html.Small(html.Props{}, ui.Text(props.Person)),
-		html.Small(html.Props{}, ui.Text(props.Summary)),
+		html.Small(html.Props{Class: "row-summary"}, ui.Text(props.Summary)),
 	}
 	// PROMOUX-003: the row's own compact disposition summary -- "Waiting
 	// for <role>" -- so an approver scanning the list learns whose turn it
 	// is without opening the preview. It renders only what
 	// approvalDispositionCardProps already localized.
-	if props.Disposition.Show {
+	// UXAUDIT-017: an action queue row leads with the single next step. The
+	// stage-derived waiting-on class yields to PROMOUX-003's disposition when
+	// one exists, so a row never states whose turn it is twice.
+	if props.NextAction != "" {
+		main = append(main, html.Small(html.Props{Class: "row-next-action"}, ui.Text(props.NextAction)))
+	}
+	if props.Tracking != "" {
+		main = append(main, html.Small(html.Props{Class: "row-tracking"}, ui.Text(props.Tracking)))
+	}
+	if props.NextStep != "" {
+		main = append(main, html.Small(html.Props{Class: "row-next-step"}, ui.Text(props.NextStep)))
+	}
+	switch {
+	case props.Disposition.Show:
 		main = append(main, html.Small(html.Props{Class: "row-disposition"}, ui.Text(props.Disposition.WaitingFor)))
+	case props.Assignment != "":
+		main = append(main, html.Small(html.Props{Class: "row-assignment"}, ui.Text(props.Assignment)))
+	case props.WaitingOn != "":
+		main = append(main, html.Small(html.Props{Class: "row-waiting-on"}, ui.Text(props.WaitingOn)))
+	}
+	if props.WorkDue != "" {
+		main = append(main, html.Small(html.Props{Class: "row-work-due"}, ui.Text(props.WorkDue)))
 	}
 	return html.Li(html.Props{Class: "work-row-item"}, softwareLink(props.Navigate, linkProps, props.Href,
 		personAvatar(props.Person, props.Initials, props.PhotoURL, ""),
 		html.Span(html.Props{Class: "row-main"}, main...),
-		html.Span(html.Props{Class: "row-end"}, status, html.Small(html.Props{}, ui.Text(props.Due))),
-		html.Span(html.Props{Aria: map[string]string{"hidden": "true"}}, ui.Text("›")),
+		html.Span(html.Props{Class: "row-end"}, status, rowEffectiveDate(props.I18nProps, props.Due)),
+		productIcon("expand", "work-row-chevron"),
 	))
+}
+
+// rowEffectiveDate renders the queue row's own date, labeled for what it
+// actually is. UXAUDIT-017: the wire's only date on a journey summary is its
+// effective date -- the promotion's planned start, not a deadline by which
+// the viewer must act -- and the server carries no separate action-by/due
+// field on that summary (see productclient's projectJourneys). Showing it
+// bare read as a due date to every reader who scanned the row; labeling it
+// "Effective" is honest about what the server actually said without
+// fabricating an action-by date it never sent. Renders nothing for a row
+// with no date rather than an empty label.
+func rowEffectiveDate(i18n I18nProps, date string) ui.Node {
+	if date == "" {
+		return nil
+	}
+	return html.Small(html.Props{Class: "row-effective-date"}, ui.Text(i18n.Text("work.row_effective_date", map[string]string{"date": date})))
 }
 
 // ApprovalDispositionCard renders PROMOUX-003's five GREEN facts -- waiting
@@ -248,6 +353,12 @@ func WorkPreview(props WorkPreviewProps) ui.Node {
 	if props.Disposition.Show {
 		children = append(children, ui.CreateElement(ApprovalDispositionCard, props.Disposition))
 	}
-	children = append(children, html.Div(html.Props{Class: "facts"}, facts...), provenance, ui.CreateElement(ActionLink, props.Action))
+	diagnostics := props.Diagnostics
+	diagnostics.I18nProps = props.I18nProps
+	children = append(children,
+		html.Div(html.Props{Class: "facts"}, facts...),
+		ui.CreateElement(TechnicalDetails, diagnostics),
+		provenance, ui.CreateElement(ActionLink, props.Action),
+	)
 	return html.Aside(html.Props{Class: "surface work-preview", Aria: map[string]string{"label": props.Text("work.selected_summary")}}, children...)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -65,7 +66,9 @@ type continuationSink struct {
 	evidenceIDs []string
 }
 
-func (s *continuationSink) RequireWorkItem(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) error {
+func (s *continuationSink) RequireWorkItem(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execute.require_work_item")
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	if err := s.durable.RequireWorkItem(ctx, ex, rec); err != nil {
 		return err
 	}
@@ -88,14 +91,18 @@ func (s *continuationSink) RequireWorkItem(ctx context.Context, ex runtime.Execu
 	return nil
 }
 
-func (s *continuationSink) RequireSignalSubscription(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) error {
+func (s *continuationSink) RequireSignalSubscription(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execute.require_signal_subscription")
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	if err := s.durable.RequireSignalSubscription(ctx, ex, rec); err != nil {
 		return err
 	}
 	return unsupported("SIGNAL_SUBSCRIPTION_REQUIRED", rec.TargetNodeID)
 }
 
-func (s *continuationSink) RequireTimer(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) error {
+func (s *continuationSink) RequireTimer(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execute.require_timer")
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	if err := s.durable.RequireTimer(ctx, ex, rec); err != nil {
 		return err
 	}
@@ -125,11 +132,15 @@ func (s *continuationSink) RequireTimer(ctx context.Context, ex runtime.Executor
 	return nil
 }
 
-func (s *continuationSink) MarkReady(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) error {
+func (s *continuationSink) MarkReady(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execute.mark_ready")
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	return s.durable.MarkReady(ctx, ex, rec)
 }
 
-func (s *continuationSink) Complete(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) error {
+func (s *continuationSink) Complete(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execute.complete_continuation")
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	if err := s.durable.Complete(ctx, ex, rec); err != nil {
 		return err
 	}

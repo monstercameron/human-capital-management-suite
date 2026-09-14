@@ -59,8 +59,13 @@ func TestWatchRedrawsThePageWhenTheEngineChanges(t *testing.T) {
 	if p.Notice == nil || p.Notice.Title != "Promotion recorded" {
 		t.Fatal("terminal update retained a stale waiting notice")
 	}
-	if len(p.Detail.Actions) != 0 {
-		t.Error("the completed journey still offers decisions after the update")
+	for _, a := range p.Detail.Actions {
+		if a.ID == ActionApprove || a.ID == ActionReject || a.ID == ActionExecute {
+			t.Errorf("the completed journey still offers a decision after the update: %+v", a)
+		}
+		if !a.Disabled {
+			t.Errorf("action %q is not disabled on the completed journey after the update: %+v", a.ID, a)
+		}
 	}
 }
 
@@ -176,7 +181,7 @@ func TestWatchSurfacesARefusal(t *testing.T) {
 
 	h.app.Start(context.Background(), DetailHref(testIntentID))
 
-	p := h.awaitPage(t, "the refusal", noticeTitled("Refused"))
+	p := h.awaitPage(t, "the refusal", noticeTitled("You can't complete this action"))
 	if p.Notice.Tone != toneDanger {
 		t.Errorf("notice tone = %q, want danger", p.Notice.Tone)
 	}

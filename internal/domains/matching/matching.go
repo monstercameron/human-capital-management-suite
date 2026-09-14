@@ -656,9 +656,15 @@ func (m CandidateMatch) Digest() (string, error) {
 	return m.computedDigest(), nil
 }
 
+// MatchResult cites the exact ranking contract that produced it:
+// the score version and tie-break policy replay with the request
+// digest, so components, weights, tie policy and version reproduce
+// exactly. MATCH-004.
 type MatchResult struct {
 	RequestID       string
 	RequestDigest   string
+	ScoreVersion    uint64
+	TieBreak        TieBreakPolicy
 	Matches         []CandidateMatch
 	CanonicalDigest string
 }
@@ -666,6 +672,9 @@ type MatchResult struct {
 func (r MatchResult) Validate() error {
 	if strings.TrimSpace(r.RequestID) == "" || strings.TrimSpace(r.RequestDigest) == "" || len(r.Matches) == 0 {
 		return fmt.Errorf("%w: request binding and matches are required", ErrInvalidResult)
+	}
+	if r.ScoreVersion == 0 || r.TieBreak != TieBreakCandidateRef {
+		return fmt.Errorf("%w: result cites no declared ranking contract", ErrInvalidResult)
 	}
 	for i, m := range r.Matches {
 		if err := m.Validate(); err != nil {
@@ -682,7 +691,9 @@ func (r MatchResult) Validate() error {
 }
 func (r MatchResult) body() []byte {
 	w := canonicalbytes.New("hcmnext.domains.matching.MatchResult", schemaVersion).
-		String("request_id", r.RequestID).String("request_digest", r.RequestDigest).Count("matches", len(r.Matches))
+		String("request_id", r.RequestID).String("request_digest", r.RequestDigest).
+		Int("score_version", int64(r.ScoreVersion)).String("tie_break", string(r.TieBreak)).
+		Count("matches", len(r.Matches))
 	for _, m := range r.Matches {
 		w.Value("match", m)
 	}
@@ -707,7 +718,9 @@ func (r MatchResult) Canonical() []byte {
 }
 
 // Match evaluates only the caller-provided facts and returns a deterministic
-// recommendation ordered by descending score and then candidate reference.
+// recommendation ordered by eligibility first, then descending score, then
+// candidate reference. Ineligible candidates stay listed with their hard
+// reasons but can never outrank an eligible candidate.
 func Match(ctx context.Context, reader CandidateFactsPort, request MatchRequest) (MatchResult, error) {
 	if reader == nil {
 		return MatchResult{}, fmt.Errorf("%w: nil reader", ErrFactsReader)
@@ -719,7 +732,12 @@ func Match(ctx context.Context, reader CandidateFactsPort, request MatchRequest)
 	if err != nil {
 		return MatchResult{}, fmt.Errorf("%w: %v", ErrFactsReader, err)
 	}
-	result := MatchResult{RequestID: request.RequestID, RequestDigest: request.computedDigest()}
+	result := MatchResult{
+		RequestID:     request.RequestID,
+		RequestDigest: request.computedDigest(),
+		ScoreVersion:  request.Ranking.ScoreVersion,
+		TieBreak:      request.Ranking.TieBreak,
+	}
 	seen := make(map[string]struct{}, len(facts))
 	for i, fact := range facts {
 		if err := fact.Validate(); err != nil {
@@ -735,7 +753,14 @@ func Match(ctx context.Context, reader CandidateFactsPort, request MatchRequest)
 		}
 		result.Matches = append(result.Matches, evaluateCandidate(request, fact))
 	}
+	// MATCH-003: eligibility dominates score. A hard-constraint
+	// failure can never be outranked by soft points: every eligible
+	// candidate orders before every ineligible one, and only then do
+	// score and the deterministic reference tiebreak apply.
 	sort.Slice(result.Matches, func(i, j int) bool {
+		if result.Matches[i].Eligible != result.Matches[j].Eligible {
+			return result.Matches[i].Eligible
+		}
 		if result.Matches[i].Score.Total != result.Matches[j].Score.Total {
 			return result.Matches[i].Score.Total > result.Matches[j].Score.Total
 		}

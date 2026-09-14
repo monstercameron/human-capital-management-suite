@@ -453,6 +453,7 @@ func TestTodo_UXAUDIT_004_Browser(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
+
 		`data-organization-view="tree"`, `role="tree"`, `role="treeitem"`, `role="group"`,
 		`aria-level="1"`, `aria-level="2"`, "Casey Okafor", "Val Petrova",
 		"org_view=flat", // the flat/tree toggle remains software-routable.

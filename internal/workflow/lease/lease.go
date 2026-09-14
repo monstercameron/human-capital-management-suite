@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/runtimestate"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Executor is the database capability this package needs: a transaction the
@@ -120,7 +121,9 @@ type Manager struct{ store runtimestate.LeaseStore }
 // advisory lock, so exactly one of them is a holder and every other one gets a
 // typed [ErrHeld] rather than a unique-constraint failure it would have to
 // interpret. The advisory lock lives and dies with the caller's transaction.
-func (m Manager) Acquire(ctx context.Context, ex Executor, req AcquireRequest) (Grant, error) {
+func (m Manager) Acquire(ctx context.Context, ex Executor, req AcquireRequest) (ret0 Grant, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.lease.acquire", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return Grant{}, err
 	}
@@ -212,7 +215,9 @@ func (m Manager) acquireError(req AcquireRequest, prior runtimestate.Lease, err 
 // Renew extends the holder's own claim. It verifies the presented fence
 // first, so a holder whose lease was taken over while it was away is refused
 // rather than silently given a fresh window on a resource it no longer holds.
-func (m Manager) Renew(ctx context.Context, ex Executor, fence Fence, now time.Time, ttl time.Duration) (Grant, error) {
+func (m Manager) Renew(ctx context.Context, ex Executor, fence Fence, now time.Time, ttl time.Duration) (ret0 Grant, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.lease.renew", fence)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := fence.Validate(); err != nil {
 		return Grant{}, err
 	}
@@ -240,7 +245,9 @@ func (m Manager) Renew(ctx context.Context, ex Executor, fence Fence, now time.T
 
 // Release gives the resource up. The fence is verified first: a superseded
 // holder must not be able to release the lease its successor now holds.
-func (m Manager) Release(ctx context.Context, ex Executor, fence Fence, now time.Time) (Evidence, error) {
+func (m Manager) Release(ctx context.Context, ex Executor, fence Fence, now time.Time) (ret0 Evidence, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.lease.release", fence)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := fence.Validate(); err != nil {
 		return Evidence{}, err
 	}
@@ -269,7 +276,9 @@ func (m Manager) Release(ctx context.Context, ex Executor, fence Fence, now time
 // something a caller notices against its own clock reading and acts on in its
 // own transaction. A lease whose window has not passed by now is [ErrLeaseLive]
 // -- this package refuses to declare a live holder dead.
-func (m Manager) Expire(ctx context.Context, ex Executor, tenantID uuid.UUID, res Resource, now time.Time) (Evidence, error) {
+func (m Manager) Expire(ctx context.Context, ex Executor, tenantID uuid.UUID, res Resource, now time.Time) (ret0 Evidence, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.lease.expire", observe.Attrs{observe.KeyTenant: tenantID.String()}, res)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if tenantID == uuid.Nil {
 		return Evidence{}, invalid(res, "", "tenant id must not be the nil UUID")
 	}
@@ -368,7 +377,9 @@ type Held struct {
 // A zero now skips the expiry check and compares tokens only. That is for the
 // holder tidying up after itself ([Manager.Release]); a write path always
 // supplies its instant.
-func (m Manager) Verify(ctx context.Context, ex Executor, fence Fence, now time.Time) (Held, error) {
+func (m Manager) Verify(ctx context.Context, ex Executor, fence Fence, now time.Time) (ret0 Held, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.lease.verify", fence)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := fence.Validate(); err != nil {
 		return Held{}, err
 	}

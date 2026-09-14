@@ -1,6 +1,9 @@
 package productui
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -13,6 +16,28 @@ type ActionLinkProps struct {
 	Href     string
 	Class    string
 	Navigate func(string)
+}
+
+// SearchInputProps is the shared, label-compatible query input used by page
+// filters. Each feature form retains ownership of submission and hidden
+// route fields; this component owns only the input's accessible contract.
+type SearchInputProps struct {
+	ID          string
+	Name        string
+	Value       string
+	Placeholder string
+	AriaLabel   string
+	OnInput     func(string)
+}
+
+// LabeledControlProps composes a native control with its visible label and
+// optional help copy. The owning form keeps the control's value, validation,
+// and submission behavior; this component preserves their shared DOM shape.
+type LabeledControlProps struct {
+	For     string
+	Label   string
+	Control ui.Node
+	Help    string
 }
 
 // FactProps is an already-formatted label/value pair.
@@ -32,7 +57,7 @@ type MetricProps struct {
 type ActivityProps struct {
 	Title  string
 	Detail string
-	When   string
+	Status string
 }
 
 // PanelProps is the common titled-surface composition primitive. Body is a
@@ -42,6 +67,20 @@ type PanelProps struct {
 	Title string
 	Class string
 	Body  ui.Node
+}
+
+// SectionHeadingProps describes the repeated heading row used inside product
+// surfaces. A description groups with its heading; ShowDescription keeps the
+// description slot when its text is temporarily empty. Trailing stays a
+// separate slot for counts or page-specific actions.
+type SectionHeadingProps struct {
+	ID              string
+	Title           string
+	Description     string
+	ShowDescription bool
+	Level           int
+	Class           string
+	Trailing        ui.Node
 }
 
 // EmptyStateProps standardizes honest empty and unavailable states.
@@ -59,13 +98,61 @@ func ActionLink(props ActionLinkProps) ui.Node {
 	return softwareLink(props.Navigate, html.Props{Class: props.Class}, props.Href, ui.Text(props.Label))
 }
 
+func SearchInput(props SearchInputProps) ui.Node {
+	raw := map[string]any{"type": "search", "placeholder": props.Placeholder}
+	if props.AriaLabel != "" {
+		raw["aria-label"] = props.AriaLabel
+	}
+	input := html.Props{ID: props.ID, Name: props.Name, Value: props.Value, Raw: raw}
+	handler := ui.UseEvent(func(event ui.InputEvent) {
+		if props.OnInput != nil {
+			props.OnInput(event.GetValue())
+		}
+	})
+	if props.OnInput != nil {
+		input.OnInput = handler
+	}
+	return html.Tag("input", input)
+}
+
+func LabeledControl(props LabeledControlProps) ui.Node {
+	children := []ui.Node{html.Span(html.Props{}, ui.Text(props.Label)), props.Control}
+	if props.Help != "" {
+		children = append(children, html.Small(html.Props{}, ui.Text(props.Help)))
+	}
+	return html.Label(html.Props{For: props.For}, children...)
+}
+
+func SectionHeading(props SectionHeadingProps) ui.Node {
+	headingProps := html.Props{ID: props.ID}
+	var heading ui.Node = html.H2(headingProps, ui.Text(props.Title))
+	if props.Level == 3 {
+		heading = html.H3(headingProps, ui.Text(props.Title))
+	}
+	if props.Description != "" || props.ShowDescription || props.ID != "" {
+		group := []ui.Node{heading}
+		if props.Description != "" || props.ShowDescription {
+			group = append(group, html.P(html.Props{Class: "muted"}, ui.Text(props.Description)))
+		}
+		heading = html.Div(html.Props{}, group...)
+	}
+	class := "section-head"
+	if extra := strings.TrimSpace(props.Class); extra != "" {
+		class += " " + extra
+	}
+	if props.Trailing == nil {
+		return html.Div(html.Props{Class: class}, heading)
+	}
+	return html.Div(html.Props{Class: class}, heading, props.Trailing)
+}
+
 func Panel(props PanelProps) ui.Node {
 	class := "surface panel"
 	if props.Class != "" {
 		class += " " + props.Class
 	}
 	return html.Section(html.Props{Class: class},
-		html.Div(html.Props{Class: "section-head"}, html.H2(html.Props{}, ui.Text(props.Title))),
+		ui.CreateElement(SectionHeading, SectionHeadingProps{Title: props.Title}),
 		props.Body,
 	)
 }
@@ -113,6 +200,82 @@ func factRows(facts []FactProps) []ui.Node {
 	return children
 }
 
+// TechnicalDetailItem is one raw identifier in PROMOUX-008's authorized
+// diagnostics disclosure: a label and its full, uncensored value. The
+// component renders the value redacted (see maskIdentifier) and copies the
+// full value to the clipboard on request, so an authorized viewer can act
+// on the identifier without a shoulder-surfer or a screen share reading it
+// off the page.
+type TechnicalDetailItem struct {
+	Label string
+	Value string
+}
+
+// TechnicalDetailsProps is the whole disclosure. Available is the single
+// gate: it must come from a server-derived authorization decision (see
+// View.Can(PageJourneyDiagnostics, "view")), never from whether Items
+// happens to be empty, so an unauthorized viewer's page and an authorized
+// viewer's page whose journey has nothing to disclose yet cannot be told
+// apart by the disclosure's presence, count or layout -- only Available
+// distinguishes "not shown because not authorized" from "shown, but there
+// is nothing to list."
+type TechnicalDetailsProps struct {
+	I18nProps
+	Available bool
+	Items     []TechnicalDetailItem
+}
+
+// maskIdentifier redacts a raw identifier for on-screen display: everything
+// but its last four characters becomes a bullet. The full value still
+// travels to the copy control, which is the authorized viewer's actual
+// entitlement; masking only reduces what a passerby reads off the screen.
+func maskIdentifier(value string) string {
+	const visible = 4
+	if len(value) <= visible {
+		return strings.Repeat("•", len(value))
+	}
+	return "••••" + value[len(value)-visible:]
+}
+
+// TechnicalDetails renders GREEN's authorized Technical details disclosure
+// as a collapsed <details>, present at all only when Available -- the
+// presence-channel closure PROMOUX-008 requires. Diagnostics.Available
+// false renders the same empty, hidden placeholder
+// PromotionValidationDiagnosticsPanel uses for the same reason: an absent
+// section that still occupies no visible or structural difference a viewer
+// could read as "this journey has something to disclose."
+func TechnicalDetails(props TechnicalDetailsProps) ui.Node {
+	if !props.Available {
+		return html.Div(html.Props{Hidden: true, Class: "technical-details-empty"})
+	}
+	rows := make([]ui.Node, 0, len(props.Items))
+	for i, item := range props.Items {
+		if strings.TrimSpace(item.Value) == "" {
+			continue
+		}
+		valueID := "technical-detail-value-" + strconv.Itoa(i)
+		rows = append(rows, html.Div(html.Props{Class: "technical-detail-row"},
+			html.Span(html.Props{Class: "technical-detail-label"}, ui.Text(item.Label)),
+			html.Input(html.Props{ID: valueID, Type: "text", ReadOnly: true, Class: "technical-detail-value", Value: maskIdentifier(item.Value)}),
+			html.Button(html.Props{
+				Type:  "button",
+				Class: "technical-detail-copy",
+				Aria:  map[string]string{"label": props.Text("work.copy_value") + ": " + item.Label},
+				OnClick: ui.UseEvent(func(ui.MouseEvent) {
+					copyToClipboard(item.Value)
+				}),
+			}, ui.Text(props.Text("work.copy_value"))),
+		))
+	}
+	if len(rows) == 0 {
+		return html.Div(html.Props{Hidden: true, Class: "technical-details-empty"})
+	}
+	return html.Details(html.Props{Class: "technical-details", Dir: string(props.Locale.Direction)},
+		html.Summary(html.Props{}, ui.Text(props.Text("work.technical_details"))),
+		html.Div(html.Props{Class: "technical-details-body"}, rows...),
+	)
+}
+
 func MetricGrid(metrics []MetricProps) ui.Node {
 	children := make([]ui.Node, 0, len(metrics))
 	for _, item := range metrics {
@@ -128,10 +291,14 @@ func MetricGrid(metrics []MetricProps) ui.Node {
 func ActivityList(items []ActivityProps, emptyTitle, emptyDescription string) ui.Node {
 	children := make([]ui.Node, 0, len(items))
 	for _, item := range items {
+		main := []ui.Node{html.Strong(html.Props{}, ui.Text(item.Title))}
+		if item.Detail != "" {
+			main = append(main, html.Small(html.Props{}, ui.Text(item.Detail)))
+		}
 		children = append(children, html.Li(html.Props{Class: "activity"},
-			html.Span(html.Props{Class: "check", Aria: map[string]string{"hidden": "true"}}, ui.Text("✓")),
-			html.Span(html.Props{Class: "row-main"}, html.Strong(html.Props{}, ui.Text(item.Title)), html.Small(html.Props{}, ui.Text(item.Detail))),
-			html.Tag("time", html.Props{}, ui.Text(item.When)),
+			html.Span(html.Props{Class: "check"}, productIcon("check", "activity-check-glyph")),
+			html.Span(html.Props{Class: "row-main"}, main...),
+			html.Small(html.Props{}, ui.Text(item.Status)),
 		))
 	}
 	if len(children) == 0 {

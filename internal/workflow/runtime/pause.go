@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Stable refusal codes this file introduces for WF-RUN-008.
@@ -216,7 +217,9 @@ func newPauseReceipt(inst Instance, eligible bool, blocking, reason, actor strin
 // about node type.
 func SafePointEligibility(
 	ctx context.Context, ex Executor, inst Instance, plan *workflow.CompiledWorkflow,
-) (bool, string, error) {
+) (ret0 bool, ret1 string, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.safe_point_eligibility", inst, plan)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0, ret1) }()
 	rows, err := (Store{}).LoadNodeExecutions(ctx, ex, inst.TenantID, inst.InstanceID)
 	if err != nil {
 		return false, "", err
@@ -271,7 +274,9 @@ func planSafePoints(plan *workflow.CompiledWorkflow) []string {
 // against one already PAUSED is answered from the stored row and writes
 // nothing. A terminal instance is [CodeIllegalTransition]: history is not
 // pausable.
-func RequestPause(ctx context.Context, tx Executor, req PauseRequest) (PauseReceipt, error) {
+func RequestPause(ctx context.Context, tx Executor, req PauseRequest) (ret0 PauseReceipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.request_pause", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return PauseReceipt{}, err
 	}
@@ -318,7 +323,9 @@ func RequestPause(ctx context.Context, tx Executor, req PauseRequest) (PauseRece
 // flight finishes that region with ordinary [Advance] calls and then calls
 // this; a caller that would rather not think about it calls [RequestPause]
 // again, which does the same thing.
-func ApplyPause(ctx context.Context, tx Executor, req PauseRequest) (PauseReceipt, error) {
+func ApplyPause(ctx context.Context, tx Executor, req PauseRequest) (ret0 PauseReceipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.apply_pause", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return PauseReceipt{}, err
 	}
@@ -363,7 +370,9 @@ func applyPauseTo(
 
 // ResumeFromPause takes a PAUSED instance back to RUNNING after revalidating
 // the context it is resuming into.
-func ResumeFromPause(ctx context.Context, tx Executor, req ResumeRequest) (PauseReceipt, error) {
+func ResumeFromPause(ctx context.Context, tx Executor, req ResumeRequest) (ret0 PauseReceipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.resume_from_pause", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return PauseReceipt{}, err
 	}

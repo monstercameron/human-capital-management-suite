@@ -10,7 +10,9 @@ func TestNavigationScrollbarUsesSemanticTokensAndNativeFallbacks(t *testing.T) {
 	for _, want := range []string{
 		`--hcm-nav-scrollbar-track:color-mix(in srgb,var(--surface)`,
 		`.sidebar{scrollbar-color:var(--hcm-nav-scrollbar-thumb) var(--hcm-nav-scrollbar-track);`,
-		`.sidebar::-webkit-scrollbar{width:10px;}`,
+		`--hcm-nav-scrollbar-size:10px;`,
+		`--hcm-nav-scrollbar-size-rail:6px;`,
+		`.sidebar::-webkit-scrollbar{width:var(--hcm-nav-scrollbar-size);}`,
 		`.sidebar::-webkit-scrollbar-thumb{background-clip:padding-box;`,
 		`.sidebar::-webkit-scrollbar-thumb:hover{background-clip:padding-box;background-color:var(--hcm-nav-scrollbar-thumb-hover);}`,
 		`.sidebar::-webkit-scrollbar-thumb:active{background-clip:padding-box;background-color:var(--hcm-nav-scrollbar-thumb-active);}`,
@@ -26,7 +28,7 @@ func TestNavigationScrollbarUsesSemanticTokensAndNativeFallbacks(t *testing.T) {
 		`min-width:calc(100% + var(--hcm-nav-rail-shift))`,
 		`max-width:none`,
 		`margin-inline-end:calc(-1 * var(--hcm-nav-rail-shift));max-width:none;min-width:calc(100% + var(--hcm-nav-rail-shift));padding-inline-end:0;`,
-		`.primary-nav::-webkit-scrollbar{width:7px;}`,
+		`.primary-nav::-webkit-scrollbar{width:var(--hcm-nav-scrollbar-size-rail);}`,
 		`@media (min-width:761px){.primary-nav::-webkit-scrollbar-track{background-color:transparent;}}`,
 	} {
 		if !strings.Contains(css, want) {

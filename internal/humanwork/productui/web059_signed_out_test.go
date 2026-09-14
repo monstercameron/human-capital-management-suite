@@ -181,11 +181,31 @@ func TestTodo_WEB_059_Conformance(t *testing.T) {
 	if strings.Contains(unsafeNode, "javascript:") || strings.Contains(unsafeNode, "signed-out-signin") {
 		t.Fatalf("unsafe sign-in survives: %s", unsafeNode)
 	}
+	unsafe.SignInHref = "mailto:helpdesk@example.com?token=leak"
+	unsafeNode, err = ui.RenderToString(SignedOut(unsafe))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(unsafeNode, "token=leak") || strings.Contains(unsafeNode, "signed-out-signin") {
+		t.Fatalf("credential-bearing sign-in survives: %s", unsafeNode)
+	}
 	css := Stylesheet()
 	for _, want := range []string{".signed-out", ".signed-out-title", ".signed-out-detail", ".signed-out-revoked", ".signed-out-signin"} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("controls stylesheet missing %q", want)
 		}
+	}
+}
+
+func TestSignedOutDeduplicatesRevokedGrantLabels(t *testing.T) {
+	props := web059Fixture()
+	props.Revoked = []string{"Delegation from Maya Chen", "  Delegation from Maya Chen  ", "Break-glass INC-2026-118"}
+	node, err := ui.RenderToString(SignedOut(props))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(node, "Delegation from Maya Chen") != 1 {
+		t.Fatalf("duplicate revoked grant rendered: %s", node)
 	}
 }
 

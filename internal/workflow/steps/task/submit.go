@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // SubmitInput is [Submit]'s request: the compiled node the submission must
@@ -41,7 +42,9 @@ type SubmitInput struct {
 // itself -- the item-version compare-and-set, the claim-expiry touch, and
 // migration 00017's immutable-output trigger (surfaced as an illegal
 // transition once the item is already terminal).
-func Submit(ctx context.Context, tx workitem.Executor, store workitem.Port, item workitem.WorkItem, in SubmitInput) (workitem.WorkItem, Submission, error) {
+func Submit(ctx context.Context, tx workitem.Executor, store workitem.Port, item workitem.WorkItem, in SubmitInput) (ret0 workitem.WorkItem, ret1 Submission, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.steps.task.submit", item, in)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0, ret1) }()
 	if err := validateNode(in.Node); err != nil {
 		return workitem.WorkItem{}, Submission{}, err
 	}

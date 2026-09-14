@@ -23,7 +23,12 @@ func roundTripDetail(t *testing.T, d workspace.JourneyDetail) *journeyv1.Journey
 	engine := newFakeEngine()
 	engine.setDetail(d)
 	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
-	resp, err := client.InspectJourney(testContext(t), &journeyv1.InspectJourneyRequest{IntentId: fixtureIntentID})
+	// This helper's whole point is that the conversion is total -- every
+	// field the port set survives the wire round trip -- so it calls in as
+	// PROMOUX-008's diagnostics-authorized fixture identity rather than the
+	// ordinary manager token, which now has some of those fields withheld
+	// by design.
+	resp, err := client.InspectJourney(authorizedContext(t), &journeyv1.InspectJourneyRequest{IntentId: fixtureIntentID})
 	if err != nil {
 		t.Fatalf("InspectJourney: %v", err)
 	}

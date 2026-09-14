@@ -23,7 +23,7 @@ func TestTodo_WEB_147(t *testing.T) {
 	if !ok {
 		t.Fatal("time correction unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("time correction incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_147_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "a089b9e3e661cced54eee126a5ea16b5140b9f5c54ce0830fbfa1fbd7ffd9c49"
+	const want = "575dc0931caad770ec1e06fe13c3878625e1138e65baf9867281faeff2d2613d"
 	if got != want {
 		t.Fatalf("time correction digest = %s, want %s", got, want)
 	}

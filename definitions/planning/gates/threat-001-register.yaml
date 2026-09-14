@@ -1,0 +1,492 @@
+# THREAT-001 Phase 1 trust-boundary threat register.
+#
+# Schema: tools/planning/threatregister.Register. Validated by
+# tools/planning/threatregister.Register.Validate, verified by
+# tools/planning/threatregister.VerifyRegisterSignature, gated for release by
+# tools/planning/threatregister.Register.ReleaseDecision, and reported by
+# `go run ./tools/planning/cmd/threatregister`.
+#
+# This register covers every Phase 1 vertical slice named in
+# definitions/planning/product-slices.yaml (currently exactly one:
+# "promotion"), enumerated against PHASE-001's authorized Phase 1 scope
+# ceiling (definitions/planning/gates/phase1-scope-ceiling.yaml) rather than
+# an invented slice set. See tools/planning/threatregister's doc.go for:
+# the "slice graph edge" definition GREEN's mapping requirement depends on,
+# the (asset, trust_boundary, attack_class) threat-identity dedup rule
+# REFACTOR requires, why MIT-REVALIDATE-BEFORE-COMMIT's consuming_edges
+# names both EDGE-01 and EDGE-06 (a shared mitigation retaining every
+# consuming edge, also required by REFACTOR), and why residual_risks[0]
+# below deliberately carries an empty accepted_by.
+#
+# HONEST INCOMPLETENESS, BY DESIGN: threats[6] (THR-07, AMBIGUOUS_EFFECT on
+# ExecuteJourney's timeout path) has no mitigation - Phase 1 has not yet
+# built an idempotency-key-bound observe-before-retry lookup for the domain
+# capability. residual_risks[0] below records this honestly: a real
+# justification and a real expiry, but accepted_by is deliberately empty
+# because no accountable owner has actually accepted this risk.
+# Validate() therefore reports exactly one violation on this checked-in
+# file (`slices[0].residual_risks[0].accepted_by: missing ...`), proved by
+# register_test.go's PRIMARY test, and ReleaseDecision(now) reports the
+# pilot blocked for THR-07 for any `now` - this repository has not staffed
+# anyone able to accept a CRITICAL residual risk yet, so a register
+# claiming the pilot is release-ready today would be fabricating evidence.
+schema_version: 1
+todo_id: THREAT-001
+signed_date: "2026-09-13"
+
+slices:
+  - slice_id: promotion
+
+    actors:
+      - id: ACT-MANAGER
+        kind: human_manager
+        description: "A manager who proposes a promotion or compensation change for a direct report (MAX-v1 Initiator: manager)."
+      - id: ACT-APPROVER
+        kind: human_decision_maker
+        description: "A compensation.approver who decides a submitted promotion/compensation proposal."
+      - id: ACT-HR-EDITOR
+        kind: human_hr_admin
+        description: "An hr.workforce.editor who edits worker/employment records supporting a promotion journey."
+      - id: ACT-WORKFLOW-ENGINE
+        kind: internal_service
+        description: "The workflow engine that invokes People/Rewards domain capabilities on behalf of a human decision (Risk 77: workflow cannot manufacture domain events)."
+      - id: ACT-SUPPORT-OPERATOR
+        kind: operator_support
+        description: "A customer support operator using a JIT view-as session against a tenant."
+      - id: ACT-CI-PIPELINE
+        kind: integration_build_pipeline
+        description: "The CI/CD pipeline that builds and installs packages into the capability registry deployment."
+      - id: ACT-SOCIAL-ATTACKER
+        kind: external_delegated_or_impersonated_actor
+        description: "An attacker impersonating HR/IT to socially engineer a manager into approving an unreviewed change."
+
+    assets:
+      - id: AST-COMP-RECORD
+        data_class: SENSITIVE
+        description: "A worker's compensation record (base pay, pay-band position, proposed change amount)."
+      - id: AST-PERSONAL-RECORD
+        data_class: PERSONAL
+        description: "A worker's personal/employment record (name, position, org assignment)."
+      - id: AST-JOURNEY-STATE
+        data_class: INTERNAL
+        description: "Promotion journey lifecycle state (stage, participants, existence)."
+      - id: AST-LEDGER-EVENT
+        data_class: INTERNAL
+        description: "An approval-bound ledger event recording a promotion/compensation decision."
+      - id: AST-CAPABILITY-MANIFEST
+        data_class: INTERNAL
+        description: "The capability registry's signed manifest of what a Promotion capability is authorized to do."
+      - id: AST-SESSION-CREDENTIAL
+        data_class: PRIVILEGED
+        description: "A manager's authenticated session credential."
+
+    trust_boundaries:
+      - id: TB-EDGE
+        from: external_client
+        to: edge_gateway
+        description: "Network/identity boundary at the grpcbridge/GWC edge (specs/platform-responsibility-boundaries.md Edge and API Security Gateway)."
+      - id: TB-AUTHZ
+        from: edge_gateway
+        to: capability_registry
+        description: "Tenant/org/field authorization boundary between the authenticated edge request and the capability registry."
+      - id: TB-DOMAIN
+        from: workflow_engine
+        to: domain_capability
+        description: "Authority boundary between workflow orchestration and the People/Rewards domain capability that owns the mutation (Risk 77)."
+      - id: TB-TENANT
+        from: tenant_a_data_plane
+        to: tenant_b_data_plane
+        description: "Tenant isolation boundary that must never be crossed by a single query (Risk 134)."
+      - id: TB-SUPPLYCHAIN
+        from: ci_build_pipeline
+        to: capability_registry_deployment
+        description: "Deployment admission boundary between the build pipeline and the capability registry (Risk 58, Risk 64, Risk 106)."
+      - id: TB-SUPPORT
+        from: support_access_service
+        to: tenant_data_plane
+        description: "JIT support-access boundary into tenant data (specs/platform-responsibility-boundaries.md Customer Support Access)."
+
+    entry_points:
+      - id: EP-GWC
+        channel: GWC_BROWSER
+        description: "The promotion.journeys GWC desktop/browser pages."
+      - id: EP-HTTP
+        channel: GRPCBRIDGE_HTTP
+        description: "The grpcbridge HTTP surface over the generated JourneyService/People endpoints."
+      - id: EP-GRPC
+        channel: NATIVE_GRPC
+        description: "Native gRPC calls to JourneyService and People/Rewards domain capabilities."
+      - id: EP-SUPPORT-CONSOLE
+        channel: SUPPORT_CONSOLE_VIEW_AS
+        description: "The support console's JIT view-as session surface."
+      - id: EP-CI
+        channel: CI_PACKAGE_INSTALL
+        description: "The CI/CD package-install path into the capability registry deployment."
+
+    edges:
+      - id: EDGE-01
+        actor: ACT-MANAGER
+        entry_point: EP-GWC
+        trust_boundary: TB-AUTHZ
+        asset: AST-COMP-RECORD
+        description: "Manager reaches a worker's compensation record through the GWC page and the authorization boundary."
+      - id: EDGE-02
+        actor: ACT-APPROVER
+        entry_point: EP-GRPC
+        trust_boundary: TB-DOMAIN
+        asset: AST-LEDGER-EVENT
+        description: "Approver's DecideJourney call reaches the domain capability that records the approval-bound ledger event."
+      - id: EDGE-03
+        actor: ACT-HR-EDITOR
+        entry_point: EP-HTTP
+        trust_boundary: TB-TENANT
+        asset: AST-PERSONAL-RECORD
+        description: "HR editor's HTTP request reaches a worker's personal record across the tenant isolation boundary."
+      - id: EDGE-04
+        actor: ACT-SUPPORT-OPERATOR
+        entry_point: EP-SUPPORT-CONSOLE
+        trust_boundary: TB-SUPPORT
+        asset: AST-COMP-RECORD
+        description: "Support operator's view-as session reaches a worker's compensation record."
+      - id: EDGE-05
+        actor: ACT-MANAGER
+        entry_point: EP-GWC
+        trust_boundary: TB-EDGE
+        asset: AST-JOURNEY-STATE
+        description: "Manager's GWC page request reaches promotion journey state across the edge boundary."
+      - id: EDGE-06
+        actor: ACT-WORKFLOW-ENGINE
+        entry_point: EP-GRPC
+        trust_boundary: TB-DOMAIN
+        asset: AST-LEDGER-EVENT
+        description: "Workflow engine's retried ExecuteJourney call reaches the domain capability's ledger-event commit path."
+      - id: EDGE-07
+        actor: ACT-WORKFLOW-ENGINE
+        entry_point: EP-GRPC
+        trust_boundary: TB-DOMAIN
+        asset: AST-COMP-RECORD
+        description: "Workflow engine's ExecuteJourney call reaches the domain capability's compensation-record commit path."
+      - id: EDGE-08
+        actor: ACT-CI-PIPELINE
+        entry_point: EP-CI
+        trust_boundary: TB-SUPPLYCHAIN
+        asset: AST-CAPABILITY-MANIFEST
+        description: "CI pipeline installs a package that reaches the capability registry's manifest."
+      - id: EDGE-09
+        actor: ACT-SOCIAL-ATTACKER
+        entry_point: EP-GWC
+        trust_boundary: TB-EDGE
+        asset: AST-SESSION-CREDENTIAL
+        description: "A socially-engineered manager's captured session credential reaches the edge boundary."
+
+    threats:
+      - id: THR-01
+        asset: AST-COMP-RECORD
+        trust_boundary: TB-AUTHZ
+        attack_class: STALE_AUTHORIZATION
+        scenario: >-
+          A manager's delegated approval scope for a subordinate's
+          compensation change is revoked mid-session, but a cached
+          authorization decision from before the revocation still lets an
+          already-open ExecuteJourney call commit the change.
+        severity: HIGH
+        consuming_edges: [EDGE-01]
+        detection: >-
+          The authorization audit log flags a commit whose authorization
+          snapshot version is older than the most recent scope-revocation
+          event for the same principal/resource pair.
+        recovery: >-
+          The committed compensation change is reversed via a compensating
+          correction event, the approval is superseded, and the principal's
+          session is force-revoked.
+        owner: PLATFORM_TRUST
+        mitigations: [MIT-REVALIDATE-BEFORE-COMMIT]
+        tests:
+          - kind: NEGATIVE
+            name: TestPromotionAuthorizationRevalidatesImmediatelyBeforeCommit
+          - kind: SECURITY
+            name: TestTodo_THREAT_001_Security/stale_authorization_snapshot_is_rejected_at_commit
+
+      - id: THR-02
+        asset: AST-LEDGER-EVENT
+        trust_boundary: TB-DOMAIN
+        attack_class: CONFUSED_DEPUTY
+        scenario: >-
+          The workflow engine forwards an approver's DecideJourney call to
+          the domain capability without itself revalidating the proposal
+          id; a lower-privileged caller substitutes a different proposal id
+          in the same call shape, and the domain capability manufactures an
+          approval-bound ledger event for a proposal the approver never
+          actually reviewed.
+        severity: CRITICAL
+        consuming_edges: [EDGE-02]
+        detection: >-
+          The domain capability recomputes the CanonicalDigest bound to the
+          approval decision and compares it against the proposal it is
+          about to apply, logging a confused-deputy candidate on mismatch.
+        recovery: >-
+          The manufactured ledger event is superseded by a correction, the
+          substituted proposal is quarantined for review, and the calling
+          session is revoked.
+        owner: DOMAIN_REWARDS
+        mitigations: [MIT-DOMAIN-OWNERSHIP-ENFORCEMENT]
+        tests:
+          - kind: NEGATIVE
+            name: TestPromotionDomainCapabilityRejectsProposalDigestMismatch
+          - kind: FAULT
+            name: TestTodo_THREAT_001_Fault/confused_deputy_digest_mismatch_is_rejected
+
+      - id: THR-03
+        asset: AST-PERSONAL-RECORD
+        trust_boundary: TB-TENANT
+        attack_class: TENANT_CROSSOVER
+        scenario: >-
+          An hr.workforce.editor's tenant-scoped HTTP request resolves a
+          worker id that collides with a worker belonging to a different
+          tenant, because a repository lookup keys only on the numeric
+          worker id rather than the composite (tenant_id, worker_id) key.
+        severity: CRITICAL
+        consuming_edges: [EDGE-03]
+        detection: >-
+          A repository-boundary invariant test and runtime assertion prove
+          every People/Employment read is filtered by the caller's
+          tenant_id in the same query, not applied as a post-filter.
+        recovery: >-
+          The cross-tenant read is logged as a security incident, the
+          offending query path is patched, and affected tenants are
+          notified per the incident runbook.
+        owner: PLATFORM_TRUST
+        mitigations: [MIT-COMPOSITE-TENANT-KEY]
+        tests:
+          - kind: NEGATIVE
+            name: TestPromotionWorkerLookupIsScopedByCompositeTenantKey
+          - kind: SECURITY
+            name: TestTodo_THREAT_001_Security/tenant_crossover_lookup_is_denied
+
+      - id: THR-04
+        asset: AST-COMP-RECORD
+        trust_boundary: TB-SUPPORT
+        attack_class: INSIDER_ABUSE
+        scenario: >-
+          A support operator opens a JIT view-as session against a tenant
+          without an active support ticket or customer consent, inspects a
+          worker's compensation record, and copies the value out of band.
+        severity: HIGH
+        consuming_edges: [EDGE-04]
+        detection: >-
+          Support access without a bound ticket/consent record is rejected
+          at session start, and every view-as query against
+          AST-COMP-RECORD is logged with the ticket reference for
+          after-action review.
+        recovery: >-
+          The session is force-revoked, the access is escalated to the
+          fraud/insider-abuse detection service for disposition, and the
+          affected worker's record-access history is reviewed.
+        owner: PLATFORM_SECURITY
+        mitigations: [MIT-JIT-SUPPORT-AUDIT]
+        tests:
+          - kind: NEGATIVE
+            name: TestPromotionSupportAccessRequiresTicketAndConsent
+          - kind: FAULT
+            name: TestTodo_THREAT_001_Fault/support_session_without_ticket_is_refused
+
+      - id: THR-05
+        asset: AST-JOURNEY-STATE
+        trust_boundary: TB-EDGE
+        attack_class: METADATA_LEAKAGE
+        scenario: >-
+          A manager probes promotion.journeys.detail for worker ids outside
+          their scope; a not-found response for a nonexistent journey is
+          distinguishable from a denied response for an existing-but-
+          unauthorized journey, letting the manager enumerate which workers
+          have an in-flight promotion journey.
+        severity: MEDIUM
+        consuming_edges: [EDGE-05]
+        detection: >-
+          A conformance test compares the denied and not-found response
+          bytes, status and timing distribution for equivalence.
+        recovery: >-
+          The distinguishable code path is patched to return one bounded
+          non-disclosing response, and historical access logs are reviewed
+          for enumeration patterns.
+        owner: PLATFORM_TRUST
+        mitigations: [MIT-NONDISCLOSING-DENIAL]
+        tests:
+          - kind: NEGATIVE
+            name: TestPromotionDeniedAndNotFoundJourneyResponsesAreIndistinguishable
+          - kind: SECURITY
+            name: TestTodo_THREAT_001_Security/metadata_leakage_probe_is_nondisclosing
+
+      - id: THR-06
+        asset: AST-LEDGER-EVENT
+        trust_boundary: TB-DOMAIN
+        attack_class: REPLAY
+        scenario: >-
+          A network partition causes the workflow engine to retry an
+          already-applied ExecuteJourney call; without idempotency-key
+          binding at commit, the retry is treated as a new business
+          transaction and the ledger records the compensation change twice.
+        severity: HIGH
+        consuming_edges: [EDGE-06]
+        detection: >-
+          The domain capability's prepare/commit path rejects a retried
+          operation whose idempotency key already has a durable outcome,
+          returning the original result instead of re-executing.
+        recovery: >-
+          A duplicate ledger event, if one ever committed, is corrected via
+          an append-only compensating adjustment and the reconciliation job
+          flags the double-apply for review.
+        owner: DOMAIN_REWARDS
+        mitigations: [MIT-REVALIDATE-BEFORE-COMMIT]
+        tests:
+          - kind: NEGATIVE
+            name: TestPromotionRetriedExecuteJourneyIsIdempotentAtCommit
+          - kind: FAULT
+            name: TestTodo_THREAT_001_Fault/replayed_commit_returns_original_result
+
+      - id: THR-07
+        asset: AST-COMP-RECORD
+        trust_boundary: TB-DOMAIN
+        attack_class: AMBIGUOUS_EFFECT
+        scenario: >-
+          ExecuteJourney times out after the domain capability may have
+          already applied the compensation change; the workflow engine
+          cannot yet determine PROCEED vs RETRY from the timeout alone, and
+          a blind retry risks a double-apply while a blind skip risks
+          losing the change.
+        severity: CRITICAL
+        consuming_edges: [EDGE-07]
+        detection: >-
+          An ambiguous-outcome classification is raised whenever a timeout
+          occurs after the request left the caller's process, and no
+          automatic retry proceeds until the outcome is observed.
+        recovery: >-
+          The ambiguous transaction is looked up by its idempotency key
+          against the domain ledger before any retry or compensating
+          action is taken.
+        owner: DOMAIN_REWARDS
+        mitigations: []
+        tests:
+          - kind: NEGATIVE
+            name: TestPromotionAmbiguousTimeoutObservesBeforeRetrying
+          - kind: FAULT
+            name: TestTodo_THREAT_001_Fault/ambiguous_effect_blocks_blind_retry
+          - kind: SECURITY
+            name: TestTodo_THREAT_001_Security/ambiguous_effect_cannot_be_forced_by_a_caller
+
+      - id: THR-08
+        asset: AST-CAPABILITY-MANIFEST
+        trust_boundary: TB-SUPPLYCHAIN
+        attack_class: SUPPLY_CHAIN
+        scenario: >-
+          The CI/build pipeline installs an unsigned or tampered
+          dependency/config package into the capability registry
+          deployment, silently expanding the set of effects a Promotion
+          capability is authorized to perform.
+        severity: CRITICAL
+        consuming_edges: [EDGE-08]
+        detection: >-
+          Deployment admission evaluates SBOM policy, builder trust and
+          signature on every package before it reaches the capability
+          registry, and refuses an unsigned or policy-failing package.
+        recovery: >-
+          The unsigned package is quarantined, the capability registry is
+          rolled back to the last verified manifest, and the build pipeline
+          credentials are rotated.
+        owner: PLATFORM_SECURITY
+        mitigations: [MIT-SIGNED-PACKAGE-ADMISSION]
+        tests:
+          - kind: NEGATIVE
+            name: TestPromotionCapabilityRegistryRejectsUnsignedPackage
+          - kind: SECURITY
+            name: TestTodo_THREAT_001_Security/supply_chain_unsigned_package_is_refused
+
+      - id: THR-09
+        asset: AST-SESSION-CREDENTIAL
+        trust_boundary: TB-EDGE
+        attack_class: HUMAN_SOCIAL
+        scenario: >-
+          A phishing message impersonating HR persuades a manager to
+          approve a compensation change through a spoofed link that
+          captures their session credential, bypassing the normal
+          in-product review of what is actually being approved.
+        severity: HIGH
+        consuming_edges: [EDGE-09]
+        detection: >-
+          An approval action is challenged with a fresh step-up
+          authentication bound to the actual session and the exact
+          CanonicalDigest being approved, so a captured credential alone
+          cannot complete an approval it did not initiate in-product.
+        recovery: >-
+          The credential is revoked, the approval is invalidated pending
+          re-review, and the worker is notified per the identity-recovery
+          security-notice obligation.
+        owner: PLATFORM_TRUST
+        mitigations: [MIT-STEPUP-FOR-SENSITIVE-APPROVAL]
+        tests:
+          - kind: NEGATIVE
+            name: TestPromotionApprovalRequiresStepUpBoundToSession
+          - kind: SECURITY
+            name: TestTodo_THREAT_001_Security/human_social_captured_credential_cannot_approve
+
+    mitigations:
+      - id: MIT-REVALIDATE-BEFORE-COMMIT
+        description: >-
+          Revalidate authorization scope and the operation's idempotency
+          key inside the same transaction as commit, rejecting a stale
+          scope or a replayed key instead of trusting a value cached
+          earlier in the request.
+        consuming_edges: [EDGE-01, EDGE-06]
+      - id: MIT-DOMAIN-OWNERSHIP-ENFORCEMENT
+        description: >-
+          The domain capability recomputes the approval's CanonicalDigest
+          against the proposal it is about to apply and refuses on
+          mismatch; workflow may not manufacture domain events directly.
+        consuming_edges: [EDGE-02]
+      - id: MIT-COMPOSITE-TENANT-KEY
+        description: >-
+          Every People/Employment repository read and write is keyed by the
+          composite (tenant_id, resource_id) pair, never resource id alone.
+        consuming_edges: [EDGE-03]
+      - id: MIT-JIT-SUPPORT-AUDIT
+        description: >-
+          Support access requires a bound ticket and customer consent
+          before session start, records every query, and auto-revokes on
+          session end.
+        consuming_edges: [EDGE-04]
+      - id: MIT-NONDISCLOSING-DENIAL
+        description: >-
+          Denied and not-found responses for a journey return the same
+          bounded shape, status and latency budget.
+        consuming_edges: [EDGE-05]
+      - id: MIT-SIGNED-PACKAGE-ADMISSION
+        description: >-
+          Capability registry deployment admission requires a valid
+          signature, an SBOM policy pass and a known builder identity
+          before installing any package.
+        consuming_edges: [EDGE-08]
+      - id: MIT-STEPUP-FOR-SENSITIVE-APPROVAL
+        description: >-
+          A sensitive approval requires step-up authentication scoped to
+          the session and to the exact digest being approved, immediately
+          before commit.
+        consuming_edges: [EDGE-09]
+
+    residual_risks:
+      - threat_id: THR-07
+        justification: >-
+          Phase 1 has not yet implemented the ambiguous-outcome
+          observe-before-retry mechanism for ExecuteJourney (Risk 42 /
+          Risk 131 in planning/specs/risk-register.md): the domain
+          capability currently has no idempotency-key-bound lookup path to
+          consult after a timeout, so this residual risk is carried open
+          rather than mitigated.
+        accepted_by: ""
+        accepted_date: ""
+        expiry_date: "2026-10-13"
+
+signature:
+  algorithm: ed25519
+  public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
+  value: "c87949f5a0c51776e026885e0bf9b9ef29c281de62638c6f0e223351e342c062efbec3aab75b0f0a50dfa5017f81fcc8aa01af566b5218ac557ae03611fdf703"
+  key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml

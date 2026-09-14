@@ -21,6 +21,12 @@ These are client-compute budgets. Network and database SLOs are measured at
 their own boundaries; they must not be hidden inside this gate. The loading
 feedback budget ensures the UI can acknowledge that slower work immediately.
 
+Route and loading visual checks use the same package's `LayoutShiftBudget` /
+`CheckLayoutShift` contract. The default frontend CLS ceiling is 0.1 per page
+load or route transition; callers pass the browser's layout-shift entries to
+`EvaluateLayoutShift`, which sums them and rejects malformed negative, NaN, or
+infinite telemetry.
+
 Run the same gate as CI from the repository root:
 
 ```text

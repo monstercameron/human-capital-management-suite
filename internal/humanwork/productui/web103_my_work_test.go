@@ -39,6 +39,20 @@ func TestTodo_WEB_103(t *testing.T) {
 	}
 }
 
+func TestMyWorkItemsPreferTheServerRoutedAssigneeOverTheJourneySubject(t *testing.T) {
+	items := []WorkItem{
+		{ID: "finance", PersonRef: "worker-omar", AssigneeRef: "worker-thomas", Status: "Finance approval"},
+		{ID: "manager", PersonRef: "worker-omar", AssigneeRef: "worker-dominic", Status: "Manager approval"},
+	}
+	thomas := MyWorkItems(items, ViewerProfile{PersonID: "worker-thomas"})
+	if len(thomas) != 1 || thomas[0].ID != "finance" {
+		t.Fatalf("Thomas's routed queue = %+v", thomas)
+	}
+	if got := MyWorkItems(items, ViewerProfile{PersonID: "worker-omar"}); len(got) != 0 {
+		t.Fatalf("workflow subject was treated as the approval assignee: %+v", got)
+	}
+}
+
 // Golden: collection outcomes over viewer/stream pairs.
 func TestTodo_WEB_103_Golden(t *testing.T) {
 	streams := [][]WorkItem{

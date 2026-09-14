@@ -74,6 +74,18 @@ const (
 	// ObligationIdentityUnresolved means the subject reference itself could not
 	// be resolved to a concrete identity.
 	ObligationIdentityUnresolved
+	// ObligationExpectedAbsent means an expected roster member has no
+	// observed counterpart.
+	ObligationExpectedAbsent
+	// ObligationUnexpectedPresent means an observed member is outside the
+	// expected roster.
+	ObligationUnexpectedPresent
+	// ObligationDuplicateObserved means an observed member appears more
+	// than once, so raw counts overstate coverage.
+	ObligationDuplicateObserved
+	// ObligationUnauthorizedMember means an observed member is outside the
+	// authorized set.
+	ObligationUnauthorizedMember
 )
 
 var obligationWire = map[ObligationReason]string{
@@ -83,6 +95,10 @@ var obligationWire = map[ObligationReason]string{
 	ObligationStaleWatermark:     "STALE_WATERMARK",
 	ObligationFutureKnowledge:    "FUTURE_KNOWLEDGE",
 	ObligationIdentityUnresolved: "IDENTITY_UNRESOLVED",
+	ObligationExpectedAbsent:     "EXPECTED_ABSENT",
+	ObligationUnexpectedPresent:  "UNEXPECTED_PRESENT",
+	ObligationDuplicateObserved:  "DUPLICATE_OBSERVED",
+	ObligationUnauthorizedMember: "UNAUTHORIZED_MEMBER",
 }
 
 // String returns the wire token, or OBLIGATION_UNSPECIFIED.

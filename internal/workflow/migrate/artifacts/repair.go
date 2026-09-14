@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -105,7 +106,9 @@ type repairIdentity struct {
 // REPAIR_REQUIRED is re-recorded as itself, which the machine treats as
 // idempotent, so the call is safe to repeat. A terminal instance with no path
 // at all is [CodeIllegalRepairPath].
-func MarkRepairRequired(ctx context.Context, tx Executor, req RepairRequest) (RepairRecord, error) {
+func MarkRepairRequired(ctx context.Context, tx Executor, req RepairRequest) (ret0 RepairRecord, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.mark_repair_required", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return RepairRecord{}, err
 	}

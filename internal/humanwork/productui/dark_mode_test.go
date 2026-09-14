@@ -21,8 +21,9 @@ func TestDarkModeIsAClosedPersistableAppearanceChoice(t *testing.T) {
 func TestDarkModeUsesSemanticTokensAcrossExplicitAndSystemSchemes(t *testing.T) {
 	css := Stylesheet()
 	for _, want := range []string{
-		`:root[data-hcm-color-mode="dark"]{--accent:color-mix(in srgb,var(--hcm-color-brand-primary) 62%,#fff);`,
-		`@media (prefers-color-scheme:dark){:root[data-hcm-color-mode="system"]{--accent:color-mix(in srgb,var(--hcm-color-brand-primary) 62%,#fff);`,
+		`:root[data-hcm-color-mode="dark"]{--accent:color-mix(in srgb,var(--hcm-color-brand-primary) 40%,#fff);`,
+		`@media (prefers-color-scheme:dark){:root[data-hcm-color-mode="system"]{--accent:color-mix(in srgb,var(--hcm-color-brand-primary) 40%,#fff);`,
+		`--accent-hover:color-mix(in srgb,var(--hcm-color-brand-hover) 32%,#fff);`,
 		`--canvas:#0b1118`, `--surface:#131c26`, `--ink:#f3f7fb`, `--muted:#aebdcb`,
 		`--accent:color-mix(in srgb,var(--hcm-color-brand-primary)`,
 		`--hcm-color-success:#69dda2`, `--hcm-color-focus:#d8e9ff`,

@@ -51,6 +51,12 @@ func transientPopoverEventAction(eventType, key string, relatedInside, focusInPo
 	return transientPopoverKeep
 }
 
+// Navigation links inside a transient menu close it after activation. Native
+// details otherwise remains open when a software route reuses the same shell.
+func transientPopoverLinkActivated(eventType string, isLink bool) bool {
+	return eventType == "click" && isLink
+}
+
 func normalizedTransientPopoverGraceMilliseconds(raw string) int {
 	value, err := strconv.Atoi(raw)
 	if err != nil || value < 80 || value > 500 {

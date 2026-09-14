@@ -29,6 +29,19 @@ func TestProductLocaleLocalizesShellNavigationAndComponents(t *testing.T) {
 	}
 }
 
+func TestDefaultProductLocaleDoesNotReportMessageFallback(t *testing.T) {
+	if missing := MissingProductTranslations(DefaultProductLocale); len(missing) != 0 {
+		t.Fatalf("English source catalogue has %d missing keys", len(missing))
+	}
+	doc, err := Render(testView(PageHome))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(doc, `data-hcm-message-fallback=`) {
+		t.Fatal("source-language document reports a translation fallback")
+	}
+}
+
 func TestProductLocaleSetsRTLAndReportsUnsupportedFallback(t *testing.T) {
 	rtl, err := Render(ApplyRequest(testView(PageHome), PageRequest{Locale: "ar"}))
 	if err != nil {
@@ -76,7 +89,7 @@ func TestComponentOwnedCopyCannotBypassI18n(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowedGlyphs := []string{`ui.Text("✓")`, `ui.Text("›")`, `ui.Text("●")`, `ui.Text("↗")`, `ui.Text("⌕")`}
+	allowedGlyphs := []string{`ui.Text("")`, `ui.Text("✓")`, `ui.Text("›")`, `ui.Text("●")`, `ui.Text("↗")`, `ui.Text("⌕")`, `ui.Text("—")`}
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), "_components.go") {
 			continue

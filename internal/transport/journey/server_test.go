@@ -11,6 +11,7 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -24,6 +25,20 @@ func testContext(t *testing.T) context.Context {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 	return withToken(ctx, fixtureManagerToken)
+}
+
+// authorizedContext is testContext's counterpart carrying the fixture
+// appearance-admin token (comp_admin), which PROMOUX-008's diagnostics gate
+// treats as authorized. It exists for tests whose whole point is that the
+// wire conversion is total -- a fully populated port value comes back whole
+// -- rather than a test of the diagnostics-authorization boundary itself,
+// which has its own dedicated PROMOUX-008 tests exercising the ordinary
+// fixtureManagerToken as the unauthorized case.
+func authorizedContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	return withToken(ctx, fixtureAppearanceAdminToken)
 }
 
 // TestJourneyServiceRPCsForwardToTheEnginePort drives every RPC through a
@@ -88,7 +103,12 @@ func TestJourneyServiceRPCsForwardToTheEnginePort(t *testing.T) {
 	})
 
 	t.Run("InspectJourney", func(t *testing.T) {
-		resp, err := client.InspectJourney(ctx, &journeyv1.InspectJourneyRequest{IntentId: fixtureIntentID})
+		// assertDetailIsWhole checks the diagnostic-only sections PROMOUX-008
+		// withholds from an unauthorized caller, so this call -- proving the
+		// port's answer forwards whole, not proving who may see it -- uses
+		// the authorized fixture identity. The gate itself is
+		// TestTodo_PROMOUX_008_Security's job.
+		resp, err := client.InspectJourney(authorizedContext(t), &journeyv1.InspectJourneyRequest{IntentId: fixtureIntentID})
 		if err != nil {
 			t.Fatalf("InspectJourney: %v", err)
 		}
@@ -102,7 +122,7 @@ func TestJourneyServiceRPCsForwardToTheEnginePort(t *testing.T) {
 	})
 
 	t.Run("ExecuteJourney", func(t *testing.T) {
-		resp, err := client.ExecuteJourney(ctx, &journeyv1.ExecuteJourneyRequest{IntentId: fixtureIntentID})
+		resp, err := client.ExecuteJourney(authorizedContext(t), &journeyv1.ExecuteJourneyRequest{IntentId: fixtureIntentID})
 		if err != nil {
 			t.Fatalf("ExecuteJourney: %v", err)
 		}
@@ -116,7 +136,7 @@ func TestJourneyServiceRPCsForwardToTheEnginePort(t *testing.T) {
 	})
 
 	t.Run("DecideJourney", func(t *testing.T) {
-		resp, err := client.DecideJourney(ctx, &journeyv1.DecideJourneyRequest{
+		resp, err := client.DecideJourney(authorizedContext(t), &journeyv1.DecideJourneyRequest{
 			IntentId: fixtureIntentID,
 			Approve:  true,
 			Reason:   "scope and impact confirmed",
@@ -134,7 +154,7 @@ func TestJourneyServiceRPCsForwardToTheEnginePort(t *testing.T) {
 	})
 
 	t.Run("WatchJourney emits immediately when the client holds nothing", func(t *testing.T) {
-		stream, err := client.WatchJourney(ctx, &journeyv1.WatchJourneyRequest{IntentId: fixtureIntentID})
+		stream, err := client.WatchJourney(authorizedContext(t), &journeyv1.WatchJourneyRequest{IntentId: fixtureIntentID})
 		if err != nil {
 			t.Fatalf("WatchJourney: %v", err)
 		}
@@ -287,7 +307,7 @@ func TestJourneyServiceErrorMapping(t *testing.T) {
 // field violation rather than being flattened into prose.
 func TestJourneyServiceInvalidInputNamesTheField(t *testing.T) {
 	engine := newFakeEngine()
-	engine.proposeErr = errors.Join(workspace.ErrJourneyInput, errors.New("effective_date must be ISO-8601"))
+	engine.proposeErr = &workspace.JourneyInputError{FieldPath: "effective_date", ReasonRef: "journey.input.invalid", Detail: "must be ISO-8601"}
 	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
 
 	_, err := client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{WorkerRef: fixtureWorkerID})
@@ -300,6 +320,71 @@ func TestJourneyServiceInvalidInputNamesTheField(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("violations = %+v, want one naming effective_date", owned.Violations())
+	}
+}
+
+func TestJourneyServiceInvalidInputNeverParsesOrProjectsDiagnosticPayRule(t *testing.T) {
+	engine := newFakeEngine()
+	engine.proposeErr = &workspace.JourneyInputError{
+		FieldPath: "proposed_base", ReasonRef: "promotion.ladder.base_increase_out_of_range",
+		Detail: "private worker pay: increase 0.0500 to 0.1500",
+	}
+	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
+	_, err := client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{WorkerRef: fixtureWorkerID})
+	owned := assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	if got := owned.Violations(); len(got) != 1 || got[0].FieldPath != "proposed_base" || got[0].RuleRef != "promotion.ladder.base_increase_out_of_range" {
+		t.Fatalf("typed refusal was not preserved: %+v", got)
+	}
+	for _, secret := range []string{"private worker pay", "0.0500", "0.1500"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Errorf("wire refusal leaked %q: %v", secret, err)
+		}
+	}
+
+	engine.proposeErr = errors.Join(workspace.ErrJourneyInput, errors.New("effective_date private worker pay 0.0500"))
+	_, err = client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{WorkerRef: fixtureWorkerID})
+	owned = assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	if got := owned.Violations(); len(got) != 1 || got[0].FieldPath != "request" {
+		t.Fatalf("legacy untyped refusal should remain request-level: %+v", got)
+	}
+	if strings.Contains(err.Error(), "private worker pay") || strings.Contains(err.Error(), "0.0500") {
+		t.Fatalf("legacy refusal leaked diagnostic text: %v", err)
+	}
+
+	engine.proposeErr = &workspace.JourneyInputError{
+		FieldPath: "salary_of_private_worker_123", ReasonRef: "private.policy:98765", Detail: "private worker pay 0.0500",
+	}
+	_, err = client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{WorkerRef: fixtureWorkerID})
+	owned = assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	if got := owned.Violations(); len(got) != 1 || got[0].FieldPath != "request" || got[0].RuleRef != "journey.input.invalid" {
+		t.Fatalf("unrecognized typed coordinates were projected: %+v", got)
+	}
+	for _, secret := range []string{"private.policy", "private worker pay", "salary_of_private_worker", "0.0500"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Errorf("malformed typed refusal leaked %q", secret)
+		}
+	}
+}
+
+func TestTodo_PROMOUX_007_Security_NonProposalCannotDisclosePayBounds(t *testing.T) {
+	minimum, err := values.NewMoney("105.04", "USD", 2, values.RoundingExactRequired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	maximum, err := values.NewMoney("115.03", "USD", 2, values.RoundingExactRequired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := newFakeEngine()
+	engine.executeErr = &workspace.JourneyInputError{
+		FieldPath: "proposed_base", ReasonRef: "promotion.ladder.base_increase_out_of_range",
+		PayRange: &workspace.JourneyPayRange{Minimum: minimum, Maximum: maximum},
+	}
+	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
+	_, err = client.ExecuteJourney(testContext(t), &journeyv1.ExecuteJourneyRequest{IntentId: fixtureIntentID})
+	owned := assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	if got := owned.Violations()[0].MoneyRange; got != (envelope.MoneyRange{}) {
+		t.Fatalf("execute response disclosed pay correction: %+v", got)
 	}
 }
 
@@ -404,6 +489,7 @@ func TestJourneyServicePublishesTwentyUnaryMethodsAndOneServerStream(t *testing.
 	wantUnary := map[string]bool{
 		"ListJourneys": true, "ProposeJourney": true, "ProposePromotion": true,
 		"InspectJourney": true, "ExecuteJourney": true, "DecideJourney": true,
+		"EditProposal": true, "PreviewJourneyIntervention": true, "RequestJourneyIntervention": true,
 		"ListWorkers": true, "CreateWorker": true,
 		"GetProductPreferences": true, "SaveUserPreferences": true,
 		"SaveTenantAppearance": true, "SaveOrganizationVisibility": true, "RecordWorkflowUse": true,

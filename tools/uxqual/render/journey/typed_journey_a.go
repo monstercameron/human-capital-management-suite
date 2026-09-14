@@ -60,14 +60,16 @@ func declareJourneyTokens() {
 		gwccss.Custom("jn-ring", "0 0 0 3px rgba(43,58,143,.28)"),
 		gwccss.Custom("jn-ease", "cubic-bezier(.22,.61,.36,1)"),
 	)
-	declareGlobal(`*,*::before,*::after`,
+	declareGlobal(`:where(.jn-page,.jn-embedded),:where(.jn-page,.jn-embedded) *,:where(.jn-page,.jn-embedded) *::before,:where(.jn-page,.jn-embedded) *::after`,
 		gwccss.Raw("box-sizing", "border-box"),
 	)
-	declareGlobal(`html`,
+	declareGlobal(`:where(.jn-page,.jn-embedded)`,
 		gwccss.Raw("-webkit-text-size-adjust", "100%"),
 	)
-	declareGlobal(`body`,
-		gwccss.Margin(gwccss.Zero),
+	// Standalone documents keep their edge-to-edge canvas without resetting
+	// the host product document when the Journey sheet is injected later.
+	declareGlobal(`body:has(>.jn-page)`, gwccss.Margin(gwccss.Zero))
+	declareGlobal(`:where(.jn-page,.jn-embedded)`,
 		gwccss.Bg(gwccss.Var("jn-canvas")),
 		gwccss.TextColor(gwccss.Var("jn-ink")),
 		gwccss.Raw("font-family", "var(--jn-font)"),
@@ -77,29 +79,31 @@ func declareJourneyTokens() {
 		gwccss.Raw("text-rendering", "optimizeLegibility"),
 		gwccss.Raw("font-feature-settings", "\"cv05\" 1,\"ss01\" 1"),
 	)
-	declareGlobal(`h1,h2,h3,h4,p,ul,ol,dl,dd,figure,table`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) :is(h1,h2,h3,h4,p,ul,ol,dl,dd,figure,table)`,
 		gwccss.Margin(gwccss.Zero),
 	)
-	declareGlobal(`ul,ol`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) :is(ul,ol)`,
 		gwccss.Padding(gwccss.Zero),
 		gwccss.Raw("list-style", "none"),
 	)
-	declareGlobal(`svg`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) svg`,
 		gwccss.Display.Block,
 	)
-	declareGlobal(`a`,
+	// This sheet is also injected when Journeys is embedded in the product
+	// workspace. Link and focus colors must not leak into the host shell.
+	declareGlobal(`:where(.jn-page,.jn-embedded) a`,
 		gwccss.TextColor(gwccss.Var("jn-accent")),
 		gwccss.TextDecorationThickness(gwccss.Px(1)),
 		gwccss.TextUnderlineOffset(gwccss.Ems(.15)),
 		gwccss.Transition(gwccss.TransitionProps(gwccss.Prop("color")), gwccss.S(.15), gwccss.Easing("var(--jn-ease)")),
 	)
-	declareGlobal(`a:hover`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) a:hover`,
 		gwccss.TextColor(gwccss.Var("jn-accent-strong")),
 	)
-	declareGlobal(`:focus-visible`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) :focus-visible`,
 		gwccss.Raw("outline", "3px solid var(--jn-accent)"),
 		gwccss.OutlineOffset(gwccss.Px(2)),
-		gwccss.Rounded(gwccss.Rem(.25)),
+		gwccss.Rounded(gwccss.VarLength("jn-r1")),
 	)
 	declareGlobal(`.jn-masthead :focus-visible`,
 		gwccss.Raw("outline-color", "var(--jn-masthead-ink)"),
@@ -263,7 +267,7 @@ func declareJourneyTokens() {
 		gwccss.Rounded(gwccss.VarLength("jn-r2")),
 		gwccss.PaddingY(gwccss.Rem(.875)), gwccss.PaddingX(gwccss.Rem(1)),
 		gwccss.Bg(gwccss.Var("jn-surface")),
-		gwccss.Raw("box-shadow", "var(--jn-shadow)"),
+		gwccss.Raw("box-shadow", "none"),
 		gwccss.Keyframes("jn-slidein", jnSlideinFrames...),
 		gwccss.Animation(gwccss.RawDuration(".32s"), gwccss.Easing("var(--jn-ease)")),
 		gwccss.Raw("animation-fill-mode", "both"),
@@ -271,6 +275,9 @@ func declareJourneyTokens() {
 	declareGlobal(`.jn-notice-icon`,
 		gwccss.Raw("flex", "none"),
 		gwccss.Raw("margin-top", ".125rem"),
+	)
+	declareGlobal(`.jn-notice-body`,
+		gwccss.Raw("min-width", "0"),
 	)
 	declareGlobal(`.jn-notice-title`,
 		gwccss.Raw("font-weight", "650"),
@@ -280,6 +287,69 @@ func declareJourneyTokens() {
 		gwccss.FontSize(gwccss.Rem(.875)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 		gwccss.Raw("margin-top", ".125rem"),
+	)
+	declareGlobal(`.jn-notice-fields`,
+		gwccss.Raw("margin-top", ".625rem"),
+	)
+	declareGlobal(`.jn-notice-support`,
+		gwccss.Raw("margin-top", ".75rem"),
+		gwccss.FontSize(gwccss.Rem(.8125)),
+	)
+	declareGlobal(`.jn-notice-support summary`,
+		gwccss.Raw("cursor", "pointer"),
+		gwccss.Raw("font-weight", "620"),
+		gwccss.Raw("text-decoration", "underline"),
+		gwccss.Raw("text-underline-offset", ".18em"),
+	)
+	declareGlobal(`.jn-notice-support-body`,
+		gwccss.Display.Flex,
+		gwccss.FlexDir.Col,
+		gwccss.Gap(gwccss.Rem(.375)),
+		gwccss.Raw("margin-top", ".5rem"),
+	)
+	declareGlobal(`.jn-notice-support-body label`,
+		gwccss.Raw("font-weight", "620"),
+	)
+	declareGlobal(`.jn-support-reference`,
+		gwccss.Raw("box-sizing", "border-box"),
+		gwccss.Raw("max-width", "100%"),
+		gwccss.W(gwccss.Rem(22)),
+		gwccss.PaddingY(gwccss.Rem(.375)), gwccss.PaddingX(gwccss.Rem(.5)),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("jn-hairline")),
+		gwccss.Rounded(gwccss.VarLength("jn-r1")),
+		gwccss.Bg(gwccss.Var("jn-surface")),
+		gwccss.TextColor(gwccss.Var("jn-ink")),
+	)
+	declareGlobal(`.jn-notice-support-body p`,
+		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
+	)
+	declareGlobal(`.jn-notice-fields-title`,
+		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.Raw("font-weight", "650"),
+	)
+	declareGlobal(`.jn-notice-fieldlist`,
+		gwccss.Display.Flex,
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Gap(gwccss.Rem(.5)),
+		gwccss.Raw("list-style", "none"),
+		gwccss.Raw("margin", ".375rem 0 0"),
+		gwccss.Raw("padding", "0"),
+	)
+	declareGlobal(`.jn-notice-fieldlist a`,
+		gwccss.Display.InlineFlex,
+		gwccss.Items.Center,
+		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.Raw("font-weight", "620"),
+		gwccss.TextColor(gwccss.Var("jn-ink")),
+		gwccss.Bg(gwccss.Var("jn-surface")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("jn-hairline")),
+		gwccss.Rounded(gwccss.VarLength("jn-r1")),
+		gwccss.PaddingY(gwccss.Rem(.25)), gwccss.PaddingX(gwccss.Rem(.5)),
+		gwccss.Raw("text-decoration", "underline"),
+		gwccss.Raw("text-underline-offset", ".18em"),
+	)
+	declareGlobal(`.jn-notice-fieldlist a:hover`,
+		gwccss.Bg(gwccss.Var("jn-surface-muted")),
 	)
 	declareGlobal(`.jn-notice[data-tone="info"]`,
 		gwccss.Bg(gwccss.Var("jn-info-soft")),
@@ -323,7 +393,7 @@ func declareJourneyTokens() {
 	declareGlobal(`.jn-pagehead`,
 		gwccss.MaxWidth(gwccss.Rem(46)),
 	)
-	declareGlobal(`h1`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) h1`,
 		gwccss.FontSize(gwccss.Rem(1.75)),
 		gwccss.LineHeight(gwccss.Num(1.18)),
 		gwccss.Tracking(gwccss.Ems(-.024)),
@@ -340,7 +410,7 @@ func declareJourneyTokens() {
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 		gwccss.FontSize(gwccss.Rem(1)),
 	)
-	declareGlobal(`h2`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) h2`,
 		gwccss.FontSize(gwccss.Rem(1.25)),
 		gwccss.LineHeight(gwccss.Num(1.3)),
 		gwccss.Tracking(gwccss.Ems(-.018)),
@@ -349,7 +419,7 @@ func declareJourneyTokens() {
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Rem(.5)),
 	)
-	declareGlobal(`h3`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) h3`,
 		gwccss.FontSize(gwccss.Rem(1)),
 		gwccss.LineHeight(gwccss.Num(1.35)),
 		gwccss.Tracking(gwccss.Ems(-.012)),
@@ -382,7 +452,7 @@ func declareJourneyTokens() {
 		gwccss.Bg(gwccss.Var("jn-surface")),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("jn-hairline")),
 		gwccss.Rounded(gwccss.VarLength("jn-r3")),
-		gwccss.Raw("box-shadow", "var(--jn-shadow)"),
+		gwccss.Raw("box-shadow", "none"),
 		gwccss.Padding(gwccss.VarLength("jn-s2")),
 		gwccss.MinWidth(gwccss.Zero),
 	)
@@ -390,7 +460,7 @@ func declareJourneyTokens() {
 		gwccss.Bg(gwccss.Var("jn-surface")),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("jn-hairline")),
 		gwccss.Rounded(gwccss.VarLength("jn-r4")),
-		gwccss.Raw("box-shadow", "var(--jn-shadow)"),
+		gwccss.Raw("box-shadow", "none"),
 		gwccss.Padding(gwccss.VarLength("jn-s3")),
 		gwccss.MinWidth(gwccss.Zero),
 	)
@@ -415,8 +485,16 @@ func declareJourneyTokens() {
 	declareGlobal(`.jn-context-actions`,
 		gwccss.Display.Flex,
 		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.MinWidth(gwccss.Zero),
+		gwccss.MaxWidth(gwccss.Percent(100)),
 		gwccss.RowGap(gwccss.Rem(.5)), gwccss.ColumnGap(gwccss.Rem(1.25)),
 		gwccss.Raw("margin-top", "var(--jn-s2)"),
+	)
+	declareGlobal(`.jn-context-actions .jn-btn`,
+		gwccss.MaxWidth(gwccss.Percent(100)),
+		gwccss.Raw("white-space", "normal"),
+		gwccss.Raw("overflow-wrap", "break-word"),
+		gwccss.Raw("text-align", "center"),
 	)
 	declareGlobal(`.jn-context-link`,
 		gwccss.FontSize(gwccss.Rem(.875)),
@@ -511,12 +589,19 @@ func declareJourneyTokens() {
 		gwccss.Gap(gwccss.VarLength("jn-s2")),
 		gwccss.Raw("grid-template-columns", "repeat(auto-fill,minmax(min(19rem,100%),1fr))"),
 	)
+	declareGlobal(`.jn-journey-groups`,
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.VarLength("jn-s4")),
+	)
+	declareGlobal(`.jn-journey-group>.jn-sectionhead`,
+		gwccss.Raw("margin-bottom", "var(--jn-s2)"),
+	)
 	declareGlobal(`.jn-journey`,
 		gwccss.Position.Relative,
 		gwccss.Display.Flex,
 		gwccss.FlexDir.Col,
 		gwccss.Gap(gwccss.Rem(.625)),
-		gwccss.Transition(gwccss.TransitionProps(gwccss.Prop("box-shadow"), gwccss.Prop("transform"), gwccss.Prop("border-color")), gwccss.S(.2), gwccss.Easing("var(--jn-ease)")),
+		gwccss.Raw("transition", "border-color var(--hcm-motion-fast,.15s) var(--jn-ease),background-color var(--hcm-motion-fast,.15s) var(--jn-ease)"),
 	)
 	declareGlobal(`.jn-journey::before`,
 		gwccss.Raw("content", "\"\""),
@@ -542,12 +627,10 @@ func declareJourneyTokens() {
 		gwccss.Bg(gwccss.Var("jn-info")),
 	)
 	declareGlobal(`.jn-journey:hover`,
-		gwccss.Raw("box-shadow", "var(--jn-shadow-lift)"),
 		gwccss.BorderColor(gwccss.Var("jn-control-border")),
-		gwccss.Transform(gwccss.TranslateY(gwccss.Px(-2))),
 	)
 	declareGlobal(`.jn-journey:focus-within`,
-		gwccss.Raw("box-shadow", "var(--jn-shadow-lift)"),
+		gwccss.Raw("box-shadow", "var(--jn-ring)"),
 	)
 	declareGlobal(`.jn-journey-top`,
 		gwccss.Display.Flex,

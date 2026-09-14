@@ -10,35 +10,50 @@ import (
 	"testing"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
-// TestFrontendE2EPersonaLoginAndEveryProductRoute drives the production HTTP
-// handler through a real loopback server. Each supported development persona
-// signs in through the same form as the browser, keeps its hardened session
-// cookie, and then attempts every route in the canonical product registry.
-func TestFrontendE2EPersonaLoginAndEveryProductRoute(t *testing.T) {
+// TestTodo_UXAUDIT_014_Browser exercises the browser-facing HTTP contract
+// through a real loopback server. The complementary interactive browser matrix
+// is recorded in the UI/UX devlog; this test does not execute a browser.
+// Each seeded persona signs in with a hardened session cookie and attempts
+// every route in the canonical product registry.
+func TestTodo_UXAUDIT_014_Browser_Live(t *testing.T) {
 	type personaCase struct {
-		id, name, access, description string
-		roles                         []string
+		id, name, subject, landing string
+		roles                      []string
 	}
 	personas := []personaCase{
-		{id: "admin", name: "Rafael Torres", access: "HCM administrator", description: "All product and administration areas.", roles: []string{productui.RoleHCMAdmin}},
-		{id: "hiring-manager", name: "Maya Chen", access: "Hiring manager", description: "Hiring and workforce areas.", roles: []string{"hiring_manager"}},
-		{id: "payroll-manager", name: "Priya Nair", access: "Payroll manager", description: "Payroll and workforce areas.", roles: []string{"payroll_manager"}},
-		{id: "individual-contributor", name: "Omar Reyes", access: "Individual contributor", description: "Employee self service.", roles: []string{"worker_self"}},
+		{id: "admin", name: "Rafael Torres", subject: "hc-050-rafael-torres", landing: PathProductHome, roles: []string{productui.RoleHCMAdmin, "comp_admin", "intent_author", "promotion_operator"}},
+		{id: "hiring-manager", name: "Darius Bennett", subject: "hc-004-darius-bennett", landing: PathProductPrefix + "people", roles: []string{"hiring_manager", "manager", "intent_author"}},
+		{id: "finance-partner", name: "Thomas Baker", subject: "hc-054-thomas-baker", landing: PathProductHome, roles: []string{"finance_partner"}},
+		{id: "individual-contributor", name: "Linh Tran", subject: "hc-051-linh-tran", landing: PathProductPrefix + "myself", roles: []string{"worker_self"}},
 	}
 
 	handler, _ := newShellHandler(t, true)
+	grants := roleaccess.DefaultPagePermissions()
+	for index := range grants {
+		grant := &grants[index]
+		if (grant.RoleID == "payroll_manager" || grant.RoleID == "promotion_operator") &&
+			(grant.PageID == string(productui.PageOrganization) || grant.PageID == string(productui.PageOrgExplorer) ||
+				grant.PageID == string(productui.PageOrgOutline) || grant.PageID == string(productui.PageOrgResponsive)) {
+			grant.View = false
+		}
+		if grant.RoleID == "payroll_manager" && grant.PageID == string(productui.PageJourneys) {
+			grant.Create = false
+		}
+	}
+	handler.roleAccess = launcherRoleAccessStore{snapshot: roleaccess.Snapshot{PagePermissions: grants}}
 	// The verifier clock is pinned for deterministic credentials, while the
 	// real cookie jar correctly evaluates Expires against wall time.
 	handler.now = func() time.Time { return time.Now().UTC() }
 	handler.devPersonas = make(map[string]DevPersona, len(personas))
 	for _, persona := range personas {
 		handler.devPersonas[persona.id] = DevPersona{
-			ID: persona.id, Name: persona.name, Access: persona.access, Description: persona.description,
-			Token: frontendE2EToken(t, persona.id, persona.roles),
+			ID: persona.id, Name: persona.name, WorkerRef: persona.subject,
+			Token: frontendE2EToken(t, persona.subject, persona.roles),
 		}
 	}
 	server := httptest.NewServer(handler)
@@ -47,6 +62,7 @@ func TestFrontendE2EPersonaLoginAndEveryProductRoute(t *testing.T) {
 	for _, persona := range personas {
 		persona := persona
 		t.Run(persona.id, func(t *testing.T) {
+			permissions := roleaccess.EffectivePagePermissions(roleaccess.Snapshot{PagePermissions: grants}, persona.roles)
 			jar, err := cookiejar.New(nil)
 			if err != nil {
 				t.Fatal(err)
@@ -59,9 +75,16 @@ func TestFrontendE2EPersonaLoginAndEveryProductRoute(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			loginBody, readErr := io.ReadAll(loginPage.Body)
 			loginPage.Body.Close()
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
 			if loginPage.StatusCode != http.StatusOK {
 				t.Fatalf("GET login = %d", loginPage.StatusCode)
+			}
+			if !strings.Contains(string(loginBody), persona.name) {
+				t.Fatalf("login card did not show bound worker %q", persona.name)
 			}
 
 			form := url.Values{paramLoginPersona: {persona.id}}
@@ -70,8 +93,37 @@ func TestFrontendE2EPersonaLoginAndEveryProductRoute(t *testing.T) {
 				t.Fatal(err)
 			}
 			login.Body.Close()
-			if login.StatusCode != http.StatusSeeOther || login.Header.Get("Location") != PathProductHome {
+			if login.StatusCode != http.StatusSeeOther || login.Header.Get("Location") != persona.landing {
 				t.Fatalf("POST login = %d location %q", login.StatusCode, login.Header.Get("Location"))
+			}
+			landing, err := client.Get(server.URL + persona.landing)
+			if err != nil {
+				t.Fatal(err)
+			}
+			landingBytes, readErr := io.ReadAll(landing.Body)
+			landing.Body.Close()
+			if readErr != nil || landing.StatusCode != http.StatusOK {
+				t.Fatalf("landing %s = %d, read %v", persona.landing, landing.StatusCode, readErr)
+			}
+			landingBody := string(landingBytes)
+			if !strings.Contains(landingBody, `id="workspace-navigation"`) {
+				t.Fatal("authenticated landing did not render the navigation component")
+			}
+			organizationNav := strings.Contains(landingBody, `href="/workspace/app/organization`)
+			promote := len(island(t, landingBody).LauncherActions) > 0
+			switch persona.id {
+			case "hiring-manager":
+				if !organizationNav || !promote {
+					t.Fatal("hiring-manager landing lost its organization path or promotion action")
+				}
+			case "finance-partner":
+				if !organizationNav || promote {
+					t.Fatal("finance partner landing lost organization browsing or advertised promotion initiation")
+				}
+			case "individual-contributor":
+				if promote || strings.Contains(landingBody, `href="/workspace/app/people`) {
+					t.Fatal("self-service landing advertised people administration or promotion initiation")
+				}
 			}
 
 			for _, definition := range productui.PageDefinitions() {
@@ -89,7 +141,7 @@ func TestFrontendE2EPersonaLoginAndEveryProductRoute(t *testing.T) {
 					body := string(bodyBytes)
 
 					want := http.StatusForbidden
-					if productui.PageVisible(definition.ID, persona.roles) {
+					if roleaccess.CanPageAction(permissions, string(definition.ID), roleaccess.ActionView) {
 						want = http.StatusOK
 					}
 					if response.StatusCode != want {

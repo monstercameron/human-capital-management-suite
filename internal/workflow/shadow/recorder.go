@@ -3,6 +3,7 @@ package shadow
 import (
 	"context"
 	"fmt"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"sync"
 	"time"
 )
@@ -63,7 +64,9 @@ func (r *Recorder) Refuse(_ context.Context, nodeID string, kind AttemptKind, re
 	return &RefusalError{Attempt: attempt}
 }
 
-func (r *Recorder) Invoke(ctx context.Context, nodeID string, kind AttemptKind, reference string, at time.Time) error {
+func (r *Recorder) Invoke(ctx context.Context, nodeID string, kind AttemptKind, reference string, at time.Time) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.shadow.invoke", observe.Attrs{observe.KeyNode: nodeID}, kind)
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	return r.Refuse(ctx, nodeID, kind, reference, at)
 }
 

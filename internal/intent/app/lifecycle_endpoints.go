@@ -602,7 +602,46 @@ func (s *IntentService) SupersedeIntent(ctx context.Context, req *intentsv1.Supe
 		ExpectedRevision: &expected,
 		CurrentRevision:  rec.InstanceVersion,
 	}
+	// PROMOUX-013: the original's own transition is validated and durably
+	// applied FIRST, and the successor is minted and appended only once that
+	// has actually landed. This order is deliberate and load-bearing.
+	//
+	// AppendIntent and MutateLifecycle are each their own PostgreSQL
+	// transaction (pgstore has no call that spans both), so this closure can
+	// never make both writes atomic against each other; it can only choose
+	// which one is allowed to be the durable trace of a request that fails
+	// partway through. Minting the successor first (the original order) let
+	// a caller who lost an optimistic-concurrency race, or whose original
+	// was in a lifecycle tuple SupersedeOriginal legally refuses (Rule 1:
+	// RequestSuperseded cannot coexist with ExecutionState=EXECUTING;
+	// see internal/intent/lifecycle/rules.go), leave a durable orphan
+	// successor intent behind that references an original which was never
+	// actually superseded -- a partial domain write this todo's GREEN
+	// clause refuses. Validating and compare-and-swapping the original
+	// first means a losing or illegal request writes nothing at all: the
+	// idempotency coordinator's closure returns before any store mutation.
+	// The residual failure window (the original durably moves to SUPERSEDED
+	// but the successor's own AppendIntent then fails) is an infrastructure
+	// fault, not a race outcome, and it leaves the strictly safer trace: an
+	// original correctly marked SUPERSEDED with no successor yet, rather
+	// than a successor implying a supersession that never happened.
 	if _, doErr := s.idempotency.Do(ctx, idemReq, func(ctx context.Context) (endpoint.Outcome, error) {
+		working := original
+		if _, supErr := intent.SupersedeOriginal(&working, originalDef, successorID, reasonRef, s.clock); supErr != nil {
+			return endpoint.Outcome{}, supErr
+		}
+		mutator, ok := s.store.(LifecycleMutator)
+		if !ok {
+			return endpoint.Outcome{}, ErrLifecycleWritesUnavailable
+		}
+		if _, mutateErr := mutator.MutateLifecycle(ctx, LifecycleMutation{
+			Tenant: tenant, IntentID: originalID, ExpectedInstanceVersion: rec.InstanceVersion,
+			Lifecycle: working.Lifecycle, CommitReceiptRef: working.CommitReceiptRef, RepairRef: working.RepairRef,
+			RecordedAt: working.RecordedAt.Time(),
+		}); mutateErr != nil {
+			return endpoint.Outcome{}, mutateErr
+		}
+
 		oneShotID := func() (string, error) { return successorID, nil }
 		successor, mintErr := mintInstance(spec, successorDef, s.digester, oneShotID, s.clock)
 		if mintErr != nil {
@@ -628,22 +667,6 @@ func (s *IntentService) SupersedeIntent(ctx context.Context, req *intentsv1.Supe
 			EnvelopeSchemaRef: EnvelopeSchemaRef,
 		}); appendErr != nil {
 			return endpoint.Outcome{}, appendErr
-		}
-
-		working := original
-		if _, supErr := intent.SupersedeOriginal(&working, originalDef, successorID, reasonRef, s.clock); supErr != nil {
-			return endpoint.Outcome{}, supErr
-		}
-		mutator, ok := s.store.(LifecycleMutator)
-		if !ok {
-			return endpoint.Outcome{}, ErrLifecycleWritesUnavailable
-		}
-		if _, mutateErr := mutator.MutateLifecycle(ctx, LifecycleMutation{
-			Tenant: tenant, IntentID: originalID, ExpectedInstanceVersion: rec.InstanceVersion,
-			Lifecycle: working.Lifecycle, CommitReceiptRef: working.CommitReceiptRef, RepairRef: working.RepairRef,
-			RecordedAt: working.RecordedAt.Time(),
-		}); mutateErr != nil {
-			return endpoint.Outcome{}, mutateErr
 		}
 		return endpoint.Outcome{Status: "OK", ResultDigest: successorID}, nil
 	}); doErr != nil {

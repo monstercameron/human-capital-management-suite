@@ -119,6 +119,81 @@ func TestInvalidationParentCancellationInterruptsRecvAndRefetch(t *testing.T) {
 	}
 }
 
+func TestInvalidationShutdownDoesNotWaitForRefetchBoundaryThatIgnoresContext(t *testing.T) {
+	subject := testSubject("00000000-0000-4000-8000-000000000022")
+	refetchStarted := make(chan struct{})
+	releaseRefetch := make(chan struct{})
+	client, err := New(testScope(subject), func(context.Context, Refresh) error {
+		close(refetchStarted)
+		<-releaseRefetch // deliberately violates the cancellation contract
+		return nil
+	}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := newChannelStream(1)
+	done, err := client.Start(context.Background(), stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream.messages <- testMessage(t, 11, subject)
+	select {
+	case <-refetchStarted:
+	case <-time.After(time.Second):
+		t.Fatal("refetch did not start")
+	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case got := <-done:
+		if !errors.Is(got, context.Canceled) {
+			t.Fatalf("terminal result = %v, want context cancellation", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("shutdown waited for a refetch callback that ignored context")
+	}
+	close(releaseRefetch)
+}
+
+func TestReconnectShutdownDoesNotWaitForCatchUpBoundaryThatIgnoresContext(t *testing.T) {
+	subject := testSubject("00000000-0000-4000-8000-000000000023")
+	catchUpStarted := make(chan struct{})
+	releaseCatchUp := make(chan struct{})
+	stream := &sliceStream{values: [][]byte{testMessage(t, 12, subject)}}
+	client, err := New(testScope(subject), func(context.Context, Refresh) error { return nil }, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- client.RunReconnect(context.Background(), func(context.Context, Cursor) (CloseStream, error) {
+			return stream, nil
+		}, func(context.Context, CatchUpRequest) (CatchUpResult, error) {
+			close(catchUpStarted)
+			<-releaseCatchUp // deliberately violates the cancellation contract
+			return CatchUpResult{}, nil
+		}, fastReconnect)
+	}()
+	select {
+	case <-catchUpStarted:
+	case <-time.After(time.Second):
+		t.Fatal("catch-up did not start")
+	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case got := <-done:
+		if !errors.Is(got, context.Canceled) {
+			t.Fatalf("terminal result = %v, want context cancellation", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("reconnect shutdown waited for catch-up callback")
+	}
+	close(releaseCatchUp)
+}
+
 func TestInvalidationQueueFullPreservesCatchUpCursor(t *testing.T) {
 	subject := testSubject("00000000-0000-4000-8000-000000000014")
 	refetchStarted := make(chan struct{})

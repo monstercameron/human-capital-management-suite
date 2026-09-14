@@ -8,6 +8,9 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
@@ -37,6 +40,113 @@ func journeyNodeRow(nodeID string, status runtime.NodeStatus) runtime.NodeExecut
 	return runtime.NodeExecution{NodeID: nodeID, Attempt: 1, Status: status, StepType: workflow.StepEnd}
 }
 
+func TestRecordedJourneyInspectionStillRequiresCurrentSubjectAndPayAuthority(t *testing.T) {
+	at := time.Date(2026, 9, 12, 15, 0, 0, 0, time.UTC)
+	subject := values.EntityRef{Tenant: "acme-corp", Kind: "worker", Id: "22222222-2222-4222-8222-222222222222"}
+	if err := authorizeHistoricalJourneyRead(nil, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil); err == nil {
+		t.Fatal("recorded journey was readable without a verified principal")
+	}
+	principal, err := trust.NewPrincipal(trust.PrincipalSpec{
+		Tenant: "acme-corp", Subject: "viewer-1", SubjectKind: trust.SubjectKindHuman,
+		OrganizationScopeID: "acme", Roles: []string{string(authz.RoleManager)},
+		Purposes: []string{authz.PurposeCompensationReview}, AuthenticationMethod: trust.AuthenticationMethodBearerToken,
+		Assurance: trust.AssuranceHigh, SessionRef: "session-viewer-1",
+		IssuedAt: at.Add(-time.Hour), ExpiresAt: at.Add(time.Hour), CredentialDigest: "digest-viewer-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := authorizeHistoricalJourneyRead(principal, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil); err == nil {
+		t.Fatal("unassigned manager could read recorded compensation")
+	}
+	admin, err := trust.NewPrincipal(trust.PrincipalSpec{
+		Tenant: "acme-corp", Subject: "comp-admin-1", SubjectKind: trust.SubjectKindHuman,
+		OrganizationScopeID: "acme", Roles: []string{string(authz.RoleCompAdmin)},
+		Purposes: []string{authz.PurposeCompensationReview}, AuthenticationMethod: trust.AuthenticationMethodBearerToken,
+		Assurance: trust.AssuranceHigh, SessionRef: "session-comp-admin-1",
+		IssuedAt: at.Add(-time.Hour), ExpiresAt: at.Add(time.Hour), CredentialDigest: "digest-comp-admin-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := authorizeHistoricalJourneyRead(admin, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil); err != nil {
+		t.Fatalf("authorized compensation administrator cannot inspect durable history: %v", err)
+	}
+}
+
+func TestApprovalReviewRelationshipsScopeOnlyTheCurrentManagerOwner(t *testing.T) {
+	at := time.Date(2026, 9, 12, 15, 0, 0, 0, time.UTC)
+	principal, err := trust.NewPrincipal(trust.PrincipalSpec{
+		Tenant: "acme-corp", Subject: "manager-1", SubjectKind: trust.SubjectKindHuman,
+		OrganizationScopeID: "acme", Roles: []string{string(authz.RoleManager)},
+		Purposes: []string{authz.PurposeCompensationReview}, AuthenticationMethod: trust.AuthenticationMethodBearerToken,
+		Assurance: trust.AssuranceHigh, SessionRef: "session-manager-1",
+		IssuedAt: at.Add(-time.Hour), ExpiresAt: at.Add(time.Hour), CredentialDigest: "digest-manager-1",
+	})
+	if err != nil {
+		t.Fatalf("NewPrincipal: %v", err)
+	}
+	subject := values.EntityRef{
+		Tenant: "acme-corp",
+		Kind:   "worker",
+		Id:     "22222222-2222-4222-8222-222222222222",
+	}
+	item := journeyApprovalItemAt(workitem.StatusAssigned)
+	item.NodeID = promotionexec.NodeApproveManager
+	item.RecordedAt = at
+	item.Assignment.ChosenOwner = principal.Subject()
+	assignedAt := values.NewInstant(at.Add(-30 * time.Second))
+	item.Assignment.Resolution.ResolvedAt = assignedAt
+	caseEffectiveAt := values.NewInstant(at.Add(-10 * time.Minute))
+
+	relationships, err := approvalReviewRelationships(
+		principal, subject, caseEffectiveAt, []workitem.WorkItem{item},
+	)
+	if err != nil {
+		t.Fatalf("approvalReviewRelationships: %v", err)
+	}
+	if len(relationships) != 1 || relationships[0].Kind != authz.RelationshipAssignedPopulation || relationships[0].Subject != subject {
+		t.Fatalf("relationship = %+v, want one assigned-population fact for the proposal worker", relationships)
+	}
+	if err := relationships[0].Validate(); err != nil {
+		t.Fatalf("relationship is not recordable: %v", err)
+	}
+	if start, ok := relationships[0].Effective.StartInstant(); !ok || start != caseEffectiveAt {
+		t.Fatalf("relationship starts at %v, %v; want journey creation %v", start, ok, caseEffectiveAt)
+	}
+	if _, err := authorizeRead(principal, authz.PurposeCompensationReview, authorizationRequest{
+		Subject:       subject,
+		EvaluatedAt:   caseEffectiveAt,
+		Gate:          []authz.FieldID{authz.FieldBaseSalary},
+		Relationships: relationships,
+	}); err != nil {
+		t.Fatalf("the assigned manager cannot review the routed proposal: %v", err)
+	}
+
+	item.Assignment.ChosenOwner = "another-manager"
+	if got, err := approvalReviewRelationships(principal, subject, caseEffectiveAt, []workitem.WorkItem{item}); err != nil || len(got) != 0 {
+		t.Fatalf("another owner's relationship = %+v, %v; want none", got, err)
+	}
+	item.Assignment.ChosenOwner = principal.Subject()
+	item.Status = workitem.StatusCompleted
+	if got, err := approvalReviewRelationships(principal, subject, caseEffectiveAt, []workitem.WorkItem{item}); err != nil || len(got) != 0 {
+		t.Fatalf("unattributed completed approval relationship = %+v, %v; want none", got, err)
+	}
+	item.CompletedBy = principal.Subject()
+	if got, err := approvalReviewRelationships(principal, subject, caseEffectiveAt, []workitem.WorkItem{item}); err != nil || len(got) != 1 {
+		t.Fatalf("recorded reviewer relationship = %+v, %v; want one", got, err)
+	}
+	if got, err := approvalReviewRelationships(principal, subject, values.Instant{}, []workitem.WorkItem{item}); err == nil || len(got) != 0 {
+		t.Fatalf("matched reviewer with unset case time = %+v, %v; want a refusal", got, err)
+	}
+	item.Status = workitem.StatusAssigned
+	item.CompletedBy = ""
+	item.NodeID = promotionexec.NodeApproveFinance
+	if got, err := approvalReviewRelationships(principal, subject, caseEffectiveAt, []workitem.WorkItem{item}); err != nil || len(got) != 0 {
+		t.Fatalf("finance assignment relationship = %+v, %v; want none", got, err)
+	}
+}
+
 func TestWorkflowHistoryClosedTimeUsesAuthoritativeChronology(t *testing.T) {
 	intentTime := time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
 	runtimeTime := intentTime.Add(2 * time.Hour)
@@ -55,6 +165,85 @@ func TestWorkflowHistoryClosedTimeUsesAuthoritativeChronology(t *testing.T) {
 	})
 	if !summary.UpdatedAt.Equal(ledgerTime) {
 		t.Fatalf("ledger-backed closed time = %s, want %s", summary.UpdatedAt, ledgerTime)
+	}
+}
+
+func TestTodo_PROMOUX_011_DurableTimestamp(t *testing.T) {
+	intentAt := time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
+	startedAt := intentAt.Add(time.Minute)
+	nodeAt := intentAt.Add(2 * time.Minute)
+	assignedAt := intentAt.Add(3 * time.Minute)
+	decidedAt := intentAt.Add(4 * time.Minute)
+	completedAt := intentAt.Add(5 * time.Minute)
+	ledgerAt := intentAt.Add(6 * time.Minute)
+	instance := journeyInstanceAt(runtime.InstanceRunning)
+	instance.StartedAt = &startedAt
+	record := journeyRecord{
+		instance: instance,
+		nodes:    []runtime.NodeExecution{{CompletedAt: &nodeAt}},
+		transitions: []workspace.JourneyTransition{
+			{To: "ASSIGNED", At: assignedAt},
+			{To: "COMPLETED", At: decidedAt},
+		},
+	}
+	summary := workspace.JourneySummary{UpdatedAt: intentAt}
+	applyDurableJourneyTime(&summary, record)
+	if !summary.UpdatedAt.Equal(decidedAt) {
+		t.Fatalf("in-flight approval updated at %s, want decision at %s", summary.UpdatedAt, decidedAt)
+	}
+
+	instance.CompletedAt = &completedAt
+	record.ledger = &workspace.JourneyLedgerEvent{RecordedAt: ledgerAt}
+	applyDurableJourneyTime(&summary, record)
+	if !summary.UpdatedAt.Equal(ledgerAt) {
+		t.Fatalf("recorded promotion updated at %s, want ledger at %s", summary.UpdatedAt, ledgerAt)
+	}
+
+	newerIntentAt := ledgerAt.Add(time.Minute)
+	summary.UpdatedAt = newerIntentAt
+	applyDurableJourneyTime(&summary, record)
+	if !summary.UpdatedAt.Equal(newerIntentAt) {
+		t.Fatalf("durable projection regressed from %s to %s", newerIntentAt, summary.UpdatedAt)
+	}
+}
+
+func TestTodo_PROMOUX_011_SimulationChronology(t *testing.T) {
+	intentAt := time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
+	approvalAt := intentAt.Add(2 * time.Hour)
+	detail := workspace.JourneyDetail{
+		Summary: workspace.JourneySummary{
+			IntentID: "intent-1", ProposalRevisionID: "revision-1",
+			CreatedAt: intentAt.Add(-time.Minute), UpdatedAt: intentAt,
+		},
+		Transitions: []workspace.JourneyTransition{{WorkItemID: "item-1", To: "ASSIGNED", At: approvalAt}},
+	}
+	applyJourneyChronology(&detail, journeyRecord{transitions: detail.Transitions})
+	if !detail.Summary.UpdatedAt.Equal(approvalAt) {
+		t.Fatalf("detail updated at %s, want approval at %s", detail.Summary.UpdatedAt, approvalAt)
+	}
+	var simulatedAt time.Time
+	for _, event := range detail.Timeline {
+		if event.Kind == JourneyEventSimulated {
+			simulatedAt = event.At
+		}
+	}
+	if !simulatedAt.Equal(intentAt) {
+		t.Fatalf("simulation event moved to %s, want original intent time %s", simulatedAt, intentAt)
+	}
+}
+
+func TestJourneyWorkItemEventTitleNamesTheBusinessReview(t *testing.T) {
+	for _, test := range []struct {
+		node, status, want string
+	}{
+		{promotionexec.NodeApproveFinance, "ASSIGNED", "Finance review assigned"},
+		{promotionexec.NodeApproveFinance, "COMPLETED", "Finance review completed"},
+		{promotionexec.NodeApproveManager, "IN_PROGRESS", "Manager review started"},
+		{promotionexec.NodeApproveManager, "CANCELLED", "Manager review cancelled"},
+	} {
+		if got := journeyWorkItemEventTitle(test.node, test.status); got != test.want {
+			t.Errorf("journeyWorkItemEventTitle(%q, %q) = %q, want %q", test.node, test.status, got, test.want)
+		}
 	}
 }
 
@@ -175,6 +364,19 @@ func TestDeriveJourneyStageOnADecidedButUnresumedInstance(t *testing.T) {
 	}
 	if got := deriveJourneyStage("revision-1", record); got != workspace.JourneyStageAwaitingApproval {
 		t.Fatalf("deriveJourneyStage = %s, want AWAITING_APPROVAL for a live, unresumed instance", got)
+	}
+}
+
+func TestRecordedJourneyTimelineKeepsSimulationWithoutResimulating(t *testing.T) {
+	at := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+	detail := workspace.JourneyDetail{Summary: workspace.JourneySummary{
+		IntentID: "recorded-intent", CreatedAt: at, UpdatedAt: at,
+		MaterialDigest: "sha256:recorded-proposal",
+	}}
+	events := journeyTimeline(detail)
+	if len(events) != 2 || events[0].Kind != JourneyEventIntentCreated ||
+		events[1].Kind != JourneyEventSimulated || events[1].Ref != detail.Summary.MaterialDigest {
+		t.Fatalf("recorded timeline = %+v, want proposal followed by pinned simulation evidence", events)
 	}
 }
 
@@ -347,7 +549,7 @@ func TestJourneyTimelineBreaksTiesInCausalOrder(t *testing.T) {
 	at := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
 	detail := workspace.JourneyDetail{
 		Summary:     workspace.JourneySummary{IntentID: "i", ProposalRevisionID: "r", CreatedAt: at, UpdatedAt: at},
-		Instance:    &workspace.JourneyInstance{InstanceID: "n", CreatedAt: at},
+		Instance:    &workspace.JourneyInstance{InstanceID: "n", CreatedAt: at, StartedAt: &at},
 		Nodes:       []workspace.JourneyNode{{NodeID: prototype.NodeApproval, RecordedAt: at}},
 		Transitions: []workspace.JourneyTransition{{WorkItemID: "w", To: "COMPLETED", At: at}},
 		Ledger:      &workspace.JourneyLedgerEvent{StreamKey: "s", RecordedAt: at},
@@ -364,6 +566,17 @@ func TestJourneyTimelineBreaksTiesInCausalOrder(t *testing.T) {
 	}
 }
 
+func TestTodo_PROMOUX_011_UnstartedInstanceHasNoStartedEvent(t *testing.T) {
+	at := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+	timeline := journeyTimeline(workspace.JourneyDetail{
+		Summary:  workspace.JourneySummary{IntentID: "i", CreatedAt: at},
+		Instance: &workspace.JourneyInstance{InstanceID: "n", Status: "CREATED", CreatedAt: at},
+	})
+	if len(timeline) != 1 || timeline[0].Kind != JourneyEventIntentCreated {
+		t.Fatalf("unstarted instance claimed a start: %+v", timeline)
+	}
+}
+
 func TestJourneyTimelineOmitsWhatNeverHappened(t *testing.T) {
 	at := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
 	timeline := journeyTimeline(workspace.JourneyDetail{
@@ -371,6 +584,21 @@ func TestJourneyTimelineOmitsWhatNeverHappened(t *testing.T) {
 	})
 	if len(timeline) != 1 || timeline[0].Kind != JourneyEventIntentCreated {
 		t.Fatalf("an unsimulated, unexecuted journey has one entry; got %+v", timeline)
+	}
+}
+
+func TestJourneyWorkItemEventTitleMakesApprovalStagesDistinct(t *testing.T) {
+	for _, test := range []struct {
+		node, status, want string
+	}{
+		{promotionexec.NodeApproveFinance, "ASSIGNED", "Finance review assigned"},
+		{promotionexec.NodeApproveFinance, "COMPLETED", "Finance review completed"},
+		{promotionexec.NodeApproveManager, "IN_PROGRESS", "Manager review started"},
+		{promotionexec.NodeApproveManager, "COMPLETED", "Manager review completed"},
+	} {
+		if got := journeyWorkItemEventTitle(test.node, test.status); got != test.want {
+			t.Errorf("journeyWorkItemEventTitle(%q, %q) = %q, want %q", test.node, test.status, got, test.want)
+		}
 	}
 }
 

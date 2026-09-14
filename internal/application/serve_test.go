@@ -36,6 +36,47 @@ func stubServeConfig() ServeConfig {
 	}
 }
 
+func TestTodo_PROMOUX_014_LocalDevClockIsBoundedToTheDevelopmentProfile(t *testing.T) {
+	t.Parallel()
+
+	const instant = "2026-12-01T12:00:00-05:00"
+	cfg := stubServeConfig()
+	cfg.Profile = ServeProfileLocalDev
+	cfg.LocalDevNow = instant
+
+	options, err := optionsForServeConfig(cfg, Options{})
+	if err != nil {
+		t.Fatalf("optionsForServeConfig(local-dev): %v", err)
+	}
+	want := time.Date(2026, time.December, 1, 17, 0, 0, 0, time.UTC)
+	if options.Now == nil {
+		t.Fatal("optionsForServeConfig returned no local development clock")
+	}
+	if got := options.Now(); !got.Equal(want) {
+		t.Fatalf("local development clock = %v, want %v", got, want)
+	}
+
+	explicit := func() time.Time { return time.Date(2031, time.January, 2, 3, 4, 5, 0, time.UTC) }
+	options, err = optionsForServeConfig(cfg, Options{Now: explicit})
+	if err != nil {
+		t.Fatalf("optionsForServeConfig(explicit test seam): %v", err)
+	}
+	if got := options.Now(); !got.Equal(explicit()) {
+		t.Fatalf("explicit clock = %v, want %v", got, explicit())
+	}
+
+	production := cfg
+	production.Profile = ServeProfileStandard
+	if _, err := optionsForServeConfig(production, Options{}); err == nil {
+		t.Fatal("optionsForServeConfig accepted a production clock override")
+	}
+	malformed := cfg
+	malformed.LocalDevNow = "tomorrow"
+	if _, err := optionsForServeConfig(malformed, Options{}); err == nil {
+		t.Fatal("optionsForServeConfig accepted a malformed clock override")
+	}
+}
+
 // composeStub composes the serve role with persistence and admission
 // replaced. It is the whole point of Options: this is the deployed wiring,
 // with two adapters swapped and no branch anywhere that knows it is a test.

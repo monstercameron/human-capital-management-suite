@@ -40,10 +40,10 @@ func TestEveryRegisteredPageReceivesTheCompleteThemeContract(t *testing.T) {
 					t.Errorf("page %q dropped theme contract %q", definition.ID, want)
 				}
 			}
-			if !strings.Contains(document, `<title>`+escapeTitle(view.Title)+` · Northstar People</title>`) {
+			if !strings.Contains(document, `<title>`+escapeTitle(ResolveDocumentPageTitle(view))+` · Northstar People</title>`) {
 				t.Errorf("page %q did not brand its document title", definition.ID)
 			}
-			if !strings.Contains(document, `Northstar People · GoWebComponents`) {
+			if !strings.Contains(document, `data-hcm-brand-name="">Northstar People</span>`) {
 				t.Errorf("page %q did not brand its footer", definition.ID)
 			}
 		})

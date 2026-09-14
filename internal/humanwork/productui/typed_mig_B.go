@@ -123,13 +123,16 @@ func declarenavigationInteractionRefinementsStyles() {
 		mediaRule(gwccss.MinW(761), gwccss.Raw("margin-inline-end", "calc(5px + var(--hcm-nav-content-inset))")),
 	)
 	declareGlobal(".primary-nav",
-		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "1 1 auto"), gwccss.Raw("align-self", "stretch"), gwccss.W(gwccss.RawLength("calc(100% + var(--hcm-nav-rail-shift))")), gwccss.MinWidth(gwccss.RawLength("calc(100% + var(--hcm-nav-rail-shift))")), gwccss.MaxWidth(gwccss.RawLength("none")), gwccss.Raw("margin-inline-end", "calc(-1 * var(--hcm-nav-rail-shift))"), gwccss.Raw("padding-inline-end", "0"), gwccss.Raw("scrollbar-gutter", "auto"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) transparent")),
+		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "1 1 auto"), gwccss.Raw("align-self", "stretch"), gwccss.W(gwccss.RawLength("calc(100% + var(--hcm-nav-rail-shift))")), gwccss.MinWidth(gwccss.RawLength("calc(100% + var(--hcm-nav-rail-shift))")), gwccss.MaxWidth(gwccss.RawLength("none")), gwccss.Raw("margin-inline-end", "calc(-1 * var(--hcm-nav-rail-shift))"), gwccss.Raw("padding-inline-end", "0"), gwccss.Raw("scrollbar-gutter", "auto"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) transparent"), gwccss.Raw("scroll-padding-block", "12px 24px")),
+	)
+	declareGlobal(".primary-nav>ul",
+		gwccss.Raw("padding-block-end", "20px"),
 	)
 	declareGlobal(".primary-nav>ul,.nav-bottom",
 		mediaRule(gwccss.MinW(761), gwccss.Raw("padding-inline-end", "var(--hcm-nav-content-inset)")),
 	)
 	declareGlobal(".primary-nav::-webkit-scrollbar",
-		mediaRule(gwccss.MinW(761), gwccss.W(gwccss.Px(7))),
+		mediaRule(gwccss.MinW(761), gwccss.W(gwccss.VarLength("hcm-nav-scrollbar-size-rail"))),
 	)
 	declareGlobal(".primary-nav::-webkit-scrollbar-track",
 		mediaRule(gwccss.MinW(761), gwccss.Bg(gwccss.Transparent)),
@@ -208,14 +211,26 @@ func declarecollectionControlStylesStyles() {
 	declareGlobal(".people-workflow-menu>summary::-webkit-details-marker",
 		gwccss.Display.None,
 	)
-	declareGlobal(".people-workflow-menu>summary:after",
-		gwccss.Raw("content", "\"⌄\""),
+	declareGlobal(".people-workflow-chevron",
 		gwccss.Raw("margin-inline-start", "7px"),
 		gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.W(gwccss.Px(16)), gwccss.H(gwccss.Px(16)),
+		gwccss.Raw("flex", "none"),
+		gwccss.Transform(gwccss.Rotate(gwccss.Deg(90))),
 		gwccss.Transition(gwccss.TransitionProps(gwccss.Prop("transform")), gwccss.RawDuration("var(--hcm-motion-fast,.14s)"), gwccss.Ease),
 	)
-	declareGlobal(".people-workflow-menu[open]>summary:after",
-		gwccss.Transform(gwccss.Rotate(gwccss.Deg(180))),
+	declareGlobal(".people-workflow-menu[open]>summary .people-workflow-chevron",
+		gwccss.Transform(gwccss.Rotate(gwccss.Deg(-90))),
+	)
+	declareGlobal(".people-unavailable-menu>summary",
+		gwccss.TextColor(gwccss.Var("muted")),
+	)
+	declareGlobal(".people-workflow-unavailable-reason",
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Padding(gwccss.Px(8)),
+		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.LineHeight(gwccss.Num(1.45)),
+		gwccss.TextColor(gwccss.Var("ink")),
 	)
 	declareGlobal(".people-workflow-option",
 		gwccss.Display.Block,
@@ -248,7 +263,7 @@ func declarecollectionControlStylesStyles() {
 	)
 	declareGlobal(".page-size-control select",
 		gwccss.MinWidth(gwccss.Px(72)),
-		gwccss.MinHeight(gwccss.Px(38)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.Raw("padding", "6px 28px 6px 9px"),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
@@ -256,7 +271,7 @@ func declarecollectionControlStylesStyles() {
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
 	declareGlobal(".page-size-apply",
-		gwccss.MinHeight(gwccss.Px(38)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.Raw("padding-block", "5px"),
 	)
 	declareGlobal(".people-pager",
@@ -336,8 +351,18 @@ func peopleSortFilterStylesStylesheet() string {
 
 func declarepeopleSortFilterStylesStyles() {
 	declareGlobal(".people-filter-control",
-		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(220)), gwccss.Fr(1.8)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(176)), gwccss.Fr(1)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(154)), gwccss.Fr(.85)), gwccss.TrackLen(gwccss.RawLength("auto"))),
+		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(175)), gwccss.Fr(1.25)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(132)), gwccss.Fr(.85)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(170)), gwccss.Fr(1.1)), gwccss.TrackLen(gwccss.RawLength("max-content")), gwccss.TrackLen(gwccss.RawLength("max-content"))),
 		gwccss.Items.Center,
+	)
+	declareGlobal(".people-eligible-filter-label",
+		gwccss.Display.Flex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(8)),
+		gwccss.MinHeight(gwccss.Px(44)),
+		gwccss.Raw("white-space", "nowrap"),
+	)
+	declareGlobal(".people-filter input[type=checkbox]",
+		gwccss.W(gwccss.Px(18)), gwccss.H(gwccss.Px(18)),
+		gwccss.MinHeight(gwccss.Zero), gwccss.Padding(gwccss.Zero),
+		gwccss.Raw("flex", "none"),
 	)
 	declareGlobal(".people-filter select",
 		gwccss.W(gwccss.Percent(100)),
@@ -370,13 +395,13 @@ func declarepeopleSortFilterStylesStyles() {
 		gwccss.Raw("font-weight", "750"),
 	)
 	declareGlobal(".people-filter-control",
-		mediaRule(gwccss.MaxW(1300), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(176)), gwccss.Fr(1)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(154)), gwccss.Fr(.9)), gwccss.TrackLen(gwccss.RawLength("auto")))),
+		mediaRule(gwccss.MaxW(1120), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(176)), gwccss.Fr(1)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(154)), gwccss.Fr(.9)), gwccss.TrackLen(gwccss.RawLength("auto")))),
 	)
 	declareGlobal(".people-filter-control>input:first-child",
-		mediaRule(gwccss.MaxW(1300), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1)))),
+		mediaRule(gwccss.MaxW(1120), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1)))),
 	)
 	declareGlobal(".people-filter-actions",
-		mediaRule(gwccss.MaxW(1300), gwccss.Raw("justify-content", "flex-start")),
+		mediaRule(gwccss.MaxW(1120), gwccss.Raw("justify-content", "flex-start")),
 	)
 	declareGlobal(".people-filter-control",
 		mediaRule(gwccss.MaxW(900), gwccss.GridCols(gwccss.Fr(1), gwccss.Fr(1))),
@@ -403,7 +428,7 @@ func declarepeopleSortFilterStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("flex", "none")),
 	)
 	declareGlobal(".people-sort",
-		mediaRule(gwccss.MaxW(760), gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(10)), gwccss.Border(gwccss.Px(1), gwccss.Var("line")), gwccss.Rounded(gwccss.VarLength("hcm-radius-control")), gwccss.Bg(gwccss.Var("surface"))),
+		mediaRule(gwccss.MaxW(760), gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(10)), gwccss.Border(gwccss.Px(1), gwccss.Var("line")), gwccss.Rounded(gwccss.VarLength("hcm-radius-control")), gwccss.Bg(gwccss.Var("surface"))),
 	)
 	declareGlobal(".people-sort.active",
 		mediaRule(gwccss.MaxW(760), gwccss.BorderColor(gwccss.Var("accent")), gwccss.Bg(gwccss.Var("soft"))),
@@ -455,7 +480,7 @@ func declarepeopleQuickActionStylesStyles() {
 		mediaRule(gwccss.MaxW(1050), gwccss.Display.None),
 	)
 	declareGlobal(".people-sort",
-		mediaRule(gwccss.MaxW(1050), gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(10)), gwccss.Border(gwccss.Px(1), gwccss.Var("line")), gwccss.Rounded(gwccss.VarLength("hcm-radius-control")), gwccss.Bg(gwccss.Var("surface"))),
+		mediaRule(gwccss.MaxW(1050), gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(10)), gwccss.Border(gwccss.Px(1), gwccss.Var("line")), gwccss.Rounded(gwccss.VarLength("hcm-radius-control")), gwccss.Bg(gwccss.Var("surface"))),
 	)
 	declareGlobal(".people-sort.active",
 		mediaRule(gwccss.MaxW(1050), gwccss.BorderColor(gwccss.Var("accent")), gwccss.Bg(gwccss.Var("soft"))),
@@ -562,7 +587,7 @@ func declareresponsiveComponentStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.MaxWidth(gwccss.Percent(100)), gwccss.H(gwccss.Px(34))),
 	)
 	declareGlobal(".header-nav-toggle,.app-shell.nav-collapsed .header-nav-toggle",
-		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.W(gwccss.Px(38)), gwccss.H(gwccss.Px(38)), gwccss.Raw("margin", "0 4px 0 0")),
+		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.W(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.Raw("margin", "0 4px 0 0")),
 	)
 	// The persistent desktop icon-rail toggle and the narrow-viewport
 	// overlay drawer trigger are two affordances for the one navigation
@@ -576,9 +601,21 @@ func declareresponsiveComponentStylesStyles() {
 		gwccss.Display.None,
 	)
 	declareGlobal(".nav-drawer-trigger",
-		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.Raw("place-items", "center"), gwccss.W(gwccss.Px(38)), gwccss.H(gwccss.Px(38)), gwccss.Padding(gwccss.Zero), gwccss.Raw("margin", "0 4px 0 0"), gwccss.Raw("border", "0"), gwccss.Raw("background", "transparent"), gwccss.TextColor(gwccss.Var("ink")), gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))"))),
+		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.Raw("place-items", "center"), gwccss.W(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("margin", "0 4px 0 0"), gwccss.Raw("border", "0"), gwccss.Raw("background", "transparent"), gwccss.TextColor(gwccss.Var("ink")), gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))"))),
 	)
 	declareGlobal(".nav-drawer-trigger .nav-icon",
+		mediaRule(gwccss.MaxW(760), gwccss.W(gwccss.Px(20)), gwccss.H(gwccss.Px(20))),
+	)
+	// The drawer owns a visible dismissal affordance on narrow viewports.
+	// Keep it out of the desktop control vocabulary while preserving a 44px
+	// target and logical-end placement for RTL layouts.
+	declareGlobal(".nav-drawer-close",
+		gwccss.Display.None,
+	)
+	declareGlobal(".nav-drawer-close",
+		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.Raw("place-items", "center"), gwccss.Raw("align-self", "flex-end"), gwccss.W(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.MinHeight(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("margin-block", "0 8px"), gwccss.Raw("border", "1px solid var(--line)"), gwccss.Raw("background", "var(--surface)"), gwccss.TextColor(gwccss.Var("ink")), gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))"))),
+	)
+	declareGlobal(".nav-drawer-close-glyph",
 		mediaRule(gwccss.MaxW(760), gwccss.W(gwccss.Px(20)), gwccss.H(gwccss.Px(20))),
 	)
 	declareGlobal(".shell-grid,.app-shell.nav-collapsed .shell-grid",
@@ -654,7 +691,7 @@ func declareresponsiveComponentStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("flex", "1"), gwccss.W(gwccss.Percent(100)), gwccss.MinWidth(gwccss.Zero), gwccss.MaxWidth(gwccss.Percent(100)), gwccss.Raw("overflow", "hidden")),
 	)
 	declareGlobal(".sidebar.nav-drawer-open .primary-nav,.sidebar.nav-drawer-open nav:first-of-type",
-		mediaRule(gwccss.MaxW(760), gwccss.Raw("overflow-x", "hidden"), gwccss.Raw("overflow-y", "auto"), gwccss.Raw("overscroll-behavior", "contain"), gwccss.Raw("scrollbar-width", "thin"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) var(--hcm-nav-scrollbar-track)"), gwccss.Raw("scrollbar-gutter", "stable")),
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("overflow-x", "hidden"), gwccss.Raw("overflow-y", "auto"), gwccss.Raw("overscroll-behavior", "contain"), gwccss.Raw("scroll-padding-block", "16px"), gwccss.Raw("scrollbar-width", "thin"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) var(--hcm-nav-scrollbar-track)"), gwccss.Raw("scrollbar-gutter", "stable")),
 	)
 	declareGlobal(".primary-nav>ul,.sidebar nav:first-of-type>ul",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("display", "grid!important"), gwccss.W(gwccss.RawLength("100%!important")), gwccss.MaxWidth(gwccss.RawLength("100%!important"))),
@@ -699,16 +736,19 @@ func declareresponsiveComponentStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Gap(gwccss.Px(18)), gwccss.Raw("padding-inline", "17px")),
 	)
 	declareGlobal(".work-row",
-		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.GridCols(gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))), gwccss.RowGap(gwccss.Px(6)), gwccss.ColumnGap(gwccss.Px(12)), gwccss.PaddingY(gwccss.Px(14)), gwccss.PaddingX(gwccss.Px(17))),
+		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.GridCols(gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("auto"))), gwccss.RowGap(gwccss.Px(6)), gwccss.ColumnGap(gwccss.Px(12)), gwccss.PaddingY(gwccss.Px(14)), gwccss.PaddingX(gwccss.Px(17))),
 	)
 	declareGlobal(".work-row>.avatar",
 		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridLineAt(1)), gwccss.GridRow(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(3)))),
 	)
 	declareGlobal(".work-row>.row-main",
-		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridLineAt(2))),
+		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(1))),
 	)
 	declareGlobal(".work-row>.row-end",
-		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.Raw("justify-items", "start")),
+		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(2)), gwccss.Raw("justify-items", "start")),
+	)
+	declareGlobal(".work-row>.work-row-chevron",
+		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridLineAt(3)), gwccss.GridRow(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(3))), gwccss.Raw("align-self", "center")),
 	)
 	declareGlobal(".facts>div",
 		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(.8)), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1.2)))),
@@ -780,7 +820,7 @@ func declareresponsiveComponentStylesStyles() {
 		mediaRule(gwccss.MaxW(520), gwccss.Raw("padding-left", "6px")),
 	)
 	declareGlobal(".header-nav-toggle,.app-shell.nav-collapsed .header-nav-toggle",
-		mediaRule(gwccss.MaxW(520), gwccss.W(gwccss.Px(36)), gwccss.H(gwccss.Px(36)), gwccss.Raw("margin-right", "2px")),
+		mediaRule(gwccss.MaxW(520), gwccss.W(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.Raw("margin-right", "2px")),
 	)
 	declareGlobal(".person-identity",
 		mediaRule(gwccss.MaxW(520), gwccss.Raw("align-items", "flex-start")),
@@ -966,22 +1006,22 @@ func declaredataTableStylesStyles() {
 		gwccss.Raw("border-bottom", "0"),
 	)
 	declareGlobal(".people-table :is(th,td):nth-child(1)",
-		gwccss.MinWidth(gwccss.Px(185)),
+		gwccss.MinWidth(gwccss.Px(170)),
 	)
 	declareGlobal(".people-table :is(th,td):nth-child(2)",
-		gwccss.MinWidth(gwccss.Px(180)),
+		gwccss.MinWidth(gwccss.Px(160)),
 	)
 	declareGlobal(".people-table :is(th,td):nth-child(3)",
-		gwccss.MinWidth(gwccss.Px(145)),
-	)
-	declareGlobal(".people-table :is(th,td):nth-child(4)",
 		gwccss.MinWidth(gwccss.Px(125)),
 	)
+	declareGlobal(".people-table :is(th,td):nth-child(4)",
+		gwccss.MinWidth(gwccss.Px(105)),
+	)
 	declareGlobal(".people-table :is(th,td):nth-child(5)",
-		gwccss.MinWidth(gwccss.Px(135)),
+		gwccss.MinWidth(gwccss.Px(125)),
 	)
 	declareGlobal(".people-table :is(th,td):nth-child(6)",
-		gwccss.MinWidth(gwccss.Px(110)),
+		gwccss.MinWidth(gwccss.Px(108)),
 	)
 	declareGlobal(".people-table .people-row-actions",
 		gwccss.Raw("display", "table-cell"),
@@ -1074,6 +1114,42 @@ func peopleActionColumnStylesStylesheet() string {
 }
 
 func declarepeopleActionColumnStylesStyles() {
+	declareGlobal(".page-head[data-hcm-page=\"people\"]",
+		gwccss.Raw("margin-bottom", "16px"),
+	)
+	declareGlobal(".people-page",
+		gwccss.Gap(gwccss.Px(10)),
+	)
+	declareGlobal(".people-page .people-filter",
+		gwccss.PaddingY(gwccss.Px(12)),
+	)
+	declareGlobal(".people-page .people-table .data-table-cell",
+		gwccss.PaddingY(gwccss.Px(8)),
+	)
+	declareGlobal(".people-page .directory-tools>div",
+		mediaRule(gwccss.MinW(1200), gwccss.Display.Flex, gwccss.Items.Baseline, gwccss.Gap(gwccss.Px(10))),
+	)
+	declareGlobal(".people-page .directory-tools p",
+		mediaRule(gwccss.MinW(1200), gwccss.Margin(gwccss.Zero)),
+	)
+	declareGlobal(".people-page .people-filter",
+		mediaRule(gwccss.MinW(1200), gwccss.GridCols(gwccss.Fr(1)), gwccss.Items.Center),
+	)
+	declareGlobal(".people-page .people-filter>label",
+		// The search input has its own accessible name. On wide tables the
+		// redundant visible label costs the width needed by the Clear action.
+		mediaRule(gwccss.MinW(1200), gwccss.Display.None),
+	)
+	// The People directory uses the page's scrollport for both its rows and
+	// sticky header. An inner vertical scroll clipped row menus and made the
+	// page and table compete for the same wheel gesture.
+	declareGlobal(".people-directory,.people-directory .data-table-scroll",
+		gwccss.MaxHeight(gwccss.RawLength("none")),
+		gwccss.Raw("overflow", "visible"),
+	)
+	declareGlobal(".people-workflow-menu>.people-workflow-options",
+		mediaRule(gwccss.MinW(1051), gwccss.Position.Absolute, gwccss.W(gwccss.RawLength("min(270px,calc(100vw - 32px))")), gwccss.MinWidth(gwccss.Zero), gwccss.Raw("margin-block-start", "0")),
+	)
 	declareGlobal(".people-table td:last-child:has(.popover-root[open])",
 		gwccss.ZIndex(8),
 	)

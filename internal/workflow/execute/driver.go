@@ -17,6 +17,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -46,6 +47,15 @@ type Options struct {
 	// [NoopInstrumentation]: no spans, no log lines, every composition that
 	// predates OBS-023 keeps running unchanged.
 	Instrumentation Instrumentation
+	// Recorder is the workflow-engine telemetry recorder
+	// (internal/workflow/observe) attached to every call's context that does
+	// not already carry one, so the runtime, lease, timer and step operations
+	// the driver reaches each emit a span and a log line. Nil attaches none.
+	Recorder observe.Recorder
+	// Workload is WF-RUN-021's admission gate applied to every start this
+	// driver runs whose request does not carry its own. Nil admits every start,
+	// exactly as before WF-RUN-021.
+	Workload *runtime.WorkloadGate
 	// Evidence is OBS-024's execution-evidence port. Nil means
 	// [NoopExecutionEvidence].
 	Evidence ExecutionEvidence
@@ -140,6 +150,15 @@ func New(opts Options) (*Driver, error) {
 	return &Driver{opts: opts, advance: advance}, nil
 }
 
+// observed attaches the driver's recorder to ctx unless the caller already
+// attached one.
+func (d *Driver) observed(ctx context.Context) context.Context {
+	if d == nil || observe.RecorderFrom(ctx) != nil {
+		return ctx
+	}
+	return observe.WithRecorder(ctx, d.opts.Recorder)
+}
+
 // ExecuteRequest starts from an already-materialized immutable proposal. The
 // embedded StartRequest carries the policy resolver, exact version store and
 // all proposal-alignment assertions runtime.Start validates.
@@ -173,7 +192,9 @@ type Result struct {
 
 // Execute resolves the workflow once, starts it atomically, then drains its
 // READY continuations. It returns as soon as human work is durably created.
-func (d *Driver) Execute(ctx context.Context, req ExecuteRequest) (Result, error) {
+func (d *Driver) Execute(ctx context.Context, req ExecuteRequest) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(d.observed(ctx), "workflow.execute.execute", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if req.Start.Resolver == nil {
 		return Result{}, invalid("StartRequest has no WorkflowResolver")
 	}
@@ -322,6 +343,10 @@ func (d *Driver) startOnce(ctx context.Context, req runtime.StartRequest, serial
 	}
 	if err := tenancy.WithTenant(ctx, tx, req.TenantID); err != nil {
 		return runtime.StartReceipt{}, err
+	}
+	if req.Workload == nil && d.opts.Workload != nil {
+		gate := *d.opts.Workload
+		req.Workload = &gate
 	}
 	started, err := runtime.Start(ctx, tx, req)
 	if err != nil {

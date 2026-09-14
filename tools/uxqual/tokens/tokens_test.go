@@ -29,6 +29,146 @@ func TestTokensNoPanic(t *testing.T) {
 	_ = tokens.WorkspaceCSS()
 }
 
+// TestTodo_UIPOLISH_001 proves the shared stylesheet exposes one semantic,
+// fluid hierarchy for every renderer rather than page-specific font values.
+func TestTodo_UIPOLISH_001(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	for _, token := range []string{
+		"--font-family-sans:", "--font-family-mono:", "--font-size-display:",
+		"--font-size-page-title:", "--font-size-section:", "--font-size-body:",
+		"--font-size-label:", "--font-size-helper:", "--font-size-table:", "--font-size-code:",
+		"--line-height-display:", "--line-height-heading:", "--line-height-body:",
+		"--measure-readable:", "--measure-prose:",
+	} {
+		if !strings.Contains(css, token) {
+			t.Errorf("typography token %q is missing", token)
+		}
+	}
+	for _, role := range []string{"display", "page-title", "section", "label", "helper", "table", "code"} {
+		if !strings.Contains(css, `data-type-role="`+role+`"`) {
+			t.Errorf("semantic type role %q is missing", role)
+		}
+	}
+}
+
+func TestTodo_UIPOLISH_001_Golden(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	for _, value := range []string{
+		"clamp(2rem,1.5rem + 2vw,3.5rem)",
+		"clamp(1.75rem,1.35rem + 1.5vw,2.5rem)",
+		`ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`,
+		`ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace`,
+	} {
+		if !strings.Contains(css, value) {
+			t.Errorf("typography golden value %q is missing", value)
+		}
+	}
+}
+
+func TestTodo_UIPOLISH_001_Browser(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	if !strings.Contains(css, "max-inline-size:var(--measure-prose)") {
+		t.Fatal("prose measure is not bounded for narrow and wide viewports")
+	}
+	if strings.Contains(css, "font-size:") && strings.Contains(css, "font-size:0px") {
+		t.Fatal("typography must not collapse text to zero size")
+	}
+}
+
+func TestTodo_UIPOLISH_001_Accessibility(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	for _, lineHeight := range []string{"var(--line-height-display)", "var(--line-height-heading)", "var(--line-height-body)", "var(--line-height-tight)"} {
+		if !strings.Contains(css, "line-height:"+lineHeight) {
+			t.Errorf("line-height role %q is not applied", lineHeight)
+		}
+	}
+	if strings.Contains(strings.ToLower(css), "text-transform:uppercase") {
+		t.Fatal("typography tokens must not force all-caps metadata")
+	}
+}
+
+func TestTodo_UIPOLISH_001_I18N(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	if !strings.Contains(css, "overflow-wrap:anywhere") || !strings.Contains(css, "text-wrap:balance") {
+		t.Fatal("long localized copy lacks resilient wrapping")
+	}
+}
+
+func TestTodo_UIPOLISH_001_Regression(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	for _, selector := range []string{".field label", ".field .error", ".table-scroll-cue", "code,kbd,pre"} {
+		if !strings.Contains(css, selector) {
+			t.Errorf("existing selector %q lost its typography contract", selector)
+		}
+	}
+}
+
+// TestTodo_UIPOLISH_003 proves shape, boundary, surface and depth decisions
+// are named once and consumed by shared component selectors.
+func TestTodo_UIPOLISH_003(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	for _, token := range []string{
+		"--radius-control:", "--radius-surface:", "--radius-overlay:", "--radius-status:",
+		"--border-width-boundary:", "--border-color-control:", "--border-color-focus:",
+		"--border-color-selection:", "--surface-canvas:", "--surface-raised:",
+		"--surface-overlay:", "--elevation-flat:", "--elevation-overlay:", "--elevation-dialog:",
+	} {
+		if !strings.Contains(css, token) {
+			t.Errorf("semantic token %q is missing", token)
+		}
+	}
+	for _, selector := range []string{".surface", ".popover", ".dialog", ".badge,.tag,.status", "section", ".field input,.field textarea", "button"} {
+		if !strings.Contains(css, selector) {
+			t.Errorf("shared shape selector %q is missing", selector)
+		}
+	}
+}
+
+func TestTodo_UIPOLISH_003_Golden(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	for _, want := range []string{
+		`:root[data-hcm-shape="precise"]`, `--radius-control:4px`, `--radius-surface:6px`,
+		`:root[data-hcm-shape="rounded"]`, `--radius-control:12px`, `--radius-surface:18px`,
+		"box-shadow:var(--elevation-flat)", "box-shadow:var(--elevation-overlay)", "box-shadow:var(--elevation-dialog)",
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("shape golden %q is missing", want)
+		}
+	}
+}
+
+func TestTodo_UIPOLISH_003_Browser(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	for _, selector := range []string{".surface{", ".popover,.menu,[role=\"menu\"],[role=\"listbox\"]{", ".dialog,[role=\"dialog\"]{"} {
+		start := strings.Index(css, selector)
+		if start < 0 || !strings.Contains(css[start:strings.Index(css[start:], "}")+start], "box-shadow:var(--elevation-") {
+			t.Errorf("%s does not consume a named elevation token", selector)
+		}
+	}
+	if !strings.Contains(css, ":where(a[href],input,select,textarea,button,summary):focus-visible{box-shadow:0 0 0 var(--border-width-focus)") {
+		t.Fatal("focus state does not use the semantic focus ring contract")
+	}
+}
+
+func TestTodo_UIPOLISH_003_Accessibility(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	if !strings.Contains(css, "--border-width-focus:2px") || !strings.Contains(css, "outline:var(--border-width-focus) solid var(--border-color-focus)") {
+		t.Fatal("focus boundary is not a persistent two-pixel semantic indicator")
+	}
+	if strings.Contains(css, "border-radius:999") {
+		t.Fatal("shape contract must not force pill geometry")
+	}
+}
+
+func TestTodo_UIPOLISH_003_Regression(t *testing.T) {
+	css := tokens.WorkspaceCSS()
+	for _, selector := range []string{".status-banner", ".finding", ".check", ".table-scroll", ".visually-hidden"} {
+		if !strings.Contains(css, selector) {
+			t.Errorf("existing selector %q lost while adding shape semantics", selector)
+		}
+	}
+}
+
 // TestTodo_WEB_024 proves the mode rules are present in the exact stylesheet
 // both production candidates embed, and that their evidence selectors match
 // elements in each candidate's real rendered document.

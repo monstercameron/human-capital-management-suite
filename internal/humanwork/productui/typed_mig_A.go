@@ -16,7 +16,7 @@ func declarevisualQARefinementsStyles() {
 		gwccss.Display.InlineFlex,
 		gwccss.W(gwccss.RawLength("max-content")),
 		gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(36)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(5)), gwccss.PaddingX(gwccss.Px(2)),
 		gwccss.TextColor(gwccss.Var("accent")),
 		gwccss.FontSize(gwccss.Rem(.875)),
@@ -31,6 +31,30 @@ func declarevisualQARefinementsStyles() {
 	)
 	declareGlobal(".home-grid-without-work .side-stack",
 		gwccss.Raw("grid-template-columns", "repeat(auto-fit,minmax(260px,1fr))"),
+	)
+	declareGlobal(".home-card-empty",
+		gwccss.Raw("border-bottom", "0"),
+		gwccss.Raw("padding-block", "18px"),
+	)
+	declareGlobal(".recent-people-intro",
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Raw("padding-block", "0 calc(var(--hcm-space-2) * var(--hcm-density))"),
+		gwccss.Raw("padding-inline", "calc(var(--hcm-space-3) * var(--hcm-density))"),
+	)
+	declareGlobal(".work-list .section-head p",
+		gwccss.Raw("margin", "6px 0 0"),
+	)
+	declareGlobal(".work-row",
+		mediaRule(gwccss.MaxW(420), gwccss.Raw("grid-template-columns", "minmax(0,1fr) auto")),
+	)
+	declareGlobal(".work-row>.row-main",
+		mediaRule(gwccss.MaxW(420), gwccss.Raw("grid-column", "1 / -1")),
+	)
+	declareGlobal(".work-row>.row-end",
+		mediaRule(gwccss.MaxW(420), gwccss.Raw("grid-column", "1"), gwccss.Raw("max-width", "none")),
+	)
+	declareGlobal(".work-row>.work-row-chevron",
+		mediaRule(gwccss.MaxW(420), gwccss.Raw("grid-column", "2"), gwccss.Raw("grid-row", "2"), gwccss.Raw("align-self", "center")),
 	)
 	declareGlobal(".subnav .nav-copy>.nav-label",
 		gwccss.Raw("display", "-webkit-box"),
@@ -284,6 +308,18 @@ func declarestatusPresentationStylesStyles() {
 		gwccss.W(gwccss.Percent(100)),
 		gwccss.Raw("justify-items", "stretch"),
 	)
+	declareGlobal(".work-row:has(.status-dimensions)",
+		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("auto")))),
+	)
+	declareGlobal(".work-row:has(.status-dimensions)>.row-main",
+		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(1))),
+	)
+	declareGlobal(".work-row:has(.status-dimensions)>.row-end",
+		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(2))),
+	)
+	declareGlobal(".work-row:has(.status-dimensions)>.work-row-chevron",
+		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridLineAt(3)), gwccss.GridRow(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(3))), gwccss.Raw("align-self", "center")),
+	)
 	declareGlobal(".preview-head>.status-dimensions",
 		gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),
 	)
@@ -307,6 +343,15 @@ func declarestatusPresentationStylesStyles() {
 	)
 	declareGlobal(".work-row:has(.status-dimensions)>.row-main,.work-row:has(.status-dimensions)>.row-end",
 		mediaRule(gwccss.MaxW(420), gwccss.GridColumn(gwccss.GridLineAt(1))),
+	)
+	declareGlobal(".work-row:has(.status-dimensions)",
+		mediaRule(gwccss.MaxW(420), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("auto")))),
+	)
+	declareGlobal(".work-row:has(.status-dimensions)>.row-main",
+		mediaRule(gwccss.MaxW(420), gwccss.Raw("grid-column", "1 / -1")),
+	)
+	declareGlobal(".work-row:has(.status-dimensions)>.work-row-chevron",
+		mediaRule(gwccss.MaxW(420), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(2))),
 	)
 	declareGlobal(".status-dimension",
 		mediaRule(gwccss.RawMedia("(prefers-reduced-motion:reduce)"), gwccss.Raw("transition", "none!important"), gwccss.Raw("animation", "none!important")),
@@ -486,24 +531,40 @@ func declareroleAccessStylesStyles() {
 		gwccss.Display.Flex,
 		gwccss.Items.Center,
 		gwccss.Raw("justify-content", "space-between"),
-		gwccss.Gap(gwccss.Px(24)),
-		gwccss.PaddingY(gwccss.Px(25)), gwccss.PaddingX(gwccss.Px(27)),
-		gwccss.Raw("background", "linear-gradient(125deg,var(--soft),var(--surface) 70%)"),
+		gwccss.Gap(gwccss.Px(12)),
+		gwccss.Raw("padding", "0 2px"),
 	)
-	declareGlobal(".roles-access-intro h2,.roles-access-intro p",
-		gwccss.MarginY(gwccss.Px(3)), gwccss.MarginX(gwccss.Zero),
+	declareGlobal(".roles-page-jumps",
+		gwccss.Display.Flex,
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Gap(gwccss.Px(16)),
+	)
+	declareGlobal(".roles-page-jumps a",
+		gwccss.TextColor(gwccss.Var("accent")),
+		gwccss.Raw("text-decoration", "underline"),
 	)
 	declareGlobal(".roles-access-layout",
 		gwccss.Display.Grid,
-		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(360)), gwccss.Fr(.95)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(440)), gwccss.Fr(1.05))),
+		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))),
 		gwccss.Gap(gwccss.Px(18)),
 		gwccss.Raw("align-items", "start"),
+	)
+	declareGlobal(".role-create-disclosure>summary",
+		gwccss.Raw("cursor", "pointer"),
+		gwccss.Raw("padding", "14px 22px"),
+		gwccss.Raw("font-weight", "700"),
+		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
+	)
+	declareGlobal(".role-create-disclosure>summary:focus-visible",
+		gwccss.Raw("outline", "3px solid var(--focus-ring)"),
+		gwccss.Raw("outline-offset", "-3px"),
 	)
 	declareGlobal(".role-catalog,.employee-role-directory",
 		gwccss.Raw("overflow", "hidden"),
 	)
 	declareGlobal(".access-role-grid",
 		gwccss.Display.Grid,
+		gwccss.Raw("grid-template-columns", "repeat(auto-fit,minmax(min(100%,380px),1fr))"),
 		gwccss.Gap(gwccss.Px(9)),
 		gwccss.Raw("padding", "0 22px 22px"),
 	)
@@ -512,6 +573,9 @@ func declareroleAccessStylesStyles() {
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
+	)
+	declareGlobal(".access-role-card[open]",
+		gwccss.Raw("grid-column", "1 / -1"),
 	)
 	declareGlobal(".access-role-card>summary",
 		gwccss.Display.Grid,
@@ -534,12 +598,14 @@ func declareroleAccessStylesStyles() {
 	declareGlobal(".access-role-identity",
 		gwccss.Display.Flex,
 		gwccss.Items.Baseline,
+		gwccss.Raw("flex-wrap", "wrap"),
 		gwccss.Gap(gwccss.Px(8)),
 		gwccss.MinWidth(gwccss.Zero),
 	)
 	declareGlobal(".access-role-card code",
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(.7)),
+		gwccss.Raw("overflow-wrap", "anywhere"),
 	)
 	declareGlobal(".access-role-card summary p",
 		gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),
@@ -549,21 +615,78 @@ func declareroleAccessStylesStyles() {
 	declareGlobal(".access-role-expand",
 		gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),
 	)
-	declareGlobal(".role-page-access",
+	declareGlobal(".role-definition",
+		gwccss.Raw("padding", "16px 18px"),
+		gwccss.Bg(gwccss.Var("surface")),
+	)
+	declareGlobal(".role-definition h3,.role-definition p",
+		gwccss.Raw("margin", "0 0 10px"),
+	)
+	declareGlobal(".role-definition dl",
 		gwccss.Display.Grid,
+		gwccss.Raw("grid-template-columns", "repeat(auto-fit,minmax(min(100%,220px),1fr))"),
 		gwccss.Gap(gwccss.Px(12)),
+		gwccss.Margin(gwccss.Zero),
+	)
+	declareGlobal(".role-definition dt",
+		gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.FontSize(gwccss.Rem(.75)),
+	)
+	declareGlobal(".role-definition dd",
+		gwccss.Raw("margin", "3px 0 0"),
+		gwccss.Raw("overflow-wrap", "anywhere"),
+	)
+	declareGlobal(".role-page-access",
+		gwccss.Display.Block,
 		gwccss.Padding(gwccss.Px(15)),
 		gwccss.Bg(gwccss.Var("surface")),
 	)
-	declareGlobal(".role-page-access-intro p",
-		gwccss.Raw("margin", "4px 0 0"),
+	declareGlobal(".role-page-access>summary",
+		gwccss.Raw("cursor", "pointer"),
+		gwccss.Raw("font-weight", "700"),
+	)
+	declareGlobal(".role-page-access-help",
+		gwccss.Raw("margin", "10px 0"),
+		gwccss.FontSize(gwccss.Rem(.78)),
+	)
+	declareGlobal(".role-page-scroll-hint",
+		gwccss.Display.None,
+		gwccss.FontSize(gwccss.Rem(.78)),
+	)
+	declareGlobal(".role-unpublished-pages",
+		gwccss.Raw("margin-top", "14px"),
+		gwccss.Raw("border-top", "1px solid var(--line)"),
+		gwccss.Raw("padding-top", "12px"),
+	)
+	declareGlobal(".role-unpublished-pages>summary",
+		gwccss.Raw("cursor", "pointer"),
+		gwccss.TextColor(gwccss.Var("muted")),
+	)
+	declareGlobal(".role-unpublished-pages>p",
 		gwccss.FontSize(gwccss.Rem(.78)),
 	)
 	declareGlobal(".role-page-table-wrap",
 		gwccss.MaxWidth(gwccss.Percent(100)),
-		gwccss.Raw("overflow", "auto"),
+		gwccss.Raw("overflow-x", "auto"),
+		gwccss.Raw("overscroll-behavior-inline", "contain"),
+		gwccss.Raw("margin", "0"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+	)
+	declareGlobal(".role-directory-guidance",
+		gwccss.Raw("padding", "0 22px 12px"),
+		gwccss.FontSize(gwccss.Rem(.78)),
+	)
+	declareGlobal(".role-effective-boundary",
+		gwccss.Raw("margin", "0 22px 14px"),
+		gwccss.FontSize(gwccss.Rem(.78)),
+	)
+	declareGlobal(".role-directory-pagination",
+		gwccss.Display.Flex,
+		gwccss.Items.Center,
+		gwccss.Raw("justify-content", "space-between"),
+		gwccss.Gap(gwccss.Px(12)),
+		gwccss.Raw("padding", "14px 22px 20px"),
 	)
 	declareGlobal(".role-page-table",
 		gwccss.W(gwccss.Percent(100)),
@@ -608,8 +731,8 @@ func declareroleAccessStylesStyles() {
 	declareGlobal(".permission-check",
 		gwccss.Raw("display", "inline-grid"),
 		gwccss.Raw("place-items", "center"),
-		gwccss.MinWidth(gwccss.Px(36)),
-		gwccss.MinHeight(gwccss.Px(36)),
+		gwccss.MinWidth(gwccss.Px(44)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.Raw("cursor", "pointer"),
 	)
@@ -629,9 +752,9 @@ func declareroleAccessStylesStyles() {
 		gwccss.Raw("white-space", "nowrap"),
 	)
 	declareGlobal(".button.compact",
-		gwccss.MinHeight(gwccss.Px(34)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(10)),
-		gwccss.FontSize(gwccss.Rem(.72)),
+		gwccss.FontSize(gwccss.Rem(.8125)),
 	)
 	declareGlobal(".create-role-form",
 		gwccss.Display.Grid,
@@ -772,7 +895,7 @@ func declareroleAccessStylesStyles() {
 	)
 	declareGlobal(".role-visibility-list",
 		gwccss.Display.Grid,
-		gwccss.Gap(gwccss.Px(12)),
+		gwccss.Gap(gwccss.Px(8)),
 	)
 	declareGlobal(".role-visibility-editor",
 		gwccss.Raw("overflow", "hidden"),
@@ -826,6 +949,9 @@ func declareroleAccessStylesStyles() {
 	declareGlobal(".role-page-access",
 		mediaRule(gwccss.MaxW(680), gwccss.Padding(gwccss.Px(10))),
 	)
+	declareGlobal(".role-page-scroll-hint",
+		mediaRule(gwccss.MaxW(680), gwccss.Display.Block),
+	)
 	declareGlobal(".access-role-card,.employee-role-editor,.employee-role-choice,.role-visibility-editor,.role-page-table-wrap",
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.BorderColor(gwccss.Color("CanvasText"))),
 	)
@@ -874,6 +1000,13 @@ func declareorganizationDisclosureStylesStyles() {
 		gwccss.Raw("transform", "rotate(0)"),
 		gwccss.Transition(gwccss.TransitionProps(gwccss.Prop("transform")), gwccss.VarDuration("hcm-motion-normal"), gwccss.Easing("var(--hcm-motion-easing)")),
 	)
+	declareGlobal(".organization-unit-chevron",
+		gwccss.W(gwccss.Px(16)), gwccss.H(gwccss.Px(16)),
+	)
+	declareGlobal(".work-row-chevron",
+		gwccss.W(gwccss.Px(16)), gwccss.H(gwccss.Px(16)),
+		gwccss.Raw("flex", "none"),
+	)
 	declareGlobal(".organization-unit-disclosure[open]>.org-node.manager .organization-unit-glyph",
 		gwccss.Transform(gwccss.Rotate(gwccss.Deg(90))),
 	)
@@ -892,9 +1025,63 @@ func declareorganizationDisclosureStylesStyles() {
 		gwccss.MinHeight(gwccss.Px(54)),
 		gwccss.Bg(gwccss.Var("surface")),
 	)
+	declareGlobal(".ownership-person",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(5)),
+		gwccss.W(gwccss.MinLen(gwccss.Px(440), gwccss.Percent(100))),
+	)
+	declareGlobal(".ownership-person-disclosure>summary",
+		gwccss.Raw("width", "fit-content"),
+		gwccss.MinHeight(gwccss.Px(44)),
+		gwccss.PaddingY(gwccss.Px(5)), gwccss.PaddingX(gwccss.Px(8)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.Raw("font-weight", "700"),
+		gwccss.Raw("cursor", "pointer"),
+	)
+	declareGlobal(".ownership-person-disclosure>summary:hover",
+		gwccss.Bg(gwccss.Var("hcm-hover-surface")),
+		gwccss.TextColor(gwccss.Var("accent")),
+	)
+	declareGlobal(".ownership-person-disclosure>summary:focus-visible",
+		gwccss.Raw("outline", "2px solid var(--accent)"),
+		gwccss.Raw("outline-offset", "2px"),
+	)
+	declareGlobal(".ownership-person-details",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(6)),
+		gwccss.Padding(gwccss.Px(10)),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
+	)
+	declareGlobal(".ownership-person-detail",
+		gwccss.Display.Flex,
+		gwccss.Raw("justify-content", "space-between"),
+		gwccss.Gap(gwccss.Px(12)),
+		gwccss.FontSize(gwccss.Rem(.78)),
+	)
+	declareGlobal(".ownership-person-detail small",
+		gwccss.TextColor(gwccss.Var("muted")),
+	)
+	declareGlobal(".relationship-explanation",
+		gwccss.Raw("margin", "0"),
+		gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(10)),
+		gwccss.Raw("border-inline-start", "3px solid var(--accent)"),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Bg(gwccss.Var("soft")),
+		gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.FontSize(gwccss.Rem(.78)),
+		gwccss.LineHeight(gwccss.Num(1.4)),
+	)
 	declareGlobal(".ownership-card.current-person",
 		gwccss.BorderColor(gwccss.Var("accent")),
 		gwccss.Bg(gwccss.Var("soft")),
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
+	)
+	declareGlobal(".ownership-card.selected-person",
+		gwccss.BorderColor(gwccss.Var("accent")),
 		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
 	)
 	declareGlobal(".myself-organization",
@@ -920,7 +1107,7 @@ func declareorganizationDisclosureStylesStyles() {
 	declareGlobal(".myself-organization",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("padding", "0 17px 17px")),
 	)
-	declareGlobal(".organization-unit-disclosure,.organization-unit-members,.ownership-card.current-person",
+	declareGlobal(".organization-unit-disclosure,.organization-unit-members,.ownership-card.current-person,.ownership-card.selected-person,.ownership-person-details,.relationship-explanation",
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.BorderColor(gwccss.Color("CanvasText"))),
 	)
 	declareGlobal(".ownership-card.current-person",
@@ -939,11 +1126,36 @@ func declareorganizationVisibilityStylesStyles() {
 	)
 	declareGlobal(".organization-visibility-intro",
 		gwccss.Display.Flex,
+		gwccss.FlexDir.Col,
+		gwccss.Raw("align-items", "stretch"),
+		gwccss.Gap(gwccss.Px(10)),
+		gwccss.PaddingY(gwccss.Px(14)), gwccss.PaddingX(gwccss.Px(18)),
+		gwccss.Bg(gwccss.Var("surface")),
+	)
+	declareGlobal(".organization-visibility-role-selector",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(9)),
+		gwccss.Padding(gwccss.Px(14)),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+	)
+	declareGlobal(".organization-visibility-role-selector>div",
+		gwccss.Display.Flex,
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Gap(gwccss.Px(8)),
+	)
+	declareGlobal(".organization-visibility-role-link",
+		gwccss.Raw("display", "inline-flex"),
 		gwccss.Items.Center,
-		gwccss.Raw("justify-content", "space-between"),
-		gwccss.Gap(gwccss.Px(24)),
-		gwccss.PaddingY(gwccss.Px(25)), gwccss.PaddingX(gwccss.Px(27)),
-		gwccss.Raw("background", "linear-gradient(125deg,var(--soft),var(--surface) 70%)"),
+		gwccss.MinHeight(gwccss.Px(36)),
+		gwccss.Raw("padding", "5px 10px"),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Raw("text-decoration", "none"),
+	)
+	declareGlobal(".organization-visibility-role-link:hover,.organization-visibility-role-link:focus-visible",
+		gwccss.Bg(gwccss.Var("surface-hover")),
+		gwccss.Raw("text-decoration", "underline"),
 	)
 	declareGlobal(".organization-visibility-intro h2,.organization-visibility-intro p",
 		gwccss.MarginY(gwccss.Px(3)), gwccss.MarginX(gwccss.Zero),
@@ -953,6 +1165,14 @@ func declareorganizationVisibilityStylesStyles() {
 		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(280)), gwccss.Fr(.8)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(420)), gwccss.Fr(1.2))),
 		gwccss.Gap(gwccss.Zero),
 		gwccss.Raw("overflow", "hidden"),
+	)
+	declareGlobal(".organization-visibility-form.mode-only",
+		gwccss.GridCols(gwccss.Fr(1)),
+	)
+	declareGlobal(".organization-visibility-form.mode-only .organization-visibility-modes",
+		gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
+		gwccss.Raw("border-right", "0!important"),
+		gwccss.Raw("border-bottom", "1px solid var(--line)!important"),
 	)
 	declareGlobal(".organization-visibility-form fieldset",
 		gwccss.MinWidth(gwccss.Zero),
@@ -1138,9 +1358,12 @@ func declareorganizationVisibilityStylesStyles() {
 		mediaRule(gwccss.MaxW(900), gwccss.Raw("border-right", "0!important"), gwccss.Raw("border-bottom", "1px solid var(--line)!important")),
 	)
 	declareGlobal(".organization-visibility-intro",
-		mediaRule(gwccss.MaxW(620), gwccss.Raw("align-items", "flex-start"), gwccss.FlexDir.Col, gwccss.Padding(gwccss.Px(20))),
+		mediaRule(gwccss.MaxW(620), gwccss.Raw("align-items", "flex-start"), gwccss.FlexDir.Col, gwccss.Padding(gwccss.Px(14))),
 	)
 	declareGlobal(".organization-visibility-unit-grid",
+		mediaRule(gwccss.MaxW(620), gwccss.GridCols(gwccss.Fr(1))),
+	)
+	declareGlobal(".organization-visibility-form.mode-only .organization-visibility-modes",
 		mediaRule(gwccss.MaxW(620), gwccss.GridCols(gwccss.Fr(1))),
 	)
 	declareGlobal(".organization-visibility-scope",
@@ -1189,13 +1412,34 @@ func declareworkerIDStylesStyles() {
 	declareGlobal(".worker-id-rules .section-head p",
 		gwccss.Raw("margin", "4px 0 0"),
 	)
-	declareGlobal(".worker-id-fields",
+	declareGlobal(".admin-form-section",
+		gwccss.Raw("border", "0"),
+		gwccss.Raw("margin", "0"),
+		gwccss.Raw("padding", "0"),
+	)
+	declareGlobal(".admin-form-section legend",
+		gwccss.Raw("font-weight", "750"),
+		gwccss.TextColor(gwccss.Var("ink")),
+	)
+	declareGlobal(".admin-form-section-fields",
 		gwccss.Display.Grid,
 		gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
 		gwccss.Gap(gwccss.Px(15)),
-		gwccss.Raw("padding", "0 22px 22px"),
+		gwccss.Raw("padding", "14px 22px 22px"),
+	)
+	declareGlobal(".worker-id-fields",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(15)),
 	)
 	declareGlobal(".worker-id-fields label",
+		gwccss.Display.Grid,
+		gwccss.Raw("align-content", "start"),
+		gwccss.Gap(gwccss.Px(6)),
+		gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.FontSize(gwccss.Rem(.78)),
+		gwccss.Raw("font-weight", "700"),
+	)
+	declareGlobal(".admin-form-section-fields label",
 		gwccss.Display.Grid,
 		gwccss.Raw("align-content", "start"),
 		gwccss.Gap(gwccss.Px(6)),
@@ -1212,12 +1456,21 @@ func declareworkerIDStylesStyles() {
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
-	declareGlobal(".worker-id-fields input:focus,.worker-id-fields select:focus",
+	declareGlobal(".admin-form-section-fields input,.admin-form-section-fields select",
+		gwccss.W(gwccss.Percent(100)),
+		gwccss.MinHeight(gwccss.Px(44)),
+		gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(10)),
+		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Bg(gwccss.Var("surface")),
+		gwccss.TextColor(gwccss.Var("ink")),
+	)
+	declareGlobal(".worker-id-fields input:focus,.worker-id-fields select:focus,.admin-form-section-fields input:focus,.admin-form-section-fields select:focus",
 		gwccss.BorderColor(gwccss.Var("accent")),
 		gwccss.Raw("outline", "2px solid color-mix(in srgb,var(--accent) 20%,transparent)"),
 		gwccss.OutlineOffset(gwccss.Px(1)),
 	)
-	declareGlobal(".worker-id-fields small",
+	declareGlobal(".worker-id-fields small,.admin-form-section-fields small",
 		gwccss.Raw("font-weight", "450"),
 		gwccss.LineHeight(gwccss.Num(1.35)),
 	)
@@ -1299,6 +1552,9 @@ func declareworkerIDStylesStyles() {
 	declareGlobal(".worker-id-fields",
 		mediaRule(gwccss.MaxW(620), gwccss.GridCols(gwccss.Fr(1))),
 	)
+	declareGlobal(".admin-form-section-fields",
+		mediaRule(gwccss.MaxW(620), gwccss.GridCols(gwccss.Fr(1))),
+	)
 	declareGlobal(".worker-id-actions",
 		mediaRule(gwccss.MaxW(620), gwccss.Items.Stretch, gwccss.FlexDir.Col),
 	)
@@ -1315,12 +1571,95 @@ func organizationHierarchyStylesStylesheet() string {
 }
 
 func declareorganizationHierarchyStylesStyles() {
+	declareGlobal(".organization-browse-summary",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(12)),
+		gwccss.PaddingY(gwccss.Px(12)), gwccss.PaddingX(gwccss.Px(14)),
+		gwccss.Margin(gwccss.RawLength("0 0 14px")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
+	)
+	declareGlobal(".organization-summary-facts",
+		gwccss.Display.Flex,
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Gap(gwccss.Px(18)),
+	)
+	declareGlobal(".organization-summary-fact,.organization-summary-scope",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(2)),
+		gwccss.Raw("align-content", "start"),
+	)
+	declareGlobal(".organization-summary-fact strong",
+		gwccss.FontSize(gwccss.Rem(1.05)),
+		gwccss.Raw("font-variant-numeric", "tabular-nums"),
+	)
+	declareGlobal(".organization-summary-fact small,.organization-summary-scope small",
+		gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.FontSize(gwccss.Rem(.72)),
+		gwccss.Raw("font-weight", "700"),
+	)
+	declareGlobal(".organization-browse-controls",
+		gwccss.Display.Flex,
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Items.Center,
+		gwccss.Gap(gwccss.Px(6)),
+	)
+	declareGlobal(".organization-browse-controls .button",
+		gwccss.MinHeight(gwccss.Px(40)),
+		gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(10)),
+		gwccss.Raw("white-space", "nowrap"),
+	)
+	declareGlobal(".organization-density-label",
+		gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.Raw("font-weight", "750"),
+		gwccss.Raw("margin-inline-end", "4px"),
+	)
+	declareGlobal(".organization-search",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(8)),
+		gwccss.W(gwccss.MinLen(gwccss.Px(620), gwccss.Percent(100))),
+		gwccss.Raw("margin", "0 0 18px"),
+	)
+	declareGlobal(".organization-search>label",
+		gwccss.FontSize(gwccss.Rem(.82)),
+		gwccss.Raw("font-weight", "750"),
+	)
+	declareGlobal(".organization-search-control",
+		gwccss.Display.Flex,
+		gwccss.Items.Stretch,
+		gwccss.Gap(gwccss.Px(8)),
+	)
+	declareGlobal(".organization-search-control>input",
+		gwccss.Raw("flex", "1 1 24rem"),
+		gwccss.MinWidth(gwccss.Zero),
+	)
+	declareGlobal(".organization-search-status",
+		gwccss.Display.Flex,
+		gwccss.Items.Center,
+		gwccss.Gap(gwccss.Px(12)),
+		gwccss.MinHeight(gwccss.Px(34)),
+	)
+	declareGlobal(".organization-search-summary",
+		gwccss.FontSize(gwccss.Rem(.82)),
+		gwccss.Raw("font-variant-numeric", "tabular-nums"),
+	)
 	declareGlobal(".organization-view-head",
 		gwccss.Display.Flex,
 		gwccss.Items.Center,
 		gwccss.Raw("justify-content", "space-between"),
 		gwccss.Gap(gwccss.Px(16)),
 		gwccss.Raw("margin", "0 0 18px"),
+	)
+	declareGlobal(".organization-page .org-branches",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(8)),
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Padding(gwccss.Zero),
+	)
+	declareGlobal(".organization-page .organization-unit-disclosure",
+		gwccss.Raw("border-color", "color-mix(in srgb,var(--line) 72%,var(--surface-subtle))"),
+		gwccss.Raw("box-shadow", "none"),
 	)
 	declareGlobal(".organization-view-head .definition",
 		gwccss.Raw("flex", "1"),
@@ -1335,7 +1674,7 @@ func declareorganizationHierarchyStylesStyles() {
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
 	declareGlobal(".organization-view-option",
-		gwccss.MinHeight(gwccss.Px(36)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Rounded(gwccss.Px(999)),
 		gwccss.TextColor(gwccss.Var("muted")),
@@ -1350,7 +1689,7 @@ func declareorganizationHierarchyStylesStyles() {
 	declareGlobal(".organization-view-option.active",
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.Raw("box-shadow", "0 1px 4px color-mix(in srgb,var(--ink) 12%,transparent)"),
+		gwccss.BorderColor(gwccss.Var("control-border")),
 	)
 	declareGlobal(".ownership-tree,.ownership-tree ul",
 		gwccss.Margin(gwccss.Zero),
@@ -1454,6 +1793,21 @@ func declareorganizationHierarchyStylesStyles() {
 	declareGlobal(".organization-view-option",
 		mediaRule(gwccss.MaxW(430), gwccss.Raw("flex", "1"), gwccss.Raw("text-align", "center")),
 	)
+	declareGlobal(".organization-search-control",
+		mediaRule(gwccss.MaxW(430), gwccss.FlexDir.Col),
+	)
+	declareGlobal(".organization-search-control>.button",
+		mediaRule(gwccss.MaxW(430), gwccss.W(gwccss.Percent(100))),
+	)
+	declareGlobal(".organization-search-control>input",
+		mediaRule(gwccss.MaxW(430), gwccss.Raw("flex", "0 0 auto"), gwccss.W(gwccss.Percent(100))),
+	)
+	declareGlobal(".organization-browse-controls",
+		mediaRule(gwccss.MaxW(430), gwccss.Items.Stretch, gwccss.Raw("align-items", "stretch")),
+	)
+	declareGlobal(".organization-browse-controls .button",
+		mediaRule(gwccss.MaxW(430), gwccss.Raw("flex", "1 1 auto")),
+	)
 	declareGlobal(".ownership-tree ul",
 		mediaRule(gwccss.MaxW(430), gwccss.Raw("margin-inline-start", "8px"), gwccss.Raw("padding-inline-start", "12px")),
 	)
@@ -1494,6 +1848,10 @@ func declaremyselfStylesStyles() {
 		gwccss.Raw("color", "var(--on-brand,#fff)"),
 		gwccss.Raw("font-weight", "800"),
 	)
+	declareGlobal(".self-service-boundary-glyph",
+		gwccss.W(gwccss.Px(19)),
+		gwccss.H(gwccss.Px(19)),
+	)
 	declareGlobal(".self-service-boundary-copy h2",
 		gwccss.Margin(gwccss.Zero),
 		gwccss.FontSize(gwccss.Rem(1)),
@@ -1523,6 +1881,15 @@ func declaremyselfStylesStyles() {
 	)
 	declareGlobal(".self-service-badge",
 		mediaRule(gwccss.MaxW(680), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.Raw("justify-self", "start")),
+	)
+	declareGlobal(".self-service-boundary",
+		mediaRule(gwccss.MaxW(420), gwccss.GridCols(gwccss.Fr(1)), gwccss.Gap(gwccss.Px(9)), gwccss.PaddingY(gwccss.Px(16)), gwccss.PaddingX(gwccss.Px(16))),
+	)
+	declareGlobal(".self-service-boundary-icon",
+		mediaRule(gwccss.MaxW(420), gwccss.Display.None),
+	)
+	declareGlobal(".self-service-badge",
+		mediaRule(gwccss.MaxW(420), gwccss.GridColumn(gwccss.GridLineAt(1))),
 	)
 	declareGlobal(".self-service-boundary,.self-service-badge,.self-service-boundary-icon",
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.Border(gwccss.Px(1), gwccss.Color("CanvasText"))),

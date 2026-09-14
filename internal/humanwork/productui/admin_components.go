@@ -38,7 +38,7 @@ func AdminPage(props AdminPageProps) ui.Node {
 		}
 		children = append(children, ui.CreateElement(CapabilityCard, capability))
 	}
-	return html.Div(html.Props{Class: "admin-grid"}, children...)
+	return html.Div(html.Props{Class: "admin-grid", Raw: map[string]any{"role": "list", "aria-labelledby": "admin-page-title"}}, children...)
 }
 
 func AdminHero(props AdminHeroProps) ui.Node {
@@ -47,7 +47,7 @@ func AdminHero(props AdminHeroProps) ui.Node {
 		action = ui.CreateElement(ActionLink, props.Action)
 	}
 	return html.Section(html.Props{Class: "surface admin-hero"},
-		html.Div(html.Props{}, html.Small(html.Props{}, ui.Text(props.Eyebrow)), html.H2(html.Props{}, ui.Text(props.Title)), html.P(html.Props{Class: "muted"}, ui.Text(props.Description))),
+		html.Div(html.Props{}, html.Small(html.Props{}, ui.Text(props.Eyebrow)), html.H2(html.Props{ID: "admin-page-title"}, ui.Text(props.Title)), html.P(html.Props{Class: "muted"}, ui.Text(props.Description))),
 		action,
 	)
 }
@@ -66,9 +66,9 @@ func CapabilityCard(props CapabilityCardProps) ui.Node {
 		if props.Availability.Recovery.Href != "" {
 			children = append(children, ui.CreateElement(ActionLink, props.Availability.Recovery))
 		}
-		return html.Section(html.Props{Class: "surface admin-card", Raw: map[string]any{"data-action-state": "unavailable"}}, children...)
+		return html.Section(html.Props{Class: "surface admin-card", Raw: map[string]any{"role": "listitem", "data-action-state": "unavailable"}}, children...)
 	}
-	return html.Section(html.Props{Class: "surface admin-card"},
+	return html.Section(html.Props{Class: "surface admin-card", Raw: map[string]any{"role": "listitem"}},
 		html.Div(html.Props{}, html.H3(html.Props{}, ui.Text(props.Title)), html.P(html.Props{Class: "muted"}, ui.Text(props.Description))),
 		html.Strong(html.Props{Class: tone}, ui.Text(props.State)),
 		ui.CreateElement(ActionLink, props.Action),

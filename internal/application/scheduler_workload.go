@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
+	"log/slog"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
@@ -11,8 +12,11 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	executionscheduler "github.com/monstercameron/human-capital-management-suite/internal/platform/execution/scheduler"
+	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/timer"
 )
 
@@ -43,7 +47,7 @@ func timerDispatcher(tenantID string, tenant string, resume firedTimerResumer) e
 	})
 }
 
-func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity string, cell *app.Cell, logger bootstrap.Logger) (bootstrap.Workload, error) {
+func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity string, cell *app.Cell, provider *hcmotel.Provider, logger bootstrap.Logger, now func() time.Time) (bootstrap.Workload, error) {
 	if pool == nil {
 		return bootstrap.Workload{}, fmt.Errorf("application: -%s needs a database pool", FieldScheduler)
 	}
@@ -63,7 +67,8 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 		}},
 		Leases: lease.Manager{}, Timers: timer.Scheduler{Attempts: runtime.Store{}},
 		Misfire:    schedule.MisfireConfig{Policy: schedule.MisfireCatchUpOnce, Grace: time.Hour, MaxCatchUp: 1},
-		Dispatcher: dispatcher, Logger: logger,
+		Dispatcher: dispatcher, Logger: logger, Clock: now,
+		Recorder: schedulerRecorder(provider, logger, now),
 	})
 	if err != nil {
 		return bootstrap.Workload{}, err
@@ -71,4 +76,13 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 	return bootstrap.Workload{Name: workloadNameScheduler, Run: func(ctx context.Context) error {
 		return runner.Run(ctx, executionscheduler.DefaultPollInterval)
 	}}, nil
+}
+
+// schedulerRecorder is the workflow-engine telemetry recorder for the timer
+// scheduler: every claim it serves and every lease, timer and runtime
+// operation beneath it becomes a span and a structured log line. Without a
+// telemetry provider it still logs refusals and failures.
+func schedulerRecorder(provider *hcmotel.Provider, logger bootstrap.Logger, now func() time.Time) observe.Recorder {
+	slogger, _ := logger.(*slog.Logger)
+	return execution.NewObserveRecorder(provider, slogger, now)
 }

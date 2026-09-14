@@ -45,6 +45,31 @@ func (s *Store) Bootstrap(ctx context.Context, tenant values.TenantId, actor str
 	})
 }
 
+// BootstrapLocalDevPersonaPermissions narrows only untouched version-one
+// HarborCare demo grants. The payroll persona reviews assigned promotion work
+// but does not initiate requests or browse the organization tree. A grant an
+// administrator has edited (and therefore versioned) is never overwritten.
+// This is called only by the local-dev composition, never for production.
+func (s *Store) BootstrapLocalDevPersonaPermissions(ctx context.Context, tenant values.TenantId) error {
+	return s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
+		for _, roleID := range []string{"payroll_manager", "promotion_operator"} {
+			for _, pageID := range []string{"organization", "org-explorer", "org-outline", "org-responsive"} {
+				if _, err := tx.Exec(ctx, `UPDATE role_page_permission SET can_view=false,version=version+1,updated_by='system:local-dev-personas',updated_at=clock_timestamp()
+					WHERE tenant_id=$1 AND role_id=$2 AND page_id=$3 AND version=1
+					AND can_view=true AND can_create=false AND can_update=false AND can_delete=false`, tenantID, roleID, pageID); err != nil {
+					return fmt.Errorf("roleaccessstore: narrow local-dev %s access for %s: %w", pageID, roleID, err)
+				}
+			}
+		}
+		if _, err := tx.Exec(ctx, `UPDATE role_page_permission SET can_create=false,version=version+1,updated_by='system:local-dev-personas',updated_at=clock_timestamp()
+			WHERE tenant_id=$1 AND role_id='payroll_manager' AND page_id='journeys' AND version=1
+			AND can_view=true AND can_create=true AND can_update=true AND can_delete=false`, tenantID); err != nil {
+			return fmt.Errorf("roleaccessstore: narrow local-dev payroll initiation: %w", err)
+		}
+		return nil
+	})
+}
+
 func (s *Store) Load(ctx context.Context, tenant values.TenantId, organization string) (roleaccess.Snapshot, error) {
 	organization = strings.TrimSpace(organization)
 	if organization == "" {

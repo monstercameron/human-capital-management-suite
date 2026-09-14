@@ -71,7 +71,8 @@ func (e *journeyEngine) admitPromotionWindow(
 	}()
 
 	tenantID := e.svc.tenantUUID(principal.Tenant())
-	if _, admitErr := promotionguard.Admit(ctx, tx, tenantID, guardID, workerRef, effectiveDate, idempotencyKey); admitErr != nil {
+	decision, admitErr := promotionguard.Admit(ctx, tx, tenantID, guardID, workerRef, effectiveDate, idempotencyKey)
+	if admitErr != nil {
 		if errors.Is(admitErr, promotionguard.ErrActiveConflict) {
 			// The rollback above is what makes this refusal free of side
 			// effects: the reservation attempt itself never commits, and
@@ -89,7 +90,7 @@ func (e *journeyEngine) admitPromotionWindow(
 		return uuid.Nil, fmt.Errorf("app: journey: commit promotion window admission: %w", err)
 	}
 	committed = true
-	return guardID, nil
+	return decision.GuardID, nil
 }
 
 // confirmPromotionWindow attaches the real intent id CreateIntent minted to
@@ -99,11 +100,13 @@ func (e *journeyEngine) admitPromotionWindow(
 // by the time this runs, CreateIntent has already durably recorded the
 // promotion the caller asked for, and telling them the request failed
 // because a bookkeeping update on top of that success could not complete
-// would be a lie. The cost of a lost confirmation is informational only --
-// internal/data/promotionguard.Admit's own idempotency handling never
-// depends on this column, and CreateIntent's replay of the same
-// idempotency key still resolves to the one real intent either way -- so
-// the caller logs the error and continues.
+// would be a lie. A lost confirmation does not invalidate admission:
+// internal/data/promotionguard.Admit's idempotency handling never depends on
+// this column, and CreateIntent's replay of the same key still resolves to
+// the one real intent. The caller logs the error and continues. An ACTIVE
+// unconfirmed reservation still protects the promotion while it runs;
+// terminal Release reconciles it
+// by the intent's durable idempotency key before closing the window.
 func (e *journeyEngine) confirmPromotionWindow(
 	ctx context.Context, principal *trust.Principal, guardID uuid.UUID, idempotencyKey, intentIDText string,
 ) error {

@@ -25,6 +25,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/definitions"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
@@ -137,6 +138,10 @@ type CellConfig struct {
 	// otelmw.UnaryServerInterceptor/otelmw.NewConnectInterceptor from it,
 	// because only internal/transport may import connect/grpc (LIB-003).
 	Telemetry *hcmotel.Provider
+	// WorkflowRecorder receives the governed workflow controls' operations
+	// (spans and structured logs). Nil records nothing unless a caller
+	// context carries its own recorder.
+	WorkflowRecorder WorkflowRecorder
 	// Preferences persists authenticated presentation state. It is optional
 	// for non-workspace compositions; the product RPC reports UNAVAILABLE
 	// when omitted rather than silently falling back to browser storage.
@@ -282,6 +287,12 @@ type Cell struct {
 	// workspace.ErrJourneyUnavailable from its own nil check.
 	Journey workspace.JourneyEngine
 
+	// WorkflowControl and WorkflowTenantIDs are EP-WF-002's governed workflow
+	// controls. Both are nil on a cell composed without an execution database
+	// and tenant mapping; the workflow transport then refuses every control.
+	WorkflowControl   *workflowcontrol.Controller
+	WorkflowTenantIDs workflowcontrol.TenantIDs
+
 	// locateWorker is the one worker-reference resolver this cell composed.
 	// Every surface that accepts a reference somebody typed -- the
 	// domain-input resolver, the workspace's read surface, the journey engine
@@ -411,6 +422,9 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
 		positionReader = positionfacts.Reader{DB: cfg.ExecutionDB, TenantUUID: cfg.TenantUUID}
 	}
+	if fixtureBacked != nil {
+		fixtureBacked.BindPositionReader(positionReader)
+	}
 
 	// PROMOUX-005: the same condition as positionReader above. Without an
 	// execution database and a tenant mapping there is no journey_worker
@@ -528,15 +542,23 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	// is left at its zero value rather than assigned a nil *journeyEngine.
 	var journey workspace.JourneyEngine
 	if cfg.Executor != nil && cfg.ExecutionDB != nil {
-		journey = newJourneyEngine(svc, cfg.ExecutionDB, cfg.ExecutionApprover, cfg.Now, locateWorker, cfg.WorkerIDs)
+		engine := newJourneyEngine(svc, cfg.ExecutionDB, cfg.ExecutionApprover, cfg.Now, locateWorker, cfg.WorkerIDs)
+		engine.recorder = cfg.WorkflowRecorder
+		journey = engine
+	}
+	workflowControl, workflowTenantIDs, err := composeWorkflowControl(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now, cfg.WorkflowRecorder)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Cell{
-		Journey:        journey,
-		WorkerIDs:      cfg.WorkerIDs,
-		locateWorker:   locateWorker,
-		positionReader: positionReader,
-		managerFacts:   managerFacts,
+		Journey:           journey,
+		WorkflowControl:   workflowControl,
+		WorkflowTenantIDs: workflowTenantIDs,
+		WorkerIDs:         cfg.WorkerIDs,
+		locateWorker:      locateWorker,
+		positionReader:    positionReader,
+		managerFacts:      managerFacts,
 
 		workspaceEnabled: workspaceEnabled,
 		devBrowserLogin:  cfg.DevBrowserLogin,

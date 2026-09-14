@@ -67,6 +67,12 @@ func fixtureSubject() JourneyCard {
 		StageTone:     toneWarning,
 		Updated:       "12 May 2026, 09:12 UTC",
 		InstanceID:    fixtureInstanceID,
+		// fixturePrincipal is signed in with a role this fixture treats as
+		// PROMOUX-008 diagnostics-authorized, so the reference page exercises
+		// every section a renderer test walks, per this file's own doc
+		// comment. fixture_test.go and components_test.go cover the
+		// unauthorized shape directly.
+		DiagnosticsAuthorized: true,
 	}
 }
 
@@ -83,7 +89,7 @@ func SampleListPage() Page {
 		Notice: &Notice{
 			Tone:   toneSuccess,
 			Title:  "Proposal recorded for Priya Raghunathan",
-			Detail: "The simulation produced an executable plan. It is waiting for the execution authority to admit it.",
+			Detail: "The request passed its initial checks and is ready to start the approval workflow.",
 		},
 		List: &ListView{
 			Journeys:        fixtureJourneys(),
@@ -111,7 +117,7 @@ func fixturePeople() *PeopleView {
 		Empty:       "No employee in this tenant is readable under this purpose yet. The form below records the first one.",
 		Form:        fixtureWorkerForm(),
 		SelectedRef: fixtureSelectedRef,
-		Note:        "Employees you add are recorded as facts in this cell's workforce table.",
+		Note:        "Employees you add appear in the directory after the request succeeds.",
 	}
 }
 
@@ -321,7 +327,7 @@ func fixtureProposalForm() ProposalForm {
 			"form":       "propose",
 			"return_to":  "/workspace/journeys",
 		},
-		Submit: "Propose and simulate",
+		Submit: "Review and submit",
 		Fields: []Field{
 			{
 				ID: "propose-worker", Name: "worker_ref", Label: "Worker", Kind: fieldKindSelect,
@@ -393,17 +399,18 @@ func SampleDetailPage() Page {
 			Detail: "The approval work item is routed to the compensation approver. Deciding here acts as that principal and is recorded that way.",
 		},
 		Detail: &DetailView{
-			Journey:    fixtureSubject(),
-			Steps:      fixtureSteps(false),
-			Proposal:   fixtureProposalFacts(),
-			Comparison: fixtureComparison(),
-			Findings:   fixtureFindings(),
-			Engine:     fixtureEngineFacts("RUNNING", "approval"),
-			Nodes:      fixtureNodes(false),
-			WorkItems:  fixtureWorkItems(false),
-			Evidence:   fixtureEvidence(false),
-			Timeline:   fixtureTimeline(false),
-			Actions:    fixtureActions(),
+			Diagnostics: true,
+			Journey:     fixtureSubject(),
+			Steps:       fixtureSteps(false),
+			Proposal:    fixtureProposalFacts(),
+			Comparison:  fixtureComparison(),
+			Findings:    fixtureFindings(),
+			Engine:      fixtureEngineFacts("RUNNING", "approval"),
+			Nodes:       fixtureNodes(false),
+			WorkItems:   fixtureWorkItems(false),
+			Evidence:    fixtureEvidence(false),
+			Timeline:    fixtureTimeline(false),
+			Actions:     fixtureActions(),
 
 			PayBand:         fixturePayBand(),
 			Budget:          fixtureBudget(),
@@ -437,18 +444,19 @@ func SampleCompletedDetailPage() Page {
 		Detail: "The workflow reached its APPROVED terminal and wrote one promotion fact, effective 1 Jun 2026.",
 	}
 	p.Detail = &DetailView{
-		Journey:    j,
-		Steps:      fixtureSteps(true),
-		Proposal:   fixtureProposalFacts(),
-		Comparison: fixtureComparison(),
-		Findings:   fixtureFindings(),
-		Engine:     fixtureEngineFacts("COMPLETED", "record"),
-		Nodes:      fixtureNodes(true),
-		WorkItems:  fixtureWorkItems(true),
-		Ledger:     fixtureLedger(),
-		Evidence:   fixtureEvidence(true),
-		Timeline:   fixtureTimeline(true),
-		Actions:    actions,
+		Diagnostics: true,
+		Journey:     j,
+		Steps:       fixtureSteps(true),
+		Proposal:    fixtureProposalFacts(),
+		Comparison:  fixtureComparison(),
+		Findings:    fixtureFindings(),
+		Engine:      fixtureEngineFacts("COMPLETED", "record"),
+		Nodes:       fixtureNodes(true),
+		WorkItems:   fixtureWorkItems(true),
+		Ledger:      fixtureLedger(),
+		Evidence:    fixtureEvidence(true),
+		Timeline:    fixtureTimeline(true),
+		Actions:     actions,
 
 		PayBand:         fixturePayBand(),
 		Budget:          fixtureBudget(),
@@ -461,13 +469,13 @@ func fixtureSteps(complete bool) []Step {
 	steps := []Step{
 		{ID: "proposed", Label: "Proposed", Detail: "The manager submitted the change and the intent was created.",
 			State: stepDone, At: "12 May 2026, 08:58 UTC"},
-		{ID: "simulated", Label: "Simulated", Detail: "Preflight and transaction simulation produced an executable plan.",
+		{ID: "simulated", Label: "Checked", Detail: "The request passed its initial policy and transaction checks.",
 			State: stepDone, At: "12 May 2026, 08:58 UTC"},
-		{ID: "admitted", Label: "Admitted", Detail: "The P1B execution authority admitted the plan and started the workflow.",
+		{ID: "admitted", Label: "Started", Detail: "The approval workflow started.",
 			State: stepDone, At: "12 May 2026, 09:12 UTC"},
 		{ID: "approval", Label: "Awaiting approval", Detail: "Parked on the approval work item routed to the compensation approver.",
 			State: stepActive, At: "12 May 2026, 09:12 UTC"},
-		{ID: "recorded", Label: "Recorded", Detail: "The terminal node writes exactly one promotion fact to the ledger.",
+		{ID: "recorded", Label: "Recorded", Detail: "The approved promotion outcome is recorded once.",
 			State: stepUpcoming},
 	}
 	if complete {
@@ -624,8 +632,8 @@ func fixtureTimeline(complete bool) []TimelineEvent {
 		TimelineEvent{At: "12 May 2026, 09:12 UTC", Actor: "workflow", Title: "Approval work item routed",
 			Detail: "Routed to the compensation approver for the EMEA People Operations org unit.",
 			Ref:    "wi_01JX7Q2M6P1T4UVW", Tone: toneWarning},
-		TimelineEvent{At: "12 May 2026, 09:12 UTC", Actor: "execution authority", Title: "Plan admitted (P1B)",
-			Detail: "The gate admitted the simulated plan and started instance " + fixtureInstanceID + ".",
+		TimelineEvent{At: "12 May 2026, 09:12 UTC", Actor: "System", Title: "Approval workflow started",
+			Detail: "The request passed its final start checks.",
 			Ref:    "evd_gate_01JX7Q2M4K8N3RA6_p1b", Tone: toneInfo},
 		TimelineEvent{At: "12 May 2026, 08:58 UTC", Actor: "avery.okafor@northwind.example", Title: "Proposal simulated",
 			Detail: "Four findings, none blocking. The plan is executable.",
@@ -655,19 +663,19 @@ func fixtureActions() []Action {
 	return []Action{
 		{
 			ID: "approve", Label: "Approve promotion", Variant: "primary",
-			Description: "Claims and completes the approval work item as the routed approver, resumes the driver, and lets the terminal node record the promotion fact.",
+			Description: "Records the assigned review and moves the promotion to its next required step.",
 			Action:      fixtureHref + "/decide",
 			Hidden:      withDecision("approve"),
 			ActsAs:      approver,
 			Fields: []Field{{
 				ID: "approve-reason", Name: "reason", Label: "Reason for the record", Kind: fieldKindTextarea,
 				Placeholder: "What made this the right call?",
-				Help:        "Kept on the work item transition and carried into the ledger event's evidence.",
+				Help:        "Saved with the approval history.",
 			}},
 		},
 		{
 			ID: "return", Label: "Return to the manager", Variant: "danger",
-			Description: "Rejects the proposal. The instance ends at its REJECTED terminal and no promotion fact is written.",
+			Description: "Returns the request without changing the employee record.",
 			Action:      fixtureHref + "/decide",
 			Hidden:      withDecision("reject"),
 			ActsAs:      approver,
@@ -679,7 +687,7 @@ func fixtureActions() []Action {
 		},
 		{
 			ID: "execute", Label: "Send to execution", Variant: "secondary",
-			Description: "Runs ExecuteIntent behind the P1B execution authority gate.",
+			Description: "Starts the required promotion approval workflow.",
 			Action:      fixtureHref + "/execute",
 			Hidden: map[string]string{
 				"csrf_token": fixtureCSRF,
@@ -730,6 +738,6 @@ func fixtureEffectiveWindow() *EffectiveWindow {
 		Start:         "1 Apr 2026",
 		EffectiveDate: "1 Jun 2026",
 		KnownAt:       "12 May 2026, 09:12 UTC",
-		Note:          "Every figure above was read as known at that instant; a later correction to the same period would not change this page retroactively.",
+		Note:          "These details show what reviewers saw at that time. Later corrections appear in history and do not rewrite this decision.",
 	}
 }

@@ -35,12 +35,13 @@ func mustLoadP1BTemplate(t *testing.T) P1BTemplate {
 	return *tpl
 }
 
-// TestP1AAndP1BManifestsAreDisjointOrderedBoundedAndSelectionComplete is
-// NEXT-002's named TEST. It proves the signed P1A manifest and the deferred
-// P1B template satisfy every clause of NEXT-002's GREEN condition together:
-// disjoint effect scope, a fixed canonical order, a hard effect ceiling,
-// and complete per-item selection disposition.
-func TestP1AAndP1BManifestsAreDisjointOrderedBoundedAndSelectionComplete(t *testing.T) {
+// TestP1AManifestAndP1BTemplateAreOrderedDisjointAndBounded pins the
+// structural half of NEXT-002 inside this package: canonical order,
+// disjoint effect scope, the hard effect ceiling and a non-activatable P1B
+// template. The named PRIMARY (selection completeness included) lives in
+// ./selectionbind, which can import the selecting packages this package
+// cannot.
+func TestP1AManifestAndP1BTemplateAreOrderedDisjointAndBounded(t *testing.T) {
 	p1a := mustLoadP1AManifest(t)
 	p1b := mustLoadP1BTemplate(t)
 
@@ -109,6 +110,9 @@ func TestP1AAndP1BManifestsAreDisjointOrderedBoundedAndSelectionComplete(t *test
 			if p1aGrants[key] {
 				t.Errorf("P1B contract %s (mode %q) is also granted by the P1A manifest - not disjoint", c.ID, c.Mode)
 			}
+		}
+		if v := CheckDisjoint(p1a, p1b); len(v) != 0 {
+			t.Errorf("CheckDisjoint(live P1A, live P1B) = %v, want none", v)
 		}
 		// promote_worker is the one id both documents name; confirm the
 		// P1A grant set for it is exactly {DRAFT, PREFLIGHT, SIMULATE},
@@ -289,11 +293,32 @@ func TestP1AManifestValidateRejectsIncompleteManifests(t *testing.T) {
 		{"no effect ceiling", func(m *P1AManifest) { m.EffectCeiling = nil }, "effect_ceiling"},
 		{"non-read-only capability", func(m *P1AManifest) { m.Capabilities[0].EffectClass = "READ_WRITE" }, "capabilities"},
 		{"no evidence", func(m *P1AManifest) { m.Evidence = nil }, "evidence"},
+		{"blended release", func(m *P1AManifest) { m.Release = "P1A+P1B" }, "release"},
+		{"EXECUTE granted before Gate A", func(m *P1AManifest) { m.Intents[1].Modes = []string{"DRAFT", "EXECUTE"} }, "intents"},
+		{"deferred intent included", func(m *P1AManifest) { m.Intents[0].Disposition = "DEFERRED" }, "intents"},
+		{"ceiling text weakened", func(m *P1AManifest) { m.EffectCeiling[2] = "zero committed external effects" }, "effect_ceiling"},
+		{"outbox effect dropped", func(m *P1AManifest) { m.ForbiddenEffects = m.ForbiddenEffects[:5] }, "forbidden_effects"},
+		{"selection omitted", func(m *P1AManifest) { m.SelectionBindings = m.SelectionBindings[:6] }, "selection_bindings"},
+		{"selection substituted", func(m *P1AManifest) { m.SelectionBindings[2].TodoID = "SELECT-009" }, "selection_bindings[2].todo_id"},
+		{"selection path escapes root", func(m *P1AManifest) { m.SelectionBindings[0].Path = "../outside.yaml" }, "selection_bindings[0].path"},
+		{"selection digest kind unknown", func(m *P1AManifest) { m.SelectionBindings[0].DigestKind = "MD5" }, "selection_bindings[0].digest_kind"},
+		{"selection digest missing", func(m *P1AManifest) { m.SelectionBindings[0].Digest = "" }, "selection_bindings[0].digest"},
+		{"selection digest uppercase", func(m *P1AManifest) {
+			m.SelectionBindings[0].Digest = strings.ToUpper(m.SelectionBindings[0].Digest)
+		}, "selection_bindings[0].digest"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			m := valid
+			m.Intents = append([]Intent(nil), valid.Intents...)
+			for i := range m.Intents {
+				m.Intents[i].Modes = append([]string(nil), valid.Intents[i].Modes...)
+			}
+			m.Capabilities = append([]Capability(nil), valid.Capabilities...)
+			m.EffectCeiling = append([]string(nil), valid.EffectCeiling...)
+			m.ForbiddenEffects = append([]string(nil), valid.ForbiddenEffects...)
+			m.SelectionBindings = append([]SelectionBinding(nil), valid.SelectionBindings...)
 			tc.mutate(&m)
 			violations := m.Validate()
 			if len(violations) == 0 {

@@ -149,3 +149,41 @@ func TestOwnershipTreeDoesNotDropCyclesOrOrphans(t *testing.T) {
 		}
 	}
 }
+
+func TestOrganizationSearchIsFuzzyAndAuthorizationGated(t *testing.T) {
+	view := testView(PageOrganization)
+	view.RecordVerdicts = map[string]AuthorizedRecord{
+		"worker-avery":  {ID: "worker-avery", Disclosable: true},
+		"worker-jordan": {ID: "worker-jordan", Disclosable: false},
+		"worker-elena":  {ID: "worker-elena", Disclosable: true},
+	}
+	view = ApplyRequest(view, PageRequest{Query: "Averi", OrganizationView: organizationViewFlat})
+	doc, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(doc, "Avery Patel") || strings.Contains(doc, "Jordan Lee") {
+		t.Fatalf("organization search did not fuzzy-match the admitted worker set: %s", doc)
+	}
+	if !strings.Contains(doc, `role="search"`) || !strings.Contains(doc, `name="q"`) || !strings.Contains(doc, "Clear") {
+		t.Fatal("organization search is not progressively enhanced")
+	}
+}
+
+func TestOrganizationFlatAndTreeViewsKeepTheSameFilteredPopulation(t *testing.T) {
+	view := testView(PageOrganization)
+	view = ApplyRequest(view, PageRequest{Query: "Avery"})
+	flat, err := Render(ApplyRequest(view, PageRequest{Query: "Avery", OrganizationView: organizationViewFlat}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, err := Render(ApplyRequest(view, PageRequest{Query: "Avery", OrganizationView: organizationViewTree}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, doc := range []string{flat, tree} {
+		if !strings.Contains(doc, "Avery Patel") || strings.Contains(doc, "Jordan Lee") || strings.Contains(doc, "Sam Rivera") {
+			t.Fatalf("filtered organization view disclosed a different population: %s", doc)
+		}
+	}
+}

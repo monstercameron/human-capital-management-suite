@@ -12,7 +12,6 @@ func myselfPage(view View) ui.Node {
 		return ui.CreateElement(MyselfPage, props)
 	}
 	profile := personProfileProps(view, person, PageMyself)
-	profile.Hero.Status = view.Locale.Text("myself.self_service")
 	profile.Compensation.Title = view.Locale.Text("myself.payroll_title")
 	profile.Compensation.Description = view.Locale.Text("myself.payroll_detail")
 	profile.Compensation.Notice = view.Locale.Text("myself.payroll_boundary")

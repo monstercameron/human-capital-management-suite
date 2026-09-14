@@ -10,13 +10,15 @@ import (
 
 	"github.com/google/uuid"
 
-	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/effects"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
@@ -249,6 +251,68 @@ func openJourneyWorkItem(items []workitem.WorkItem) (workitem.WorkItem, bool) {
 	return workitem.WorkItem{}, false
 }
 
+// approvalReviewRelationships returns the one case-scoped relationship fact
+// that lets a manager review a proposal routed to them. A current assignment
+// grants review while the decision is pending; a completed item grants the
+// same narrow access only to the principal who actually recorded the
+// decision. This preserves a reviewer's access to the outcome they helped
+// decide without widening their population visibility or trusting a stale
+// assignment after reassignment/cancellation. The effective interval starts
+// with the case because the governed worker snapshot is read at that instant;
+// RecordedAt and KnownAt remain the WorkItem time, so the later assignment can
+// never be presented as authority that was known before it existed.
+func approvalReviewRelationships(
+	principal *trust.Principal,
+	subject values.EntityRef,
+	caseEffectiveAt values.Instant,
+	items []workitem.WorkItem,
+) ([]authz.RelationshipFact, error) {
+	if principal == nil {
+		return nil, nil
+	}
+	var item workitem.WorkItem
+	found := false
+	for _, candidate := range items {
+		if candidate.NodeID != promotionexec.NodeApproveManager && candidate.NodeID != promotionexec.NodeReapproval {
+			continue
+		}
+		isCurrentOwner := journeyOpenApprovalStatuses[candidate.Status] && candidate.Assignment.ChosenOwner == principal.Subject()
+		isRecordedReviewer := candidate.Status == workitem.StatusCompleted && candidate.CompletedBy == principal.Subject()
+		if isCurrentOwner || isRecordedReviewer {
+			item = candidate
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, nil
+	}
+	if !caseEffectiveAt.IsSet() {
+		return nil, fmt.Errorf("app: journey: approval review case effective time is required")
+	}
+	interval, err := values.NewOpenInstantInterval(caseEffectiveAt)
+	if err != nil {
+		return nil, fmt.Errorf("app: journey: build approval review interval: %w", err)
+	}
+	recordedInstant := values.NewInstant(item.RecordedAt.UTC())
+	recordedAt, err := values.NewRecordedAt(recordedInstant)
+	if err != nil {
+		return nil, fmt.Errorf("app: journey: build approval review record time: %w", err)
+	}
+	knownAt, err := values.NewKnownAt(recordedInstant)
+	if err != nil {
+		return nil, fmt.Errorf("app: journey: build approval review knowledge time: %w", err)
+	}
+	return []authz.RelationshipFact{{
+		Kind:       authz.RelationshipAssignedPopulation,
+		Subject:    subject,
+		Source:     "workflow.work_item.assignment.v1",
+		Effective:  interval,
+		RecordedAt: recordedAt,
+		KnownAt:    knownAt,
+	}}, nil
+}
+
 // journeyStageForNode is the stable page projection for every node in the
 // executable promotion graph. Nodes before the first human gate remain
 // PROPOSED; this keeps the page vocabulary small while still exposing every
@@ -360,42 +424,37 @@ func deriveJourneyStage(proposalRevisionID string, record journeyRecord) workspa
 
 // Inspect implements [workspace.JourneyEngine].
 func (e *journeyEngine) Inspect(ctx context.Context, intentID string) (workspace.JourneyDetail, error) {
+	return e.inspectWithRelationships(ctx, intentID, nil)
+}
+
+// inspectWithRelationships renders one journey with a relationship that was
+// already proven earlier in the same application operation. Decide uses this
+// after it closes an assigned manager WorkItem: the close correctly removes
+// future case access, but the response to that successful decision must still
+// describe the state the operation just committed. The relationship is never
+// accepted from transport input and never survives this call.
+func (e *journeyEngine) inspectWithRelationships(
+	ctx context.Context, intentID string, carried []authz.RelationshipFact,
+) (workspace.JourneyDetail, error) {
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return workspace.JourneyDetail{}, err
 	}
-	got, getErr := e.svc.GetIntent(ctx, &intentsv1.GetIntentRequest{IntentId: intentID})
-	if getErr != nil {
-		return workspace.JourneyDetail{}, journeyError(getErr)
+	inst, _, ownedErr := e.svc.loadInstance(ctx, principal.Tenant().String(), intentID)
+	if ownedErr != nil {
+		return workspace.JourneyDetail{}, journeyError(ownedErr)
 	}
-	if got.GetIntent().GetDefinition().GetIntentTypeId() != promotion.IntentType {
+	if inst.Definition.TypeID != promotion.IntentType {
 		return workspace.JourneyDetail{}, fmt.Errorf("%w: %s is not a promotion journey",
 			workspace.ErrJourneyUnknown, intentID)
 	}
-	summary, sumErr := journeySummaryFromProto(got.GetIntent())
+	msg, mapErr := protomap.InstanceToProto(inst)
+	if mapErr != nil {
+		return workspace.JourneyDetail{}, fmt.Errorf("app: journey: map stored intent: %w", mapErr)
+	}
+	summary, sumErr := journeySummaryFromProto(msg)
 	if sumErr != nil {
 		return workspace.JourneyDetail{}, sumErr
-	}
-
-	// The re-simulation is the same read-only path ExecuteIntent itself runs
-	// before it will execute anything: it is what proves the proposal revision
-	// and material digest the page shows name current content rather than a
-	// value remembered from an earlier call.
-	artifact, simErr := e.resimulate(ctx, intentID)
-	if simErr != nil {
-		return workspace.JourneyDetail{}, simErr
-	}
-	summary.ProposalRevisionID = artifact.GetProposalRevisionId()
-	summary.MaterialDigest = artifact.GetMaterialProposalDigest().GetDigest()
-
-	detail := workspace.JourneyDetail{Summary: summary, Approver: e.approver}
-	for _, f := range artifact.GetFindings() {
-		detail.Findings = append(detail.Findings, workspace.JourneyFinding{
-			Severity: f.GetSeverity(), Code: f.GetCode(), Message: f.GetMessage(),
-		})
-	}
-	for _, w := range artifact.GetPlannedWrites() {
-		detail.PlannedWrites = append(detail.PlannedWrites, w.GetOperation()+" "+w.GetTargetRef())
 	}
 
 	tx, txErr := e.beginTenant(ctx, principal)
@@ -403,14 +462,83 @@ func (e *journeyEngine) Inspect(ctx context.Context, intentID string) (workspace
 		return workspace.JourneyDetail{}, txErr
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	record, recErr := e.readRecord(ctx, tx, principal, summary.MaterialDigest)
+
+	materialDigest, record, executed, recErr := e.readExecutedRecordForIntent(ctx, tx, principal, intentID)
 	if recErr != nil {
 		return workspace.JourneyDetail{}, recErr
 	}
+	relationships, relErr := approvalReviewRelationships(principal, summary.Worker, inst.CreatedAt, record.items)
+	if relErr != nil {
+		return workspace.JourneyDetail{}, relErr
+	}
+	relationships = append(relationships, managerChainFacts(ctx, e.locate, principal, summary.Worker)...)
+	if len(carried) != 0 {
+		relationships = append(append([]authz.RelationshipFact(nil), carried...), relationships...)
+	}
+	_, inv, callerErr := caller(ctx)
+	if callerErr != nil {
+		return workspace.JourneyDetail{}, journeyError(callerErr)
+	}
+
+	// Once execution exists, the stored proposal and runtime are historical
+	// authority. Re-simulating against today's worker state or rules can fail
+	// after a successful promotion and must not make its audit detail vanish.
+	// Unexecuted proposals still need a live simulation for their current
+	// findings and material digest.
+	var findings []workspace.JourneyFinding
+	var plannedWrites []string
+	if executed {
+		if authErr := authorizeHistoricalJourneyRead(principal, purposeOf(principal, inv), summary.Worker, inst.CreatedAt, relationships); authErr != nil {
+			if errors.Is(authErr, ErrAuthorizationDenied) {
+				return workspace.JourneyDetail{}, journeyError(authorizationRefusal(authErr))
+			}
+			return workspace.JourneyDetail{}, fmt.Errorf("app: journey: authorize historical inspection: %w", authErr)
+		}
+		summary.MaterialDigest = materialDigest
+	} else {
+		artifact, simErr := e.resimulateWithRelationships(ctx, intentID, relationships)
+		if simErr != nil {
+			return workspace.JourneyDetail{}, simErr
+		}
+		summary.ProposalRevisionID = artifact.GetProposalRevisionId()
+		summary.MaterialDigest = artifact.GetMaterialProposalDigest().GetDigest()
+		for _, f := range artifact.GetFindings() {
+			findings = append(findings, workspace.JourneyFinding{
+				Severity: f.GetSeverity(), Code: f.GetCode(), Message: f.GetMessage(),
+			})
+		}
+		for _, w := range artifact.GetPlannedWrites() {
+			plannedWrites = append(plannedWrites, w.GetOperation()+" "+w.GetTargetRef())
+		}
+	}
+
+	detail := workspace.JourneyDetail{
+		Summary:              summary,
+		DiagnosticsAvailable: journeyDiagnosticsAllowed(principal),
+		Findings:             findings,
+		PlannedWrites:        plannedWrites,
+	}
+
+	if !executed {
+		record, recErr = e.readRecord(ctx, tx, principal, summary.MaterialDigest)
+		if recErr != nil {
+			return workspace.JourneyDetail{}, recErr
+		}
+	}
 
 	detail.Summary.Stage = deriveJourneyStage(summary.ProposalRevisionID, record)
+	// PROMOUX-012: the same viewer projection the list resolves. The work item
+	// summary is used only for the viewer's own membership; the detail page
+	// reads the work items themselves.
+	detail.Summary.Viewer = journeyViewerProjection(detail.Summary.Stage,
+		isJourneyInitiator(inst.Initiator.PrincipalID, principal.Subject()),
+		journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), e.now(), nil))
 	detail.Nodes = journeyNodes(record.nodes)
 	detail.WorkItems = record.items
+	if item, open := openJourneyWorkItem(record.items); open && item.Assignment.ChosenOwner != "" {
+		detail.CanDecide = item.Assignment.ChosenOwner == principal.Subject()
+		detail.Approver = journeyApproverLabel(item, detail.CanDecide)
+	}
 	detail.Transitions = record.transitions
 	detail.Ledger = record.ledger
 	if record.instance != nil {
@@ -432,8 +560,123 @@ func (e *journeyEngine) Inspect(ctx context.Context, intentID string) (workspace
 		}
 	}
 	detail.EvidenceIDs = e.evidenceIDsFor(intentID, detail.Summary.InstanceID)
-	detail.Timeline = journeyTimeline(detail)
+	applyJourneyChronology(&detail, record)
+
+	// PROMOUX-014: a journey parked on the effective-date wait explains
+	// itself -- see wait_explain.go for why Findings is the vessel and what
+	// each fact sources from.
+	if detail.Summary.Stage == workspace.JourneyStageWaitingEffectiveDate && record.instance != nil {
+		tenantID := e.svc.tenantUUID(principal.Tenant())
+		waitTimer, waitErr := journeyWaitTimer(ctx, tx, tenantID, record.instance.InstanceID)
+		if waitErr != nil {
+			return workspace.JourneyDetail{}, waitErr
+		}
+		detail.Findings = append(detail.Findings, journeyWaitFindings(waitTimer, detail.WorkItems)...)
+	}
+	if !detail.DiagnosticsAvailable {
+		redactJourneyDiagnostics(&detail)
+	}
 	return detail, nil
+}
+
+// authorizeHistoricalJourneyRead applies the same subject and compensation
+// field gate as promotion input resolution without rereading mutable worker
+// facts. The durable execution remains the only source of historical values.
+func authorizeHistoricalJourneyRead(principal *trust.Principal, purpose string, subject values.EntityRef, evaluatedAt values.Instant, relationships []authz.RelationshipFact) error {
+	_, err := authorizeRead(principal, purpose, authorizationRequest{
+		Subject: subject, EvaluatedAt: evaluatedAt,
+		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Read:          peopleFields(promotion.RequiredWorkerFields()),
+		Relationships: relationships,
+	})
+	return err
+}
+
+// applyJourneyChronology preserves the intent's simulation instant in the
+// timeline before the heading adopts the latest durable business transition.
+func applyJourneyChronology(detail *workspace.JourneyDetail, record journeyRecord) {
+	if detail == nil {
+		return
+	}
+	detail.Timeline = journeyTimeline(*detail)
+	applyDurableJourneyTime(&detail.Summary, record)
+}
+
+func journeyDiagnosticsAllowed(principal *trust.Principal) bool {
+	return principal != nil && (principal.HasRole("hcm_admin") ||
+		principal.HasRole(string(authz.RoleCompAdmin)) ||
+		principal.HasRole(string(authz.RoleAuditor)))
+}
+
+func journeyApproverLabel(item workitem.WorkItem, viewerIsApprover bool) string {
+	label := "Assigned reviewer"
+	switch item.NodeID {
+	case promotionexec.NodeApproveFinance:
+		label = "Finance reviewer"
+	case promotionexec.NodeApproveManager:
+		label = "Manager reviewer"
+	}
+	if viewerIsApprover {
+		return "You · " + label
+	}
+	return label
+}
+
+// redactJourneyDiagnostics removes protocol and execution internals before
+// they cross the authority boundary. The ordinary projection retains only
+// the business facts needed to understand progress and perform an authorized
+// current action; CSS or a client-side role check is never the control.
+func redactJourneyDiagnostics(detail *workspace.JourneyDetail) {
+	if detail == nil {
+		return
+	}
+	detail.Summary.CorrelationID = ""
+	detail.Summary.ProposalRevisionID = ""
+	detail.Summary.MaterialDigest = ""
+	detail.Summary.InstanceID = ""
+	detail.Summary.InstanceVersion = 0
+	detail.Summary.Approver = ""
+	for i := range detail.Findings {
+		detail.Findings[i].Code = ""
+	}
+	detail.PlannedWrites = nil
+	detail.Instance = nil
+	detail.Nodes = nil
+	detail.Transitions = nil
+	detail.EvidenceIDs = nil
+	if detail.Ledger != nil {
+		detail.Ledger = &workspace.JourneyLedgerEvent{
+			EffectiveAt: detail.Ledger.EffectiveAt,
+			RecordedAt:  detail.Ledger.RecordedAt,
+		}
+	}
+	items := make([]workitem.WorkItem, 0, len(detail.WorkItems))
+	for _, item := range detail.WorkItems {
+		if item.Status != workitem.StatusCreated && item.Status != workitem.StatusRouted &&
+			item.Status != workitem.StatusAssigned && item.Status != workitem.StatusAvailable &&
+			item.Status != workitem.StatusClaimed && item.Status != workitem.StatusInProgress {
+			continue
+		}
+		items = append(items, workitem.WorkItem{
+			Kind: item.Kind, WorkType: item.WorkType, Status: item.Status,
+			DeadlineAt: item.DeadlineAt, CreatedAt: item.CreatedAt,
+		})
+	}
+	detail.WorkItems = items
+	timeline := make([]workspace.JourneyEvent, 0, len(detail.Timeline))
+	for _, event := range detail.Timeline {
+		if event.Kind == JourneyEventNode {
+			continue
+		}
+		event.Ref = ""
+		event.Actor = ""
+		switch event.Kind {
+		case JourneyEventSimulated, JourneyEventInstanceStarted, JourneyEventWorkItem:
+			event.Detail = ""
+		}
+		timeline = append(timeline, event)
+	}
+	detail.Timeline = timeline
 }
 
 // journeyNodes projects the durable node-execution rows onto the port's shape.
@@ -537,16 +780,20 @@ func journeyTimeline(detail workspace.JourneyDetail) []workspace.JourneyEvent {
 
 	add(detail.Summary.CreatedAt, JourneyEventIntentCreated,
 		"Promotion proposed", detail.Summary.BusinessReason, detail.Summary.IntentID)
-	if detail.Summary.ProposalRevisionID != "" {
-		add(detail.Summary.UpdatedAt, JourneyEventSimulated,
-			"Proposal simulated", detail.Summary.MaterialDigest, detail.Summary.ProposalRevisionID)
-	}
-	if detail.Instance != nil {
-		at := detail.Instance.CreatedAt
-		if detail.Instance.StartedAt != nil {
-			at = *detail.Instance.StartedAt
+	// An executed journey reads its pinned material digest from the durable
+	// proposal revision rather than re-simulating today's worker. That stored
+	// revision is sufficient evidence that a proposal simulation completed,
+	// even when its presentation ID is unavailable on the historical path.
+	if detail.Summary.ProposalRevisionID != "" || detail.Summary.MaterialDigest != "" {
+		ref := detail.Summary.ProposalRevisionID
+		if ref == "" {
+			ref = detail.Summary.MaterialDigest
 		}
-		add(at, JourneyEventInstanceStarted, "Execution admitted and instance started",
+		add(detail.Summary.UpdatedAt, JourneyEventSimulated,
+			"Proposal simulated", detail.Summary.MaterialDigest, ref)
+	}
+	if detail.Instance != nil && detail.Instance.StartedAt != nil {
+		add(*detail.Instance.StartedAt, JourneyEventInstanceStarted, "Execution admitted and instance started",
 			detail.Instance.Status, detail.Instance.InstanceID)
 	}
 	for _, node := range detail.Nodes {
@@ -558,8 +805,12 @@ func journeyTimeline(detail workspace.JourneyDetail) []workspace.JourneyEvent {
 		}
 		add(at, JourneyEventNode, node.NodeID, node.Status, node.NodeID)
 	}
+	workItemNodes := make(map[string]string, len(detail.WorkItems))
+	for _, item := range detail.WorkItems {
+		workItemNodes[item.WorkItemID.String()] = item.NodeID
+	}
 	for _, t := range detail.Transitions {
-		add(t.At, JourneyEventWorkItem, t.To, t.Reason, t.WorkItemID)
+		add(t.At, JourneyEventWorkItem, journeyWorkItemEventTitle(workItemNodes[t.WorkItemID], t.To), t.Reason, t.WorkItemID)
 		events[len(events)-1].Actor = t.Actor
 	}
 	if detail.Ledger != nil {
@@ -578,4 +829,30 @@ func journeyTimeline(detail workspace.JourneyDetail) []workspace.JourneyEvent {
 		return events[i].At.Before(events[j].At)
 	})
 	return events
+}
+
+func journeyWorkItemEventTitle(nodeID, status string) string {
+	label := "Approval"
+	switch nodeID {
+	case promotionexec.NodeApproveFinance:
+		label = "Finance review"
+	case promotionexec.NodeApproveManager:
+		label = "Manager review"
+	case promotionexec.NodeReapproval:
+		label = "Reapproval"
+	}
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "CREATED", "ROUTED", "ASSIGNED", "AVAILABLE", "OPEN", "READY":
+		return label + " assigned"
+	case "CLAIMED", "IN_PROGRESS":
+		return label + " started"
+	case "COMPLETED":
+		return label + " completed"
+	case "CANCELLED", "CANCELED":
+		return label + " cancelled"
+	case "EXPIRED":
+		return label + " expired"
+	default:
+		return strings.TrimSpace(status)
+	}
 }

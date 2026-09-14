@@ -172,6 +172,9 @@ type fakeEngine struct {
 	decideErr       error
 	listWorkersErr  error
 	createWorkerErr error
+	editErr         error
+	previewErr      error
+	interveneErr    error
 
 	listCalls         int
 	proposeCalls      int
@@ -180,11 +183,25 @@ type fakeEngine struct {
 	decideCalls       int
 	listWorkersCalls  int
 	createWorkerCalls int
+	editCalls         int
+	previewCalls      int
+	interveneCalls    int
 
-	lastProposal    workspace.ProposalInput
-	lastIntentID    string
-	lastDecision    workspace.Decision
-	lastWorkerInput workspace.WorkerInput
+	lastProposal        workspace.ProposalInput
+	lastIntentID        string
+	lastDecision        workspace.Decision
+	lastWorkerInput     workspace.WorkerInput
+	lastEditInput       workspace.EditProposalInput
+	lastEditExpected    uint64
+	lastEditIdempotency string
+	lastEditReason      string
+	lastPreviewKind     workspace.JourneyInterventionKind
+	lastInterventionReq workspace.JourneyInterventionRequest
+
+	editSuccessor   workspace.JourneySummary
+	editSuperseded  string
+	preview         workspace.JourneyInterventionPreview
+	interveneResult workspace.JourneyInterventionResult
 }
 
 var _ workspace.JourneyEngine = (*fakeEngine)(nil)
@@ -272,6 +289,45 @@ func (f *fakeEngine) Decide(_ context.Context, intentID string, d workspace.Deci
 		return workspace.JourneyDetail{}, f.decideErr
 	}
 	return f.detail, nil
+}
+
+func (f *fakeEngine) EditProposal(_ context.Context, intentID string, expected uint64, idempotencyKey, reason string, in workspace.EditProposalInput) (workspace.JourneySummary, string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.editCalls++
+	f.lastIntentID = intentID
+	f.lastEditInput = in
+	f.lastEditExpected = expected
+	f.lastEditIdempotency = idempotencyKey
+	f.lastEditReason = reason
+	if f.editErr != nil {
+		return workspace.JourneySummary{}, "", f.editErr
+	}
+	return f.editSuccessor, f.editSuperseded, nil
+}
+
+func (f *fakeEngine) PreviewIntervention(_ context.Context, intentID string, kind workspace.JourneyInterventionKind) (workspace.JourneyInterventionPreview, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.previewCalls++
+	f.lastIntentID = intentID
+	f.lastPreviewKind = kind
+	if f.previewErr != nil {
+		return workspace.JourneyInterventionPreview{}, f.previewErr
+	}
+	return f.preview, nil
+}
+
+func (f *fakeEngine) RequestIntervention(_ context.Context, intentID string, req workspace.JourneyInterventionRequest) (workspace.JourneyInterventionResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.interveneCalls++
+	f.lastIntentID = intentID
+	f.lastInterventionReq = req
+	if f.interveneErr != nil {
+		return workspace.JourneyInterventionResult{}, f.interveneErr
+	}
+	return f.interveneResult, nil
 }
 
 func (f *fakeEngine) ListWorkers(context.Context) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {

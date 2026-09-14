@@ -14,6 +14,74 @@ import (
 
 func TestMain(m *testing.M) { pgtest.RunMain(m) }
 
+func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
+	db := pgtest.New(t)
+	tenantID := uuid.New()
+	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-test','Persona Access','ACTIVE',$3)`, tenantID, "persona-access-test", time.Now().UTC())
+	store := New(db.Conn, func(values.TenantId) uuid.UUID { return tenantID })
+	ctx := context.Background()
+	tenant := values.TenantId("persona-access-test")
+	if err := store.Bootstrap(ctx, tenant, "system:bootstrap"); err != nil {
+		t.Fatal(err)
+	}
+	permissions := func(roles ...string) []roleaccess.PagePermission {
+		t.Helper()
+		snapshot, err := store.Load(ctx, tenant, "org:persona-access-test:people-ops")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return roleaccess.EffectivePagePermissions(snapshot, roles)
+	}
+	payrollRoles := []string{"payroll_manager", "promotion_operator"}
+	orgPages := []string{"organization", "org-explorer", "org-outline", "org-responsive"}
+	for _, page := range orgPages {
+		if !roleaccess.CanPageAction(permissions(payrollRoles...), page, roleaccess.ActionView) {
+			t.Fatalf("test did not start from broad historical %s access", page)
+		}
+	}
+	if !roleaccess.CanPageAction(permissions(payrollRoles...), "journeys", roleaccess.ActionCreate) {
+		t.Fatal("test did not start from the broad historical demo grants")
+	}
+	if err := store.BootstrapLocalDevPersonaPermissions(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.BootstrapLocalDevPersonaPermissions(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	for _, page := range orgPages {
+		if roleaccess.CanPageAction(permissions(payrollRoles...), page, roleaccess.ActionView) {
+			t.Fatalf("payroll demo persona retained %s browsing", page)
+		}
+	}
+	if roleaccess.CanPageAction(permissions(payrollRoles...), "journeys", roleaccess.ActionCreate) {
+		t.Fatal("payroll demo persona retained promotion initiation")
+	}
+	if !roleaccess.CanPageAction(permissions(payrollRoles...), "work", roleaccess.ActionView) ||
+		!roleaccess.CanPageAction(permissions("hiring_manager", "manager", "intent_author"), "organization", roleaccess.ActionView) {
+		t.Fatal("demo policy removed assigned-work review or hiring-manager organization access")
+	}
+	// An administrator's edited grant has a higher version and survives replay.
+	snapshot, err := store.Load(ctx, tenant, "org:persona-access-test:people-ops")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, grant := range snapshot.PagePermissions {
+		if grant.RoleID == "payroll_manager" && grant.PageID == "organization" {
+			grant.View = true
+			if _, err := store.SavePagePermission(ctx, tenant, "admin", grant); err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+	}
+	if err := store.BootstrapLocalDevPersonaPermissions(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	if !roleaccess.CanPageAction(permissions(payrollRoles...), "organization", roleaccess.ActionView) {
+		t.Fatal("local-dev replay overwrote an administrator-edited role grant")
+	}
+}
+
 func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 	db := pgtest.New(t)
 	tenantID := uuid.New()
@@ -25,20 +93,20 @@ func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	role, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "finance_partner", Name: "Finance partner", Description: "Supports Finance", Active: true})
+	role, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "tenant_finance_partner", Name: "Tenant finance partner", Description: "Supports Finance", Active: true})
 	if err != nil || role.Version != 1 {
 		t.Fatalf("save role = %+v, %v", role, err)
 	}
-	if _, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "finance_partner", Name: "Duplicate", Active: true}); !errors.Is(err, roleaccess.ErrVersionConflict) {
+	if _, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "tenant_finance_partner", Name: "Duplicate", Active: true}); !errors.Is(err, roleaccess.ErrVersionConflict) {
 		t.Fatalf("duplicate role = %v", err)
 	}
 
-	assignment, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker-1", RoleIDs: []string{"worker_self", "finance_partner"}})
+	assignment, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker-1", RoleIDs: []string{"worker_self", "tenant_finance_partner"}})
 	if err != nil || assignment.Version != 1 {
 		t.Fatalf("save assignment = %+v, %v", assignment, err)
 	}
 	updated := assignment
-	updated.RoleIDs = []string{"finance_partner"}
+	updated.RoleIDs = []string{"tenant_finance_partner"}
 	updated, err = store.SaveAssignment(ctx, tenant, "admin", updated)
 	if err != nil || updated.Version != 2 {
 		t.Fatalf("update assignment = %+v, %v", updated, err)
@@ -47,11 +115,11 @@ func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 		t.Fatalf("stale assignment = %v", err)
 	}
 
-	policy, err := store.SaveVisibility(ctx, tenant, "org:north", "admin", roleaccess.VisibilityPolicy{RoleID: "finance_partner", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Finance", "finance"}})
+	policy, err := store.SaveVisibility(ctx, tenant, "org:north", "admin", roleaccess.VisibilityPolicy{RoleID: "tenant_finance_partner", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Finance", "finance"}})
 	if err != nil || policy.Version != 1 || len(policy.OrganizationUnits) != 1 {
 		t.Fatalf("save visibility = %+v, %v", policy, err)
 	}
-	page, err := store.SavePagePermission(ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "finance_partner", PageID: "insights", View: true})
+	page, err := store.SavePagePermission(ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "tenant_finance_partner", PageID: "insights", View: true})
 	if err != nil || page.Version != 1 || page.Create {
 		t.Fatalf("save page permission = %+v, %v", page, err)
 	}

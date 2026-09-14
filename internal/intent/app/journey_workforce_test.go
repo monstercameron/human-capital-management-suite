@@ -344,10 +344,11 @@ func TestNewWorkerRowRefusesAMalformedForm(t *testing.T) {
 	})
 }
 
-// TestCorpusWorkersCarryNoInventedCompensation proves the listing rule: the
-// corpus half of the population states placement and identity only, because a
-// corpus worker's baseline belongs to the ported scenario, not to the worker.
-func TestCorpusWorkersCarryNoInventedCompensation(t *testing.T) {
+// TestCorpusWorkersCarryOnlyDeclaredCompensation proves the listing rule: the
+// two reference workers state their own declared promotion baselines, while
+// the rest of the corpus never inherits a salary from somebody else's
+// scenario.
+func TestCorpusWorkersCarryOnlyDeclaredCompensation(t *testing.T) {
 	listed, err := corpusWorkers()
 	if err != nil {
 		t.Fatalf("corpusWorkers: %v", err)
@@ -359,12 +360,23 @@ func TestCorpusWorkersCarryNoInventedCompensation(t *testing.T) {
 	if len(listed) != len(profiles) {
 		t.Fatalf("listed %d corpus workers, want %d", len(listed), len(profiles))
 	}
+	declared := map[string]struct {
+		base, currency, bonus string
+	}{
+		"jane-doe":   {fixtures.JanePromotionBase, "USD", fixtures.JanePromotionBonus},
+		"omar-reyes": {"93000.00", "USD", "0.0500"},
+	}
 	for i, w := range listed {
 		if w.Source != workspace.WorkerSourceCorpus {
 			t.Errorf("corpus worker %d source = %q, want CORPUS", i, w.Source)
 		}
-		if w.BasePay != "" || w.Currency != "" || w.BonusTarget != "" {
-			t.Errorf("corpus worker %s carries an invented baseline: %+v", w.WorkerRef, w)
+		if want, ok := declared[w.WorkerRef]; ok {
+			if w.BasePay != want.base || w.Currency != want.currency || w.BonusTarget != want.bonus {
+				t.Errorf("corpus worker %s baseline = %s/%s/%s, want %s/%s/%s", w.WorkerRef,
+					w.BasePay, w.Currency, w.BonusTarget, want.base, want.currency, want.bonus)
+			}
+		} else if w.BasePay != "" || w.Currency != "" || w.BonusTarget != "" {
+			t.Errorf("corpus worker %s carries an undeclared baseline: %+v", w.WorkerRef, w)
 		}
 		if !w.CreatedAt.IsZero() {
 			t.Errorf("corpus worker %s claims a creation instant", w.WorkerRef)
@@ -395,6 +407,18 @@ func TestCreatedWorkerSummaryProjectsTheDurableRow(t *testing.T) {
 	}
 	if !got.CreatedAt.Equal(row.RecordedAt) {
 		t.Errorf("created at = %s, want the row's recorded instant %s", got.CreatedAt, row.RecordedAt)
+	}
+}
+
+func TestCreatedWorkerSummaryTreatsBoardAuthorityAsEmployeeTreeRoot(t *testing.T) {
+	row := createdRowFixture()
+	row.ManagerRelationshipRef = "board:harborcare"
+	got := createdWorkerSummary(row)
+	if got.ManagerDisposition != workspace.ManagerRelationshipRoot {
+		t.Fatalf("manager disposition = %q, want ROOT", got.ManagerDisposition)
+	}
+	if got.ManagerRef != row.ManagerRelationshipRef {
+		t.Fatalf("manager relationship ref = %q, want governed source ref %q", got.ManagerRef, row.ManagerRelationshipRef)
 	}
 }
 

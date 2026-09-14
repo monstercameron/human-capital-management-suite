@@ -7,6 +7,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Options are everything a [Replayer] needs. Every field is a value or a port
@@ -147,7 +148,9 @@ func (r *Replayer) Contract() intent.ModeContract { return r.contract }
 // on purpose: WF-RUN-013's GREEN clause names a code and its FAULT clause asks
 // for a divergence value rather than a crash, and a caller should not have to
 // choose which of the two it gets.
-func (r *Replayer) Replay(ctx context.Context) (Result, error) {
+func (r *Replayer) Replay(ctx context.Context) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.replay.replay")
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	rec, err := r.source.Load(ctx)
 	if err != nil {
 		return Result{}, wrap(CodeSourceFailed, "", err, "load the durable record")

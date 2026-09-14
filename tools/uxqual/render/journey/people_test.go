@@ -297,7 +297,7 @@ func TestWorkerToneReachesTheRowAsADataAttribute(t *testing.T) {
 // TestWorkerRowActionIsALinkWithoutAClientAndAButtonWithOne mirrors
 // TestLiveFormsSubmitThroughTheClientNotTheBrowser for the People table: the
 // whole create-see-pick-propose flow works with scripting off, and the same
-// tree becomes callbacks once a client is wired.
+// semantic controls gain callbacks once a client is wired.
 func TestWorkerRowActionIsALinkWithoutAClientAndAButtonWithOne(t *testing.T) {
 	p := SampleListPage()
 	plain := mustRender(t, p)
@@ -326,12 +326,13 @@ func TestWorkerRowActionIsALinkWithoutAClientAndAButtonWithOne(t *testing.T) {
 	if !strings.Contains(livened, `aria-pressed="true"`) {
 		t.Error("the live selection control does not announce which row is picked")
 	}
-	// Handlers never reach the markup, and a live page has no browser submit.
+	// Handlers never reach the markup. The live form keeps a real submit
+	// control so native constraint validation runs before its callback.
 	if strings.Contains(strings.ToLower(livened), "onclick=") {
 		t.Error("a click handler leaked into the markup")
 	}
-	if strings.Contains(livened, `type="submit"`) {
-		t.Error("a live page still asks the browser to POST")
+	if !strings.Contains(livened, `type="submit"`) {
+		t.Error("the live page bypasses native form submission and validation")
 	}
 }
 
@@ -570,7 +571,7 @@ func TestPeopleEmptyStateReplacesTheTable(t *testing.T) {
 		t.Error("an empty workforce hid the only way to add to it")
 	}
 	// An empty message the projection forgot still says something.
-	if out := renderNode(t, peopleEmptyState("")); !strings.Contains(out, "This cell knows no employees yet.") {
+	if out := renderNode(t, peopleEmptyState("")); !strings.Contains(out, "No employees are available in this view yet.") {
 		t.Errorf("the empty state has no fallback message: %s", out)
 	}
 }

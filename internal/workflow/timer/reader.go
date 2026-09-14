@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -27,7 +28,9 @@ var _ execute.TimerReader = Reader{}
 // against its pinned plan. Every field the driver's drift check reads
 // (instance, node, key, state, fire instant) is copied from the row, never
 // from the request.
-func (r Reader) LoadTimer(ctx context.Context, ex runtime.Executor, tenantID, timerID uuid.UUID) (execute.FiredTimer, error) {
+func (r Reader) LoadTimer(ctx context.Context, ex runtime.Executor, tenantID, timerID uuid.UUID) (ret0 execute.FiredTimer, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.timer.load_for_resume", observe.Attrs{observe.KeyTenant: tenantID.String()}, observe.Attrs{observe.KeyTimer: timerID.String()})
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	row, err := r.Scheduler.Load(ctx, ex, tenantID, timerID)
 	if err != nil {
 		return execute.FiredTimer{}, err

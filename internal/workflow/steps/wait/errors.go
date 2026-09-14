@@ -28,4 +28,10 @@ var (
 	// ErrUnknownEventKind says the WakeEvent named a kind Resolve does not
 	// recognize.
 	ErrUnknownEventKind = errors.New("wait: unknown wake event kind")
+	// ErrAdvanceInstantsRequired says a local-development advance did not name
+	// both sides of its explicit clock movement.
+	ErrAdvanceInstantsRequired = errors.New("wait: local-dev advance requires caller-supplied now and target instants")
+	// ErrAdvanceBackwards says a development clock request attempted to move
+	// backwards, which could make a wait appear to complete inconsistently.
+	ErrAdvanceBackwards = errors.New("wait: local-dev advance cannot move backwards")
 )

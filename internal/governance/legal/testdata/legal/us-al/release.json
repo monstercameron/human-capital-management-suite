@@ -25,7 +25,7 @@
         "citation": {
           "source_file": "planning/research/state-employment-law/alabama.md",
           "section": "Ala. Code § 25-1-30",
-          "note": "Clarke-Figures Equal Pay Act (Ala.",
+          "note": "Clarke-Figures Equal Pay Act requires 3-year retention of wages, wage rates, job classifications, and employment terms and conditions.",
           "review_status": "UNREVIEWED",
           "confidence_marker": "CONFIRMED"
         },
@@ -36,18 +36,33 @@
         }
       },
       {
+        "kind": "WAGE_FLOOR",
+        "id": "us-al-wage-floor",
+        "citation": {
+          "source_file": "planning/research/state-employment-law/alabama.md",
+          "section": "29 U.S.C. § 206; no Alabama statute",
+          "note": "No state minimum wage or overtime statute; federal FLSA $7.25/hour and 1.5x overtime past 40 hours apply. Overtime fully subject to state income tax withholding since 2025-07-01.",
+          "review_status": "UNREVIEWED",
+          "confidence_marker": "CONFIRMED"
+        },
+        "body": {
+          "basis": "HOURLY",
+          "standard": "REQUIRED"
+        }
+      },
+      {
         "kind": "NON_COMPETE",
         "id": "us-al-non-compete",
         "citation": {
           "source_file": "planning/research/state-employment-law/alabama.md",
-          "section": "Ala. Code § 8-1-190",
-          "note": "Non-compete and non-solicit agreements enforceable under Ala. Code § 8-1-190 et seq. (effective 2016): 2-year presumption for non-competes, 18-month presumption for non-solicits.",
+          "section": "Ala. Code §§ 8-1-190, 8-1-191",
+          "note": "Employee non-competes of 2 years or less presumed reasonable; business-sale non-competes of 1 year or less presumed reasonable; customer non-solicits of 18 months or less (or while post-employment consideration is paid) presumed reasonable; must be written, signed, tied to a protectable interest, reasonable in geography, and without undue hardship.",
           "review_status": "UNREVIEWED",
           "confidence_marker": "CONFIRMED"
         },
         "body": {
           "recheck_on_pay_change": true,
-          "rule": "Non-compete and non-solicit agreements enforceable under Ala. Code § 8-1-190 et seq. (effective 2016): 2-year presumption for non-competes, 18-month presumption for non-solicits."
+          "rule": "Employee non-competes of 2 years or less presumed reasonable; business-sale non-competes of 1 year or less presumed reasonable; customer non-solicits of 18 months or less (or while post-employment consideration is paid) presumed reasonable; must be written, signed, tied to a protectable interest, reasonable in geography, and without undue hardship."
         }
       },
       {
@@ -56,13 +71,13 @@
         "citation": {
           "source_file": "planning/research/state-employment-law/alabama.md",
           "section": "Ala. Code § 31-13-15",
-          "note": "E-Verify Compliance: All new-hire records must confirm E-Verify case opened within 3 business days of hire date; no employer-size exceptions (Ala.",
+          "note": "All Alabama employers, public and private of any size, must open an E-Verify case within 3 business days of hire; no employer-size exceptions.",
           "review_status": "UNREVIEWED",
-          "confidence_marker": "VERIFY"
+          "confidence_marker": "CONFIRMED"
         },
         "body": {
           "required_on_new_hire_only": true,
-          "note": "E-Verify Compliance: All new-hire records must confirm E-Verify case opened within 3 business days of hire date; no employer-size exceptions (Ala."
+          "note": "All Alabama employers, public and private of any size, must open an E-Verify case within 3 business days of hire; no employer-size exceptions."
         }
       },
       {
@@ -71,7 +86,7 @@
         "citation": {
           "source_file": "planning/research/state-employment-law/alabama.md",
           "section": "Ala. Code § 25-1-30",
-          "note": "Equal Pay Audit Trail: Capture job classifications, skills, effort, responsibility, and working conditions for each promotion or pay change; enable proof of \"substantially similar work\" evaluation and document the sex...",
+          "note": "Clarke-Figures Equal Pay Act prohibits wage discrimination based on sex or race for substantially similar work (skill, effort, responsibility, working conditions); capture classifications and working conditions for each promotion or pay change.",
           "review_status": "UNREVIEWED",
           "confidence_marker": "CONFIRMED"
         },
@@ -91,16 +106,14 @@
         "citation": {
           "source_file": "planning/research/state-employment-law/alabama.md",
           "section": "Ala. Code § 25-5-11.1",
-          "note": "Workers' Compensation Termination Restriction: Flag if termination reason is workers' compensation claim or safety report; block or require manager acknowledgment if \"solely because\" reason detected (Ala.",
+          "note": "Termination solely because of a workers-compensation claim or safety-rule notice is prohibited under a strict solely-because standard; flag and block or require acknowledgment.",
           "review_status": "UNREVIEWED",
           "confidence_marker": "CONFIRMED"
         },
         "body": {
           "protected_activities": [
-            "workers_compensation_claim",
-            "safety_report"
+            "workers_compensation_claim"
           ],
-          "lookback_days": 730,
           "disposition": "BLOCK",
           "standard": "REQUIRED"
         }
@@ -110,8 +123,8 @@
         "id": "us-al-drug-testing",
         "citation": {
           "source_file": "planning/research/state-employment-law/alabama.md",
-          "section": "Ala. Code § 25-5-330",
-          "note": "Permitted.",
+          "section": "Ala. Code § 25-5-330 et seq.",
+          "note": "Drug testing permitted, including cannabis; certified drug-free workplace programs earn a workers-compensation premium discount.",
           "review_status": "UNREVIEWED",
           "confidence_marker": "CONFIRMED"
         },
@@ -119,9 +132,6 @@
           "permitted_bases": [
             "reasonable_suspicion",
             "post_accident"
-          ],
-          "protected_status": [
-            "lawful_off_duty_cannabis_use"
           ],
           "standard": "REQUIRED"
         }
@@ -132,12 +142,13 @@
         "citation": {
           "source_file": "planning/research/state-employment-law/alabama.md",
           "section": "Ala. Code § 8-38-5",
-          "note": "Breach Notification (Biometric): 45-day notification deadline for breaches exposing biometric data with name (Ala.",
+          "note": "Breach exposing biometric data with name requires resident notification within 45 days when substantial harm is reasonably likely; Attorney General notification when more than 1000 residents are affected.",
           "review_status": "UNREVIEWED",
           "confidence_marker": "CONFIRMED"
         },
         "body": {
           "subject_deadline_days": 45,
+          "authority_threshold_count": 1000,
           "standard": "REQUIRED"
         }
       }
@@ -148,20 +159,20 @@
       "source_files": [
         "planning/research/state-employment-law/alabama.md"
       ],
-      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+      "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in. Agent verification 2026-09-14 (LEGAL-ST-AL-001, not counsel review): added the missing federal-only WAGE_FLOOR; added pay-equity protected bases (sex, race); recorded non-compete and non-solicit duration presumptions (2yr/1yr/18mo); confirmed E-Verify confidence against the research; removed a cannabis-use protection the research contradicts; completed truncated citation notes; added the 1000-resident Attorney General threshold. Counsel approval remains the release gate; pack stays UNREVIEWED."
     }
   },
   "review_status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
-  "digest": "d3eb306e27e079e8617f56f039bd02fe54a596f744d1fbf9282e18ed54d357f7",
+  "digest": "92070469e550c1e5721b4e9a6409a8513a33aa98d740c629d8aa727145172abb",
   "signatures": [
     {
       "role": "RELEASE_PUBLISHER",
       "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
-      "signature": "e1709400547bd6017d2df4df6f84aee26c7485db12373a163e9d15d5e21866ea45d12747ad33ab712155954f6e37753c3510d2b0ff200691473497d076cbfc0b"
+      "signature": "273b464ee41807e0600e437c52acc1e9d19ea16a5e1da80b18133faba18e042b1a340a8ad77bea457fe0cde1a309b118fad44688031e6424088a55595da5ed01"
     }
   ],
   "review_record": {
-    "pack_digest": "d3eb306e27e079e8617f56f039bd02fe54a596f744d1fbf9282e18ed54d357f7",
+    "pack_digest": "92070469e550c1e5721b4e9a6409a8513a33aa98d740c629d8aa727145172abb",
     "author_id": "vendor:rule-author",
     "reviewer_id": "vendor:legal-reviewer",
     "status": "REQUIRES_CUSTOMER_COUNSEL_CONFIGURATION",
@@ -172,14 +183,19 @@
         "note": "E-Verify mandate carries a VERIFY confidence marker; re-check employer-size scope at the next corpus refresh"
       },
       {
+        "obligation_id": "us-al-anti-retaliation",
+        "severity": "BLOCKING",
+        "note": "required field(s) lookback_days are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
+      },
+      {
         "obligation_id": "us-al-breach-notification",
         "severity": "BLOCKING",
         "note": "required field(s) day_basis are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
       },
       {
-        "obligation_id": "us-al-e-verify",
-        "severity": "CONCERN",
-        "note": "obligation rests on VERIFY-marked evidence in the research corpus"
+        "obligation_id": "us-al-wage-floor",
+        "severity": "BLOCKING",
+        "note": "required field(s) floor_amount, indexation are unstated in the source research; published unresolved so the gap is recorded, not fabricated"
       }
     ]
   },
@@ -188,39 +204,39 @@
       "stage": "AUTHORED",
       "principal_id": "vendor:rule-author",
       "role": "RULE_AUTHOR",
-      "artifact_digest": "0ab3ed37aea68b72ba4c3516f622023eff8c3accad22dcb6af69781777683c2a",
+      "artifact_digest": "1881312240f9998e4b637e52392b2a961b4a553ee2cf60debcb66d0eae868ce2",
       "prev_digest": "",
-      "digest": "71526514a5462ffdd407ac5527c0c9fe8917c98740f11d9b0fd04e83be1f03f8",
+      "digest": "492df5fb32462aa03eecd767fb9a91c9d4304b8a57ef276d6f5330fed005b077",
       "signature": {
         "role": "",
         "public_key": "db995fe25169d141cab9bbba92baa01f9f2e1ece7df4cb2ac05190f37fcc1f9d",
-        "signature": "8374d8cacc1b9a906dd6fee4c845dfc07a9cfe4b3aaa0bbb178a11bfed668e7cd8be475f43f066bd82f73ebc19ae453410889cda44f7dbbb138c7442c4660c0b"
+        "signature": "f71015d87bcbdf55e1fefb9d8c05a4ee0b1774d0e2848054b36e2f1878fb008e754d07ba3d2c228fb9f3a7ee3f539a47e9db9d5bee429412eca2c671738bfc0f"
       }
     },
     {
       "stage": "REVIEWED",
       "principal_id": "vendor:legal-reviewer",
       "role": "VENDOR_LEGAL_REVIEWER",
-      "artifact_digest": "f5e657ce6c189d66bb2108e45a3127b206220e9e28884c760bbfc28f3c3dfcab",
-      "prev_digest": "71526514a5462ffdd407ac5527c0c9fe8917c98740f11d9b0fd04e83be1f03f8",
-      "digest": "80859dec09f0fd4f3d26fb47b66397f5a28067a144be47bcb79097a7bb6b0383",
+      "artifact_digest": "cda6d83ab89abb35088ff4145a3492e7466bf420fd3333c321bffd9170de6fec",
+      "prev_digest": "492df5fb32462aa03eecd767fb9a91c9d4304b8a57ef276d6f5330fed005b077",
+      "digest": "aa85ea17c0d01daad6b1df49599a2c96da5072206c65ecb8a3d163bbd27e362a",
       "signature": {
         "role": "",
         "public_key": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
-        "signature": "d97e4eebdd0b092386bd16a1d23a38fb67ece422fe9bb5ba67da4b8397c84060a694462351e301e9959dd16ba561c716534cbcb2ad787fcbd54ce199f80a7e04"
+        "signature": "f720677c85ca01f1534e41fdf08e498cc42933b1c5ea82c751a59b48b23c2f2af45b4569876a9fe94f40f44ffec3d9007d92c54a2864f1b1fe09a09c17800900"
       }
     },
     {
       "stage": "PUBLISHED",
       "principal_id": "vendor:release-publisher",
       "role": "RELEASE_PUBLISHER",
-      "artifact_digest": "d3eb306e27e079e8617f56f039bd02fe54a596f744d1fbf9282e18ed54d357f7",
-      "prev_digest": "80859dec09f0fd4f3d26fb47b66397f5a28067a144be47bcb79097a7bb6b0383",
-      "digest": "b7b2ec40f067d5c608500b8f1a465471d368a58024f949d974c8468876012bfa",
+      "artifact_digest": "92070469e550c1e5721b4e9a6409a8513a33aa98d740c629d8aa727145172abb",
+      "prev_digest": "aa85ea17c0d01daad6b1df49599a2c96da5072206c65ecb8a3d163bbd27e362a",
+      "digest": "514f1c91afc9f540a08fbd5f02ff66001f9d791b699a589b4c1858fc014998b8",
       "signature": {
         "role": "",
         "public_key": "22fc297792f0b6ffc0bfcfdb7edb0c0aa14e025a365ec0e342e86e3829cb74b6",
-        "signature": "422d12726166daac12b9a3770dc25f9bba799c5906de13274c9b49a98c88e9aa071e55d114e8f1f0e4208eb1067339a3c76449a769f72239661d07ae1af80b05"
+        "signature": "a3ed0a69a99aa2e55ecb7fd39556433d26802999881eac54db2ef08e02b2833803040ac6036d601f6194ce494a2ff4cadcf05d8286578f42a6e684b7076ac909"
       }
     }
   ]

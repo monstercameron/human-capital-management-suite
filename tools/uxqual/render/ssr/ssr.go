@@ -16,6 +16,7 @@ import (
 	"html/template"
 
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
+	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/page"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
 )
 
@@ -143,10 +144,10 @@ func inputTag(f contract.RequestField) template.HTML {
 	}
 }
 
-// pageCSS returns the workspace stylesheet. It lives in tokens.WorkspaceCSS
-// so tools/uxqual/render/gwc can embed the identical rules into its own
-// tree rather than duplicating them.
-func pageCSS() string { return tokens.WorkspaceCSS() }
+// pageCSS returns the workspace stylesheet plus the shared page primitive
+// rules. Both renderers call the same composition so their documents remain
+// byte-identical where the stylesheet is concerned.
+func pageCSS() string { return tokens.WorkspaceCSS() + page.LayoutCSS() }
 
 var pageTemplate = template.Must(template.New("workspace").Funcs(template.FuncMap{
 	"severity": severityLabel, "simulationStatus": simulationStatusLabel,

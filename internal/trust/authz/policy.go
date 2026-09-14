@@ -9,7 +9,7 @@ import (
 // policy table. It changes whenever [PolicyTable] or [FieldRegistry] changes,
 // so a recorded decision can always be replayed against the policy that
 // produced it.
-const PolicyVersion = "authz.p1a.bootstrap.v1"
+const PolicyVersion = "authz.p1a.bootstrap.v2"
 
 // Effect is the outcome of one authorization ruling. It is shared by the
 // tenant, scope and field layers so that "allow" and "deny" mean the same
@@ -81,20 +81,27 @@ func (e Effect) rank() int {
 // token, not a display label.
 type RoleID string
 
-// The five P1A bootstrap role templates.
+// The P1A bootstrap role templates.
 const (
-	RoleWorkerSelf RoleID = "worker_self"
-	RoleManager    RoleID = "manager"
-	RoleHRPartner  RoleID = "hr_partner"
-	RoleCompAdmin  RoleID = "comp_admin"
-	RoleAuditor    RoleID = "auditor"
+	RoleWorkerSelf     RoleID = "worker_self"
+	RoleManager        RoleID = "manager"
+	RoleHRPartner      RoleID = "hr_partner"
+	RoleCompAdmin      RoleID = "comp_admin"
+	RolePayrollManager RoleID = "payroll_manager"
+	RoleAuditor        RoleID = "auditor"
+	// RoleFinancePartner is PROMOUX-015's finance approver: it reviews the
+	// compensation a promotion moves under compensation_review and nothing
+	// else. No cost-center relationship graph exists in this release, so its
+	// scope is the administrative tenant/organization boundary (see
+	// [administrativeRoleOrder]) rather than FinancePartnerFor(cost_center).
+	RoleFinancePartner RoleID = "finance_partner"
 )
 
 // roleEvaluationOrder is the fixed order roles are evaluated in wherever more
 // than one of a principal's roles could produce a ruling. Ties are broken by
 // [Effect.rank], but the order still has to be fixed for the evidence trail
 // (matched rule IDs) to be deterministic across runs with the same input.
-var roleEvaluationOrder = []RoleID{RoleWorkerSelf, RoleManager, RoleHRPartner, RoleCompAdmin, RoleAuditor}
+var roleEvaluationOrder = []RoleID{RoleWorkerSelf, RoleManager, RoleHRPartner, RoleCompAdmin, RolePayrollManager, RoleAuditor, RoleFinancePartner}
 
 // rolesOf returns the subset of principal's roles this policy table
 // recognizes, in [roleEvaluationOrder]. [roleEvaluationOrder] is the closed
@@ -229,7 +236,7 @@ func (g PurposeGrant) appliesTo(purpose string) bool {
 }
 
 // PolicyTable is the compiled-in P1A bootstrap authorization policy: for each
-// of the five role templates, the purpose-bound grant over each data domain.
+// of the six role templates, the purpose-bound grant over each data domain.
 // A role/domain pair absent from the table has no grant, which is
 // deny-by-default rather than an omission to fix later.
 var PolicyTable = map[RoleID]map[DataDomain]PurposeGrant{
@@ -269,6 +276,19 @@ var PolicyTable = map[RoleID]map[DataDomain]PurposeGrant{
 		DomainTax:  {RuleID: "p1a.comp_admin.tax", Purposes: []string{PurposePayrollProcessing}, Effect: EffectAllow},
 		DomainBank: {RuleID: "p1a.comp_admin.bank", Purposes: []string{PurposePayrollProcessing}, Effect: EffectAllow},
 	},
+	RolePayrollManager: {
+		DomainCore:    {RuleID: "p1a.payroll_manager.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainContact: {RuleID: "p1a.payroll_manager.contact", AnyPurpose: true, Effect: EffectAllow},
+		DomainCompensation: {
+			RuleID: "p1a.payroll_manager.compensation", Purposes: []string{PurposeCompensationReview, PurposePayrollProcessing}, Effect: EffectAllow,
+		},
+		DomainTax:  {RuleID: "p1a.payroll_manager.tax", Purposes: []string{PurposePayrollProcessing}, Effect: EffectAllow},
+		DomainBank: {RuleID: "p1a.payroll_manager.bank", Purposes: []string{PurposePayrollProcessing}, Effect: EffectAllow},
+	},
+	RoleFinancePartner: {
+		DomainCore:         {RuleID: "p1a.finance_partner.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainCompensation: {RuleID: "p1a.finance_partner.compensation", Purposes: []string{PurposeCompensationReview}, Effect: EffectAllow},
+	},
 	RoleAuditor: {
 		DomainCore:    {RuleID: "p1a.auditor.core", AnyPurpose: true, Effect: EffectAllow},
 		DomainContact: {RuleID: "p1a.auditor.contact", AnyPurpose: true, Effect: EffectAllow},
@@ -297,13 +317,13 @@ var PolicyTable = map[RoleID]map[DataDomain]PurposeGrant{
 }
 
 // administrativeRoleOrder is the subset of roles whose [AuthorizationScope]
-// does not depend on a relationship fact: a comp admin or auditor's
+// does not depend on a relationship fact: a comp admin, payroll manager or auditor's
 // authority over a record comes from their role and the tenant/organization
 // boundary already resolved by [ResolveTenantScope], not from being
 // someone's manager or HR partner. It is a fixed-order slice, not a map, so
 // that a principal holding more than one administrative role still resolves
 // to a deterministic matched rule.
-var administrativeRoleOrder = []RoleID{RoleCompAdmin, RoleAuditor}
+var administrativeRoleOrder = []RoleID{RoleCompAdmin, RolePayrollManager, RoleAuditor, RoleFinancePartner}
 
 // ErrInvalidPolicyInput is returned when a caller-supplied argument to one of
 // this package's resolvers is malformed enough that no decision, not even a

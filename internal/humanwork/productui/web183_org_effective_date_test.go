@@ -24,7 +24,7 @@ func TestTodo_WEB_183(t *testing.T) {
 	if !ok {
 		t.Fatal("effective-date organization navigation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("effective-date organization navigation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_183_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "61f4f2b80cd012872c6a3d215981b79a54db3b69bbe14ded75910894439049fc"
+	const want = "7257bd7a8defd63a11d333ef30132e63a285a0a119d9b4bd02372881ddb176aa"
 	if got != want {
 		t.Fatalf("effective-date navigation digest = %s, want %s", got, want)
 	}

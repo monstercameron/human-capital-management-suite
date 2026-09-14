@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	registryv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
@@ -20,6 +22,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
 	ledgerport "github.com/monstercameron/human-capital-management-suite/internal/ledger"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/migrations"
 )
 
@@ -196,8 +199,11 @@ func TestBootstrapCellMigratesServesSimulatesAppendsRestartsAndReconciles(t *tes
 			t.Fatal("the simulation reported no planned write; a promotion that changes nothing is not the corpus scenario")
 		}
 
+		// Promotion admission now permits only one active request per worker.
+		// The edge replays the same governed intent rather than manufacturing
+		// a second active promotion merely to compare transports.
 		edgeCreated, err := c.edgeIntent.CreateIntent(ctx,
-			edgeRequest(c, promoteWorkerRequest(t, "idem-bootstrap-edge")))
+			edgeRequest(c, promoteWorkerRequest(t, "idem-bootstrap-1")))
 		if err != nil {
 			t.Fatalf("edge CreateIntent: %v", err)
 		}
@@ -209,10 +215,11 @@ func TestBootstrapCellMigratesServesSimulatesAppendsRestartsAndReconciles(t *tes
 		}
 		edgeArtifact := edgeSimulated.Msg.GetSimulation()
 
-		// The two surfaces addressed two different intents - a material
-		// proposal digest binds the intent it belongs to - so parity is
-		// asserted on the answer: the same planned writes, the same findings
-		// and the same zero-effect certification.
+		// Both surfaces address the same idempotent intent. They must return
+		// the same proposal, planned writes, findings and zero-effect proof.
+		if edgeCreated.Msg.GetIntent().GetIntentId() != intentID {
+			t.Fatalf("edge replay minted %s instead of %s", edgeCreated.Msg.GetIntent().GetIntentId(), intentID)
+		}
 		if !edgeArtifact.GetZeroEffectReceipt().GetZeroEffect() {
 			t.Fatal("the edge simulation carries no zero-effect receipt")
 		}
@@ -225,9 +232,9 @@ func TestBootstrapCellMigratesServesSimulatesAppendsRestartsAndReconciles(t *tes
 		if got, want := findingCodes(edgeArtifact), findingCodes(simulated); !slices.Equal(got, want) {
 			t.Fatalf("the transports disagree on the findings:\n edge: %v\n grpc: %v", got, want)
 		}
-		if edgeArtifact.GetMaterialProposalDigest().GetDigest() ==
+		if edgeArtifact.GetMaterialProposalDigest().GetDigest() !=
 			simulated.GetMaterialProposalDigest().GetDigest() {
-			t.Fatal("two different intents produced the same material proposal digest; the digest does not bind the intent")
+			t.Fatal("the same intent produced different material proposal digests across transports")
 		}
 	})
 
@@ -279,13 +286,45 @@ func TestBootstrapCellMigratesServesSimulatesAppendsRestartsAndReconciles(t *tes
 		}
 	})
 
+	t.Run("a changed request cannot reuse the active promotion's idempotency key", func(t *testing.T) {
+		changed := promoteWorkerRequest(t, "idem-bootstrap-1")
+		var body structpb.Struct
+		if err := proto.Unmarshal(changed.GetRequest().GetProtobufWireBytes(), &body); err != nil {
+			t.Fatalf("decode fixture payload: %v", err)
+		}
+		body.Fields["business_reason"] = structpb.NewStringValue("a_different_promotion_reason")
+		wire, err := proto.MarshalOptions{Deterministic: true}.Marshal(&body)
+		if err != nil {
+			t.Fatalf("encode changed payload: %v", err)
+		}
+		changed.Request.ProtobufWireBytes = wire
+		before := queryOne[int](t, c, `SELECT count(*) FROM intent_instance WHERE tenant_id = $1`, tenant)
+		_, err = c.grpcIntent.CreateIntent(c.grpcContext(ctx), changed)
+		owned, ok := envelope.FromGRPC(err)
+		if !ok || owned.Code() != envelope.CodeAlreadyExists {
+			t.Fatalf("changed replay = %v, want an owned active-conflict refusal", err)
+		}
+		if after := queryOne[int](t, c, `SELECT count(*) FROM intent_instance WHERE tenant_id = $1`, tenant); after != before {
+			t.Fatalf("changed replay created %d intent rows", after-before)
+		}
+	})
+
 	// --- Restarts: the outbox consumer is killed mid-batch and resumes. ---
 	t.Run("a worker killed mid-batch loses nothing and never double-applies", func(t *testing.T) {
 		for _, key := range []string{"idem-bootstrap-2", "idem-bootstrap-3"} {
-			c.createAndSimulate(t, key)
+			// Outbox recovery is intent-family agnostic. Use independent
+			// read-only intents instead of violating the promotion guard.
+			created, err := c.grpcIntent.CreateIntent(c.grpcContext(ctx), explainWorkerStateRequest(t, c, key, ""))
+			if err != nil {
+				t.Fatalf("CreateIntent(%s): %v", key, err)
+			}
+			if _, err := c.grpcIntent.SimulateIntent(c.grpcContext(ctx),
+				&intentsv1.SimulateIntentRequest{IntentId: created.GetIntent().GetIntentId()}); err != nil {
+				t.Fatalf("SimulateIntent(%s): %v", key, err)
+			}
 		}
 		total := queryOne[int](t, c, `SELECT count(*) FROM outbox WHERE tenant_id = $1`, tenant)
-		if total < 4 {
+		if total < 3 {
 			t.Fatalf("outbox holds %d messages, want one per created intent", total)
 		}
 

@@ -23,7 +23,7 @@ func TestTodo_WEB_162(t *testing.T) {
 	if !ok {
 		t.Fatal("compensation-cycle populations unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("compensation-cycle populations incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_162_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "3327cd9f8ecc8e60923c567d9a3c05a49fa5edf68a61e2f811137b0cc8fd6983"
+	const want = "4a54e28ed62d3ba30a26f41e61ea2904a1e9e3afec88f8b798109818ca35f98e"
 	if got != want {
 		t.Fatalf("cycle populations digest = %s, want %s", got, want)
 	}

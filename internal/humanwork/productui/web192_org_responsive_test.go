@@ -24,7 +24,7 @@ func TestTodo_WEB_192(t *testing.T) {
 	if !ok {
 		t.Fatal("responsive organization exploration unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("responsive organization exploration incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_192_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "7498831eaa4d45aed0bc60cc5e8e25ccbfa057580817a58fa17b17f26a0f931b"
+	const want = "f379b43f606730cef81ce4de47266c324f637364831cb34766f5ac0e44865a24"
 	if got != want {
 		t.Fatalf("responsive organization digest = %s, want %s", got, want)
 	}

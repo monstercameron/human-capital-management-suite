@@ -1,0 +1,17 @@
+{
+  "canonical_digest": "febb6b41e25c7b95275e13be7e5dcf7226f8dab07cd0c198367cb8f8f9f8645e",
+  "signature_value": "46bdd208b1fca32ec1512a8ece5daf22e2d1983f0138c456ad7d3fd1d8aeeeae11413e99f007be2cd39ee9993affe487b9f7971513af9a75062638aa955e2107",
+  "counts": {
+    "sources": 2,
+    "scope_items": 1,
+    "obligation_mappings": 18,
+    "exclusions": 6,
+    "stop_reselect_thresholds": 4
+  },
+  "obligation_mapping_order": [
+    "NOTICE", "FIELD_RESTRICTION", "RETENTION", "LEAVE_INTERACTION", "PAY_FREQUENCY",
+    "FINAL_PAY_DEADLINE", "PAY_TRANSPARENCY", "NON_COMPETE", "MINI_WARN", "WAGE_FLOOR",
+    "PAY_EQUITY_REVIEW", "PAY_STATEMENT", "CLASSIFICATION", "PERSONNEL_FILE",
+    "ANTI_RETALIATION", "DRUG_TESTING", "BREACH_NOTIFICATION", "MONITORING_CONSENT"
+  ]
+}

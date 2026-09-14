@@ -118,7 +118,7 @@ func TestWorkforceRefusalsProjectOntoTheOwnedErrorModel(t *testing.T) {
 		want envelope.Code
 	}{
 		"denied":      {fmt.Errorf("%w: the operator role is required", workspace.ErrDenied), envelope.CodePermissionDenied},
-		"input":       {fmt.Errorf("%w: job_code: no pay band covers it", workspace.ErrJourneyInput), envelope.CodeInvalidArgument},
+		"input":       {&workspace.JourneyInputError{FieldPath: "job_code", ReasonRef: "journey.input.invalid", Detail: "no pay band covers it"}, envelope.CodeInvalidArgument},
 		"unavailable": {fmt.Errorf("%w: no execution database", workspace.ErrJourneyUnavailable), envelope.CodeUnavailable},
 		"stage":       {fmt.Errorf("%w: not now", workspace.ErrJourneyStage), envelope.CodeFailedPrecondition},
 		"unclassified": {

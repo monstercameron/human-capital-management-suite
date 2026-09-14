@@ -10,6 +10,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -44,7 +45,9 @@ type CancellationResult struct {
 // point. It refuses after any declared write effect has succeeded or remains
 // active, because an external or internal effect may already be live. Such a
 // request must first be observed or repaired; it never claims a clean cancel.
-func (d *Driver) Cancel(ctx context.Context, req CancellationRequest) (CancellationResult, error) {
+func (d *Driver) Cancel(ctx context.Context, req CancellationRequest) (ret0 CancellationResult, retErr error) {
+	ctx, obsOp := observe.Begin(d.observed(ctx), "workflow.execute.cancel", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if req.TenantID == uuid.Nil || req.InstanceID == uuid.Nil || req.ExpectedInstanceVersion < 1 ||
 		req.Plan == nil || req.Reason == "" || req.RequestedBy == "" || req.RecordedAt.IsZero() {
 		return CancellationResult{}, invalid("cancellation requires tenant, instance, plan, version, reason, actor and RecordedAt")

@@ -24,7 +24,7 @@ func TestTodo_WEB_227(t *testing.T) {
 	if !ok {
 		t.Fatal("analysis-to-proposal handoff unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("analysis-to-proposal handoff incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_227_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "96232f06e75fa3d89a760f800dafc983ada0114efa11dbae68ec151411a469b0"
+	const want = "54019f79e9c520a57a0c85360a7df232641127a11451c153e08241500ea6b9bc"
 	if got != want {
 		t.Fatalf("analysis-to-proposal handoff digest = %s, want %s", got, want)
 	}

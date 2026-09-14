@@ -62,6 +62,7 @@ type NavigationItemProps struct {
 	MatchDetail  string
 	Children     []NavigationItemProps
 	Navigate     func(string)
+	OnSelect     func()
 }
 
 type MenuFilterProps struct {
@@ -93,14 +94,42 @@ func navigationSidebarProps(view View) NavigationSidebarProps {
 func navigationDrawerSidebarProps(view View, open bool, onToggle, onClose func()) NavigationSidebarProps {
 	props := navigationSidebarPropsForQuery(view)
 	props.Open, props.OnToggle, props.OnClose = open, onToggle, onClose
+	props = withNavigationItemSelection(props, onClose)
 	props.Search = func(query string) NavigationSidebarProps {
 		next := view
 		next.MenuQuery = strings.TrimSpace(query)
 		reprojected := navigationSidebarPropsForQuery(next)
 		reprojected.Open, reprojected.OnToggle, reprojected.OnClose = open, onToggle, onClose
-		return reprojected
+		return withNavigationItemSelection(reprojected, onClose)
 	}
 	return props
+}
+
+func withNavigationItemSelection(props NavigationSidebarProps, onSelect func()) NavigationSidebarProps {
+	var attach func([]NavigationItemProps)
+	attach = func(items []NavigationItemProps) {
+		for index := range items {
+			items[index].OnSelect = onSelect
+			attach(items[index].Children)
+		}
+	}
+	attach(props.Favorites)
+	attach(props.Items)
+	attach(props.Support)
+	return props
+}
+
+func navigationSelectNavigate(navigate func(string), onSelect func()) func(string) {
+	if navigate == nil {
+		return nil
+	}
+	if onSelect == nil {
+		return navigate
+	}
+	return func(href string) {
+		onSelect()
+		navigate(href)
+	}
 }
 
 func navigationSidebarPropsForQuery(view View) NavigationSidebarProps {
@@ -156,9 +185,15 @@ func navigationSidebarPropsForQuery(view View) NavigationSidebarProps {
 	if view.NavigationProjection != nil && strings.TrimSpace(view.MenuQuery) == "" {
 		emptyText = view.Locale.Text("nav.unavailable")
 	}
+	tenantLabel := view.Tenant
+	appearance := NormalizeCustomerTheme(view.Appearance)
+	if appearance.BrandName == DefaultCustomerTheme().BrandName && strings.TrimSpace(view.Tenant) != "" {
+		// The header already shows the tenant as the fallback wordmark.
+		tenantLabel = ""
+	}
 	return NavigationSidebarProps{
 		I18nProps: I18nProps{Locale: view.Locale},
-		Collapsed: view.NavCollapsed, Tenant: view.Tenant, EmptyText: emptyText, Filter: filter,
+		Collapsed: view.NavCollapsed, Tenant: tenantLabel, EmptyText: emptyText, Filter: filter,
 		Favorites: favorites, Items: items, Support: support,
 	}
 }
@@ -328,6 +363,9 @@ func favoriteToggleHref(view View, page PageID) string {
 
 // NavigationSidebar renders independently scrolling, searchable navigation.
 func NavigationSidebar(props NavigationSidebarProps) ui.Node {
+	// The browser enhancement turns this same aside into an overlay drawer at
+	// narrow widths. SSR keeps the ordinary document-order navigation intact.
+	useMobileNavigationDrawer("workspace-navigation", "header-nav-toggle", "mobile-navigation-backdrop")
 	query := ui.UseState(props.Filter.Query)
 	propQuery := props.Filter.Query
 	ui.UseEffectOf(func() func() {
@@ -387,7 +425,21 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 		Raw:     map[string]any{"aria-hidden": "true"},
 		OnClick: closeDrawer,
 	})
-	children := []ui.Node{html.Div(html.Props{Class: "tenant"}, ui.Text(props.Tenant))}
+	children := make([]ui.Node, 0, 5)
+	if strings.TrimSpace(props.Tenant) != "" {
+		children = append(children, html.Div(html.Props{Class: "tenant", Raw: map[string]any{"title": props.Tenant}}, ui.Text(props.Tenant)))
+	}
+	// Keep dismissal inside the drawer itself. The header disclosure can be
+	// covered by the off-canvas surface at narrow widths, while this control
+	// remains in the drawer's focus order and uses the same close callback.
+	if props.Open {
+		closeLabel := props.Text("nav.drawer_close")
+		children = append(children, html.Button(html.Props{
+			Class: "nav-drawer-close", Type: "button",
+			Aria: map[string]string{"label": closeLabel},
+			Raw:  map[string]any{"title": closeLabel}, OnClick: closeDrawer,
+		}, productIcon("close", "nav-drawer-close-glyph")))
+	}
 	if !props.Collapsed {
 		children = append(children, ui.CreateElement(MenuFilter, props.Filter))
 	}
@@ -398,7 +450,7 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 			menu = append(menu, ui.CreateElement(NavigationItem, item))
 		}
 		if len(props.Items) > 0 {
-			menu = append(menu, html.Li(html.Props{Class: "nav-section-label"}, ui.Text(props.Text("nav.all"))))
+			menu = append(menu, html.Li(html.Props{Class: "nav-section-label nav-section-all"}, ui.Text(props.Text("nav.all"))))
 		}
 	}
 	for _, item := range props.Items {
@@ -422,31 +474,49 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 		if emptyText == "" {
 			emptyText = props.Text("nav.none")
 		}
-		menu = append(menu, html.Li(html.Props{Class: "nav-empty", Raw: map[string]any{"role": "status"}}, ui.Text(emptyText)))
+		emptyChildren := []ui.Node{ui.Text(emptyText)}
+		if strings.TrimSpace(props.Filter.Query) != "" {
+			emptyChildren = append(emptyChildren, html.Small(html.Props{}, ui.Text(props.Text("nav.search_above"))))
+		}
+		menu = append(menu, html.Li(html.Props{Class: "nav-empty", Raw: map[string]any{"role": "status"}}, emptyChildren...))
 	}
-	children = append(children, html.Nav(html.Props{Class: "primary-nav", Aria: map[string]string{"label": props.Text("nav.main")}}, html.Ul(html.Props{}, menu...)))
+	children = append(children, ui.CreateElement(ScrollRegion, ScrollRegionProps{
+		Tag: "nav", ID: "primary-nav", Class: "primary-nav", Focusable: true, RestoreScroll: true,
+		Aria: map[string]string{"label": props.Text("nav.main")}, Children: []ui.Node{html.Ul(html.Props{}, menu...)},
+	}))
 	if len(supportItems) > 0 {
-		support := make([]ui.Node, 0, len(supportItems))
+		support := make([]ui.Node, 0, len(supportItems)+1)
+		if strings.TrimSpace(props.Filter.Query) != "" {
+			support = append(support, html.P(html.Props{Class: "nav-support-label"}, ui.Text(props.Text("nav.support_always"))))
+		}
 		for _, item := range supportItems {
 			support = append(support, ui.CreateElement(NavigationItem, item))
 		}
 		children = append(children, html.Nav(html.Props{Class: "nav-bottom", Aria: map[string]string{"label": props.Text("nav.support")}}, support...))
-	}
-	asideProps := html.Props{
-		ID: "workspace-navigation", Class: class,
-		Aria:      map[string]string{"label": props.Text("nav.workspace")},
-		OnKeyDown: onEscape,
 	}
 	// A real user can only ever reach the trigger that sets Open at narrow
 	// viewports (CSS removes it from hit-testing and the tab order at wider
 	// ones), so dialog semantics only ever appear there too. Every other
 	// render — including every default and desktop SSR document — keeps the
 	// plain complementary-landmark contract WEB-048 pins.
+	var role string
+	var rawAttrs map[string]any
 	if attrs := navigationDrawerDialogAttrs(props.Open); attrs != nil {
-		asideProps.Raw = attrs
-		asideProps.Role = "dialog"
+		rawAttrs = attrs
+		role = "dialog"
 	}
-	return html.Fragment(backdrop, html.Aside(asideProps, children...))
+	// UIPOLISH-004 "drawer": at narrow viewports ".primary-nav" gives up its
+	// own overflow (declared overflow:visible!important there, see
+	// navigation_components_test.go's coverage of that breakpoint) and this
+	// aside becomes the sole scroll owner instead -- two independently
+	// scrolling regions nested inside each other is exactly the "page and
+	// table compete for the same gesture" pattern RED forbids. Rendering it
+	// through the same ScrollRegion component as every other scroll owner
+	// keeps it keyboard-reachable there too.
+	return html.Fragment(backdrop, ui.CreateElement(ScrollRegion, ScrollRegionProps{
+		Tag: "aside", ID: "workspace-navigation", Class: class, Role: role, Focusable: true, RestoreScroll: true,
+		Aria: map[string]string{"label": props.Text("nav.workspace")}, Raw: rawAttrs, OnKeyDown: onEscape, Children: children,
+	}))
 }
 
 // navigationDrawerDialogAttrs returns the raw attributes that make the
@@ -491,13 +561,15 @@ func NavigationItem(props NavigationItemProps) ui.Node {
 		if props.Count > 0 {
 			content = append(content, html.Span(html.Props{Class: "nav-count"}, ui.Text(fmt.Sprint(props.Count))))
 		}
-		children := []ui.Node{softwareLink(props.Navigate, linkProps, props.Href, content...)}
+		children := []ui.Node{softwareLink(navigationSelectNavigate(props.Navigate, props.OnSelect), linkProps, props.Href, content...)}
 		if props.FavoriteHref != "" {
-			label, glyph := props.Text("nav.favorite_add", map[string]string{"label": props.Label}), "☆"
+			label := props.Text("nav.favorite_add", map[string]string{"label": props.Label})
+			favoriteClass := "nav-favorite"
 			if props.Favorite {
-				label, glyph = props.Text("nav.favorite_remove", map[string]string{"label": props.Label}), "★"
+				label = props.Text("nav.favorite_remove", map[string]string{"label": props.Label})
+				favoriteClass += " is-favorite"
 			}
-			children = append(children, softwareLink(props.Navigate, html.Props{Class: "nav-favorite", Aria: map[string]string{"label": label}, Raw: map[string]any{"title": label}}, props.FavoriteHref, ui.Text(glyph)))
+			children = append(children, softwareLink(props.Navigate, html.Props{Class: favoriteClass, Aria: map[string]string{"label": label}, Raw: map[string]any{"title": label}}, props.FavoriteHref, productIcon("favorite", "nav-favorite-glyph")))
 		}
 		return html.Li(html.Props{Class: "nav-entry"}, children...)
 	}
@@ -521,7 +593,7 @@ func NavigationItem(props NavigationItemProps) ui.Node {
 	if props.Count > 0 {
 		summary = append(summary, html.Span(html.Props{Class: "nav-count"}, ui.Text(fmt.Sprint(props.Count))))
 	}
-	summary = append(summary, html.Span(html.Props{Class: "nav-chevron", Aria: map[string]string{"hidden": "true"}}, ui.Text("›")))
+	summary = append(summary, productIcon("expand", "nav-chevron"))
 	return html.Li(html.Props{}, html.Details(html.Props{Class: class, Raw: raw, Data: data},
 		html.Summary(html.Props{Class: "nav-group-summary"}, summary...),
 		html.Ul(html.Props{Class: "subnav"}, children...),
@@ -532,8 +604,14 @@ func NavigationItem(props NavigationItemProps) ui.Node {
 func MenuFilter(props MenuFilterProps) ui.Node {
 	query := props.Query
 	inputProps := html.Props{ID: "menu-filter", Name: "menu_q", Value: props.Query,
-		Raw: map[string]any{"type": "search", "placeholder": props.Text("nav.filter_placeholder"), "aria-label": props.Text("nav.filter")}}
-	formProps := html.Props{Class: "menu-filter", Action: props.Action, Method: "get", Raw: map[string]any{"role": "search"}}
+		Aria: map[string]string{"label": props.Text("nav.filter"), "controls": "workspace-navigation"},
+		Raw:  map[string]any{"type": "search", "placeholder": props.Text("nav.filter_pages")}}
+	// This is intentionally not a second generic search landmark. The menu
+	// field only filters the already-authorized destination tree; global search
+	// owns the people/workflow/settings record discovery surface.
+	formProps := html.Props{Class: "menu-filter", Action: props.Action, Method: "get",
+		Aria: map[string]string{"label": props.Text("nav.filter_pages")},
+		Raw:  map[string]any{"data-hcm-search-scope": "destinations"}}
 	if props.OnFilter != nil || props.OnInput != nil {
 		inputProps.OnInput = ui.UseEvent(func(event ui.InputEvent) {
 			query = event.GetValue()
@@ -550,9 +628,9 @@ func MenuFilter(props MenuFilterProps) ui.Node {
 		})
 	}
 	children := []ui.Node{
-		html.Label(html.Props{For: "menu-filter", Class: "sr-only"}, ui.Text(props.Text("nav.filter"))),
+		html.Label(html.Props{For: "menu-filter", Class: "sr-only"}, ui.Text(props.Text("nav.filter_pages"))),
 		html.Div(html.Props{Class: "menu-filter-control"}, html.Tag("input", inputProps),
-			html.Button(html.Props{Class: "menu-filter-submit", Type: "submit", Aria: map[string]string{"label": props.Text("nav.filter_apply")}, Raw: map[string]any{"title": props.Text("nav.filter_apply")}}, ui.Text("⌕"))),
+			html.Button(html.Props{Class: "menu-filter-submit", Type: "submit", Aria: map[string]string{"label": props.Text("nav.filter_apply")}, Raw: map[string]any{"title": props.Text("nav.filter_apply")}}, productIcon("search", "menu-filter-glyph"))),
 	}
 	for _, hidden := range props.Hidden {
 		children = append(children, html.Tag("input", html.Props{Name: hidden.Name, Value: hidden.Value, Raw: map[string]any{"type": "hidden"}}))

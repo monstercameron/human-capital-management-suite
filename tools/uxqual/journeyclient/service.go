@@ -18,10 +18,21 @@ import (
 // of this seam.
 type Service interface {
 	ListJourneys(ctx context.Context, in *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error)
-	ProposeJourney(ctx context.Context, in *journeyv1.ProposeJourneyRequest) (*journeyv1.ProposeJourneyResponse, error)
+	ProposePromotion(ctx context.Context, in *journeyv1.ProposePromotionRequest) (*journeyv1.ProposePromotionResponse, error)
 	InspectJourney(ctx context.Context, in *journeyv1.InspectJourneyRequest) (*journeyv1.InspectJourneyResponse, error)
 	ExecuteJourney(ctx context.Context, in *journeyv1.ExecuteJourneyRequest) (*journeyv1.ExecuteJourneyResponse, error)
 	DecideJourney(ctx context.Context, in *journeyv1.DecideJourneyRequest) (*journeyv1.DecideJourneyResponse, error)
+	// EditProposal corrects an unstarted or mid-flight proposal (PROMOUX-013):
+	// it cancels the original and mints an edited successor, and returns the
+	// successor journey plus the original's own id.
+	EditProposal(ctx context.Context, in *journeyv1.EditProposalRequest) (*journeyv1.EditProposalResponse, error)
+	// PreviewJourneyIntervention answers, without mutating anything, whether
+	// a typed WITHDRAW or CANCEL intervention is available right now and
+	// what confirming it would do.
+	PreviewJourneyIntervention(ctx context.Context, in *journeyv1.PreviewJourneyInterventionRequest) (*journeyv1.PreviewJourneyInterventionResponse, error)
+	// RequestJourneyIntervention runs a typed WITHDRAW or CANCEL
+	// intervention.
+	RequestJourneyIntervention(ctx context.Context, in *journeyv1.RequestJourneyInterventionRequest) (*journeyv1.RequestJourneyInterventionResponse, error)
 	// WatchJourney opens the server-streaming change feed. The stream is
 	// returned rather than a channel so cancellation stays where it belongs:
 	// the caller's context ends the stream, and Recv reports that as an
@@ -97,8 +108,8 @@ func (s *grpcService) ListJourneys(ctx context.Context, in *journeyv1.ListJourne
 	return s.client.ListJourneys(ctx, in)
 }
 
-func (s *grpcService) ProposeJourney(ctx context.Context, in *journeyv1.ProposeJourneyRequest) (*journeyv1.ProposeJourneyResponse, error) {
-	return s.client.ProposeJourney(ctx, in)
+func (s *grpcService) ProposePromotion(ctx context.Context, in *journeyv1.ProposePromotionRequest) (*journeyv1.ProposePromotionResponse, error) {
+	return s.client.ProposePromotion(ctx, in)
 }
 
 func (s *grpcService) InspectJourney(ctx context.Context, in *journeyv1.InspectJourneyRequest) (*journeyv1.InspectJourneyResponse, error) {
@@ -111,6 +122,18 @@ func (s *grpcService) ExecuteJourney(ctx context.Context, in *journeyv1.ExecuteJ
 
 func (s *grpcService) DecideJourney(ctx context.Context, in *journeyv1.DecideJourneyRequest) (*journeyv1.DecideJourneyResponse, error) {
 	return s.client.DecideJourney(ctx, in)
+}
+
+func (s *grpcService) EditProposal(ctx context.Context, in *journeyv1.EditProposalRequest) (*journeyv1.EditProposalResponse, error) {
+	return s.client.EditProposal(ctx, in)
+}
+
+func (s *grpcService) PreviewJourneyIntervention(ctx context.Context, in *journeyv1.PreviewJourneyInterventionRequest) (*journeyv1.PreviewJourneyInterventionResponse, error) {
+	return s.client.PreviewJourneyIntervention(ctx, in)
+}
+
+func (s *grpcService) RequestJourneyIntervention(ctx context.Context, in *journeyv1.RequestJourneyInterventionRequest) (*journeyv1.RequestJourneyInterventionResponse, error) {
+	return s.client.RequestJourneyIntervention(ctx, in)
 }
 
 func (s *grpcService) ListWorkers(ctx context.Context, in *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {

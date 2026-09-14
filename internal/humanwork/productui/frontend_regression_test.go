@@ -31,7 +31,7 @@ func TestFrontendUnitEveryPageRendersInEverySupportedLocale(t *testing.T) {
 				for _, want := range []string{
 					`<html lang="` + locale.Resolved + `" dir="` + string(locale.Direction) + `"`,
 					`data-hcm-catalog="product-ui.v1"`,
-					`data-hcm-page-title="` + escapeTitle(view.Title) + `"`,
+					`data-hcm-page-title="` + escapeTitle(ResolveDocumentPageTitle(view)) + `"`,
 					`id="workspace-navigation"`,
 					`id="main-content"`,
 				} {
@@ -274,7 +274,7 @@ func TestFrontendRegressionEveryPageSupportsNetworkLifecycle(t *testing.T) {
 					t.Errorf("cold-loading state missing %q", want)
 				}
 			}
-			for _, want := range []string{`aria-busy="true"`, `data-network-state="refreshing"`, escapeTitle(view.Title)} {
+			for _, want := range []string{`aria-busy="true"`, `data-network-state="refreshing"`, escapeTitle(ResolveDocumentPageTitle(view))} {
 				if !strings.Contains(refreshing, want) {
 					t.Errorf("warm-refresh state missing %q", want)
 				}

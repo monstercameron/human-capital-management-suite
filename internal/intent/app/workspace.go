@@ -131,10 +131,12 @@ func (a workspaceReader) ReadPromotion(ctx context.Context, req workspace.Reques
 	}
 
 	fieldSet := workspaceFields(req.Fields)
+	relationships := managerChainFacts(ctx, a.locate, principal, subject)
 	stateDecision, err := authorizeRead(principal, purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: evaluatedAt,
-		Read:        peopleFields(fieldSet),
+		Subject:       subject,
+		EvaluatedAt:   evaluatedAt,
+		Read:          peopleFields(fieldSet),
+		Relationships: relationships,
 	})
 	if err != nil {
 		return workspace.Reading{}, workspaceDenial(err)
@@ -166,9 +168,10 @@ func (a workspaceReader) ReadPromotion(ctx context.Context, req workspace.Reques
 	// have: the two capabilities that would compute them are simply not
 	// invoked.
 	if _, gateErr := authorizeRead(principal, purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: evaluatedAt,
-		Gate:        []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Subject:       subject,
+		EvaluatedAt:   evaluatedAt,
+		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Relationships: relationships,
 	}); gateErr != nil {
 		if errors.Is(gateErr, ErrAuthorizationDenied) {
 			reading.CompensationDenial = gateErr.Error()
@@ -297,8 +300,10 @@ func (a workspaceReader) worker(
 // stored intent's summary without a context or a database to reach the created
 // population with. That is safe there and nowhere else, because the summary's
 // worker id is immediately overwritten from the intent's own EMPLOYMENT
-// subject, which is the authoritative identity either way. Every surface that
-// resolves a reference somebody typed uses the cell's locator instead.
+// subject, which is the authoritative identity either way. The summary also
+// replaces the corpus tenant with the stored intent's tenant before exposing
+// the ref. Every surface that resolves a reference somebody typed uses the
+// cell's locator instead.
 func workspaceWorker(ref string) (values.EntityRef, bool) {
 	location, ok, err := locateCorpusWorker(fixtures.Tenant, ref)
 	if err != nil || !ok {

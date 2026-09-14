@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
@@ -47,7 +48,9 @@ type ResumeRequest struct {
 // [WorkItemReader] loads for req.WorkItemID, then drains any ordinary READY
 // successors exactly as Execute does. It never polls and it does not
 // complete the WorkItem itself.
-func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (Result, error) {
+func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(d.observed(ctx), "workflow.execute.resume", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	selection, err := validateResumeConfig(ctx, req, d.opts.Items)
 	if err != nil {
 		return Result{}, err

@@ -2,6 +2,7 @@ package artifacts
 
 import (
 	"context"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Request is one caller's request to migrate every pending artifact of one
@@ -40,7 +41,9 @@ type Request struct {
 // [Deduplicated]: every write this package makes addresses a derived identity
 // and is a no-op when that identity already exists, so a replay creates no
 // duplicate timer, subscription, ready-work row or continuation.
-func Migrate(ctx context.Context, tx Executor, req Request) (Receipt, error) {
+func Migrate(ctx context.Context, tx Executor, req Request) (ret0 Receipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.Scope.validate(); err != nil {
 		return Receipt{}, err
 	}

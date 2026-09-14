@@ -113,6 +113,24 @@ func TestTodo_I18N_002_Fault(t *testing.T) {
 	}
 }
 
+func TestTodo_UXAUDIT_006_I18N_SharedDateFormatting(t *testing.T) {
+	instant := time.Date(2026, time.September, 3, 14, 5, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		locale string
+		want   string
+	}{
+		{locale: "en-US", want: "09/03/2026"},
+		{locale: "de-DE", want: "03.09.2026"},
+		{locale: "ar", want: "٣ سبتمبر ٢٠٢٦"},
+		{locale: "fr-FR", want: "2026-09-03"},
+	} {
+		got, err := FormatDate(Context{Locale: tc.locale, TimeZone: "UTC"}, instant)
+		if err != nil || got != tc.want {
+			t.Errorf("FormatDate(%q) = (%q, %v), want %q", tc.locale, got, err, tc.want)
+		}
+	}
+}
+
 func TestTodo_I18N_002_Security(t *testing.T) {
 	r := fixtureRegistry(t)
 	got, err := r.Resolve(Context{Locale: "en-US", CatalogVersion: "v1"}, "welcome", ResolveOptions{Vars: map[string]string{"name": "<script>alert(1)</script>"}})

@@ -27,8 +27,9 @@ var legalStAlFindings = []legal.ReviewFinding{
 func TestTodo_LEGAL_ST_AL_001(t *testing.T) {
 	legalStAssertPack(t, "AL", []legalStExpectation{
 		// WAGE_FLOOR is federal-only for Alabama (matrix cell `F`): no state
-		// minimum-wage or overtime statute, so the pack emits no obligation.
-		{Kind: legal.ObligationTypeWageFloor, Absent: true},
+		// minimum-wage or overtime statute, so the pack carries only the
+		// federal FLSA baseline (29 U.S.C. § 206) with no state amount.
+		{Kind: legal.ObligationTypeWageFloor, Requires: []string{"29 U.S.C.", "no Alabama statute"}},
 		// Clarke-Figures Equal Pay Act: sex/race pay-equity review with
 		// documentation required and the 3-year retention it mandates.
 		{Kind: legal.ObligationTypePayEquityReview, Requires: []string{"25-1-30", `"documentation_required":true`}},
@@ -36,7 +37,7 @@ func TestTodo_LEGAL_ST_AL_001(t *testing.T) {
 		{Kind: legal.ObligationTypeRetention, Requires: []string{"25-1-30", `"duration_years":3`}},
 		// Presumptive reasonableness: ≤2 years employees / ≤1 year business
 		// sale / ≤18 months non-solicit (Ala. Code § 8-1-190 et seq., § 8-1-191).
-		{Kind: legal.ObligationTypeNonCompete, Requires: []string{"8-1-190", "2-year", "18-month"}},
+		{Kind: legal.ObligationTypeNonCompete, Requires: []string{"8-1-190", "2 years or less", "18 months or less"}},
 		// Beason-Hammon Act: E-Verify mandatory for all employers.
 		{Kind: legal.ObligationTypeEVerify, Requires: []string{"31-13-15"}},
 		// Workers'-compensation retaliation, "solely because" standard.

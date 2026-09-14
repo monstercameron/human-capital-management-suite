@@ -99,6 +99,7 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(doc))
 	got := hex.EncodeToString(digest[:])
+
 	// Closed launcher omits active-option references and does not claim modality.
 	// UXAUDIT-007 removed the page-identity header's unconditional
 	// "Acting as yourself" span (see PageIdentityHeader): acting-context
@@ -122,7 +123,25 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// Verified by inspecting the launcher's rendered markup directly
 	// before re-pinning: trigger and dialog scaffold intact, no leaked
 	// per-record content, no claimed modality.
-	const want = "6e84aa48b394cc751eb164ec6312603e35ee099c1ad7a70d68ecabd1914e3f4b"
+	// UIPOLISH-004 renders ".main-scroll", ".primary-nav" and ".sidebar"
+	// through the new shared ScrollRegion component: each gains
+	// tabIndex="0" (GREEN requires every scroll region be keyboard-
+	// reachable; none of the three carried it before), ".primary-nav" also
+	// gains id="primary-nav" (the scroll-restoration key), and the inlined
+	// stylesheet gains ScrollRegion's shared focus-visible/reduced-motion
+	// rules plus ".main-scroll"'s missing scrollbar-width/scrollbar-color
+	// tokens. No other markup changed -- verified by diffing this fixture's
+	// rendered document against the pre-change output directly (aria-label/
+	// aria-labelledby values, landmark counts, and every other attribute
+	// are byte-identical) before re-pinning.
+	// PROMOUX-012 re-pins: the notification summary now counts only work
+	// the viewer must act on and says so ("N promotion items need your
+	// action.") instead of "N promotion journeys are visible in this
+	// scope.", and the My Work subtitle no longer says every journey needs
+	// attention. Verified before re-pinning by substituting exactly those
+	// two old strings back into the new document, which reproduced the
+	// previous digest byte for byte.
+	const want = "20898b8341278494f197d9af00a7253701dc14136f7bd0fe0ef1e611b49eeb79"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

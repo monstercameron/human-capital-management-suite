@@ -24,7 +24,7 @@ func TestTodo_WEB_234(t *testing.T) {
 	if !ok {
 		t.Fatal("reconciliation and repair workbench unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("reconciliation and repair workbench incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_234_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "9964ad9b0d2b229b6705ef328785a94890c10147ece13a4de21a642683c022b1"
+	const want = "588bd09ba6b4233e86a56812d92a4009320f54d74842bcc6fd32ed60e0b8a80d"
 	if got != want {
 		t.Fatalf("reconciliation and repair workbench digest = %s, want %s", got, want)
 	}

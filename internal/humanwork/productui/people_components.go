@@ -3,6 +3,7 @@ package productui
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -32,12 +33,9 @@ type PeopleSummaryProps struct {
 // software navigation in the WASM client.
 type PeopleFilterProps struct {
 	I18nProps
-	Query    string
-	Team     string
-	Location string
-	// EligibleOnly filters the directory to promotion-eligible workers
-	// (GREEN #1: the authorized directory can filter directly to them,
-	// rather than requiring a viewer to already know a candidate's name).
+	Query        string
+	Team         string
+	Location     string
 	EligibleOnly bool
 	Teams        []PeopleFilterOption
 	Locations    []PeopleFilterOption
@@ -45,6 +43,10 @@ type PeopleFilterProps struct {
 	Direction    string
 	Action       string
 	ClearHref    string
+	// PageSize is carried through filter submissions so changing a filter
+	// does not silently reset a user's chosen table density. A zero value is
+	// treated as the default by the page adapter.
+	PageSize     int
 	NavCollapsed bool
 	Navigate     func(string)
 	OnFilter     func(query, team, location string, eligibleOnly bool)
@@ -82,6 +84,11 @@ type peopleDirectoryState struct {
 
 func reconcilePeopleDirectoryState(incoming PeopleDirectoryProps, current peopleDirectoryState) (peopleDirectoryState, bool) {
 	if current.InputKey == incoming.InputKey {
+		// InputKey deliberately excludes transient refresh state. Keep any
+		// component-local ordering, but refresh the surrounding contract so a
+		// warm server projection can expose busy state without replacing rows.
+		current.Current.Refreshing = incoming.Refreshing
+		current.Current.I18nProps = incoming.I18nProps
 		return current, false
 	}
 	return peopleDirectoryState{InputKey: incoming.InputKey, Current: incoming}, true
@@ -209,14 +216,12 @@ func PeopleSummary(props PeopleSummaryProps) ui.Node {
 // PeopleFilter renders an SSR-safe GET filter with an optional live callback.
 func PeopleFilter(props PeopleFilterProps) ui.Node {
 	query, team, location, eligibleOnly := props.Query, props.Team, props.Location, props.EligibleOnly
-	inputProps := html.Props{
-		ID: "people-filter", Name: "q", Value: props.Query,
-		Raw: map[string]any{"type": "search", "placeholder": props.Text("people.filter_placeholder"), "aria-label": props.Text("people.filter_aria")},
-	}
+	input := SearchInputProps{ID: "people-filter", Name: "q", Value: props.Query,
+		Placeholder: props.Text("people.filter_placeholder"), AriaLabel: props.Text("people.filter_aria")}
 	eligibleProps := html.Props{ID: "people-eligible-filter", Type: "checkbox", Name: "eligible", Value: "1", Checked: props.EligibleOnly, Aria: map[string]string{"label": props.Text("people.eligible_only")}}
 	formProps := html.Props{Class: "people-filter", Action: props.Action, Method: "get", Raw: map[string]any{"role": "search"}}
 	if props.OnFilter != nil {
-		inputProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { query = event.GetValue() })
+		input.OnInput = func(value string) { query = value }
 		onFilter := props.OnFilter
 		teamProps := html.Props{ID: "people-team-filter", Name: "team", Value: team, Raw: map[string]any{"aria-label": props.Text("people.team_aria")}}
 		locationProps := html.Props{ID: "people-location-filter", Name: "location", Value: location, Raw: map[string]any{"aria-label": props.Text("people.location_aria")}}
@@ -227,16 +232,16 @@ func PeopleFilter(props PeopleFilterProps) ui.Node {
 			event.PreventDefault()
 			onFilter(query, team, location, eligibleOnly)
 		})
-		return peopleFilterForm(props, inputProps, teamProps, locationProps, eligibleProps, formProps)
+		return peopleFilterForm(props, ui.CreateElement(SearchInput, input), teamProps, locationProps, eligibleProps, formProps)
 	}
-	return peopleFilterForm(props, inputProps,
+	return peopleFilterForm(props, ui.CreateElement(SearchInput, input),
 		html.Props{ID: "people-team-filter", Name: "team", Value: team, Raw: map[string]any{"aria-label": props.Text("people.team_aria")}},
 		html.Props{ID: "people-location-filter", Name: "location", Value: location, Raw: map[string]any{"aria-label": props.Text("people.location_aria")}},
 		eligibleProps,
 		formProps)
 }
 
-func peopleFilterForm(props PeopleFilterProps, inputProps, teamProps, locationProps, eligibleProps, formProps html.Props) ui.Node {
+func peopleFilterForm(props PeopleFilterProps, input ui.Node, teamProps, locationProps, eligibleProps, formProps html.Props) ui.Node {
 	teamOptions := []ui.Node{html.Option(html.Props{Value: "", Selected: props.Team == ""}, ui.Text(props.Text("people.all_teams")))}
 	for _, option := range props.Teams {
 		teamOptions = append(teamOptions, html.Option(html.Props{Value: option.Value, Selected: props.Team == option.Value}, ui.Text(option.Label)))
@@ -252,7 +257,7 @@ func peopleFilterForm(props PeopleFilterProps, inputProps, teamProps, locationPr
 	children := []ui.Node{
 		html.Label(html.Props{For: "people-filter"}, ui.Text(props.Text("people.find"))),
 		html.Div(html.Props{Class: "people-filter-control"},
-			html.Tag("input", inputProps),
+			input,
 			html.Select(teamProps, teamOptions...),
 			html.Select(locationProps, locationOptions...),
 			html.Label(html.Props{Class: "people-eligible-filter-label", For: "people-eligible-filter"},
@@ -264,6 +269,9 @@ func peopleFilterForm(props PeopleFilterProps, inputProps, teamProps, locationPr
 		if field.value != "" {
 			children = append(children, html.Tag("input", html.Props{Name: field.name, Value: field.value, Raw: map[string]any{"type": "hidden"}}))
 		}
+	}
+	if value := pageSizeValue(props.PageSize); value != "" {
+		children = append(children, html.Tag("input", html.Props{Name: "page_size", Value: value, Raw: map[string]any{"type": "hidden"}}))
 	}
 	if locale := props.Locale.normalized(); locale.Resolved != DefaultProductLocale {
 		children = append(children, html.Tag("input", html.Props{Name: "locale", Value: locale.Resolved, Raw: map[string]any{"type": "hidden"}}))
@@ -340,7 +348,7 @@ func PeopleTable(props PeopleTableProps) ui.Node {
 				direction = DataTableDescending
 			}
 		}
-		columns = append(columns, DataTableColumnProps{ID: column.ID, Label: column.Label, Href: column.Href, Sort: direction, Navigate: column.Navigate})
+		columns = append(columns, DataTableColumnProps{ID: column.ID, Label: column.Label, Href: column.Href, Sort: direction, Navigate: column.Navigate, SortLinkClass: "people-sort"})
 	}
 	columns = append(columns, DataTableColumnProps{ID: "actions", Label: props.Text("people.column.actions"), Class: "people-action-heading", AlignEnd: true})
 	rows := make([]DataTableRowProps, 0, len(props.Rows))
@@ -348,7 +356,11 @@ func PeopleTable(props PeopleTableProps) ui.Node {
 		row.I18nProps = props.I18nProps
 		rows = append(rows, peopleDataTableRow(row))
 	}
-	return ui.CreateElement(DataTable, DataTableProps{Caption: props.Text("people.table_aria"), AriaLabel: props.Text("people.table_aria"), SortLabel: props.Text("people.sort_by"), Class: "people-table", Columns: columns, Rows: rows})
+	return ui.CreateElement(DataTable, DataTableProps{
+		ID: "people-directory-table", Caption: props.Text("people.table_aria"), AriaLabel: props.Text("people.table_aria"), SortLabel: props.Text("people.sort_by"),
+		Class: "people-table", HeaderClass: "people-columns", BodyClass: "people-rows", SortLabelClass: "people-sort-label",
+		Columns: columns, Rows: rows,
+	})
 }
 
 // PeopleSortColumn renders one sortable header with its current direction.
@@ -360,7 +372,7 @@ func PeopleSortColumn(props PeopleSortColumnProps) ui.Node {
 			direction = DataTableDescending
 		}
 	}
-	return ui.CreateElement(DataTableColumn, DataTableColumnProps{ID: props.ID, Label: props.Label, Href: props.Href, Sort: direction, Navigate: props.Navigate})
+	return ui.CreateElement(DataTableColumn, DataTableColumnProps{ID: props.ID, Label: props.Label, Href: props.Href, Sort: direction, Navigate: props.Navigate, SortLinkClass: "people-sort"})
 }
 
 // PeopleRow is a software-routed, progressively enhanced directory row.
@@ -373,10 +385,12 @@ func PeopleRow(props PeopleRowProps) ui.Node {
 		{ID: peopleSortLocation, Label: props.Text("people.column.location")},
 		{ID: "actions", Label: props.Text("people.column.actions"), AlignEnd: true},
 	}
-	return ui.CreateElement(dataTableRow, dataTableRowRenderProps{Columns: columns, Row: peopleDataTableRow(props)})
+	row := peopleDataTableRow(props)
+	return ui.CreateElement(dataTableRow, dataTableRowRenderProps{Columns: columns, Row: row, Cells: row.Cells})
 }
 
 func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
+	identityLabel := ResolveWorkerIdentity(props.Locale, Person{Name: props.Name, WorkerNumber: props.WorkerNumber}, nil).Label
 	identity := []ui.Node{html.Strong(html.Props{}, ui.Text(props.Name))}
 	if props.WorkerNumber != "" {
 		identity = append(identity, html.Small(html.Props{Class: "muted"}, ui.Text(props.WorkerNumber)))
@@ -387,26 +401,42 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 		if action.Frequent {
 			label += " · " + props.Text("people.frequent")
 		}
+		accessibleLabel := strings.TrimSpace(action.AccessibleLabel)
+		if accessibleLabel == "" {
+			accessibleLabel = label
+		}
 		actions = append(actions, html.Li(html.Props{}, softwareLink(props.Navigate, html.Props{
 			Class: "people-workflow-option",
-			Aria:  map[string]string{"label": action.AccessibleLabel},
-			Raw:   map[string]any{"title": action.AccessibleLabel},
+			Aria:  map[string]string{"label": accessibleLabel},
+			Raw:   map[string]any{"title": accessibleLabel},
 		}, action.Href, ui.Text(label))))
 	}
-	// GREEN #2: the empty-menu fallback always carries the server's reason
-	// when one was resolved; only a genuinely unconditional empty
-	// QuickActions list (no availability verdict computed at all) falls
-	// back to the bare, unexplained label.
+	// Keep the server-resolved reason available without repeating its full
+	// paragraph across a dense directory. The same shared popover handles
+	// unavailable information and executable row actions.
 	noWorkflowsLabel := props.WorkflowsUnavailableReason
+	unavailableAriaKey := "people.workflow_unavailable_reason_aria"
 	if noWorkflowsLabel == "" {
 		noWorkflowsLabel = props.Text("people.no_workflows")
+		unavailableAriaKey = "people.workflow_unavailable_generic_aria"
 	}
-	workflowMenu := ui.Node(html.Span(html.Props{Class: "muted"}, ui.Text(noWorkflowsLabel)))
+	// The short disclosure keeps dense rows scannable while giving pointer,
+	// keyboard, and touch users the same server-projected explanation.
+	workflowMenu := ui.Node(ui.CreateElement(TransientPopover, TransientPopoverProps{
+		Kind: "people-workflows", Class: "people-workflow-menu people-unavailable-menu",
+		TriggerClass:  "people-availability-badge muted",
+		Title:         noWorkflowsLabel,
+		DescriptionID: "people-unavailable-" + props.ID,
+		Label:         props.Text(unavailableAriaKey, map[string]string{"name": identityLabel, "reason": noWorkflowsLabel}),
+		Trigger:       []ui.Node{ui.Text(props.Text("people.workflows_unavailable_short")), productIcon("expand", "people-workflow-chevron")},
+		PanelClass:    "people-workflow-options",
+		Children:      []ui.Node{html.P(html.Props{ID: "people-unavailable-" + props.ID, Class: "people-workflow-unavailable-reason"}, ui.Text(noWorkflowsLabel))},
+	}))
 	if len(actions) > 0 {
 		workflowMenu = ui.CreateElement(TransientPopover, TransientPopoverProps{
 			Kind: "people-workflows", Class: "people-workflow-menu", TriggerClass: "button secondary people-row-action",
-			Label:   props.Text("people.workflows_aria", map[string]string{"name": props.Name}),
-			Trigger: []ui.Node{ui.Text(props.Text("people.workflows"))}, PanelClass: "people-workflow-options",
+			Label:   props.Text("people.workflows_aria", map[string]string{"name": identityLabel}),
+			Trigger: []ui.Node{ui.Text(props.Text("people.workflows")), productIcon("expand", "people-workflow-chevron")}, PanelClass: "people-workflow-options",
 			Children: []ui.Node{html.Ul(html.Props{Class: "people-workflow-options-list"}, actions...)},
 		})
 	}
@@ -480,9 +510,8 @@ func PaginationLink(props PaginationLinkProps) ui.Node {
 
 // PeopleEmptyState retains a software-routed recovery action.
 func PeopleEmptyState(props PeopleEmptyStateProps) ui.Node {
-	return html.Section(html.Props{Class: "surface empty-state", Raw: map[string]any{"role": "status"}},
-		html.H2(html.Props{}, ui.Text(props.Text("people.empty_title"))),
-		html.P(html.Props{Class: "muted"}, ui.Text(props.Text("people.empty_detail"))),
-		softwareLink(props.Navigate, html.Props{Class: "button secondary"}, props.ClearHref, ui.Text(props.Text("people.clear_filter"))),
-	)
+	return ui.CreateElement(EmptyState, EmptyStateProps{
+		Title: props.Text("people.empty_title"), Description: props.Text("people.empty_detail"), Role: "status",
+		Action: &ActionLinkProps{Label: props.Text("people.clear_filter"), Href: props.ClearHref, Class: "button secondary", Navigate: props.Navigate},
+	})
 }

@@ -22,6 +22,73 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// WorkflowControlOutcome is the governed result of a workflow control
+// (EP-WF-002). Governance refusals are outcomes, not transport errors.
+type WorkflowControlOutcome int32
+
+const (
+	WorkflowControlOutcome_WORKFLOW_CONTROL_OUTCOME_UNSPECIFIED WorkflowControlOutcome = 0
+	// The runtime transition happened.
+	WorkflowControlOutcome_WORKFLOW_CONTROL_OUTCOME_APPLIED WorkflowControlOutcome = 1
+	// A pause is recorded and takes effect at the next compiled safe point.
+	WorkflowControlOutcome_WORKFLOW_CONTROL_OUTCOME_PENDING_SAFE_POINT WorkflowControlOutcome = 2
+	// Authority, separation of duties, a stale version or attempt, or a failed
+	// revalidation refused the control; nothing changed.
+	WorkflowControlOutcome_WORKFLOW_CONTROL_OUTCOME_DENIED WorkflowControlOutcome = 3
+	// The instance is terminal or the effect already committed; nothing is
+	// claimed reversed.
+	WorkflowControlOutcome_WORKFLOW_CONTROL_OUTCOME_TOO_LATE WorkflowControlOutcome = 4
+	// An effect is ambiguous; the instance is routed to repair, not re-run.
+	WorkflowControlOutcome_WORKFLOW_CONTROL_OUTCOME_REPAIR_REQUIRED WorkflowControlOutcome = 5
+)
+
+// Enum value maps for WorkflowControlOutcome.
+var (
+	WorkflowControlOutcome_name = map[int32]string{
+		0: "WORKFLOW_CONTROL_OUTCOME_UNSPECIFIED",
+		1: "WORKFLOW_CONTROL_OUTCOME_APPLIED",
+		2: "WORKFLOW_CONTROL_OUTCOME_PENDING_SAFE_POINT",
+		3: "WORKFLOW_CONTROL_OUTCOME_DENIED",
+		4: "WORKFLOW_CONTROL_OUTCOME_TOO_LATE",
+		5: "WORKFLOW_CONTROL_OUTCOME_REPAIR_REQUIRED",
+	}
+	WorkflowControlOutcome_value = map[string]int32{
+		"WORKFLOW_CONTROL_OUTCOME_UNSPECIFIED":        0,
+		"WORKFLOW_CONTROL_OUTCOME_APPLIED":            1,
+		"WORKFLOW_CONTROL_OUTCOME_PENDING_SAFE_POINT": 2,
+		"WORKFLOW_CONTROL_OUTCOME_DENIED":             3,
+		"WORKFLOW_CONTROL_OUTCOME_TOO_LATE":           4,
+		"WORKFLOW_CONTROL_OUTCOME_REPAIR_REQUIRED":    5,
+	}
+)
+
+func (x WorkflowControlOutcome) Enum() *WorkflowControlOutcome {
+	p := new(WorkflowControlOutcome)
+	*p = x
+	return p
+}
+
+func (x WorkflowControlOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorkflowControlOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_hcmnext_workflow_v1_workflow_service_proto_enumTypes[0].Descriptor()
+}
+
+func (WorkflowControlOutcome) Type() protoreflect.EnumType {
+	return &file_hcmnext_workflow_v1_workflow_service_proto_enumTypes[0]
+}
+
+func (x WorkflowControlOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorkflowControlOutcome.Descriptor instead.
+func (WorkflowControlOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{0}
+}
+
 type GetWorkflowRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scope         *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -230,6 +297,103 @@ func (x *ListNodeExecutionsResponse) GetPage() *v1.PageResponse {
 	return nil
 }
 
+// WorkflowControlReceipt is the evidence of one governed workflow control.
+type WorkflowControlReceipt struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Outcome WorkflowControlOutcome `protobuf:"varint,1,opt,name=outcome,proto3,enum=hcmnext.workflow.v1.WorkflowControlOutcome" json:"outcome,omitempty"`
+	// result_code is the stable reason for a non-APPLIED outcome.
+	ResultCode string `protobuf:"bytes,2,opt,name=result_code,json=resultCode,proto3" json:"result_code,omitempty"`
+	// intent_instance_id is the operational intent the control resolved to.
+	IntentInstanceId string `protobuf:"bytes,3,opt,name=intent_instance_id,json=intentInstanceId,proto3" json:"intent_instance_id,omitempty"`
+	ReceiptDigest    string `protobuf:"bytes,4,opt,name=receipt_digest,json=receiptDigest,proto3" json:"receipt_digest,omitempty"`
+	// replayed is true when an earlier control under the same idempotency key
+	// produced this outcome and nothing ran again.
+	Replayed        bool   `protobuf:"varint,5,opt,name=replayed,proto3" json:"replayed,omitempty"`
+	InstanceVersion uint64 `protobuf:"varint,6,opt,name=instance_version,json=instanceVersion,proto3" json:"instance_version,omitempty"`
+	InstanceStatus  string `protobuf:"bytes,7,opt,name=instance_status,json=instanceStatus,proto3" json:"instance_status,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *WorkflowControlReceipt) Reset() {
+	*x = WorkflowControlReceipt{}
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowControlReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowControlReceipt) ProtoMessage() {}
+
+func (x *WorkflowControlReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowControlReceipt.ProtoReflect.Descriptor instead.
+func (*WorkflowControlReceipt) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *WorkflowControlReceipt) GetOutcome() WorkflowControlOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return WorkflowControlOutcome_WORKFLOW_CONTROL_OUTCOME_UNSPECIFIED
+}
+
+func (x *WorkflowControlReceipt) GetResultCode() string {
+	if x != nil {
+		return x.ResultCode
+	}
+	return ""
+}
+
+func (x *WorkflowControlReceipt) GetIntentInstanceId() string {
+	if x != nil {
+		return x.IntentInstanceId
+	}
+	return ""
+}
+
+func (x *WorkflowControlReceipt) GetReceiptDigest() string {
+	if x != nil {
+		return x.ReceiptDigest
+	}
+	return ""
+}
+
+func (x *WorkflowControlReceipt) GetReplayed() bool {
+	if x != nil {
+		return x.Replayed
+	}
+	return false
+}
+
+func (x *WorkflowControlReceipt) GetInstanceVersion() uint64 {
+	if x != nil {
+		return x.InstanceVersion
+	}
+	return 0
+}
+
+func (x *WorkflowControlReceipt) GetInstanceStatus() string {
+	if x != nil {
+		return x.InstanceStatus
+	}
+	return ""
+}
+
 type PauseWorkflowRequest struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	IdempotencyKey          string                 `protobuf:"bytes,1,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
@@ -243,7 +407,7 @@ type PauseWorkflowRequest struct {
 
 func (x *PauseWorkflowRequest) Reset() {
 	*x = PauseWorkflowRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[4]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -255,7 +419,7 @@ func (x *PauseWorkflowRequest) String() string {
 func (*PauseWorkflowRequest) ProtoMessage() {}
 
 func (x *PauseWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[4]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -268,7 +432,7 @@ func (x *PauseWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*PauseWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{4}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PauseWorkflowRequest) GetIdempotencyKey() string {
@@ -307,15 +471,16 @@ func (x *PauseWorkflowRequest) GetReasonRef() string {
 }
 
 type PauseWorkflowResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Instance      *WorkflowInstance      `protobuf:"bytes,1,opt,name=instance,proto3" json:"instance,omitempty"`
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Instance      *WorkflowInstance       `protobuf:"bytes,1,opt,name=instance,proto3" json:"instance,omitempty"`
+	Receipt       *WorkflowControlReceipt `protobuf:"bytes,2,opt,name=receipt,proto3" json:"receipt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PauseWorkflowResponse) Reset() {
 	*x = PauseWorkflowResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[5]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -327,7 +492,7 @@ func (x *PauseWorkflowResponse) String() string {
 func (*PauseWorkflowResponse) ProtoMessage() {}
 
 func (x *PauseWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[5]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -340,12 +505,19 @@ func (x *PauseWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*PauseWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{5}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PauseWorkflowResponse) GetInstance() *WorkflowInstance {
 	if x != nil {
 		return x.Instance
+	}
+	return nil
+}
+
+func (x *PauseWorkflowResponse) GetReceipt() *WorkflowControlReceipt {
+	if x != nil {
+		return x.Receipt
 	}
 	return nil
 }
@@ -363,7 +535,7 @@ type ResumeWorkflowRequest struct {
 
 func (x *ResumeWorkflowRequest) Reset() {
 	*x = ResumeWorkflowRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[6]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -375,7 +547,7 @@ func (x *ResumeWorkflowRequest) String() string {
 func (*ResumeWorkflowRequest) ProtoMessage() {}
 
 func (x *ResumeWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[6]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -388,7 +560,7 @@ func (x *ResumeWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*ResumeWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{6}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ResumeWorkflowRequest) GetIdempotencyKey() string {
@@ -427,15 +599,16 @@ func (x *ResumeWorkflowRequest) GetReasonRef() string {
 }
 
 type ResumeWorkflowResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Instance      *WorkflowInstance      `protobuf:"bytes,1,opt,name=instance,proto3" json:"instance,omitempty"`
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Instance      *WorkflowInstance       `protobuf:"bytes,1,opt,name=instance,proto3" json:"instance,omitempty"`
+	Receipt       *WorkflowControlReceipt `protobuf:"bytes,2,opt,name=receipt,proto3" json:"receipt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResumeWorkflowResponse) Reset() {
 	*x = ResumeWorkflowResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[7]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -447,7 +620,7 @@ func (x *ResumeWorkflowResponse) String() string {
 func (*ResumeWorkflowResponse) ProtoMessage() {}
 
 func (x *ResumeWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[7]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,12 +633,19 @@ func (x *ResumeWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*ResumeWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{7}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ResumeWorkflowResponse) GetInstance() *WorkflowInstance {
 	if x != nil {
 		return x.Instance
+	}
+	return nil
+}
+
+func (x *ResumeWorkflowResponse) GetReceipt() *WorkflowControlReceipt {
+	if x != nil {
+		return x.Receipt
 	}
 	return nil
 }
@@ -483,7 +663,7 @@ type CancelWorkflowRequest struct {
 
 func (x *CancelWorkflowRequest) Reset() {
 	*x = CancelWorkflowRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[8]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -495,7 +675,7 @@ func (x *CancelWorkflowRequest) String() string {
 func (*CancelWorkflowRequest) ProtoMessage() {}
 
 func (x *CancelWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[8]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -508,7 +688,7 @@ func (x *CancelWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*CancelWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{8}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CancelWorkflowRequest) GetIdempotencyKey() string {
@@ -547,15 +727,16 @@ func (x *CancelWorkflowRequest) GetReasonRef() string {
 }
 
 type CancelWorkflowResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Instance      *WorkflowInstance      `protobuf:"bytes,1,opt,name=instance,proto3" json:"instance,omitempty"`
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Instance      *WorkflowInstance       `protobuf:"bytes,1,opt,name=instance,proto3" json:"instance,omitempty"`
+	Receipt       *WorkflowControlReceipt `protobuf:"bytes,2,opt,name=receipt,proto3" json:"receipt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CancelWorkflowResponse) Reset() {
 	*x = CancelWorkflowResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[9]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -567,7 +748,7 @@ func (x *CancelWorkflowResponse) String() string {
 func (*CancelWorkflowResponse) ProtoMessage() {}
 
 func (x *CancelWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[9]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -580,12 +761,19 @@ func (x *CancelWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*CancelWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{9}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CancelWorkflowResponse) GetInstance() *WorkflowInstance {
 	if x != nil {
 		return x.Instance
+	}
+	return nil
+}
+
+func (x *CancelWorkflowResponse) GetReceipt() *WorkflowControlReceipt {
+	if x != nil {
+		return x.Receipt
 	}
 	return nil
 }
@@ -603,7 +791,7 @@ type RetryNodeRequest struct {
 
 func (x *RetryNodeRequest) Reset() {
 	*x = RetryNodeRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[10]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -615,7 +803,7 @@ func (x *RetryNodeRequest) String() string {
 func (*RetryNodeRequest) ProtoMessage() {}
 
 func (x *RetryNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[10]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -628,7 +816,7 @@ func (x *RetryNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryNodeRequest.ProtoReflect.Descriptor instead.
 func (*RetryNodeRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{10}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RetryNodeRequest) GetIdempotencyKey() string {
@@ -667,15 +855,16 @@ func (x *RetryNodeRequest) GetExpectedAttempt() uint32 {
 }
 
 type RetryNodeResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NodeExecution *NodeExecution         `protobuf:"bytes,1,opt,name=node_execution,json=nodeExecution,proto3" json:"node_execution,omitempty"`
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	NodeExecution *NodeExecution          `protobuf:"bytes,1,opt,name=node_execution,json=nodeExecution,proto3" json:"node_execution,omitempty"`
+	Receipt       *WorkflowControlReceipt `protobuf:"bytes,2,opt,name=receipt,proto3" json:"receipt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RetryNodeResponse) Reset() {
 	*x = RetryNodeResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[11]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -687,7 +876,7 @@ func (x *RetryNodeResponse) String() string {
 func (*RetryNodeResponse) ProtoMessage() {}
 
 func (x *RetryNodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[11]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -700,12 +889,19 @@ func (x *RetryNodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryNodeResponse.ProtoReflect.Descriptor instead.
 func (*RetryNodeResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{11}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RetryNodeResponse) GetNodeExecution() *NodeExecution {
 	if x != nil {
 		return x.NodeExecution
+	}
+	return nil
+}
+
+func (x *RetryNodeResponse) GetReceipt() *WorkflowControlReceipt {
+	if x != nil {
+		return x.Receipt
 	}
 	return nil
 }
@@ -728,7 +924,16 @@ const file_hcmnext_workflow_v1_workflow_service_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\v2\x1e.hcmnext.common.v1.PageRequestR\x04page\"\x9e\x01\n" +
 	"\x1aListNodeExecutionsResponse\x12K\n" +
 	"\x0fnode_executions\x18\x01 \x03(\v2\".hcmnext.workflow.v1.NodeExecutionR\x0enodeExecutions\x123\n" +
-	"\x04page\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.PageResponseR\x04page\"\xf2\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.PageResponseR\x04page\"\xc5\x02\n" +
+	"\x16WorkflowControlReceipt\x12E\n" +
+	"\aoutcome\x18\x01 \x01(\x0e2+.hcmnext.workflow.v1.WorkflowControlOutcomeR\aoutcome\x12\x1f\n" +
+	"\vresult_code\x18\x02 \x01(\tR\n" +
+	"resultCode\x12,\n" +
+	"\x12intent_instance_id\x18\x03 \x01(\tR\x10intentInstanceId\x12%\n" +
+	"\x0ereceipt_digest\x18\x04 \x01(\tR\rreceiptDigest\x12\x1a\n" +
+	"\breplayed\x18\x05 \x01(\bR\breplayed\x12)\n" +
+	"\x10instance_version\x18\x06 \x01(\x04R\x0finstanceVersion\x12'\n" +
+	"\x0finstance_status\x18\a \x01(\tR\x0einstanceStatus\"\xf2\x01\n" +
 	"\x14PauseWorkflowRequest\x12'\n" +
 	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x125\n" +
 	"\x05scope\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1f\n" +
@@ -736,9 +941,10 @@ const file_hcmnext_workflow_v1_workflow_service_proto_rawDesc = "" +
 	"instanceId\x12:\n" +
 	"\x19expected_instance_version\x18\x04 \x01(\x04R\x17expectedInstanceVersion\x12\x1d\n" +
 	"\n" +
-	"reason_ref\x18\x05 \x01(\tR\treasonRef\"Z\n" +
+	"reason_ref\x18\x05 \x01(\tR\treasonRef\"\xa1\x01\n" +
 	"\x15PauseWorkflowResponse\x12A\n" +
-	"\binstance\x18\x01 \x01(\v2%.hcmnext.workflow.v1.WorkflowInstanceR\binstance\"\xf3\x01\n" +
+	"\binstance\x18\x01 \x01(\v2%.hcmnext.workflow.v1.WorkflowInstanceR\binstance\x12E\n" +
+	"\areceipt\x18\x02 \x01(\v2+.hcmnext.workflow.v1.WorkflowControlReceiptR\areceipt\"\xf3\x01\n" +
 	"\x15ResumeWorkflowRequest\x12'\n" +
 	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x125\n" +
 	"\x05scope\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1f\n" +
@@ -746,9 +952,10 @@ const file_hcmnext_workflow_v1_workflow_service_proto_rawDesc = "" +
 	"instanceId\x12:\n" +
 	"\x19expected_instance_version\x18\x04 \x01(\x04R\x17expectedInstanceVersion\x12\x1d\n" +
 	"\n" +
-	"reason_ref\x18\x05 \x01(\tR\treasonRef\"[\n" +
+	"reason_ref\x18\x05 \x01(\tR\treasonRef\"\xa2\x01\n" +
 	"\x16ResumeWorkflowResponse\x12A\n" +
-	"\binstance\x18\x01 \x01(\v2%.hcmnext.workflow.v1.WorkflowInstanceR\binstance\"\xf3\x01\n" +
+	"\binstance\x18\x01 \x01(\v2%.hcmnext.workflow.v1.WorkflowInstanceR\binstance\x12E\n" +
+	"\areceipt\x18\x02 \x01(\v2+.hcmnext.workflow.v1.WorkflowControlReceiptR\areceipt\"\xf3\x01\n" +
 	"\x15CancelWorkflowRequest\x12'\n" +
 	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x125\n" +
 	"\x05scope\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1f\n" +
@@ -756,18 +963,27 @@ const file_hcmnext_workflow_v1_workflow_service_proto_rawDesc = "" +
 	"instanceId\x12:\n" +
 	"\x19expected_instance_version\x18\x04 \x01(\x04R\x17expectedInstanceVersion\x12\x1d\n" +
 	"\n" +
-	"reason_ref\x18\x05 \x01(\tR\treasonRef\"[\n" +
+	"reason_ref\x18\x05 \x01(\tR\treasonRef\"\xa2\x01\n" +
 	"\x16CancelWorkflowResponse\x12A\n" +
-	"\binstance\x18\x01 \x01(\v2%.hcmnext.workflow.v1.WorkflowInstanceR\binstance\"\xd7\x01\n" +
+	"\binstance\x18\x01 \x01(\v2%.hcmnext.workflow.v1.WorkflowInstanceR\binstance\x12E\n" +
+	"\areceipt\x18\x02 \x01(\v2+.hcmnext.workflow.v1.WorkflowControlReceiptR\areceipt\"\xd7\x01\n" +
 	"\x10RetryNodeRequest\x12'\n" +
 	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x125\n" +
 	"\x05scope\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1f\n" +
 	"\vinstance_id\x18\x03 \x01(\tR\n" +
 	"instanceId\x12\x17\n" +
 	"\anode_id\x18\x04 \x01(\tR\x06nodeId\x12)\n" +
-	"\x10expected_attempt\x18\x05 \x01(\rR\x0fexpectedAttempt\"^\n" +
+	"\x10expected_attempt\x18\x05 \x01(\rR\x0fexpectedAttempt\"\xa5\x01\n" +
 	"\x11RetryNodeResponse\x12I\n" +
-	"\x0enode_execution\x18\x01 \x01(\v2\".hcmnext.workflow.v1.NodeExecutionR\rnodeExecution2\x84\x05\n" +
+	"\x0enode_execution\x18\x01 \x01(\v2\".hcmnext.workflow.v1.NodeExecutionR\rnodeExecution\x12E\n" +
+	"\areceipt\x18\x02 \x01(\v2+.hcmnext.workflow.v1.WorkflowControlReceiptR\areceipt*\x93\x02\n" +
+	"\x16WorkflowControlOutcome\x12(\n" +
+	"$WORKFLOW_CONTROL_OUTCOME_UNSPECIFIED\x10\x00\x12$\n" +
+	" WORKFLOW_CONTROL_OUTCOME_APPLIED\x10\x01\x12/\n" +
+	"+WORKFLOW_CONTROL_OUTCOME_PENDING_SAFE_POINT\x10\x02\x12#\n" +
+	"\x1fWORKFLOW_CONTROL_OUTCOME_DENIED\x10\x03\x12%\n" +
+	"!WORKFLOW_CONTROL_OUTCOME_TOO_LATE\x10\x04\x12,\n" +
+	"(WORKFLOW_CONTROL_OUTCOME_REPAIR_REQUIRED\x10\x052\x84\x05\n" +
 	"\x0fWorkflowService\x12`\n" +
 	"\vGetWorkflow\x12'.hcmnext.workflow.v1.GetWorkflowRequest\x1a(.hcmnext.workflow.v1.GetWorkflowResponse\x12u\n" +
 	"\x12ListNodeExecutions\x12..hcmnext.workflow.v1.ListNodeExecutionsRequest\x1a/.hcmnext.workflow.v1.ListNodeExecutionsResponse\x12f\n" +
@@ -788,58 +1004,66 @@ func file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP() []byte {
 	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescData
 }
 
-var file_hcmnext_workflow_v1_workflow_service_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_hcmnext_workflow_v1_workflow_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_hcmnext_workflow_v1_workflow_service_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_hcmnext_workflow_v1_workflow_service_proto_goTypes = []any{
-	(*GetWorkflowRequest)(nil),         // 0: hcmnext.workflow.v1.GetWorkflowRequest
-	(*GetWorkflowResponse)(nil),        // 1: hcmnext.workflow.v1.GetWorkflowResponse
-	(*ListNodeExecutionsRequest)(nil),  // 2: hcmnext.workflow.v1.ListNodeExecutionsRequest
-	(*ListNodeExecutionsResponse)(nil), // 3: hcmnext.workflow.v1.ListNodeExecutionsResponse
-	(*PauseWorkflowRequest)(nil),       // 4: hcmnext.workflow.v1.PauseWorkflowRequest
-	(*PauseWorkflowResponse)(nil),      // 5: hcmnext.workflow.v1.PauseWorkflowResponse
-	(*ResumeWorkflowRequest)(nil),      // 6: hcmnext.workflow.v1.ResumeWorkflowRequest
-	(*ResumeWorkflowResponse)(nil),     // 7: hcmnext.workflow.v1.ResumeWorkflowResponse
-	(*CancelWorkflowRequest)(nil),      // 8: hcmnext.workflow.v1.CancelWorkflowRequest
-	(*CancelWorkflowResponse)(nil),     // 9: hcmnext.workflow.v1.CancelWorkflowResponse
-	(*RetryNodeRequest)(nil),           // 10: hcmnext.workflow.v1.RetryNodeRequest
-	(*RetryNodeResponse)(nil),          // 11: hcmnext.workflow.v1.RetryNodeResponse
-	(*v1.ScopeContext)(nil),            // 12: hcmnext.common.v1.ScopeContext
-	(*WorkflowInstance)(nil),           // 13: hcmnext.workflow.v1.WorkflowInstance
-	(*v1.PageRequest)(nil),             // 14: hcmnext.common.v1.PageRequest
-	(*NodeExecution)(nil),              // 15: hcmnext.workflow.v1.NodeExecution
-	(*v1.PageResponse)(nil),            // 16: hcmnext.common.v1.PageResponse
+	(WorkflowControlOutcome)(0),        // 0: hcmnext.workflow.v1.WorkflowControlOutcome
+	(*GetWorkflowRequest)(nil),         // 1: hcmnext.workflow.v1.GetWorkflowRequest
+	(*GetWorkflowResponse)(nil),        // 2: hcmnext.workflow.v1.GetWorkflowResponse
+	(*ListNodeExecutionsRequest)(nil),  // 3: hcmnext.workflow.v1.ListNodeExecutionsRequest
+	(*ListNodeExecutionsResponse)(nil), // 4: hcmnext.workflow.v1.ListNodeExecutionsResponse
+	(*WorkflowControlReceipt)(nil),     // 5: hcmnext.workflow.v1.WorkflowControlReceipt
+	(*PauseWorkflowRequest)(nil),       // 6: hcmnext.workflow.v1.PauseWorkflowRequest
+	(*PauseWorkflowResponse)(nil),      // 7: hcmnext.workflow.v1.PauseWorkflowResponse
+	(*ResumeWorkflowRequest)(nil),      // 8: hcmnext.workflow.v1.ResumeWorkflowRequest
+	(*ResumeWorkflowResponse)(nil),     // 9: hcmnext.workflow.v1.ResumeWorkflowResponse
+	(*CancelWorkflowRequest)(nil),      // 10: hcmnext.workflow.v1.CancelWorkflowRequest
+	(*CancelWorkflowResponse)(nil),     // 11: hcmnext.workflow.v1.CancelWorkflowResponse
+	(*RetryNodeRequest)(nil),           // 12: hcmnext.workflow.v1.RetryNodeRequest
+	(*RetryNodeResponse)(nil),          // 13: hcmnext.workflow.v1.RetryNodeResponse
+	(*v1.ScopeContext)(nil),            // 14: hcmnext.common.v1.ScopeContext
+	(*WorkflowInstance)(nil),           // 15: hcmnext.workflow.v1.WorkflowInstance
+	(*v1.PageRequest)(nil),             // 16: hcmnext.common.v1.PageRequest
+	(*NodeExecution)(nil),              // 17: hcmnext.workflow.v1.NodeExecution
+	(*v1.PageResponse)(nil),            // 18: hcmnext.common.v1.PageResponse
 }
 var file_hcmnext_workflow_v1_workflow_service_proto_depIdxs = []int32{
-	12, // 0: hcmnext.workflow.v1.GetWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	13, // 1: hcmnext.workflow.v1.GetWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
-	12, // 2: hcmnext.workflow.v1.ListNodeExecutionsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	14, // 3: hcmnext.workflow.v1.ListNodeExecutionsRequest.page:type_name -> hcmnext.common.v1.PageRequest
-	15, // 4: hcmnext.workflow.v1.ListNodeExecutionsResponse.node_executions:type_name -> hcmnext.workflow.v1.NodeExecution
-	16, // 5: hcmnext.workflow.v1.ListNodeExecutionsResponse.page:type_name -> hcmnext.common.v1.PageResponse
-	12, // 6: hcmnext.workflow.v1.PauseWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	13, // 7: hcmnext.workflow.v1.PauseWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
-	12, // 8: hcmnext.workflow.v1.ResumeWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	13, // 9: hcmnext.workflow.v1.ResumeWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
-	12, // 10: hcmnext.workflow.v1.CancelWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	13, // 11: hcmnext.workflow.v1.CancelWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
-	12, // 12: hcmnext.workflow.v1.RetryNodeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	15, // 13: hcmnext.workflow.v1.RetryNodeResponse.node_execution:type_name -> hcmnext.workflow.v1.NodeExecution
-	0,  // 14: hcmnext.workflow.v1.WorkflowService.GetWorkflow:input_type -> hcmnext.workflow.v1.GetWorkflowRequest
-	2,  // 15: hcmnext.workflow.v1.WorkflowService.ListNodeExecutions:input_type -> hcmnext.workflow.v1.ListNodeExecutionsRequest
-	4,  // 16: hcmnext.workflow.v1.WorkflowService.PauseWorkflow:input_type -> hcmnext.workflow.v1.PauseWorkflowRequest
-	6,  // 17: hcmnext.workflow.v1.WorkflowService.ResumeWorkflow:input_type -> hcmnext.workflow.v1.ResumeWorkflowRequest
-	8,  // 18: hcmnext.workflow.v1.WorkflowService.CancelWorkflow:input_type -> hcmnext.workflow.v1.CancelWorkflowRequest
-	10, // 19: hcmnext.workflow.v1.WorkflowService.RetryNode:input_type -> hcmnext.workflow.v1.RetryNodeRequest
-	1,  // 20: hcmnext.workflow.v1.WorkflowService.GetWorkflow:output_type -> hcmnext.workflow.v1.GetWorkflowResponse
-	3,  // 21: hcmnext.workflow.v1.WorkflowService.ListNodeExecutions:output_type -> hcmnext.workflow.v1.ListNodeExecutionsResponse
-	5,  // 22: hcmnext.workflow.v1.WorkflowService.PauseWorkflow:output_type -> hcmnext.workflow.v1.PauseWorkflowResponse
-	7,  // 23: hcmnext.workflow.v1.WorkflowService.ResumeWorkflow:output_type -> hcmnext.workflow.v1.ResumeWorkflowResponse
-	9,  // 24: hcmnext.workflow.v1.WorkflowService.CancelWorkflow:output_type -> hcmnext.workflow.v1.CancelWorkflowResponse
-	11, // 25: hcmnext.workflow.v1.WorkflowService.RetryNode:output_type -> hcmnext.workflow.v1.RetryNodeResponse
-	20, // [20:26] is the sub-list for method output_type
-	14, // [14:20] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	14, // 0: hcmnext.workflow.v1.GetWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	15, // 1: hcmnext.workflow.v1.GetWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
+	14, // 2: hcmnext.workflow.v1.ListNodeExecutionsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	16, // 3: hcmnext.workflow.v1.ListNodeExecutionsRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	17, // 4: hcmnext.workflow.v1.ListNodeExecutionsResponse.node_executions:type_name -> hcmnext.workflow.v1.NodeExecution
+	18, // 5: hcmnext.workflow.v1.ListNodeExecutionsResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	0,  // 6: hcmnext.workflow.v1.WorkflowControlReceipt.outcome:type_name -> hcmnext.workflow.v1.WorkflowControlOutcome
+	14, // 7: hcmnext.workflow.v1.PauseWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	15, // 8: hcmnext.workflow.v1.PauseWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
+	5,  // 9: hcmnext.workflow.v1.PauseWorkflowResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
+	14, // 10: hcmnext.workflow.v1.ResumeWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	15, // 11: hcmnext.workflow.v1.ResumeWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
+	5,  // 12: hcmnext.workflow.v1.ResumeWorkflowResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
+	14, // 13: hcmnext.workflow.v1.CancelWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	15, // 14: hcmnext.workflow.v1.CancelWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
+	5,  // 15: hcmnext.workflow.v1.CancelWorkflowResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
+	14, // 16: hcmnext.workflow.v1.RetryNodeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	17, // 17: hcmnext.workflow.v1.RetryNodeResponse.node_execution:type_name -> hcmnext.workflow.v1.NodeExecution
+	5,  // 18: hcmnext.workflow.v1.RetryNodeResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
+	1,  // 19: hcmnext.workflow.v1.WorkflowService.GetWorkflow:input_type -> hcmnext.workflow.v1.GetWorkflowRequest
+	3,  // 20: hcmnext.workflow.v1.WorkflowService.ListNodeExecutions:input_type -> hcmnext.workflow.v1.ListNodeExecutionsRequest
+	6,  // 21: hcmnext.workflow.v1.WorkflowService.PauseWorkflow:input_type -> hcmnext.workflow.v1.PauseWorkflowRequest
+	8,  // 22: hcmnext.workflow.v1.WorkflowService.ResumeWorkflow:input_type -> hcmnext.workflow.v1.ResumeWorkflowRequest
+	10, // 23: hcmnext.workflow.v1.WorkflowService.CancelWorkflow:input_type -> hcmnext.workflow.v1.CancelWorkflowRequest
+	12, // 24: hcmnext.workflow.v1.WorkflowService.RetryNode:input_type -> hcmnext.workflow.v1.RetryNodeRequest
+	2,  // 25: hcmnext.workflow.v1.WorkflowService.GetWorkflow:output_type -> hcmnext.workflow.v1.GetWorkflowResponse
+	4,  // 26: hcmnext.workflow.v1.WorkflowService.ListNodeExecutions:output_type -> hcmnext.workflow.v1.ListNodeExecutionsResponse
+	7,  // 27: hcmnext.workflow.v1.WorkflowService.PauseWorkflow:output_type -> hcmnext.workflow.v1.PauseWorkflowResponse
+	9,  // 28: hcmnext.workflow.v1.WorkflowService.ResumeWorkflow:output_type -> hcmnext.workflow.v1.ResumeWorkflowResponse
+	11, // 29: hcmnext.workflow.v1.WorkflowService.CancelWorkflow:output_type -> hcmnext.workflow.v1.CancelWorkflowResponse
+	13, // 30: hcmnext.workflow.v1.WorkflowService.RetryNode:output_type -> hcmnext.workflow.v1.RetryNodeResponse
+	25, // [25:31] is the sub-list for method output_type
+	19, // [19:25] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_workflow_v1_workflow_service_proto_init() }
@@ -853,13 +1077,14 @@ func file_hcmnext_workflow_v1_workflow_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_workflow_v1_workflow_service_proto_rawDesc), len(file_hcmnext_workflow_v1_workflow_service_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   12,
+			NumEnums:      1,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_hcmnext_workflow_v1_workflow_service_proto_goTypes,
 		DependencyIndexes: file_hcmnext_workflow_v1_workflow_service_proto_depIdxs,
+		EnumInfos:         file_hcmnext_workflow_v1_workflow_service_proto_enumTypes,
 		MessageInfos:      file_hcmnext_workflow_v1_workflow_service_proto_msgTypes,
 	}.Build()
 	File_hcmnext_workflow_v1_workflow_service_proto = out.File

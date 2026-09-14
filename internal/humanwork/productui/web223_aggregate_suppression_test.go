@@ -24,7 +24,7 @@ func TestTodo_WEB_223(t *testing.T) {
 	if !ok {
 		t.Fatal("aggregate suppression states unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("aggregate suppression states incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_223_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "985e4636bd54f5d7710d62e596d764f1a1f056bedfc853e24d5e378724606b45"
+	const want = "1c1d43e91cf85af0690f10afff36ce84b408323df4c33555267c8d58bc14a9f8"
 	if got != want {
 		t.Fatalf("aggregate suppression states digest = %s, want %s", got, want)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/runtimestate"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -72,7 +73,9 @@ func (s storeTimers) Pending(ctx context.Context, ex Executor, tenantID, instanc
 	return out, nil
 }
 
-func (s storeTimers) Schedule(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID, row TimerRow, at time.Time) (bool, error) {
+func (s storeTimers) Schedule(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID, row TimerRow, at time.Time) (ret0 bool, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.schedule_timer", observe.Attrs{observe.KeyTenant: tenantID.String()}, observe.Attrs{observe.KeyInstance: instanceID.String()}, row)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	err := s.store.Set(ctx, ex, runtimestate.Timer{
 		TenantID: tenantID, TimerID: row.TimerID, InstanceID: instanceID, NodeID: row.NodeID,
 		Key: row.Key, Kind: row.Kind, FiresAt: row.FiresAt.UTC(), CreatedAt: at,
@@ -83,7 +86,9 @@ func (s storeTimers) Schedule(ctx context.Context, ex Executor, tenantID, instan
 	return false, err
 }
 
-func (s storeTimers) Cancel(ctx context.Context, ex Executor, tenantID, timerID uuid.UUID, version uint64, at time.Time, _ string) error {
+func (s storeTimers) Cancel(ctx context.Context, ex Executor, tenantID, timerID uuid.UUID, version uint64, at time.Time, _ string) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.cancel_timer", observe.Attrs{observe.KeyTenant: tenantID.String()}, observe.Attrs{observe.KeyTimer: timerID.String()})
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	return s.store.Cancel(ctx, ex, tenantID, timerID, version, at)
 }
 
@@ -106,7 +111,9 @@ func (s storeSignals) Open(ctx context.Context, ex Executor, tenantID, instanceI
 	return out, nil
 }
 
-func (s storeSignals) Subscribe(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID, row SubscriptionRow, at time.Time) (bool, error) {
+func (s storeSignals) Subscribe(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID, row SubscriptionRow, at time.Time) (ret0 bool, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.subscribe_signal", observe.Attrs{observe.KeyTenant: tenantID.String()}, observe.Attrs{observe.KeyInstance: instanceID.String()}, row)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	err := s.store.Subscribe(ctx, ex, runtimestate.Subscription{
 		TenantID: tenantID, SubscriptionID: row.SubscriptionID, InstanceID: instanceID,
 		NodeID: row.NodeID, SignalName: row.SignalName, CorrelationKey: row.CorrelationKey,
@@ -118,7 +125,9 @@ func (s storeSignals) Subscribe(ctx context.Context, ex Executor, tenantID, inst
 	return false, err
 }
 
-func (s storeSignals) Close(ctx context.Context, ex Executor, tenantID, subscriptionID uuid.UUID, version uint64, at time.Time) error {
+func (s storeSignals) Close(ctx context.Context, ex Executor, tenantID, subscriptionID uuid.UUID, version uint64, at time.Time) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.close_signal", observe.Attrs{observe.KeyTenant: tenantID.String()})
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	return s.store.CloseSubscription(ctx, ex, tenantID, subscriptionID, version, runtimestate.SubscriptionCancelled, at)
 }
 
@@ -141,7 +150,9 @@ func (s storeReadyWork) Pending(ctx context.Context, ex Executor, tenantID, inst
 	return out, nil
 }
 
-func (s storeReadyWork) Enqueue(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID, row ReadyRow, at time.Time) (bool, error) {
+func (s storeReadyWork) Enqueue(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID, row ReadyRow, at time.Time) (ret0 bool, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.enqueue_ready_work", observe.Attrs{observe.KeyTenant: tenantID.String()}, observe.Attrs{observe.KeyInstance: instanceID.String()}, row)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	err := s.store.Enqueue(ctx, ex, runtimestate.ReadyWork{
 		TenantID: tenantID, ReadyWorkID: row.ReadyWorkID, InstanceID: instanceID,
 		NodeID: row.NodeID, Attempt: row.Attempt, State: runtimestate.ReadyReady,
@@ -153,7 +164,9 @@ func (s storeReadyWork) Enqueue(ctx context.Context, ex Executor, tenantID, inst
 	return false, err
 }
 
-func (s storeReadyWork) Cancel(ctx context.Context, ex Executor, tenantID, readyWorkID uuid.UUID, version uint64, at time.Time) error {
+func (s storeReadyWork) Cancel(ctx context.Context, ex Executor, tenantID, readyWorkID uuid.UUID, version uint64, at time.Time) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.cancel_ready_work", observe.Attrs{observe.KeyTenant: tenantID.String()})
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	return s.store.Transition(ctx, ex, tenantID, readyWorkID, version, runtimestate.ReadyCancelled, at)
 }
 
@@ -213,7 +226,9 @@ type storeContinuations struct{ store runtime.ContinuationStore }
 // The row's identity is derived from the instance, the node, the attempt and
 // that kind, so however many children are awaited there is exactly one row,
 // and a replayed migration inserts none.
-func (s storeContinuations) Record(ctx context.Context, ex Executor, in ContinuationIntent) error {
+func (s storeContinuations) Record(ctx context.Context, ex Executor, in ContinuationIntent) (retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.record_continuation", in)
+	defer func() { observe.DoneWith(obsOp, retErr) }()
 	return s.store.MarkReady(ctx, ex, runtime.ContinuationRecord{
 		TenantID: in.TenantID, InstanceID: in.InstanceID,
 		SourceNodeID: in.NodeID, SourceAttempt: in.Attempt,

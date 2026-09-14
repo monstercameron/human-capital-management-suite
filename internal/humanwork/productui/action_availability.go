@@ -27,6 +27,16 @@ type ActionState struct {
 	Recovery ActionLinkProps
 }
 
+// LauncherActionProjection is the server-resolved, presentation-safe verdict
+// for one semantic action in the global launcher. Page permissions and local
+// workflow metadata never imply one of these verdicts. Missing, duplicate, or
+// unknown projections are treated as hidden by the launcher.
+type LauncherActionProjection struct {
+	ID       string
+	State    ActionState
+	Priority int64
+}
+
 // ResolveActionAvailability maps one grant decision plus existence
 // safety to its semantic state: granted actions are available;
 // denied actions whose existence is safe show as unavailable with

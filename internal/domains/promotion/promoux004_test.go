@@ -17,6 +17,7 @@ package promotion
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -388,7 +389,7 @@ func TestTodo_PROMOUX_004_Security(t *testing.T) {
 
 	requireSoleFinding(t, findingsUnauthorized, nil, CodeTargetPositionNotFound)
 	requireSoleFinding(t, findingsNonexistent, nil, CodeTargetPositionNotFound)
-	if len(findingsUnauthorized) != 1 || len(findingsNonexistent) != 1 || findingsUnauthorized[0] != findingsNonexistent[0] {
+	if len(findingsUnauthorized) != 1 || len(findingsNonexistent) != 1 || !reflect.DeepEqual(findingsUnauthorized[0], findingsNonexistent[0]) {
 		t.Fatalf("unauthorized refusal %+v must be byte-for-byte identical to the nonexistent refusal %+v -- otherwise the message itself discloses which guessed ids are real",
 			findingsUnauthorized, findingsNonexistent)
 	}

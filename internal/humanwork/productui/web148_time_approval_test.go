@@ -23,7 +23,7 @@ func TestTodo_WEB_148(t *testing.T) {
 	if !ok {
 		t.Fatal("manager time approval unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("manager time approval incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_148_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "4a66ae2542a436a7c903b2d96320f3063afeb117605c000993e041d895c33d4d"
+	const want = "4e1aa5eade2868476ffdf157703a6546108b8fd30e5dd8836fe5f17c5625c9ad"
 	if got != want {
 		t.Fatalf("time approval digest = %s, want %s", got, want)
 	}

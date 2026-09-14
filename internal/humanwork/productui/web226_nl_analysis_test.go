@@ -24,7 +24,7 @@ func TestTodo_WEB_226(t *testing.T) {
 	if !ok {
 		t.Fatal("safe natural-language analysis unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("safe natural-language analysis incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_226_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "af47a090bbe12074f5fed1dc6a2240a54eb8374e50ecc576c2b6d8f1ede49634"
+	const want = "402dcb34e6c079c37020ba34afe7b06cb579d365d20cf9dd0b562e7309a1fadb"
 	if got != want {
 		t.Fatalf("safe natural-language analysis digest = %s, want %s", got, want)
 	}

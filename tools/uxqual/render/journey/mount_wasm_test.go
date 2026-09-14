@@ -44,6 +44,103 @@ func TestJourneyLoadCompletesBeforeSubscription(t *testing.T) {
 	}
 }
 
+func TestJourneyRemountCatchesAnswerBetweenReadAndSubscription(t *testing.T) {
+	fixture := gwctest.New(t)
+	store := NewStore(Page{Title: "First visit"})
+	build := func(page Page) ui.Node { return html.Div(html.Props{}, ui.Text(page.Title)) }
+	fixture.Render(liveComponent(store, build))
+	fixture.Flush()
+	fixture.Rerender(nil)
+	fixture.Flush()
+	if store.SubscriberCount() != 0 {
+		t.Fatal("leaving Journeys retained its subscriber")
+	}
+
+	store.Set(Page{Title: "Loading second visit"})
+	answered := false
+	fixture.Rerender(liveComponent(store, func(page Page) ui.Node {
+		if !answered {
+			answered = true
+			store.Set(Page{Title: "Second visit ready"})
+		}
+		return build(page)
+	}))
+	fixture.Flush()
+	if got := fixture.Text(); got != "Second visit ready" {
+		t.Fatalf("remounted page missed its response: %q", got)
+	}
+	if store.SubscriberCount() != 1 {
+		t.Fatalf("remounted subscriber count = %d, want 1", store.SubscriberCount())
+	}
+}
+
+func TestJourneyBurstOfStoreUpdatesRendersLastAnswer(t *testing.T) {
+	fixture := gwctest.New(t)
+	store := NewStore(Page{Title: "Initial"})
+	fixture.Render(liveComponent(store, func(page Page) ui.Node {
+		return html.Div(html.Props{}, ui.Text(page.Title))
+	}))
+	fixture.Flush()
+	store.Set(Page{Title: "Loading"})
+	store.Set(Page{Title: "Promotion ready"})
+	fixture.Flush()
+	if got := fixture.Text(); got != "Promotion ready" {
+		t.Fatalf("batched notifications left stale content: %q", got)
+	}
+}
+
+func TestTodo_PROMOUX_010_Regression_PendingReviewDoesNotReconcileOpenDialog(t *testing.T) {
+	fixture := gwctest.New(t)
+	page := SampleDetailPage()
+	page.Title = "Review is open"
+	store := NewStore(page)
+	fixture.Render(liveComponent(store, func(current Page) ui.Node {
+		return html.Div(html.Props{}, ui.Text(current.Title))
+	}))
+	fixture.Flush()
+
+	// The pending notice is rendered inside the browser-owned dialog. A
+	// store revision at this point must not reconcile that dialog away.
+	page.Title = "Review pending"
+	page.Notice = &Notice{Tone: toneInfo, Busy: true, MessageKey: "journey.busy_approve"}
+	store.Set(page)
+	fixture.Flush()
+	if got := fixture.Text(); got != "Review is open" {
+		t.Fatalf("pending RPC reconciled away the open review: %q", got)
+	}
+
+	page.Title = "Approval recorded"
+	page.Notice = &Notice{Tone: toneSuccess, Title: "Approval recorded"}
+	store.Set(page)
+	fixture.Flush()
+	if got := fixture.Text(); got != "Approval recorded" {
+		t.Fatalf("resolved RPC did not render its result: %q", got)
+	}
+}
+
+func TestJourneyRouteKeyDoesNotRetainPreviousLoadingFiber(t *testing.T) {
+	fixture := gwctest.New(t)
+	store := NewStore(Page{Title: "Promotion form"})
+	build := func(page Page) ui.Node { return html.Div(html.Props{}, ui.Text(page.Title)) }
+	proposal := liveComponent(store, build)
+	proposal.Props["key"] = "proposal"
+	fixture.Render(proposal)
+	fixture.Flush()
+
+	store.Set(Page{Title: "Loading requests"})
+	list := liveComponent(store, build)
+	list.Props["key"] = "list"
+	fixture.Rerender(list)
+	store.Set(Page{Title: "Five requests"})
+	fixture.Flush()
+	if got := fixture.Text(); got != "Five requests" {
+		t.Fatalf("new route retained a stale loading fiber: %q", got)
+	}
+	if store.SubscriberCount() != 1 {
+		t.Fatalf("route switch has %d subscribers, want one", store.SubscriberCount())
+	}
+}
+
 // These tests carry the same build tag as mount_wasm.go so
 // `GOOS=js GOARCH=wasm go vet ./tools/uxqual/render/journey/` type-checks
 // the product entrypoint with its test alongside it.

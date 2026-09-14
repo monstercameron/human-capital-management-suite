@@ -133,11 +133,12 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	// reason to hold an opinion about it.
 	transportjourney.Register(srv, transportjourney.Dependencies{
 		Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+		CursorKey: append([]byte(nil), cursorKey...),
 	})
 	// The workflow transport consumes its string-ID reader port. The existing
 	// application reader remains owned by AdminService; this adapter supplies
 	// the same durable record without moving database access into transport.
-	workflowDeps := transportworkflow.Dependencies{Instances: newWorkflowReader(instances), CursorKey: append([]byte(nil), cursorKey...)}
+	workflowDeps := workflowDependencies(c, instances, cursorKey)
 	transportworkflow.Register(srv, workflowDeps)
 	// WorkService (EP-WORK-001) publishes the queue read endpoints under the
 	// same interceptor chain and cursor key. A nil workQueue leaves the
@@ -189,8 +190,11 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 	}
 	rpc, err := edge.NewHandler(edge.Options{
 		Config: c.Config, Intent: c.Service, Registry: c.Service,
-		Journey:    &transportjourney.Dependencies{Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs},
-		Workflow:   &transportworkflow.Dependencies{Instances: newWorkflowReader(instances), CursorKey: append([]byte(nil), cursorKey...)},
+		Journey: &transportjourney.Dependencies{
+			Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+			CursorKey: append([]byte(nil), cursorKey...),
+		},
+		Workflow:   workflowDependenciesRef(c, instances, cursorKey),
 		Work:       &transporthumanwork.Dependencies{Queue: newWorkQueueReader(workQueue), CursorKey: append([]byte(nil), cursorKey...)},
 		Operations: &transportoperations.Dependencies{Store: operationStore},
 		Health:     transporthealth.New(transporthealth.Dependencies{}), HandlerOptions: opts,
@@ -212,6 +216,7 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 			DevBrowserLogin: c.DevBrowserLogin(),
 			DevPersonas:     c.DevPersonas(),
 			RoleAccess:      c.RoleAccess,
+			Preferences:     c.Preferences,
 			PublicOrigin:    c.PublicOrigin(),
 		})
 		if wsErr != nil {

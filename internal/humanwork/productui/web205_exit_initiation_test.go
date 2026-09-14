@@ -23,7 +23,7 @@ func TestTodo_WEB_205(t *testing.T) {
 	if !ok {
 		t.Fatal("exit initiation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("exit initiation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_205_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "ce05aba6add5d3429c9ac1900d6e8077bb9af70762bd1395da8502c4132458d3"
+	const want = "ff8d04f1427b7250a35557f8e1a79a352f374955dbe9c31f5b0b93ffbe1969aa"
 	if got != want {
 		t.Fatalf("exit initiation digest = %s, want %s", got, want)
 	}

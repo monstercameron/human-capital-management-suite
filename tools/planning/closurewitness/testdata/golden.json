@@ -1,0 +1,781 @@
+{
+  "schema_version": 1,
+  "as_of": "2026-09-13",
+  "result": "SLICE_CLOSURE_INCOMPLETE",
+  "totals": {
+    "definitions": 3,
+    "complete": 1,
+    "incomplete": 2,
+    "orphans": 1,
+    "by_defect_code": {
+      "EDGE_ABSENT": 9,
+      "EDGE_AGGREGATE_ONLY": 1,
+      "EDGE_ORPHAN": 1,
+      "MATURITY_ADVANCED_WITHOUT_CLOSURE": 1,
+      "REVERSE_EDGE_ABSENT": 4
+    },
+    "by_class_state": {
+      "CAPABILITY": {
+        "ABSENT": 1,
+        "BOUND": 2
+      },
+      "ENDPOINT": {
+        "ABSENT": 1,
+        "AGGREGATE_ONLY": 1,
+        "BOUND": 1
+      },
+      "ENGINE": {
+        "ABSENT": 1,
+        "BOUND": 2
+      },
+      "EVIDENCE": {
+        "ABSENT": 1,
+        "BOUND": 2
+      },
+      "HANDLER": {
+        "ABSENT": 1,
+        "BOUND": 2
+      },
+      "MODEL": {
+        "ABSENT": 1,
+        "BOUND": 2
+      },
+      "PHASE_GATE": {
+        "ABSENT": 1,
+        "BOUND": 1,
+        "STALE": 1
+      },
+      "SCENARIO": {
+        "ABSENT": 1,
+        "BOUND": 2
+      },
+      "SLICE": {
+        "ABSENT": 1,
+        "BOUND": 2
+      },
+      "SOURCE": {
+        "ABSENT": 1,
+        "BOUND": 2
+      },
+      "TEST": {
+        "ABSENT": 1,
+        "BOUND": 2
+      },
+      "TODO": {
+        "ABSENT": 1,
+        "BOUND": 2
+      }
+    },
+    "incomplete_definitions": [
+      "hcmnext.fixture.beta/v1",
+      "hcmnext.fixture.gamma/v1"
+    ]
+  },
+  "witnesses": [
+    {
+      "definition": "hcmnext.fixture.alpha/v1",
+      "display_name": "Alpha",
+      "source": {
+        "registry": "definitions/governance/intent-conformance-descriptors.yaml",
+        "row_digest": "sha256:Alpha"
+      },
+      "phase": {
+        "descriptor_phase": "GATE_A",
+        "release": "P1A",
+        "ceiling_gate": "P1A",
+        "ceiling_disposition": "INCLUDE",
+        "claimed_maturity": "DEFINED"
+      },
+      "endpoint_disposition": {
+        "category": "TYPED_PUBLIC_METHOD",
+        "justification": "dedicated typed route",
+        "serving_endpoints": [
+          "hcmnext.fixture.v1.FixtureService/Alpha"
+        ]
+      },
+      "classes": [
+        {
+          "class": "SOURCE",
+          "state": "BOUND"
+        },
+        {
+          "class": "PHASE_GATE",
+          "state": "BOUND"
+        },
+        {
+          "class": "SLICE",
+          "state": "BOUND"
+        },
+        {
+          "class": "MODEL",
+          "state": "BOUND"
+        },
+        {
+          "class": "ENGINE",
+          "state": "BOUND"
+        },
+        {
+          "class": "CAPABILITY",
+          "state": "BOUND"
+        },
+        {
+          "class": "HANDLER",
+          "state": "BOUND"
+        },
+        {
+          "class": "ENDPOINT",
+          "state": "BOUND"
+        },
+        {
+          "class": "SCENARIO",
+          "state": "BOUND"
+        },
+        {
+          "class": "TEST",
+          "state": "BOUND"
+        },
+        {
+          "class": "TODO",
+          "state": "BOUND"
+        },
+        {
+          "class": "EVIDENCE",
+          "state": "BOUND"
+        }
+      ],
+      "edges": [
+        {
+          "class": "SOURCE",
+          "direction": "FORWARD",
+          "from": "descriptor:hcmnext.fixture.alpha/v1",
+          "to": "hcmnext.fixture.alpha/v1",
+          "registry": "definitions/governance/intent-conformance-descriptors.yaml"
+        },
+        {
+          "class": "SOURCE",
+          "direction": "REVERSE",
+          "from": "catalog:hcmnext.fixture.alpha/v1",
+          "to": "hcmnext.fixture.alpha/v1",
+          "registry": "internal/intent/definitions"
+        },
+        {
+          "class": "PHASE_GATE",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.alpha/v1",
+          "to": "phase:GATE_A",
+          "registry": "definitions/governance/intent-conformance-descriptors.yaml"
+        },
+        {
+          "class": "PHASE_GATE",
+          "direction": "REVERSE",
+          "from": "ceiling:gate:P1A",
+          "to": "hcmnext.fixture.alpha/v1",
+          "registry": "definitions/planning/gates/phase1-scope-ceiling.yaml"
+        },
+        {
+          "class": "SLICE",
+          "direction": "FORWARD",
+          "from": "slice:fixture@v1",
+          "to": "capability:hcmnext.fixture.alpha",
+          "registry": "definitions/planning/product-slices.yaml"
+        },
+        {
+          "class": "SLICE",
+          "direction": "REVERSE",
+          "from": "slice:fixture@v1",
+          "to": "hcmnext.fixture.alpha/v1",
+          "registry": "definitions/planning/product-slices.yaml"
+        },
+        {
+          "class": "MODEL",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.alpha/v1",
+          "to": "entity:Worker/v1",
+          "registry": "internal/intent/modelbinding"
+        },
+        {
+          "class": "ENGINE",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.alpha/v1",
+          "to": "engine:internal/engines/snapshot#snapshot",
+          "registry": "tools/policy/enginecoverage"
+        },
+        {
+          "class": "ENGINE",
+          "direction": "REVERSE",
+          "from": "engine:internal/engines/snapshot#snapshot",
+          "to": "hcmnext.fixture.alpha/v1",
+          "registry": "tools/policy/enginecoverage"
+        },
+        {
+          "class": "CAPABILITY",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.alpha/v1",
+          "to": "capability:hcmnext.fixture.alpha/v1",
+          "registry": "internal/capability/binding.Claims"
+        },
+        {
+          "class": "CAPABILITY",
+          "direction": "REVERSE",
+          "from": "capability:hcmnext.fixture.alpha/v1",
+          "to": "hcmnext.fixture.alpha/v1",
+          "registry": "internal/capability.NewBootstrapRegistry"
+        },
+        {
+          "class": "HANDLER",
+          "direction": "FORWARD",
+          "from": "capability:hcmnext.fixture.alpha",
+          "to": "handler:internal/transport/fixture.(*server).Alpha",
+          "registry": "internal/capability/binding.Build"
+        },
+        {
+          "class": "ENDPOINT",
+          "direction": "FORWARD",
+          "from": "handler:internal/transport/fixture.(*server).Alpha",
+          "to": "endpoint:hcmnext.fixture.v1.FixtureService/Alpha",
+          "registry": "internal/capability/binding.Build"
+        },
+        {
+          "class": "ENDPOINT",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.alpha/v1",
+          "to": "endpoint:hcmnext.fixture.v1.FixtureService/Alpha",
+          "registry": "internal/transport/manifest.BuildDefaultDispositionReport"
+        },
+        {
+          "class": "ENDPOINT",
+          "direction": "REVERSE",
+          "from": "endpoint:hcmnext.fixture.v1.FixtureService/Alpha",
+          "to": "hcmnext.fixture.alpha/v1",
+          "registry": "internal/transport/manifest.Build"
+        },
+        {
+          "class": "SCENARIO",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.alpha/v1",
+          "to": "scenario:Alpha-forbidden",
+          "registry": "tools/planning/scenariomatrix"
+        },
+        {
+          "class": "SCENARIO",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.alpha/v1",
+          "to": "scenario:Alpha-positive",
+          "registry": "tools/planning/scenariomatrix"
+        },
+        {
+          "class": "TEST",
+          "direction": "FORWARD",
+          "from": "todo:FIX-001",
+          "to": "test:TestFixtureAlpha",
+          "registry": "cmd|gen|internal|test|tools *_test.go"
+        },
+        {
+          "class": "TEST",
+          "direction": "REVERSE",
+          "from": "coverage:test:TestFixtureAlpha",
+          "to": "hcmnext.fixture.alpha/v1",
+          "registry": "definitions/planning/capability-coverage.yaml"
+        },
+        {
+          "class": "TODO",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.alpha/v1",
+          "to": "todo:FIX-001",
+          "registry": "planning/todos.md"
+        },
+        {
+          "class": "TODO",
+          "direction": "REVERSE",
+          "from": "coverage:todo:FIX-001",
+          "to": "hcmnext.fixture.alpha/v1",
+          "registry": "definitions/planning/capability-coverage.yaml"
+        },
+        {
+          "class": "EVIDENCE",
+          "direction": "FORWARD",
+          "from": "todo:FIX-001",
+          "to": "evidence:sha256:evidence-FIX-001",
+          "registry": "planning/todos.md"
+        }
+      ],
+      "tests": [
+        "TestFixtureAlpha"
+      ],
+      "evidence": [
+        {
+          "todo": "FIX-001",
+          "digest": "sha256:evidence-FIX-001",
+          "dates": [
+            "2026-09-01"
+          ],
+          "tests": [
+            "TestFixtureAlpha"
+          ],
+          "expiry": "2026-12-31"
+        }
+      ],
+      "expiry": "2026-12-31",
+      "result": "COMPLETE",
+      "defects": [],
+      "digest": "sha256:60faeca0419b58660fb527713901c95194addf11e260722616c949e8953ace64"
+    },
+    {
+      "definition": "hcmnext.fixture.beta/v1",
+      "display_name": "Beta",
+      "source": {
+        "registry": "definitions/governance/intent-conformance-descriptors.yaml",
+        "row_digest": "sha256:Beta"
+      },
+      "phase": {
+        "descriptor_phase": "GATE_A",
+        "release": "P1A",
+        "ceiling_gate": "P1A",
+        "ceiling_disposition": "INCLUDE",
+        "claimed_maturity": "DEFINED"
+      },
+      "endpoint_disposition": {
+        "category": "GENERIC_INTENT_LIFECYCLE_ONLY",
+        "justification": "dedicated typed route",
+        "serving_endpoints": [
+          "hcmnext.fixture.v1.FixtureService/Beta"
+        ]
+      },
+      "classes": [
+        {
+          "class": "SOURCE",
+          "state": "BOUND"
+        },
+        {
+          "class": "PHASE_GATE",
+          "state": "STALE"
+        },
+        {
+          "class": "SLICE",
+          "state": "BOUND"
+        },
+        {
+          "class": "MODEL",
+          "state": "BOUND"
+        },
+        {
+          "class": "ENGINE",
+          "state": "BOUND"
+        },
+        {
+          "class": "CAPABILITY",
+          "state": "BOUND"
+        },
+        {
+          "class": "HANDLER",
+          "state": "BOUND"
+        },
+        {
+          "class": "ENDPOINT",
+          "state": "AGGREGATE_ONLY"
+        },
+        {
+          "class": "SCENARIO",
+          "state": "BOUND"
+        },
+        {
+          "class": "TEST",
+          "state": "BOUND"
+        },
+        {
+          "class": "TODO",
+          "state": "BOUND"
+        },
+        {
+          "class": "EVIDENCE",
+          "state": "BOUND"
+        }
+      ],
+      "edges": [
+        {
+          "class": "SOURCE",
+          "direction": "FORWARD",
+          "from": "descriptor:hcmnext.fixture.beta/v1",
+          "to": "hcmnext.fixture.beta/v1",
+          "registry": "definitions/governance/intent-conformance-descriptors.yaml"
+        },
+        {
+          "class": "SOURCE",
+          "direction": "REVERSE",
+          "from": "catalog:hcmnext.fixture.beta/v1",
+          "to": "hcmnext.fixture.beta/v1",
+          "registry": "internal/intent/definitions"
+        },
+        {
+          "class": "PHASE_GATE",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.beta/v1",
+          "to": "phase:GATE_A",
+          "registry": "definitions/governance/intent-conformance-descriptors.yaml"
+        },
+        {
+          "class": "PHASE_GATE",
+          "direction": "REVERSE",
+          "from": "ceiling:gate:P1A",
+          "to": "hcmnext.fixture.beta/v1",
+          "registry": "definitions/planning/gates/phase1-scope-ceiling.yaml"
+        },
+        {
+          "class": "SLICE",
+          "direction": "FORWARD",
+          "from": "slice:fixture@v1",
+          "to": "capability:hcmnext.fixture.beta",
+          "registry": "definitions/planning/product-slices.yaml"
+        },
+        {
+          "class": "SLICE",
+          "direction": "REVERSE",
+          "from": "slice:fixture@v1",
+          "to": "hcmnext.fixture.beta/v1",
+          "registry": "definitions/planning/product-slices.yaml"
+        },
+        {
+          "class": "MODEL",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.beta/v1",
+          "to": "entity:Worker/v1",
+          "registry": "internal/intent/modelbinding"
+        },
+        {
+          "class": "ENGINE",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.beta/v1",
+          "to": "engine:internal/engines/snapshot#snapshot",
+          "registry": "tools/policy/enginecoverage"
+        },
+        {
+          "class": "ENGINE",
+          "direction": "REVERSE",
+          "from": "engine:internal/engines/snapshot#snapshot",
+          "to": "hcmnext.fixture.beta/v1",
+          "registry": "tools/policy/enginecoverage"
+        },
+        {
+          "class": "CAPABILITY",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.beta/v1",
+          "to": "capability:hcmnext.fixture.beta/v1",
+          "registry": "internal/capability/binding.Claims"
+        },
+        {
+          "class": "CAPABILITY",
+          "direction": "REVERSE",
+          "from": "capability:hcmnext.fixture.beta/v1",
+          "to": "hcmnext.fixture.beta/v1",
+          "registry": "internal/capability.NewBootstrapRegistry"
+        },
+        {
+          "class": "HANDLER",
+          "direction": "FORWARD",
+          "from": "capability:hcmnext.fixture.beta",
+          "to": "handler:internal/transport/fixture.(*server).Beta",
+          "registry": "internal/capability/binding.Build"
+        },
+        {
+          "class": "ENDPOINT",
+          "direction": "FORWARD",
+          "from": "handler:internal/transport/fixture.(*server).Beta",
+          "to": "endpoint:hcmnext.fixture.v1.FixtureService/Beta",
+          "registry": "internal/capability/binding.Build"
+        },
+        {
+          "class": "ENDPOINT",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.beta/v1",
+          "to": "endpoint:hcmnext.fixture.v1.FixtureService/Beta",
+          "registry": "internal/transport/manifest.BuildDefaultDispositionReport"
+        },
+        {
+          "class": "ENDPOINT",
+          "direction": "REVERSE",
+          "from": "endpoint:hcmnext.fixture.v1.FixtureService/Beta",
+          "to": "hcmnext.fixture.beta/v1",
+          "registry": "internal/transport/manifest.Build"
+        },
+        {
+          "class": "SCENARIO",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.beta/v1",
+          "to": "scenario:Beta-forbidden",
+          "registry": "tools/planning/scenariomatrix"
+        },
+        {
+          "class": "SCENARIO",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.beta/v1",
+          "to": "scenario:Beta-positive",
+          "registry": "tools/planning/scenariomatrix"
+        },
+        {
+          "class": "TEST",
+          "direction": "FORWARD",
+          "from": "todo:FIX-002",
+          "to": "test:TestFixtureBeta",
+          "registry": "cmd|gen|internal|test|tools *_test.go"
+        },
+        {
+          "class": "TEST",
+          "direction": "REVERSE",
+          "from": "coverage:test:TestFixtureBeta",
+          "to": "hcmnext.fixture.beta/v1",
+          "registry": "definitions/planning/capability-coverage.yaml"
+        },
+        {
+          "class": "TODO",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.beta/v1",
+          "to": "todo:FIX-002",
+          "registry": "planning/todos.md"
+        },
+        {
+          "class": "TODO",
+          "direction": "REVERSE",
+          "from": "coverage:todo:FIX-002",
+          "to": "hcmnext.fixture.beta/v1",
+          "registry": "definitions/planning/capability-coverage.yaml"
+        },
+        {
+          "class": "EVIDENCE",
+          "direction": "FORWARD",
+          "from": "todo:FIX-002",
+          "to": "evidence:sha256:evidence-FIX-002",
+          "registry": "planning/todos.md"
+        }
+      ],
+      "tests": [
+        "TestFixtureBeta"
+      ],
+      "evidence": [
+        {
+          "todo": "FIX-002",
+          "digest": "sha256:evidence-FIX-002",
+          "dates": [
+            "2026-09-01"
+          ],
+          "tests": [
+            "TestFixtureBeta"
+          ],
+          "expiry": "NO_WAIVER"
+        }
+      ],
+      "expiry": "NO_WAIVER",
+      "result": "SLICE_CLOSURE_INCOMPLETE",
+      "defects": [
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "MATURITY_ADVANCED_WITHOUT_CLOSURE",
+          "class": "PHASE_GATE",
+          "identity": "PHASE_GATE|hcmnext.fixture.beta/v1|maturity|DEFINED",
+          "detail": "the coverage registry claims DEFINED while 1 closure defects remain"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_AGGREGATE_ONLY",
+          "class": "ENDPOINT",
+          "identity": "ENDPOINT|hcmnext.fixture.beta/v1|generic_lifecycle",
+          "detail": "reachable only through 1 generic lifecycle methods that dispatch every such definition; no endpoint is this definition's own"
+        }
+      ],
+      "digest": "sha256:a438f068982bd4522e451d3c1d259f72e06cf329dfaaecb36a3a954e794d65a8"
+    },
+    {
+      "definition": "hcmnext.fixture.gamma/v1",
+      "display_name": "Gamma",
+      "source": {
+        "registry": "definitions/governance/intent-conformance-descriptors.yaml",
+        "row_digest": "sha256:gamma"
+      },
+      "phase": {
+        "descriptor_phase": "GATE_B",
+        "release": "",
+        "ceiling_gate": "",
+        "ceiling_disposition": "",
+        "claimed_maturity": ""
+      },
+      "endpoint_disposition": {
+        "category": "",
+        "justification": "",
+        "serving_endpoints": []
+      },
+      "classes": [
+        {
+          "class": "SOURCE",
+          "state": "ABSENT"
+        },
+        {
+          "class": "PHASE_GATE",
+          "state": "ABSENT"
+        },
+        {
+          "class": "SLICE",
+          "state": "ABSENT"
+        },
+        {
+          "class": "MODEL",
+          "state": "ABSENT"
+        },
+        {
+          "class": "ENGINE",
+          "state": "ABSENT"
+        },
+        {
+          "class": "CAPABILITY",
+          "state": "ABSENT"
+        },
+        {
+          "class": "HANDLER",
+          "state": "ABSENT"
+        },
+        {
+          "class": "ENDPOINT",
+          "state": "ABSENT"
+        },
+        {
+          "class": "SCENARIO",
+          "state": "ABSENT"
+        },
+        {
+          "class": "TEST",
+          "state": "ABSENT"
+        },
+        {
+          "class": "TODO",
+          "state": "ABSENT"
+        },
+        {
+          "class": "EVIDENCE",
+          "state": "ABSENT"
+        }
+      ],
+      "edges": [
+        {
+          "class": "SOURCE",
+          "direction": "FORWARD",
+          "from": "descriptor:hcmnext.fixture.gamma/v1",
+          "to": "hcmnext.fixture.gamma/v1",
+          "registry": "definitions/governance/intent-conformance-descriptors.yaml"
+        },
+        {
+          "class": "PHASE_GATE",
+          "direction": "FORWARD",
+          "from": "hcmnext.fixture.gamma/v1",
+          "to": "phase:GATE_B",
+          "registry": "definitions/governance/intent-conformance-descriptors.yaml"
+        }
+      ],
+      "tests": [],
+      "evidence": [],
+      "expiry": "NO_WAIVER",
+      "result": "SLICE_CLOSURE_INCOMPLETE",
+      "defects": [
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "REVERSE_EDGE_ABSENT",
+          "class": "SOURCE",
+          "identity": "SOURCE|hcmnext.fixture.gamma/v1|catalog",
+          "detail": "no compiled intent definition carries this definition ref"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "REVERSE_EDGE_ABSENT",
+          "class": "PHASE_GATE",
+          "identity": "PHASE_GATE|hcmnext.fixture.gamma/v1|ceiling",
+          "detail": "the Phase 1 scope ceiling has no row for this definition"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_ABSENT",
+          "class": "SLICE",
+          "identity": "SLICE|hcmnext.fixture.gamma/v1",
+          "detail": "no product slice names this definition among its business intents"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_ABSENT",
+          "class": "MODEL",
+          "identity": "MODEL|hcmnext.fixture.gamma/v1",
+          "detail": "no model binding resolves this definition against the generated model registry"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_ABSENT",
+          "class": "ENGINE",
+          "identity": "ENGINE|hcmnext.fixture.gamma/v1",
+          "detail": "no reusable-computation responsibility names this definition"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_ABSENT",
+          "class": "CAPABILITY",
+          "identity": "CAPABILITY|hcmnext.fixture.gamma/v1",
+          "detail": "no reviewed capability claim binds this definition"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_ABSENT",
+          "class": "HANDLER",
+          "identity": "HANDLER|hcmnext.fixture.gamma/v1",
+          "detail": "no capability binds this definition, so no typed handler can"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "REVERSE_EDGE_ABSENT",
+          "class": "ENDPOINT",
+          "identity": "ENDPOINT|hcmnext.fixture.gamma/v1|disposition",
+          "detail": "no endpoint disposition row names this definition"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_ABSENT",
+          "class": "SCENARIO",
+          "identity": "SCENARIO|hcmnext.fixture.gamma/v1",
+          "detail": "no adversarial scenario matrix is generated for this definition"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_ABSENT",
+          "class": "TEST",
+          "identity": "TEST|hcmnext.fixture.gamma/v1",
+          "detail": "no existing test is bound to this definition through ticked todos"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_ABSENT",
+          "class": "TODO",
+          "identity": "TODO|hcmnext.fixture.gamma/v1",
+          "detail": "no todo names this definition"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "REVERSE_EDGE_ABSENT",
+          "class": "TODO",
+          "identity": "TODO|hcmnext.fixture.gamma/v1|coverage_registry",
+          "detail": "the checked-in coverage registry has no intent row for this definition"
+        },
+        {
+          "result": "SLICE_CLOSURE_INCOMPLETE",
+          "code": "EDGE_ABSENT",
+          "class": "EVIDENCE",
+          "identity": "EVIDENCE|hcmnext.fixture.gamma/v1",
+          "detail": "no todo is bound to this definition, so no evidence can exist"
+        }
+      ],
+      "digest": "sha256:adb63ad3235ddcb6261480de04fa29ace5a3f4b337508b08be60f35a87626bbc"
+    }
+  ],
+  "orphans": [
+    {
+      "result": "SLICE_CLOSURE_INCOMPLETE",
+      "code": "EDGE_ORPHAN",
+      "class": "TODO",
+      "identity": "TODO|FIX-003|INTENTS|Ghost",
+      "detail": "an INTENT CONTEXT INTENTS token names no source-bound definition"
+    }
+  ],
+  "digest": "sha256:4a1fdef7240fd135b66bb3f0a116e79f0ff98c0fcb685d83f2df3acdff5ca3ee"
+}

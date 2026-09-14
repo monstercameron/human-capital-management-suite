@@ -121,6 +121,18 @@ func DefaultAllowlistDefinitions() []AttributeDefinition {
 			Description:    "Bounded durable attempt identifier; span context only, never authority or a metric label.",
 		},
 		{
+			Key: "node_id", Class: ClassOperationalRestricted,
+			Signals:        []SignalKind{SignalSpan},
+			MaxCardinality: 0,
+			Description:    "Workflow node identifier for trace-to-inspector pivoting; span context only, never authority or a metric label.",
+		},
+		{
+			Key: "terminal_code", Class: ClassOperationalRestricted,
+			Signals:        []SignalKind{SignalSpan},
+			MaxCardinality: 32,
+			Description:    "Closed workflow terminal outcome vocabulary; span context only, never payload or authority.",
+		},
+		{
 			Key: "timer_id", Class: ClassOperationalRestricted,
 			Signals:        []SignalKind{SignalSpan},
 			MaxCardinality: 0,

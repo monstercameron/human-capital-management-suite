@@ -1,0 +1,23 @@
+{
+  "canonical_digest": "0d9c703b602031ae36c40ec84bb69013fc648e6ec55956e8d0a81b648d065ad6",
+  "signature_value": "3543d22b51cc2588e3ce000b2281e2206213e4e1b319dc4f85081cc694d264eac0fe2cad6597baf6a2df2f6400233da536e63c017286c7d25be606604b261705",
+  "counts": {
+    "entitlements": 8,
+    "exclusions": 4,
+    "evidence_captured": 4,
+    "observed_domains": 7,
+    "forbidden_effects": 7,
+    "export_formats": 2,
+    "export_includes": 5
+  },
+  "entitlement_id_order": [
+    "hcmnext.people.explain_worker_state/v1",
+    "hcmnext.people.promote_worker/v1",
+    "hcmnext.rewards.simulate_compensation/v1",
+    "hcmnext.rewards.evaluate_pay_band_position/v1",
+    "hcmnext.intelligence.explain_transaction/v1",
+    "hcmnext.operations.detect_drift/v1",
+    "hcmnext.operations.create_repair_plan/v1",
+    "hcmnext.operations.simulate_repair/v1"
+  ]
+}

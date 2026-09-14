@@ -84,7 +84,7 @@ func bindDrawerFocusTrap(dialogID, triggerID string) func() {
 	return func() {
 		dialog.Call("removeEventListener", "keydown", listener)
 		listener.Release()
-		if previouslyFocused.Truthy() && previouslyFocused.Get("focus").Truthy() {
+		if previouslyFocused.Truthy() && previouslyFocused.Get("isConnected").Bool() && previouslyFocused.Get("focus").Truthy() && !previouslyFocused.Equal(doc.Get("body")) {
 			previouslyFocused.Call("focus")
 			return
 		}

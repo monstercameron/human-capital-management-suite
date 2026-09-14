@@ -24,7 +24,7 @@ func TestTodo_WEB_061(t *testing.T) {
 	labels := map[string]map[string]string{
 		"en-US": {"notReported": "Not reported", "redacted": "Redacted", "unavailable": "Unavailable", "withheld": "Withheld"},
 		"de-DE": {"notReported": "Nicht gemeldet", "redacted": "Geschwärzt", "unavailable": "Nicht verfügbar", "withheld": "Zurückgehalten"},
-		"ar":    {"notReported": "Not reported", "redacted": "منقّح", "unavailable": "غير متاح", "withheld": "محجوب"},
+		"ar":    {"notReported": "غير مذكور", "redacted": "منقّح", "unavailable": "غير متاح", "withheld": "محجوب"},
 	}
 	for locale, want := range labels {
 		lc := ResolveProductLocale(locale)

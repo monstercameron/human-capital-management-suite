@@ -24,10 +24,13 @@ func declareHistoryNavigationStyles() {
 	)
 	declareGlobal(".header-navigation-tools>.global-search",
 		gwccss.Raw("flex", "1 1 0"), gwccss.MinWidth(gwccss.Zero),
+		// On broad displays the search remains useful without swallowing the
+		// entire utility bar; its suggestions keep the same bounded anchor.
+		mediaRule(gwccss.MinW(1440), gwccss.MaxWidth(gwccss.Px(720))),
 	)
 	declareGlobal(".history-navigation-button",
 		gwccss.Display.Grid, gwccss.Raw("place-items", "center"),
-		gwccss.W(gwccss.Px(38)), gwccss.H(gwccss.Px(38)), gwccss.Padding(gwccss.Zero),
+		gwccss.W(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.Padding(gwccss.Zero),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
@@ -49,6 +52,12 @@ func declareHistoryNavigationStyles() {
 			gwccss.Bg(gwccss.Var("surface-subtle")), gwccss.TextColor(gwccss.Var("muted")),
 		),
 	)
+	declareGlobal(".history-navigation-glyph",
+		gwccss.W(gwccss.Px(18)), gwccss.H(gwccss.Px(18)),
+	)
+	declareGlobal("[dir=rtl] .history-navigation-glyph",
+		gwccss.Raw("transform", "scaleX(-1)"),
+	)
 	declareGlobal(`:root[data-hcm-motion-preference="limited"] .history-navigation-button`,
 		gwccss.TransitionDuration(gwccss.Ms(1)),
 	)
@@ -68,10 +77,6 @@ func declareHistoryNavigationStyles() {
 			gwccss.Raw("grid-row", "auto"),
 			gwccss.Padding(gwccss.Zero),
 		),
-	)
-	declareGlobal(".history-navigation-button",
-		mediaRule(gwccss.MaxW(760), gwccss.W(gwccss.Px(36)), gwccss.H(gwccss.Px(36))),
-		mediaRule(gwccss.MaxW(430), gwccss.W(gwccss.Px(34)), gwccss.H(gwccss.Px(34))),
 	)
 	declareGlobal(".header-navigation-tools",
 		mediaRule(gwccss.MaxW(430), gwccss.Gap(gwccss.Px(6))),
@@ -150,8 +155,8 @@ func declareGlobalSearchStyles() {
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Raw("background", "var(--surface-subtle,var(--canvas))"),
 		gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.Raw("box-shadow", "inset 0 1px 1px color-mix(in srgb,var(--ink) 3%,transparent)"),
-		gwccss.Transition(gwccss.TransitionProps(gwccss.Prop("border-color"), gwccss.Prop("background"), gwccss.Prop("box-shadow")), gwccss.RawDuration("var(--hcm-motion-fast,.14s)"), gwccss.Ease),
+		gwccss.Raw("box-shadow", "none"),
+		gwccss.Transition(gwccss.TransitionProps(gwccss.Prop("border-color"), gwccss.Prop("background")), gwccss.RawDuration("var(--hcm-motion-fast,.14s)"), gwccss.Ease),
 	)
 	declareGlobal(".global-search-input::placeholder",
 		gwccss.TextColor(gwccss.Var("muted")),
@@ -163,16 +168,15 @@ func declareGlobalSearchStyles() {
 	declareGlobal(".global-search-input:focus",
 		gwccss.BorderColor(gwccss.Var("accent")),
 		gwccss.Bg(gwccss.Var("surface")),
-		gwccss.Raw("box-shadow", "0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)"),
+		gwccss.Raw("box-shadow", "var(--hcm-focus-ring)"),
 		gwccss.Raw("outline", "0"),
 	)
 	declareGlobal(".global-search-glyph",
 		gwccss.Position.Absolute,
 		gwccss.Raw("inset-inline-start", "15px"),
 		gwccss.ZIndex(1),
+		gwccss.W(gwccss.Px(18)), gwccss.H(gwccss.Px(18)),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(1.2)),
-		gwccss.LineHeight(gwccss.Num(1)),
 		gwccss.Raw("pointer-events", "none"),
 	)
 	declareGlobal(".global-search-panel",
@@ -187,7 +191,7 @@ func declareGlobalSearchStyles() {
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-panel,var(--panel))")),
 		gwccss.Bg(gwccss.Var("surface")),
-		gwccss.Raw("box-shadow", "0 22px 60px color-mix(in srgb,var(--ink) 22%,transparent),0 4px 14px color-mix(in srgb,var(--ink) 8%,transparent)"),
+		gwccss.Raw("box-shadow", "var(--hcm-shadow-raised)"),
 		gwccss.Raw("scrollbar-width", "thin"),
 		gwccss.Raw("scrollbar-color", "color-mix(in srgb,var(--muted) 55%,transparent) transparent"),
 		gwccss.Raw("transform-origin", "top center"),
@@ -339,7 +343,7 @@ func declareContextSwitcherStyles() {
 		gwccss.Display.InlineFlex,
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Px(7)),
-		gwccss.MinHeight(gwccss.Px(42)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.MaxWidth(gwccss.Px(230)),
 		gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(11)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
@@ -363,6 +367,11 @@ func declareContextSwitcherStyles() {
 	)
 	declareGlobal(".context-switcher-chevron",
 		gwccss.Raw("flex", "none"),
+		gwccss.W(gwccss.Px(16)), gwccss.H(gwccss.Px(16)),
+		gwccss.Transform(gwccss.Rotate(gwccss.Deg(90))),
+	)
+	declareGlobal(".context-switcher[open] .context-switcher-chevron",
+		gwccss.Transform(gwccss.Rotate(gwccss.Deg(-90))),
 	)
 	declareGlobal(".context-switcher-panel",
 		gwccss.Position.Absolute,
@@ -492,6 +501,8 @@ func declarePopoverStyles() {
 	declareGlobal(".popover-root>summary",
 		gwccss.Raw("cursor", "pointer"),
 		gwccss.Raw("list-style", "none"),
+		gwccss.MinWidth(gwccss.Px(44)),
+		gwccss.MinHeight(gwccss.Px(44)),
 	)
 	declareGlobal(".popover-root>summary::-webkit-details-marker",
 		gwccss.Display.None,
@@ -634,7 +645,7 @@ func declareViewerProfileStyles() {
 		gwccss.FontSize(gwccss.Rem(.8125)),
 	)
 	declareGlobal(".viewer-profile-link",
-		mediaRule(gwccss.MaxW(760), gwccss.W(gwccss.Px(42)), gwccss.H(gwccss.Px(42))),
+		mediaRule(gwccss.MaxW(760), gwccss.W(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.MinHeight(gwccss.Px(44))),
 	)
 	declareGlobal(".viewer-profile-link>.avatar",
 		mediaRule(gwccss.MaxW(760), gwccss.W(gwccss.Px(36)), gwccss.H(gwccss.Px(36))),
@@ -768,7 +779,7 @@ func declareBaseStyles() {
 		gwccss.Justify.Center,
 		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(9)), gwccss.PaddingX(gwccss.Px(16)),
-		gwccss.Border(gwccss.Px(1), gwccss.Hex("7b8997")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("control-border")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
 		gwccss.FontSize(gwccss.Rem(.875)),
 		gwccss.Raw("font-weight", "650"),
@@ -899,7 +910,7 @@ func declareBaseStyles() {
 	declareGlobal(".nav-count",
 		gwccss.Raw("margin-left", "auto"),
 		gwccss.PaddingY(gwccss.Px(2)), gwccss.PaddingX(gwccss.Px(7)),
-		gwccss.Rounded(gwccss.Px(6)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-status")),
 		gwccss.Bg(gwccss.Hex("f5f7f5")),
 		gwccss.FontSize(gwccss.Rem(.75)),
 	)
@@ -948,11 +959,11 @@ func declareBaseStyles() {
 	declareGlobal(".scope",
 		gwccss.Display.InlineFlex,
 		gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(42)),
+		gwccss.MinHeight(gwccss.VarLength("hcm-control-height")),
 		gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("radius")),
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.FontSize(gwccss.Rem(.8125)),
 		gwccss.Raw("font-weight", "650"),
 		gwccss.Raw("text-decoration", "none"),
@@ -1019,7 +1030,7 @@ func declareBaseStyles() {
 	)
 	declareGlobal(".count",
 		gwccss.PaddingY(gwccss.Px(3)), gwccss.PaddingX(gwccss.Px(8)),
-		gwccss.Rounded(gwccss.Px(6)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-status")),
 		gwccss.Bg(gwccss.Hex("f1f4f1")),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(.75)),
@@ -1062,7 +1073,7 @@ func declareBaseStyles() {
 		gwccss.Items.Center,
 		gwccss.W(gwccss.RawLength("max-content")),
 		gwccss.PaddingY(gwccss.Px(4)), gwccss.PaddingX(gwccss.Px(8)),
-		gwccss.Rounded(gwccss.Px(6)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-status")),
 		gwccss.Bg(gwccss.Hex("eef1ef")),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(.8125)),
@@ -1145,6 +1156,10 @@ func declareBaseStyles() {
 		gwccss.Rounded(gwccss.Percent(50)),
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
+	)
+	declareGlobal(".activity-check-glyph",
+		gwccss.W(gwccss.Px(16)),
+		gwccss.H(gwccss.Px(16)),
 	)
 	declareGlobal(".activity>small",
 		gwccss.TextColor(gwccss.Var("muted")),
@@ -1352,8 +1367,51 @@ func declareBaseStyles() {
 	)
 	declareGlobal(".insights-grid",
 		gwccss.Display.Grid,
-		gwccss.GridCols(gwccss.Fr(2), gwccss.Fr(1)),
+		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))),
 		gwccss.Gap(gwccss.Px(18)),
+	)
+	declareGlobal(".insights-grid>.insights-evidence",
+		gwccss.Raw("margin-top", "0"),
+	)
+	declareGlobal(".insights-evidence-body",
+		gwccss.Display.Grid,
+		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1.15)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(240)), gwccss.Fr(.85))),
+		gwccss.Gap(gwccss.Px(28)),
+		gwccss.Raw("align-items", "start"),
+		gwccss.Raw("padding", "0 22px 22px"),
+		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))), gwccss.Gap(gwccss.Px(14)), gwccss.Raw("padding", "0 18px 18px")),
+	)
+	declareGlobal(".insights-evidence .facts",
+		gwccss.Margin(gwccss.Zero), gwccss.Padding(gwccss.Zero), gwccss.MinWidth(gwccss.Zero),
+	)
+	declareGlobal(".insights-evidence .facts>div",
+		gwccss.Display.Grid,
+		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(110)), gwccss.Fr(.45)), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))),
+		gwccss.Gap(gwccss.Px(16)),
+		gwccss.Raw("align-items", "baseline"),
+		gwccss.Raw("border-bottom", "1px solid var(--line)"),
+		gwccss.PaddingY(gwccss.Px(11)), gwccss.PaddingX(gwccss.Zero),
+		gwccss.FontSize(gwccss.Rem(.875)),
+		mediaRule(gwccss.MaxW(430), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))), gwccss.Gap(gwccss.Px(4))),
+	)
+	declareGlobal(".insights-evidence .facts>div:last-child",
+		gwccss.Raw("border-bottom", "0"),
+	)
+	declareGlobal(".insights-evidence .facts dt",
+		gwccss.TextColor(gwccss.Var("muted")),
+	)
+	declareGlobal(".insights-evidence .facts dd",
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("overflow-wrap", "anywhere"),
+	)
+	declareGlobal(".insights-evidence-note",
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Raw("padding", "16px 18px"),
+		gwccss.Raw("line-height", "1.5"),
+		gwccss.Raw("background", "var(--surface-subtle,var(--canvas))"),
+		gwccss.Raw("border", "1px solid var(--line)"),
+		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 	)
 	declareGlobal(".bars",
 		gwccss.Display.Grid,
@@ -1503,7 +1561,7 @@ func declareBaseStyles() {
 		gwccss.MinWidth(gwccss.Zero),
 		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.Padding(gwccss.Px(8)),
-		gwccss.Border(gwccss.Px(1), gwccss.Hex("7b8997")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("control-border")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
 		gwccss.Bg(gwccss.Hex("fff")),
 	)
@@ -1540,8 +1598,40 @@ func declareBaseStyles() {
 	declareGlobal(".settings-form form .button",
 		mediaRule(gwccss.MaxW(1190), gwccss.GridColumn(gwccss.GridLineAt(1))),
 	)
-	declareGlobal(".work-row .row-main small+small",
+	// Narrow rows drop only the grade-change summary. The action facts that
+	// follow it (next action, next step, disposition, assignment, due) are
+	// the point of the queue and must survive every width (UXAUDIT-017).
+	declareGlobal(".work-row .row-main small.row-summary",
 		mediaRule(gwccss.MaxW(1190), gwccss.Display.None),
+	)
+	// PROMOUX-012: a person's active workflows. Each item wraps its link
+	// below its facts on narrow widths rather than hiding any line.
+	declareGlobal(".person-active-list",
+		gwccss.Raw("list-style", "none"),
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Padding(gwccss.Zero),
+		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
+	)
+	declareGlobal(".person-active-item",
+		gwccss.Display.Flex,
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Items.Center,
+		gwccss.Raw("justify-content", "space-between"),
+		gwccss.Gap(gwccss.Px(12)),
+		gwccss.PaddingY(gwccss.Px(14)), gwccss.PaddingX(gwccss.Px(22)),
+		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
+	)
+	declareGlobal(".person-active-main",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(3)),
+		gwccss.MinWidth(gwccss.Zero),
+	)
+	declareGlobal(".person-active-main small",
+		gwccss.TextColor(gwccss.Var("muted")),
+	)
+	declareGlobal(".person-active-empty",
+		gwccss.PaddingY(gwccss.Px(14)), gwccss.PaddingX(gwccss.Px(22)),
+		gwccss.Margin(gwccss.Zero),
 	)
 	declareGlobal(".home-grid,.workbench,.people-workspace,.settings-shell",
 		mediaRule(gwccss.MaxW(990), gwccss.GridCols(gwccss.Fr(1))),
@@ -1678,6 +1768,180 @@ func declareBaseStyles() {
 	declareGlobal(".footer",
 		mediaRule(gwccss.RawMedia("print"), gwccss.BorderTop(gwccss.Px(1), gwccss.Hex("000")), gwccss.Raw("padding-top", "12px")),
 	)
+	declareVisualFoundationStyles()
+}
+
+func declareVisualFoundationStyles() {
+	declareGlobal(":root",
+		gwccss.Custom("hcm-control-height", "44px"),
+		gwccss.Custom("hcm-control-height-compact", "44px"),
+		gwccss.Custom("hcm-focus-ring", "0 0 0 3px color-mix(in srgb,var(--hcm-color-focus) 24%,transparent)"),
+		gwccss.Custom("hcm-surface-shadow", "var(--hcm-shadow-resting)"),
+		gwccss.Custom("hcm-panel-shadow", "var(--hcm-shadow-raised)"),
+		gwccss.Custom("hcm-scrollbar-thumb", "color-mix(in srgb,var(--muted) 42%,transparent)"),
+		gwccss.Custom("hcm-scrollbar-track", "color-mix(in srgb,var(--surface) 72%,var(--canvas))"),
+		gwccss.CustomLength("hcm-scrollbar-size", gwccss.Px(10)),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded)",
+		gwccss.Raw("font-family", "var(--hcm-font-sans)"),
+		gwccss.Raw("text-rendering", "optimizeLegibility"),
+		gwccss.Raw("-webkit-font-smoothing", "antialiased"),
+		gwccss.Raw("scrollbar-color", "var(--hcm-scrollbar-thumb) var(--hcm-scrollbar-track)"),
+		gwccss.Raw("scrollbar-width", "thin"),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) h1",
+		gwccss.LineHeight(gwccss.Num(1.12)), gwccss.Tracking(gwccss.Ems(-.035)),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(h2,h3,h4,h5,h6)",
+		gwccss.LineHeight(gwccss.Num(1.25)),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(p,ul,ol,dl,blockquote,pre)",
+		gwccss.Raw("margin-block", "0"),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(input,select,textarea)",
+		gwccss.MinHeight(gwccss.VarLength("hcm-control-height")),
+		gwccss.Raw("font", "inherit"),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("control-border")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(.button,.jn-btn)",
+		gwccss.Raw("font", "inherit"),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+	)
+	// Keep summary-like controls on the same minimum geometry as native
+	// controls, even when a component stylesheet supplies a narrower default.
+	declareGlobal(".context-switcher-trigger,.popover-root>summary",
+		gwccss.MinHeight(gwccss.Px(44)),
+	)
+	declareGlobal(".popover-root>summary:focus-visible",
+		gwccss.Raw("outline", "2px solid var(--hcm-color-focus)"),
+		gwccss.OutlineOffset(gwccss.Px(2)),
+		gwccss.Raw("box-shadow", "var(--hcm-focus-ring)"),
+	)
+	// Keep the existing authorized drawer trigger discoverable while the
+	// off-canvas navigation covers the header. The trigger's accessible name
+	// already changes to "Close navigation menu"; this only restores a visible
+	// close affordance and keeps it above the drawer surface.
+	declareGlobal(":where(.app-shell):has(.sidebar.nav-drawer-open) .nav-drawer-trigger",
+		gwccss.Position.Fixed,
+		gwccss.Raw("inset-block-start", "12px"),
+		gwccss.Raw("inset-inline-start", "calc(min(86vw,320px) - 52px)"),
+		gwccss.ZIndex(60),
+		gwccss.Bg(gwccss.Var("surface")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.TextColor(gwccss.Var("ink")),
+		gwccss.Raw("box-shadow", "var(--hcm-shadow-raised)"),
+	)
+	declareGlobal(":where(.app-shell):has(.sidebar.nav-drawer-open) .nav-drawer-trigger .nav-icon",
+		gwccss.Display.None,
+	)
+	declareGlobal(":where(.app-shell):has(.sidebar.nav-drawer-open) .nav-drawer-trigger::after",
+		gwccss.Raw("content", "\"×\""),
+		gwccss.FontSize(gwccss.Px(26)),
+		gwccss.LineHeight(gwccss.Num(1)),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(button,input,select,textarea):focus-visible",
+		gwccss.Raw("outline", "2px solid var(--hcm-color-focus)"),
+		gwccss.OutlineOffset(gwccss.Px(2)),
+		gwccss.Raw("box-shadow", "var(--hcm-focus-ring)"),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(button,input,select,textarea):disabled",
+		gwccss.OpacityNum(gwccss.Num(.58)),
+		gwccss.Raw("cursor", "not-allowed"),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(button,a):not(:disabled):active",
+		gwccss.Raw("transform", "translateY(1px)"),
+	)
+	declareGlobal(":where(.app-shell) :is(.surface,.panel,.people-workspace,.settings-shell,.metric,.choice,.org-node)",
+		gwccss.BorderColor(gwccss.Var("line")),
+		gwccss.Raw("border-radius", "var(--hcm-radius-surface)"),
+		gwccss.Raw("box-shadow", "none"),
+	)
+	declareGlobal(":where(.app-shell) :is(.surface,.panel,.people-workspace,.settings-shell,.metric,.choice,.org-node):focus-within",
+		gwccss.Raw("box-shadow", "var(--hcm-focus-ring)"),
+	)
+	declareGlobal(":where(.app-shell) :is(.status.success,.positive)",
+		gwccss.TextColor(gwccss.Var("success")),
+	)
+	declareGlobal(":where(.app-shell) .status.success",
+		gwccss.Bg(gwccss.Var("success-bg")),
+	)
+	declareGlobal(":where(.app-shell) .status.warning",
+		gwccss.Bg(gwccss.Var("warning-bg")), gwccss.TextColor(gwccss.Var("warning")),
+	)
+	declareGlobal(":where(.app-shell) .status.danger",
+		gwccss.Bg(gwccss.Var("danger-bg")), gwccss.TextColor(gwccss.Var("danger")),
+	)
+	declareGlobal(":where(.app-shell) .status.info",
+		gwccss.Bg(gwccss.Var("info-bg")), gwccss.TextColor(gwccss.Var("info")),
+	)
+	declareGlobal(":where(.app-shell) :is(.button.primary,.button.secondary):hover",
+		gwccss.BorderColor(gwccss.Var("accent-hover")),
+	)
+	declareGlobal(":where(.app-shell) .button.primary",
+		gwccss.TextColor(gwccss.Var("on-brand")),
+	)
+	declareGlobal(":where(.app-shell) .button.secondary",
+		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("accent")),
+	)
+	declareGlobal(":where(.app-shell) .button:disabled",
+		gwccss.Bg(gwccss.Var("surface-subtle")), gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.BorderColor(gwccss.Var("line")), gwccss.Raw("box-shadow", "none"),
+	)
+	declareGlobal(":where(.app-shell) ::selection",
+		gwccss.Bg(gwccss.Var("accent")), gwccss.TextColor(gwccss.Var("on-brand")),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(.main-scroll,.global-search-panel,.data-table-scroll,.action-launcher-dialog,.utility-drawer-dialog,.people-workflow-options)",
+		gwccss.Raw("scrollbar-color", "var(--hcm-scrollbar-thumb) var(--hcm-scrollbar-track)"),
+		gwccss.Raw("scrollbar-width", "thin"),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(.main-scroll,.global-search-panel,.data-table-scroll,.action-launcher-dialog,.utility-drawer-dialog,.people-workflow-options)::-webkit-scrollbar",
+		gwccss.W(gwccss.VarLength("hcm-scrollbar-size")), gwccss.H(gwccss.VarLength("hcm-scrollbar-size")),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(.main-scroll,.global-search-panel,.data-table-scroll,.action-launcher-dialog,.utility-drawer-dialog,.people-workflow-options)::-webkit-scrollbar-track",
+		gwccss.Bg(gwccss.Var("hcm-scrollbar-track")),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(.main-scroll,.global-search-panel,.data-table-scroll,.action-launcher-dialog,.utility-drawer-dialog,.people-workflow-options)::-webkit-scrollbar-thumb",
+		gwccss.Bg(gwccss.Var("hcm-scrollbar-thumb")),
+		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Raw("border", "3px solid transparent"), gwccss.Raw("background-clip", "padding-box"),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(.main-scroll,.global-search-panel,.data-table-scroll,.action-launcher-dialog,.utility-drawer-dialog,.people-workflow-options)",
+		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.Raw("scrollbar-color", "ButtonText Canvas")),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(.main-scroll,.global-search-panel,.data-table-scroll,.action-launcher-dialog,.utility-drawer-dialog,.people-workflow-options)::-webkit-scrollbar-track",
+		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.Bg(gwccss.Color("Canvas"))),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded) :is(.main-scroll,.global-search-panel,.data-table-scroll,.action-launcher-dialog,.utility-drawer-dialog,.people-workflow-options)::-webkit-scrollbar-thumb",
+		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.BorderColor(gwccss.Color("Canvas")), gwccss.Bg(gwccss.Color("ButtonText"))),
+	)
+	declareGlobal(":root[data-hcm-density=\"compact\"] :where(.app-shell,.jn-embedded) :is(button,input,select,textarea)",
+		gwccss.MinHeight(gwccss.VarLength("hcm-control-height-compact")),
+	)
+	declareGlobal(":root[data-hcm-density=\"compact\"] :where(.app-shell) :is(.section-head,.settings-nav,.settings-form,.settings-context)",
+		gwccss.Raw("padding-block", "calc(var(--hcm-space-2) * var(--hcm-density))"),
+	)
+	declareGlobal(":root[data-hcm-density=\"spacious\"] :where(.app-shell) :is(.section-head,.settings-nav,.settings-form,.settings-context)",
+		gwccss.Raw("padding-block", "calc(var(--hcm-space-3) * var(--hcm-density))"),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded)",
+		mediaRule(gwccss.RawMedia("(prefers-reduced-motion:reduce)"),
+			gwccss.Raw("scroll-behavior", "auto!important"),
+			gwccss.Raw("transition-duration", ".01ms!important"),
+			gwccss.Raw("animation-duration", ".01ms!important"),
+			gwccss.Raw("animation-iteration-count", "1!important"),
+		),
+	)
+	declareGlobal(":root[data-hcm-motion-preference=\"limited\"] :where(.app-shell,.jn-embedded) *",
+		gwccss.TransitionDuration(gwccss.RawDuration("1ms!important")),
+		gwccss.Raw("animation-duration", "1ms!important"),
+	)
+	declareGlobal(":where(.app-shell,.jn-embedded)",
+		mediaRule(gwccss.RawMedia("(forced-colors:active)"),
+			gwccss.Raw("scrollbar-color", "ButtonText Canvas"),
+		),
+	)
 }
 
 func BreadcrumbStylesheet() string {
@@ -1726,7 +1990,7 @@ func UtilityDrawerStylesheet() string {
 func declareUtilityDrawerStyles() {
 	declareGlobal(".utility-drawer-trigger",
 		gwccss.Display.InlineFlex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(7)),
-		gwccss.MinHeight(gwccss.Px(42)), gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(11)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(11)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
@@ -1753,7 +2017,7 @@ func declareUtilityDrawerStyles() {
 	declareGlobal(".utility-drawer-dialog-hidden", gwccss.Display.None)
 	declareGlobal(".utility-drawer-close",
 		gwccss.Display.InlineFlex, gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Raw("margin-block-end", "12px"),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
@@ -1775,6 +2039,7 @@ func declareUtilityDrawerStyles() {
 	)
 	declareGlobal(".utility-drawer-item a",
 		gwccss.Display.Flex, gwccss.Items.Center, gwccss.ColumnGap(gwccss.Px(10)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(10)),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.TextColor(gwccss.Var("ink")), gwccss.Raw("text-decoration", "none"),
@@ -1876,13 +2141,14 @@ func declareSessionWarningStyles() {
 		gwccss.Raw("flex-wrap", "wrap"),
 	)
 	declareGlobal(".session-warning-reauth",
+		gwccss.Display.InlineFlex, gwccss.Items.Center, gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.TextColor(gwccss.Var("accent")),
 		gwccss.TextUnderlineOffset(gwccss.Px(2)),
 		hoverRule(gwccss.Raw("text-decoration", "underline")),
 	)
 	declareGlobal(".session-warning-dismiss",
 		gwccss.Display.InlineFlex, gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
@@ -1922,11 +2188,19 @@ func declareDelegationSelectorStyles() {
 	)
 	declareGlobal(".delegation-selector-summary",
 		gwccss.Display.InlineFlex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(7)),
-		gwccss.MinHeight(gwccss.Px(42)), gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(11)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(11)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
 		gwccss.FontSize(gwccss.Rem(0.78)), gwccss.FontWeight.Bold,
+	)
+	declareGlobal(".delegation-selector-chevron",
+		gwccss.W(gwccss.Px(16)), gwccss.H(gwccss.Px(16)),
+		gwccss.Raw("flex", "none"),
+		gwccss.Transform(gwccss.Rotate(gwccss.Deg(90))),
+	)
+	declareGlobal(".delegation-selector[open] .delegation-selector-chevron",
+		gwccss.Transform(gwccss.Rotate(gwccss.Deg(-90))),
 	)
 	declareGlobal(".delegation-selector-options",
 		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(4)),
@@ -1971,7 +2245,7 @@ func declareStepUpStyles() {
 	)
 	declareGlobal("a.step-up-challenge",
 		gwccss.Display.InlineFlex, gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("accent")), gwccss.TextColor(gwccss.Var("on-brand")),
@@ -1979,7 +2253,7 @@ func declareStepUpStyles() {
 	)
 	declareGlobal(".step-up-dismiss",
 		gwccss.Display.InlineFlex, gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
@@ -2037,7 +2311,7 @@ func declareBreakGlassStyles() {
 	)
 	declareGlobal("a.break-glass-activate",
 		gwccss.Display.InlineFlex, gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("accent")), gwccss.TextColor(gwccss.Var("on-brand")),
@@ -2045,7 +2319,7 @@ func declareBreakGlassStyles() {
 	)
 	declareGlobal(".break-glass-dismiss",
 		gwccss.Display.InlineFlex, gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
@@ -2108,7 +2382,7 @@ func declarePolicySimulationStyles() {
 	)
 	declareGlobal("a.policy-simulation-exit",
 		gwccss.Display.InlineFlex, gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
@@ -2153,7 +2427,7 @@ func declareSignedOutStyles() {
 	)
 	declareGlobal("a.signed-out-signin",
 		gwccss.Display.InlineFlex, gwccss.Items.Center,
-		gwccss.MinHeight(gwccss.Px(36)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("accent")), gwccss.TextColor(gwccss.Var("on-brand")),
@@ -2166,10 +2440,84 @@ func MobileShellStylesheet() string {
 }
 
 func declareMobileShellStyles() {
+	// A phone header cannot preserve the desktop history pair and two full
+	// text inputs without clipping the higher-value controls. History remains
+	// available through the browser gesture/menu, while search becomes a
+	// compact glyph that expands into a full-width field on focus. Keeping the
+	// tools overflow visible also lets fixed popovers escape the header row.
+	declareGlobal(".history-navigation",
+		mediaRule(gwccss.MaxW(430), gwccss.Display.None),
+	)
+	declareGlobal(".topbar>.header-navigation-tools",
+		mediaRule(gwccss.MaxW(430), gwccss.Raw("overflow", "visible")),
+	)
+	declareGlobal(".topbar,.app-shell.nav-collapsed .topbar",
+		mediaRule(gwccss.MaxW(430), gwccss.Raw("grid-template-columns", "82px minmax(0,1fr) auto auto auto"), gwccss.Gap(gwccss.Px(6)), gwccss.Raw("padding-inline", "8px")),
+	)
+	declareGlobal(".topbar>.locale-menu",
+		mediaRule(gwccss.MaxW(430), gwccss.Display.None),
+	)
+	// A 120px tablet identity slot cannot fit both the mark and a long
+	// customer name. Show the mark instead of a two-letter clipped fragment;
+	// BrandLogo retains its screen-reader name and the link retains its title.
+	declareGlobal(".brand-cluster .brand-logo-slot[data-hcm-brand-logo-state=\"fallback\"] .wordmark-label",
+		mediaRule(gwccss.MaxW(760), gwccss.Display.None),
+	)
+	declareGlobal(".header-navigation-tools>.global-search",
+		mediaRule(gwccss.MaxW(430), gwccss.Raw("flex", "0 0 44px"), gwccss.W(gwccss.Px(44)), gwccss.Padding(gwccss.Zero)),
+	)
+	declareGlobal(".global-search .global-search-input",
+		mediaRule(gwccss.MaxW(430), gwccss.W(gwccss.Px(44)), gwccss.MinHeight(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("color", "transparent"), gwccss.Raw("cursor", "pointer")),
+	)
+	declareGlobal(".global-search .global-search-input::placeholder",
+		mediaRule(gwccss.MaxW(430), gwccss.TextColor(gwccss.Color("transparent"))),
+	)
+	declareGlobal(".global-search-glyph",
+		mediaRule(gwccss.MaxW(430), gwccss.Raw("inset-inline-start", "14px")),
+	)
+	declareGlobal(".header-navigation-tools>.global-search:focus-within",
+		mediaRule(gwccss.MaxW(430), gwccss.Position.Fixed, gwccss.Raw("inset-block-start", "68px"), gwccss.Raw("inset-inline", "12px"), gwccss.W(gwccss.RawLength("auto")), gwccss.ZIndex(90)),
+	)
+	declareGlobal(".global-search:focus-within .global-search-input",
+		mediaRule(gwccss.MaxW(430), gwccss.W(gwccss.Percent(100)), gwccss.MinHeight(gwccss.Px(46)), gwccss.Raw("padding-inline", "42px 14px"), gwccss.TextColor(gwccss.Var("ink")), gwccss.Raw("cursor", "text")),
+	)
+	declareGlobal(".global-search:focus-within .global-search-input::placeholder",
+		mediaRule(gwccss.MaxW(430), gwccss.TextColor(gwccss.Var("muted"))),
+	)
+	declareGlobal(".global-search:focus-within .global-search-glyph",
+		mediaRule(gwccss.MaxW(430), gwccss.Raw("inset-inline-start", "15px")),
+	)
+	declareGlobal(".action-launcher-trigger,.utility-drawer-trigger",
+		mediaRule(gwccss.MaxW(430), gwccss.W(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.MinHeight(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("justify-content", "center")),
+	)
 	declareGlobal(".action-launcher-trigger .action-launcher-label",
 		mediaRule(gwccss.MaxW(430), gwccss.Display.None),
 	)
 	declareGlobal(".utility-drawer-trigger .utility-drawer-label",
 		mediaRule(gwccss.MaxW(430), gwccss.Display.None),
+	)
+	// Below 360px the search and action glyphs cannot share a row with the
+	// brand, notification and viewer controls without one covering another.
+	declareGlobal(".topbar,.app-shell.nav-collapsed .topbar",
+		mediaRule(gwccss.MaxW(350),
+			gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto"))),
+			gwccss.GridRows(gwccss.TrackLen(gwccss.Px(44)), gwccss.TrackLen(gwccss.Px(44))),
+			gwccss.Gap(gwccss.Px(6)), gwccss.PaddingY(gwccss.Px(4)), gwccss.PaddingX(gwccss.Px(8)),
+		),
+	)
+	declareGlobal(".topbar>.brand-cluster",
+		mediaRule(gwccss.MaxW(350), gwccss.GridColumn(gwccss.GridLineAt(1)), gwccss.GridRow(gwccss.GridLineAt(1))),
+	)
+	declareGlobal(".topbar>.header-navigation-tools",
+		mediaRule(gwccss.MaxW(350),
+			gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),
+			gwccss.GridRow(gwccss.GridLineAt(2)), gwccss.W(gwccss.Percent(100)), gwccss.Padding(gwccss.Zero),
+		),
+	)
+	declareGlobal(".topbar>.notifications",
+		mediaRule(gwccss.MaxW(350), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(1))),
+	)
+	declareGlobal(".topbar>.viewer-profile-link",
+		mediaRule(gwccss.MaxW(350), gwccss.GridColumn(gwccss.GridLineAt(3)), gwccss.GridRow(gwccss.GridLineAt(1))),
 	)
 }

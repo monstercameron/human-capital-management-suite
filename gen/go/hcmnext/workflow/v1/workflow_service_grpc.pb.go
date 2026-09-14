@@ -35,14 +35,14 @@ const (
 // intervention surface named in
 // planning/specs/http-grpc-endpoint-contract.md#workflow-operations.
 //
-// Every method below carries a total P1A disposition comment: P1A implements
-// the read-only inspector only
-// (planning/specs/workflow-runtime.md "Phase Classification" — "Read-only
-// inspector: IMPLEMENT"; "Quarantine, cancellation, RepairPlan route: OUT").
-// The four operational-intervention methods exist on the wire because the
-// endpoint contract names them, but a P1A server implementation must refuse
-// every one of them with ERROR_CODE_FAILED_PRECONDITION
-// (hcmnext.common.v1.ErrorCode) and never perform the transition.
+// The inspector methods are read-only. The four operational-intervention
+// methods are governed controls (EP-WF-002): each resolves a registered
+// operational intent under current JIT authority, dual control or simulation
+// where its kind demands, and an idempotency key, then applies the runtime's
+// own transition fenced by the expected version or attempt. A server without
+// governed control wiring refuses them with ERROR_CODE_FAILED_PRECONDITION
+// and performs no transition. Governance refusals return a receipt whose
+// outcome is DENIED, TOO_LATE or REPAIR_REQUIRED rather than an error.
 type WorkflowServiceClient interface {
 	// P1A disposition: IMPLEMENT. Authorized runtime/business/completion
 	// dimensions read (read-only inspector).
@@ -50,18 +50,19 @@ type WorkflowServiceClient interface {
 	// P1A disposition: IMPLEMENT. Stable execution inspection (read-only
 	// inspector).
 	ListNodeExecutions(ctx context.Context, in *ListNodeExecutionsRequest, opts ...grpc.CallOption) (*ListNodeExecutionsResponse, error)
-	// P1A disposition: REFUSE. Pause/resume/cancel/retry are P1B acceptance
-	// items (planning/specs/workflow-runtime.md "Phase 1 Acceptance Contract");
-	// a P1A server must return ERROR_CODE_FAILED_PRECONDITION and perform no
-	// transition.
+	// P1A disposition: IMPLEMENT as a governed control (EP-WF-002); refused
+	// with FAILED_PRECONDITION where no governed control is wired. Governed
+	// pause: APPLIED at a safe point, PENDING_SAFE_POINT otherwise.
 	PauseWorkflow(ctx context.Context, in *PauseWorkflowRequest, opts ...grpc.CallOption) (*PauseWorkflowResponse, error)
-	// P1A disposition: REFUSE. See PauseWorkflow.
+	// P1A disposition: IMPLEMENT as a governed control; see PauseWorkflow.
+	// Governed resume after revalidating the context the instance resumes into.
 	ResumeWorkflow(ctx context.Context, in *ResumeWorkflowRequest, opts ...grpc.CallOption) (*ResumeWorkflowResponse, error)
-	// P1A disposition: REFUSE. See PauseWorkflow. Cancellation before/after
-	// approval and after an ambiguous external effect is a P1B acceptance item.
+	// P1A disposition: IMPLEMENT as a governed control; see PauseWorkflow.
+	// Governed cancellation at the cancellation boundary: TOO_LATE after a
+	// committed effect, REPAIR_REQUIRED with an effect in flight.
 	CancelWorkflow(ctx context.Context, in *CancelWorkflowRequest, opts ...grpc.CallOption) (*CancelWorkflowResponse, error)
-	// P1A disposition: REFUSE. See PauseWorkflow. Bounded retry exhaustion into
-	// a typed RepairPlan or human route is a P1B acceptance item.
+	// P1A disposition: IMPLEMENT as a governed control; see PauseWorkflow.
+	// Governed retry of exactly one failed, unleased, idempotent attempt.
 	RetryNode(ctx context.Context, in *RetryNodeRequest, opts ...grpc.CallOption) (*RetryNodeResponse, error)
 }
 
@@ -141,14 +142,14 @@ func (c *workflowServiceClient) RetryNode(ctx context.Context, in *RetryNodeRequ
 // intervention surface named in
 // planning/specs/http-grpc-endpoint-contract.md#workflow-operations.
 //
-// Every method below carries a total P1A disposition comment: P1A implements
-// the read-only inspector only
-// (planning/specs/workflow-runtime.md "Phase Classification" — "Read-only
-// inspector: IMPLEMENT"; "Quarantine, cancellation, RepairPlan route: OUT").
-// The four operational-intervention methods exist on the wire because the
-// endpoint contract names them, but a P1A server implementation must refuse
-// every one of them with ERROR_CODE_FAILED_PRECONDITION
-// (hcmnext.common.v1.ErrorCode) and never perform the transition.
+// The inspector methods are read-only. The four operational-intervention
+// methods are governed controls (EP-WF-002): each resolves a registered
+// operational intent under current JIT authority, dual control or simulation
+// where its kind demands, and an idempotency key, then applies the runtime's
+// own transition fenced by the expected version or attempt. A server without
+// governed control wiring refuses them with ERROR_CODE_FAILED_PRECONDITION
+// and performs no transition. Governance refusals return a receipt whose
+// outcome is DENIED, TOO_LATE or REPAIR_REQUIRED rather than an error.
 type WorkflowServiceServer interface {
 	// P1A disposition: IMPLEMENT. Authorized runtime/business/completion
 	// dimensions read (read-only inspector).
@@ -156,18 +157,19 @@ type WorkflowServiceServer interface {
 	// P1A disposition: IMPLEMENT. Stable execution inspection (read-only
 	// inspector).
 	ListNodeExecutions(context.Context, *ListNodeExecutionsRequest) (*ListNodeExecutionsResponse, error)
-	// P1A disposition: REFUSE. Pause/resume/cancel/retry are P1B acceptance
-	// items (planning/specs/workflow-runtime.md "Phase 1 Acceptance Contract");
-	// a P1A server must return ERROR_CODE_FAILED_PRECONDITION and perform no
-	// transition.
+	// P1A disposition: IMPLEMENT as a governed control (EP-WF-002); refused
+	// with FAILED_PRECONDITION where no governed control is wired. Governed
+	// pause: APPLIED at a safe point, PENDING_SAFE_POINT otherwise.
 	PauseWorkflow(context.Context, *PauseWorkflowRequest) (*PauseWorkflowResponse, error)
-	// P1A disposition: REFUSE. See PauseWorkflow.
+	// P1A disposition: IMPLEMENT as a governed control; see PauseWorkflow.
+	// Governed resume after revalidating the context the instance resumes into.
 	ResumeWorkflow(context.Context, *ResumeWorkflowRequest) (*ResumeWorkflowResponse, error)
-	// P1A disposition: REFUSE. See PauseWorkflow. Cancellation before/after
-	// approval and after an ambiguous external effect is a P1B acceptance item.
+	// P1A disposition: IMPLEMENT as a governed control; see PauseWorkflow.
+	// Governed cancellation at the cancellation boundary: TOO_LATE after a
+	// committed effect, REPAIR_REQUIRED with an effect in flight.
 	CancelWorkflow(context.Context, *CancelWorkflowRequest) (*CancelWorkflowResponse, error)
-	// P1A disposition: REFUSE. See PauseWorkflow. Bounded retry exhaustion into
-	// a typed RepairPlan or human route is a P1B acceptance item.
+	// P1A disposition: IMPLEMENT as a governed control; see PauseWorkflow.
+	// Governed retry of exactly one failed, unleased, idempotent attempt.
 	RetryNode(context.Context, *RetryNodeRequest) (*RetryNodeResponse, error)
 	mustEmbedUnimplementedWorkflowServiceServer()
 }

@@ -27,6 +27,39 @@ message ListNodeExecutionsResponse {
   hcmnext.common.v1.PageResponse page = 2;
 }
 
+// WorkflowControlOutcome is the governed result of a workflow control
+// (EP-WF-002). Governance refusals are outcomes, not transport errors.
+enum WorkflowControlOutcome {
+  WORKFLOW_CONTROL_OUTCOME_UNSPECIFIED = 0;
+  // The runtime transition happened.
+  WORKFLOW_CONTROL_OUTCOME_APPLIED = 1;
+  // A pause is recorded and takes effect at the next compiled safe point.
+  WORKFLOW_CONTROL_OUTCOME_PENDING_SAFE_POINT = 2;
+  // Authority, separation of duties, a stale version or attempt, or a failed
+  // revalidation refused the control; nothing changed.
+  WORKFLOW_CONTROL_OUTCOME_DENIED = 3;
+  // The instance is terminal or the effect already committed; nothing is
+  // claimed reversed.
+  WORKFLOW_CONTROL_OUTCOME_TOO_LATE = 4;
+  // An effect is ambiguous; the instance is routed to repair, not re-run.
+  WORKFLOW_CONTROL_OUTCOME_REPAIR_REQUIRED = 5;
+}
+
+// WorkflowControlReceipt is the evidence of one governed workflow control.
+message WorkflowControlReceipt {
+  WorkflowControlOutcome outcome = 1;
+  // result_code is the stable reason for a non-APPLIED outcome.
+  string result_code = 2;
+  // intent_instance_id is the operational intent the control resolved to.
+  string intent_instance_id = 3;
+  string receipt_digest = 4;
+  // replayed is true when an earlier control under the same idempotency key
+  // produced this outcome and nothing ran again.
+  bool replayed = 5;
+  uint64 instance_version = 6;
+  string instance_status = 7;
+}
+
 message PauseWorkflowRequest {
   string idempotency_key = 1;
   hcmnext.common.v1.ScopeContext scope = 2;
@@ -37,6 +70,7 @@ message PauseWorkflowRequest {
 
 message PauseWorkflowResponse {
   WorkflowInstance instance = 1;
+  WorkflowControlReceipt receipt = 2;
 }
 
 message ResumeWorkflowRequest {
@@ -49,6 +83,7 @@ message ResumeWorkflowRequest {
 
 message ResumeWorkflowResponse {
   WorkflowInstance instance = 1;
+  WorkflowControlReceipt receipt = 2;
 }
 
 message CancelWorkflowRequest {
@@ -61,6 +96,7 @@ message CancelWorkflowRequest {
 
 message CancelWorkflowResponse {
   WorkflowInstance instance = 1;
+  WorkflowControlReceipt receipt = 2;
 }
 
 message RetryNodeRequest {
@@ -73,20 +109,21 @@ message RetryNodeRequest {
 
 message RetryNodeResponse {
   NodeExecution node_execution = 1;
+  WorkflowControlReceipt receipt = 2;
 }
 
 // WorkflowService is the workflow instance/inspection and operational
 // intervention surface named in
 // planning/specs/http-grpc-endpoint-contract.md#workflow-operations.
 //
-// Every method below carries a total P1A disposition comment: P1A implements
-// the read-only inspector only
-// (planning/specs/workflow-runtime.md "Phase Classification" — "Read-only
-// inspector: IMPLEMENT"; "Quarantine, cancellation, RepairPlan route: OUT").
-// The four operational-intervention methods exist on the wire because the
-// endpoint contract names them, but a P1A server implementation must refuse
-// every one of them with ERROR_CODE_FAILED_PRECONDITION
-// (hcmnext.common.v1.ErrorCode) and never perform the transition.
+// The inspector methods are read-only. The four operational-intervention
+// methods are governed controls (EP-WF-002): each resolves a registered
+// operational intent under current JIT authority, dual control or simulation
+// where its kind demands, and an idempotency key, then applies the runtime's
+// own transition fenced by the expected version or attempt. A server without
+// governed control wiring refuses them with ERROR_CODE_FAILED_PRECONDITION
+// and performs no transition. Governance refusals return a receipt whose
+// outcome is DENIED, TOO_LATE or REPAIR_REQUIRED rather than an error.
 service WorkflowService {
   // P1A disposition: IMPLEMENT. Authorized runtime/business/completion
   // dimensions read (read-only inspector).
@@ -94,17 +131,18 @@ service WorkflowService {
   // P1A disposition: IMPLEMENT. Stable execution inspection (read-only
   // inspector).
   rpc ListNodeExecutions(ListNodeExecutionsRequest) returns (ListNodeExecutionsResponse);
-  // P1A disposition: REFUSE. Pause/resume/cancel/retry are P1B acceptance
-  // items (planning/specs/workflow-runtime.md "Phase 1 Acceptance Contract");
-  // a P1A server must return ERROR_CODE_FAILED_PRECONDITION and perform no
-  // transition.
+  // P1A disposition: IMPLEMENT as a governed control (EP-WF-002); refused
+  // with FAILED_PRECONDITION where no governed control is wired. Governed
+  // pause: APPLIED at a safe point, PENDING_SAFE_POINT otherwise.
   rpc PauseWorkflow(PauseWorkflowRequest) returns (PauseWorkflowResponse);
-  // P1A disposition: REFUSE. See PauseWorkflow.
+  // P1A disposition: IMPLEMENT as a governed control; see PauseWorkflow.
+  // Governed resume after revalidating the context the instance resumes into.
   rpc ResumeWorkflow(ResumeWorkflowRequest) returns (ResumeWorkflowResponse);
-  // P1A disposition: REFUSE. See PauseWorkflow. Cancellation before/after
-  // approval and after an ambiguous external effect is a P1B acceptance item.
+  // P1A disposition: IMPLEMENT as a governed control; see PauseWorkflow.
+  // Governed cancellation at the cancellation boundary: TOO_LATE after a
+  // committed effect, REPAIR_REQUIRED with an effect in flight.
   rpc CancelWorkflow(CancelWorkflowRequest) returns (CancelWorkflowResponse);
-  // P1A disposition: REFUSE. See PauseWorkflow. Bounded retry exhaustion into
-  // a typed RepairPlan or human route is a P1B acceptance item.
+  // P1A disposition: IMPLEMENT as a governed control; see PauseWorkflow.
+  // Governed retry of exactly one failed, unleased, idempotent attempt.
   rpc RetryNode(RetryNodeRequest) returns (RetryNodeResponse);
 }

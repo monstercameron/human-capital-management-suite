@@ -164,7 +164,16 @@ func TestTodo_WEB_063_Golden(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256([]byte(node))
-	if got := hex.EncodeToString(digest[:]); got != "cc4de79357c67a182dcbed7d0945d3b33e6e1697714bdfa024d774ba078914b7" {
+
+	// PROMOUX-012 re-pin: the profile gained its Active workflows section
+	// (empty here, Avery's only journey is terminal). Rendering the same
+	// profile with that section omitted reproduces the previous pin
+	// cc4de793..., so nothing else in the governed profile changed.
+	// UXSCAN-001 re-pin: the Promotion and Internal transfer action links
+	// gained accessible names carrying the worker's full name ("Start
+	// Promotion for Avery Patel"); the rendered markup differs from 9528cf9f...
+	// only in those two aria-label attributes.
+	if got := hex.EncodeToString(digest[:]); got != "05ce9c3bca15084b641b981818621c21b118f9430f6222669a2ef6f326eebbe8" {
 		t.Fatalf("governed profile golden mismatch: %s\n%s", got, node)
 	}
 }
