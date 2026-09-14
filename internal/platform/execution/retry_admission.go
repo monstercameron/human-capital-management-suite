@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/admissionstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/admission"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/coordinator"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -57,7 +58,9 @@ var ErrRetryAdmissionInvalid = errors.New("platform execution: invalid retry adm
 // Non-retryable causes pass through unchanged. ErrCommitUnknown is returned
 // unchanged so its token may be resolved by a bounded durable lookup before
 // any workflow retry is attempted.
-func (b RetryAdmission) ConsumeRetry(ctx context.Context, retry coordinator.RetryAttempt) (uuid.UUID, error) {
+func (b RetryAdmission) ConsumeRetry(ctx context.Context, retry coordinator.RetryAttempt) (ret0 uuid.UUID, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execution.consume_retry", retry)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if retry.Attempt <= 1 || (retry.SQLState != "40001" && retry.SQLState != "40P01") {
 		return uuid.Nil, fmt.Errorf("%w: retry is not a known serialization/deadlock abort", ErrRetryAdmissionInvalid)
 	}

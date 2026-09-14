@@ -14,6 +14,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/jit"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -49,7 +50,9 @@ type JITAuthority struct {
 }
 
 // ResolveAuthority implements AuthorityResolver.
-func (a JITAuthority) ResolveAuthority(ctx context.Context, tenant values.TenantId, operatorID string, kind operator.Kind, instanceID string) (Authority, error) {
+func (a JITAuthority) ResolveAuthority(ctx context.Context, tenant values.TenantId, operatorID string, kind operator.Kind, instanceID string) (ret0 Authority, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.control.resolve_authority", tenant, kind)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if a.Grants == nil || a.TenantIDs == nil {
 		return Authority{}, fmt.Errorf("%w: grant source and tenant mapping are required", ErrInvalidCommand)
 	}

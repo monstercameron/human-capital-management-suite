@@ -615,7 +615,9 @@ var _ execute.WorkItemFactory = promotionWorkItems{}
 // will produce the typed outcome the driver resumes from, and a caller that
 // rebuilds the requirement from the stored row (its DeadlineAt, its routed
 // approver) has to arrive at the same digest this routing recorded.
-func (f promotionWorkItems) CreateAndRoute(ctx context.Context, ex workitem.Executor, req execute.WorkItemRequest) (workitem.WorkItem, error) {
+func (f promotionWorkItems) CreateAndRoute(ctx context.Context, ex workitem.Executor, req execute.WorkItemRequest) (ret0 workitem.WorkItem, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execution.create_work_item", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	plan := f.plan
 	if plan == "" {
 		plan = PLAN_PROTOTYPE
