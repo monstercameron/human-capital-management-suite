@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 104842b95b760d51f3adf45fe9717e00407c6d4d98f424ce4c1015f63e621a1d
-- Package count: 809
-- Within-module edge count: 1921
+- Source graph: a630a91c050f395d005b74d195473dea1c75aa75504b3fc3a6bb7b79c5ae3428
+- Package count: 814
+- Within-module edge count: 1952
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -447,6 +447,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/forms/drafts`
 - `github.com/monstercameron/human-capital-management-suite/internal/generated/schemaflux`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance`
+- `github.com/monstercameron/human-capital-management-suite/internal/governance/authority`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/decision`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/exit`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/legal`
@@ -656,7 +657,10 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/migrate/artifacts`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/migrationpreview`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/modeling`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/observe`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/observe/observetest`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/parallel`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/progress`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/quarantine`
@@ -673,6 +677,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/timer`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/version`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/workload`
 
 ### `migrations`
 
@@ -964,4 +969,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`9d0da39e24e5e0b5646d6fe18094238d12db71896f911e85be685ecca7f352f3`
+`d2bbe614892457ef35277b9e5ffc0687d4ae223b7ed6f0eb0be4619647f11c46`

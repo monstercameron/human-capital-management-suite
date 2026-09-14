@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // CompiledApprovalNode is the compiler's view of one APPROVAL node: the
@@ -65,7 +66,9 @@ type OpenInput struct {
 // and no decision evaluation -- that is [Resolve]. Open's only job is
 // minting the one durable record every later step in this package binds
 // against.
-func Open(ctx context.Context, tx workitem.Executor, store workitem.Port, in OpenInput) (workitem.WorkItem, error) {
+func Open(ctx context.Context, tx workitem.Executor, store workitem.Port, in OpenInput) (ret0 workitem.WorkItem, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.steps.approval.open", in)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := in.Node.validate(); err != nil {
 		return workitem.WorkItem{}, err
 	}

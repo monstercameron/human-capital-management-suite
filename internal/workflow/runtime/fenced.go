@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Refusal codes WF-RUN-002's fenced advancement path introduces. They are
@@ -89,7 +90,9 @@ type FencedAdvanceRequest struct {
 //
 // A caller that holds no lease keeps calling [Advance] directly; this is
 // strictly additive.
-func AdvanceFenced(ctx context.Context, tx Executor, req FencedAdvanceRequest) (AdvanceReceipt, error) {
+func AdvanceFenced(ctx context.Context, tx Executor, req FencedAdvanceRequest) (ret0 AdvanceReceipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.advance_fenced", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if req.Verifier == nil {
 		return AdvanceReceipt{}, refuse(CodeFenceRequired, req.Request.InstanceID.String(), req.Request.Outcome.NodeID,
 			"no fence verifier supplied; a fenced advancement cannot check its own fence")

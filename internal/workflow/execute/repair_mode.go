@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/reconcile"
 	operationrepair "github.com/monstercameron/human-capital-management-suite/internal/operations/repair"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // RepairExecutionMode is the workflow mode used by a RepairPlan. It is kept
@@ -158,7 +159,9 @@ func NewRepairExecutor(opts RepairExecutionOptions) (*RepairExecutor, error) {
 	return &RepairExecutor{opts: opts, completed: make(map[string]RepairExecutionResult)}, nil
 }
 
-func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest) (RepairExecutionResult, error) {
+func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest) (ret0 RepairExecutionResult, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execute.repair", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if ctx == nil {
 		return RepairExecutionResult{}, fmt.Errorf("workflow execute: repair context is nil")
 	}

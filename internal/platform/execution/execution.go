@@ -46,11 +46,13 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/effects"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/timer"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/workload"
 )
 
 // defaultRetention is the caller-driven driver's idempotency retention when
@@ -327,12 +329,14 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	// Telemetry provider — exactly the same opt-in shape CellConfig.Telemetry
 	// already uses.
 	var instrumentation execute.Instrumentation = execute.NoopInstrumentation{}
+	var recorder observe.Recorder
 	if cfg.Telemetry != nil {
 		logger := cfg.Logger
 		if logger == nil {
 			logger = slog.New(logging.NewHandler(os.Stderr, logging.WithService("hcmnext-workflow-execute"), logging.WithClock(clock)))
 		}
 		instrumentation = NewOTelInstrumentation(cfg.Telemetry, logger, clock)
+		recorder = NewObserveRecorder(cfg.Telemetry, logger, clock)
 	}
 
 	// OBS-024: this driver's own three evidence kinds
@@ -366,7 +370,14 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		// to internal/humanwork and the other roots it names).
 		Items:           workitem.Store{},
 		Instrumentation: instrumentation,
+		Recorder:        recorder,
 		Evidence:        evidence,
+		// WF-RUN-021: every start is admitted against resolved workload limits
+		// before any row is written; each verdict is traced and logged.
+		Workload: &runtime.WorkloadGate{
+			Snapshot: workload.DefaultSnapshot(),
+			Observe:  NewWorkloadObserver(cfg.Telemetry, cfg.Logger).Observe,
+		},
 	}
 	if cfg.TimerDataset != (values.DatasetVersions{}) {
 		factory, factoryErr := NewTimerFactory(TimerFactoryConfig{Scheduler: timer.Scheduler{}, Dataset: cfg.TimerDataset, EffectiveDates: effectiveDates})

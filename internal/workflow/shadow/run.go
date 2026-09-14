@@ -9,6 +9,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // RowCounts is the only durable surface a shadow run may observe. A pgtest
@@ -145,7 +146,9 @@ func Run(ctx context.Context, plan *workflow.CompiledWorkflow, opts Options) (Re
 	return runner.Run(ctx)
 }
 
-func (r *Runner) Run(ctx context.Context) (Result, error) {
+func (r *Runner) Run(ctx context.Context) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.shadow.run")
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	before, err := r.counts(ctx)
 	if err != nil {
 		return Result{}, err

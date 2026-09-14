@@ -348,11 +348,17 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	graph.add(ComponentIntentService, KindEngine, cell.Service, ComponentCell)
 	graph.add(ComponentJourneyEngine, KindWorkflow, cell.Journey, ComponentCell)
 
-	var schedulerWorkload bootstrap.Workload
+	var schedulerWorkload, progressWorkload bootstrap.Workload
 	if cfg.Scheduler {
-		schedulerWorkload, err = composeSchedulerWorkload(cfg, in.Pool, in.Identity, cell, logger, options.Now)
+		schedulerWorkload, err = composeSchedulerWorkload(cfg, in.Pool, in.Identity, cell, telemetryProvider, logger, options.Now)
 		if err != nil {
 			return nil, fmt.Errorf("compose workflow scheduler: %w", err)
+		}
+		// WF-RUN-020: whatever runs the scheduler also watches for work the
+		// scheduler, a lease holder or a person was expected to move and did not.
+		progressWorkload, _, err = composeProgressWorkload(cfg, in.Pool, telemetryProvider, logger, options.Now)
+		if err != nil {
+			return nil, fmt.Errorf("compose workflow progress sweep: %w", err)
 		}
 	}
 
@@ -449,7 +455,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		},
 	}
 	if cfg.Scheduler {
-		workloads = append(workloads, schedulerWorkload)
+		workloads = append(workloads, schedulerWorkload, progressWorkload)
 	}
 	// Both surfaces drain gracefully first: in-flight requests finish and new
 	// ones are refused. A request that outlives the shutdown deadline is
@@ -489,6 +495,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	graph.add(ComponentWorkloadHTTP, KindWorkload, workloads[1].Run, ComponentHTTPEdge)
 	if cfg.Scheduler {
 		graph.add(ComponentWorkloadScheduler, KindWorkload, schedulerWorkload.Run, ComponentCell, ComponentDatabasePool)
+		graph.add(ComponentWorkloadProgress, KindWorkload, progressWorkload.Run, ComponentDatabasePool, ComponentTelemetryProvider)
 	}
 	graph.add(ComponentShutdownHTTP, KindShutdown, shutdown[0].Run, ComponentHTTPEdge)
 	graph.add(ComponentShutdownGRPC, KindShutdown, shutdown[1].Run, ComponentGRPCSurface)

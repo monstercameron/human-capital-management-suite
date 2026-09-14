@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"sort"
 	"strings"
 	"sync"
@@ -127,7 +128,9 @@ func validate(spec Spec) error {
 // Execute validates the bound and runs every admitted branch. Under
 // FAIL_FAST the first failure cancels its siblings; under COLLECT_ALL
 // every branch runs to its own terminal outcome.
-func Execute(ctx context.Context, spec Spec) (Report, error) {
+func Execute(ctx context.Context, spec Spec) (ret0 Report, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.parallel.execute", spec)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := validate(spec); err != nil {
 		return Report{}, err
 	}

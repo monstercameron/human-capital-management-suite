@@ -291,3 +291,7 @@ func (c *collector) result() *Diagnostics {
 	})
 	return &Diagnostics{Errors: out}
 }
+
+// ErrorCode reports the error's stable code for telemetry classification
+// (internal/workflow/observe.ErrorCode); it never carries message text.
+func (e Error) ErrorCode() string { return e.Code }
