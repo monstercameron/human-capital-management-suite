@@ -111,9 +111,10 @@ type multipartPart struct {
 }
 
 type multipartEntry struct {
-	upload MultipartUpload
-	grant  UploadGrant
-	parts  map[int]multipartPart
+	upload    MultipartUpload
+	grant     UploadGrant
+	parts     map[int]multipartPart
+	startedAt time.Time
 }
 
 // MultipartManager is a concurrency-safe pure state machine. A persistence
@@ -182,9 +183,10 @@ func (m *MultipartManager) Start(ctx context.Context, r MultipartRequest) (Multi
 	m.next++
 	id := fmt.Sprintf("upload-%d", m.next)
 	entry := &multipartEntry{
-		upload: MultipartUpload{UploadID: id, TenantID: r.TenantID, ExpectedParts: r.ExpectedParts, MaxBytes: r.MaxBytes, State: MultipartUploading, Transitions: []MultipartState{MultipartUploading}},
-		grant:  r.Grant,
-		parts:  make(map[int]multipartPart),
+		upload:    MultipartUpload{UploadID: id, TenantID: r.TenantID, ExpectedParts: r.ExpectedParts, MaxBytes: r.MaxBytes, State: MultipartUploading, Transitions: []MultipartState{MultipartUploading}},
+		grant:     r.Grant,
+		parts:     make(map[int]multipartPart),
+		startedAt: m.clock(),
 	}
 	m.uploads[id] = entry
 	m.keys[r.TenantID+"\x00"+r.Grant.Principal+"\x00"+r.IdempotencyKey] = id
@@ -315,6 +317,28 @@ func (m *MultipartManager) Abort(ctx context.Context, r MultipartAbortRequest) e
 	entry.upload.Transitions = append(entry.upload.Transitions, MultipartAborted)
 	entry.parts = make(map[int]multipartPart)
 	return nil
+}
+
+// SweepAbandoned aborts UPLOADING uploads started before the cutoff
+// and returns their ids. It only touches uploads still uploading:
+// completed, received and already-aborted uploads are never swept.
+func (m *MultipartManager) SweepAbandoned(cutoff time.Time) []string {
+	if m == nil {
+		return nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var swept []string
+	for id, entry := range m.uploads {
+		if entry.upload.State != MultipartUploading || !entry.startedAt.Before(cutoff) {
+			continue
+		}
+		entry.upload.State = MultipartAborted
+		entry.upload.Transitions = append(entry.upload.Transitions, MultipartAborted)
+		entry.parts = make(map[int]multipartPart)
+		swept = append(swept, id)
+	}
+	return swept
 }
 
 // Get returns a defensive state snapshot.
