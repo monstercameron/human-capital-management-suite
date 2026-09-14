@@ -106,6 +106,9 @@ func NewHandler(opts Options) (http.Handler, error) {
 		h := transportworkflow.NewHandler(*opts.Workflow, handlerOptions...)
 		mux.Handle(transportworkflow.GetWorkflowProcedure, h)
 		mux.Handle(transportworkflow.ListNodeExecutionsProcedure, h)
+		for _, proc := range []string{transportworkflow.PauseWorkflowProcedure, transportworkflow.ResumeWorkflowProcedure, transportworkflow.CancelWorkflowProcedure, transportworkflow.RetryNodeProcedure} {
+			mux.Handle(proc, h)
+		}
 	}
 	if opts.Work != nil {
 		h := transporthumanwork.NewHandler(*opts.Work, handlerOptions...)

@@ -120,7 +120,7 @@ func (s *IntentService) decideProposal(ctx context.Context, req ProposalDecision
 		return nil, envelope.New(envelope.CodeNotFound, reasonIntentNotFound,
 			"the resource does not exist or is not visible").WithDiagnostic(err)
 	}
-	if gateErr := s.authorizeExecution(principal, def); gateErr != nil {
+	if gateErr := s.authorizeDecision(def); gateErr != nil {
 		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, gateErr.ReasonRef())
 		return nil, gateErr
 	}
@@ -161,7 +161,7 @@ func (s *IntentService) decideProposal(ctx context.Context, req ProposalDecision
 		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
 		return nil, err
 	}
-	if !decision.replayed {
+	if decision.needsResume() {
 		result, resumeErr := s.executor.Resume(ctx, ExecutionResumeRequest{
 			Start:                   start,
 			InstanceID:              decision.instance.InstanceID,

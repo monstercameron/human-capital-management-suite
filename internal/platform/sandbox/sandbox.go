@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/seed"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
@@ -293,6 +294,9 @@ type PromotionProof struct {
 	MaterialDigest     string
 	Stage              workspace.JourneyStage
 	Detail             workspace.JourneyDetail
+	// Approvers names, in decision order, the routed principal each approval
+	// was decided by. None of them is the sandbox initiator.
+	Approvers []string
 }
 
 // RunPromotionProof drives in through [workspace.JourneyEngine.Propose]
@@ -343,15 +347,37 @@ func (sb *Sandbox) executeUnder(ctx context.Context, mode intent.Mode, env inten
 		return nil, fmt.Errorf("sandbox: propose blocked for intent %s: the simulation produced no executable plan", proposed.IntentID)
 	}
 
-	if _, err := sb.cell.Journey.Execute(principalCtx, proposed.IntentID); err != nil {
+	detail, err := sb.cell.Journey.Execute(principalCtx, proposed.IntentID)
+	if err != nil {
 		return nil, fmt.Errorf("sandbox: execute %s: %w", proposed.IntentID, err)
 	}
 
-	decided, err := sb.cell.Journey.Decide(principalCtx, proposed.IntentID, workspace.Decision{
-		Approve: true, Reason: "sandbox proof: automatic approval",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sandbox: decide %s: %w", proposed.IntentID, err)
+	// PROMOUX-015: the initiator may not decide its own promotion's
+	// approvals, so each open approval is decided by the principal the
+	// composed routing actually assigned it to -- read back from the routed
+	// WorkItem itself, never assumed -- under that principal's own sandbox
+	// credential, until the journey leaves approval.
+	var approvers []string
+	decided := detail
+	for guard := 0; awaitingApproval(decided.Summary.Stage); guard++ {
+		if guard >= maxProofApprovals {
+			return nil, fmt.Errorf("sandbox: decide %s: still at %s after %d decisions", proposed.IntentID, decided.Summary.Stage, guard)
+		}
+		approver, routeErr := routedApproverOf(decided)
+		if routeErr != nil {
+			return nil, fmt.Errorf("sandbox: decide %s: %w", proposed.IntentID, routeErr)
+		}
+		approverCtx, authErr := sb.approverContext(ctx, approver)
+		if authErr != nil {
+			return nil, fmt.Errorf("sandbox: authenticate routed approver %s: %w", approver, authErr)
+		}
+		decided, err = sb.cell.Journey.Decide(approverCtx, proposed.IntentID, workspace.Decision{
+			Approve: true, Reason: "sandbox proof: routed approver approves",
+		})
+		if err != nil {
+			return nil, fmt.Errorf("sandbox: decide %s as %s: %w", proposed.IntentID, approver, err)
+		}
+		approvers = append(approvers, approver)
 	}
 
 	return &PromotionProof{
@@ -360,6 +386,7 @@ func (sb *Sandbox) executeUnder(ctx context.Context, mode intent.Mode, env inten
 		MaterialDigest:     proposed.MaterialDigest,
 		Stage:              decided.Summary.Stage,
 		Detail:             decided,
+		Approvers:          approvers,
 	}, nil
 }
 
@@ -371,20 +398,41 @@ func (sb *Sandbox) executeUnder(ctx context.Context, mode intent.Mode, env inten
 // intent's trusted initiator from this same principal on its own, the same
 // way internal/transport.ApplyTrustedContext would for a wire call.
 func (sb *Sandbox) authenticatedContext(ctx context.Context) (context.Context, error) {
+	return sb.contextFor(ctx, sb.initiatorSubject(),
+		[]string{"intent_author", string(authz.RoleCompAdmin), sandboxExecutionRole}, []string{sandboxAuthorityRef})
+}
+
+// approverContext issues a sandbox-only credential for one routed approver.
+// It carries no execution role and no authority reference: membership of the
+// routed WorkItem, not a role, is a decision's authority. comp_admin is only
+// what lets the approver read the subject's compensation to re-simulate the
+// proposal it decides.
+func (sb *Sandbox) approverContext(ctx context.Context, approver string) (context.Context, error) {
+	if approver == sb.initiatorSubject() {
+		return nil, fmt.Errorf("sandbox: the approval is routed to the sandbox initiator %s", approver)
+	}
+	return sb.contextFor(ctx, approver, []string{string(authz.RoleCompAdmin)}, nil)
+}
+
+// initiatorSubject is the subject of the sandbox principal that proposes and
+// executes every proof.
+func (sb *Sandbox) initiatorSubject() string { return "sandbox-principal:" + sb.tenant }
+
+func (sb *Sandbox) contextFor(ctx context.Context, subject string, roles, authorityRefs []string) (context.Context, error) {
 	now := sb.now()
 	token, err := sb.verifier.Issue(trust.Claims{
 		Issuer:               sandboxIssuer,
 		Audience:             sandboxAudience,
-		Subject:              "sandbox-principal:" + sb.tenant,
+		Subject:              subject,
 		SubjectKind:          "human",
 		Tenant:               sb.tenant,
 		OrganizationScopeID:  "org-" + sb.tenant,
-		Roles:                []string{"intent_author", string(authz.RoleCompAdmin), sandboxExecutionRole},
-		AuthorityRefs:        []string{sandboxAuthorityRef},
+		Roles:                roles,
+		AuthorityRefs:        authorityRefs,
 		Purposes:             []string{authz.PurposeCompensationReview},
 		AuthenticationMethod: "bearer_token",
 		Assurance:            "substantial",
-		SessionRef:           "session-" + sb.tenant,
+		SessionRef:           "session-" + subject,
 		IssuedAtUnix:         now.Add(-time.Minute).Unix(),
 		ExpiresAtUnix:        now.Add(time.Hour).Unix(),
 	})
@@ -396,6 +444,51 @@ func (sb *Sandbox) authenticatedContext(ctx context.Context) (context.Context, e
 		return nil, fmt.Errorf("verify sandbox credential: %w", err)
 	}
 	return trust.WithPrincipal(ctx, principal), nil
+}
+
+// maxProofApprovals bounds the decide loop: the executable promotion plan
+// raises finance, manager and at most one reapproval gate.
+const maxProofApprovals = 4
+
+// awaitingApproval reports whether an approval is open at stage.
+func awaitingApproval(stage workspace.JourneyStage) bool {
+	switch stage {
+	case workspace.JourneyStageAwaitingApproval, workspace.JourneyStageFinanceApproval,
+		workspace.JourneyStageManagerApproval, workspace.JourneyStageReapproval:
+		return true
+	}
+	return false
+}
+
+// routedApproverOf names the principal the journey's open approval WorkItem
+// is routed to: the owner routing chose, or the sole candidate its recorded
+// resolution admits. An open approval routed to nobody, or left open to a
+// candidate set, is refused rather than guessed at.
+func routedApproverOf(detail workspace.JourneyDetail) (string, error) {
+	for _, item := range detail.WorkItems {
+		if item.Kind != workitem.KindApproval || !openApproval(item.Status) {
+			continue
+		}
+		if owner := item.Assignment.ChosenOwner; owner != "" {
+			return owner, nil
+		}
+		if candidates := item.Assignment.Resolution.Candidates; len(candidates) == 1 && candidates[0].PrincipalID != "" {
+			return candidates[0].PrincipalID, nil
+		}
+		return "", fmt.Errorf("sandbox: approval %s (%s) names no single routed approver", item.WorkItemID, item.NodeID)
+	}
+	return "", fmt.Errorf("sandbox: the journey is at %s but no approval WorkItem is open", detail.Summary.Stage)
+}
+
+// openApproval reports whether a routed approval can still be decided from
+// status.
+func openApproval(status workitem.Status) bool {
+	switch status {
+	case workitem.StatusRouted, workitem.StatusAssigned, workitem.StatusAvailable,
+		workitem.StatusClaimed, workitem.StatusInProgress:
+		return true
+	}
+	return false
 }
 
 // tenantScopedRowCount is a small test/diagnostic helper: it sums row counts

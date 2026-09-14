@@ -1,0 +1,5 @@
+# RECOVERY-003 golden oracle: conforming data plane with full runtime
+# inventory restores READY at RPO 2h / RTO 30m with zero production effects.
+digest: sha256:3d6d8bdb7844671663ef40a18691dbe424382fd8ef610657f97ff567676378a9
+status: READY
+explain: pilot restore drill v1 id=pilot-restore-1 dest=recovery-cell-1 status=READY rpo=2h0m0s rto=30m0s production_effects=false digest=sha256:3d6d8bdb7844671663ef40a18691dbe424382fd8ef610657f97ff567676378a9

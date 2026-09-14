@@ -3,11 +3,13 @@ package journey_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
 )
@@ -258,4 +260,37 @@ func TestProposePromotionProjectsThePortsRefusals(t *testing.T) {
 			t.Fatalf("ReasonRef() = %q, want journey.propose_promotion.failed", owned.ReasonRef())
 		}
 	})
+}
+
+func TestTodo_PROMOUX_007_Conformance_ServerPayBoundsSurviveGRPC(t *testing.T) {
+	minimum, err := values.NewMoney("105.04", "USD", 2, values.RoundingExactRequired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	maximum, err := values.NewMoney("115.03", "USD", 2, values.RoundingExactRequired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := newFakePromotionEngine()
+	engine.err = &workspace.JourneyInputError{
+		FieldPath: "proposed_base", ReasonRef: "promotion.ladder.base_increase_out_of_range",
+		Detail: "private pay baseline 100.03", PayRange: &workspace.JourneyPayRange{Minimum: minimum, Maximum: maximum},
+	}
+	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
+	_, err = client.ProposePromotion(withToken(context.Background(), fixtureManagerToken), promotionProposeWireFixture())
+	owned := assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	violations := owned.Violations()
+	if len(violations) != 1 || violations[0].MoneyRange != (envelope.MoneyRange{Minimum: "105.04", Maximum: "115.03", Currency: "USD"}) {
+		t.Fatalf("wire refusal lost exact bound data: %+v", violations)
+	}
+	if strings.Contains(err.Error(), "private pay baseline") || strings.Contains(err.Error(), "100.03") {
+		t.Fatalf("wire refusal disclosed internal baseline: %v", err)
+	}
+
+	engine.err = &workspace.JourneyInputError{FieldPath: "reason", ReasonRef: "promotion.ladder.base_increase_out_of_range", PayRange: &workspace.JourneyPayRange{Minimum: minimum, Maximum: maximum}}
+	_, err = client.ProposePromotion(withToken(context.Background(), fixtureManagerToken), promotionProposeWireFixture())
+	owned = assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	if got := owned.Violations()[0].MoneyRange; got != (envelope.MoneyRange{}) {
+		t.Fatalf("pay bounds leaked through unrelated field: %+v", got)
+	}
 }

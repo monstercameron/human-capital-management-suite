@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -231,7 +232,9 @@ type Assessment struct {
 // Inspect reads the durable rows and reports what recovery the node needs, as
 // of now. It writes nothing at all: every statement it issues is a SELECT,
 // which is what lets a cold process assess a node before deciding to take it.
-func (r Recoverer) Inspect(ctx context.Context, ex Executor, req Request, now time.Time) (Assessment, error) {
+func (r Recoverer) Inspect(ctx context.Context, ex Executor, req Request, now time.Time) (ret0 Assessment, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.recover.inspect", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return Assessment{}, err
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
@@ -62,7 +63,9 @@ func (r PolicyResolver) ResolveWorkflow(_ context.Context, req runtime.StartRequ
 // transaction only proves the caller invoked selection inside the START
 // boundary. Approval, supersession and other current facts remain separate
 // transaction-bound ports owned by runtime.Start.
-func (r PolicyResolver) ResolveWorkflowInTx(ctx context.Context, tx dbport.Tx, req runtime.StartRequest) (runtime.WorkflowSelection, error) {
+func (r PolicyResolver) ResolveWorkflowInTx(ctx context.Context, tx dbport.Tx, req runtime.StartRequest) (ret0 runtime.WorkflowSelection, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.effects.resolve_workflow")
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if tx == nil {
 		return runtime.WorkflowSelection{}, fmt.Errorf("effects: static policy resolution requires an active transaction boundary")
 	}

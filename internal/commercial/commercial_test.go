@@ -3,7 +3,34 @@ package commercial
 import (
 	"errors"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/tools/planning/gateevidence"
 )
+
+// TestP1AManifestDigestIsTheLiveSignedManifestDigest ties the golden
+// P1AManifestDigest to the signed manifest it names: the checked-in
+// p1a-manifest.yaml must verify, and its live CanonicalDigest must equal the
+// constant, so re-signing the manifest without updating this package fails
+// here instead of drifting silently.
+func TestP1AManifestDigestIsTheLiveSignedManifestDigest(t *testing.T) {
+	m, err := gateevidence.LoadP1AManifest("../../" + gateevidence.P1AManifestPath)
+	if err != nil {
+		t.Fatalf("LoadP1AManifest: %v", err)
+	}
+	if ok, err := gateevidence.VerifyManifestSignature(*m); err != nil || !ok {
+		t.Fatalf("checked-in P1A manifest does not verify: ok=%v err=%v", ok, err)
+	}
+	live, err := m.CanonicalDigest()
+	if err != nil {
+		t.Fatalf("CanonicalDigest: %v", err)
+	}
+	if live != P1AManifestDigest {
+		t.Fatalf("P1AManifestDigest = %s, but the signed P1A manifest digests to %s - update the golden constant with the manifest", P1AManifestDigest, live)
+	}
+	if got := DefaultPilotCommercialPackage().ManifestDigest; got != live {
+		t.Fatalf("DefaultPilotCommercialPackage binds %s, live manifest is %s", got, live)
+	}
+}
 
 func TestPilotCommercialPackageMatchesReleaseEntitlementsCostsRisksAndExitTerms(t *testing.T) {
 	p := DefaultPilotCommercialPackage()

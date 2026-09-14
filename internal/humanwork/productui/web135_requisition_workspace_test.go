@@ -23,7 +23,7 @@ func TestTodo_WEB_135(t *testing.T) {
 	if !ok {
 		t.Fatal("requisition workspace unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("requisition workspace incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_135_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "37b24465cea3cd75403fb1546bce3435687d7eba9dd703fe5b42b51662b4a576"
+	const want = "2d8852e26b7047504f6e41a2445cae4d625f8fe1ceea12e7720fa8ebcac6f8bc"
 	if got != want {
 		t.Fatalf("requisition digest = %s, want %s", got, want)
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/runtimestate"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -76,7 +77,9 @@ type StoreSource struct {
 var _ Source = StoreSource{}
 
 // Load implements [Source].
-func (s StoreSource) Load(ctx context.Context) (Record, error) {
+func (s StoreSource) Load(ctx context.Context) (ret0 Record, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.replay.load_record")
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if s.Executor == nil {
 		return Record{}, refuse(CodeSourceFailed, "", "no executor supplied")
 	}

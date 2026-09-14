@@ -143,21 +143,10 @@ func TestTodo_OBS_023_Golden(t *testing.T) {
 
 	// --- span assertions ---
 	//
-	// This Provider applies OBS-001/004's frozen attribute allow-list
-	// (definitions/telemetry/resource-contract.yaml) to every span
-	// attribute, the same policy every other span in the process is held
-	// to (internal/platform/telemetry/otel/trace.go's filterAttributes) —
-	// this package does not get a private exception. That allow-list does
-	// not register instance_id, node_id, attempt or terminal_code as
-	// SignalSpan keys yet (only "outcome" and the unrelated
-	// "workflow_node" key are), so those four keys are silently dropped
-	// from the exported span exactly as any other caller's unregistered
-	// key would be; the log line below has no such allow-list (OBS-009's
-	// own denylist model) and carries the full set. Once OBS-001/004
-	// registers instance_id/node_id/attempt/terminal_code as SignalSpan
-	// attributes, they start appearing on this span with no code change
-	// here — this test's assertions are what the frozen policy admits
-	// today, not a ceiling on what this package attempts to send.
+	// This Provider applies OBS-001/004's frozen attribute allow-list to
+	// every span attribute. Workflow execution uses the canonical topology
+	// vocabulary so an operator can pivot from a span to the durable
+	// workflow instance, node and attempt without relying on log-only data.
 	recorded, ok := spanRec.SpanNamed(spanWorkflowAdvance)
 	if !ok {
 		t.Fatalf("no span named %q recorded", spanWorkflowAdvance)
@@ -169,9 +158,14 @@ func TestTodo_OBS_023_Golden(t *testing.T) {
 	if got := attrs["outcome"]; got != "SUCCESS" {
 		t.Errorf("span attribute outcome = %q, want %q (all: %v)", got, "SUCCESS", attrs)
 	}
-	for _, unregistered := range []string{"instance_id", "node_id", "attempt", "terminal_code"} {
-		if _, present := attrs[unregistered]; present {
-			t.Errorf("span attribute %s reached the exported span; OBS-001/004 does not register it as a SignalSpan key today (all: %v)", unregistered, attrs)
+	wantSpanFields := map[string]string{
+		"logical_operation_id": "instance-golden-1",
+		"node_id":              "node-golden-1",
+		"attempt_id":           "1",
+	}
+	for key, want := range wantSpanFields {
+		if got := attrs[key]; got != want {
+			t.Errorf("span attribute %s = %q, want %q (all: %v)", key, got, want, attrs)
 		}
 	}
 	if recorded.Status().Code != codes.Ok {
@@ -210,6 +204,40 @@ func TestTodo_OBS_023_Golden(t *testing.T) {
 	for k, want := range wantFields {
 		if got := fields[k]; got != want {
 			t.Errorf("log attrs[%s] = %#v, want %#v (all: %v)", k, got, want, fields)
+		}
+	}
+}
+
+func TestTodo_OBS_023_TerminalSpanKeepsTheInspectorPivot(t *testing.T) {
+	at := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+	inst, provider, recorder, _ := newTestInstrumentation(t, func() time.Time { return at })
+	_, span := inst.StartTerminalSpan(fixedTraceContext(context.Background()), execute.SpanAttributes{
+		InstanceID:   "instance-terminal-1",
+		NodeID:       "end",
+		Attempt:      4,
+		TerminalCode: "APPROVED",
+	})
+	span.End(execute.OutcomeSuccess, nil)
+	if report := provider.ForceFlush(context.Background()); report.Err() != nil {
+		t.Fatalf("ForceFlush: %v", report.Err())
+	}
+	recorded, ok := recorder.SpanNamed(spanWorkflowTerminal)
+	if !ok {
+		t.Fatalf("no span named %q recorded", spanWorkflowTerminal)
+	}
+	attrs := map[string]string{}
+	for _, kv := range recorded.Attributes() {
+		attrs[string(kv.Key)] = kv.Value.String()
+	}
+	want := map[string]string{
+		"logical_operation_id": "instance-terminal-1",
+		"node_id":              "end",
+		"attempt_id":           "4",
+		"terminal_code":        "APPROVED",
+	}
+	for key, value := range want {
+		if attrs[key] != value {
+			t.Errorf("%s = %q, want %q (all: %v)", key, attrs[key], value, attrs)
 		}
 	}
 }

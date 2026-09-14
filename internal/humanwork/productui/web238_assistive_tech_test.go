@@ -25,7 +25,7 @@ func TestTodo_WEB_238(t *testing.T) {
 	if !ok {
 		t.Fatal("assistive-technology compatibility unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("assistive-technology compatibility incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -64,7 +64,7 @@ func TestTodo_WEB_238_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "7a24b1f6fd229ff06c87bd2c286352aae84115f4bc7b49f4d6c389c1954c7f11"
+	const want = "3342724792a736f7aabaa6dcbb66544c5a28d01646c6f628d6d64b1e8c0b4d9c"
 	if got != want {
 		t.Fatalf("assistive-technology compatibility digest = %s, want %s", got, want)
 	}

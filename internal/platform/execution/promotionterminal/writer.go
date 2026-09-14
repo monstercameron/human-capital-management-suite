@@ -13,6 +13,7 @@ import (
 	domaincommit "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/commit"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Resolver materializes the exact approved proposal and immutable plan into a
@@ -40,7 +41,9 @@ type Writer struct {
 
 var _ execute.TerminalWriter = (*Writer)(nil)
 
-func (w *Writer) Write(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (idempotency.ResultIdentity, error) {
+func (w *Writer) Write(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (ret0 idempotency.ResultIdentity, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.promotion_terminal.write", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if w == nil || w.Resolver == nil || w.Mutation == nil || w.Next == nil {
 		return idempotency.ResultIdentity{}, fmt.Errorf("promotion terminal: resolver, mutation writer and next writer are required")
 	}

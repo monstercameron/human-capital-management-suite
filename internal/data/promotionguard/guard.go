@@ -138,9 +138,9 @@ func Admit(
 }
 
 // Confirm records the real intent id a reservation protects, once
-// CreateIntent has minted it. It is idempotent: a repeated call with the
-// same arguments after intent_id is already set affects zero rows rather
-// than erroring or overwriting.
+// CreateIntent has minted it. It is idempotent for the same intent and refuses
+// a missing guard or a conflicting binding rather than silently changing no
+// row and pretending confirmation succeeded.
 func Confirm(ctx context.Context, ex Executor, tenantID, guardID uuid.UUID, idempotencyKey string, intentID uuid.UUID) error {
 	if err := requireTenant(tenantID); err != nil {
 		return err
@@ -157,12 +157,15 @@ func Confirm(ctx context.Context, ex Executor, tenantID, guardID uuid.UUID, idem
 	if ex == nil {
 		return fmt.Errorf("%w: executor is nil", ErrInvalid)
 	}
-	_, err := ex.Exec(ctx, `
+	var confirmed uuid.UUID
+	err := ex.QueryRow(ctx, `
 		UPDATE promotion_active_intent_guard
 		SET intent_id = $4
-		WHERE tenant_id = $1 AND guard_id = $2 AND idempotency_key = $3 AND intent_id IS NULL`,
+		WHERE tenant_id = $1 AND guard_id = $2 AND idempotency_key = $3
+		  AND (intent_id IS NULL OR intent_id = $4)
+		RETURNING intent_id`,
 		tenantID, guardID, strings.TrimSpace(idempotencyKey), intentID,
-	)
+	).Scan(&confirmed)
 	if err != nil {
 		return fmt.Errorf("promotionguard: confirm: %w", err)
 	}
@@ -170,12 +173,14 @@ func Confirm(ctx context.Context, ex Executor, tenantID, guardID uuid.UUID, idem
 }
 
 // Release closes the ACTIVE reservation protecting intentID, freeing its
-// (worker, effective date) window for a future promotion. It is idempotent:
+// (worker, effective date) window for a future promotion. When confirmation
+// was lost after intent creation, it reconciles the unconfirmed reservation
+// through the intent's durable idempotency key. It is idempotent:
 // closing an already-CLOSED or nonexistent reservation affects zero rows
 // rather than erroring.
 //
-// Nothing in this repository calls Release automatically yet -- see the
-// package doc's "what this package does not do".
+// The promotion terminal writer calls Release in the same transaction as its
+// ledger and outbox fact. Other callers must still arrange terminal release.
 func Release(ctx context.Context, ex Executor, tenantID, intentID uuid.UUID, closedAt time.Time) error {
 	if err := requireTenant(tenantID); err != nil {
 		return err
@@ -192,7 +197,10 @@ func Release(ctx context.Context, ex Executor, tenantID, intentID uuid.UUID, clo
 	_, err := ex.Exec(ctx, `
 		UPDATE promotion_active_intent_guard
 		SET status = 'CLOSED', closed_at = $3
-		WHERE tenant_id = $1 AND intent_id = $2 AND status = 'ACTIVE'`,
+		WHERE tenant_id = $1 AND status = 'ACTIVE'
+		  AND (intent_id = $2 OR (intent_id IS NULL AND idempotency_key = (
+		      SELECT idempotency_key FROM intent_instance
+		      WHERE tenant_id = $1 AND intent_id = $2)))`,
 		tenantID, intentID, closedAt.UTC(),
 	)
 	if err != nil {

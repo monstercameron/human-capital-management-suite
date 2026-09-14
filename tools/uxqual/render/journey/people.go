@@ -82,7 +82,7 @@ func peopleSection(v *PeopleView) ui.Node {
 		),
 		htmlIf(v.Note != "", func() ui.Node {
 			return html.P(html.Props{Class: "jn-people-note"},
-				iconInfo("jn-people-note-icon"), html.Text(v.Note))
+				RenderIcon(IconInfo, "jn-people-note-icon", nil), html.Text(v.Note))
 		}),
 		body,
 	)
@@ -97,10 +97,10 @@ func peopleCountLabel(n int) string {
 
 func peopleEmptyState(message string) ui.Node {
 	if message == "" {
-		message = "This cell knows no employees yet."
+		message = "No employees are available in this view yet."
 	}
 	return html.Div(html.Props{Class: "jn-empty jn-empty-inset"},
-		iconEmpty("jn-empty-mark"),
+		RenderIcon(IconEmpty, "jn-empty-mark", nil),
 		html.P(html.Props{Class: "jn-empty-title"}, html.Text("No employees yet")),
 		html.P(html.Props{}, html.Text(message)),
 	)
@@ -129,7 +129,7 @@ func peopleTable(v PeopleView) ui.Node {
 		TabIndex: html.TabIndexZero, Aria: map[string]string{"label": "People"}},
 		html.Table(html.Props{Class: "jn-table jn-zebra jn-people"},
 			html.Caption(html.Props{Class: "jn-visually-hidden"},
-				html.Text("Every employee this cell knows about, with the promotion journeys open for each")),
+				html.Text("Employees available to you, with their open promotion journeys")),
 			html.Thead(html.Props{},
 				html.Tr(html.Props{},
 					peopleHead("Employee", false),
@@ -271,7 +271,7 @@ func workerNameCell(c WorkerCard, selected bool) ui.Node {
 	}
 	if selected {
 		body = append(body, html.Span(html.Props{Class: "jn-people-selected"},
-			iconCheck("jn-people-selected-icon"), html.Text("Selected")))
+			RenderIcon(IconCheck, "jn-people-selected-icon", nil), html.Text("Selected")))
 	}
 
 	cell := html.Props{Class: "jn-people-idcell", Raw: map[string]any{"scope": "row"}}
@@ -323,7 +323,7 @@ func sourceChip(c WorkerCard) ui.Node {
 	if source == sourceCreated {
 		return html.Span(html.Props{Class: "jn-chip jn-source",
 			Data: map[string]string{"tone": toneInfo, "source": sourceCreated}},
-			iconSpark("jn-chip-icon"), html.Text(label))
+			RenderIcon(IconSpark, "jn-chip-icon", nil), html.Text(label))
 	}
 	return html.Span(html.Props{Class: "jn-chip jn-source",
 		Data: map[string]string{"tone": toneNeutral, "source": sourceCorpus}},
@@ -350,22 +350,19 @@ func newEmployeeSection(l live, f WorkerForm) ui.Node {
 		submit = "Add employee"
 	}
 
-	btn := html.Props{Class: "jn-btn", Type: submitButtonType(f.OnSubmit),
+	btn := html.Props{Class: "jn-btn", Type: "submit",
 		DataAttr: html.DataAttribute{Name: "variant", Value: "primary"}}
-	if f.OnSubmit != nil {
-		btn.OnClick = clickHandler(f.OnSubmit, l.collect(f.Hidden, f.Fields))
-	}
 	foot := []ui.Node{}
 	if f.Disabled {
 		btn.Disabled = true
 		btn.Aria = map[string]string{"describedby": "worker-form-disabled"}
 		foot = append(foot, html.Button(btn, html.Text(submit)),
 			html.P(html.Props{ID: "worker-form-disabled", Class: "jn-blocked"},
-				iconWarning("jn-blocked-icon"), html.Text(f.DisabledReason)))
+				RenderIcon(IconWarning, "jn-blocked-icon", nil), html.Text(f.DisabledReason)))
 	} else {
 		foot = append(foot, html.Button(btn, html.Text(submit)),
 			html.P(html.Props{Class: "jn-help"},
-				html.Text("The employee is recorded as a fact in this cell's workforce table, and can be promoted from the table above.")))
+				html.Text("The employee is added to the directory and can be promoted from the table above.")))
 	}
 
 	return html.Section(html.Props{Class: "jn-panel", Aria: map[string]string{"labelledby": "new-employee-heading"}},

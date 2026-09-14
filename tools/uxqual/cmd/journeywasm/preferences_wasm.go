@@ -226,6 +226,11 @@ func (c *serverPreferenceController) PersistView(view productui.View) {
 		if view.Page == productui.PageHistory || view.Page == productui.PagePerson {
 			user.Tables["history"] = &journeyv1.TablePreferences{PageSize: int32(view.HistoryPageSize), Filters: map[string]string{"query": view.HistoryQuery, "outcome": view.HistoryOutcome, "person": view.HistoryPerson, "year": view.HistoryYear}, Sort: view.HistorySort, Direction: view.HistoryDirection}
 		}
+		// UXAUDIT-017: My Work's tab filter is a one-field table preference,
+		// the same retention mechanism UXAUDIT-008 gave People and History.
+		if view.Page == productui.PageWork {
+			user.Tables["work"] = &journeyv1.TablePreferences{Filters: map[string]string{"filter": view.WorkFilter}}
+		}
 	}, nil)
 }
 
@@ -287,5 +292,5 @@ func (c *serverPreferenceController) saveUser(mutate func(*journeyv1.UserPrefere
 
 func themeToProto(theme productui.CustomerTheme, version int64) *journeyv1.CustomerTheme {
 	theme = productui.NormalizeCustomerTheme(theme)
-	return &journeyv1.CustomerTheme{Version: version, BrandName: theme.BrandName, BrandMark: theme.BrandMark, BrandLogoUrl: theme.BrandLogoURL, ColorMode: theme.ColorMode, Palette: theme.Palette, Shape: theme.Shape, Density: theme.Density, Glyphs: theme.Glyphs, Typeface: theme.Typeface, Navigation: theme.Navigation, Motion: theme.Motion}
+	return &journeyv1.CustomerTheme{Version: version, BrandName: theme.BrandName, BrandMark: theme.BrandMark, BrandLogoUrl: theme.BrandLogoURL, ColorMode: theme.ColorMode, Palette: theme.Palette, Shape: theme.Shape, Density: theme.Density, Glyphs: theme.Glyphs, Typeface: theme.Typeface, Navigation: theme.Navigation, Motion: theme.Motion, TokenOverrides: theme.TokenOverrides, DarkTokenOverrides: theme.DarkTokenOverrides}
 }

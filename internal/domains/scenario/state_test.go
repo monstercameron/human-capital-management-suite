@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -74,6 +75,42 @@ func TestTodo_SCENARIO_002_Mutation(t *testing.T) {
 	}
 	if _, err := Evaluate(revision, testBaseline(revision, map[string]TypedValue{"private": TextValue("do-not-read")}, "public"), Delta{Field: "public", Value: TextValue("ok")}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestTodo_SCENARIO_002_Security: unapproved baseline values never
+// influence the result and never leak through fields, unknowns or
+// refusal errors — the allowlist is a DLP boundary, not a filter.
+func TestTodo_SCENARIO_002_Security(t *testing.T) {
+	const secret = "salary-999-confidential"
+	revision := baseScenario(t)
+	baseline := testBaseline(revision, map[string]TypedValue{
+		"comp.secret":      TextValue(secret),
+		"headcount.target": DecimalValue(values.MustDecimal("14", 0, values.RoundingHalfEven)),
+	}, "headcount.target")
+	got, err := Evaluate(revision, baseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range got.Fields {
+		if field.Field == "comp.secret" {
+			t.Fatal("unapproved field evaluated")
+		}
+		if field.Value.Kind == ValueText && strings.Contains(field.Value.Text, secret) {
+			t.Fatal("unapproved value leaked through fields")
+		}
+	}
+	for _, unknown := range got.Unknowns {
+		if unknown.Field == "comp.secret" || strings.Contains(unknown.Reason, secret) {
+			t.Fatal("unapproved value leaked through unknowns")
+		}
+	}
+	_, err = Evaluate(revision, baseline, Delta{Field: "comp.secret", Value: TextValue("overwrite")})
+	if !errors.Is(err, ErrUnapprovedField) {
+		t.Fatalf("unapproved delta error = %v", err)
+	}
+	if strings.Contains(err.Error(), secret) {
+		t.Fatalf("refusal leaked protected value: %v", err)
 	}
 }
 

@@ -275,11 +275,12 @@ func promoteWorkerRequest(t *testing.T, idempotencyKey string) *intentsv1.Create
 		"worker_ref": "omar-reyes",
 		"known_at":   "2026-05-15",
 		"target": map[string]any{
-			"job_code":    "OPS-HRBP3",
-			"grade":       "P3",
-			"org_unit":    "people-ops",
-			"position_id": "POS-HRBP-301",
-			"pay_zone":    "US-EAST",
+			"job_code": "OPS-HRBP3",
+			"grade":    "P3",
+			// No position_id: PROMOUX-004 refuses every position reference
+			// no picker issued, and POS-HRBP-301 is not a corpus position.
+			"org_unit": "people-ops",
+			"pay_zone": "US-EAST",
 		},
 		"effective_date":  "2026-06-01",
 		"evaluation_date": "2026-05-15",
@@ -322,7 +323,6 @@ func promoteWorkerRequest(t *testing.T, idempotencyKey string) *intentsv1.Create
 		},
 		Subjects: []*intentsv1.SubjectReference{
 			{SubjectKind: "EMPLOYMENT", SubjectId: worker.Id, AuthorityDomain: "PEOPLE"},
-			{SubjectKind: "POSITION", SubjectId: "POS-HRBP-301", AuthorityDomain: "POSITION"},
 		},
 		Request: &intentsv1.TypedPayload{
 			Schema: &intentsv1.SchemaReference{
@@ -348,7 +348,10 @@ func mustStruct(t *testing.T, fields map[string]any) []byte {
 	if err != nil {
 		t.Fatalf("encode request payload: %v", err)
 	}
-	wire, err := proto.Marshal(s)
+	// The idempotency profile binds the typed wire bytes. A protobuf Struct
+	// holds maps, so two equivalent fixtures must use deterministic encoding
+	// or a harmless map iteration order will look like a changed request.
+	wire, err := proto.MarshalOptions{Deterministic: true}.Marshal(s)
 	if err != nil {
 		t.Fatalf("marshal request payload: %v", err)
 	}

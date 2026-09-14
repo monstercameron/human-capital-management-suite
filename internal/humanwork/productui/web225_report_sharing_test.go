@@ -24,7 +24,7 @@ func TestTodo_WEB_225(t *testing.T) {
 	if !ok {
 		t.Fatal("authorized report sharing unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("authorized report sharing incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_225_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "2ce01df33e89ee5835a925ed833745642cd3093b75eacf27f65c78f735d10ec4"
+	const want = "1f003ab57aa110cf46c74edf964eabf94960af0e9b15e0b281f2f365ffa7e63d"
 	if got != want {
 		t.Fatalf("authorized report sharing digest = %s, want %s", got, want)
 	}

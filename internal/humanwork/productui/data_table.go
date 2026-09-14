@@ -21,12 +21,21 @@ const (
 // address cells by column ID, so callers may reorder or omit columns without
 // rebuilding every row.
 type DataTableProps struct {
+	// ID gives the semantic table a stable identity across projected updates.
+	// Callers can use it to restore focus to a changed table without coupling
+	// the reusable renderer to a route.
+	ID        string
 	Caption   string
 	AriaLabel string
 	SortLabel string
 	Class     string
-	Columns   []DataTableColumnProps
-	Rows      []DataTableRowProps
+	// Optional caller-owned hooks augment, rather than replace, the table's
+	// structural classes. A feature page supplies its own visual vocabulary.
+	HeaderClass    string
+	BodyClass      string
+	SortLabelClass string
+	Columns        []DataTableColumnProps
+	Rows           []DataTableRowProps
 }
 
 // DataTableColumnProps configures one visible column. A non-empty Href makes
@@ -40,6 +49,9 @@ type DataTableColumnProps struct {
 	Sort     DataTableSortDirection
 	Navigate func(string)
 	AlignEnd bool
+	// SortLinkClass is an optional caller-owned styling hook. The renderer
+	// supplies the structural data-table-sort class itself.
+	SortLinkClass string
 }
 
 // dataTableWidthClass is the closed width contract for table columns. Width
@@ -116,14 +128,21 @@ func DataTable(props DataTableProps) ui.Node {
 	}
 	children := make([]ui.Node, 0, 2)
 	if props.SortLabel != "" {
-		children = append(children, html.Span(html.Props{Class: "data-table-sort-label people-sort-label"}, ui.Text(props.SortLabel)))
+		children = append(children, html.Span(html.Props{Class: strings.TrimSpace("data-table-sort-label " + props.SortLabelClass)}, ui.Text(props.SortLabel)))
 	}
-	children = append(children, html.Table(html.Props{Class: class},
+	viewportID := "data-table-scroll"
+	if props.ID != "" {
+		viewportID = props.ID + "-viewport"
+	}
+	children = append(children, html.Table(html.Props{ID: props.ID, Class: class},
 		html.Caption(html.Props{Class: "sr-only"}, ui.Text(props.Caption)),
-		html.Thead(html.Props{}, html.Tr(html.Props{Class: "data-table-head people-columns"}, headings...)),
-		html.Tbody(html.Props{Class: "data-table-body people-rows"}, rows...),
+		html.Thead(html.Props{}, html.Tr(html.Props{Class: strings.TrimSpace("data-table-head " + props.HeaderClass)}, headings...)),
+		html.Tbody(html.Props{Class: strings.TrimSpace("data-table-body " + props.BodyClass)}, rows...),
 	))
-	return html.Div(html.Props{Class: "data-table-scroll", Role: "region", TabIndex: html.TabIndexZero, Aria: map[string]string{"label": label}}, children...)
+	return ui.CreateElement(ScrollRegion, ScrollRegionProps{
+		ID: viewportID, Class: "data-table-scroll", Role: "region", Focusable: true,
+		RestoreScroll: true, Aria: map[string]string{"label": label}, Data: map[string]string{"preserve-scroll": "true", "preserve-focus": "true"}, Children: children,
+	})
 }
 
 // DataTableColumn renders an accessible sortable or static column header.
@@ -136,14 +155,14 @@ func DataTableColumn(column DataTableColumnProps) ui.Node {
 		class += " " + widthClass
 	}
 	props := html.Props{Class: class, Raw: map[string]any{"scope": "col"}}
-	if column.Sort != "" && column.Sort != DataTableUnsorted {
+	if column.Href != "" && column.Sort != "" && column.Sort != DataTableUnsorted {
 		props.Aria = map[string]string{"sort": string(column.Sort)}
 	}
 	if column.Href == "" {
 		return html.Th(props, ui.Text(column.Label))
 	}
 	indicator := ""
-	linkClass := "data-table-sort people-sort"
+	linkClass := strings.TrimSpace("data-table-sort " + column.SortLinkClass)
 	if column.Sort == DataTableAscending {
 		indicator, linkClass = " ↑", linkClass+" active"
 	} else if column.Sort == DataTableDescending {
@@ -194,6 +213,86 @@ func dataTableCell(column DataTableColumnProps, cell DataTableCellProps) ui.Node
 	return html.Td(props, children...)
 }
 
+// PaginateWindow is one resolved page of a larger, already-ordered
+// collection: the page/pageCount/first/last/total coordinates a pager
+// renders, plus exactly the items belonging to this page.
+type PaginateWindow[T any] struct {
+	Page, PageCount, First, Last, Total int
+	Items                               []T
+}
+
+// PaginationBounds is the shared, item-independent page geometry. Callers
+// that only know a filtered count can clamp an address without allocating a
+// collection solely to reuse the paging rules.
+type PaginationBounds struct {
+	Page, PageCount, First, Last, Total int
+}
+
+// PaginateBounds clamps a requested page to a non-empty page domain. First
+// and Last are one-based, inclusive display coordinates; both are zero for an
+// empty collection. pageSize is floored to one for the same fail-closed reason
+// as PaginateCollection.
+func PaginateBounds(total, requestedPage, pageSize int) PaginationBounds {
+	if total < 0 {
+		total = 0
+	}
+	if pageSize < 1 {
+		pageSize = 1
+	}
+	pageCount := 1
+	if total > 0 {
+		pageCount = (total-1)/pageSize + 1
+	}
+	page := requestedPage
+	if page < 1 {
+		page = 1
+	}
+	if page > pageCount {
+		page = pageCount
+	}
+	first := 0
+	last := 0
+	if total > 0 {
+		start := (page - 1) * pageSize
+		first = start + 1
+		remaining := total - start
+		if remaining < pageSize {
+			last = total
+		} else {
+			last = start + pageSize
+		}
+	}
+	return PaginationBounds{Page: page, PageCount: pageCount, First: first, Last: last, Total: total}
+}
+
+// PaginateCollection applies the shared bounds to an already-ordered
+// collection. UXAUDIT-008 REFACTOR: People and History previously carried
+// separate copies of this arithmetic; Roles now uses the same bounds too.
+//
+// pageSize must already be a normalized, in-range value -- this function
+// does not invent a default for an invalid one, because "invalid" means
+// different things to different callers' declared size sets (People and
+// History both currently normalize to {10,20,50,100}, but this function
+// must not assume that set is universal). A pageSize below 1 is floored to
+// 1 rather than treated as "no limit": returning the entire collection for
+// an unrecognized size would be the exact permissive-zero-value failure
+// mode this project's proof standards forbid.
+//
+// An out-of-range requestedPage clamps to the nearest real page (1 or
+// PageCount) rather than returning an empty window, so a stale bookmarked
+// page number never silently produces a blank directory.
+func PaginateCollection[T any](items []T, requestedPage, pageSize int) PaginateWindow[T] {
+	if pageSize < 1 {
+		pageSize = 1
+	}
+	bounds := PaginateBounds(len(items), requestedPage, pageSize)
+	start := 0
+	if bounds.First > 0 {
+		start = bounds.First - 1
+	}
+	return PaginateWindow[T]{Page: bounds.Page, PageCount: bounds.PageCount, First: bounds.First, Last: bounds.Last, Total: bounds.Total, Items: items[start:bounds.Last]}
+}
+
 func normalizedDataTableColumns(columns []DataTableColumnProps) []DataTableColumnProps {
 	result := make([]DataTableColumnProps, 0, len(columns))
 	seen := make(map[string]struct{}, len(columns))
@@ -207,6 +306,11 @@ func normalizedDataTableColumns(columns []DataTableColumnProps) []DataTableColum
 		}
 		seen[column.ID] = struct{}{}
 		if column.Sort == "" {
+			column.Sort = DataTableUnsorted
+		} else if column.Sort != DataTableUnsorted && column.Sort != DataTableAscending && column.Sort != DataTableDescending {
+			// Unknown sort states must not reach aria-sort, where they would
+			// create invalid accessibility semantics for an otherwise safe
+			// reusable column definition.
 			column.Sort = DataTableUnsorted
 		}
 		result = append(result, column)

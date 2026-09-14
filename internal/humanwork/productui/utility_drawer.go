@@ -91,10 +91,26 @@ func utilityDrawerActions(view View) UtilityDrawerSection {
 	if len(view.EffectivePermissions) > 0 && !view.Can(PageJourneys, "create") {
 		return section
 	}
+	active, hasActiveJourney := activePromotionWorkItem(view, person.ID)
 	for _, workflow := range filteredPersonWorkflows(view) {
 		href := workflow.Href
 		if workflow.LaunchHref != nil {
 			href = workflow.LaunchHref(person.ID)
+		}
+		if workflow.ID == "promotion" {
+			// PROMOUX-012: the drawer follows the profile's own guard. An
+			// active promotion replaces Start with a link to it, and a worker
+			// the server did not make eligible is offered no start at all.
+			switch {
+			case hasActiveJourney:
+				section.Items = append(section.Items, UtilityDrawerItem{
+					ID: "action:" + workflow.ID, Label: view.Locale.Text("people.open_active_promotion"), Description: workflow.Category,
+					Href: JourneyDetailHref(view, active.ID), Icon: "journeys", Page: PageJourneys,
+				})
+				continue
+			case person.PromotionAvailability == PromotionActiveConflict || !personPromotionEligible(person):
+				continue
+			}
 		}
 		section.Items = append(section.Items, UtilityDrawerItem{
 			ID: "action:" + workflow.ID, Label: workflow.Name, Description: workflow.Category,

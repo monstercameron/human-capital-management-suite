@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/jit"
 )
 
@@ -263,4 +265,53 @@ func nullableJSON(raw json.RawMessage) any {
 		return nil
 	}
 	return raw
+}
+
+// ActiveJITGrants returns the requester's grants that are current at now and
+// name capability, rebuilt through jit.Restore so a durable record is only
+// authority when it still satisfies every grant rule. Only the latest
+// revision of each grant counts; a revoked, expired or not-yet-valid grant is
+// omitted. tenantKey is the tenant identity the restored grants carry.
+func (s *Store) ActiveJITGrants(ctx context.Context, tenantID uuid.UUID, tenantKey values.TenantId, requester, capability string, now time.Time) ([]*jit.Grant, error) {
+	if requester == "" || capability == "" || now.IsZero() {
+		return nil, invalid("jit_grant", "requester", "requester, capability and instant are required")
+	}
+	var out []*jit.Grant
+	err := s.withTenant(ctx, tenantID, func(tx dbport.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT DISTINCT ON (grant_id) grant_id, state, requester, COALESCE(approver,''), scope, not_before, expires_at, revoked
+			FROM jit_grant
+			WHERE tenant_id = $1 AND requester = $2
+			ORDER BY grant_id, revision DESC`, tenantID, requester)
+		if err != nil {
+			return failure(CodeDatabase, "jit_grant", requester, err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id, state, req, approver string
+			var scope json.RawMessage
+			var notBefore, expires time.Time
+			var revoked bool
+			if err := rows.Scan(&id, &state, &req, &approver, &scope, &notBefore, &expires, &revoked); err != nil {
+				return failure(CodeDatabase, "jit_grant", requester, err)
+			}
+			if revoked || now.Before(notBefore) || !now.Before(expires) {
+				continue
+			}
+			var sc JITGrantScope
+			if err := json.Unmarshal(scope, &sc); err != nil || !slices.Contains(sc.Capabilities, capability) {
+				continue
+			}
+			grant, err := jit.Restore(jit.Stored{ID: id, Principal: req, Tenant: tenantKey, Role: jit.Role(sc.Role), TicketRef: sc.TicketRef,
+				Justification: sc.Justification, Capabilities: sc.Capabilities, Fields: sc.Fields, Purpose: sc.Purpose,
+				Approver: approver, IssuedAt: notBefore, ExpiresAt: expires})
+			if err != nil {
+				// A record that no longer satisfies the grant rules is not authority.
+				continue
+			}
+			out = append(out, grant)
+		}
+		return rows.Err()
+	})
+	return out, err
 }

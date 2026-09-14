@@ -14,7 +14,7 @@ func TestNotificationMenuPublishesItsTransientPopoverBehavior(t *testing.T) {
 		`class="popover-root notifications network-slot network-slot-ready"`,
 		`data-hcm-transient-popover="notification"`,
 		`data-hcm-popover-grace-ms="180"`,
-		`aria-label="Work overview, 1 promotion journey is visible in this scope."`,
+		`aria-label="Work overview, 1 promotion item needs your action."`,
 		`class="popover-surface popover notification-popover"`,
 	} {
 		if !strings.Contains(doc, want) {

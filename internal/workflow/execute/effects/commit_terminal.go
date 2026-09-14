@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/plan"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // TransactionPlanProvider binds the immutable TX-003 plan to the terminal
@@ -43,7 +44,9 @@ var _ execute.TerminalWriter = (*CommitTerminalWriter)(nil)
 // identities expected by TX-006. A configured Next delegate is used only when
 // this adapter has not yet been given a plan provider, preserving the existing
 // TerminalWriter port during additive rollout.
-func (w *CommitTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (idempotency.ResultIdentity, error) {
+func (w *CommitTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (ret0 idempotency.ResultIdentity, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.effects.commit_terminal_write", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if w == nil {
 		return idempotency.ResultIdentity{}, fmt.Errorf("effects: commit terminal writer is nil")
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/reconcile"
 	operationrepair "github.com/monstercameron/human-capital-management-suite/internal/operations/repair"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // RepairExecutionMode is the workflow mode used by a RepairPlan. It is kept
@@ -158,7 +159,9 @@ func NewRepairExecutor(opts RepairExecutionOptions) (*RepairExecutor, error) {
 	return &RepairExecutor{opts: opts, completed: make(map[string]RepairExecutionResult)}, nil
 }
 
-func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest) (RepairExecutionResult, error) {
+func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest) (ret0 RepairExecutionResult, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execute.repair", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if ctx == nil {
 		return RepairExecutionResult{}, fmt.Errorf("workflow execute: repair context is nil")
 	}
@@ -290,7 +293,11 @@ func repairStatus(status operationrepair.Status) RepairStatus {
 func addEvidence(result *RepairExecutionResult, sink RepairEvidencePort, ctx context.Context, evidence RepairEvidence) {
 	result.Evidence = append(result.Evidence, evidence)
 	if sink != nil {
-		_ = sink.RecordRepairEvidence(ctx, evidence)
+		// Evidence stays on the result either way; a failed durable write is
+		// not fatal to the repair but must be visible as its own failed
+		// operation rather than silently discarded.
+		_, op := observe.Begin(ctx, "workflow.repair.record_evidence")
+		_ = observe.Done(op, sink.RecordRepairEvidence(ctx, evidence))
 	}
 }
 

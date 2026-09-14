@@ -20,6 +20,9 @@ type ApprovalStage struct {
 	Title    string
 	Detail   string
 	Complete bool
+	// State is done, current, or upcoming. Approval progress describes
+	// observed gates only; it never implies publication or execution.
+	State string
 }
 
 // ApprovalProgress is the resolved approval progress:
@@ -29,6 +32,7 @@ type ApprovalProgress struct {
 	Stages   []ApprovalStage
 	Current  int
 	Complete bool
+	Passed   int
 }
 
 // ResolveApprovalProgress resolves approval progress for
@@ -45,10 +49,36 @@ func ResolveApprovalProgress(locale LocaleContext, request PublicationRequest) A
 	}
 	progress := ApprovalProgress{Stages: stages, Current: -1, Complete: true}
 	for i, stage := range stages {
+		if stage.Complete {
+			progress.Passed++
+		}
 		if !stage.Complete {
 			progress.Current = i
 			progress.Complete = false
 			break
+		}
+	}
+	// Count all passed gates even when an earlier gate blocks the pipeline;
+	// this is useful summary context and does not change the first-blocked
+	// stage semantics.
+	if progress.Current >= 0 {
+		progress.Passed = 0
+		for _, stage := range stages {
+			if stage.Complete {
+				progress.Passed++
+			}
+		}
+	}
+	for i := range progress.Stages {
+		switch {
+		case i == progress.Current:
+			progress.Stages[i].State = "current"
+		case progress.Current >= 0 && i > progress.Current:
+			progress.Stages[i].State = "upcoming"
+		case progress.Stages[i].Complete:
+			progress.Stages[i].State = "done"
+		default:
+			progress.Stages[i].State = "upcoming"
 		}
 	}
 	return progress

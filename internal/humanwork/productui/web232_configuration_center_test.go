@@ -24,7 +24,7 @@ func TestTodo_WEB_232(t *testing.T) {
 	if !ok {
 		t.Fatal("configuration center unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("configuration center incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_232_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "c1a4b4f3331758fd88109c5b38cdec323169b0a11996dab392b7a287b7456493"
+	const want = "051d3f22d69c135f6d3a6b3dd9e985db16ac41cccdb86ee50464daae54631fa8"
 	if got != want {
 		t.Fatalf("configuration center digest = %s, want %s", got, want)
 	}

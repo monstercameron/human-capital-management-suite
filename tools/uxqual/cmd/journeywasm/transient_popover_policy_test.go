@@ -71,3 +71,20 @@ func TestTransientPopoverGraceBounds(t *testing.T) {
 		}
 	}
 }
+
+func TestTodo_UXAUDIT_006_LocaleMenuClosesAfterNavigation(t *testing.T) {
+	for _, tc := range []struct {
+		eventType string
+		link      bool
+		want      bool
+	}{
+		{"click", true, true},
+		{"click", false, false},
+		{"pointerdown", true, false},
+		{"focusin", true, false},
+	} {
+		if got := transientPopoverLinkActivated(tc.eventType, tc.link); got != tc.want {
+			t.Errorf("%s/link=%t closes=%t, want %t", tc.eventType, tc.link, got, tc.want)
+		}
+	}
+}

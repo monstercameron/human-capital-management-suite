@@ -51,6 +51,55 @@ func TestLoadStartsIndependentNetworkReadsTogether(t *testing.T) {
 	}
 }
 
+func TestLoadPropagatesRouteCancellationToEveryConcurrentRead(t *testing.T) {
+	started := make(chan string, 3)
+	read := func(ctx context.Context, name string) (*journeyv1.ListJourneysResponse, error) {
+		started <- name
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	service := Service{
+		ListJourneys: func(ctx context.Context, _ *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error) {
+			return read(ctx, "journeys")
+		},
+		ListWorkers: func(ctx context.Context, _ *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
+			started <- "workers"
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+		GetPreferences: func(ctx context.Context, _ *journeyv1.GetProductPreferencesRequest) (*journeyv1.GetProductPreferencesResponse, error) {
+			started <- "preferences"
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := Load(ctx, service, Session{}, State{Page: productui.PageHome})
+		done <- err
+	}()
+	seen := map[string]bool{}
+	for len(seen) < 3 {
+		select {
+		case name := <-started:
+			seen[name] = true
+		case <-time.After(500 * time.Millisecond):
+			t.Fatalf("concurrent reads did not all start: %v", seen)
+		}
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err == nil || !errors.Is(err, context.Canceled) {
+			t.Fatalf("Load cancellation error = %v, want context cancellation", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Load did not finish after route cancellation")
+	}
+}
+
 func TestLoadWithBaselineSkipsUnusedPageDatasets(t *testing.T) {
 	var journeyReads atomic.Int32
 	var workerReads atomic.Int32
@@ -104,7 +153,7 @@ func TestLoadWithBaselineRefreshesPeopleAndJourneysForDirectory(t *testing.T) {
 		},
 		ListWorkers: func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
 			workerReads.Add(1)
-			return &journeyv1.ListWorkersResponse{Workers: []*journeyv1.Worker{{WorkerRef: "worker-new", PreferredName: "New Worker"}}}, nil
+			return &journeyv1.ListWorkersResponse{Workers: []*journeyv1.Worker{{WorkerRef: "worker-new", PreferredName: "New Worker", ManagerRelationship: rootManagerRelationship()}}}, nil
 		},
 	}
 	baseline := productui.NewView(productui.PageHome, "Harborcare", "Worker 1", "Employee")
@@ -122,6 +171,29 @@ func TestLoadWithBaselineRefreshesPeopleAndJourneysForDirectory(t *testing.T) {
 	}
 	if len(view.Work) != 0 || len(view.People) != 1 || view.People[0].ID != "worker-new" {
 		t.Fatalf("refreshed projection = %+v", view)
+	}
+}
+
+func TestTodo_UXAUDIT_004_SpecializedOrganizationRoutesRefreshRevokedWorkforce(t *testing.T) {
+	for _, page := range []productui.PageID{productui.PageOrganization, productui.PageOrgExplorer, productui.PageOrgOutline, productui.PageOrgResponsive} {
+		t.Run(string(page), func(t *testing.T) {
+			var workerReads atomic.Int32
+			service := Service{ListWorkers: func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
+				workerReads.Add(1)
+				return &journeyv1.ListWorkersResponse{Workers: []*journeyv1.Worker{{WorkerRef: "worker-new", PreferredName: "New Worker", ManagerRelationship: rootManagerRelationship()}}}, nil
+			}}
+			baseline := productui.NewView(productui.PageHome, "Harborcare", "Worker 1", "Employee")
+			baseline.People = []productui.Person{{ID: "worker-revoked", Name: "Revoked Worker"}}
+			view, err := LoadWithBaseline(context.Background(), service, Session{Tenant: "harborcare", Principal: "worker-1", Scope: "employee"}, State{
+				Page: page, Request: productui.PageRequest{Page: page},
+			}, baseline)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if workerReads.Load() != 1 || len(view.People) != 1 || view.People[0].ID != "worker-new" {
+				t.Fatalf("worker reads=%d projection=%+v; stale workforce survived", workerReads.Load(), view.People)
+			}
+		})
 	}
 }
 

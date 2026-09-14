@@ -106,12 +106,75 @@ func TestProductRouteFocusTargetKeepsPeopleCollectionViewportStable(t *testing.T
 
 	for _, pair := range [][2]string{
 		{"/workspace/app/people?locale=en-US", "/workspace/app/person?locale=en-US&person=worker-1"},
-		{"/workspace/app/people?locale=en-US", "/workspace/app/people?locale=fr-FR"},
-		{"/workspace/app/people?locale=en-US", "/workspace/app/people?favorites=people&locale=en-US"},
+		{"/workspace/app/person?person=worker-1", "/workspace/app/person?person=worker-2"},
+		{"/workspace/app/journeys?mode=new&worker=worker-1", "/workspace/app/journeys?journey=journey-1"},
 	} {
 		selector, caret := productRouteFocusTarget(pair[0], pair[1])
 		if selector != productPageFocusSelector || caret {
 			t.Fatalf("page route %q -> %q target=%q caret=%t", pair[0], pair[1], selector, caret)
 		}
+		if !productRouteShouldResetMainScroll(pair[0], pair[1]) {
+			t.Fatalf("destination route %q -> %q did not reset main scroll", pair[0], pair[1])
+		}
+	}
+
+	for _, pair := range [][2]string{
+		{"/workspace/app/people?locale=en-US", "/workspace/app/people?locale=fr-FR"},
+		{"/workspace/app/people?locale=en-US", "/workspace/app/people?favorites=people&locale=en-US"},
+		{"/workspace/app/history?history_sort=closed", "/workspace/app/history?history_dir=desc&history_sort=closed"},
+		{"/workspace/app/person?person=worker-1", "/workspace/app/person?person=worker-1&workflow_q=promotion"},
+	} {
+		selector, caret := productRouteFocusTarget(pair[0], pair[1])
+		if selector != "" || caret {
+			t.Fatalf("presentation route %q -> %q target=%q caret=%t, want no focus move", pair[0], pair[1], selector, caret)
+		}
+		if productRouteShouldResetMainScroll(pair[0], pair[1]) {
+			t.Fatalf("presentation route %q -> %q unexpectedly reset main scroll", pair[0], pair[1])
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_008_Regression_PeopleRegionRoutes(t *testing.T) {
+	base := "/workspace/app/people?locale=en-US&page_size=100"
+	for _, query := range []string{
+		"&q=Jane", "&team=Finance", "&location=Boston", "&eligible=1",
+		"&sort=role", "&dir=desc", "&page=2",
+	} {
+		if !peopleDirectoryOnlyRouteChange(base, base+query) {
+			t.Errorf("People collection change %q refreshed more than the directory", query)
+		}
+	}
+	if !peopleDirectoryOnlyRouteChange(base, "/workspace/app/people?locale=en-US&page_size=20") {
+		t.Fatal("changing the selected page size refreshed more than the directory")
+	}
+	for _, changed := range []string{
+		"/workspace/app/person?locale=en-US&page_size=100",
+		base + "&nav=collapsed",
+		base + "&locale=de-DE",
+	} {
+		if peopleDirectoryOnlyRouteChange(base, changed) {
+			t.Errorf("non-directory route %q was mistaken for a People-only change", changed)
+		}
+	}
+}
+
+func TestProductRouteDestinationIdentityIsExplicitAndBounded(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		previous, current string
+		wantReset         bool
+	}{
+		{name: "new page", previous: "/workspace/app/people", current: "/workspace/app/history", wantReset: true},
+		{name: "new person", previous: "/workspace/app/person?person=a", current: "/workspace/app/person?person=b", wantReset: true},
+		{name: "journey list to proposal", previous: "/workspace/app/journeys", current: "/workspace/app/journeys?mode=new&worker=a", wantReset: true},
+		{name: "proposal to created journey", previous: "/workspace/app/journeys?mode=new&worker=a", current: "/workspace/app/journeys?journey=j-1", wantReset: true},
+		{name: "journey presentation state", previous: "/workspace/app/journeys?journey=j-1", current: "/workspace/app/journeys?favorites=journeys&journey=j-1", wantReset: false},
+		{name: "directory sorting", previous: "/workspace/app/people?page=2", current: "/workspace/app/people?page=2&sort=role", wantReset: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := productRouteShouldResetMainScroll(tc.previous, tc.current); got != tc.wantReset {
+				t.Fatalf("reset main scroll = %v, want %v", got, tc.wantReset)
+			}
+		})
 	}
 }

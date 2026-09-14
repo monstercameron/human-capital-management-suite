@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -134,7 +135,9 @@ type Receipt struct {
 // next call re-derives what is left to do from the durable rows alone. A
 // node that needs nothing -- already finished, or still held by a live
 // worker -- is reported in the receipt rather than forced.
-func (r Recoverer) Recover(ctx context.Context, req Request) (Receipt, error) {
+func (r Recoverer) Recover(ctx context.Context, req Request) (ret0 Receipt, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.recover.recover", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return Receipt{}, err
 	}
@@ -307,7 +310,9 @@ const ErrorClassWorkerDied = "WORKER_LEASE_EXPIRED"
 // TX-006's IDEMPOTENCY_CONFLICT.
 func (r Recoverer) DispatchEffect(
 	ctx context.Context, tx dbport.Tx, req Request, attempt int, fence runtime.Fence, now time.Time,
-) (EffectOutcome, error) {
+) (ret0 EffectOutcome, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.recover.dispatch_effect", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := req.validate(); err != nil {
 		return EffectOutcome{}, err
 	}

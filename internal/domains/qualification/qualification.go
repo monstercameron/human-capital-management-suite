@@ -352,6 +352,8 @@ const (
 )
 
 // RequirementResult is the typed outcome for one requirement item.
+// Restricted marks a requirement whose evidence the caller may not
+// see: QUAL-004 lists its ref without disclosing evidence content.
 type RequirementResult struct {
 	Kind          RequirementKind
 	Ref           string
@@ -359,6 +361,7 @@ type RequirementResult struct {
 	Status        Status
 	Gap           string
 	EvidenceRef   string
+	Restricted    bool
 }
 
 // Status is the only qualification outcome vocabulary.

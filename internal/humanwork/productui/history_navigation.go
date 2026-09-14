@@ -35,9 +35,9 @@ func historyNavigationButton(direction, label string, enabled bool, action func(
 	if enabled && action != nil {
 		button.OnClick = ui.UseEvent(func(ui.MouseEvent) { action() })
 	}
-	glyph := "←"
+	icon := "history-back"
 	if direction == "forward" {
-		glyph = "→"
+		icon = "history-forward"
 	}
-	return html.Button(button, html.Span(html.Props{Raw: map[string]any{"aria-hidden": "true"}}, ui.Text(glyph)))
+	return html.Button(button, productIcon(icon, "history-navigation-glyph"))
 }

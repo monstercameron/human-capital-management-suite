@@ -8,6 +8,7 @@ import (
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
@@ -80,6 +81,12 @@ func (s *server) SaveTenantAppearance(ctx context.Context, req *journeyv1.SaveTe
 	if !principal.HasRole("comp_admin") {
 		return nil, envelope.New(envelope.CodePermissionDenied, "journey.preferences.appearance.role_required", "organization appearance requires the compensation administrator role").
 			WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
+	}
+	if req == nil || req.GetTheme() == nil {
+		return nil, preferenceError(preferences.ErrInvalid, principal, inv.RequestID(), "save_theme")
+	}
+	if err := productui.ValidateCustomerTheme(productui.CustomerTheme{Palette: req.GetTheme().GetPalette(), TokenOverrides: req.GetTheme().GetTokenOverrides(), DarkTokenOverrides: req.GetTheme().GetDarkTokenOverrides()}); err != nil {
+		return nil, preferenceError(preferences.ErrInvalid, principal, inv.RequestID(), "save_theme")
 	}
 	store, depErr := s.preferenceStore(principal, inv.RequestID())
 	if depErr != nil {
@@ -171,14 +178,14 @@ func fromUserPreferences(value *journeyv1.UserPreferences) preferences.User {
 
 func toCustomerTheme(value preferences.TenantTheme) *journeyv1.CustomerTheme {
 	t := value.Theme
-	return &journeyv1.CustomerTheme{Version: value.Version, BrandName: t.BrandName, BrandMark: t.BrandMark, BrandLogoUrl: t.BrandLogoURL, ColorMode: t.ColorMode, Palette: t.Palette, Shape: t.Shape, Density: t.Density, Glyphs: t.Glyphs, Typeface: t.Typeface, Navigation: t.Navigation, Motion: t.Motion}
+	return &journeyv1.CustomerTheme{Version: value.Version, BrandName: t.BrandName, BrandMark: t.BrandMark, BrandLogoUrl: t.BrandLogoURL, ColorMode: t.ColorMode, Palette: t.Palette, Shape: t.Shape, Density: t.Density, Glyphs: t.Glyphs, Typeface: t.Typeface, Navigation: t.Navigation, Motion: t.Motion, TokenOverrides: t.TokenOverrides, DarkTokenOverrides: t.DarkTokenOverrides}
 }
 
 func fromCustomerTheme(value *journeyv1.CustomerTheme) preferences.TenantTheme {
 	if value == nil {
 		return preferences.DefaultSnapshot().Theme
 	}
-	return preferences.TenantTheme{Version: value.GetVersion(), Theme: preferences.Theme{BrandName: value.GetBrandName(), BrandMark: value.GetBrandMark(), BrandLogoURL: value.GetBrandLogoUrl(), ColorMode: value.GetColorMode(), Palette: value.GetPalette(), Shape: value.GetShape(), Density: value.GetDensity(), Glyphs: value.GetGlyphs(), Typeface: value.GetTypeface(), Navigation: value.GetNavigation(), Motion: value.GetMotion()}}
+	return preferences.TenantTheme{Version: value.GetVersion(), Theme: preferences.Theme{BrandName: value.GetBrandName(), BrandMark: value.GetBrandMark(), BrandLogoURL: value.GetBrandLogoUrl(), ColorMode: value.GetColorMode(), Palette: value.GetPalette(), Shape: value.GetShape(), Density: value.GetDensity(), Glyphs: value.GetGlyphs(), Typeface: value.GetTypeface(), Navigation: value.GetNavigation(), Motion: value.GetMotion(), TokenOverrides: value.GetTokenOverrides(), DarkTokenOverrides: value.GetDarkTokenOverrides()}}
 }
 
 func toOrganizationVisibility(value preferences.OrganizationVisibility) *journeyv1.OrganizationVisibilityPolicy {

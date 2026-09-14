@@ -99,16 +99,27 @@ func (c *Client) callRefetch(run *runState, refresh Refresh) (err error) {
 	if err := run.ctx.Err(); err != nil {
 		return err
 	}
-	defer func() {
-		if recover() != nil {
-			err = ErrRefetchFailed
-		}
+	// A refetch is an injected boundary and must honor ctx. Run it behind a
+	// buffered completion channel so a boundary that violates that contract
+	// cannot strand subscription shutdown; its late result is discarded.
+	result := make(chan error, 1)
+	go func() {
+		defer func() {
+			if recover() != nil {
+				result <- ErrRefetchFailed
+			}
+		}()
+		result <- c.refetch(run.ctx, refresh)
 	}()
-	err = c.refetch(run.ctx, refresh)
-	if contextErr := run.ctx.Err(); contextErr != nil {
-		return contextErr
+	select {
+	case err := <-result:
+		if contextErr := run.ctx.Err(); contextErr != nil {
+			return contextErr
+		}
+		return err
+	case <-run.ctx.Done():
+		return run.ctx.Err()
 	}
-	return err
 }
 
 func (c *Client) complete(run *runState, job refreshJob, err error) {

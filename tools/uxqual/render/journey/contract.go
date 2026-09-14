@@ -12,11 +12,20 @@
 // GOOS=js GOARCH=wasm, live into the DOM.
 package journey
 
+import "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait"
+
 // Page is the whole document. Exactly one of List, Proposal and Detail is
 // set.
 type Page struct {
 	// Title is the document title.
 	Title string
+	// Locale is the canonical BCP-47 presentation locale for the document.
+	// Empty uses DefaultLocale so older callers still emit an explicit
+	// language rather than the ambiguous generic `en` tag.
+	Locale string
+	// Direction is the resolved text direction for Locale (ltr or rtl).
+	// Empty is inferred from Locale.
+	Direction string
 	// Brand is the product name in the masthead.
 	Brand string
 	// TenantLabel is the human name of the tenant the page is served for.
@@ -28,6 +37,10 @@ type Page struct {
 	// Notice, when set, is the one status message for this response (an
 	// action's outcome or refusal).
 	Notice *Notice
+	// FocusInvalidRevision changes on each rejected live proposal attempt.
+	// The browser adapter uses it after render to focus the first invalid
+	// control, including when the same invalid form is submitted twice.
+	FocusInvalidRevision uint64
 
 	List     *ListView
 	Proposal *ProposalView
@@ -46,6 +59,9 @@ type Page struct {
 	// value as a plain attribute the browser owns. Nil (the SSR and test
 	// path) leaves the controls uncontrolled and the forms plain.
 	OnFieldChange func(fieldID, value string)
+	// OnFocusField upgrades error-summary anchors to in-place focus without
+	// changing the journey's hash route. Nil leaves ordinary fragment links.
+	OnFocusField func(fieldID string)
 }
 
 // Principal is the signed-in caller as the masthead shows them.
@@ -76,6 +92,15 @@ type Notice struct {
 	Tone   string
 	Title  string
 	Detail string
+	// Busy marks an in-flight client request. The optional catalog keys
+	// localize notices without parsing rendered copy or changing their state.
+	Busy       bool
+	TitleKey   string
+	MessageKey string
+	// SupportReference is an opaque server-issued request id. The renderer
+	// exposes it only inside a closed, copyable support disclosure, never in
+	// the ordinary status sentence.
+	SupportReference string
 }
 
 // Footer carries the provenance line every page ends with.
@@ -90,6 +115,12 @@ type Footer struct {
 // ListView is the journeys overview with the new-proposal form.
 type ListView struct {
 	Journeys []JourneyCard
+	// Groups is Journeys clustered into named subject groups (UXAUDIT-017,
+	// GREEN: "a lifecycle tracker grouped by subject and status"). Nil or
+	// empty falls back to Journeys' flat rendering unchanged -- a page
+	// built before this field existed, or one whose projector never sets
+	// it, renders exactly as it always has.
+	Groups []JourneySubjectGroup
 	// Empty is shown instead of the list when there are no journeys.
 	Empty string
 	Form  ProposalForm
@@ -105,6 +136,28 @@ type ListView struct {
 	// projection that cannot read the workforce table should do rather than
 	// showing an empty one.
 	People *PeopleView
+}
+
+// JourneySubjectGroup is one subject's cluster of journeys for the list
+// view's grouped-by-subject-and-status rendering. Every string here is
+// already display-ready, exactly like JourneyCard.
+type JourneySubjectGroup struct {
+	// Subject is the group heading: the worker's display name.
+	Subject string
+	// Journeys are this subject's cards. The projector orders them (open
+	// before terminal); this type does not reorder them again.
+	Journeys []JourneyCard
+	// Statuses is the distinct set of this group's journeys' StageLabel and
+	// StageTone, deduplicated in first-seen order, so a reader can see the
+	// group's status mix (e.g. "Blocked" and "Recorded" both present) at a
+	// glance without opening every card in it.
+	Statuses []JourneyStatusChip
+}
+
+// JourneyStatusChip is one distinct status shown at the group level.
+type JourneyStatusChip struct {
+	Label string
+	Tone  string
 }
 
 // ProposalView is the person-scoped start of a promotion. It intentionally
@@ -229,6 +282,15 @@ type WorkerForm struct {
 }
 
 // JourneyCard is one journey in the list and the header of its detail.
+type JourneyGroup string
+
+const (
+	JourneyGroupReview  JourneyGroup = "review"
+	JourneyGroupWaiting JourneyGroup = "waiting"
+	JourneyGroupIssue   JourneyGroup = "issue"
+	JourneyGroupClosed  JourneyGroup = "closed"
+)
+
 type JourneyCard struct {
 	IntentID   string
 	Href       string
@@ -242,11 +304,30 @@ type JourneyCard struct {
 	EffectiveDate string
 	Stage         string
 	StageLabel    string
+	// Group is a semantic lifecycle bucket resolved by the projector, not
+	// inferred from localized status copy by the renderer.
+	Group JourneyGroup
 	// StageTone is one of neutral, info, warning, success, danger.
 	StageTone string
-	Updated   string
+	// NextStep is the display wording of the single next step the stage names
+	// (UXAUDIT-017's shared status dimension, journeyclient.NextStepLabel).
+	// Empty for a terminal or unknown stage, which renders no next-step line.
+	NextStep string
+	// Closed is the server's lifecycle closure for this journey (PROMOUX-012):
+	// the one open/closed dimension every surface shares.
+	Closed  bool
+	Updated string
 	// InstanceID is empty before execution.
 	InstanceID string
+	// DiagnosticsAuthorized is PROMOUX-008's authorized-diagnostics verdict
+	// for the signed-in viewer, computed server-side and carried down with
+	// the page permissions this cell already hands the client -- never
+	// guessed from whether WorkerRef, IntentID or InstanceID happen to be
+	// set. It is the only thing that gates the card's and the hero's
+	// Technical details disclosure: an unauthorized viewer's disclosure is
+	// absent regardless of what this journey's underlying state is, so its
+	// presence, count and layout carry no information about that state.
+	DiagnosticsAuthorized bool
 
 	// OnOpen, when set, opens this journey in the live client instead of
 	// letting the browser follow Href.
@@ -263,6 +344,21 @@ type ProposalForm struct {
 	// Disabled is set with a reason when execution is off.
 	Disabled       bool
 	DisabledReason string
+
+	// Confirmation and ConfirmationNote mirror Action's own fields: the
+	// employee/change/date/consequence summary a reader confirms before
+	// this proposal is created. PROMOUX-010: when either is set, Submit
+	// renders behind the same shared review surface actionCard uses for
+	// Approve and Reject, instead of firing directly. Empty means this
+	// caller has not supplied one yet and the form submits directly,
+	// matching every ProposalForm built before PROMOUX-010.
+	Confirmation     []Fact
+	ConfirmationNote string
+	// Busy is true while this proposal's own submission is in flight; see
+	// Action.Busy for what it does once Confirmation makes this form route
+	// through the review surface.
+	Busy      bool
+	BusyLabel string
 
 	// OnSubmit, when set, makes this form a live submission: the renderer
 	// prevents the browser's own POST and calls it with every hidden entry
@@ -300,6 +396,14 @@ type Field struct {
 // DetailView is one journey.
 type DetailView struct {
 	Journey JourneyCard
+	// Unavailable marks a route whose detail was refused or no longer exists.
+	// The renderer keeps recovery navigation but must not invent an empty
+	// journey, unknown stage, or future workflow steps for that route.
+	Unavailable bool
+	// Diagnostics admits the operator-only disclosure containing protocol
+	// identifiers, workflow nodes, work-item routing and evidence references.
+	// Ordinary approvers never receive that machinery in their component tree.
+	Diagnostics bool
 	// BackLink returns to the employee context that launched this journey.
 	// JourneysLink remains available as the broader operational escape hatch.
 	BackLink     NavLink
@@ -315,6 +419,15 @@ type DetailView struct {
 
 	Findings []Finding
 
+	// WaitExplanation is PROMOUX-014's answer to a reader looking at a
+	// WAITING_EFFECTIVE_DATE journey: the effective instant and its
+	// timezone, who approved it, what runs when it fires, what checks
+	// remain, whether a notification is sent, and what intervention (if
+	// any) is authorized. Nil unless the engine sent every one of those
+	// facts (tools/uxqual/journeyclient's waitExplanationFacts), which in
+	// practice means the journey is not currently at that stage.
+	WaitExplanation []Fact
+
 	// Engine is the workflow instance as facts (instance id, version, plan
 	// digest, status, current node).
 	Engine []Fact
@@ -324,6 +437,14 @@ type DetailView struct {
 
 	// Ledger is nil until the terminal write is recorded.
 	Ledger *LedgerCard
+	// PendingOutcome explains precisely what remains before the employee
+	// record changes. It is derived from the durable business stage.
+	PendingOutcome string
+	// EffectiveDateWait is the typed, server-projected explanation of a
+	// durable effective-date wait. It is nil until the journey transport
+	// carries the wait requirement; the renderer must not manufacture one
+	// from a date-only journey summary.
+	EffectiveDateWait *wait.EffectiveDateWait
 
 	Evidence []string
 
@@ -419,7 +540,7 @@ type ComparisonRow struct {
 
 // Finding is one simulation finding.
 type Finding struct {
-	// Severity is one of blocking, warning, info, success.
+	// Severity is one of blocking, warning, needs-data, info, success.
 	Severity string
 	Code     string
 	Message  string
@@ -495,8 +616,21 @@ type Action struct {
 	// Confirmation keeps consequential HR actions two-step without inventing
 	// a second modal state machine: the reader expands a native disclosure,
 	// reviews these exact facts, and only then reaches the submit button.
+	// PROMOUX-010: this is now rendered by the shared reviewSurface, so
+	// Confirmation/ConfirmationNote also carry the busy state below.
 	Confirmation     []Fact
 	ConfirmationNote string
+	// Busy is true while this action's own submission is in flight. The
+	// review surface keeps the action bar mounted and disables the submit
+	// control rather than collapsing, so a second click cannot fire a
+	// duplicate submission. BusyLabel defaults to "Submitting…" when Busy
+	// is true and this is empty.
+	Busy      bool
+	BusyLabel string
+	// ConfirmTitle and ReviewLabel are localized, action-specific copy from
+	// the projection. Empty values use the shared generic review wording.
+	ConfirmTitle string
+	ReviewLabel  string
 
 	// OnSubmit, when set, makes this action a live call: the renderer
 	// prevents the browser's own POST and calls it with every hidden entry

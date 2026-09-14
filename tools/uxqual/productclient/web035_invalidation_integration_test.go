@@ -32,11 +32,12 @@ type web035JourneyService struct {
 func (s *web035JourneyService) ListWorkers(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
 	s.workerReads.Add(1)
 	return &journeyv1.ListWorkersResponse{Workers: []*journeyv1.Worker{{
-		WorkerRef:     "worker-from-authoritative-rpc",
-		WorkerId:      "W-035",
-		PreferredName: "Fresh Authorized Worker",
-		JobTitle:      "Care Manager",
-		Source:        "JourneyService.ListWorkers",
+		WorkerRef:           "worker-from-authoritative-rpc",
+		WorkerId:            "W-035",
+		PreferredName:       "Fresh Authorized Worker",
+		JobTitle:            "Care Manager",
+		Source:              "JourneyService.ListWorkers",
+		ManagerRelationship: &journeyv1.ManagerRelationshipProjection{Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_ROOT},
 	}}}, nil
 }
 

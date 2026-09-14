@@ -15,11 +15,14 @@ import (
 // rather than in a browser.
 func TestParseConfigReadsTheShellIsland(t *testing.T) {
 	island, err := json.Marshal(workspace.JourneyConfig{
-		TunnelURL:    "wss://cell.example/grpc",
-		Bearer:       "tok_abc123",
-		Tenant:       "northwind",
-		Subject:      "avery.okafor@northwind.example",
-		Roles:        []string{"hr.business_partner", "promotion.approver"},
+		TunnelURL: "wss://cell.example/grpc",
+		Bearer:    "tok_abc123",
+		Tenant:    "northwind",
+		Subject:   "avery.okafor@northwind.example",
+		Roles:     []string{"hr.business_partner", "promotion.approver"},
+		LauncherActions: []workspace.LauncherActionConfig{{
+			ID: "promote-worker", Availability: "available", Priority: 3,
+		}},
 		Purpose:      "promotion_review",
 		JourneysPath: workspace.PathJourney,
 	})
@@ -45,6 +48,9 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 	}
 	if len(cfg.Roles) != 2 || cfg.Roles[0] != "hr.business_partner" {
 		t.Errorf("Roles = %v", cfg.Roles)
+	}
+	if len(cfg.LauncherActions) != 1 || cfg.LauncherActions[0].ID != "promote-worker" || cfg.LauncherActions[0].Priority != 3 {
+		t.Errorf("LauncherActions = %+v", cfg.LauncherActions)
 	}
 	if cfg.Purpose != "promotion_review" {
 		t.Errorf("Purpose = %q", cfg.Purpose)

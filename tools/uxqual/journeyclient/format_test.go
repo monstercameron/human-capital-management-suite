@@ -215,3 +215,31 @@ func TestGroupThousands(t *testing.T) {
 		}
 	}
 }
+
+func TestTodo_UXAUDIT_006_I18N_DetailMoneyAndDates(t *testing.T) {
+	ts := atUTC(t, time.RFC3339, "2026-09-03T14:05:09Z")
+	if got, want := formatAmountLocale("de-DE", "USD", "1234.50"), "1.234,50\u00a0USD"; got != want {
+		t.Errorf("German exact money = %q, want %q", got, want)
+	}
+	if got, want := formatDateLocale("de-DE", "2026-09-03"), "03.09.2026"; got != want {
+		t.Errorf("German effective date = %q, want %q", got, want)
+	}
+	if got := formatTimeLocale("de-DE", ts); got != "03.09.2026 14:05 UTC" {
+		t.Errorf("German audit time = %q", got)
+	}
+	if got, ok := amountDeltaLocale("de-DE", "USD", "93000.00", "98000.00"); !ok || got != "+5.000,00\u00a0USD" {
+		t.Errorf("German exact delta = (%q, %v)", got, ok)
+	}
+	if got, ok := percentDeltaLocale("de-DE", "93000.00", "98000.00"); !ok || got != "+5,4%" {
+		t.Errorf("German exact percent = (%q, %v)", got, ok)
+	}
+	if got := formatAmountLocale("ar", "USD", "1234.50"); got == "" || got == "USD 1,234.50" {
+		t.Errorf("Arabic money was not localized: %q", got)
+	}
+	if got, want := formatDateLocale("ar", "2026-09-03"), "٣ سبتمبر ٢٠٢٦"; got != want {
+		t.Errorf("Arabic effective date = %q, want %q", got, want)
+	}
+	if got, want := formatAmountLocale("en-US", "USD", "1234.50"), "USD 1,234.50"; got != want {
+		t.Errorf("English compatibility = %q, want %q", got, want)
+	}
+}

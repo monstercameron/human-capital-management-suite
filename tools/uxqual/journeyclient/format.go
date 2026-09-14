@@ -4,12 +4,14 @@ import (
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
 // Formatting is in its own file because it is the one part of the
 // projection that has to be exactly right rather than merely reasonable:
 // money that loses a digit, a percentage that rounds the wrong way or a
-// date that reads as the American ordering are all wrong in a way a reader
+// date that reads as the wrong locale's ordering are all wrong in a way a reader
 // cannot detect from the page. Every value the engine sends is a string
 // (decimal pay) or a Protobuf timestamp; nothing is a float until it has
 // already been rounded to a display string.
@@ -17,8 +19,8 @@ import (
 // Display layouts. Times are absolute and always UTC, because the reader of
 // an audit surface needs to compare what they see with what the ledger says,
 // and a browser-local rendering makes that comparison a mental time-zone
-// conversion. Dates are day-month-year with a short month, which is
-// unambiguous in every locale that reads this page.
+// conversion. Legacy English detail dates use a short month; other locales
+// use the shared product formatter so their date order is not inferred here.
 const (
 	timeLayout = "2006-01-02 15:04"
 	dateLayout = "2 Jan 2006"
@@ -61,6 +63,18 @@ func formatTime(ts protoTimestamp) string {
 	return t.UTC().Format(timeLayout) + " UTC"
 }
 
+func formatTimeLocale(locale string, ts protoTimestamp) string {
+	copy := productui.ResolveProductLocale(locale)
+	if copy.Resolved == productui.DefaultProductLocale {
+		return formatTime(ts)
+	}
+	t, ok := timeOf(ts)
+	if !ok {
+		return ""
+	}
+	return copy.FormatDate(t) + " " + t.Format("15:04") + " UTC"
+}
+
 // formatTimeOr renders one instant, or fallback when it is unset. The
 // fallback is an em dash in tables, where a blank cell reads as a rendering
 // failure rather than as an absent fact.
@@ -80,6 +94,17 @@ func formatDateOf(ts protoTimestamp) string {
 	return t.UTC().Format(dateLayout)
 }
 
+func formatDateOfLocale(locale string, ts protoTimestamp) string {
+	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
+		return formatDateOf(ts)
+	}
+	t, ok := timeOf(ts)
+	if !ok {
+		return ""
+	}
+	return productui.ResolveProductLocale(locale).FormatDate(t)
+}
+
 // formatDate renders an ISO-8601 (YYYY-MM-DD) date the way the page shows
 // dates.
 //
@@ -96,6 +121,21 @@ func formatDate(iso string) string {
 		return s
 	}
 	return t.Format(dateLayout)
+}
+
+func formatDateLocale(locale, iso string) string {
+	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
+		return formatDate(iso)
+	}
+	s := strings.TrimSpace(iso)
+	if s == "" {
+		return ""
+	}
+	t, err := time.Parse(isoDate, s)
+	if err != nil {
+		return s
+	}
+	return productui.ResolveProductLocale(locale).FormatDate(t)
 }
 
 // decimalOf parses one of the engine's decimal strings exactly.
@@ -127,6 +167,16 @@ func formatMoney(amount string) string {
 	return groupThousands(r.FloatString(2))
 }
 
+func formatMoneyLocale(locale, amount string) string {
+	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
+		return formatMoney(amount)
+	}
+	if _, ok := decimalOf(amount); !ok {
+		return strings.TrimSpace(amount)
+	}
+	return productui.ResolveProductLocale(locale).FormatNumber(amount, 2)
+}
+
 // formatAmount renders a currency and an amount together ("USD 93,000.00").
 func formatAmount(currency, amount string) string {
 	money := formatMoney(amount)
@@ -137,6 +187,16 @@ func formatAmount(currency, amount string) string {
 		return c + " " + money
 	}
 	return money
+}
+
+func formatAmountLocale(locale, currency, amount string) string {
+	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
+		return formatAmount(currency, amount)
+	}
+	if _, ok := decimalOf(amount); !ok {
+		return strings.TrimSpace(amount)
+	}
+	return productui.ResolveProductLocale(locale).FormatMoney(amount, currency, 2)
 }
 
 // groupThousands inserts a comma every three digits of the integer part of
@@ -204,6 +264,40 @@ func amountDelta(currency, from, to string) (string, bool) {
 	return withSign(money), true
 }
 
+func amountDeltaLocale(locale, currency, from, to string) (string, bool) {
+	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
+		return amountDelta(currency, from, to)
+	}
+	a, okA := decimalOf(from)
+	b, okB := decimalOf(to)
+	if !okA || !okB {
+		return "", false
+	}
+	diff := new(big.Rat).Sub(b, a)
+	if diff.Sign() == 0 {
+		return "", false
+	}
+	abs := new(big.Rat).Abs(diff).FloatString(2)
+	formatted := formatAmountLocale(locale, currency, abs)
+	if diff.Sign() < 0 {
+		return "-" + formatted, true
+	}
+	return "+" + formatted, true
+}
+
+func percentDeltaLocale(locale, from, to string) (string, bool) {
+	pct, ok := percentDelta(from, to)
+	if !ok || productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
+		return pct, ok
+	}
+	decimal := strings.TrimSuffix(pct, "%")
+	sign := ""
+	if strings.HasPrefix(decimal, "+") || strings.HasPrefix(decimal, "-") {
+		sign, decimal = decimal[:1], decimal[1:]
+	}
+	return sign + productui.ResolveProductLocale(locale).FormatNumber(decimal, 1) + "%", true
+}
+
 // signedAmount puts the sign in front of the currency code rather than in
 // front of the digits ("+USD 5,000.00", not "USD +5,000.00"), which is how
 // the comparison table reads a change.
@@ -240,6 +334,27 @@ func payLine(currency, current, proposed string) string {
 	}
 	line := from + " → " + to
 	if pct, ok := percentDelta(current, proposed); ok {
+		line += " (" + pct + ")"
+	}
+	return line
+}
+
+func payLineLocale(locale, currency, current, proposed string) string {
+	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
+		return payLine(currency, current, proposed)
+	}
+	from := formatAmountLocale(locale, currency, current)
+	to := formatMoneyLocale(locale, proposed)
+	switch {
+	case from == "" && to == "":
+		return ""
+	case from == "":
+		return formatAmountLocale(locale, currency, proposed)
+	case to == "":
+		return from
+	}
+	line := from + " → " + to
+	if pct, ok := percentDeltaLocale(locale, current, proposed); ok {
 		line += " (" + pct + ")"
 	}
 	return line

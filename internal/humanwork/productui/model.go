@@ -11,10 +11,16 @@ import (
 type PageID string
 
 const (
-	PageHome                    PageID = "home"
-	PageMyself                  PageID = "myself"
-	PageJourneys                PageID = "journeys"
-	PageWork                    PageID = "work"
+	PageHome     PageID = "home"
+	PageMyself   PageID = "myself"
+	PageJourneys PageID = "journeys"
+	PageWork     PageID = "work"
+	// PageJourneyDiagnostics is not a navigable route: it names PROMOUX-008's
+	// authorized diagnostics disclosure (raw identifiers such as a journey's
+	// work-item id) within the Journeys and My Work pages. It shares its
+	// wire id with roleaccess.PageJourneyDiagnostics so a single role grant
+	// governs both surfaces.
+	PageJourneyDiagnostics      PageID = "journey-diagnostics"
 	PageHistory                 PageID = "history"
 	PagePeople                  PageID = "people"
 	PagePerson                  PageID = "person"
@@ -179,14 +185,22 @@ type AuthorizedNavigationProjection struct {
 }
 
 type WorkItem struct {
-	ID              string
-	Initials        string
-	PhotoURL        string
-	Title           string
-	Person          string
-	PersonRef       string
+	ID       string
+	Initials string
+	PhotoURL string
+	Title    string
+	// TitleKey and StatusKey are semantic presentation keys supplied by an
+	// authorized adapter. They let locale changes re-project labels without
+	// treating English service copy as a translation identifier.
+	TitleKey  string
+	Person    string
+	PersonRef string
+	// AssigneeRef is the server-selected principal who currently owes the
+	// human decision. PersonRef remains the subject of the workflow.
+	AssigneeRef     string
 	Summary         string
 	Status          string
+	StatusKey       string
 	Due             string
 	Tone            string
 	Href            string
@@ -198,6 +212,35 @@ type WorkItem struct {
 	CurrentBase     values.Money
 	ProposedBase    values.Money
 	Terminal        bool
+	// NextStep and WaitingOn are the stable codes of the single next step and
+	// the role class a journey's server stage names (UXAUDIT-017; see
+	// tools/uxqual/journeyclient.StageStatusDimension). They are workflow
+	// facts, never action authority, and render as text only. AwaitsPerson
+	// is true when a person rather than the workflow holds that step; the
+	// queue ranks those first. Empty codes render nothing.
+	NextStep     string
+	WaitingOn    string
+	AwaitsPerson bool
+	// WorkSummary is true when the server disclosed the journey's current
+	// work item to this viewer (UXAUDIT-017). The fields below are set only
+	// then, and only as far as the server's work item rules disclosed them:
+	// AssigneeRef/AssigneeName for a directly routed item whose context the
+	// viewer may see, WorkDue (YYYY-MM-DD) for the item's real deadline,
+	// ViewerMembership (NONE, CANDIDATE, ASSIGNEE, CLAIMANT) and the viewer's
+	// PermittedActions tokens.
+	WorkSummary bool
+	// ViewerRelationships (INITIATOR, ASSIGNEE, CANDIDATE) and
+	// ViewerResponsibility (ACTION_REQUIRED, TRACKING, OBSERVING, CLOSED) are
+	// the server's PROMOUX-012 viewer projection. Empty responsibility means
+	// the server resolved none, which is never actionable. My Work, tracked
+	// requests, the attention counts and the person profile all read these,
+	// never re-derive them from Status.
+	ViewerRelationships  []string
+	ViewerResponsibility string
+	AssigneeName         string
+	WorkDue              string
+	ViewerMembership     string
+	PermittedActions     []string
 	// StatusProjection is supplied by the authorized service adapter when
 	// available. The page never treats it as action authority.
 	StatusProjection StatusProjection
@@ -224,8 +267,14 @@ type Person struct {
 	Role          string
 	Team          string
 	Manager       string
-	Location      string
-	WorkerNumber  string
+	// ManagerRelationship and ManagerWorkerRef are the service-authorized
+	// reporting projection. ManagerWorkerRef is populated only when the
+	// manager is another admitted Person; hierarchy code never uses Manager
+	// display text as identity.
+	ManagerRelationship OrganizationRelationshipState
+	ManagerWorkerRef    string
+	Location            string
+	WorkerNumber        string
 	// PromotionAvailability is the server's four-state promotion-workflow
 	// verdict for this worker (see ResolvePromotionAvailability). The zero
 	// value means no verdict was recorded and fails closed: no launchable
@@ -384,13 +433,18 @@ type View struct {
 	Work                 []WorkItem
 	People               []Person
 	PersonWorkflows      []PersonWorkflow
-	SelectedWork         string
-	SelectedPerson       string
-	Query                string
-	PeoplePage           int
-	PeoplePageSize       int
-	PeopleTeam           string
-	PeopleLocation       string
+	// LauncherActions is the server-resolved semantic-action projection for
+	// the current principal. It is deliberately separate from page CRUD and
+	// PersonWorkflows, neither of which grants authority to start an action.
+	LauncherActions []LauncherActionProjection
+	SelectedWork    string
+	SelectedPerson  string
+	Query           string
+	RolePage        int
+	PeoplePage      int
+	PeoplePageSize  int
+	PeopleTeam      string
+	PeopleLocation  string
 	// PeopleEligibleOnly filters the directory to workers whose
 	// PromotionAvailability resolves to PromotionEligible for the current
 	// viewer, so an authorized reader can find candidates without knowing

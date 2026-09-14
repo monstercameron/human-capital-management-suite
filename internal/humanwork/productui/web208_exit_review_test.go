@@ -24,7 +24,7 @@ func TestTodo_WEB_208(t *testing.T) {
 	if !ok {
 		t.Fatal("exit review and approval unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("exit review and approval incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_208_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "2cebc931695d1831493707a52bd5939ae240dc8aed7d1fe0aefdec5036decb74"
+	const want = "32f333f543f6af70a6e8dcc963056dd38361b794e835409b52290d9e80a9ec9a"
 	if got != want {
 		t.Fatalf("exit review and approval digest = %s, want %s", got, want)
 	}

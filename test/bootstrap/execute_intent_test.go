@@ -412,13 +412,19 @@ func TestExecuteIntentRunsThePromotionDriverUnderAuthority(t *testing.T) {
 	}
 
 	t.Run("edge transport agrees", func(t *testing.T) {
-		created, err := c.edgeIntent.CreateIntent(context.Background(), edgeRequest(c, promoteWorkerRequest(t, "execute-authority-2")))
+		// Exercise an independent promotion through the edge surface. The
+		// first cell still owns Omar's active request, so a second request in
+		// that cell would correctly be refused by the active-promotion guard.
+		edgeTerminal := &recordingTerminalWriter{}
+		edgeCell := newExecutionCell(t, edgeTerminal)
+		seedWorkforce(t, edgeCell)
+		created, err := edgeCell.edgeIntent.CreateIntent(context.Background(), edgeRequest(edgeCell, promoteWorkerRequest(t, "execute-authority-2")))
 		if err != nil {
 			t.Fatalf("CreateIntent: %v", err)
 		}
 		intentID := created.Msg.GetIntent().GetIntentId()
-		simulated, err := c.edgeIntent.SimulateIntent(context.Background(),
-			edgeRequest(c, &intentsv1.SimulateIntentRequest{IntentId: intentID}))
+		simulated, err := edgeCell.edgeIntent.SimulateIntent(context.Background(),
+			edgeRequest(edgeCell, &intentsv1.SimulateIntentRequest{IntentId: intentID}))
 		if err != nil {
 			t.Fatalf("SimulateIntent: %v", err)
 		}
@@ -432,7 +438,7 @@ func TestExecuteIntentRunsThePromotionDriverUnderAuthority(t *testing.T) {
 				ApprovalRef:            "approval:execute-authority-2",
 			},
 		}
-		executed, err := c.edgeIntent.ExecuteIntent(context.Background(), edgeRequest(c, execReq))
+		executed, err := edgeCell.edgeIntent.ExecuteIntent(context.Background(), edgeRequest(edgeCell, execReq))
 		if err != nil {
 			t.Fatalf("ExecuteIntent (edge): %v", err)
 		}
@@ -443,13 +449,16 @@ func TestExecuteIntentRunsThePromotionDriverUnderAuthority(t *testing.T) {
 		// OBS-024: the edge call's own authority-gate admission is recorded
 		// too, on the same cell-wide evidence sink as the grpc call's.
 		admitted := false
-		for _, rec := range c.app.Evidence.Records() {
+		for _, rec := range edgeCell.app.Evidence.Records() {
 			if rec.Decision == app.EvidenceKindGateAdmitted && rec.SubjectRef == intentID {
 				admitted = true
 			}
 		}
 		if !admitted {
 			t.Fatal("no GATE_ADMITTED evidence recorded for the edge transport's own intent")
+		}
+		if calls := edgeTerminal.Calls(); len(calls) != 0 {
+			t.Fatalf("edge terminal writer calls = %d, want 0 while approval is parked", len(calls))
 		}
 	})
 

@@ -194,7 +194,9 @@ func personPromotionEligible(person Person) bool {
 // than link to a journey this view was never given.
 func activePromotionWorkItem(view View, personID string) (WorkItem, bool) {
 	for _, item := range view.Work {
-		if !item.Terminal && item.PersonRef == personID {
+		// PROMOUX-012: a journey may name its subject by the canonical entity
+		// reference rather than the directory id; both resolve to the person.
+		if !item.Terminal && item.PersonRef != "" && personID != "" && stablePersonID(view.People, item.PersonRef) == personID {
 			return item, true
 		}
 	}
@@ -363,30 +365,13 @@ func normalizePageSize(value int) int {
 	}
 }
 
+// paginatePeople keeps its own typed window (peoplePageWindow is exported
+// pervasively across this package's People code) but no longer carries its
+// own pagination arithmetic -- see PaginateCollection in data_table.go,
+// which History's paginateHistory now shares too.
 func paginatePeople(people []Person, requestedPage, requestedPageSize int) peoplePageWindow {
-	pageSize := normalizePageSize(requestedPageSize)
-	total := len(people)
-	pageCount := (total + pageSize - 1) / pageSize
-	if pageCount < 1 {
-		pageCount = 1
-	}
-	page := requestedPage
-	if page < 1 {
-		page = 1
-	}
-	if page > pageCount {
-		page = pageCount
-	}
-	start := (page - 1) * pageSize
-	end := start + pageSize
-	if end > total {
-		end = total
-	}
-	first := 0
-	if total > 0 {
-		first = start + 1
-	}
-	return peoplePageWindow{Page: page, PageCount: pageCount, First: first, Last: end, Total: total, People: people[start:end]}
+	window := PaginateCollection(people, requestedPage, normalizePageSize(requestedPageSize))
+	return peoplePageWindow{Page: window.Page, PageCount: window.PageCount, First: window.First, Last: window.Last, Total: window.Total, People: window.Items}
 }
 
 func filteredPersonWorkflows(view View) []PersonWorkflow {

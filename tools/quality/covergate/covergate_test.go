@@ -1,8 +1,10 @@
 package covergate
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -208,6 +210,57 @@ func TestGate_MeasuresARealPackageAgainstThePolicy(t *testing.T) {
 		if f.Kind == FindingTestFailure {
 			t.Fatalf("the fixture package must not fail: %+v", f)
 		}
+	}
+}
+
+func TestAppendUninstrumentedFindings_PropagatesProductUIFailure(t *testing.T) {
+	var report Report
+	out := "{\"Action\":\"run\",\"Package\":\"" + Module + "/internal/humanwork/productui\",\"Test\":\"TestInteractionLatencyGate\"}\n" +
+		"{\"Action\":\"pass\",\"Package\":\"" + Module + "/internal/humanwork/productui\",\"Test\":\"TestInteractionLatencyGate\"}\n" +
+		"{\"Action\":\"fail\",\"Package\":\"" + Module + "/internal/humanwork/productui\",\"Test\":\"TestUnexpectedFailure\"}\n" +
+		"{\"Action\":\"run\",\"Package\":\"" + Module + "/internal/humanwork/productui\",\"Test\":\"TestTodo_UXAUDIT_008_Performance\"}\n" +
+		"{\"Action\":\"pass\",\"Package\":\"" + Module + "/internal/humanwork/productui\",\"Test\":\"TestTodo_UXAUDIT_008_Performance\"}\n" +
+		"{\"Action\":\"run\",\"Package\":\"" + Module + "/internal/humanwork/productui\",\"Test\":\"TestTodo_UXAUDIT_015_Performance\"}\n" +
+		"{\"Action\":\"pass\",\"Package\":\"" + Module + "/internal/humanwork/productui\",\"Test\":\"TestTodo_UXAUDIT_015_Performance\"}\n" +
+		"{\"Action\":\"run\",\"Package\":\"" + Module + "/internal/humanwork/productui\",\"Test\":\"TestTodo_WEB_039_InteractionP95\"}\n" +
+		"{\"Action\":\"pass\",\"Package\":\"" + Module + "/internal/humanwork/productui\",\"Test\":\"TestTodo_WEB_039_InteractionP95\"}\n" +
+		"{\"Action\":\"fail\",\"Package\":\"" + Module + "/internal/humanwork/productui\"}\n"
+	if err := appendUninstrumentedFindings(&report, out, nil); err != nil {
+		t.Fatalf("a parsed failing package must become a finding: %v", err)
+	}
+	if len(report.Findings) != 1 || report.Findings[0].Package != "internal/humanwork/productui" || report.Findings[0].Kind != FindingTestFailure {
+		t.Fatalf("findings = %+v, want productui test failure", report.Findings)
+	}
+}
+
+func TestAppendUninstrumentedFindings_RefusesMissingResult(t *testing.T) {
+	if err := appendUninstrumentedFindings(&Report{}, "go: build failed\n", errors.New("exit status 1")); err == nil {
+		t.Fatal("an uninstrumented run without a package result must fail the gate")
+	}
+}
+
+func TestIncludesProductUIPackage_NormalizesExactAndBroadPatterns(t *testing.T) {
+	for _, pkg := range []string{"./internal/humanwork/productui", Module + "/internal/humanwork/productui", "./...", "./internal/..."} {
+		if !includesProductUIPackage([]string{pkg}) {
+			t.Errorf("%q must include productui", pkg)
+		}
+	}
+	if includesProductUIPackage([]string{"./cmd/..."}) {
+		t.Fatal("unrelated command pattern must not include productui")
+	}
+}
+
+func TestWindowsCleanupError_RejectsAdditionalFatalOutput(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows cleanup behavior is platform-specific")
+	}
+	err := errors.New("exit status 1")
+	clean := "ok  	" + Module + "/internal/humanwork/productui\n" + "go: unlinkat C:\\go-build\\x.test.exe: Access is denied.\n"
+	if !isWindowsTestCleanupError(err, clean) {
+		t.Fatal("canonical cleanup output must be tolerated")
+	}
+	if isWindowsTestCleanupError(err, clean+"go: fatal tool error\n") {
+		t.Fatal("additional fatal output must not be waived")
 	}
 }
 

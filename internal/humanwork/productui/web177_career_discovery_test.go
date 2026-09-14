@@ -23,7 +23,7 @@ func TestTodo_WEB_177(t *testing.T) {
 	if !ok {
 		t.Fatal("career-opportunity discovery unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("career-opportunity discovery incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_177_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "1b2018395502354dabf5177976ca2dac241eb41b818a275711f808db11c68019"
+	const want = "55822c60b179fce4711bc527ceb4d280ba81b79d2f35cd8ac7f15ad5c45ec5ae"
 	if got != want {
 		t.Fatalf("career discovery digest = %s, want %s", got, want)
 	}

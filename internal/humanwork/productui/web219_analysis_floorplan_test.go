@@ -23,7 +23,7 @@ func TestTodo_WEB_219(t *testing.T) {
 	if !ok {
 		t.Fatal("analysis floorplan unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("analysis floorplan incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_219_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "4526af368e6cc14af489fb7c0a95d94bafea8ba82162bddba085664fa17a4695"
+	const want = "16e07862316c1c5e422f99289e72ef462525372dca2eea20d7fba3c67d19751d"
 	if got != want {
 		t.Fatalf("analysis floorplan digest = %s, want %s", got, want)
 	}

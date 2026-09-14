@@ -1,0 +1,13 @@
+{
+  "canonical_digest": "a01c8c9ac1785d299a4990914cbf0bf1ae1a3176b5f2a0d36aab6fd48eeaabc1",
+  "signature_value": "5c12614fe22d29bf07ed50ead95535358194218d788eab0659609574884dc83196bf5692c7ade2aac4af2d106b68265403eb84ac2de5424666a5aa62e0cc1d0d",
+  "counts": {
+    "api_entitlements": 3,
+    "field_authorities": 4,
+    "operations": 5,
+    "faults": 9,
+    "stop_reselect_thresholds": 4
+  },
+  "operation_verb_order": ["READ", "WRITE", "SUBSCRIBE", "OBSERVE", "RECONCILE"],
+  "fault_class_order": ["AUTHENTICATION", "AUTHORIZATION_SCOPE", "VALIDATION", "CONFLICT", "RATE_LIMITED", "TRANSIENT_DEPENDENCY", "AMBIGUOUS_OUTCOME", "SCHEMA_INCOMPATIBILITY", "FINAL_BUSINESS_REJECT"]
+}

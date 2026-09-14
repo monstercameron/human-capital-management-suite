@@ -93,7 +93,11 @@ func organizationScopeResolution(props OrganizationVisibilityPageProps, titleKey
 		}
 		children = append(children, html.Ul(html.Props{Class: "organization-scope-units"}, chips...))
 	} else {
-		children = append(children, html.P(html.Props{Class: "organization-scope-empty"}, ui.Text(props.Text("organization_visibility.scope_empty"))))
+		emptyKey := "organization_visibility.scope_empty"
+		if strings.EqualFold(strings.TrimSpace(mode), "OWN_UNIT") {
+			emptyKey = "organization_visibility.scope_relative"
+		}
+		children = append(children, html.P(html.Props{Class: "organization-scope-empty"}, ui.Text(props.Text(emptyKey))))
 	}
 	return html.Div(html.Props{Class: "organization-scope " + modifier}, children...)
 }

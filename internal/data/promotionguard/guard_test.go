@@ -220,6 +220,12 @@ func TestTodo_PROMOUX_002(t *testing.T) {
 		if err := promotionguard.Confirm(ctx, tx, tenantID, decision.GuardID, "req-delta", intentID); err != nil {
 			t.Fatalf("Confirm (repeat): %v", err)
 		}
+		if err := promotionguard.Confirm(ctx, tx, tenantID, uuid.New(), "req-delta", intentID); !errors.Is(err, dbport.ErrNoRows) {
+			t.Fatalf("Confirm (unknown guard) = %v, want missing-row refusal", err)
+		}
+		if err := promotionguard.Confirm(ctx, tx, tenantID, decision.GuardID, "req-delta", uuid.New()); !errors.Is(err, dbport.ErrNoRows) {
+			t.Fatalf("Confirm (different intent) = %v, want binding refusal", err)
+		}
 		redecision, err := promotionguard.Admit(ctx, tx, tenantID, uuid.New(), worker, "2029-03-01", "req-delta")
 		if err != nil {
 			t.Fatalf("Admit(replay after confirm): %v", err)

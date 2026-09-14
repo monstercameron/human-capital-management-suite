@@ -24,7 +24,7 @@ func TestTodo_WEB_235(t *testing.T) {
 	if !ok {
 		t.Fatal("privacy-safe frontend telemetry unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("privacy-safe frontend telemetry incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_235_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "0c0126d9e780b9eae9df058bac47beb73912774b1cdf777bb2f0628d663bdaf1"
+	const want = "bcca905fe9f40198a16f57a30ef80073722a87f8a2f46d23212899c3ac30f3b4"
 	if got != want {
 		t.Fatalf("privacy-safe frontend telemetry digest = %s, want %s", got, want)
 	}

@@ -22,7 +22,7 @@ func TestTodo_WEB_133(t *testing.T) {
 	if !ok {
 		t.Fatal("headcount page unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("headcount page incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -61,7 +61,7 @@ func TestTodo_WEB_133_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "6e27844350f98bea309386c3b7ac07ad5343d0fb715e049dc7ad7ff3407b97f3"
+	const want = "511fc3b8d5cd610fedb36b97c2895045886f8d7bfe79c0553b46212118e38888"
 	if got != want {
 		t.Fatalf("headcount digest = %s, want %s", got, want)
 	}

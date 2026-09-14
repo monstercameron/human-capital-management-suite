@@ -23,7 +23,7 @@ func TestTodo_WEB_151(t *testing.T) {
 	if !ok {
 		t.Fatal("time-off request journey unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("time-off request journey incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_151_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "7dfcbbcdadcdf0c45bc20216605cc0736f3f9a7be89efc65574425a39cc1887d"
+	const want = "cbbb6f2dbaa02f8b425b6f641e9bce5180ad6dbf4a78f3cbd9e703adf9d96cd0"
 	if got != want {
 		t.Fatalf("time-off request digest = %s, want %s", got, want)
 	}

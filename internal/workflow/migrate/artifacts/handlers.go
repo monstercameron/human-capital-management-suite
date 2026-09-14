@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/timer"
 )
 
@@ -32,7 +33,9 @@ func (leaseHandler) Kind() Kind { return KindLease }
 // [CodeStaleLease]. WF-RUN-026's RED clause names "accepts stale lease" as a
 // failure in its own right, so a stale lease may not be carried forward under
 // the new epoch on the grounds that nothing else went wrong.
-func (leaseHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) ([]Entry, error) {
+func (leaseHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) (ret0 []Entry, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.lease", scope)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	ref := scope.InstanceID.String()
 	current, held, err := ports.Leases.Current(ctx, ex, scope.TenantID, scope.InstanceID)
 	if err != nil {
@@ -103,7 +106,9 @@ func (timerHandler) Kind() Kind { return KindTimer }
 //
 // A timer raised on a node the migration is not moving off is carried
 // untouched, whatever the requirement map says about it.
-func (timerHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) ([]Entry, error) {
+func (timerHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) (ret0 []Entry, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.timer", scope)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	rows, err := ports.Timers.Pending(ctx, ex, scope.TenantID, scope.InstanceID)
 	if err != nil {
 		return nil, wrap(CodeStorageFailed, KindTimer, scope.InstanceID.String(), err,
@@ -187,7 +192,9 @@ func (signalHandler) Kind() Kind { return KindSignal }
 // CANCELLED. Closing rather than deleting is deliberate: the fact that this
 // instance once waited for this signal at that node is history, and a
 // migration does not get to rewrite history.
-func (signalHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) ([]Entry, error) {
+func (signalHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) (ret0 []Entry, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.signal", scope)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	rows, err := ports.Signals.Open(ctx, ex, scope.TenantID, scope.InstanceID)
 	if err != nil {
 		return nil, wrap(CodeStorageFailed, KindSignal, scope.InstanceID.String(), err,
@@ -242,7 +249,9 @@ func (readyWorkHandler) Kind() Kind { return KindReadyWork }
 // attempt -- the same derivation WF-RUN-004 uses when a fired timer enqueues
 // work -- so a migration and a subsequent timer fire address one row rather
 // than racing to create two.
-func (readyWorkHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) ([]Entry, error) {
+func (readyWorkHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) (ret0 []Entry, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.ready_work", scope)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	rows, err := ports.ReadyWork.Pending(ctx, ex, scope.TenantID, scope.InstanceID)
 	if err != nil {
 		return nil, wrap(CodeStorageFailed, KindReadyWork, scope.InstanceID.String(), err,
@@ -307,7 +316,9 @@ func (approvalHandler) Kind() Kind { return KindApproval }
 // already be working. So a relocation is [CodeNotRelocatable]: the operator
 // decides whether to complete the approval first, or to migrate to a target
 // that keeps the node.
-func (approvalHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) ([]Entry, error) {
+func (approvalHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) (ret0 []Entry, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.approval", scope)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	rows, err := ports.Approvals.Pending(ctx, ex, scope.TenantID, scope.InstanceID)
 	if err != nil {
 		return nil, wrap(CodeStorageFailed, KindApproval, scope.InstanceID.String(), err,
@@ -348,7 +359,9 @@ func (childHandler) Kind() Kind { return KindChildContinuation }
 // attempt, target node, kind), so a parent awaiting five children records one
 // row, not five, and a replayed migration writes none: the derived identity
 // collides and the insert is a no-op.
-func (childHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) ([]Entry, error) {
+func (childHandler) Migrate(ctx context.Context, ex Executor, scope Scope, ports Ports) (ret0 []Entry, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.migrate.artifacts.child", scope)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	links, err := ports.Children.Links(ctx, ex, scope.TenantID, scope.InstanceID)
 	if err != nil {
 		return nil, wrap(CodeStorageFailed, KindChildContinuation, scope.InstanceID.String(), err,

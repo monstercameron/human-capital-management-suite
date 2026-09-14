@@ -157,19 +157,37 @@ func TestPromotionWorkspaceRendersFromTheLiveCellWithZeroEffects(t *testing.T) {
 		}
 	})
 
-	t.Run("the response carries a strict content-security-policy and pinned enhancement", func(t *testing.T) {
+	t.Run("the response carries a strict content-security-policy and the safe server-rendered fallback", func(t *testing.T) {
 		policy := page.Header.Get("Content-Security-Policy")
 		for _, want := range []string{
 			"default-src 'none'", "base-uri 'none'", "form-action 'self'",
-			"frame-ancestors 'none'", "style-src 'sha256-", "script-src 'sha256-",
-			"'self' 'wasm-unsafe-eval'", "connect-src 'self'",
+			"frame-ancestors 'none'", "style-src 'sha256-",
 		} {
 			if !strings.Contains(policy, want) {
 				t.Errorf("the content-security-policy %q is missing %q", policy, want)
 			}
 		}
-		if !strings.Contains(page.Body, `<script type="application/json" id="gwc-contract">`) || !strings.Contains(page.Body, workspace.PathWasm) {
-			t.Error("the enhanced workspace dropped its pinned contract island or Go/WASM client")
+		// The legacy uxqual.wasm enhancement is deliberately withheld
+		// (internal/humanwork/workspace/assets.go, 60ca21b9): it rebuilt the
+		// request form without CSRF, worker, locale and form-owner binding, so
+		// BundleBuilt is false and the server-rendered POST form is the
+		// production path. Pin whichever posture this build actually serves.
+		if workspace.BundleBuilt() {
+			for _, want := range []string{"script-src 'sha256-", "'self' 'wasm-unsafe-eval'", "connect-src 'self'"} {
+				if !strings.Contains(policy, want) {
+					t.Errorf("the content-security-policy %q is missing %q", policy, want)
+				}
+			}
+			if !strings.Contains(page.Body, `<script type="application/json" id="gwc-contract">`) || !strings.Contains(page.Body, workspace.PathWasm) {
+				t.Error("the enhanced workspace dropped its pinned contract island or Go/WASM client")
+			}
+		} else {
+			if !strings.Contains(policy, "script-src 'none'") || !strings.Contains(policy, "script-src-elem 'none'") || !strings.Contains(policy, "connect-src 'none'") {
+				t.Errorf("the native-only workspace's content-security-policy %q does not refuse script execution", policy)
+			}
+			if strings.Contains(page.Body, "<script") || strings.Contains(page.Body, workspace.PathWasm) {
+				t.Error("the native-only workspace advertises a script or the withheld Go/WASM enhancement")
+			}
 		}
 		if got := page.Header.Get("X-Content-Type-Options"); got != "nosniff" {
 			t.Errorf("X-Content-Type-Options is %q, want nosniff", got)

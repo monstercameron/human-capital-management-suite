@@ -8,6 +8,10 @@ import (
 	"testing"
 )
 
+// PROMOUX-012: the fixtures carry the server's viewer projection, and the
+// approval item is a manager or finance approval rather than the literal
+// "Awaiting approval" label, which the review view no longer matches on.
+//
 // RED for WEB-104: task and approval filtering. The work
 // collection filters through an unexported string matcher:
 // tab names travel as raw strings from request to provider,
@@ -19,9 +23,9 @@ import (
 // governing the real provider path by delegation.
 func TestTodo_WEB_104(t *testing.T) {
 	items := []WorkItem{
-		{ID: "a", Status: "In progress"},
-		{ID: "b", Status: "Awaiting approval"},
-		{ID: "c", Status: "Blocked"},
+		{ID: "a", Status: "In progress", ViewerResponsibility: "ACTION_REQUIRED", NextStep: "start_approval"},
+		{ID: "b", Status: "Manager approval", ViewerResponsibility: "ACTION_REQUIRED", NextStep: "manager_decision"},
+		{ID: "c", Status: "Blocked", ViewerResponsibility: "ACTION_REQUIRED", NextStep: "correct_proposal"},
 		{ID: "d", Status: "Done", Terminal: true},
 	}
 	if got := FilterWorkCollection(items, WorkCollectionAll); len(got) != 3 {
@@ -68,9 +72,9 @@ func TestTodo_WEB_104(t *testing.T) {
 // Golden: typed outcomes over filter values.
 func TestTodo_WEB_104_Golden(t *testing.T) {
 	items := []WorkItem{
-		{ID: "a", Status: "In progress"},
-		{ID: "b", Status: "Awaiting approval"},
-		{ID: "c", Status: "Blocked"},
+		{ID: "a", Status: "In progress", ViewerResponsibility: "ACTION_REQUIRED", NextStep: "start_approval"},
+		{ID: "b", Status: "Manager approval", ViewerResponsibility: "ACTION_REQUIRED", NextStep: "manager_decision"},
+		{ID: "c", Status: "Blocked", ViewerResponsibility: "ACTION_REQUIRED", NextStep: "correct_proposal"},
 		{ID: "d", Status: "Done", Terminal: true},
 	}
 	filters := []WorkCollectionFilter{WorkCollectionAll, WorkCollectionReview, WorkCollectionBlocked, WorkCollectionComplete, WorkCollectionFilter(0)}
@@ -127,9 +131,9 @@ func TestTodo_WEB_104_Browser(t *testing.T) {
 // completed; passthrough; stability.
 func TestTodo_WEB_104_Conformance(t *testing.T) {
 	stream := []WorkItem{
-		{ID: "a", Status: "In progress", Title: "T"},
-		{ID: "b", Status: "Awaiting approval", Title: "U"},
-		{ID: "c", Status: "Blocked", Title: "V"},
+		{ID: "a", Status: "In progress", Title: "T", ViewerResponsibility: "ACTION_REQUIRED", NextStep: "start_approval"},
+		{ID: "b", Status: "Finance approval", Title: "U", ViewerResponsibility: "ACTION_REQUIRED", NextStep: "finance_decision"},
+		{ID: "c", Status: "Blocked", Title: "V", ViewerResponsibility: "ACTION_REQUIRED", NextStep: "correct_proposal"},
 		{ID: "d", Status: "Done", Title: "W", Terminal: true},
 	}
 	all := FilterWorkCollection(stream, WorkCollectionAll)

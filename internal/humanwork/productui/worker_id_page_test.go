@@ -100,3 +100,36 @@ func TestWorkerIDPageSubmitsTypedDraft(t *testing.T) {
 	// ensures the typed callback is retained instead of a page-shaped View.
 	_ = got
 }
+
+func TestWorkerIDPolicyDirtyStateIgnoresServerAllocationCounters(t *testing.T) {
+	source := WorkerIDPolicy{Version: 2, Prefix: "HC", SequenceDigits: 6, StartAt: 1, IncrementBy: 1, NextSequence: 42, IssuedCount: 10}
+	allocationMoved := source
+	allocationMoved.NextSequence = 43
+	allocationMoved.IssuedCount = 11
+	if workerIDPolicyChanged(source, allocationMoved) {
+		t.Fatal("server-owned allocation counters should not make the editor dirty")
+	}
+	draft := allocationMoved
+	draft.Prefix = "EU"
+	if !workerIDPolicyChanged(source, draft) {
+		t.Fatal("format edits should mark the editor dirty")
+	}
+	fields := workerIDChangedFields(I18nProps{Locale: ResolveProductLocale("en-US")}, source, draft)
+	if len(fields) != 1 || fields[0] != "Number prefix, suffix, or separator" {
+		t.Fatalf("changed fields = %v", fields)
+	}
+}
+
+func TestWorkerIDPageShowsGroupedRulesAndSavedState(t *testing.T) {
+	view := testView(PageWorkerIDs)
+	view.WorkerIDPolicy = WorkerIDPolicy{SequenceDigits: 6, StartAt: 1, IncrementBy: 1}
+	doc, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`data-field-group="worker-id-identity"`, `data-field-group="worker-id-sequence"`, `data-field-group="worker-id-format"`, `data-field-group="worker-id-reserved"`, `data-unsaved="false"`, "No unsaved changes"} {
+		if !strings.Contains(doc, want) {
+			t.Errorf("worker ID page missing %q", want)
+		}
+	}
+}

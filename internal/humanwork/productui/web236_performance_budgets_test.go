@@ -24,7 +24,7 @@ func TestTodo_WEB_236(t *testing.T) {
 	if !ok {
 		t.Fatal("frontend performance budgets unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("frontend performance budgets incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_236_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "ef9b2aab6c3826f131685729e39f15c726966ec4b295b2817c9e5c34ff333913"
+	const want = "1fcec49f0869249126f28362f3c05773f8a1b49b6f6a6762c8c6c406094e6370"
 	if got != want {
 		t.Fatalf("frontend performance budgets digest = %s, want %s", got, want)
 	}

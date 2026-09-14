@@ -18,7 +18,10 @@ import (
 func TestActionLauncherComboboxReflectsVisibleResults(t *testing.T) {
 	for _, tc := range []struct{ query, expanded string }{{"", "false"}, {"people", "true"}, {"zzzznotfound", "false"}} {
 		doc, err := ui.RenderToString(ui.CreateElement(ActionLauncher, ActionLauncherProps{
-			InitialQuery: tc.query, Items: []ActionLauncherItem{{ID: "people", Label: "People", Href: "/workspace/app/people"}},
+			InitialQuery: tc.query, Items: []ActionLauncherItem{{
+				ID: "people", Kind: ActionLauncherAction, Label: "People", Href: "/workspace/app/people",
+				Availability: ActionState{Availability: ActionAvailable},
+			}},
 		}))
 		if err != nil {
 			t.Fatal(err)
@@ -122,6 +125,7 @@ func TestTodo_WEB_040(t *testing.T) {
 	if closedLauncher == nil {
 		t.Fatal("shell rendered no global action launcher")
 	}
+
 	var closedMarkup strings.Builder
 	if err := xhtml.Render(&closedMarkup, closedLauncher); err != nil {
 		t.Fatal(err)
@@ -135,6 +139,7 @@ func TestTodo_WEB_040(t *testing.T) {
 	denied := ApplyPagePermissions(testView(PageHome), []RolePagePermission{
 		{Version: 1, RoleID: "viewer", Page: PagePeople, View: true},
 	})
+
 	deniedProps := actionLauncherProps(denied)
 	deniedProps.Items = authorizedActionLauncherItems(denied, deniedProps.Items)
 	if itemWithHref(deniedProps.Items, statefulHref(denied, PageJourneys)) != nil {
@@ -175,13 +180,13 @@ func TestTodo_WEB_040(t *testing.T) {
 }
 
 // web040GoldenDigest is pinned from the GREEN implementation run.
+
 // UXAUDIT-003 changed the closed launcher's dialog to omit its results
 // list entirely (see the results-gate doc comment in action_launcher.go)
 // so a per-worker action never embeds into a page's markup before the
-// viewer opens the control; re-pinned to the new, smaller closed-state
-// bytes after visually confirming the trigger, dialog scaffold and input
-// still render correctly.
-const web040GoldenDigest = "41e7fab62483d71e389b96ad7f661bc6e7e12396ef0b90f12b3cfd86e9dd84d4"
+// viewer opens the control. UXSCAN-002 also clarifies the input's employee
+// search path; this digest pins that updated closed-state scaffold.
+const web040GoldenDigest = "5d96d8a51f4460c0b8670775f3eaedcbddea613fe54163f56bd57e709b24cb47"
 
 func TestTodo_WEB_040_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

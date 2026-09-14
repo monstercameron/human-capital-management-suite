@@ -50,13 +50,13 @@ func TestTodo_WEB_121_Golden(t *testing.T) {
 			name:       "list",
 			resolution: listResolution,
 			route:      journeyclient.Parse(""),
-			wantDigest: "sha256:2be5c0aa93c021c044833ab1d0aab49a21c835bbc0e440eb7ddfd0db44a8668c",
+			wantDigest: "sha256:757fd013f3a624cf7840d89fde25ab2ee9dcd4249ff9ecb97a01302b79bb959c",
 		},
 		{
 			name:       "detail",
 			resolution: detailResolution,
 			route:      journeyclient.Parse("#/journeys/int_01JX6Y8B2C7D9EFG"),
-			wantDigest: "sha256:b7e6282ed3775c4c42a67c5121f66e66a410f541000d445d63d24558c2ec43cb",
+			wantDigest: "sha256:c5984f6fdd025727dacfb58eacb463b6a4c1f380c6b18c6640cbf69294ba532b",
 		},
 	}
 

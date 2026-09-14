@@ -23,7 +23,7 @@ func TestTodo_WEB_149(t *testing.T) {
 	if !ok {
 		t.Fatal("time-exception workbench unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("time-exception workbench incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_149_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "98f603a911ffd65c6d28802c94738f0f690e065ce8aac3a715763ffee2ac9882"
+	const want = "aa748422858941ec853d89742194f557bc03b94a43c11bb7d1b77c2df6d57c60"
 	if got != want {
 		t.Fatalf("time exception digest = %s, want %s", got, want)
 	}

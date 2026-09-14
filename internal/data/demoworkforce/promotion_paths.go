@@ -22,10 +22,19 @@ var gradeRank = map[string]int{
 // administrative refusal, and the two must stay distinguishable to whatever
 // reads this catalog.
 type PromotionPathEdge struct {
-	OrgUnit                                 string
-	SourceJobCode, SourceGrade              string
-	TargetJobCode, TargetGrade, TargetTitle string
+	OrgUnit                                  string
+	SourceJobCode, SourceGrade               string
+	TargetJobCode, TargetGrade, TargetTitle  string
+	MinimumBaseIncrease, MaximumBaseIncrease string
 }
+
+// These illustrative HarborCare ladder bounds are authored as exact decimal
+// fractions, not inferred from an employee's current pay or a target role's
+// example salary. Compensation preflight still applies its separate checks.
+const (
+	demoMinimumBaseIncrease = "0.0500"
+	demoMaximumBaseIncrease = "0.5000"
+)
 
 // PromotionPaths computes the demo company's career ladder from its own
 // staffing catalog. It is pure and deterministic: no clock, no I/O, no
@@ -71,6 +80,7 @@ func PromotionPaths() []PromotionPathEdge {
 				OrgUnit:       group.Code,
 				SourceJobCode: role.Code, SourceGrade: role.Grade,
 				TargetJobCode: best.Code, TargetGrade: best.Grade, TargetTitle: best.Title,
+				MinimumBaseIncrease: demoMinimumBaseIncrease, MaximumBaseIncrease: demoMaximumBaseIncrease,
 			})
 		}
 	}

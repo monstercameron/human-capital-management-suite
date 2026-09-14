@@ -371,7 +371,7 @@ func ContextSwitcher(props ContextSwitcherProps) ui.Node {
 	}
 	trigger := html.Span(html.Props{Class: "context-switcher-trigger", Raw: map[string]any{"title": label}},
 		html.Span(html.Props{Class: "context-switcher-current"}, ui.Text(current)),
-		html.Span(html.Props{Class: "context-switcher-chevron", Aria: map[string]string{"hidden": "true"}}, ui.Text("⌄")),
+		productIcon("expand", "context-switcher-chevron"),
 	)
 	return html.Details(html.Props{Class: "context-switcher", Dir: string(locale.Direction), Data: map[string]string{
 		"hcm-context-switcher": "true", "hcm-transient-popover": "context", "hcm-popover-grace-ms": transientPopoverGraceMilliseconds,

@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"context"
 	"html"
 	"net/http"
 	"net/http/httptest"
@@ -8,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
@@ -30,6 +33,36 @@ func TestProductLoadingShellSeedsMenuQueryForHydration(t *testing.T) {
 	}
 }
 
+func TestTodo_UXAUDIT_024_SSRHonorsExplicitCollapsedNavigation(t *testing.T) {
+	config := JourneyConfig{Tenant: "harborcare-demo", Roles: []string{"comp_admin"}}
+	for _, test := range []struct {
+		nav       string
+		collapsed bool
+	}{
+		{nav: "collapsed", collapsed: true},
+		{nav: "expanded", collapsed: false},
+		{nav: "invalid", collapsed: false},
+		{nav: "", collapsed: false},
+	} {
+		doc, err := productShellDocumentForRouteState(config, true, productui.ResolveProductLocale("en-US"), productui.PageHome, "promote", test.nav)
+		if err != nil {
+			t.Fatal(err)
+		}
+		start := strings.Index(doc, `class="app-shell`)
+		if start < 0 {
+			t.Fatal("loading shell is missing")
+		}
+		end := strings.IndexByte(doc[start:], '>')
+		if end < 0 {
+			t.Fatal("loading shell opening tag is malformed")
+		}
+		got := strings.Contains(doc[start:start+end], "nav-collapsed")
+		if got != test.collapsed {
+			t.Fatalf("nav=%q collapsed=%v, want %v", test.nav, got, test.collapsed)
+		}
+	}
+}
+
 func TestProductShellCarriesAuthenticatedLiveClientConfiguration(t *testing.T) {
 	h, token := newShellHandler(t, false)
 	request := httptest.NewRequest(http.MethodGet, "http://cell.test"+PathProductHome+"?nav=collapsed", nil)
@@ -42,6 +75,9 @@ func TestProductShellCarriesAuthenticatedLiveClientConfiguration(t *testing.T) {
 	config := island(t, recorder.Body.String())
 	if config.TunnelURL != "ws://cell.test"+PathTunnel || config.Bearer != token || config.Tenant != shellTenant || config.Subject != shellSubject {
 		t.Fatalf("product config = %+v", config)
+	}
+	if !strings.Contains(recorder.Body.String(), `class="app-shell nav-collapsed`) {
+		t.Fatal("explicit collapsed route did not shape the initial server-rendered shell")
 	}
 	for _, forbidden := range []string{"Maya Chen", "Northstar Group", "Validation passed", "Manager change completed"} {
 		if strings.Contains(recorder.Body.String(), forbidden) {
@@ -206,6 +242,73 @@ func TestProductShellUsesTheRouteShapedLoadingProxyBeforeWASMStarts(t *testing.T
 	}
 }
 
+func TestTodo_UXAUDIT_003_ServerProjection(t *testing.T) {
+	permissions := []roleaccess.PagePermission{
+		{PageID: string(productui.PagePeople), View: true},
+		{PageID: string(productui.PageJourneys), View: true, Create: true},
+	}
+	actions := resolveProductLauncherActions(true, permissions)
+	if len(actions) != 1 || actions[0].ID != productui.SemanticActionPromoteWorker || actions[0].Availability != string(productui.ActionAvailable) {
+		t.Fatalf("authorized semantic action projection = %+v", actions)
+	}
+	for name, candidate := range map[string][]roleaccess.PagePermission{
+		"unconfigured": permissions,
+		"no people":    {{PageID: string(productui.PageJourneys), View: true, Create: true}},
+		"no create":    {{PageID: string(productui.PagePeople), View: true}, {PageID: string(productui.PageJourneys), View: true}},
+	} {
+		configured := name != "unconfigured"
+		if got := resolveProductLauncherActions(configured, candidate); len(got) != 0 {
+			t.Fatalf("%s policy projected promotion: %+v", name, got)
+		}
+	}
+	config := JourneyConfig{LauncherActions: actions}
+	viewActions := productLauncherActions(config.LauncherActions)
+	if len(viewActions) != 1 || viewActions[0].State.Availability != productui.ActionAvailable {
+		t.Fatalf("SSR launcher projection = %+v", viewActions)
+	}
+}
+
+func TestTodo_UXAUDIT_003_AuthenticatedShellProjection(t *testing.T) {
+	h, token := newShellHandler(t, false)
+	store := launcherRoleAccessStore{snapshot: roleaccess.Snapshot{PagePermissions: []roleaccess.PagePermission{
+		{RoleID: "comp_admin", PageID: string(productui.PageHome), View: true},
+		{RoleID: "comp_admin", PageID: string(productui.PagePeople), View: true},
+		{RoleID: "comp_admin", PageID: string(productui.PageJourneys), View: true, Create: true},
+	}}}
+	h.roleAccess = store
+	request := httptest.NewRequest(http.MethodGet, "http://cell.test"+PathProductHome, nil)
+	request.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+	h.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("GET product shell = %d: %s", response.Code, response.Body.String())
+	}
+	config := island(t, response.Body.String())
+	if len(config.LauncherActions) != 1 || config.LauncherActions[0].ID != productui.SemanticActionPromoteWorker {
+		t.Fatalf("authenticated shell launcher projection = %+v", config.LauncherActions)
+	}
+
+	store.snapshot.PagePermissions[2].Create = false
+	h.roleAccess = store
+	response = httptest.NewRecorder()
+	h.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("GET read-only product shell = %d: %s", response.Code, response.Body.String())
+	}
+	if denied := island(t, response.Body.String()).LauncherActions; len(denied) != 0 {
+		t.Fatalf("read-only shell disclosed semantic action: %+v", denied)
+	}
+}
+
+type launcherRoleAccessStore struct {
+	roleaccess.Store
+	snapshot roleaccess.Snapshot
+}
+
+func (s launcherRoleAccessStore) Load(context.Context, values.TenantId, string) (roleaccess.Snapshot, error) {
+	return s.snapshot, nil
+}
+
 // TestTodo_UXAUDIT_007_Regression proves, from this package's own caller
 // path (productShellDocumentForRouteQuery, the SSR loading shell every
 // product route renders before the WASM client takes over), that a task-
@@ -243,15 +346,14 @@ func TestTodo_UXAUDIT_007_Regression(t *testing.T) {
 		if strings.Contains(rendered, "Distinctive Purpose Marker") {
 			t.Fatalf("page %s: humanized form of the purpose reached the rendered shell", page)
 		}
-		// The tenant display fact survives on every page; the personalized
-		// "Local Developer" greeting is Home-specific chrome (see
-		// productui.ResolvePageIdentity), not a fact this fix touches, so it
-		// is checked only where it actually applies.
+		// The tenant display fact survives on every page. A raw subject is
+		// not an authorized viewer profile and must not be humanized into a
+		// personalized Home greeting before that profile resolves.
 		if !strings.Contains(rendered, "Harborcare Demo") {
 			t.Fatalf("page %s: fix over-suppressed the shell -- missing tenant %q", page, "Harborcare Demo")
 		}
-		if page == productui.PageHome && !strings.Contains(rendered, "Local Developer") {
-			t.Fatalf("page %s: fix over-suppressed the shell -- missing subject greeting %q", page, "Local Developer")
+		if page == productui.PageHome && strings.Contains(rendered, "Local Developer") {
+			t.Fatalf("page %s: raw subject was mistaken for a viewer name", page)
 		}
 		// The purpose still belongs in the configuration island the WASM
 		// client reads to build the affected workflow's own masthead: this

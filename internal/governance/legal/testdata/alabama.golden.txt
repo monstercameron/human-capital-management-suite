@@ -1,0 +1,5 @@
+# LEGAL-ST-AL-001 golden oracle: the agent-verified Alabama draft bytes
+# (federal-only floor, sex/race pay-equity bases, non-compete durations,
+# confirmed E-Verify, cannabis contradiction removed, AG threshold added).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:4d028d4abe134bf3390035b8f64c6c9e892fa795bf93745668881132e5056d87

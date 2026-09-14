@@ -23,7 +23,7 @@ func TestTodo_WEB_178(t *testing.T) {
 	if !ok {
 		t.Fatal("manager talent workbench unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("manager talent workbench incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_178_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "805d6e7ddb0df0a93bf50c376a1c0a1fff7d76558b5b862955318febc21b2400"
+	const want = "5c8d4834082e9123f534c2ab5731a1bc985b616f591437bd96afe5021b53b3c0"
 	if got != want {
 		t.Fatalf("talent workbench digest = %s, want %s", got, want)
 	}

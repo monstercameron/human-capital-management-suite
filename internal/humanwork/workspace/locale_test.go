@@ -64,6 +64,7 @@ func TestTodo_UX_004_Golden(t *testing.T) {
 	}{
 		{"en-US", "1,234,567.50", "USD 1,234,567.50", "September 03, 2026"},
 		{"de-DE", "1.234.567,50", "1.234.567,50 USD", "03. September 2026"},
+		{"ar", "1,234,567.50", "USD 1,234,567.50", "03 سبتمبر 2026"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.locale, func(t *testing.T) {
@@ -84,6 +85,13 @@ func TestTodo_UX_004_Golden(t *testing.T) {
 	}
 	if got, diagnostic := Translate(ResolveLocale("de-DE"), "field.current_base", "Current base pay"); diagnostic != nil || got != "Aktuelles Grundgehalt" {
 		t.Errorf("known German translation = %q, %+v", got, diagnostic)
+	}
+	arabic := ResolveLocale("ar")
+	if arabic.Resolved != "ar" || arabic.Fallback != LocaleFallbackNone {
+		t.Fatalf("ResolveLocale(ar) = %+v", arabic)
+	}
+	if got, diagnostic := Translate(arabic, "action.submit_for_approval", "Submit for approval"); diagnostic != nil || got != "إرسال للموافقة" {
+		t.Errorf("known Arabic translation = %q, %+v", got, diagnostic)
 	}
 }
 

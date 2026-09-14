@@ -48,8 +48,15 @@ func strokePath(d string) ui.Node {
 // upward step inside it, the same "one governed step up" the page is about.
 // It is the only filled icon on the page.
 func BrandMark() ui.Node {
+	return brandMark("jn-mark")
+}
+
+// brandMark renders the masthead monogram with the caller's styling hook.
+// Keeping the public BrandMark helper preserves its historical class while
+// registry callers can apply the same class contract as every other icon.
+func brandMark(class string) ui.Node {
 	return html.Svg(html.Props{
-		Class:  "jn-mark",
+		Class:  class,
 		Width:  "28",
 		Height: "28",
 		Raw: map[string]any{
@@ -76,6 +83,10 @@ func iconCheck(class string) ui.Node {
 
 func iconArrowRight(class string) ui.Node {
 	return icon(class, iconSize, strokePath("M5 12h14"), strokePath("m13 6 6 6-6 6"))
+}
+
+func iconArrowLeft(class string) ui.Node {
+	return icon(class, iconSize, strokePath("M19 12H5"), strokePath("m11 18-6-6 6-6"))
 }
 
 func iconInfo(class string) ui.Node {
@@ -114,13 +125,13 @@ func iconDanger(class string) ui.Node {
 func iconForTone(tone, class string) ui.Node {
 	switch tone {
 	case toneSuccess:
-		return iconSuccess(class)
+		return RenderIcon(IconSuccess, class, nil)
 	case toneWarning:
-		return iconWarning(class)
+		return RenderIcon(IconWarning, class, nil)
 	case toneDanger:
-		return iconDanger(class)
+		return RenderIcon(IconDanger, class, nil)
 	default:
-		return iconInfo(class)
+		return RenderIcon(IconInfo, class, nil)
 	}
 }
 
@@ -129,13 +140,13 @@ func iconForTone(tone, class string) ui.Node {
 func iconForSeverity(severity, class string) ui.Node {
 	switch severity {
 	case severityBlocking:
-		return iconDanger(class)
-	case severityWarning:
-		return iconWarning(class)
+		return RenderIcon(IconDanger, class, nil)
+	case severityWarning, severityNeedsData:
+		return RenderIcon(IconWarning, class, nil)
 	case severitySuccess:
-		return iconSuccess(class)
+		return RenderIcon(IconSuccess, class, nil)
 	default:
-		return iconInfo(class)
+		return RenderIcon(IconInfo, class, nil)
 	}
 }
 

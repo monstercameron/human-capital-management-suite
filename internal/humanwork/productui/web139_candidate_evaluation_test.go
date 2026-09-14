@@ -23,7 +23,7 @@ func TestTodo_WEB_139(t *testing.T) {
 	if !ok {
 		t.Fatal("candidate evaluation unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("candidate evaluation incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_139_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "5b6f479b8216bc1a6415b1660c457293752333ebb5189b385befd993d6a9a473"
+	const want = "03ca858a177d211aa99151f3ddac2e13fd2e691121a982a86795ace20d8ee0d6"
 	if got != want {
 		t.Fatalf("evaluation digest = %s, want %s", got, want)
 	}

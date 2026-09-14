@@ -131,26 +131,26 @@ func TestTodo_UXAUDIT_006_Golden(t *testing.T) {
 		{"en-US", "shell.authenticated_scope", "Workspace access"},
 		{"en-US", "shell.loading_authorized", "Loading your workspace data…"},
 		{"en-US", "page.people.subtitle", "People you're authorized to view across the organization."},
-		{"en-US", "page.organization.subtitle", "See where each visible employee sits in the organization."},
-		{"en-US", "organization.metadata_boundary", "These counts reflect the employees currently visible to you; legal-entity details and reporting lines are not inferred."},
+		{"en-US", "page.organization.subtitle", "Review the organization visible to you."},
+		{"en-US", "organization.metadata_boundary", "Counts reflect the people visible in your current access; legal-entity details and reporting lines are not inferred."},
 		{"en-US", "organization.empty_title", "No organization members to show"},
 		{"en-US", "organization.empty_description", "No employees are visible to you in this organization right now. If you expect to see people here, ask your administrator to check your access."},
 		{"en-US", "admin.journeys_unavailable_reason", "Journey actions aren't available right now because the connection didn't respond. Try refreshing the page."},
 		{"en-US", "admin.studio_unavailable_reason", "Page configuration isn't available for your organization yet."},
-		{"en-US", "admin.hero_eyebrow", "Live"},
-		{"en-US", "admin.hero_description", "This page only shows the capabilities available to your organization right now."},
+		{"en-US", "admin.hero_eyebrow", "Administration"},
+		{"en-US", "admin.hero_description", "Manage available settings and see what is planned for this workspace."},
 		{"en-US", "admin.journey_card_description", "Promotion journeys and the workers you can see are loaded live from your organization's data."},
 		{"en-US", "admin.studio_card_description", "Experience configuration isn't available for your organization yet."},
 		{"en-US", "roles.assignments_help", "Assigning a role here overrides the default role used for organization visibility."},
 		{"en-US", "organization_visibility.boundary_title", "Applied automatically"},
 		{"en-US", "organization_visibility.boundary_detail", "Role grants are additive. Hidden workers, unit names, and reporting links are removed before worker records reach the browser; a worker can always receive their own record."},
 		{"en-US", "appearance.tenant", "Organization appearance"},
-		{"en-US", "insights.attention_description", "This is a limited workflow summary of current visible states. Trend, benchmark, certification, and broader workforce reporting are not available yet."},
+		{"en-US", "insights.attention_description", "This summary covers promotion journeys you can view. Broader workforce reporting is not available yet."},
 		{"de-DE", "shell.authenticated_scope", "Arbeitsbereichszugriff"},
 		{"de-DE", "appearance.tenant", "Unternehmensweite Darstellung"},
 		{"de-DE", "organization_visibility.boundary_title", "Automatisch angewendet"},
 		{"ar", "organization_visibility.boundary_title", "يُطبَّق تلقائياً"},
-		{"ar", "admin.studio_unavailable_reason", "تكوين الصفحات غير متاح لمؤسستك بعد."},
+		{"ar", "admin.studio_unavailable_reason", "تصميم الصفحات المخصصة غير متاح بعد."},
 	}
 	for _, c := range cases {
 		got := ResolveProductLocale(c.locale).Text(c.key)
@@ -178,8 +178,8 @@ func TestTodo_UXAUDIT_006_Browser(t *testing.T) {
 		t.Fatal("document renders no footer")
 	}
 	footerText := textContent(footer)
-	if !strings.Contains(footerText, "Live source · Workforce directory") {
-		t.Fatalf("footer text = %q, want it to contain the corrected live-source label", footerText)
+	if !strings.Contains(footerText, "Workspace information") {
+		t.Fatalf("footer text = %q, want a non-fabricated workspace label", footerText)
 	}
 	if found := uxaudit006ScanVocabulary(footerText); len(found) > 0 {
 		t.Fatalf("footer still carries banned vocabulary: %v", found)
@@ -190,27 +190,27 @@ func TestTodo_UXAUDIT_006_Browser(t *testing.T) {
 		t.Fatal(err)
 	}
 	adminRoot := mustParse(t, adminDoc)
-	journeyCard := findCardByTitle(adminRoot, "Journey service")
+	journeyCard := findCardByTitle(adminRoot, "Promotion workflows")
 	if journeyCard == nil {
 		t.Fatal("admin home loses the journey card")
 	}
 	journeyCardText := textContent(journeyCard)
-	if !strings.Contains(journeyCardText, "loaded live from your organization's data") {
+	if !strings.Contains(journeyCardText, "Start, review, and track promotion requests") {
 		t.Fatalf("journey card text = %q, want the corrected task-language description", journeyCardText)
 	}
 	if found := uxaudit006ScanVocabulary(journeyCardText); len(found) > 0 {
 		t.Fatalf("journey card still carries banned vocabulary: %v", found)
 	}
-	if !strings.Contains(adminDoc, "<small>Live</small>") {
-		t.Fatal("admin hero eyebrow did not resolve to the corrected \"Live\" label")
+	if !strings.Contains(adminDoc, "<small>Administration</small>") {
+		t.Fatal("admin hero eyebrow did not resolve to the administration label")
 	}
 
 	settingsDoc, err := Render(testView(PageSettings))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(settingsDoc, "Workforce directory") {
-		t.Fatal("settings page data-source fact still exposes the raw backend identifier")
+	if strings.Contains(settingsDoc, "WORKFORCE_DIRECTORY") {
+		t.Fatal("settings page data-source fact exposes the raw backend identifier")
 	}
 	if found := uxaudit006ScanVocabulary(settingsDoc); len(found) > 0 {
 		t.Fatalf("settings page still carries banned vocabulary: %v", found)
@@ -302,8 +302,8 @@ func TestTodo_UXAUDIT_006_Regression(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(noScopeDoc, "Workspace access") {
-		t.Fatal("ordinary page lost its authenticated-scope fallback label")
+	if !strings.Contains(noScopeDoc, `id="page-title"`) {
+		t.Fatal("ordinary page lost its page identity")
 	}
 	if strings.Contains(noScopeDoc, "Authenticated scope") {
 		t.Fatal("ordinary page still renders the retired \"Authenticated scope\" label")
@@ -328,7 +328,7 @@ func TestTodo_UXAUDIT_006_Regression(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker ID rules", "Brand &amp; appearance", "Journey service", "Experience configuration"} {
+	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker ID rules", "Brand &amp; appearance", "Promotion workflows", "Experience configuration"} {
 		if !strings.Contains(adminDoc, card) {
 			t.Fatalf("admin home lost capability card %q after the vocabulary fix", card)
 		}

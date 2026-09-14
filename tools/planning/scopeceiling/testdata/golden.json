@@ -1,0 +1,31 @@
+{
+  "canonical_digest": "2e73dc174fcf32e247adc506a8a4d9c82dc8fb78900aff5566de6cea24f2d1eb",
+  "signature_value": "7dad858b72a8251e61df76dda713cc3b09097f46e342a9fe814016bd83cf181c9722a070a9283659cfc7cd8109ed698e6c4227480c6e8d31c99d7ee88b07c106",
+  "counts": {
+    "intents": 14,
+    "capabilities": 10,
+    "workflows": 2,
+    "user_flows": 20,
+    "endpoints": 33,
+    "models": 20,
+    "effects": 5,
+    "selection_slots": 4,
+    "deferred_domains": 15
+  },
+  "intent_order": [
+    "hcmnext.people.explain_worker_state/v1",
+    "hcmnext.people.promote_worker/v1",
+    "hcmnext.rewards.simulate_compensation/v1",
+    "hcmnext.rewards.evaluate_pay_band_position/v1",
+    "hcmnext.intelligence.explain_transaction/v1",
+    "hcmnext.operations.detect_drift/v1",
+    "hcmnext.operations.create_repair_plan/v1",
+    "hcmnext.operations.simulate_repair/v1",
+    "hcmnext.rewards.change_base_pay/v1",
+    "hcmnext.rewards.reserve_compensation_budget/v1",
+    "hcmnext.rewards.release_compensation_budget/v1",
+    "hcmnext.work.approve_proposal/v1",
+    "hcmnext.work.reject_proposal/v1",
+    "hcmnext.people.change_manager/v1"
+  ]
+}

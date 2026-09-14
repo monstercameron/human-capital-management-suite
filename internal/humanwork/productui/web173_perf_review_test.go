@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	xhtml "golang.org/x/net/html"
 )
 
 // RED for WEB-173: performance-review workspace. The
@@ -23,7 +25,7 @@ func TestTodo_WEB_173(t *testing.T) {
 	if !ok {
 		t.Fatal("performance-review workspace unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("performance-review workspace incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -37,11 +39,46 @@ func TestTodo_WEB_173(t *testing.T) {
 	if strings.Contains(doc, "⟦") {
 		t.Fatal("performance-review workspace exposes an unresolved message key")
 	}
+	bodyText, err := web173RenderedBodyText(doc)
+	if err != nil {
+		t.Fatalf("parse performance-review document: %v", err)
+	}
 	for _, invented := range []string{"review:", "rating:", "section:", "signed ✓"} {
-		if strings.Contains(doc, invented) {
+		if strings.Contains(bodyText, invented) {
 			t.Fatalf("performance-review workspace invents review data: %q", invented)
 		}
 	}
+}
+
+// web173RenderedBodyText keeps the invented-data assertion on user-visible
+// output. Stylesheet selectors are production render input, not review
+// records; scanning the complete document would make a valid CSS selector
+// such as "section:" look like fabricated data.
+func web173RenderedBodyText(doc string) (string, error) {
+	root, err := xhtml.Parse(strings.NewReader(doc))
+	if err != nil {
+		return "", err
+	}
+	bodies := collectElements(root, "body")
+	if len(bodies) != 1 {
+		return "", fmt.Errorf("document has %d body elements, want exactly one", len(bodies))
+	}
+	var text strings.Builder
+	var walk func(*xhtml.Node)
+	walk = func(node *xhtml.Node) {
+		if node.Type == xhtml.ElementNode && (node.Data == "style" || node.Data == "script") {
+			return
+		}
+		if node.Type == xhtml.TextNode {
+			text.WriteString(node.Data)
+			text.WriteByte(' ')
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(bodies[0])
+	return text.String(), nil
 }
 
 // Golden: the registered performance-review definition
@@ -62,7 +99,7 @@ func TestTodo_WEB_173_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "e2799a4431530f53c794bc50fc924f125cb355e0d8dabff0dd0dda72f631dbba"
+	const want = "106c79450e41ab279c4aa70c7a542434a8c9355fc341608c56c37bef3b92301f"
 	if got != want {
 		t.Fatalf("performance-review digest = %s, want %s", got, want)
 	}

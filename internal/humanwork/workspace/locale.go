@@ -61,6 +61,10 @@ var supportedLocaleSpecs = map[string]localeSpec{
 		decimal: ",", group: ".",
 		months: []string{"Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"},
 	},
+	"ar": {
+		decimal: ".", group: ",",
+		months: []string{"يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"},
+	},
 }
 
 // ResolveLocale accepts the small, reviewed pilot locale set. Unsupported
@@ -83,7 +87,7 @@ func ResolveLocale(requested string) LocaleContext {
 
 // SupportedLocales returns the reviewed pilot locale tags in stable order.
 func SupportedLocales() []string {
-	return []string{"en-US", "de-DE"}
+	return []string{"en-US", "de-DE", "ar"}
 }
 
 func (c LocaleContext) spec() (localeSpec, error) {
@@ -204,7 +208,10 @@ func FormatDate(c LocaleContext, canonical string) (string, error) {
 		return "", fmt.Errorf("%w: date must be canonical YYYY-MM-DD", ErrLocaleValue)
 	}
 	month := s.months[int(date.Month())-1]
-	if c.Resolved == "de-DE" {
+	if c.Resolved == "de-DE" || c.Resolved == "ar" {
+		if c.Resolved == "ar" {
+			return fmt.Sprintf("%02d %s %04d", date.Day(), month, date.Year()), nil
+		}
 		return fmt.Sprintf("%02d. %s %04d", date.Day(), month, date.Year()), nil
 	}
 	return fmt.Sprintf("%s %02d, %04d", month, date.Day(), date.Year()), nil
@@ -222,9 +229,9 @@ func ParseDate(c LocaleContext, presentation string) (string, error) {
 		return "", fmt.Errorf("%w: date is empty or padded", ErrLocaleValue)
 	}
 	var dayText, monthText, yearText string
-	if c.Resolved == "de-DE" {
+	if c.Resolved == "de-DE" || c.Resolved == "ar" {
 		parts := strings.Split(presentation, " ")
-		if len(parts) != 3 || !strings.HasSuffix(parts[0], ".") {
+		if len(parts) != 3 || (c.Resolved == "de-DE" && !strings.HasSuffix(parts[0], ".")) {
 			return "", fmt.Errorf("%w: date layout does not match %s", ErrLocaleValue, c.Resolved)
 		}
 		dayText, monthText, yearText = strings.TrimSuffix(parts[0], "."), parts[1], parts[2]
@@ -280,6 +287,8 @@ var localeTranslations = map[string]map[string]string{
 		"field.current_base":            "Current base pay",
 		"field.proposed_job":            "Proposed job code",
 		"field.proposed_grade":          "Proposed grade",
+		"field.target_position":         "Target position",
+		"field.target_org_unit":         "Target organization",
 		"field.proposed_base":           "Proposed base pay",
 		"field.effective_date":          "Effective date",
 		"field.business_reason":         "Business reason",
@@ -298,6 +307,8 @@ var localeTranslations = map[string]map[string]string{
 		"field.current_base":            "Aktuelles Grundgehalt",
 		"field.proposed_job":            "Vorgeschlagener Jobcode",
 		"field.proposed_grade":          "Vorgeschlagene Vergütungsstufe",
+		"field.target_position":         "Zielposition",
+		"field.target_org_unit":         "Zielorganisation",
 		"field.proposed_base":           "Vorgeschlagenes Grundgehalt",
 		"field.effective_date":          "Wirksamkeitsdatum",
 		"field.business_reason":         "Geschäftsgrund",
@@ -307,6 +318,26 @@ var localeTranslations = map[string]map[string]string{
 		"action.run_simulation":         "Simulation ausführen",
 		"action.submit_for_approval":    "Zur Genehmigung einreichen",
 		"action.force_execute":          "Ausführung erzwingen",
+	},
+	"ar": {
+		"title.promotion":               "ترقية",
+		"field.worker":                  "الموظف",
+		"field.current_job":             "رمز الوظيفة الحالي",
+		"field.current_grade":           "الدرجة الحالية",
+		"field.current_base":            "الأجر الأساسي الحالي",
+		"field.proposed_job":            "رمز الوظيفة المقترح",
+		"field.proposed_grade":          "الدرجة المقترحة",
+		"field.target_position":         "المنصب المستهدف",
+		"field.target_org_unit":         "المؤسسة المستهدفة",
+		"field.proposed_base":           "الأجر الأساسي المقترح",
+		"field.effective_date":          "تاريخ السريان",
+		"field.business_reason":         "مبرر العمل",
+		"field.band_position":           "الموضع ضمن نطاق الأجور",
+		"field.annualized_increase":     "الزيادة السنوية",
+		"field.compensation_disclosure": "الإفصاح عن التعويضات",
+		"action.run_simulation":         "تشغيل المحاكاة",
+		"action.submit_for_approval":    "إرسال للموافقة",
+		"action.force_execute":          "فرض التنفيذ",
 	},
 }
 

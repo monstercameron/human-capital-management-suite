@@ -92,6 +92,23 @@ func TestTodo_TRUST_010(t *testing.T) {
 		}
 	})
 
+	t.Run("payroll manager can review compensation without receiving unrelated sensitive domains", func(t *testing.T) {
+		principal := newPrincipal(t, principalOpts{
+			roles: []string{string(authz.RolePayrollManager)}, purposes: []string{authz.PurposeCompensationReview},
+		})
+		decision, err := authz.ResolveFields(principal, authz.PurposeCompensationReview,
+			[]authz.FieldID{authz.FieldBaseSalary, authz.FieldBankAccountNumber}, nil)
+		if err != nil {
+			t.Fatalf("ResolveFields: %v", err)
+		}
+		if decision.Rulings[authz.FieldBaseSalary].Effect != authz.EffectAllow {
+			t.Fatalf("base salary = %s, want ALLOW", decision.Rulings[authz.FieldBaseSalary].Effect)
+		}
+		if decision.Rulings[authz.FieldBankAccountNumber].Effect != authz.EffectDenied {
+			t.Fatalf("bank account = %s, want DENIED outside payroll_processing", decision.Rulings[authz.FieldBankAccountNumber].Effect)
+		}
+	})
+
 	t.Run("auditor receives redacted values, never raw, and carries an obligation", func(t *testing.T) {
 		principal := newPrincipal(t, principalOpts{roles: []string{string(authz.RoleAuditor)}, purposes: []string{authz.PurposeAuditReview}})
 		decision, err := authz.ResolveFields(principal, authz.PurposeAuditReview, []authz.FieldID{authz.FieldBaseSalary}, nil)

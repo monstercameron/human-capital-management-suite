@@ -1,0 +1,253 @@
+# COMMERCIAL-001 signed pilot commercial package.
+#
+# Schema: tools/planning/pilotcommercial.PilotCommercialFreeze. Validated by
+# tools/planning/pilotcommercial.PilotCommercialFreeze.Validate, cross-checked
+# against live registries by tools/planning/pilotcommercial.ConformsToLiveRegistries,
+# verified by tools/planning/pilotcommercial.VerifyFreezeSignature, and
+# reported by `go run ./tools/planning/cmd/pilotcommercial`.
+#
+# THIS PACKAGE PROMISES EXACTLY WHAT PHASE-001'S CEILING AND SELECT-001/
+# SELECT-002'S SELECTIONS AUTHORIZE, NOTHING MORE:
+#
+#   - PHASE-001's phase1-scope-ceiling.yaml carries four selection slots -
+#     provider, jurisdiction, topology, slo - every one filled: false. The
+#     slo slot's filling_todo_id is "SELECT-002, COMMERCIAL-001": this todo
+#     is named as a joint filler, and fills it honestly, by promising NONE
+#     against it (evidence.slo_status below), not by editing the ceiling.
+#   - SELECT-001's select-001-jurisdiction-profile.yaml selects California
+#     but is UNREVIEWED (reviewer.name: missing); this package's jurisdiction
+#     promise is therefore SELECTED_PENDING_REVIEW, never SELECTED_CONFIRMED.
+#   - SELECT-002's select-002-provider-topology.yaml is an enforced
+#     placeholder (vendor_id carries the mandatory "-PLACEHOLDER-UNVERIFIED"
+#     suffix) that structurally cannot satisfy
+#     SatisfiesRealProviderSelectionGate; this package's provider promise is
+#     therefore NONE, and vendor_ref is deliberately empty.
+#
+# ENTITLEMENTS, PRICING, AUTHORITY AND EXIT TERMS ARE A VIEW, NOT AN
+# INDEPENDENT SOURCE OF TRUTH (REFACTOR): every value in intent.entitlements,
+# intent.exclusions, pricing, authority, exit and reprice_stop below is
+# pinned to internal/commercial.DefaultPilotCommercialPackage()'s live
+# return value. derive.go's ConformsToLiveRegistries re-reads that registry
+# on every check and TestTodo_COMMERCIAL_001_Conformance fails by name if
+# this file is ever hand-edited to promise something the registry does not
+# also grant. See doc.go for the recorded, out-of-scope
+# internal/commercial.P1AManifestDigest/live-manifest-digest drift this
+# package deliberately does not depend on.
+#
+# REPLAY AND REPAIR ARE NEVER BILLED (RED): billing.ReplayBillable and
+# billing.RepairBillable are both closed to false, and
+# tools/planning/pilotcommercial.ComputeBillableTotal enforces it against a
+# real fixture containing one of each in
+# TestReplayAndRepairEventsAreNeverBilled.
+#
+# OVERLAY AUTHORITY IS NOT SYSTEM-OF-RECORD OWNERSHIP (RED): authority below
+# carries zero owned_domains, write_authority: false and topology
+# EXTERNAL_OBSERVATION, mirroring the live commercial registry's own claim;
+# Validate rejects any domain claimed as both owned and observed, and
+# rejects any owned domain while write_authority is false.
+#
+# CanonicalDigest hashes every field below except `signature`; do not
+# hand-edit any field above `signature` without re-signing (see
+# security_test.go's TestTodo_COMMERCIAL_001_Security for what breaks).
+schema_version: 1
+todo_id: COMMERCIAL-001
+signed_date: "2026-09-13"
+
+# GREEN: "maps entitlements and exclusions to the Phase 1 digest".
+# scope_ceiling_digest is PHASE-001's live phase1-scope-ceiling.yaml
+# CanonicalDigest, cross-checked live by TestTodo_COMMERCIAL_001_Conformance
+# - not the internal/commercial.P1AManifestDigest constant; see doc.go for
+# why.
+intent:
+  scope_ceiling_digest: "2e73dc174fcf32e247adc506a8a4d9c82dc8fb78900aff5566de6cea24f2d1eb"
+  entitlements:
+    - intent_id: hcmnext.people.explain_worker_state/v1
+      effect_class: READ_ONLY
+      disposition: INCLUDED
+    - intent_id: hcmnext.people.promote_worker/v1
+      modes: [DRAFT, PREFLIGHT, SIMULATE]
+      effect_class: READ_ONLY
+      disposition: INCLUDED
+    - intent_id: hcmnext.rewards.simulate_compensation/v1
+      effect_class: READ_ONLY
+      disposition: INCLUDED
+    - intent_id: hcmnext.rewards.evaluate_pay_band_position/v1
+      effect_class: READ_ONLY
+      disposition: INCLUDED
+    - intent_id: hcmnext.intelligence.explain_transaction/v1
+      effect_class: READ_ONLY
+      disposition: INCLUDED
+    - intent_id: hcmnext.operations.detect_drift/v1
+      effect_class: READ_ONLY
+      disposition: INCLUDED
+    - intent_id: hcmnext.operations.create_repair_plan/v1
+      modes: [RECOMMENDATION_ONLY]
+      effect_class: READ_ONLY
+      disposition: INCLUDED
+    - intent_id: hcmnext.operations.simulate_repair/v1
+      effect_class: READ_ONLY
+      disposition: INCLUDED
+  exclusions:
+    - "worker/employment/assignment/organization/position/compensation/budget mutations"
+    - "reservations, WorkItems, timers"
+    - "provider writes, external effects, MessageIntents"
+    - "granular customer usage rating, tax, payment processing"
+
+# RED: "promises an unselected ... jurisdiction". Bound to SELECT-001's live,
+# UNREVIEWED profile - this package never claims more certainty than that
+# profile has earned.
+jurisdiction:
+  status: SELECTED_PENDING_REVIEW
+  country: US
+  state: CA
+  review_status: UNREVIEWED
+  caveat: >-
+    California is SELECT-001's selected pilot jurisdiction, but
+    select-001-jurisdiction-profile.yaml is UNREVIEWED (no qualified legal
+    reviewer is named). This package therefore does not represent California
+    obligation coverage as a settled legal conclusion; it relies on
+    internal/governance/legal.Resolve/Evaluate returning
+    HUMAN_REVIEW_REQUIRED or UNKNOWN exactly as SELECT-001's Authorize does,
+    and a customer relying on this package for legal compliance must be told
+    the review is outstanding.
+
+# RED: "promises an unselected ... provider". Bound to SELECT-002's live,
+# structurally-placeholder topology - this package names no real vendor and
+# sells no provider-dependent entitlement beyond what a placeholder can
+# back.
+provider:
+  status: NONE
+  caveat: >-
+    SELECT-002's select-002-provider-topology.yaml is a structurally-marked
+    placeholder (vendor_id suffix "-PLACEHOLDER-UNVERIFIED") that fails
+    SatisfiesRealProviderSelectionGate by value, not merely by an unset
+    flag. This package therefore promises no provider-dependent entitlement:
+    authority.topology is EXTERNAL_OBSERVATION with write_authority false,
+    and no capability in intent.entitlements requires a real provider write.
+
+# RED: "promises an unselected ... SLO"; GREEN: "evidence and SLOs".
+# slo_status is closed to NONE while PHASE-001's slo selection slot remains
+# unfilled and names this todo as a joint filler.
+evidence:
+  slo_status: "NONE"
+  slo_statement: >-
+    No availability, latency or response-time SLO is promised. PHASE-001's
+    phase1-scope-ceiling.yaml slo selection slot remains filled: false and
+    names "SELECT-002, COMMERCIAL-001" as its joint fillers; this package
+    fills its half of that naming by declining to promise an SLO, not by
+    asserting one against an empty slot.
+  evidence_captured:
+    - authority
+    - provenance
+    - freshness
+    - zero_effect
+
+# GREEN: "declares price/usage/support/implementation assumptions"; RED:
+# "hides hypothesis". Every field below equals
+# internal/commercial.DefaultPilotCommercialPackage().Pricing exactly,
+# cross-checked live by TestTodo_COMMERCIAL_001_Conformance.
+pricing:
+  currency: USD
+  minimum_cents: 1500000
+  maximum_cents: 4000000
+  duration_days_min: 60
+  duration_days_max: 90
+  usage_rating: FIXED_PRICE_NO_CUSTOMER_USAGE_RATING
+  implementation_cost: included_and_tracked_as_pilot_evidence
+  support_model: named_pilot_owner_and_operational_escalation
+  provider_pass_through: disclosed_separately_only_with_customer_approval
+  is_hypothesis: true
+
+# RED: "confuses overlay authority with system-of-record ownership"; GREEN:
+# "legal and authority boundaries". Equals
+# internal/commercial.DefaultPilotCommercialPackage().Authority exactly.
+# Zero owned_domains + write_authority: false is what keeps this an overlay,
+# never a system-of-record claim.
+authority:
+  topology: EXTERNAL_OBSERVATION
+  write_authority: false
+  owned_domains: []
+  observed_domains:
+    - worker
+    - employment
+    - position
+    - compensation
+    - budget
+    - projection
+    - ledger
+  forbidden_effects:
+    - domain_mutation
+    - reservation
+    - work_item
+    - timer
+    - message
+    - outbox
+    - provider_write
+  expansion_requires: "signed Gate A PROCEED followed by a separate P1B authority amendment"
+
+# GREEN: "provider pass-throughs". No pass-through has occurred (no real
+# provider exists yet); any future pass-through requires the same
+# customer-approval policy pricing.provider_pass_through already declares.
+provider_pass_through:
+  disclosed: false
+  policy: disclosed_separately_only_with_customer_approval
+  requires_customer_approval: true
+
+# RED: "lacks ... exit terms"; GREEN: "termination and export obligations".
+# Equals internal/commercial.DefaultPilotCommercialPackage().Exit exactly.
+exit:
+  termination_notice_days: 30
+  export_formats: [JSON, CSV]
+  export_includes:
+    - inputs
+    - results
+    - observations
+    - reconciliation
+    - evidence
+  retention_days: 30
+  deletion_certificate: true
+
+# RED: "lacks data-processing, retention ... terms". Bound to SELECT-002's
+# placeholder posture: no real DPA exists because no real provider exists.
+data_processing:
+  residency_region: "US (pilot customer data only; SELECT-002's placeholder provider topology names no confirmed residency commitment for any provider-side processing)"
+  subprocessor_disclosure: >-
+    No subprocessor list has been reviewed for a real provider: SELECT-002's
+    topology is a structurally-marked placeholder. Any real vendor's
+    subprocessor disclosure must be reviewed and this field replaced before
+    a real vendor pass-through touches worker data.
+  dpa_reference: >-
+    NONE EXECUTED for provider-side processing - SELECT-002's topology
+    carries the identical honest disclosure. HCM Next's own pilot data
+    processing terms are covered by exit.retention_days and
+    exit.deletion_certificate above; a customer-facing DPA covering HCM
+    Next's own processing must be executed before pilot start and this
+    field replaced with its reference.
+
+# RED: "bills replay or repair duplicates". Declared here; enforced by
+# tools/planning/pilotcommercial.ComputeBillableTotal against a real fixture
+# in TestReplayAndRepairEventsAreNeverBilled.
+billing:
+  model: FIXED_PRICE_NO_PER_TRANSACTION_METERING
+  replay_billable: false
+  repair_billable: false
+  idempotency_basis: >-
+    One billable event per underlying business transaction, keyed by the
+    transaction's own idempotency key. A replay (client retry, at-least-once
+    redelivery) or a repair (internal/domains/repair correcting a prior
+    drifted or duplicated write) issued against an already-billed
+    transaction is never billed again, regardless of how many times it is
+    resubmitted.
+
+# GREEN: "quantitative reprice/stop criteria". Equals
+# internal/commercial.DefaultPilotCommercialPackage()'s
+# RepriceThresholdPct/StopThresholdPct exactly.
+reprice_stop:
+  reprice_threshold_pct: 25
+  stop_threshold_pct: 40
+
+signature:
+  algorithm: ed25519
+  public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
+  key_fixture: "tools/planning/gateevidence/testdata/dev-signing-key.yaml"
+  value: "3543d22b51cc2588e3ce000b2281e2206213e4e1b319dc4f85081cc694d264eac0fe2cad6597baf6a2df2f6400233da536e63c017286c7d25be606604b261705"

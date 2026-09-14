@@ -235,6 +235,67 @@ func New(id string, req Request, approval Approval, now time.Time) (*Grant, erro
 	return g, nil
 }
 
+// Stored is a grant's durable projection, as the trust store records it.
+type Stored struct {
+	ID            string
+	Principal     string
+	Tenant        values.TenantId
+	Role          Role
+	TicketRef     string
+	Justification string
+	Capabilities  []string
+	Fields        []string
+	Purpose       string
+	Approver      string
+	IssuedAt      time.Time
+	ExpiresAt     time.Time
+	Revoked       bool
+}
+
+// Restore rebuilds a grant from its durable projection. Unlike [New] it keeps
+// the recorded issue and expiry instants, and it re-applies every rule New
+// enforces -- closed role, named ticket, justification, purpose and
+// capabilities, a distinct approver, and a lifetime within the role's hard
+// ceiling -- so a tampered or widened record cannot come back as authority. A
+// revoked record restores revoked.
+func Restore(s Stored) (*Grant, error) {
+	if strings.TrimSpace(s.ID) == "" {
+		return nil, fmt.Errorf("%w: grant id is required", ErrInvalidRequest)
+	}
+	req := Request{Principal: s.Principal, Tenant: s.Tenant, Role: s.Role, TicketRef: s.TicketRef,
+		Justification: s.Justification, Capabilities: s.Capabilities, Fields: s.Fields, Purpose: s.Purpose, TTL: s.ExpiresAt.Sub(s.IssuedAt)}
+	if err := req.validate(); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(s.Approver) == "" {
+		return nil, fmt.Errorf("%w: stored grant names no approver", ErrInvalidRequest)
+	}
+	if strings.EqualFold(strings.TrimSpace(s.Approver), strings.TrimSpace(s.Principal)) {
+		return nil, ErrApproverIsRequester
+	}
+	maxTTL, _ := s.Role.MaxTTL()
+	if s.IssuedAt.IsZero() || req.TTL <= 0 {
+		return nil, ErrTTLRequired
+	}
+	if req.TTL > maxTTL {
+		return nil, fmt.Errorf("%w: stored lifetime %s exceeds max %s for role %s", ErrTTLExceedsMax, req.TTL, maxTTL, s.Role)
+	}
+	g := &Grant{
+		ID: s.ID, Principal: s.Principal, Tenant: s.Tenant, Role: s.Role, TicketRef: s.TicketRef,
+		Justification: s.Justification, Capabilities: append([]string(nil), s.Capabilities...),
+		Fields: append([]string(nil), s.Fields...), Purpose: s.Purpose, Approver: s.Approver,
+		ApprovedAt: s.IssuedAt.UTC(), IssuedAt: s.IssuedAt.UTC(), ExpiresAt: s.ExpiresAt.UTC(),
+	}
+	g.evidence = append(g.evidence, EvidenceRecord{Kind: EvidenceGranted, At: g.IssuedAt, Actor: s.Approver,
+		Detail: fmt.Sprintf("restored role=%s ticket=%s", s.Role, s.TicketRef)})
+	if s.Revoked {
+		at := g.IssuedAt
+		g.revokedAt, g.revokedBy, g.revokedReason = &at, "store", "revoked in durable record"
+		g.evidence = append(g.evidence, EvidenceRecord{Kind: EvidenceRevoked, At: at, Actor: "store", Detail: "revoked in durable record"})
+	}
+	return g, nil
+}
+
 // activeLocked reports whether g is usable at now, and lazily records an
 // [EvidenceExpired] entry the first time an expiry is observed. mu must be
 // held.

@@ -146,7 +146,9 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 
 	const signingKey = "hcm-next-promo009-integration-signing-key"
 	const tenant = string(fixtures.Tenant)
-	const approver = "principal:promo009-approver"
+	const operator = "principal:promo009-operator"
+	const financeApprover = "principal:promo009-finance-approver"
+	const managerApprover = "principal:promo009-manager-approver"
 	clockAt := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
 	cfg := application.ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
@@ -154,8 +156,9 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 		Tenant: tenant, CellID: "cell-promo009-integration", MaxDeadline: 30 * time.Second,
 		Migrate: false, Workspace: true, OTelExporter: application.OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promo009-execution-authority",
-		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: approver,
-		WorkflowPlan: application.WorkflowPlanExecute, TimerTzdbVersion: application.DefaultTimerTzdbVersion,
+		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: financeApprover,
+		ExecutionManagerApprover: managerApprover,
+		WorkflowPlan:             application.WorkflowPlanExecute, TimerTzdbVersion: application.DefaultTimerTzdbVersion,
 		TimerCalendarVersion: application.DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
@@ -167,6 +170,7 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ComposeServe(promotion reference): %v", err)
 	}
+	positionRef := promoUXSeedTargetPosition(t, db)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
@@ -179,23 +183,33 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build verifier: %v", err)
 	}
-	token, err := verifier.Issue(trust.Claims{
-		Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: "principal:promo009-operator", SubjectKind: "human", Tenant: tenant,
-		OrganizationScopeID: "org-north-america", Roles: []string{"intent_author", "comp_admin", "promotion_operator"},
-		Purposes: []string{"compensation_review"}, AuthenticationMethod: "bearer_token", Assurance: "substantial",
-		SessionRef: "session:promo009-integration", IssuedAtUnix: clockAt.Add(-time.Minute).Unix(), ExpiresAtUnix: clockAt.Add(time.Hour).Unix(),
-	})
-	if err != nil {
-		t.Fatalf("issue integration credential: %v", err)
+	principalContext := func(subject string, roles []string) context.Context {
+		t.Helper()
+		token, issueErr := verifier.Issue(trust.Claims{
+			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: subject, SubjectKind: "human", Tenant: tenant,
+			OrganizationScopeID: "org-north-america", Roles: roles,
+			Purposes: []string{"compensation_review"}, AuthenticationMethod: "bearer_token", Assurance: "substantial",
+			SessionRef: "session:promo009:" + subject, IssuedAtUnix: clockAt.Add(-time.Minute).Unix(), ExpiresAtUnix: clockAt.Add(time.Hour).Unix(),
+		})
+		if issueErr != nil {
+			t.Fatalf("issue %s integration credential: %v", subject, issueErr)
+		}
+		principal, verifyErr := verifier.Verify(context.Background(), trust.Credential{Scheme: "Bearer", Token: token, Audience: cfg.Audience})
+		if verifyErr != nil {
+			t.Fatalf("verify %s integration credential: %v", subject, verifyErr)
+		}
+		return trust.WithPrincipal(context.Background(), principal)
 	}
-	principal, err := verifier.Verify(context.Background(), trust.Credential{Scheme: "Bearer", Token: token, Audience: cfg.Audience})
+	ctx := principalContext(operator, []string{"intent_author", "comp_admin", "promotion_operator"})
+	routedFinance, err := promotionexec.FinanceApproverFor(financeApprover)
 	if err != nil {
-		t.Fatalf("verify integration credential: %v", err)
+		t.Fatalf("derive finance approver: %v", err)
 	}
-	ctx := trust.WithPrincipal(context.Background(), principal)
+	financeCtx := principalContext(routedFinance, []string{"comp_admin"})
+	managerCtx := principalContext(managerApprover, []string{"manager", "comp_admin", "promotion_operator"})
 
 	journey := composed.Cell().Journey
-	proposed, err := journey.Propose(ctx, workspaceProposalForPROMO009())
+	proposed, err := journey.Propose(ctx, workspaceProposalForPROMO009(positionRef))
 	if err != nil {
 		t.Fatalf("Journey.Propose: %v", err)
 	}
@@ -206,14 +220,14 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 	if string(financeWaiting.Summary.Stage) != "FINANCE_APPROVAL" {
 		t.Fatalf("after execute stage = %s, want FINANCE_APPROVAL", financeWaiting.Summary.Stage)
 	}
-	managerWaiting, err := journey.Decide(ctx, proposed.IntentID, workspaceDecisionApprove("finance approved"))
+	managerWaiting, err := journey.Decide(financeCtx, proposed.IntentID, workspaceDecisionApprove("finance approved"))
 	if err != nil {
 		t.Fatalf("Journey.Decide(finance): %v", err)
 	}
 	if string(managerWaiting.Summary.Stage) != "MANAGER_APPROVAL" {
 		t.Fatalf("after finance stage = %s, want MANAGER_APPROVAL", managerWaiting.Summary.Stage)
 	}
-	waiting, err := journey.Decide(ctx, proposed.IntentID, workspaceDecisionApprove("manager approved"))
+	waiting, err := journey.Decide(managerCtx, proposed.IntentID, workspaceDecisionApprove("manager approved"))
 	if err != nil {
 		t.Fatalf("Journey.Decide(manager): %v", err)
 	}
@@ -408,9 +422,11 @@ func sameStringMap(left, right map[string]string) bool {
 	return true
 }
 
-func workspaceProposalForPROMO009() workspace.ProposalInput {
+func workspaceProposalForPROMO009(positionRef string) workspace.ProposalInput {
 	return workspace.ProposalInput{
-		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", TargetPositionID: "POS-HRBP-301",
+		// No TargetPositionID: PROMOUX-004 refuses every position reference
+		// no picker issued, and POS-HRBP-301 is not a corpus position.
+		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
 		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "promotion_into_senior_hrbp",
 	}
 }

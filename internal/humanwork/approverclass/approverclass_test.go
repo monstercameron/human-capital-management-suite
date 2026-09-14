@@ -118,3 +118,40 @@ func TestDeriveDistinctThenRequireDistinct(t *testing.T) {
 		}
 	}
 }
+
+// TestRequireSeparated pins PROMOUX-015's routing-time constraint: each
+// fixture carries exactly the violation it names, and the accepted case
+// carries none of them.
+func TestRequireSeparated(t *testing.T) {
+	const requester, subjectKey, subjectID = "hc-004-darius-bennett", "hc-051-linh-tran", "7f1c0d3e-0000-4000-8000-000000000051"
+	subjects := []string{subjectKey, subjectID, ""}
+	cases := []struct {
+		name             string
+		requester        string
+		finance, manager string
+		want             error
+	}{
+		{name: "accepts four distinct identities", requester: requester, finance: "hc-054-thomas-baker", manager: "hc-050-rafael-torres"},
+		{name: "unresolved manager", requester: requester, finance: "hc-054-thomas-baker", want: approverclass.ErrUnresolved},
+		{name: "shared owner", requester: requester, finance: "hc-054-thomas-baker", manager: "hc-054-thomas-baker", want: approverclass.ErrSharedOwner},
+		{name: "unresolved requester", finance: "hc-054-thomas-baker", manager: "hc-050-rafael-torres", want: approverclass.ErrUnresolved},
+		{name: "requester is the manager approver", requester: "hc-050-rafael-torres", finance: "hc-054-thomas-baker", manager: "hc-050-rafael-torres", want: approverclass.ErrRequesterApprover},
+		{name: "requester is the finance approver", requester: "hc-054-thomas-baker", finance: "hc-054-thomas-baker", manager: "hc-050-rafael-torres", want: approverclass.ErrRequesterApprover},
+		{name: "subject key is the finance approver", requester: requester, finance: subjectKey, manager: "hc-050-rafael-torres", want: approverclass.ErrSubjectApprover},
+		{name: "subject id is the manager approver", requester: requester, finance: "hc-054-thomas-baker", manager: subjectID, want: approverclass.ErrSubjectApprover},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := approverclass.RequireSeparated(tc.requester, subjects, tc.finance, tc.manager)
+			if tc.want == nil {
+				if err != nil {
+					t.Fatalf("RequireSeparated = %v, want nil", err)
+				}
+				return
+			}
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("RequireSeparated = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}

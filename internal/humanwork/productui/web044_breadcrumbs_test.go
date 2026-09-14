@@ -10,6 +10,27 @@ import (
 	xhtml "golang.org/x/net/html"
 )
 
+func TestBreadcrumbTrailRendersFromAdmittedItemsWithoutPageView(t *testing.T) {
+	markup, err := ui.RenderToString(ui.CreateElement(BreadcrumbTrail, BreadcrumbTrailProps{
+		AriaLabel: "Breadcrumbs",
+		Items: []BreadcrumbItem{
+			{Label: "Admin", Href: "/workspace/app/admin"},
+			{Label: "Roles", Current: true},
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`aria-label="Breadcrumbs"`, `href="/workspace/app/admin"`, `aria-current="page"`, "Roles"} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("narrow breadcrumb trail missing %q: %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, `href="Roles"`) {
+		t.Fatalf("current crumb became interactive: %s", markup)
+	}
+}
+
 // RED for WEB-044: meaningful breadcrumb resolution. Every rendered page
 // must resolve its trail from the canonical PageDefinitions ParentNav chain
 // (never a second hierarchy), drop ancestors the identity cannot open,
@@ -44,8 +65,8 @@ func TestTodo_WEB_044(t *testing.T) {
 	// A profile names its worker instead of repeating the generic page title.
 	person := testView(PagePerson)
 	personCrumbs := ResolveBreadcrumbs(person)
-	if len(personCrumbs) != 1 || personCrumbs[0].Label != "Avery Patel" || !personCrumbs[0].Current {
-		t.Fatalf("person trail = %#v, want current Avery Patel", personCrumbs)
+	if len(personCrumbs) != 1 || personCrumbs[0].Label != "Avery Patel · NW-40118" || !personCrumbs[0].Current {
+		t.Fatalf("person trail = %#v, want current Avery Patel · NW-40118", personCrumbs)
 	}
 	unselected := testView(PagePerson)
 	unselected.SelectedPerson = ""

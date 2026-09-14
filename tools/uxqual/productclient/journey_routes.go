@@ -78,3 +78,19 @@ func ProductJourneyHref(fragment, currentQuery string) string {
 	}
 	return href
 }
+
+// ProductJourneyHashHref admits a legacy journey fragment only on the
+// integrated Journeys route. The embedded renderer keeps fragment hrefs as
+// usable browser fallbacks; a native hash navigation must be translated back
+// into the product router's canonical query route before loading detail.
+// Unrelated anchors and non-canonical fragments are not treated as journeys.
+func ProductJourneyHashHref(path, fragment, currentQuery string) (string, bool) {
+	if path != productui.Path(productui.PageJourneys) || len(fragment) > maxRouteQueryBytes {
+		return "", false
+	}
+	route := journeyclient.Parse(fragment)
+	if !strings.HasPrefix(fragment, "#/journeys") || journeyclient.Href(route) != fragment {
+		return "", false
+	}
+	return ProductJourneyHref(fragment, currentQuery), true
+}

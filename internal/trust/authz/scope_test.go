@@ -136,8 +136,8 @@ func TestTodo_TRUST_009(t *testing.T) {
 		}
 	})
 
-	t.Run("comp admin and auditor hold administrative scope without any relationship fact", func(t *testing.T) {
-		for _, role := range []authz.RoleID{authz.RoleCompAdmin, authz.RoleAuditor} {
+	t.Run("administrative data roles hold scope without a relationship fact", func(t *testing.T) {
+		for _, role := range []authz.RoleID{authz.RoleCompAdmin, authz.RolePayrollManager, authz.RoleAuditor} {
 			principal := newPrincipal(t, principalOpts{roles: []string{string(role)}})
 			scope, err := authz.ResolveAuthorizationScope(principal, authz.ScopeInput{Subject: subject, EffectiveAt: baseInstant})
 			if err != nil {

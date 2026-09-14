@@ -23,7 +23,7 @@ func TestTodo_WEB_163(t *testing.T) {
 	if !ok {
 		t.Fatal("compensation worksheet unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("compensation worksheet incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_163_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "1d1039f2e3cfbe2392890946b173db55d1ff467b9e17f2f84bb608067433417c"
+	const want = "c13adfd1d2302aabbe7f0d8d25fb55f1360dbaab434357186af0b6310548c3d9"
 	if got != want {
 		t.Fatalf("compensation worksheet digest = %s, want %s", got, want)
 	}

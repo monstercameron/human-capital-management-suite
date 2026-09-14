@@ -23,7 +23,7 @@ func TestTodo_WEB_169(t *testing.T) {
 	if !ok {
 		t.Fatal("employee Growth home unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("employee Growth home incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_169_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "a106335357de1b3f6a40c683ba67e81754f3d012c0e2a7923ee85d6c932c8973"
+	const want = "1804a345df891281f6a0b995af3bf3a70c6596b0cd3e875e144aa1f070ba4b7e"
 	if got != want {
 		t.Fatalf("Growth home digest = %s, want %s", got, want)
 	}

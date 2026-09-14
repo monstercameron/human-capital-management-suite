@@ -65,7 +65,7 @@ func TestPageRegistryOwnsCanonicalIdentityRouteAndRenderer(t *testing.T) {
 	routes := map[string]bool{}
 	previousOrder := 0
 	for _, definition := range definitions {
-		if definition.ID == "" || definition.Route == "" || definition.Label == "" || definition.Icon == "" || definition.Title == "" || definition.render == nil {
+		if definition.ID == "" || definition.Route == "" || definition.Label == "" || definition.Icon == "" || definition.Title == "" || pageRenderer(definition.ID) == nil {
 			t.Fatalf("incomplete page definition: %+v", definition)
 		}
 		if ids[definition.ID] {

@@ -36,6 +36,7 @@ func TestTodo_WEB_046(t *testing.T) {
 	adminSections := utilityDrawerSections(roles)
 	adminRelated := findDrawerSection(adminSections, "related")
 	if adminRelated == nil || len(adminRelated.Items) != 4 {
+
 		t.Fatalf("roles drawer related = %#v, want Admin parent plus 3 siblings", adminSections)
 	}
 	if adminRelated.Items[0].Href != "/workspace/app/admin" {
@@ -84,6 +85,7 @@ func TestTodo_WEB_046_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(node))
 	got := hex.EncodeToString(digest[:])
+
 	// UXAUDIT-011 removed Studio and the ten other unbuilt admin fallback
 	// surfaces from navigation, shrinking the roles page's "Related pages"
 	// section from 16 items to 4 (Admin, Worker IDs, Organization
@@ -130,6 +132,7 @@ func TestTodo_WEB_046_Browser(t *testing.T) {
 		}
 	}
 	if len(collectElements(dialog, "a")) != 4 {
+
 		t.Fatalf("drawer links = %d, want 4 related and no actions on roles page", len(collectElements(dialog, "a")))
 	}
 

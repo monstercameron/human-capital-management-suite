@@ -24,7 +24,7 @@ func TestTodo_WEB_190(t *testing.T) {
 	if !ok {
 		t.Fatal("reorganization proposals unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("reorganization proposals incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_190_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "e666b55a34ee458a282b29f6091b266ca0f7e8c1f4d54236477a4560e3424c44"
+	const want = "59f1501ceeb5ab5d4ed1b5e76b03224155b4718f223937c9d2c2e8bb9911952f"
 	if got != want {
 		t.Fatalf("reorganization proposals digest = %s, want %s", got, want)
 	}

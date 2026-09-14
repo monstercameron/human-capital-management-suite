@@ -23,7 +23,7 @@ func TestTodo_WEB_195(t *testing.T) {
 	if !ok {
 		t.Fatal("HR service-request intake unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("HR service-request intake incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_195_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "0d2679e3caaea54242aaa10a17dacba257a01c0269c12695a878ae90b0351586"
+	const want = "f2df5d6e554ffb8f9795c002f3cdb3cf251194ddb9fe0e90aea8a126f1fda549"
 	if got != want {
 		t.Fatalf("HR service-request intake digest = %s, want %s", got, want)
 	}

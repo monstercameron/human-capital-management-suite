@@ -25,6 +25,9 @@ const (
 	JourneyService_InspectJourney_FullMethodName                 = "/hcmnext.journey.v1.JourneyService/InspectJourney"
 	JourneyService_ExecuteJourney_FullMethodName                 = "/hcmnext.journey.v1.JourneyService/ExecuteJourney"
 	JourneyService_DecideJourney_FullMethodName                  = "/hcmnext.journey.v1.JourneyService/DecideJourney"
+	JourneyService_EditProposal_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/EditProposal"
+	JourneyService_PreviewJourneyIntervention_FullMethodName     = "/hcmnext.journey.v1.JourneyService/PreviewJourneyIntervention"
+	JourneyService_RequestJourneyIntervention_FullMethodName     = "/hcmnext.journey.v1.JourneyService/RequestJourneyIntervention"
 	JourneyService_WatchJourney_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/WatchJourney"
 	JourneyService_ListWorkers_FullMethodName                    = "/hcmnext.journey.v1.JourneyService/ListWorkers"
 	JourneyService_CreateWorker_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/CreateWorker"
@@ -158,6 +161,56 @@ type JourneyServiceClient interface {
 	// is not the routed approver is refused PERMISSION_DENIED by the engine,
 	// not by this service.
 	DecideJourney(ctx context.Context, in *DecideJourneyRequest, opts ...grpc.CallOption) (*DecideJourneyResponse, error)
+	// EditProposal corrects an unstarted or not-yet-approved promotion
+	// proposal (PROMOUX-013). Effect class: governed write through the intent
+	// service - it is workspace.JourneyEngine.EditProposal, which is
+	// [CancelIntent] plus a fresh ProposeJourney, not SupersedeIntent:
+	// promote_worker's own declared lifecycle transitions
+	// (definitions.simulateOnlyChangeTransitions) reach SUPERSEDED only from
+	// SIMULATED, SUBMITTED or APPROVED, and a journey's stored intent never
+	// durably leaves DRAFT (SimulateIntent persists nothing), so
+	// SupersedeIntent is structurally unusable here. EditProposal instead
+	// cancels the original first - the same governed disposition CancelIntent
+	// already reports, safe-point-aware for a mid-flight journey exactly as
+	// RequestJourneyIntervention's CANCEL kind is - and only once that
+	// disposition reports the original genuinely and cleanly stopped
+	// (CANCELLED) does it mint the edited successor through the ordinary
+	// ProposeJourney path. Any other disposition (CANCELLATION_PENDING,
+	// TOO_LATE, REPAIR_REQUIRED) refuses the edit outright rather than minting
+	// a successor next to an original that was not actually stopped. Because
+	// the original carries any recorded approval and the original is what is
+	// durably cancelled, the successor inherits nothing from it, including no
+	// approval - which is how an edit invalidates material approvals. A
+	// caller presenting a stale expected_instance_version, or naming an
+	// already-terminal original, is refused FAILED_PRECONDITION.
+	EditProposal(ctx context.Context, in *EditProposalRequest, opts ...grpc.CallOption) (*EditProposalResponse, error)
+	// PreviewJourneyIntervention answers, for one journey and one typed
+	// intervention kind (WITHDRAW or CANCEL), whether the intervention is
+	// available right now, and if not, why - by a stable reason reference
+	// computed only from the journey's own durable stage. Effect class:
+	// READ_ONLY. It mutates nothing and runs no capability; a caller not
+	// authorized to read this journey at all is refused exactly as
+	// InspectJourney would refuse them (NOT_FOUND or PERMISSION_DENIED),
+	// before this method's own logic ever runs - so the presence or shape of
+	// a preview answer never discloses more than InspectJourney already
+	// would.
+	PreviewJourneyIntervention(ctx context.Context, in *PreviewJourneyInterventionRequest, opts ...grpc.CallOption) (*PreviewJourneyInterventionResponse, error)
+	// RequestJourneyIntervention runs a typed WITHDRAW (before any approval)
+	// or CANCEL (during an eligible wait) intervention. Effect class:
+	// governed write through the intent service - it is
+	// workspace.JourneyEngine.RequestIntervention, which is [CancelIntent]
+	// scoped to journeys: both kinds are the same governed capability,
+	// reporting the same four dispositions CancelIntent already reports
+	// (CANCELLED, CANCELLATION_PENDING, TOO_LATE, REPAIR_REQUIRED) projected
+	// onto the shared hcmnext.common.v1.InterventionOutcome vocabulary; Kind
+	// only selects which stages [PreviewJourneyIntervention] offers the
+	// action at. A caller who races this call against a concurrent approval,
+	// timer fire or terminal commit is resolved to exactly one durable
+	// outcome by the intent record's own optimistic instance-version
+	// compare-and-swap - the same single serialization point CancelIntent and
+	// SupersedeIntent already use - so no partial domain write is possible: a
+	// losing caller's request never touches durable state at all.
+	RequestJourneyIntervention(ctx context.Context, in *RequestJourneyInterventionRequest, opts ...grpc.CallOption) (*RequestJourneyInterventionResponse, error)
 	// WatchJourney is a server-streaming change feed over the same read
 	// InspectJourney performs. Effect class: READ_ONLY.
 	//
@@ -309,6 +362,36 @@ func (c *journeyServiceClient) DecideJourney(ctx context.Context, in *DecideJour
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DecideJourneyResponse)
 	err := c.cc.Invoke(ctx, JourneyService_DecideJourney_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *journeyServiceClient) EditProposal(ctx context.Context, in *EditProposalRequest, opts ...grpc.CallOption) (*EditProposalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EditProposalResponse)
+	err := c.cc.Invoke(ctx, JourneyService_EditProposal_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *journeyServiceClient) PreviewJourneyIntervention(ctx context.Context, in *PreviewJourneyInterventionRequest, opts ...grpc.CallOption) (*PreviewJourneyInterventionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PreviewJourneyInterventionResponse)
+	err := c.cc.Invoke(ctx, JourneyService_PreviewJourneyIntervention_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *journeyServiceClient) RequestJourneyIntervention(ctx context.Context, in *RequestJourneyInterventionRequest, opts ...grpc.CallOption) (*RequestJourneyInterventionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestJourneyInterventionResponse)
+	err := c.cc.Invoke(ctx, JourneyService_RequestJourneyIntervention_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -590,6 +673,56 @@ type JourneyServiceServer interface {
 	// is not the routed approver is refused PERMISSION_DENIED by the engine,
 	// not by this service.
 	DecideJourney(context.Context, *DecideJourneyRequest) (*DecideJourneyResponse, error)
+	// EditProposal corrects an unstarted or not-yet-approved promotion
+	// proposal (PROMOUX-013). Effect class: governed write through the intent
+	// service - it is workspace.JourneyEngine.EditProposal, which is
+	// [CancelIntent] plus a fresh ProposeJourney, not SupersedeIntent:
+	// promote_worker's own declared lifecycle transitions
+	// (definitions.simulateOnlyChangeTransitions) reach SUPERSEDED only from
+	// SIMULATED, SUBMITTED or APPROVED, and a journey's stored intent never
+	// durably leaves DRAFT (SimulateIntent persists nothing), so
+	// SupersedeIntent is structurally unusable here. EditProposal instead
+	// cancels the original first - the same governed disposition CancelIntent
+	// already reports, safe-point-aware for a mid-flight journey exactly as
+	// RequestJourneyIntervention's CANCEL kind is - and only once that
+	// disposition reports the original genuinely and cleanly stopped
+	// (CANCELLED) does it mint the edited successor through the ordinary
+	// ProposeJourney path. Any other disposition (CANCELLATION_PENDING,
+	// TOO_LATE, REPAIR_REQUIRED) refuses the edit outright rather than minting
+	// a successor next to an original that was not actually stopped. Because
+	// the original carries any recorded approval and the original is what is
+	// durably cancelled, the successor inherits nothing from it, including no
+	// approval - which is how an edit invalidates material approvals. A
+	// caller presenting a stale expected_instance_version, or naming an
+	// already-terminal original, is refused FAILED_PRECONDITION.
+	EditProposal(context.Context, *EditProposalRequest) (*EditProposalResponse, error)
+	// PreviewJourneyIntervention answers, for one journey and one typed
+	// intervention kind (WITHDRAW or CANCEL), whether the intervention is
+	// available right now, and if not, why - by a stable reason reference
+	// computed only from the journey's own durable stage. Effect class:
+	// READ_ONLY. It mutates nothing and runs no capability; a caller not
+	// authorized to read this journey at all is refused exactly as
+	// InspectJourney would refuse them (NOT_FOUND or PERMISSION_DENIED),
+	// before this method's own logic ever runs - so the presence or shape of
+	// a preview answer never discloses more than InspectJourney already
+	// would.
+	PreviewJourneyIntervention(context.Context, *PreviewJourneyInterventionRequest) (*PreviewJourneyInterventionResponse, error)
+	// RequestJourneyIntervention runs a typed WITHDRAW (before any approval)
+	// or CANCEL (during an eligible wait) intervention. Effect class:
+	// governed write through the intent service - it is
+	// workspace.JourneyEngine.RequestIntervention, which is [CancelIntent]
+	// scoped to journeys: both kinds are the same governed capability,
+	// reporting the same four dispositions CancelIntent already reports
+	// (CANCELLED, CANCELLATION_PENDING, TOO_LATE, REPAIR_REQUIRED) projected
+	// onto the shared hcmnext.common.v1.InterventionOutcome vocabulary; Kind
+	// only selects which stages [PreviewJourneyIntervention] offers the
+	// action at. A caller who races this call against a concurrent approval,
+	// timer fire or terminal commit is resolved to exactly one durable
+	// outcome by the intent record's own optimistic instance-version
+	// compare-and-swap - the same single serialization point CancelIntent and
+	// SupersedeIntent already use - so no partial domain write is possible: a
+	// losing caller's request never touches durable state at all.
+	RequestJourneyIntervention(context.Context, *RequestJourneyInterventionRequest) (*RequestJourneyInterventionResponse, error)
 	// WatchJourney is a server-streaming change feed over the same read
 	// InspectJourney performs. Effect class: READ_ONLY.
 	//
@@ -704,6 +837,15 @@ func (UnimplementedJourneyServiceServer) ExecuteJourney(context.Context, *Execut
 }
 func (UnimplementedJourneyServiceServer) DecideJourney(context.Context, *DecideJourneyRequest) (*DecideJourneyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DecideJourney not implemented")
+}
+func (UnimplementedJourneyServiceServer) EditProposal(context.Context, *EditProposalRequest) (*EditProposalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method EditProposal not implemented")
+}
+func (UnimplementedJourneyServiceServer) PreviewJourneyIntervention(context.Context, *PreviewJourneyInterventionRequest) (*PreviewJourneyInterventionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PreviewJourneyIntervention not implemented")
+}
+func (UnimplementedJourneyServiceServer) RequestJourneyIntervention(context.Context, *RequestJourneyInterventionRequest) (*RequestJourneyInterventionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestJourneyIntervention not implemented")
 }
 func (UnimplementedJourneyServiceServer) WatchJourney(*WatchJourneyRequest, grpc.ServerStreamingServer[WatchJourneyResponse]) error {
 	return status.Error(codes.Unimplemented, "method WatchJourney not implemented")
@@ -875,6 +1017,60 @@ func _JourneyService_DecideJourney_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(JourneyServiceServer).DecideJourney(ctx, req.(*DecideJourneyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _JourneyService_EditProposal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EditProposalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).EditProposal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_EditProposal_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).EditProposal(ctx, req.(*EditProposalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _JourneyService_PreviewJourneyIntervention_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreviewJourneyInterventionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).PreviewJourneyIntervention(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_PreviewJourneyIntervention_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).PreviewJourneyIntervention(ctx, req.(*PreviewJourneyInterventionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _JourneyService_RequestJourneyIntervention_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestJourneyInterventionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).RequestJourneyIntervention(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_RequestJourneyIntervention_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).RequestJourneyIntervention(ctx, req.(*RequestJourneyInterventionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1172,6 +1368,18 @@ var JourneyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DecideJourney",
 			Handler:    _JourneyService_DecideJourney_Handler,
+		},
+		{
+			MethodName: "EditProposal",
+			Handler:    _JourneyService_EditProposal_Handler,
+		},
+		{
+			MethodName: "PreviewJourneyIntervention",
+			Handler:    _JourneyService_PreviewJourneyIntervention_Handler,
+		},
+		{
+			MethodName: "RequestJourneyIntervention",
+			Handler:    _JourneyService_RequestJourneyIntervention_Handler,
 		},
 		{
 			MethodName: "ListWorkers",

@@ -15,6 +15,7 @@ import (
 	intentapproval "github.com/monstercameron/human-capital-management-suite/internal/intent/approval"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	stepapproval "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/approval"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
@@ -90,7 +91,9 @@ type ApprovalCompletionResult struct {
 // is loaded, authority is rechecked, the item is completed, Resolve derives the
 // only NodeOutcome runtime sees, and Advance persists its signal in one tenant
 // transaction. READY successors are drained only after that transaction commits.
-func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionRequest) (ApprovalCompletionResult, error) {
+func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionRequest) (ret0 ApprovalCompletionResult, retErr error) {
+	ctx, obsOp := observe.Begin(d.observed(ctx), "workflow.execute.complete_approval", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	selection, at, err := validateApprovalCompletionRequest(ctx, req)
 	if err != nil {
 		return ApprovalCompletionResult{}, err

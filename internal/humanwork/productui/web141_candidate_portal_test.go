@@ -23,7 +23,7 @@ func TestTodo_WEB_141(t *testing.T) {
 	if !ok {
 		t.Fatal("candidate portal unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("candidate portal incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -65,7 +65,7 @@ func TestTodo_WEB_141_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "b03127ffc275810e6f8d723c4d7050fa28eaccf8a8f3ae084e6f47ac110b04b6"
+	const want = "01d16437e8b97fdb0bdfb4861389ed742134f310705bfeb832463fc9bbd91432"
 	if got != want {
 		t.Fatalf("portal digest = %s, want %s", got, want)
 	}

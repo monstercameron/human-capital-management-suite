@@ -8,6 +8,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	stepswait "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/timer"
@@ -87,7 +88,9 @@ func NewTimerFactory(cfg TimerFactoryConfig) (TimerFactory, error) {
 // The requirement's content digest becomes the timer's durable key, which is
 // what makes a replayed advancement address the promise it already made: the
 // second call reports Replay and writes nothing.
-func (f TimerFactory) CreateTimer(ctx context.Context, ex runtime.Executor, req execute.TimerRequest) (execute.TimerHandle, error) {
+func (f TimerFactory) CreateTimer(ctx context.Context, ex runtime.Executor, req execute.TimerRequest) (ret0 execute.TimerHandle, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execution.create_timer", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if req.Plan == nil {
 		return execute.TimerHandle{}, fmt.Errorf("platform execution: create timer: continuation carries no pinned plan")
 	}

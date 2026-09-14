@@ -51,6 +51,7 @@ type Session struct {
 	Scope                 string
 	Roles                 []string
 	Permissions           []productui.RolePagePermission
+	LauncherActions       []productui.LauncherActionProjection
 	EnforceRoleVisibility bool
 	LogoutHref            string
 }
@@ -74,7 +75,15 @@ func LoadingView(session Session, state State) productui.View {
 	if len(session.Permissions) > 0 {
 		view = productui.ApplyPagePermissions(view, session.Permissions)
 	}
-	return productui.ApplyRequest(view, state.Request)
+	view.LauncherActions = append([]productui.LauncherActionProjection(nil), session.LauncherActions...)
+	view = productui.ApplyRequest(view, state.Request)
+	if view.Page == productui.PageHome {
+		// The authenticated principal is not necessarily the admitted worker's
+		// preferred display name. Hold a stable generic document title until
+		// the workforce response resolves Viewer, matching the loading H1.
+		view.Title = view.Locale.Text("page.home.title")
+	}
+	return view
 }
 
 // ContentLoadingView retargets a previously authorized shell to a destination
@@ -141,6 +150,10 @@ func ParseState(pathname, rawQuery string) (State, error) {
 	if err != nil {
 		return State{}, err
 	}
+	rolePage, err := parsePositiveRouteInt(values, "role_page", 1)
+	if err != nil {
+		return State{}, err
+	}
 	historyPageSize, err := parsePageSizeRouteInt(values, "history_page_size")
 	if err != nil {
 		return State{}, err
@@ -149,7 +162,7 @@ func ParseState(pathname, rawQuery string) (State, error) {
 		return State{}, errors.New("productclient: route state is malformed")
 	}
 	state := State{Page: definition.ID, Provided: provided, Request: productui.PageRequest{
-		Page: definition.ID, Locale: routeValue(values, "locale"), Query: routeValue(values, "q"), Mode: routeValue(values, "mode"),
+		Page: definition.ID, Locale: routeValue(values, "locale"), Query: routeValue(values, "q"), RolePage: rolePage, Mode: routeValue(values, "mode"),
 		SelectedWork: routeValue(values, "selected"), SelectedPerson: routeValue(values, "person"),
 		PeoplePage: peoplePage, PeoplePageSize: peoplePageSize, PeopleTeam: routeValue(values, "team"), PeopleLocation: routeValue(values, "location"), PeopleEligibleOnly: routeValue(values, "eligible") == "1", PeopleSort: routeValue(values, "sort"), PeopleDirection: routeValue(values, "dir"),
 		OrganizationView: routeValue(values, "org_view"),
@@ -177,16 +190,21 @@ const maxRouteQueryBytes = 4096
 
 var shellRouteQueryKeys = []string{"locale", "nav", "menu_q", "favorites"}
 
+var organizationRouteQueryKeys = []string{"org_view", "q", "person"}
+
 var pageRouteQueryKeys = map[productui.PageID][]string{
-	productui.PageMyself:       {"workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"},
-	productui.PageJourneys:     {"journey", "mode", "worker"},
-	productui.PageWork:         {"filter", "selected"},
-	productui.PageHistory:      {"history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"},
-	productui.PagePeople:       {"q", "page", "page_size", "team", "location", "eligible", "sort", "dir"},
-	productui.PagePerson:       {"person", "q", "page", "page_size", "team", "location", "eligible", "sort", "dir", "workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"},
-	productui.PageOrganization: {"org_view"},
-	productui.PageStudio:       {"mode"},
-	productui.PageRoles:        {"q"},
+	productui.PageMyself:        {"workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"},
+	productui.PageJourneys:      {"journey", "mode", "worker"},
+	productui.PageWork:          {"filter", "selected"},
+	productui.PageHistory:       {"history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"},
+	productui.PagePeople:        {"q", "page", "page_size", "team", "location", "eligible", "sort", "dir"},
+	productui.PagePerson:        {"person", "q", "page", "page_size", "team", "location", "eligible", "sort", "dir", "workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"},
+	productui.PageOrganization:  organizationRouteQueryKeys,
+	productui.PageOrgExplorer:   organizationRouteQueryKeys,
+	productui.PageOrgOutline:    organizationRouteQueryKeys,
+	productui.PageOrgResponsive: organizationRouteQueryKeys,
+	productui.PageStudio:        {"mode"},
+	productui.PageRoles:         {"q", "role_page"},
 }
 
 func safeRouteValue(value string) bool {
@@ -239,8 +257,8 @@ func validControlledRouteValues(page productui.PageID, values url.Values) bool {
 	}
 	switch page {
 	case productui.PageWork:
-		return oneOf("filter", "review", "blocked", "complete")
-	case productui.PageOrganization:
+		return oneOf("filter", "review", "blocked", "complete", "mine", "tracked")
+	case productui.PageOrganization, productui.PageOrgExplorer, productui.PageOrgOutline, productui.PageOrgResponsive:
 		return oneOf("org_view", "flat", "tree")
 	case productui.PageStudio:
 		return oneOf("mode", "preview", "validate")
@@ -300,10 +318,21 @@ func CanonicalHref(state State) string {
 		setPeopleRouteValues(values, state)
 		set("workflow_q", request.WorkflowQuery)
 		setHistoryRouteValues(values, state)
-	case productui.PageOrganization:
-		set("org_view", request.OrganizationView)
+	case productui.PageOrganization, productui.PageOrgExplorer, productui.PageOrgOutline, productui.PageOrgResponsive:
+		if state.Page == productui.PageOrgOutline {
+			// The accessible outline is intentionally a single tree
+			// presentation. Canonicalize even an omitted or contradictory
+			// query so browser history never describes a flat view while the
+			// production route renders a locked tree.
+			values.Set("org_view", "tree")
+		} else {
+			set("org_view", request.OrganizationView)
+		}
+		set("q", request.Query)
+		set("person", request.SelectedPerson)
 	case productui.PageRoles:
 		set("q", request.Query)
+		setProvidedRouteInt(values, state, "role_page", request.RolePage)
 	case productui.PageStudio:
 		set("mode", request.Mode)
 	}
@@ -331,6 +360,9 @@ func ResolvedCanonicalHref(state State, view productui.View) string {
 		if state.Provided["page_size"] {
 			resolved.Request.PeoplePageSize = view.PeoplePageSize
 		}
+	}
+	if state.Page == productui.PageRoles && state.Provided["role_page"] {
+		resolved.Request.RolePage = view.RolePage
 	}
 	if state.Page == productui.PageHistory || state.Page == productui.PagePerson || state.Page == productui.PageMyself {
 		if state.Provided["history_page"] {
@@ -428,7 +460,8 @@ func requirementsForPage(page productui.PageID) pageDataRequirements {
 		// flight for that worker (PromotionActiveConflict), so People also
 		// reads journeys now -- not just workers.
 		return pageDataRequirements{journeys: true, workers: true}
-	case productui.PageOrganization, productui.PageRoles, productui.PageOrganizationVisibility:
+	case productui.PageOrganization, productui.PageOrgExplorer, productui.PageOrgOutline, productui.PageOrgResponsive,
+		productui.PageRoles, productui.PageOrganizationVisibility:
 		return pageDataRequirements{workers: true}
 	default:
 		return pageDataRequirements{}
@@ -563,6 +596,10 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	} else if requirements.workers {
 		var projectionErr error
 		view.People, projectionErr = projectWorkers(workersResponse.GetWorkers())
+		// Journeys may name the same admitted worker by its stable worker ID
+		// or entity reference while the directory uses WorkerRef. Resolve that
+		// identity once before deriving conflicts or person-scoped links.
+		linkJourneyWorkers(view.Work, workersResponse.GetWorkers(), session.Tenant)
 		if options := workersResponse.GetOptions(); options != nil {
 			// PROMOUX-001: the server-owned four-state verdict. authorized
 			// is the same create-authority gate the page adapters already
@@ -603,7 +640,8 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	}
 	for index := range view.Navigation {
 		if view.Navigation[index].Page == productui.PageWork {
-			view.Navigation[index].Count = len(productui.OpenWorkItems(view.Work))
+			// PROMOUX-012: the badge counts actionable work only.
+			view.Navigation[index].Count = len(productui.ActionableWorkItems(view.Work))
 		}
 	}
 	view = productui.ApplyRequest(view, state.Request)
@@ -612,6 +650,41 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	}
 	view.PersonWorkflows = projectPersonWorkflows(view, view.SelectedPerson)
 	return view, errors.Join(failures...)
+}
+
+// linkJourneyWorkers only rewrites a journey's person link when exactly one
+// worker in this authorized response matches it. An unknown or ambiguous
+// reference remains unlinked rather than attributing a request to someone
+// else in the directory.
+func linkJourneyWorkers(work []productui.WorkItem, workers []*journeyv1.Worker, tenant string) {
+	for index := range work {
+		ref := strings.TrimSpace(work[index].PersonRef)
+		var match string
+		for _, worker := range workers {
+			if worker == nil || !journeyWorkerMatches(ref, worker, tenant) {
+				continue
+			}
+			if match != "" {
+				match = ""
+				break
+			}
+			match = worker.GetWorkerRef()
+		}
+		if match != "" {
+			work[index].PersonRef = match
+		}
+	}
+}
+
+func journeyWorkerMatches(ref string, worker *journeyv1.Worker, tenant string) bool {
+	if worker == nil || ref == "" {
+		return false
+	}
+	if ref == strings.TrimSpace(worker.GetWorkerRef()) || ref == strings.TrimSpace(worker.GetWorkerId()) {
+		return true
+	}
+	var entity values.EntityRef
+	return entity.UnmarshalText([]byte(ref)) == nil && entity.Tenant.String() == tenant && entity.Kind == values.Kind("worker") && entity.Id == strings.TrimSpace(worker.GetWorkerId())
 }
 
 func baselineMatchesSession(baseline, current productui.View) bool {
@@ -730,10 +803,11 @@ func applyPreferences(view *productui.View, state *State, response *journeyv1.Ge
 		}
 		applyTableDefaults(request, state.Provided, user.GetTables()["people"], false)
 		applyTableDefaults(request, state.Provided, user.GetTables()["history"], true)
+		applyWorkTableDefaults(request, state.Provided, user.GetTables()["work"])
 	}
 	if theme := response.GetTheme(); theme != nil {
 		view.AppearanceVersion = theme.GetVersion()
-		view.Appearance = productui.NormalizeCustomerTheme(productui.CustomerTheme{BrandName: theme.GetBrandName(), BrandMark: theme.GetBrandMark(), BrandLogoURL: theme.GetBrandLogoUrl(), ColorMode: theme.GetColorMode(), Palette: theme.GetPalette(), Shape: theme.GetShape(), Density: theme.GetDensity(), Glyphs: theme.GetGlyphs(), Typeface: theme.GetTypeface(), Navigation: theme.GetNavigation(), Motion: theme.GetMotion()})
+		view.Appearance = productui.NormalizeCustomerTheme(productui.CustomerTheme{BrandName: theme.GetBrandName(), BrandMark: theme.GetBrandMark(), BrandLogoURL: theme.GetBrandLogoUrl(), ColorMode: theme.GetColorMode(), Palette: theme.GetPalette(), Shape: theme.GetShape(), Density: theme.GetDensity(), Glyphs: theme.GetGlyphs(), Typeface: theme.GetTypeface(), Navigation: theme.GetNavigation(), Motion: theme.GetMotion(), TokenOverrides: theme.GetTokenOverrides(), DarkTokenOverrides: theme.GetDarkTokenOverrides()})
 	}
 	if policy := response.GetOrganizationVisibility(); policy != nil {
 		view.OrganizationVisibility = productui.OrganizationVisibilityPolicy{Version: policy.GetVersion(), Mode: policy.GetMode(), OrganizationUnits: append([]string(nil), policy.GetOrganizationUnits()...)}
@@ -792,6 +866,25 @@ func applyTableDefaults(request *productui.PageRequest, provided map[string]bool
 	}
 }
 
+// applyWorkTableDefaults is applyTableDefaults' My Work sibling (UXAUDIT-017,
+// GREEN's "retain filters on return"). It reuses the exact mechanism
+// UXAUDIT-008 built for the People and Workflow History tables --
+// preferences.TablePreferences, projected here from the generic
+// GetProductPreferencesResponse.tables map -- rather than inventing a
+// second retention path: My Work's tab filter is a one-field table
+// preference the same way History's filters are a multi-field one. Only the
+// stored default is applied, and only when the address bar did not already
+// say so, so an explicit link (e.g. a shared "?filter=blocked" URL) always
+// wins over whatever the viewer saved last.
+func applyWorkTableDefaults(request *productui.PageRequest, provided map[string]bool, table *journeyv1.TablePreferences) {
+	if request == nil || table == nil {
+		return
+	}
+	if !provided["filter"] {
+		request.WorkFilter = table.GetFilters()["filter"]
+	}
+}
+
 // activePromotionConflicts reports, per worker reference, whether a
 // nonterminal promotion journey already exists for them. Every journey this
 // service returns is a promotion journey (projectJourneys hard-codes the
@@ -814,7 +907,10 @@ func projectJourneys(journeys []*journeyv1.Journey) ([]productui.WorkItem, error
 		if journey == nil {
 			continue
 		}
-		status, tone, terminal := stagePresentation(journey.GetStage())
+		// PROMOUX-012: one stage vocabulary (journeyclient.StagePresentation)
+		// and the server's own closure, shared with the Journeys tracker.
+		status, tone := journeyclient.StagePresentation(journey.GetStage())
+		terminal := journeyclient.JourneyClosed(journey)
 		current, target := journey.GetCurrent(), journey.GetTarget()
 		currentJob, targetJob := "", ""
 		if current != nil {
@@ -832,15 +928,46 @@ func projectJourneys(journeys []*journeyv1.Journey) ([]productui.WorkItem, error
 		if err != nil {
 			failures = append(failures, fmt.Errorf("project journey %s proposed base: %w", journey.GetIntentId(), err))
 		}
+		// UXAUDIT-017 / PROMOUX-012: the server-resolved next transition the
+		// Journeys tracker renders too, so the two never disagree.
+		dimension := journeyclient.JourneyStatusDimension(journey)
 		items = append(items, productui.WorkItem{
-			ID: journey.GetIntentId(), Initials: uicomponents.Initials(journey.GetWorkerName()), PhotoURL: employeePhotoURL(journey.GetWorkerRef(), journey.GetWorkerName()), Title: "Promotion journey",
-			Person: journey.GetWorkerName(), PersonRef: journey.GetWorkerRef(), Summary: summary, Status: status, Tone: tone, Terminal: terminal,
+			NextStep: string(dimension.NextStep), WaitingOn: string(dimension.WaitingOn), AwaitsPerson: dimension.AwaitsPerson,
+			ID: journey.GetIntentId(), Initials: uicomponents.Initials(journey.GetWorkerName()), PhotoURL: employeePhotoURL(journey.GetWorkerRef(), journey.GetWorkerName()), Title: "Promotion journey", TitleKey: "journey.detail_title",
+			Person: journey.GetWorkerName(), PersonRef: journey.GetWorkerRef(), Summary: summary, Status: status, StatusKey: journeyStageKey(journey.GetStage()), Tone: tone, Terminal: terminal,
 			Due: journey.GetEffectiveDate(), EffectiveDate: journey.GetEffectiveDate(), CompletedAt: timestampLabel(journey.GetUpdatedAt()),
 			InstanceID: journey.GetInstanceId(), InstanceVersion: journey.GetInstanceVersion(), MaterialDigest: journey.GetMaterialDigest(),
 			CurrentBase: currentBase, ProposedBase: proposedBase,
+			ViewerRelationships:  journeyclient.JourneyViewerRelationships(journey),
+			ViewerResponsibility: journeyclient.JourneyViewerResponsibility(journey),
 		})
+		applyWorkItemSummary(&items[len(items)-1], journey.GetCurrentWorkItem())
 	}
 	return items, errors.Join(failures...)
+}
+
+// applyWorkItemSummary copies the server's viewer-scoped current work item
+// summary (UXAUDIT-017) onto a My Work item. The server has already applied
+// the work item visibility rules; an absent summary leaves every field empty
+// so the page keeps its stage-derived fallback and honest note, and nothing
+// here fills a gap with a guess.
+func applyWorkItemSummary(item *productui.WorkItem, summary *journeyv1.JourneyWorkItemSummary) {
+	if item == nil || summary == nil {
+		return
+	}
+	item.WorkSummary = true
+	item.ViewerMembership = summary.GetViewerMembership()
+	item.PermittedActions = append([]string(nil), summary.GetViewerPermittedActions()...)
+	if ref := strings.TrimSpace(summary.GetAssigneePrincipalId()); ref != "" {
+		item.AssigneeRef = ref
+		item.AssigneeName = strings.TrimSpace(summary.GetAssigneeDisplayName())
+		if item.AssigneeName == "" {
+			item.AssigneeName = displayLabel(ref)
+		}
+	}
+	if due := summary.GetDueAt(); due != nil && due.CheckValid() == nil && !due.AsTime().IsZero() {
+		item.WorkDue = due.AsTime().UTC().Format("2006-01-02")
+	}
 }
 
 func timestampLabel(stamp *timestamppb.Timestamp) string {
@@ -860,6 +987,7 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 	// needs the canonical worker identity, not the display-oriented public
 	// reference -- can look up a worker's manager by id rather than by name.
 	workerIDByRef := make(map[string]string, len(workers)*2)
+	workersByRef := make(map[string]int, len(workers))
 	for _, worker := range workers {
 		if worker == nil {
 			continue
@@ -869,6 +997,7 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 		namesByRef[worker.GetWorkerId()] = name
 		workerIDByRef[worker.GetWorkerRef()] = worker.GetWorkerId()
 		workerIDByRef[worker.GetWorkerId()] = worker.GetWorkerId()
+		workersByRef[worker.GetWorkerRef()]++
 	}
 	for _, worker := range workers {
 		if worker == nil {
@@ -890,10 +1019,14 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 		if err != nil {
 			failures = append(failures, fmt.Errorf("project worker %s base pay: %w", worker.GetWorkerRef(), err))
 		}
+		managerState, managerRef, managerName, relationshipErr := projectManagerRelationship(worker, workersByRef, namesByRef)
+		if relationshipErr != nil {
+			failures = append(failures, relationshipErr)
+		}
 		people = append(people, productui.Person{
 			ID: worker.GetWorkerRef(), WorkerID: worker.GetWorkerId(), Initials: uicomponents.Initials(name), PhotoURL: photoURL, Name: name,
 			LegalName: worker.GetLegalName(), PreferredName: worker.GetPreferredName(), Role: role,
-			Team: orgUnitLabel(worker.GetOrgUnit()), Manager: managerLabel(worker.GetManagerRef(), namesByRef), ManagerID: workerIDByRef[worker.GetManagerRef()], Location: worker.GetLocation(), WorkerNumber: worker.GetWorkerNumber(),
+			Team: orgUnitLabel(worker.GetOrgUnit()), Manager: managerName, ManagerID: workerIDByRef[managerRef], ManagerRelationship: managerState, ManagerWorkerRef: managerRef, Location: worker.GetLocation(), WorkerNumber: worker.GetWorkerNumber(),
 			JobCode: worker.GetJobCode(), Grade: worker.GetGrade(), PositionID: worker.GetPositionId(),
 			PayZone: worker.GetPayZone(), BasePay: basePay,
 			BonusTarget: worker.GetBonusTarget(), HireDate: worker.GetHireDate(), Source: worker.GetSource(),
@@ -902,6 +1035,38 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 	}
 	productui.IndexPeople(people)
 	return people, errors.Join(failures...)
+}
+
+func projectManagerRelationship(worker *journeyv1.Worker, workersByRef map[string]int, namesByRef map[string]string) (productui.OrganizationRelationshipState, string, string, error) {
+	if worker == nil || worker.GetManagerRelationship() == nil {
+		return "", "", "", fmt.Errorf("project worker manager relationship: missing authorized projection")
+	}
+	relationship := worker.GetManagerRelationship()
+	managerRef := strings.TrimSpace(relationship.GetManagerWorkerRef())
+	switch relationship.GetDisposition() {
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_ROOT:
+		if managerRef != "" {
+			return productui.OrganizationRelationshipRoot, "", "", fmt.Errorf("project worker %s manager relationship: ROOT includes an endpoint", worker.GetWorkerRef())
+		}
+		return productui.OrganizationRelationshipRoot, "", "", nil
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE:
+		if managerRef == "" || workersByRef[managerRef] != 1 || managerRef == worker.GetWorkerRef() {
+			return productui.OrganizationRelationshipOrphan, "", "", fmt.Errorf("project worker %s manager relationship: VISIBLE endpoint is absent, ambiguous, self, or not admitted", worker.GetWorkerRef())
+		}
+		return productui.OrganizationRelationshipVisible, managerRef, namesByRef[managerRef], nil
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_WITHHELD:
+		if managerRef != "" {
+			return productui.OrganizationRelationshipWithheld, "", "", fmt.Errorf("project worker %s manager relationship: WITHHELD leaks an endpoint", worker.GetWorkerRef())
+		}
+		return productui.OrganizationRelationshipWithheld, "", "", nil
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_ORPHAN:
+		if managerRef != "" {
+			return productui.OrganizationRelationshipOrphan, "", "", fmt.Errorf("project worker %s manager relationship: ORPHAN includes an endpoint", worker.GetWorkerRef())
+		}
+		return productui.OrganizationRelationshipOrphan, "", "", nil
+	default:
+		return "", "", "", fmt.Errorf("project worker %s manager relationship: disposition is unspecified", worker.GetWorkerRef())
+	}
 }
 
 func workerDisplayName(worker *journeyv1.Worker) string {
@@ -913,24 +1078,6 @@ func workerDisplayName(worker *journeyv1.Worker) string {
 		name = strings.TrimSpace(worker.GetLegalName())
 	}
 	return name
-}
-
-func managerLabel(ref string, namesByRef map[string]string) string {
-	ref = strings.TrimSpace(ref)
-	if ref == "" {
-		return ""
-	}
-	if name := namesByRef[ref]; name != "" {
-		return name
-	}
-	lowerRef := strings.ToLower(ref)
-	if strings.HasPrefix(lowerRef, "board:") {
-		return "HarborCare Board"
-	}
-	if strings.HasPrefix(lowerRef, "rel:") || strings.HasPrefix(lowerRef, "rel-") || strings.HasPrefix(lowerRef, "rel_") || strings.HasPrefix(lowerRef, "eref:") {
-		return "Not available"
-	}
-	return displayLabel(ref)
 }
 
 func concisePlacementLabel(jobCode, grade string) string {
@@ -997,47 +1144,50 @@ func projectPersonWorkflows(view productui.View, workerRef string) []productui.P
 		href = productui.JourneyProposalHref(view, workerRef)
 	}
 	return []productui.PersonWorkflow{{
-		ID: "promotion", Name: "Promotion", Category: "Career & compensation",
-		Description: "Propose a governed job, grade, position, and compensation change.",
+		ID: "promotion", Name: view.Locale.Text("workflow.promotion_name"), Category: view.Locale.Text("workflow.promotion_category"),
+		Description: view.Locale.Text("workflow.promotion_description"),
 		Href:        href, UseCount: view.WorkflowUses["promotion"],
 		LaunchHref: func(person string) string { return productui.JourneyProposalHref(view, person) },
 	}}
 }
 
-func stagePresentation(stage journeyv1.JourneyStage) (status, tone string, terminal bool) {
+// journeyStageKey carries the service's typed stage across the locale boundary
+// without altering Status, which remains the adapter's fallback and is used
+// by work-bucket selection before display.
+func journeyStageKey(stage journeyv1.JourneyStage) string {
 	switch stage {
 	case journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED:
-		return "Ready to start approval", "neutral", false
+		return "journey.stage_proposed"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED:
-		return "Blocked", "warning", false
+		return "journey.stage_blocked"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL:
-		return "Awaiting approval", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED:
-		return "Completed", "success", true
-	case journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED:
-		return "Recorded", "success", true
+		return "journey.stage_awaiting_approval"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL:
-		return "Finance approval", "warning", false
+		return "journey.stage_finance_approval"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL:
-		return "Manager approval", "warning", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE:
-		return "Waiting for effective date", "neutral", false
-	case journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION:
-		return "Final checks", "neutral", false
+		return "journey.stage_manager_approval"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL:
-		return "Approval required again", "warning", false
+		return "journey.stage_reapproval"
+	case journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE:
+		return "journey.stage_waiting_effective"
+	case journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION:
+		return "journey.stage_revalidation"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED:
-		return "Recording promotion", "neutral", false
+		return "journey.stage_recording"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS:
-		return "Checking downstream effects", "neutral", false
+		return "journey.stage_observing_effects"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED:
-		return "Needs repair", "danger", false
+		return "journey.stage_repair_required"
+	case journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED:
+		return "journey.stage_completed"
+	case journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED:
+		return "journey.stage_recorded"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED:
-		return "Rejected", "neutral", true
+		return "journey.stage_rejected"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_FAILED:
-		return "Failed", "danger", true
+		return "journey.stage_failed"
 	default:
-		return "Status unavailable", "warning", false
+		return "journey.stage_unknown"
 	}
 }
 

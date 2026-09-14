@@ -87,3 +87,37 @@ func RequireDistinct(financeApprover, managerApprover string) error {
 	}
 	return nil
 }
+
+// ErrRequesterApprover reports a resolved approver who is the requester of the
+// proposal they would approve (the promote-into-management reference
+// workflow's "requester may not approve" separation constraint).
+var ErrRequesterApprover = errors.New("approverclass: an approver resolved to the proposal's requester")
+
+// ErrSubjectApprover reports a resolved approver who is the subject of the
+// proposal they would approve.
+var ErrSubjectApprover = errors.New("approverclass: an approver resolved to the proposal's subject")
+
+// RequireSeparated is PROMOUX-015's routing-time constraint: the finance and
+// manager approvers must be resolved and distinct from each other
+// ([RequireDistinct]), and neither may be the requester or any of the
+// proposal's subjects. subjects lists every identity the subject is known by
+// (a worker's key and its entity id); empty entries are ignored. It refuses
+// in a fixed order -- unresolved or shared owner first, then requester, then
+// subject -- so the same inputs always name the same violation.
+func RequireSeparated(requester string, subjects []string, financeApprover, managerApprover string) error {
+	if err := RequireDistinct(financeApprover, managerApprover); err != nil {
+		return err
+	}
+	if requester == "" {
+		return ErrUnresolved
+	}
+	if financeApprover == requester || managerApprover == requester {
+		return ErrRequesterApprover
+	}
+	for _, subject := range subjects {
+		if subject != "" && (financeApprover == subject || managerApprover == subject) {
+			return ErrSubjectApprover
+		}
+	}
+	return nil
+}

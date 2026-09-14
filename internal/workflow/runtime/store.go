@@ -10,6 +10,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Executor is the minimal database capability this package needs. A
@@ -70,7 +71,9 @@ const nodeColumns = `tenant_id, node_execution_id, instance_id, node_id, attempt
 // exists collides on the primary key rather than overwriting, because two
 // drivers that both believe they created an instance is a fact the caller
 // needs to hear about.
-func (Store) CreateInstance(ctx context.Context, ex Executor, inst Instance) (Instance, error) {
+func (Store) CreateInstance(ctx context.Context, ex Executor, inst Instance) (ret0 Instance, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.create_instance", inst)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := inst.Validate(); err != nil {
 		return Instance{}, err
 	}
@@ -123,7 +126,9 @@ func (Store) LoadInstance(ctx context.Context, ex Executor, tenantID, instanceID
 // A writer whose ExpectedVersion has been overtaken is refused with
 // [CodeStaleInstance] and mutates nothing -- that refusal, not a lease, is the
 // whole of this package's concurrency control.
-func (s Store) RecordInstanceState(ctx context.Context, ex Executor, t InstanceTransition) (Instance, error) {
+func (s Store) RecordInstanceState(ctx context.Context, ex Executor, t InstanceTransition) (ret0 Instance, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.instance_transition", t)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if err := t.Validate(); err != nil {
 		return Instance{}, err
 	}
@@ -184,7 +189,9 @@ func (s Store) RecordInstanceState(ctx context.Context, ex Executor, t InstanceT
 // must now hold.
 func (s Store) RecordNodeExecution(
 	ctx context.Context, ex Executor, n NodeExecution, expectedInstanceVersion int64,
-) (NodeExecution, int64, error) {
+) (ret0 NodeExecution, ret1 int64, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.record_node_execution", n)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0, ret1) }()
 	if err := n.Validate(); err != nil {
 		return NodeExecution{}, 0, err
 	}
@@ -226,7 +233,9 @@ func (s Store) RecordNodeExecution(
 // RecordNodeTransition moves an already-stored attempt to a new status under
 // the same optimistic instance-version check, refusing a status change the
 // node state machine does not allow.
-func (s Store) RecordNodeTransition(ctx context.Context, ex Executor, t NodeTransition) (NodeExecution, int64, error) {
+func (s Store) RecordNodeTransition(ctx context.Context, ex Executor, t NodeTransition) (ret0 NodeExecution, ret1 int64, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.node_transition", t)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0, ret1) }()
 	if err := t.Validate(); err != nil {
 		return NodeExecution{}, 0, err
 	}

@@ -35,7 +35,7 @@ func web030Journey(id string) *journeyv1.Journey {
 }
 
 func web030Worker(id string) *journeyv1.Worker {
-	return &journeyv1.Worker{WorkerRef: id, PreferredName: "Riley Chen", WorkerId: id}
+	return &journeyv1.Worker{WorkerRef: id, PreferredName: "Riley Chen", WorkerId: id, ManagerRelationship: rootManagerRelationship()}
 }
 
 func TestTodo_WEB_030(t *testing.T) {
@@ -152,7 +152,7 @@ func TestTodo_WEB_030_Conformance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`aria-busy="true"`, `aria-live="polite"`, `class="sr-only route-announcer"`, `id="main-content"`, "Ihre Arbeitsbereichsdaten werden geladen"} {
+	for _, want := range []string{`aria-busy="true"`, `aria-live="polite"`, `class="sr-only route-announcer"`, `id="main-content"`, productui.ResolveProductLocale("de-DE").Text("shell.loading_authorized")} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("destination loading projection missing %q", want)
 		}

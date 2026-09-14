@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/approval"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -77,7 +78,9 @@ type CurrencyGuard struct {
 // Check revalidates req.Proposal.Revision's currency. A nil Proposal or
 // Approval port is a caller wiring mistake, not a currency fact, and is
 // reported as such rather than silently passing everything.
-func (g CurrencyGuard) Check(ctx context.Context, ex runtime.Executor, req CurrencyCheckRequest) (CurrencyVerdict, error) {
+func (g CurrencyGuard) Check(ctx context.Context, ex runtime.Executor, req CurrencyCheckRequest) (ret0 CurrencyVerdict, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execute.currency_check", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if g.Proposal == nil || g.Approval == nil {
 		return CurrencyVerdict{}, invalid("currency guard requires both ProposalFacts and ApprovalFacts ports")
 	}

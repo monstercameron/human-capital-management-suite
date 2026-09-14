@@ -23,7 +23,7 @@ func TestTodo_WEB_167(t *testing.T) {
 	if !ok {
 		t.Fatal("benefit enrollment unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("benefit enrollment incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_167_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "b5d30e421cca77699ec05de276832d23833c563c34f483ba4928fd83882de8a0"
+	const want = "73c7b3061a5955e57464c9fc346e38a8d2999b30b4f5b7bcfff8231889e7befc"
 	if got != want {
 		t.Fatalf("benefits enrollment digest = %s, want %s", got, want)
 	}

@@ -1,0 +1,336 @@
+{
+  "schema_version": 1,
+  "result": "UNRESOLVED",
+  "totals": {
+    "observations": 13,
+    "gaps": 9,
+    "deduplicated_observations": 4,
+    "by_scope": {
+      "OUT_OF_SELECTION": 1,
+      "SELECTED": 6,
+      "UNKNOWN": 2
+    },
+    "by_resolution": {
+      "EXISTING_TODO": 1,
+      "NOT_REQUIRED": 1,
+      "PROPOSED_TODO": 4,
+      "REJECTED": 1,
+      "UNRESOLVED": 2
+    },
+    "selected_unresolved": 0,
+    "facts": 4,
+    "inert_facts": 1,
+    "proposals": 4,
+    "unknowns": 3,
+    "findings": 0
+  },
+  "facts": [
+    {
+      "id": "intent:hcmnext.t.alpha/v1",
+      "kind": "SELECTED_INTENT",
+      "owner": "hcmnext.t.alpha/v1",
+      "consumers": [
+        {
+          "layer": "SLICE",
+          "ref": "definitions/planning/product-slices.yaml#promotion"
+        }
+      ],
+      "inert": false
+    },
+    {
+      "id": "intent:hcmnext.t.beta/v1",
+      "kind": "SELECTED_INTENT",
+      "owner": "hcmnext.t.beta/v1",
+      "consumers": [
+        {
+          "layer": "TEST",
+          "ref": "internal/intent/app#TestBetaSimulates"
+        }
+      ],
+      "inert": false
+    },
+    {
+      "id": "selection:SELECT-X",
+      "kind": "SELECTION_ARTIFACT",
+      "owner": "SELECT-X",
+      "consumers": [],
+      "inert": true
+    },
+    {
+      "id": "selection:SELECT-Y",
+      "kind": "SELECTION_ARTIFACT",
+      "owner": "SELECT-Y",
+      "consumers": [
+        {
+          "layer": "THREAT",
+          "ref": "definitions/planning/gates/threat-001-register.yaml"
+        }
+      ],
+      "inert": false
+    }
+  ],
+  "gaps": [
+    {
+      "identity": "GAP-010e27eab9485346",
+      "owner": "hcmnext.t.beta/v1",
+      "contract": "WORKFLOW_DESIGN",
+      "scope": "SELECTED",
+      "compilers": [
+        "designclosure",
+        "workflowmaturity"
+      ],
+      "observations": [
+        {
+          "compiler": "designclosure",
+          "code": "MISSING_ARTIFACT",
+          "detail": "bound scope item with no workflow artifact"
+        },
+        {
+          "compiler": "workflowmaturity",
+          "code": "UNBOUND_DESIGN",
+          "detail": "no design record joins this definition"
+        }
+      ],
+      "resolution": {
+        "kind": "PROPOSED_TODO",
+        "todo_id": "CONV-C8191EEB"
+      }
+    },
+    {
+      "identity": "GAP-0d99b6de5fe2ca5e",
+      "owner": "hcmnext.t.alpha/v1",
+      "contract": "HANDLER",
+      "scope": "SELECTED",
+      "compilers": [
+        "closurewitness"
+      ],
+      "observations": [
+        {
+          "compiler": "closurewitness",
+          "code": "EDGE_ABSENT",
+          "detail": "the binding table produced no verified entry"
+        }
+      ],
+      "resolution": {
+        "kind": "EXISTING_TODO",
+        "todo_id": "ALPHA-HANDLER-1"
+      }
+    },
+    {
+      "identity": "GAP-16436e56f2cd7db4",
+      "owner": "hcmnext.t.alpha/v1",
+      "contract": "TEST",
+      "scope": "SELECTED",
+      "compilers": [
+        "closurewitness",
+        "designclosure",
+        "intentcoverage"
+      ],
+      "observations": [
+        {
+          "compiler": "closurewitness",
+          "code": "EDGE_ABSENT",
+          "detail": "no executable test proves this definition"
+        },
+        {
+          "compiler": "designclosure",
+          "code": "MISSING_TEST",
+          "detail": "evidence names TestAlphaProof, which exists in no scanned test source"
+        },
+        {
+          "compiler": "intentcoverage",
+          "code": "intent_test",
+          "detail": "accepted intent has no executable oracle"
+        }
+      ],
+      "resolution": {
+        "kind": "PROPOSED_TODO",
+        "todo_id": "CONV-1A9A8DAA"
+      }
+    },
+    {
+      "identity": "GAP-54760b1609bf77f1",
+      "owner": "",
+      "contract": "TODO",
+      "subject": "todo_direct_dangling:NEXT-9",
+      "scope": "UNKNOWN",
+      "compilers": [
+        "intentcoverage"
+      ],
+      "observations": [
+        {
+          "compiler": "intentcoverage",
+          "code": "todo_direct_dangling",
+          "detail": "todo DIRECT names no accepted intent"
+        }
+      ],
+      "resolution": {
+        "kind": "UNRESOLVED"
+      }
+    },
+    {
+      "identity": "GAP-68a9ca40acb32794",
+      "owner": "SELECT-X",
+      "contract": "SELECTION_GATE",
+      "scope": "SELECTED",
+      "compilers": [
+        "selectionbind"
+      ],
+      "observations": [
+        {
+          "compiler": "selectionbind",
+          "code": "BINDING_NOT_READY",
+          "detail": "real provider-selection gate: vendor_id is a placeholder"
+        },
+        {
+          "compiler": "selectionbind",
+          "code": "SLOT_UNFILLED",
+          "detail": "slot provider: SELECT-X has not passed its own gate (1 reason(s))"
+        }
+      ],
+      "resolution": {
+        "kind": "PROPOSED_TODO",
+        "todo_id": "CONV-6C9BE86D"
+      }
+    },
+    {
+      "identity": "GAP-6ddfd295db19b033",
+      "owner": "hcmnext.t.beta/v1",
+      "contract": "SCENARIO",
+      "scope": "SELECTED",
+      "compilers": [
+        "workflowmaturity"
+      ],
+      "observations": [
+        {
+          "compiler": "workflowmaturity",
+          "code": "MISSING_ADVERSARIAL_SCENARIO",
+          "detail": "no adversarial scenario matrix"
+        }
+      ],
+      "resolution": {
+        "kind": "REJECTED",
+        "rationale": "beta is read-only in P1A; adversarial writes are out of its contract",
+        "decided_by": "product-owner"
+      }
+    },
+    {
+      "identity": "GAP-8b4c196cc566fcde",
+      "owner": "SELECT-X",
+      "contract": "DOWNSTREAM_CONSUMER",
+      "subject": "selection:SELECT-X",
+      "scope": "SELECTED",
+      "compilers": [
+        "convergence.facts"
+      ],
+      "observations": [
+        {
+          "compiler": "convergence.facts",
+          "code": "INERT_SELECTED_FACT",
+          "detail": "selected fact selection:SELECT-X changes no downstream slice, model, API, threat or test"
+        }
+      ],
+      "resolution": {
+        "kind": "PROPOSED_TODO",
+        "todo_id": "CONV-3F746AEB"
+      }
+    },
+    {
+      "identity": "GAP-97d112419d966d50",
+      "owner": "hcmnext.t.gamma/v1",
+      "contract": "ENGINE",
+      "scope": "OUT_OF_SELECTION",
+      "compilers": [
+        "closurewitness"
+      ],
+      "observations": [
+        {
+          "compiler": "closurewitness",
+          "code": "REVERSE_EDGE_ABSENT",
+          "detail": "the named engine is not imported"
+        }
+      ],
+      "resolution": {
+        "kind": "NOT_REQUIRED"
+      }
+    },
+    {
+      "identity": "GAP-9f5f0ae23f14e207",
+      "owner": "",
+      "contract": "ENDPOINT",
+      "subject": "ENDPOINT|WIRE_METHOD_UNBOUND||svc.v1.Service/Method",
+      "scope": "UNKNOWN",
+      "compilers": [
+        "closurewitness"
+      ],
+      "observations": [
+        {
+          "compiler": "closurewitness",
+          "code": "EDGE_ORPHAN",
+          "detail": "binding gap belongs to no source-bound definition"
+        }
+      ],
+      "resolution": {
+        "kind": "UNRESOLVED"
+      }
+    }
+  ],
+  "proposals": [
+    {
+      "id": "CONV-1A9A8DAA",
+      "gap_identity": "GAP-16436e56f2cd7db4",
+      "title": "Close the TEST contract for hcmnext.t.alpha/v1",
+      "owner": "hcmnext.t.alpha/v1",
+      "contract": "TEST",
+      "phase": "P1A",
+      "oracle": "TestConvergence_HcmnextTAlphaV1_Test"
+    },
+    {
+      "id": "CONV-3F746AEB",
+      "gap_identity": "GAP-8b4c196cc566fcde",
+      "title": "Close the DOWNSTREAM_CONSUMER contract for SELECT-X (selection:SELECT-X)",
+      "owner": "SELECT-X",
+      "contract": "DOWNSTREAM_CONSUMER",
+      "subject": "selection:SELECT-X",
+      "phase": "P0",
+      "oracle": "TestConvergence_SelectX_DownstreamConsumer_3F746A"
+    },
+    {
+      "id": "CONV-6C9BE86D",
+      "gap_identity": "GAP-68a9ca40acb32794",
+      "title": "Close the SELECTION_GATE contract for SELECT-X",
+      "owner": "SELECT-X",
+      "contract": "SELECTION_GATE",
+      "phase": "P0",
+      "oracle": "TestConvergence_SelectX_SelectionGate"
+    },
+    {
+      "id": "CONV-C8191EEB",
+      "gap_identity": "GAP-010e27eab9485346",
+      "title": "Close the WORKFLOW_DESIGN contract for hcmnext.t.beta/v1",
+      "owner": "hcmnext.t.beta/v1",
+      "contract": "WORKFLOW_DESIGN",
+      "phase": "P1A",
+      "oracle": "TestConvergence_HcmnextTBetaV1_WorkflowDesign"
+    }
+  ],
+  "unknowns": [
+    {
+      "code": "OWNERLESS_GAP",
+      "ref": "GAP-54760b1609bf77f1",
+      "detail": "TODO gap \"todo_direct_dangling:NEXT-9\" names no owner, so it cannot be placed inside or outside the selection"
+    },
+    {
+      "code": "OWNERLESS_GAP",
+      "ref": "GAP-9f5f0ae23f14e207",
+      "detail": "ENDPOINT gap \"ENDPOINT|WIRE_METHOD_UNBOUND||svc.v1.Service/Method\" names no owner, so it cannot be placed inside or outside the selection"
+    },
+    {
+      "code": "SELECTION_SLOT_UNFILLED",
+      "ref": "slot:provider",
+      "detail": "PHASE-001 selection slot provider is unfilled"
+    }
+  ],
+  "findings": [],
+  "digest": "sha256:2edb2a4a1f54e41b503fd78193e6d8773a09437d8a68aaa84a8df404d654d251"
+}

@@ -23,7 +23,7 @@ func TestTodo_WEB_179(t *testing.T) {
 	if !ok {
 		t.Fatal("talent calibration unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("talent calibration incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -62,7 +62,7 @@ func TestTodo_WEB_179_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "b738e04002972160ff757490cf34e86ed6dca4464c7cd920eb8623132119e0e5"
+	const want = "c626810e0ce8256e762cd525318f75f654c4066cb789a7eea874ad66d2c64414"
 	if got != want {
 		t.Fatalf("talent calibration digest = %s, want %s", got, want)
 	}

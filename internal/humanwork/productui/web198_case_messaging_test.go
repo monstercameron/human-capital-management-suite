@@ -24,7 +24,7 @@ func TestTodo_WEB_198(t *testing.T) {
 	if !ok {
 		t.Fatal("restricted case messaging unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("restricted case messaging incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_198_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "35bdfd67e0f62640270db329365fa33f796b0ce441e802e6c38fe4807625bf0c"
+	const want = "16cb7d6f35c142e7d549b0dc6673e3c74cfb66a0f8b36b631a3dde28d45cd614"
 	if got != want {
 		t.Fatalf("restricted case messaging digest = %s, want %s", got, want)
 	}

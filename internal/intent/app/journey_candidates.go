@@ -7,14 +7,110 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
+
+const (
+	// reasonPromotionActive is the stable refusal reference returned when a
+	// second promotion would overlap an active promotion for the same worker.
+	reasonPromotionActive        = "promotion.active_conflict"
+	promotionGuardPageSize int32 = 200
+)
+
+// FindActivePromotion reports an existing promotion for workerID that still
+// participates in the request lifecycle.  It is intentionally a pure scan so
+// both the page and intent-only proposal paths can apply the same guard before
+// creating a new intent. Terminal request states are not duplicates: a
+// rejected, cancelled, superseded, withdrawn or closed promotion may be
+// proposed again as a new intent with its own evidence.
+//
+// The scan requires the tenant and exact EMPLOYMENT subject to match. A worker
+// identifier by itself is not a tenant boundary, and matching a POSITION
+// subject would incorrectly reject two workers who happen to target one
+// position on different effective dates.
+func FindActivePromotion(instances []intent.Instance, tenant string, workerID string) (intent.Instance, bool) {
+	tenant = strings.TrimSpace(tenant)
+	workerID = strings.TrimSpace(workerID)
+	if tenant == "" || workerID == "" {
+		return intent.Instance{}, false
+	}
+	for _, instance := range instances {
+		if instance.Tenant.String() != tenant || instance.Definition.TypeID != promotion.IntentType || !activePromotionLifecycle(instance.Lifecycle) {
+			continue
+		}
+		for _, subject := range instance.Subjects {
+			if subject.Kind == "EMPLOYMENT" && subject.SubjectID == workerID {
+				return instance, true
+			}
+		}
+	}
+	return intent.Instance{}, false
+}
+
+func activePromotionLifecycle(d lifecycle.Dimensions) bool {
+	switch d.Request {
+	case lifecycle.RequestDraft, lifecycle.RequestPreflighted, lifecycle.RequestSimulated,
+		lifecycle.RequestSubmitted, lifecycle.RequestApproved, lifecycle.RequestReopened:
+		return true
+	default:
+		return false
+	}
+}
+
+func promotionEmploymentSubject(subjects []intent.SubjectReference) string {
+	for _, subject := range subjects {
+		if subject.Kind == "EMPLOYMENT" && strings.TrimSpace(subject.SubjectID) != "" {
+			return strings.TrimSpace(subject.SubjectID)
+		}
+	}
+	return ""
+}
+
+// findActivePromotion reads the tenant's complete intent population in
+// bounded pages and applies the same subject/lifecycle predicate used by the
+// journey projections. It is called while CreateIntent holds the service's
+// promotion admission lock, so two local callers cannot both pass the scan
+// and append competing promotions.
+func (s *IntentService) findActivePromotion(ctx context.Context, tenant, workerID string) (intent.Instance, bool, error) {
+	if s == nil || s.store == nil {
+		return intent.Instance{}, false, fmt.Errorf("app: promotion admission store is unavailable")
+	}
+	cursor := ""
+	for {
+		page, err := s.store.ListIntents(ctx, tenant, promotionGuardPageSize, cursor)
+		if err != nil {
+			return intent.Instance{}, false, fmt.Errorf("app: scan active promotions: %w", err)
+		}
+		for _, record := range page.Records {
+			if record.Definition.TypeID != promotion.IntentType {
+				continue
+			}
+			instance, decodeErr := decodeEnvelope(record.Envelope)
+			if decodeErr != nil {
+				return intent.Instance{}, false, fmt.Errorf("app: decode active promotion: %w", decodeErr)
+			}
+			if active, ok := FindActivePromotion([]intent.Instance{instance}, tenant, workerID); ok {
+				return active, true, nil
+			}
+		}
+		if page.NextCursor == "" {
+			return intent.Instance{}, false, nil
+		}
+		if page.NextCursor == cursor {
+			return intent.Instance{}, false, fmt.Errorf("app: active promotion scan returned a repeated cursor")
+		}
+		cursor = page.NextCursor
+	}
+}
 
 // The durable half of a propose: EP-PROMO-001's "immutable
 // snapshot/simulation/proposal candidates". Minting the proposal in memory is

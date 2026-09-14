@@ -96,6 +96,17 @@ func TestStorePersistsPrincipalSettingsAndOrganizationAppearanceWithCAS(t *testi
 	if err != nil || northAgain.Theme.Palette != "ocean" || northAgain.Theme.Version != 1 {
 		t.Fatalf("south organization changed north appearance: theme=%+v err=%v", northAgain.Theme, err)
 	}
+	authored := northAgain.Theme
+	authored.Palette = "custom"
+	authored.TokenOverrides = map[string]string{"color.brand.primary": "#4d1f78", "color.canvas": "#fbf9fd"}
+	authored.DarkTokenOverrides = map[string]string{"color.brand.primary": "#ba9ce7", "color.canvas": "#101019"}
+	if _, err := store.SaveTheme(ctx, values.TenantId("prefs-test"), organizationNorth, "alice", authored); err != nil {
+		t.Fatalf("save authored colors: %v", err)
+	}
+	bobAuthored, err := store.Load(ctx, values.TenantId("prefs-test"), organizationNorth, "bob")
+	if err != nil || bobAuthored.Theme.TokenOverrides["color.brand.primary"] != "#4d1f78" || bobAuthored.Theme.DarkTokenOverrides["color.canvas"] != "#101019" {
+		t.Fatalf("organization light/dark palette was not shared intact: theme=%+v err=%v", bobAuthored.Theme, err)
+	}
 
 	visibility := northAgain.OrganizationVisibility
 	visibility.Mode = preferences.OrganizationVisibilityAllowlist

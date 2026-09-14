@@ -24,7 +24,7 @@ func TestTodo_WEB_228(t *testing.T) {
 	if !ok {
 		t.Fatal("accessible data visualization unregistered")
 	}
-	if definition.Route == "" || definition.render == nil {
+	if definition.Route == "" || pageRenderer(definition.ID) == nil {
 		t.Fatalf("accessible data visualization incomplete: %+v", definition)
 	}
 	roundTrip, ok := LookupRoute(definition.Route)
@@ -63,7 +63,7 @@ func TestTodo_WEB_228_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "98f325db089bfd8025c75f687788b3233da0fdc4f0ee1a576f398e89fbf0a08f"
+	const want = "186bed649890b87f44d72dbd23734e84a072d3672dc0a187f4026bb8050463e5"
 	if got != want {
 		t.Fatalf("accessible data visualization digest = %s, want %s", got, want)
 	}
