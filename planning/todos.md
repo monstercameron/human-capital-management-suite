@@ -4910,7 +4910,7 @@ closed.
   - **Refs:** [Data migration lifecycle](specs/hris-admin-dataops.md), [transaction simulation](specs/transaction-ledger-reconciliation-and-repair.md).
   - **Evidence (2026-09-12):** `TestTodo_DATAOPS_005` and its full declared matrix in `internal/domains/dataops/importing`; `go test -count=1 -cover ./internal/domains/dataops/importing/` PASS at 82.5% on windows/arm64 (Go 1.26.3); branch main. No behaviour changed: implemented but unticked. RED's replay clause is enforced by content addressing rather than convention -- `rowDigest` binds the header digest into every row id and the batch `Digest` binds source, schema and retrieval time, with tests that fail if two stagings of identical input produce different digests or if identical inputs reproduce different error sets. The zero-value trap is closed explicitly at the type level too: `SourceKindUnspecified is the zero value and is never legal`.
 
-- [ ] `DATAOPS-006` **[GATE_C][SOL_HIGH] Commit an approved import resumably and reconcile every item.**
+- [x] `DATAOPS-006` **[GATE_C][SOL_HIGH] Commit an approved import resumably and reconcile every item.**
   - **Depends:** `DATAOPS-005`, `TX-010`, `WF-RUN-019`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_DATAOPS_006`.
@@ -4919,6 +4919,7 @@ closed.
   - **GREEN:** only proposal-bound items commit once; result counts partition input exactly and every committed item has transaction, observation and reconciliation lineage.
   - **REFACTOR:** rollback means governed corrective intents, never ledger deletion.
   - **Refs:** [Import commit and migration cutover](specs/hris-admin-dataops.md).
+  - **Evidence (2026-09-14):** `TestTodo_DATAOPS_006`, `FuzzTodo_DATAOPS_006` and `TestTodo_DATAOPS_006_Mutation` in `internal/domains/dataops/importing` (`commit.go`: `CommitImport` commits only a verified simulation whose approval binds its digest, batch and mapping digests against the unchanged batch and mapping; CREATE/CHANGE drafts commit through an idempotent `ItemCommitter` under simulation+row keys and count COMMITTED only with transaction, observation and MATCHED reconciliation lineage; a compare-and-set checkpoint after every item resumes bounded slices without re-committing, retries failed items, refuses a checkpoint from another simulation and makes concurrent resumes lose the CAS; NO_OP/ERROR/CONFLICT are classified not written; counts partition the input exactly; `CorrectiveIntents` plans governed reversal with no ledger deletion); `go test -count=1` PASS, 83.3% package coverage; Go 1.26.3 windows/arm64; branch main.
 
 - [x] `DATAOPS-007` **[GATE_A][TERRA] Explain an effective-dated field history.**
   - **Depends:** `DATA-006`, `MODEL-020`, `MODEL-021`.
@@ -9625,7 +9626,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **Refs:** [DataOps](specs/hris-admin-dataops.md), [operations models](data/models/operations-production.md).
   - **Evidence (2026-09-03):** `TestTodo_ONBOARD_004`, `FuzzTodo_ONBOARD_004` in `internal/connectivity/onboarding` (`BudgetGuard` for pages/records/bytes/wall time from an injected clock stopping at a resumable checkpoint; `FieldFilterConnector` allow-list; poison rows quarantined with reasons while the batch continues); `go test -count=1 ./internal/connectivity/...` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
 
-- [ ] `ONBOARD-005` **[GATE_C][SOL_HIGH] Execute source-freeze, delta and authority cutover.**
+- [x] `ONBOARD-005` **[GATE_C][SOL_HIGH] Execute source-freeze, delta and authority cutover.**
   - **Depends:** `DATAOPS-006`, `ONBOARD-003`, `CP-007`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.LIFECYCLE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_ONBOARD_005`.
@@ -9634,8 +9635,9 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **GREEN:** Signed epoch follows freeze, delta, validation, simulation, approval, lag and reconciliation gates with safe abort.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Source authority](specs/source-authority-and-external-mastering.md), [DataOps](specs/hris-admin-dataops.md).
+  - **Evidence (2026-09-14):** `TestTodo_ONBOARD_005` and `TestTodo_ONBOARD_005_Mutation` in `internal/connectivity/onboarding` (`cutover.go`: `DecideCutover` evaluates FREEZE, SOURCE_STABLE, DUAL_WRITER, EPOCH_CURRENT, DELTA, VALIDATION, SIMULATION, APPROVAL, LAG and RECONCILIATION in order and signs the next `AuthorityEpoch` bound to freeze token, frozen source version, delta commit digest, simulation and approver only when all hold; source changes, stale epochs, dual writers, partial deltas, self-approval or excess lag abort safely with authority left at the source; the mutation test walks every gate in declared order; epochs verify and tampering is detected); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ONBOARD-006` **[GATE_C][SOL_HIGH] Reconcile and compensate onboarding results.**
+- [x] `ONBOARD-006` **[GATE_C][SOL_HIGH] Reconcile and compensate onboarding results.**
   - **Depends:** `ONBOARD-005`, `DATAOPS-008`, `TX-010`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.LIFECYCLE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_ONBOARD_006`.
@@ -9644,6 +9646,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **GREEN:** Every row is classified and governed compensation preserves ledger history and irreversible-effect report.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [DataOps](specs/hris-admin-dataops.md).
+  - **Evidence (2026-09-14):** `TestTodo_ONBOARD_006`, `TestTodo_ONBOARD_006_Golden` and `TestTodo_ONBOARD_006_Mutation` in `internal/connectivity/onboarding` (`reconcile.go`: `Reconcile` classifies every source row and every unaccounted target record field by field as MATCHED, FIELD_DRIFT, EFFECTIVE_DATE_DRIFT, OBSERVATION_DRIFT, MISSING_IN_TARGET or UNEXPECTED_IN_TARGET even when aggregate counts are equal; each drift gets an idempotent compensation that appends after the committed ledger events and never deletes history, and released irreversible effects are reported; report pinned in `testdata/onboard006_reconciliation.golden.json`); `go test -count=1` PASS, 81.7% package coverage; Go 1.26.3 windows/arm64; branch main.
 
 - [x] `ONBOARD-007` **[GATE_A][SOL_HIGH] Export an offline-verifiable onboarding lineage package.**
   - **Evidence (2026-09-05):** `TestTodo_ONBOARD_007` in `internal/connectivity/onboarding` (Missing/tampered member fails verifier; written by a codex GPT-5.6 Luna lane and verified independently); `go test -count=1 ./internal/connectivity/onboarding/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
@@ -18384,7 +18387,7 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
 
-- [ ] `ALIGN-024` **[GATE_C][SOL_HIGH] Require authoritative refetch after invalidation.**
+- [x] `ALIGN-024` **[GATE_C][SOL_HIGH] Require authoritative refetch after invalidation.**
   - **Depends:** `ALIGN-023`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for require authoritative refetch after invalidation without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_024`.
@@ -18393,10 +18396,11 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Require authoritative refetch after invalidation` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_024` plus `_Property`, `_Golden`, `_Security`, `_Integration`, `_Fault` and `_Conformance` in `internal/transport/productquery` (`refetch.go`: a retained `View` applies ALIGN-023 invalidation hints by marking named subjects dirty and raising the required source position without touching retained rows; while any hint is newer than the envelope watermark the view is `REFETCH_REQUIRED`, and `Accept` refuses a refetch for another tenant/projection (`ErrRefetchMismatch`) or one whose watermark has not reached the announced source sequence (`ErrRefetchStale`); plans carry only projection, minimum watermark and subject refs); `go test -count=1` PASS, 90.4% package coverage; Go 1.26.3 windows/arm64; branch main.
 
 ### Governed work and mutation loop
 
-- [ ] `ALIGN-025` **[GATE_C][TERRA] Define durable draft persistence semantics.**
+- [x] `ALIGN-025` **[GATE_C][TERRA] Define durable draft persistence semantics.**
   - **Depends:** `ALIGN-024`.
   - **INTENT CONTEXT:** `ROLE=ORCHESTRATION; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for define durable draft persistence semantics without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_025`.
@@ -18405,8 +18409,9 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Define durable draft persistence semantics` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_025` plus `_Property`, `_Golden`, `_Security` and `_Conformance` in `internal/intent/draftstore` (`Port` durable draft semantics with reference `Memory` store: owner-scoped reads where another tenant/principal sees not-found, revision compare-and-set with create at 0, inputs revalidated against the pinned definition so server-owned/undeclared paths never persist, TTL expiry that withholds inputs, `REBASE_REQUIRED` on definition drift, submission stamped exactly once then immutable, safe listing with input digest only; 16 concurrent creates admit exactly one); `go test -count=1` PASS, 97% coverage; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ALIGN-026` **[GATE_C][TERRA] Bind product drafts to immutable proposal revisions.**
+- [x] `ALIGN-026` **[GATE_C][TERRA] Bind product drafts to immutable proposal revisions.**
   - **Depends:** `ALIGN-025`.
   - **INTENT CONTEXT:** `ROLE=ORCHESTRATION; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for bind product drafts to immutable proposal revisions without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_026`.
@@ -18415,8 +18420,9 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Bind product drafts to immutable proposal revisions` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_026` plus `_Property`, `_Golden`, `_Security` and `_Conformance` in `internal/intent/draftstore` (`binding.go`: `Bind` links a stored, submitted draft revision and input digest to the immutable `ProposalRevision` of the intent it became, re-deriving the material digest through the kernel digester; `Check` reports `CURRENT`, `DRAFT_CHANGED`, `SUPERSEDED` or `TAMPERED`; cross-tenant/intent, unsubmitted drafts, unminted or content-altered revisions are refused); `go test -count=1` PASS, 97.3% coverage; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ALIGN-027` **[GATE_C][TERRA] Prove simulation remains write-free.**
+- [x] `ALIGN-027` **[GATE_C][TERRA] Prove simulation remains write-free.**
   - **Depends:** `ALIGN-026`.
   - **INTENT CONTEXT:** `ROLE=ORCHESTRATION; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for prove simulation remains write free without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_027`.
@@ -18425,8 +18431,9 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Prove simulation remains write-free` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_027` plus `_Property`, `_Golden`, `_Security` and `_Conformance` in `internal/application` over the composed serve cell and embedded PostgreSQL: repeated `SimulateIntent` calls on proposed and executing promotion intents return one deterministic material digest with a zero-effect receipt while a fingerprint (row count plus order-independent md5) of every base table stays byte-identical; refused/foreign simulations are also write-free; the detector itself is proven to catch a real write; SIMULATE mode contracts permit no commit, external effect or approval consumption in any environment; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ALIGN-028` **[GATE_C][SOL_HIGH] Bind human decisions to proposal digests.**
+- [x] `ALIGN-028` **[GATE_C][SOL_HIGH] Bind human decisions to proposal digests.**
   - **Depends:** `ALIGN-027`.
   - **INTENT CONTEXT:** `ROLE=ORCHESTRATION; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for bind human decisions to proposal digests without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_028`.
@@ -18435,8 +18442,9 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Bind human decisions to proposal digests` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_028` plus `_Property`, `_Golden`, `_Security`, `_Integration`, `_Fault` and `_Conformance` in `internal/application` over the composed cell and PostgreSQL: every `HUMAN_APPROVAL` `intent_decision` row pins the exact `proposal_revision` digest it references (no unbound decision anywhere), binding columns are NOT NULL with the revision foreign key, the append-only trigger refuses rewriting a pinned digest, a self-approval records nothing, editing a partly approved proposal mints a successor with a new digest and no inherited decisions while the original decision stays on the original digest and the original can no longer be decided, and an orphan decision is refused by the foreign key; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ALIGN-029` **[GATE_C][SOL_HIGH] Project workflow lifecycle into product states.**
+- [x] `ALIGN-029` **[GATE_C][SOL_HIGH] Project workflow lifecycle into product states.**
   - **Depends:** `ALIGN-028`.
   - **INTENT CONTEXT:** `ROLE=ORCHESTRATION; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for project workflow lifecycle into product states without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_029`.
@@ -18445,6 +18453,7 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Project workflow lifecycle into product states` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_029` plus `_Property`, `_Golden`, `_Fault` and `_Conformance` in `internal/intent/app` (the journey product stage is projected only from durable workflow state: no instance is PROPOSED/BLOCKED, a SUCCEEDED terminal decides the finished stage regardless of frontier while a SKIPPED terminal never does, the frontier node or open approval work item names the in-flight stage, non-live runtime statuses without a terminal are FAILED; the node-to-stage map is pinned and total over every compiled promotion node), and `TestTodo_ALIGN_029_Integration`/`_Security` in `internal/application` (a real promotion driven through execute and both approvals shows the product stage matching the durable `workflow_instance` frontier at each step; the stage is disclosed only to authorized personas); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
 
 - [ ] `ALIGN-030` **[GATE_C][SOL_HIGH] Bind accepted actions to transaction plans.**
   - **Depends:** `ALIGN-029`.
@@ -18676,7 +18685,7 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
 
-- [ ] `ALIGN-052` **[GATE_C][SOL_HIGH] Implement the bounded product-slice repair workbench.**
+- [x] `ALIGN-052` **[GATE_C][SOL_HIGH] Implement the bounded product-slice repair workbench.**
   - **Depends:** `ALIGN-051`.
   - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for implement the bounded product slice repair workbench without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_052`.
@@ -18685,8 +18694,9 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Implement the bounded product-slice repair workbench` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_052` plus `_Property`, `_Golden`, `_Security`, `_Integration`, `_Fault` and `_Conformance` in `internal/operations/repairworkbench` (operator-only bounded workbench (max 50) of tenant- and slice-scoped findings ordered by severity, each admitting only its kind's typed actions; `Submit` re-checks slice/tenant membership and evidence digest, then routes the typed request through the governed operator gateway (`internal/intent/operator`) so JIT, dual control, simulation and idempotency apply; foreign, inadmissible or stale actions never reach the gateway; view order-independent and payload-free); `go test -count=1` PASS, 98.5% coverage; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ALIGN-053` **[GATE_C][SOL_HIGH] Correlate product telemetry without protected payloads.**
+- [x] `ALIGN-053` **[GATE_C][SOL_HIGH] Correlate product telemetry without protected payloads.**
   - **Depends:** `ALIGN-052`.
   - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for correlate product telemetry without protected payloads without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_053`.
@@ -18695,8 +18705,9 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Correlate product telemetry without protected payloads` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_053` plus `_Property`, `_Golden`, `_Security`, `_Integration`, `_Fault` and `_Conformance` in `internal/operations/productcorrelation` (operator-only correlation of UI, intent, workflow and ledger events by correlation id through the platform telemetry allowlist: unknown keys, keys not admitted on log/span signals and payload-shaped values (email, national-identifier pattern, oversized or multi-line) are dropped and counted by reason, other tenants and uncorrelated events are omitted; timelines are ordered, complete-surface flagged, order-independent and idempotent under re-sanitization); `go test -count=1` PASS, 96.6% coverage; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ALIGN-054` **[GATE_C][SOL_HIGH] Record version-bound product-slice release evidence.**
+- [x] `ALIGN-054` **[GATE_C][SOL_HIGH] Record version-bound product-slice release evidence.**
   - **Depends:** `ALIGN-053`.
   - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for record version bound product slice release evidence without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_054`.
@@ -18705,8 +18716,9 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Record version-bound product-slice release evidence` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_054` plus `_Property`, `_Golden`, `_Security`, `_Integration`, `_Fault` and `_Conformance` in `internal/operations/releaseevidence` (`Release` binds slice version to binary revision, the embedded migration artifact digest and target version, compiled definition digests and admitting test evidence, sealed by a content digest; the append-only `Journal` returns the stored record for an identical re-record and refuses different content under the same version (`ErrImmutable`), including under 16 concurrent recorders; tampering and incomplete evidence are refused); `go test -count=1` PASS, 100% coverage; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ALIGN-055` **[GATE_C][SOL_HIGH] Detect binary migration and definition skew.**
+- [x] `ALIGN-055` **[GATE_C][SOL_HIGH] Detect binary migration and definition skew.**
   - **Depends:** `ALIGN-054`.
   - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for detect binary migration and definition skew without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_055`.
@@ -18715,6 +18727,7 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **GREEN:** the named test deterministically proves the `Detect binary migration and definition skew` contract from versioned inputs with tenant isolation, explicit authority, exact persistence effects, safe presentation and retained evidence.
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
+  - **Evidence (2026-09-14):** `TestTodo_ALIGN_055` plus `_Property`, `_Golden`, `_Security`, `_Integration`, `_Fault` and `_Conformance` in `internal/operations/releaseevidence` (`Detect` compares a running cell with its verified release and names every `BINARY_SKEW`, `SCHEMA_DIGEST_SKEW`, `MIGRATION_BEHIND/AHEAD`, `DEFINITION_CHANGED/MISSING/UNRELEASED` exactly once per single-field perturbation; a forged release cannot vouch for a runtime; integration reads the applied goose version from a freshly migrated embedded PostgreSQL database and matches the release); `go test -count=1` PASS, 100% coverage; Go 1.26.3 windows/arm64; branch main.
 
 - [ ] `ALIGN-056` **[GATE_C][SOL_HIGH] Prove product-slice rollback support.**
   - **Depends:** `ALIGN-055`.

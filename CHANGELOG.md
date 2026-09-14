@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-14 (Workflow todo prerequisites: product alignment, import commit, onboarding cutover)
+
+- ALIGN-024-029: product views refetch authoritatively after an invalidation hint; intent drafts have durable owner-scoped, revisioned, expiring persistence and bind to the immutable proposal revision they produced; simulation is proven write-free across every table of a composed cell; every human decision pins its proposal revision digest; the promotion journey stage is projected from durable workflow state only.
+- ALIGN-052-055: a bounded operator repair workbench routes typed repairs through the governed operator gateway; product telemetry correlates across UI, intent, workflow and ledger without protected payloads; product-slice releases are sealed evidence bound to binary, schema and definition digests, and cells detect binary, migration and definition skew against them.
+- DATAOPS-006, ONBOARD-005/006: an approved import commits resumably and exactly once with full lineage; authority cutover signs an epoch only after freeze, delta, validation, simulation, approval, lag and reconciliation gates; onboarding results reconcile row by row with append-only compensation.
+
 ## 2026-09-14 (Workflow engine telemetry and WF-RUN-022)
 
 - Every state-changing workflow operation (lease, timer, runtime start/advance/pause/resume, recovery, migration, approval and task steps, compensation, replay, shadow, driver entry points, scheduler claims) now emits an `hcmnext.workflow.*` span and a structured log line: DEBUG on success, WARN on a governed refusal, ERROR on a failure, with bounded ids, duration, trace id and a stable error code, never message text.

@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: e2faaad6f9124e2250cf09d5f60f8e870b3421b3c75507665d912f3c49494abf
-- Package count: 814
-- Within-module edge count: 1962
+- Source graph: 380ed216b0b01414aa58c1c030e9ddd13364fe16b822d15db5a62b7136b3b233
+- Package count: 818
+- Within-module edge count: 1972
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -483,6 +483,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/approval`
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/definitions`
+- `github.com/monstercameron/human-capital-management-suite/internal/intent/draftstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/eventpolicy`
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/evolution`
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle`
@@ -515,10 +516,13 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/inspector`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/internal/viewdigest`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/messagingdelivery`
+- `github.com/monstercameron/human-capital-management-suite/internal/operations/productcorrelation`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/reconcile`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/recovery`
+- `github.com/monstercameron/human-capital-management-suite/internal/operations/releaseevidence`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/reliability`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/repair`
+- `github.com/monstercameron/human-capital-management-suite/internal/operations/repairworkbench`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/residency`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/slo`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/subprocessor`
@@ -970,4 +974,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`cdd607b25829d5ec618467107d14e35c93b28e46c420eba2d863885f52f43954`
+`4a4f2e4025e0d16e73e9b8b4f4e2c874c7be0d80cca5110d720fdb7373deb45e`
