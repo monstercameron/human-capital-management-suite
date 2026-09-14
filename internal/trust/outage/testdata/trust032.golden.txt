@@ -1,0 +1,5 @@
+# TRUST-032 sealed-bundle and restore-receipt oracle.
+# bundle_digest pins the sealed reference set; receipt_digest pins the
+# isolated-cell restore admission over that bundle.
+bundle_digest: sha256:7ce3a6bf46a4581f27a50fbb46a1acfa5a63c195c88614c21874c5ef1ea14399
+receipt_digest: sha256:efa656254c8ec9a4255985e3353089653c75a072abc504355b878e880b2833c2
