@@ -24559,7 +24559,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Workflow runtime](specs/workflow-runtime.md), [human work/forms](specs/human-work-forms-and-rules.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PACK_003` plus `_Golden`, `_Browser` and `_Mutation` in `internal/domains/industrypack` (`BindExperience` resolves every workflow, form, skill and metric reference to a published registry artifact of the same kind, identity, version and digest; side effects (NONE explicit), authority scopes for side-effecting workflows and forms, the pack default locale, form accessibility conformance and metric unit/aggregation/definition must be declared; artifact and PACK-002 content dependencies must resolve; overriding non-overridable (mandatory country) content is refused; artifacts needing a deferred capability bind gated; every refusal is `PACK_003_REJECTED` with field, state and version, and `ActivateExperience` persists nothing -- zero rows, events, outbox, human work, provider requests -- unless accepted; canonical digest is registry-order independent; `RenderCatalogHTML` is a labelled, captioned, scoped, escaped reviewer table); 100% statement coverage of experience.go; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
     "id": "PACK-004",
