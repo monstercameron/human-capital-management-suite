@@ -140,6 +140,10 @@ jobs:
         uses: bufbuild/buf-setup-action@v1
         with:
           version: 1.72.0
+          # Resolving the release download is a GitHub API call; unauthenticated
+          # it shares the runner IP's anonymous rate limit and fails the job
+          # before any test runs.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # The workspace asset manifest (internal/humanwork/workspace) covers
       # the built wasm bundles, which are git-ignored build outputs, so a
