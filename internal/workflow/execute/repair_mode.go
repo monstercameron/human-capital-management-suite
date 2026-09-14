@@ -293,7 +293,11 @@ func repairStatus(status operationrepair.Status) RepairStatus {
 func addEvidence(result *RepairExecutionResult, sink RepairEvidencePort, ctx context.Context, evidence RepairEvidence) {
 	result.Evidence = append(result.Evidence, evidence)
 	if sink != nil {
-		_ = sink.RecordRepairEvidence(ctx, evidence)
+		// Evidence stays on the result either way; a failed durable write is
+		// not fatal to the repair but must be visible as its own failed
+		// operation rather than silently discarded.
+		_, op := observe.Begin(ctx, "workflow.repair.record_evidence")
+		_ = observe.Done(op, sink.RecordRepairEvidence(ctx, evidence))
 	}
 }
 

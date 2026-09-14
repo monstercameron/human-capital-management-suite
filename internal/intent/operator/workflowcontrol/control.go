@@ -139,6 +139,19 @@ type Controller struct {
 	// preflight dry-runs simulation-required controls; see
 	// WithPreflightSimulation.
 	preflight bool
+	// recorder receives the controller's operations when the caller's
+	// context carries none; see WithRecorder.
+	recorder observe.Recorder
+}
+
+// observed returns ctx carrying the controller's recorder unless the caller
+// already supplied one, so controls arriving over a transport that does not
+// thread a recorder still reach spans and logs.
+func (c *Controller) observed(ctx context.Context) context.Context {
+	if c == nil || c.recorder == nil || observe.RecorderFrom(ctx) != nil {
+		return ctx
+	}
+	return observe.WithRecorder(ctx, c.recorder)
 }
 
 // New composes a controller over journal: it builds the operator gateway with
@@ -171,28 +184,28 @@ func New(db dbport.Beginner, journal operator.Journal, plans PlanResolver, autho
 
 // Pause requests a pause.
 func (c *Controller) Pause(ctx context.Context, cmd Command) (ret0 Result, retErr error) {
-	ctx, obsOp := observe.Begin(ctx, "workflow.control.pause", cmd)
+	ctx, obsOp := observe.Begin(c.observed(ctx), "workflow.control.pause", cmd)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	return c.submit(ctx, operator.KindWorkflowPause, cmd)
 }
 
 // Resume resumes a paused instance after revalidation.
 func (c *Controller) Resume(ctx context.Context, cmd Command) (ret0 Result, retErr error) {
-	ctx, obsOp := observe.Begin(ctx, "workflow.control.resume", cmd)
+	ctx, obsOp := observe.Begin(c.observed(ctx), "workflow.control.resume", cmd)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	return c.submit(ctx, operator.KindWorkflowResume, cmd)
 }
 
 // Cancel cancels an instance at its cancellation boundary.
 func (c *Controller) Cancel(ctx context.Context, cmd Command) (ret0 Result, retErr error) {
-	ctx, obsOp := observe.Begin(ctx, "workflow.control.cancel", cmd)
+	ctx, obsOp := observe.Begin(c.observed(ctx), "workflow.control.cancel", cmd)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	return c.submit(ctx, operator.KindWorkflowCancel, cmd)
 }
 
 // RetryNode retries exactly one failed attempt.
 func (c *Controller) RetryNode(ctx context.Context, cmd Command) (ret0 Result, retErr error) {
-	ctx, obsOp := observe.Begin(ctx, "workflow.control.retry_node", cmd)
+	ctx, obsOp := observe.Begin(c.observed(ctx), "workflow.control.retry_node", cmd)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	return c.submit(ctx, operator.KindWorkflowRetryNode, cmd)
 }
@@ -414,7 +427,7 @@ func (c *Controller) step(ctx context.Context, kind operator.Kind) (stepFunc, bo
 // the predicted result, so the gateway can require it and the receipt names
 // what was predicted.
 func (c *Controller) Simulate(ctx context.Context, kind operator.Kind, cmd Command) (ret0 *operator.Simulation, ret1 Result, retErr error) {
-	ctx, obsOp := observe.Begin(ctx, "workflow.control.simulate", cmd)
+	ctx, obsOp := observe.Begin(c.observed(ctx), "workflow.control.simulate", cmd)
 	defer func() { observe.DoneWith(obsOp, retErr, ret1) }()
 	if err := cmd.validate(kind); err != nil {
 		return nil, Result{}, err
@@ -442,6 +455,14 @@ type Option func(*Controller)
 // simulation the operator already holds is never replaced.
 func WithPreflightSimulation() Option {
 	return func(c *Controller) { c.preflight = true }
+}
+
+// WithRecorder records every control, simulation, operator submission and
+// runtime operation beneath them on r (the production recorder turns each
+// into a span and a structured log line). A caller context that already
+// carries a recorder keeps it.
+func WithRecorder(r observe.Recorder) Option {
+	return func(c *Controller) { c.recorder = r }
 }
 
 // noEffect marks a failure that happened before commit: the transaction rolls
@@ -730,7 +751,7 @@ type TenantIDs func(values.TenantId) (uuid.UUID, error)
 
 // Handle runs one transport-shaped control.
 func (c *Controller) Handle(ctx context.Context, tenantIDs TenantIDs, req Request) (ret0 Response, retErr error) {
-	ctx, obsOp := observe.Begin(ctx, "workflow.control.handle", tenantIDs, req)
+	ctx, obsOp := observe.Begin(c.observed(ctx), "workflow.control.handle", tenantIDs, req)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if tenantIDs == nil {
 		return Response{}, fmt.Errorf("%w: tenant mapping", ErrInvalidCommand)

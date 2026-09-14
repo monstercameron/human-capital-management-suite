@@ -138,6 +138,10 @@ type CellConfig struct {
 	// otelmw.UnaryServerInterceptor/otelmw.NewConnectInterceptor from it,
 	// because only internal/transport may import connect/grpc (LIB-003).
 	Telemetry *hcmotel.Provider
+	// WorkflowRecorder receives the governed workflow controls' operations
+	// (spans and structured logs). Nil records nothing unless a caller
+	// context carries its own recorder.
+	WorkflowRecorder WorkflowRecorder
 	// Preferences persists authenticated presentation state. It is optional
 	// for non-workspace compositions; the product RPC reports UNAVAILABLE
 	// when omitted rather than silently falling back to browser storage.
@@ -538,9 +542,11 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	// is left at its zero value rather than assigned a nil *journeyEngine.
 	var journey workspace.JourneyEngine
 	if cfg.Executor != nil && cfg.ExecutionDB != nil {
-		journey = newJourneyEngine(svc, cfg.ExecutionDB, cfg.ExecutionApprover, cfg.Now, locateWorker, cfg.WorkerIDs)
+		engine := newJourneyEngine(svc, cfg.ExecutionDB, cfg.ExecutionApprover, cfg.Now, locateWorker, cfg.WorkerIDs)
+		engine.recorder = cfg.WorkflowRecorder
+		journey = engine
 	}
-	workflowControl, workflowTenantIDs, err := composeWorkflowControl(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now)
+	workflowControl, workflowTenantIDs, err := composeWorkflowControl(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now, cfg.WorkflowRecorder)
 	if err != nil {
 		return nil, err
 	}

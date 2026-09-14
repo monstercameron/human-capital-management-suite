@@ -142,7 +142,9 @@ func Execute(ctx context.Context, spec Spec) (ret0 Report, retErr error) {
 		wg.Add(1)
 		go func(i int, branch Branch) {
 			defer wg.Done()
-			detail, err := branch.Work(run)
+			branchCtx, branchOp := observe.Begin(run, "workflow.parallel.branch")
+			detail, err := branch.Work(branchCtx)
+			_ = observe.Done(branchOp, err)
 			outcome := OutcomeSucceeded
 			switch {
 			case err != nil && spec.FailurePolicy == FailFast && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)):

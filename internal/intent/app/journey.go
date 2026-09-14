@@ -72,6 +72,9 @@ type journeyEngine struct {
 	// reference the list shows is a reference the proposal resolves.
 	locate    WorkerLocator
 	workerIDs workerids.Store
+	// recorder receives the workflow-engine operations the journey runs
+	// outside the execution driver (the approval step completion).
+	recorder WorkflowRecorder
 }
 
 var _ workspace.JourneyEngine = (*journeyEngine)(nil)

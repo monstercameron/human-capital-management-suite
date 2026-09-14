@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -172,4 +173,82 @@ func takesContext(fn *ast.FuncDecl) bool {
 		}
 	}
 	return false
+}
+
+// discardAllowed names calls whose result the engine may discard: a deferred
+// rollback after commit, and the observe seam that has already recorded the
+// outcome.
+var discardAllowed = map[string]bool{"Rollback": true, "Done": true, "DoneWith": true, "Finish": true}
+
+// TestWorkflowEngineDoesNotDiscardContextualFailures refuses `_ = f(ctx, ...)`
+// in the engine: a context-bound call whose failure is thrown away leaves no
+// span, log or result behind. A failure that is deliberately non-fatal must
+// still be recorded, by bracketing the call and discarding only observe.Done.
+func TestWorkflowEngineDoesNotDiscardContextualFailures(t *testing.T) {
+	root, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found []string
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		rel = filepath.ToSlash(rel)
+		if d.IsDir() {
+			if d.Name() == "testdata" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			as, ok := n.(*ast.AssignStmt)
+			if !ok || len(as.Rhs) != 1 {
+				return true
+			}
+			for _, lhs := range as.Lhs {
+				if id, ok := lhs.(*ast.Ident); !ok || id.Name != "_" {
+					return true
+				}
+			}
+			call, ok := as.Rhs[0].(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			name := ""
+			switch fn := call.Fun.(type) {
+			case *ast.SelectorExpr:
+				name = fn.Sel.Name
+			case *ast.Ident:
+				name = fn.Name
+			}
+			if discardAllowed[name] {
+				return true
+			}
+			for _, arg := range call.Args {
+				if id, ok := arg.(*ast.Ident); ok && (id.Name == "ctx" || strings.HasSuffix(id.Name, "Ctx")) {
+					found = append(found, rel+":"+strconv.Itoa(fset.Position(as.Pos()).Line)+" "+name)
+					break
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(found)
+	for _, f := range found {
+		t.Errorf("%s discards a context-bound failure without recording it; bracket it with observe.Begin and discard only observe.Done", f)
+	}
 }

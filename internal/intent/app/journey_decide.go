@@ -561,7 +561,7 @@ func (e *journeyEngine) completeApproval(
 	} else {
 		decision = e.approvalDecision(started, inst, revision.ProposalRevisionID, revision.MaterialDigest, d, decidedAt, actor)
 		decision.Approver.Via, decision.Approver.DelegationID = candidate.Via, candidate.DelegationID
-		completed, err = stepsapproval.Complete(ctx, tx, store, started, decision, decidedAt,
+		completed, err = stepsapproval.Complete(e.observed(ctx), tx, store, started, decision, decidedAt,
 			workitem.TransitionMeta{ActorPrincipalID: actor, Reason: journeyReasonDecided, At: decidedAt})
 		if err != nil {
 			return decidedApproval{}, journeyWorkItemError(err)
