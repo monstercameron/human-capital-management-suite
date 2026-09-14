@@ -1,0 +1,3 @@
+# POP-009 golden oracle: missing worker:C, unexpected/unauthorized worker:Z,
+# duplicate worker:B, four repair obligations.
+sha256:46de675b3527b5b9b9bf6e25cbcf42c3f12207e63aa39cb139e3274e70d4e9dd

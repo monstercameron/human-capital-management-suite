@@ -28,14 +28,15 @@ import (
 
 // schemaID and schemaVersion tag the canonical stream of this engine's types.
 const (
-	definitionSchema = "hcmnext.engines.population.Definition"
-	revisionSchema   = "hcmnext.engines.population.Revision"
-	planSchema       = "hcmnext.engines.population.CompiledPlan"
-	memberSchema     = "hcmnext.engines.population.Member"
-	snapshotSchema   = "hcmnext.engines.population.Snapshot"
-	diffSchema       = "hcmnext.engines.population.SnapshotDiff"
-	explainSchema    = "hcmnext.engines.population.Explanation"
-	schemaVersion    = 1
+	definitionSchema   = "hcmnext.engines.population.Definition"
+	revisionSchema     = "hcmnext.engines.population.Revision"
+	planSchema         = "hcmnext.engines.population.CompiledPlan"
+	memberSchema       = "hcmnext.engines.population.Member"
+	snapshotSchema     = "hcmnext.engines.population.Snapshot"
+	diffSchema         = "hcmnext.engines.population.SnapshotDiff"
+	explainSchema      = "hcmnext.engines.population.Explanation"
+	completenessSchema = "hcmnext.engines.population.CompletenessReport"
+	schemaVersion      = 1
 )
 
 // writerFor opens a canonicalbytes stream at this engine's schema version, so
