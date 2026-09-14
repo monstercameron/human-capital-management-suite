@@ -12723,7 +12723,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Rules models](data/models/rules-and-decisions.md), [registry contracts](data/models/registry-and-coverage-contracts.md).
 
-- [ ] `PACK-003` **[PHASE_4][SOL_HIGH] Bind pack workflows, forms, skills and metrics.**
+- [x] `PACK-003` **[PHASE_4][SOL_HIGH] Bind pack workflows, forms, skills and metrics.**
   - **Depends:** `PACK-001`, `WF-COMP-001`, `FORM-002`, `QUAL-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PACK_003`.
@@ -12732,6 +12732,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **GREEN:** All references compile/type-check, side effects/authority/locale/accessibility/metric definitions are explicit and deferred capabilities remain gated.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Workflow runtime](specs/workflow-runtime.md), [human work/forms](specs/human-work-forms-and-rules.md).
+  - **Evidence (2026-09-14):** `TestTodo_PACK_003` plus `_Golden`, `_Browser` and `_Mutation` in `internal/domains/industrypack` (`BindExperience` resolves every workflow, form, skill and metric reference to a published registry artifact of the same kind, identity, version and digest; side effects (NONE explicit), authority scopes for side-effecting workflows and forms, the pack default locale, form accessibility conformance and metric unit/aggregation/definition must be declared; artifact and PACK-002 content dependencies must resolve; overriding non-overridable (mandatory country) content is refused; artifacts needing a deferred capability bind gated; every refusal is `PACK_003_REJECTED` with field, state and version, and `ActivateExperience` persists nothing -- zero rows, events, outbox, human work, provider requests -- unless accepted; canonical digest is registry-order independent; `RenderCatalogHTML` is a labelled, captioned, scoped, escaped reviewer table); 100% statement coverage of experience.go; `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
 
 - [ ] `PACK-004` **[PHASE_4][SOL_HIGH] Validate pack compatibility and dependency impact.**
   - **Depends:** `PACK-002`, `PACK-003`, `CONFIG-002`.
