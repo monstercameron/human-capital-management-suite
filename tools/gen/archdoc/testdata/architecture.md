@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 79d0eee049c08eb639ded6a99df0a068d0c144d07411680e928459572eb90e03
-- Package count: 820
-- Within-module edge count: 1986
+- Source graph: 9585f3d41dc49ceef2a96f96a5c0b45c7f1b451a4b36b52bf43a04e3221904fe
+- Package count: 823
+- Within-module edge count: 1989
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -447,8 +447,10 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/forms/drafts`
 - `github.com/monstercameron/human-capital-management-suite/internal/generated/schemaflux`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance`
+- `github.com/monstercameron/human-capital-management-suite/internal/governance/authority`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/decision`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/exit`
+- `github.com/monstercameron/human-capital-management-suite/internal/governance/gateb`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/legal`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/legal/attribution`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/legal/carveouts`
@@ -461,6 +463,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/legal/stateparams`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/legalhold`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/masking`
+- `github.com/monstercameron/human-capital-management-suite/internal/governance/pilot`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/privacy`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/privacy/dispatch`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/privacy/inventory`
@@ -976,4 +979,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`ba22cc5c035eb9f2ed9524b30fa2c156078333a92c59cceba1e7cfbf9db1838e`
+`06b423798c1bf721ac793cce08972009eae683a0e8033eeaffa63178b2ccddf0`
