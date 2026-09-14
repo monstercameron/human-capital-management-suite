@@ -46,6 +46,9 @@ import (
 // TestConfigMatchesTheShellIsland pins them to each other by parsing a
 // document the shell actually produced.
 type Config struct {
+	// Locale is resolved by the browser from the product route or document.
+	// It is presentation state, never a credential or authorization input.
+	Locale string `json:"-"`
 	// TunnelURL is the absolute ws:// or wss:// address of the cell's gRPC
 	// tunnel.
 	TunnelURL string `json:"tunnel_url"`
@@ -64,6 +67,7 @@ type Config struct {
 	// worker's durable role grants. It only controls browser discoverability
 	// and affordances; every mutation is authorized again by the service.
 	PagePermissions []PagePermission `json:"page_permissions,omitempty"`
+	LauncherActions []LauncherAction `json:"launcher_actions,omitempty"`
 	Purpose         string           `json:"purpose"`
 	// JourneysPath is the page's own address, used for the masthead link back
 	// to itself.
@@ -71,6 +75,17 @@ type Config struct {
 	// LogoutPath is present only for the explicitly enabled local browser
 	// session. It is presentation metadata, never authentication input.
 	LogoutPath string `json:"logout_path,omitempty"`
+}
+
+// LauncherAction mirrors the server-resolved presentation-safe action
+// verdict carried by the authenticated shell island.
+type LauncherAction struct {
+	ID            string `json:"id"`
+	Availability  string `json:"availability"`
+	Reason        string `json:"reason,omitempty"`
+	RecoveryLabel string `json:"recovery_label,omitempty"`
+	RecoveryHref  string `json:"recovery_href,omitempty"`
+	Priority      int64  `json:"priority,omitempty"`
 }
 
 // PagePermission mirrors the presentation-only page/action projection in

@@ -483,6 +483,68 @@ func (JourneyInterventionKind) EnumDescriptor() ([]byte, []int) {
 	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{5}
 }
 
+type ManagerRelationshipProjection_Disposition int32
+
+const (
+	// UNSPECIFIED is fail-closed and must never be interpreted as a root.
+	ManagerRelationshipProjection_DISPOSITION_UNSPECIFIED ManagerRelationshipProjection_Disposition = 0
+	// ROOT means the authoritative worker projection has no direct manager.
+	ManagerRelationshipProjection_DISPOSITION_ROOT ManagerRelationshipProjection_Disposition = 1
+	// VISIBLE means manager_worker_ref names another returned worker.
+	ManagerRelationshipProjection_DISPOSITION_VISIBLE ManagerRelationshipProjection_Disposition = 2
+	// WITHHELD says a manager exists but the endpoint is outside the caller's
+	// authorized population. No relationship or worker reference is exposed.
+	ManagerRelationshipProjection_DISPOSITION_WITHHELD ManagerRelationshipProjection_Disposition = 3
+	// ORPHAN says the authorized relationship cannot be attached to a worker
+	// in this directory, including an external governance endpoint.
+	ManagerRelationshipProjection_DISPOSITION_ORPHAN ManagerRelationshipProjection_Disposition = 4
+)
+
+// Enum value maps for ManagerRelationshipProjection_Disposition.
+var (
+	ManagerRelationshipProjection_Disposition_name = map[int32]string{
+		0: "DISPOSITION_UNSPECIFIED",
+		1: "DISPOSITION_ROOT",
+		2: "DISPOSITION_VISIBLE",
+		3: "DISPOSITION_WITHHELD",
+		4: "DISPOSITION_ORPHAN",
+	}
+	ManagerRelationshipProjection_Disposition_value = map[string]int32{
+		"DISPOSITION_UNSPECIFIED": 0,
+		"DISPOSITION_ROOT":        1,
+		"DISPOSITION_VISIBLE":     2,
+		"DISPOSITION_WITHHELD":    3,
+		"DISPOSITION_ORPHAN":      4,
+	}
+)
+
+func (x ManagerRelationshipProjection_Disposition) Enum() *ManagerRelationshipProjection_Disposition {
+	p := new(ManagerRelationshipProjection_Disposition)
+	*p = x
+	return p
+}
+
+func (x ManagerRelationshipProjection_Disposition) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ManagerRelationshipProjection_Disposition) Descriptor() protoreflect.EnumDescriptor {
+	return file_hcmnext_journey_v1_journey_service_proto_enumTypes[6].Descriptor()
+}
+
+func (ManagerRelationshipProjection_Disposition) Type() protoreflect.EnumType {
+	return &file_hcmnext_journey_v1_journey_service_proto_enumTypes[6]
+}
+
+func (x ManagerRelationshipProjection_Disposition) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ManagerRelationshipProjection_Disposition.Descriptor instead.
+func (ManagerRelationshipProjection_Disposition) EnumDescriptor() ([]byte, []int) {
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{74, 0}
+}
+
 // Placement is one side (current or target) of the placement change
 // (workspace.JourneyPlacement).
 type Placement struct {
@@ -1774,9 +1836,13 @@ type JourneyDetail struct {
 	// server without the page describing what it considers a change. It is
 	// computed by internal/transport/journey, not by the engine, and is not a
 	// governance artifact: the material proposal digest on Journey is.
-	DetailDigest  string `protobuf:"bytes,12,opt,name=detail_digest,json=detailDigest,proto3" json:"detail_digest,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DetailDigest string `protobuf:"bytes,12,opt,name=detail_digest,json=detailDigest,proto3" json:"detail_digest,omitempty"`
+	// These are server-authorized, viewer-relative presentation capabilities.
+	// Clients must not infer them from locally held role strings.
+	DiagnosticsAvailable bool `protobuf:"varint,13,opt,name=diagnostics_available,json=diagnosticsAvailable,proto3" json:"diagnostics_available,omitempty"`
+	CanDecide            bool `protobuf:"varint,14,opt,name=can_decide,json=canDecide,proto3" json:"can_decide,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *JourneyDetail) Reset() {
@@ -1893,8 +1959,31 @@ func (x *JourneyDetail) GetDetailDigest() string {
 	return ""
 }
 
+func (x *JourneyDetail) GetDiagnosticsAvailable() bool {
+	if x != nil {
+		return x.DiagnosticsAvailable
+	}
+	return false
+}
+
+func (x *JourneyDetail) GetCanDecide() bool {
+	if x != nil {
+		return x.CanDecide
+	}
+	return false
+}
+
 type ListJourneysRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          *v1.PageRequest        `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	WorkerRef     string                 `protobuf:"bytes,2,opt,name=worker_ref,json=workerRef,proto3" json:"worker_ref,omitempty"`
+	Query         string                 `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"`
+	Sort          string                 `protobuf:"bytes,4,opt,name=sort,proto3" json:"sort,omitempty"`
+	Direction     string                 `protobuf:"bytes,5,opt,name=direction,proto3" json:"direction,omitempty"`
+	PageNumber    int32                  `protobuf:"varint,6,opt,name=page_number,json=pageNumber,proto3" json:"page_number,omitempty"`
+	Outcome       string                 `protobuf:"bytes,7,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	Year          string                 `protobuf:"bytes,8,opt,name=year,proto3" json:"year,omitempty"`
+	TerminalOnly  bool                   `protobuf:"varint,9,opt,name=terminal_only,json=terminalOnly,proto3" json:"terminal_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1929,9 +2018,74 @@ func (*ListJourneysRequest) Descriptor() ([]byte, []int) {
 	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{12}
 }
 
+func (x *ListJourneysRequest) GetPage() *v1.PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListJourneysRequest) GetWorkerRef() string {
+	if x != nil {
+		return x.WorkerRef
+	}
+	return ""
+}
+
+func (x *ListJourneysRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *ListJourneysRequest) GetSort() string {
+	if x != nil {
+		return x.Sort
+	}
+	return ""
+}
+
+func (x *ListJourneysRequest) GetDirection() string {
+	if x != nil {
+		return x.Direction
+	}
+	return ""
+}
+
+func (x *ListJourneysRequest) GetPageNumber() int32 {
+	if x != nil {
+		return x.PageNumber
+	}
+	return 0
+}
+
+func (x *ListJourneysRequest) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *ListJourneysRequest) GetYear() string {
+	if x != nil {
+		return x.Year
+	}
+	return ""
+}
+
+func (x *ListJourneysRequest) GetTerminalOnly() bool {
+	if x != nil {
+		return x.TerminalOnly
+	}
+	return false
+}
+
 type ListJourneysResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Journeys      []*Journey             `protobuf:"bytes,1,rep,name=journeys,proto3" json:"journeys,omitempty"`
+	Page          *v1.PageResponse       `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	TotalCount    int32                  `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1971,6 +2125,20 @@ func (x *ListJourneysResponse) GetJourneys() []*Journey {
 		return x.Journeys
 	}
 	return nil
+}
+
+func (x *ListJourneysResponse) GetPage() *v1.PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListJourneysResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
 }
 
 // ProposeJourneyRequest is what the manager fills in
@@ -3328,9 +3496,15 @@ type Worker struct {
 	ProfilePhotoUrl string `protobuf:"bytes,19,opt,name=profile_photo_url,json=profilePhotoUrl,proto3" json:"profile_photo_url,omitempty"`
 	// job_title is the human-readable title; job_code remains the governed
 	// classification used by workflows and compensation rules.
-	JobTitle      string `protobuf:"bytes,20,opt,name=job_title,json=jobTitle,proto3" json:"job_title,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	JobTitle string `protobuf:"bytes,20,opt,name=job_title,json=jobTitle,proto3" json:"job_title,omitempty"`
+	// Authoritative compensation revision a canonical promotion proposal must
+	// bind through expected_subject_revision.
+	SubjectRevision string `protobuf:"bytes,21,opt,name=subject_revision,json=subjectRevision,proto3" json:"subject_revision,omitempty"`
+	// Authorization-safe reporting relationship used by organization views.
+	// It is always present in ListWorkers responses; UNSPECIFIED fails closed.
+	ManagerRelationship *ManagerRelationshipProjection `protobuf:"bytes,22,opt,name=manager_relationship,json=managerRelationship,proto3" json:"manager_relationship,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Worker) Reset() {
@@ -3501,6 +3675,20 @@ func (x *Worker) GetJobTitle() string {
 		return x.JobTitle
 	}
 	return ""
+}
+
+func (x *Worker) GetSubjectRevision() string {
+	if x != nil {
+		return x.SubjectRevision
+	}
+	return ""
+}
+
+func (x *Worker) GetManagerRelationship() *ManagerRelationshipProjection {
+	if x != nil {
+		return x.ManagerRelationship
+	}
+	return nil
 }
 
 // WorkforceOptions is the closed set of placements a created worker may be
@@ -6096,6 +6284,64 @@ func (x *SaveWorkerIDPolicyResponse) GetPreviews() []string {
 	return nil
 }
 
+// ManagerRelationshipProjection is the authorization-safe reporting edge for
+// one returned worker. The raw relationship reference is not an endpoint: the
+// service resolves it before disclosure and only returns a manager worker
+// reference when that endpoint is also visible to the caller.
+type ManagerRelationshipProjection struct {
+	state       protoimpl.MessageState                    `protogen:"open.v1"`
+	Disposition ManagerRelationshipProjection_Disposition `protobuf:"varint,1,opt,name=disposition,proto3,enum=hcmnext.journey.v1.ManagerRelationshipProjection_Disposition" json:"disposition,omitempty"`
+	// Set exactly when disposition is VISIBLE. It is a worker_ref, never the
+	// relationship identifier carried by Worker's legacy manager_ref field.
+	ManagerWorkerRef string `protobuf:"bytes,2,opt,name=manager_worker_ref,json=managerWorkerRef,proto3" json:"manager_worker_ref,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ManagerRelationshipProjection) Reset() {
+	*x = ManagerRelationshipProjection{}
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ManagerRelationshipProjection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ManagerRelationshipProjection) ProtoMessage() {}
+
+func (x *ManagerRelationshipProjection) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ManagerRelationshipProjection.ProtoReflect.Descriptor instead.
+func (*ManagerRelationshipProjection) Descriptor() ([]byte, []int) {
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *ManagerRelationshipProjection) GetDisposition() ManagerRelationshipProjection_Disposition {
+	if x != nil {
+		return x.Disposition
+	}
+	return ManagerRelationshipProjection_DISPOSITION_UNSPECIFIED
+}
+
+func (x *ManagerRelationshipProjection) GetManagerWorkerRef() string {
+	if x != nil {
+		return x.ManagerWorkerRef
+	}
+	return ""
+}
+
 var File_hcmnext_journey_v1_journey_service_proto protoreflect.FileDescriptor
 
 const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
@@ -6233,7 +6479,7 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x14\n" +
 	"\x05title\x18\x04 \x01(\tR\x05title\x12\x16\n" +
 	"\x06detail\x18\x05 \x01(\tR\x06detail\x12\x10\n" +
-	"\x03ref\x18\x06 \x01(\tR\x03ref\"\xfc\x04\n" +
+	"\x03ref\x18\x06 \x01(\tR\x03ref\"\xd0\x05\n" +
 	"\rJourneyDetail\x125\n" +
 	"\ajourney\x18\x01 \x01(\v2\x1b.hcmnext.journey.v1.JourneyR\ajourney\x127\n" +
 	"\bfindings\x18\x02 \x03(\v2\x1b.hcmnext.journey.v1.FindingR\bfindings\x12%\n" +
@@ -6248,10 +6494,27 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\btimeline\x18\n" +
 	" \x03(\v2!.hcmnext.journey.v1.TimelineEventR\btimeline\x12\x1a\n" +
 	"\bapprover\x18\v \x01(\tR\bapprover\x12#\n" +
-	"\rdetail_digest\x18\f \x01(\tR\fdetailDigest\"\x15\n" +
-	"\x13ListJourneysRequest\"O\n" +
+	"\rdetail_digest\x18\f \x01(\tR\fdetailDigest\x123\n" +
+	"\x15diagnostics_available\x18\r \x01(\bR\x14diagnosticsAvailable\x12\x1d\n" +
+	"\n" +
+	"can_decide\x18\x0e \x01(\bR\tcanDecide\"\xa4\x02\n" +
+	"\x13ListJourneysRequest\x122\n" +
+	"\x04page\x18\x01 \x01(\v2\x1e.hcmnext.common.v1.PageRequestR\x04page\x12\x1d\n" +
+	"\n" +
+	"worker_ref\x18\x02 \x01(\tR\tworkerRef\x12\x14\n" +
+	"\x05query\x18\x03 \x01(\tR\x05query\x12\x12\n" +
+	"\x04sort\x18\x04 \x01(\tR\x04sort\x12\x1c\n" +
+	"\tdirection\x18\x05 \x01(\tR\tdirection\x12\x1f\n" +
+	"\vpage_number\x18\x06 \x01(\x05R\n" +
+	"pageNumber\x12\x18\n" +
+	"\aoutcome\x18\a \x01(\tR\aoutcome\x12\x12\n" +
+	"\x04year\x18\b \x01(\tR\x04year\x12#\n" +
+	"\rterminal_only\x18\t \x01(\bR\fterminalOnly\"\xa5\x01\n" +
 	"\x14ListJourneysResponse\x127\n" +
-	"\bjourneys\x18\x01 \x03(\v2\x1b.hcmnext.journey.v1.JourneyR\bjourneys\"\xe2\x01\n" +
+	"\bjourneys\x18\x01 \x03(\v2\x1b.hcmnext.journey.v1.JourneyR\bjourneys\x123\n" +
+	"\x04page\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.PageResponseR\x04page\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\"\xe2\x01\n" +
 	"\x15ProposeJourneyRequest\x12\x1d\n" +
 	"\n" +
 	"worker_ref\x18\x01 \x01(\tR\tworkerRef\x125\n" +
@@ -6335,7 +6598,7 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x14WatchJourneyResponse\x129\n" +
 	"\x06detail\x18\x01 \x01(\v2!.hcmnext.journey.v1.JourneyDetailR\x06detail\x12\x16\n" +
 	"\x06cursor\x18\x03 \x01(\tR\x06cursor\x12\x1a\n" +
-	"\bsequence\x18\x04 \x01(\x04R\bsequenceJ\x04\b\x02\x10\x03R\achanged\"\x87\x05\n" +
+	"\bsequence\x18\x04 \x01(\x04R\bsequenceJ\x04\b\x02\x10\x03R\achanged\"\x98\x06\n" +
 	"\x06Worker\x12\x1d\n" +
 	"\n" +
 	"worker_ref\x18\x01 \x01(\tR\tworkerRef\x12\x1b\n" +
@@ -6362,7 +6625,9 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\vmanager_ref\x18\x12 \x01(\tR\n" +
 	"managerRef\x12*\n" +
 	"\x11profile_photo_url\x18\x13 \x01(\tR\x0fprofilePhotoUrl\x12\x1b\n" +
-	"\tjob_title\x18\x14 \x01(\tR\bjobTitle\"\xdb\x02\n" +
+	"\tjob_title\x18\x14 \x01(\tR\bjobTitle\x12)\n" +
+	"\x10subject_revision\x18\x15 \x01(\tR\x0fsubjectRevision\x12d\n" +
+	"\x14manager_relationship\x18\x16 \x01(\v21.hcmnext.journey.v1.ManagerRelationshipProjectionR\x13managerRelationship\"\xdb\x02\n" +
 	"\x10WorkforceOptions\x12\x1b\n" +
 	"\tjob_codes\x18\x01 \x03(\tR\bjobCodes\x12\x16\n" +
 	"\x06grades\x18\x02 \x03(\tR\x06grades\x12\x1b\n" +
@@ -6580,7 +6845,16 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x06policy\x18\x01 \x01(\v2\".hcmnext.journey.v1.WorkerIDPolicyR\x06policy\"t\n" +
 	"\x1aSaveWorkerIDPolicyResponse\x12:\n" +
 	"\x06policy\x18\x01 \x01(\v2\".hcmnext.journey.v1.WorkerIDPolicyR\x06policy\x12\x1a\n" +
-	"\bpreviews\x18\x02 \x03(\tR\bpreviews*\x8c\x04\n" +
+	"\bpreviews\x18\x02 \x03(\tR\bpreviews\"\xbc\x02\n" +
+	"\x1dManagerRelationshipProjection\x12_\n" +
+	"\vdisposition\x18\x01 \x01(\x0e2=.hcmnext.journey.v1.ManagerRelationshipProjection.DispositionR\vdisposition\x12,\n" +
+	"\x12manager_worker_ref\x18\x02 \x01(\tR\x10managerWorkerRef\"\x8b\x01\n" +
+	"\vDisposition\x12\x1b\n" +
+	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10DISPOSITION_ROOT\x10\x01\x12\x17\n" +
+	"\x13DISPOSITION_VISIBLE\x10\x02\x12\x18\n" +
+	"\x14DISPOSITION_WITHHELD\x10\x03\x12\x16\n" +
+	"\x12DISPOSITION_ORPHAN\x10\x04*\x8c\x04\n" +
 	"\fJourneyStage\x12\x1d\n" +
 	"\x19JOURNEY_STAGE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16JOURNEY_STAGE_PROPOSED\x10\x01\x12\x19\n" +
@@ -6670,8 +6944,8 @@ func file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP() []byte {
 	return file_hcmnext_journey_v1_journey_service_proto_rawDescData
 }
 
-var file_hcmnext_journey_v1_journey_service_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_hcmnext_journey_v1_journey_service_proto_msgTypes = make([]protoimpl.MessageInfo, 78)
+var file_hcmnext_journey_v1_journey_service_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_hcmnext_journey_v1_journey_service_proto_msgTypes = make([]protoimpl.MessageInfo, 79)
 var file_hcmnext_journey_v1_journey_service_proto_goTypes = []any{
 	(JourneyStage)(0),                              // 0: hcmnext.journey.v1.JourneyStage
 	(JourneyViewerRelationship)(0),                 // 1: hcmnext.journey.v1.JourneyViewerRelationship
@@ -6679,229 +6953,237 @@ var file_hcmnext_journey_v1_journey_service_proto_goTypes = []any{
 	(JourneyNextStep)(0),                           // 3: hcmnext.journey.v1.JourneyNextStep
 	(JourneyStepOwner)(0),                          // 4: hcmnext.journey.v1.JourneyStepOwner
 	(JourneyInterventionKind)(0),                   // 5: hcmnext.journey.v1.JourneyInterventionKind
-	(*Placement)(nil),                              // 6: hcmnext.journey.v1.Placement
-	(*Journey)(nil),                                // 7: hcmnext.journey.v1.Journey
-	(*JourneyViewerProjection)(nil),                // 8: hcmnext.journey.v1.JourneyViewerProjection
-	(*JourneyWorkItemSummary)(nil),                 // 9: hcmnext.journey.v1.JourneyWorkItemSummary
-	(*Finding)(nil),                                // 10: hcmnext.journey.v1.Finding
-	(*Instance)(nil),                               // 11: hcmnext.journey.v1.Instance
-	(*NodeExecution)(nil),                          // 12: hcmnext.journey.v1.NodeExecution
-	(*WorkItem)(nil),                               // 13: hcmnext.journey.v1.WorkItem
-	(*WorkItemTransition)(nil),                     // 14: hcmnext.journey.v1.WorkItemTransition
-	(*LedgerEvent)(nil),                            // 15: hcmnext.journey.v1.LedgerEvent
-	(*TimelineEvent)(nil),                          // 16: hcmnext.journey.v1.TimelineEvent
-	(*JourneyDetail)(nil),                          // 17: hcmnext.journey.v1.JourneyDetail
-	(*ListJourneysRequest)(nil),                    // 18: hcmnext.journey.v1.ListJourneysRequest
-	(*ListJourneysResponse)(nil),                   // 19: hcmnext.journey.v1.ListJourneysResponse
-	(*ProposeJourneyRequest)(nil),                  // 20: hcmnext.journey.v1.ProposeJourneyRequest
-	(*ProposeJourneyResponse)(nil),                 // 21: hcmnext.journey.v1.ProposeJourneyResponse
-	(*ProposePromotionRequest)(nil),                // 22: hcmnext.journey.v1.ProposePromotionRequest
-	(*ProposePromotionResponse)(nil),               // 23: hcmnext.journey.v1.ProposePromotionResponse
-	(*InspectJourneyRequest)(nil),                  // 24: hcmnext.journey.v1.InspectJourneyRequest
-	(*InspectJourneyResponse)(nil),                 // 25: hcmnext.journey.v1.InspectJourneyResponse
-	(*ExecuteJourneyRequest)(nil),                  // 26: hcmnext.journey.v1.ExecuteJourneyRequest
-	(*ExecuteJourneyResponse)(nil),                 // 27: hcmnext.journey.v1.ExecuteJourneyResponse
-	(*DecideJourneyRequest)(nil),                   // 28: hcmnext.journey.v1.DecideJourneyRequest
-	(*DecideJourneyResponse)(nil),                  // 29: hcmnext.journey.v1.DecideJourneyResponse
-	(*EditProposalRequest)(nil),                    // 30: hcmnext.journey.v1.EditProposalRequest
-	(*EditProposalResponse)(nil),                   // 31: hcmnext.journey.v1.EditProposalResponse
-	(*PreviewJourneyInterventionRequest)(nil),      // 32: hcmnext.journey.v1.PreviewJourneyInterventionRequest
-	(*PreviewJourneyInterventionResponse)(nil),     // 33: hcmnext.journey.v1.PreviewJourneyInterventionResponse
-	(*RequestJourneyInterventionRequest)(nil),      // 34: hcmnext.journey.v1.RequestJourneyInterventionRequest
-	(*RequestJourneyInterventionResponse)(nil),     // 35: hcmnext.journey.v1.RequestJourneyInterventionResponse
-	(*WatchJourneyRequest)(nil),                    // 36: hcmnext.journey.v1.WatchJourneyRequest
-	(*WatchJourneyResponse)(nil),                   // 37: hcmnext.journey.v1.WatchJourneyResponse
-	(*Worker)(nil),                                 // 38: hcmnext.journey.v1.Worker
-	(*WorkforceOptions)(nil),                       // 39: hcmnext.journey.v1.WorkforceOptions
-	(*WorkforcePlacementOption)(nil),               // 40: hcmnext.journey.v1.WorkforcePlacementOption
-	(*PromotionPathOption)(nil),                    // 41: hcmnext.journey.v1.PromotionPathOption
-	(*ListWorkersRequest)(nil),                     // 42: hcmnext.journey.v1.ListWorkersRequest
-	(*ListWorkersResponse)(nil),                    // 43: hcmnext.journey.v1.ListWorkersResponse
-	(*CreateWorkerRequest)(nil),                    // 44: hcmnext.journey.v1.CreateWorkerRequest
-	(*CreateWorkerResponse)(nil),                   // 45: hcmnext.journey.v1.CreateWorkerResponse
-	(*TablePreferences)(nil),                       // 46: hcmnext.journey.v1.TablePreferences
-	(*AccessibilityPreferences)(nil),               // 47: hcmnext.journey.v1.AccessibilityPreferences
-	(*UserPreferences)(nil),                        // 48: hcmnext.journey.v1.UserPreferences
-	(*CustomerTheme)(nil),                          // 49: hcmnext.journey.v1.CustomerTheme
-	(*GetProductPreferencesRequest)(nil),           // 50: hcmnext.journey.v1.GetProductPreferencesRequest
-	(*GetProductPreferencesResponse)(nil),          // 51: hcmnext.journey.v1.GetProductPreferencesResponse
-	(*SaveUserPreferencesRequest)(nil),             // 52: hcmnext.journey.v1.SaveUserPreferencesRequest
-	(*SaveUserPreferencesResponse)(nil),            // 53: hcmnext.journey.v1.SaveUserPreferencesResponse
-	(*SaveTenantAppearanceRequest)(nil),            // 54: hcmnext.journey.v1.SaveTenantAppearanceRequest
-	(*SaveTenantAppearanceResponse)(nil),           // 55: hcmnext.journey.v1.SaveTenantAppearanceResponse
-	(*OrganizationVisibilityPolicy)(nil),           // 56: hcmnext.journey.v1.OrganizationVisibilityPolicy
-	(*SaveOrganizationVisibilityRequest)(nil),      // 57: hcmnext.journey.v1.SaveOrganizationVisibilityRequest
-	(*SaveOrganizationVisibilityResponse)(nil),     // 58: hcmnext.journey.v1.SaveOrganizationVisibilityResponse
-	(*AccessRole)(nil),                             // 59: hcmnext.journey.v1.AccessRole
-	(*WorkerRoleAssignment)(nil),                   // 60: hcmnext.journey.v1.WorkerRoleAssignment
-	(*RoleOrganizationVisibilityPolicy)(nil),       // 61: hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
-	(*RolePagePermission)(nil),                     // 62: hcmnext.journey.v1.RolePagePermission
-	(*GetRoleAccessRequest)(nil),                   // 63: hcmnext.journey.v1.GetRoleAccessRequest
-	(*GetRoleAccessResponse)(nil),                  // 64: hcmnext.journey.v1.GetRoleAccessResponse
-	(*SaveAccessRoleRequest)(nil),                  // 65: hcmnext.journey.v1.SaveAccessRoleRequest
-	(*SaveAccessRoleResponse)(nil),                 // 66: hcmnext.journey.v1.SaveAccessRoleResponse
-	(*SaveWorkerRoleAssignmentRequest)(nil),        // 67: hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest
-	(*SaveWorkerRoleAssignmentResponse)(nil),       // 68: hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
-	(*SaveRoleOrganizationVisibilityRequest)(nil),  // 69: hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest
-	(*SaveRoleOrganizationVisibilityResponse)(nil), // 70: hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse
-	(*SaveRolePagePermissionRequest)(nil),          // 71: hcmnext.journey.v1.SaveRolePagePermissionRequest
-	(*SaveRolePagePermissionResponse)(nil),         // 72: hcmnext.journey.v1.SaveRolePagePermissionResponse
-	(*RecordWorkflowUseRequest)(nil),               // 73: hcmnext.journey.v1.RecordWorkflowUseRequest
-	(*RecordWorkflowUseResponse)(nil),              // 74: hcmnext.journey.v1.RecordWorkflowUseResponse
-	(*WorkerIDPolicy)(nil),                         // 75: hcmnext.journey.v1.WorkerIDPolicy
-	(*GetWorkerIDPolicyRequest)(nil),               // 76: hcmnext.journey.v1.GetWorkerIDPolicyRequest
-	(*GetWorkerIDPolicyResponse)(nil),              // 77: hcmnext.journey.v1.GetWorkerIDPolicyResponse
-	(*SaveWorkerIDPolicyRequest)(nil),              // 78: hcmnext.journey.v1.SaveWorkerIDPolicyRequest
-	(*SaveWorkerIDPolicyResponse)(nil),             // 79: hcmnext.journey.v1.SaveWorkerIDPolicyResponse
-	nil,                                            // 80: hcmnext.journey.v1.TablePreferences.FiltersEntry
-	nil,                                            // 81: hcmnext.journey.v1.UserPreferences.NavigationGroupsEntry
-	nil,                                            // 82: hcmnext.journey.v1.UserPreferences.TablesEntry
-	nil,                                            // 83: hcmnext.journey.v1.UserPreferences.WorkflowUsesEntry
-	(*timestamppb.Timestamp)(nil),                  // 84: google.protobuf.Timestamp
-	(v1.InterventionOutcome)(0),                    // 85: hcmnext.common.v1.InterventionOutcome
+	(ManagerRelationshipProjection_Disposition)(0), // 6: hcmnext.journey.v1.ManagerRelationshipProjection.Disposition
+	(*Placement)(nil),                              // 7: hcmnext.journey.v1.Placement
+	(*Journey)(nil),                                // 8: hcmnext.journey.v1.Journey
+	(*JourneyViewerProjection)(nil),                // 9: hcmnext.journey.v1.JourneyViewerProjection
+	(*JourneyWorkItemSummary)(nil),                 // 10: hcmnext.journey.v1.JourneyWorkItemSummary
+	(*Finding)(nil),                                // 11: hcmnext.journey.v1.Finding
+	(*Instance)(nil),                               // 12: hcmnext.journey.v1.Instance
+	(*NodeExecution)(nil),                          // 13: hcmnext.journey.v1.NodeExecution
+	(*WorkItem)(nil),                               // 14: hcmnext.journey.v1.WorkItem
+	(*WorkItemTransition)(nil),                     // 15: hcmnext.journey.v1.WorkItemTransition
+	(*LedgerEvent)(nil),                            // 16: hcmnext.journey.v1.LedgerEvent
+	(*TimelineEvent)(nil),                          // 17: hcmnext.journey.v1.TimelineEvent
+	(*JourneyDetail)(nil),                          // 18: hcmnext.journey.v1.JourneyDetail
+	(*ListJourneysRequest)(nil),                    // 19: hcmnext.journey.v1.ListJourneysRequest
+	(*ListJourneysResponse)(nil),                   // 20: hcmnext.journey.v1.ListJourneysResponse
+	(*ProposeJourneyRequest)(nil),                  // 21: hcmnext.journey.v1.ProposeJourneyRequest
+	(*ProposeJourneyResponse)(nil),                 // 22: hcmnext.journey.v1.ProposeJourneyResponse
+	(*ProposePromotionRequest)(nil),                // 23: hcmnext.journey.v1.ProposePromotionRequest
+	(*ProposePromotionResponse)(nil),               // 24: hcmnext.journey.v1.ProposePromotionResponse
+	(*InspectJourneyRequest)(nil),                  // 25: hcmnext.journey.v1.InspectJourneyRequest
+	(*InspectJourneyResponse)(nil),                 // 26: hcmnext.journey.v1.InspectJourneyResponse
+	(*ExecuteJourneyRequest)(nil),                  // 27: hcmnext.journey.v1.ExecuteJourneyRequest
+	(*ExecuteJourneyResponse)(nil),                 // 28: hcmnext.journey.v1.ExecuteJourneyResponse
+	(*DecideJourneyRequest)(nil),                   // 29: hcmnext.journey.v1.DecideJourneyRequest
+	(*DecideJourneyResponse)(nil),                  // 30: hcmnext.journey.v1.DecideJourneyResponse
+	(*EditProposalRequest)(nil),                    // 31: hcmnext.journey.v1.EditProposalRequest
+	(*EditProposalResponse)(nil),                   // 32: hcmnext.journey.v1.EditProposalResponse
+	(*PreviewJourneyInterventionRequest)(nil),      // 33: hcmnext.journey.v1.PreviewJourneyInterventionRequest
+	(*PreviewJourneyInterventionResponse)(nil),     // 34: hcmnext.journey.v1.PreviewJourneyInterventionResponse
+	(*RequestJourneyInterventionRequest)(nil),      // 35: hcmnext.journey.v1.RequestJourneyInterventionRequest
+	(*RequestJourneyInterventionResponse)(nil),     // 36: hcmnext.journey.v1.RequestJourneyInterventionResponse
+	(*WatchJourneyRequest)(nil),                    // 37: hcmnext.journey.v1.WatchJourneyRequest
+	(*WatchJourneyResponse)(nil),                   // 38: hcmnext.journey.v1.WatchJourneyResponse
+	(*Worker)(nil),                                 // 39: hcmnext.journey.v1.Worker
+	(*WorkforceOptions)(nil),                       // 40: hcmnext.journey.v1.WorkforceOptions
+	(*WorkforcePlacementOption)(nil),               // 41: hcmnext.journey.v1.WorkforcePlacementOption
+	(*PromotionPathOption)(nil),                    // 42: hcmnext.journey.v1.PromotionPathOption
+	(*ListWorkersRequest)(nil),                     // 43: hcmnext.journey.v1.ListWorkersRequest
+	(*ListWorkersResponse)(nil),                    // 44: hcmnext.journey.v1.ListWorkersResponse
+	(*CreateWorkerRequest)(nil),                    // 45: hcmnext.journey.v1.CreateWorkerRequest
+	(*CreateWorkerResponse)(nil),                   // 46: hcmnext.journey.v1.CreateWorkerResponse
+	(*TablePreferences)(nil),                       // 47: hcmnext.journey.v1.TablePreferences
+	(*AccessibilityPreferences)(nil),               // 48: hcmnext.journey.v1.AccessibilityPreferences
+	(*UserPreferences)(nil),                        // 49: hcmnext.journey.v1.UserPreferences
+	(*CustomerTheme)(nil),                          // 50: hcmnext.journey.v1.CustomerTheme
+	(*GetProductPreferencesRequest)(nil),           // 51: hcmnext.journey.v1.GetProductPreferencesRequest
+	(*GetProductPreferencesResponse)(nil),          // 52: hcmnext.journey.v1.GetProductPreferencesResponse
+	(*SaveUserPreferencesRequest)(nil),             // 53: hcmnext.journey.v1.SaveUserPreferencesRequest
+	(*SaveUserPreferencesResponse)(nil),            // 54: hcmnext.journey.v1.SaveUserPreferencesResponse
+	(*SaveTenantAppearanceRequest)(nil),            // 55: hcmnext.journey.v1.SaveTenantAppearanceRequest
+	(*SaveTenantAppearanceResponse)(nil),           // 56: hcmnext.journey.v1.SaveTenantAppearanceResponse
+	(*OrganizationVisibilityPolicy)(nil),           // 57: hcmnext.journey.v1.OrganizationVisibilityPolicy
+	(*SaveOrganizationVisibilityRequest)(nil),      // 58: hcmnext.journey.v1.SaveOrganizationVisibilityRequest
+	(*SaveOrganizationVisibilityResponse)(nil),     // 59: hcmnext.journey.v1.SaveOrganizationVisibilityResponse
+	(*AccessRole)(nil),                             // 60: hcmnext.journey.v1.AccessRole
+	(*WorkerRoleAssignment)(nil),                   // 61: hcmnext.journey.v1.WorkerRoleAssignment
+	(*RoleOrganizationVisibilityPolicy)(nil),       // 62: hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
+	(*RolePagePermission)(nil),                     // 63: hcmnext.journey.v1.RolePagePermission
+	(*GetRoleAccessRequest)(nil),                   // 64: hcmnext.journey.v1.GetRoleAccessRequest
+	(*GetRoleAccessResponse)(nil),                  // 65: hcmnext.journey.v1.GetRoleAccessResponse
+	(*SaveAccessRoleRequest)(nil),                  // 66: hcmnext.journey.v1.SaveAccessRoleRequest
+	(*SaveAccessRoleResponse)(nil),                 // 67: hcmnext.journey.v1.SaveAccessRoleResponse
+	(*SaveWorkerRoleAssignmentRequest)(nil),        // 68: hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest
+	(*SaveWorkerRoleAssignmentResponse)(nil),       // 69: hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
+	(*SaveRoleOrganizationVisibilityRequest)(nil),  // 70: hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest
+	(*SaveRoleOrganizationVisibilityResponse)(nil), // 71: hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse
+	(*SaveRolePagePermissionRequest)(nil),          // 72: hcmnext.journey.v1.SaveRolePagePermissionRequest
+	(*SaveRolePagePermissionResponse)(nil),         // 73: hcmnext.journey.v1.SaveRolePagePermissionResponse
+	(*RecordWorkflowUseRequest)(nil),               // 74: hcmnext.journey.v1.RecordWorkflowUseRequest
+	(*RecordWorkflowUseResponse)(nil),              // 75: hcmnext.journey.v1.RecordWorkflowUseResponse
+	(*WorkerIDPolicy)(nil),                         // 76: hcmnext.journey.v1.WorkerIDPolicy
+	(*GetWorkerIDPolicyRequest)(nil),               // 77: hcmnext.journey.v1.GetWorkerIDPolicyRequest
+	(*GetWorkerIDPolicyResponse)(nil),              // 78: hcmnext.journey.v1.GetWorkerIDPolicyResponse
+	(*SaveWorkerIDPolicyRequest)(nil),              // 79: hcmnext.journey.v1.SaveWorkerIDPolicyRequest
+	(*SaveWorkerIDPolicyResponse)(nil),             // 80: hcmnext.journey.v1.SaveWorkerIDPolicyResponse
+	(*ManagerRelationshipProjection)(nil),          // 81: hcmnext.journey.v1.ManagerRelationshipProjection
+	nil,                                            // 82: hcmnext.journey.v1.TablePreferences.FiltersEntry
+	nil,                                            // 83: hcmnext.journey.v1.UserPreferences.NavigationGroupsEntry
+	nil,                                            // 84: hcmnext.journey.v1.UserPreferences.TablesEntry
+	nil,                                            // 85: hcmnext.journey.v1.UserPreferences.WorkflowUsesEntry
+	(*timestamppb.Timestamp)(nil),                  // 86: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),                         // 87: hcmnext.common.v1.PageRequest
+	(*v1.PageResponse)(nil),                        // 88: hcmnext.common.v1.PageResponse
+	(v1.InterventionOutcome)(0),                    // 89: hcmnext.common.v1.InterventionOutcome
 }
 var file_hcmnext_journey_v1_journey_service_proto_depIdxs = []int32{
-	6,   // 0: hcmnext.journey.v1.Journey.current:type_name -> hcmnext.journey.v1.Placement
-	6,   // 1: hcmnext.journey.v1.Journey.target:type_name -> hcmnext.journey.v1.Placement
+	7,   // 0: hcmnext.journey.v1.Journey.current:type_name -> hcmnext.journey.v1.Placement
+	7,   // 1: hcmnext.journey.v1.Journey.target:type_name -> hcmnext.journey.v1.Placement
 	0,   // 2: hcmnext.journey.v1.Journey.stage:type_name -> hcmnext.journey.v1.JourneyStage
-	84,  // 3: hcmnext.journey.v1.Journey.created_at:type_name -> google.protobuf.Timestamp
-	84,  // 4: hcmnext.journey.v1.Journey.updated_at:type_name -> google.protobuf.Timestamp
-	9,   // 5: hcmnext.journey.v1.Journey.current_work_item:type_name -> hcmnext.journey.v1.JourneyWorkItemSummary
-	8,   // 6: hcmnext.journey.v1.Journey.viewer:type_name -> hcmnext.journey.v1.JourneyViewerProjection
+	86,  // 3: hcmnext.journey.v1.Journey.created_at:type_name -> google.protobuf.Timestamp
+	86,  // 4: hcmnext.journey.v1.Journey.updated_at:type_name -> google.protobuf.Timestamp
+	10,  // 5: hcmnext.journey.v1.Journey.current_work_item:type_name -> hcmnext.journey.v1.JourneyWorkItemSummary
+	9,   // 6: hcmnext.journey.v1.Journey.viewer:type_name -> hcmnext.journey.v1.JourneyViewerProjection
 	1,   // 7: hcmnext.journey.v1.JourneyViewerProjection.relationships:type_name -> hcmnext.journey.v1.JourneyViewerRelationship
 	2,   // 8: hcmnext.journey.v1.JourneyViewerProjection.responsibility:type_name -> hcmnext.journey.v1.JourneyViewerResponsibility
 	3,   // 9: hcmnext.journey.v1.JourneyViewerProjection.next_step:type_name -> hcmnext.journey.v1.JourneyNextStep
 	4,   // 10: hcmnext.journey.v1.JourneyViewerProjection.next_step_owner:type_name -> hcmnext.journey.v1.JourneyStepOwner
-	84,  // 11: hcmnext.journey.v1.JourneyWorkItemSummary.due_at:type_name -> google.protobuf.Timestamp
-	84,  // 12: hcmnext.journey.v1.Instance.created_at:type_name -> google.protobuf.Timestamp
-	84,  // 13: hcmnext.journey.v1.Instance.started_at:type_name -> google.protobuf.Timestamp
-	84,  // 14: hcmnext.journey.v1.Instance.completed_at:type_name -> google.protobuf.Timestamp
-	84,  // 15: hcmnext.journey.v1.NodeExecution.started_at:type_name -> google.protobuf.Timestamp
-	84,  // 16: hcmnext.journey.v1.NodeExecution.completed_at:type_name -> google.protobuf.Timestamp
-	84,  // 17: hcmnext.journey.v1.NodeExecution.recorded_at:type_name -> google.protobuf.Timestamp
-	84,  // 18: hcmnext.journey.v1.WorkItem.claimed_at:type_name -> google.protobuf.Timestamp
-	84,  // 19: hcmnext.journey.v1.WorkItem.claim_expires_at:type_name -> google.protobuf.Timestamp
-	84,  // 20: hcmnext.journey.v1.WorkItem.completed_at:type_name -> google.protobuf.Timestamp
-	84,  // 21: hcmnext.journey.v1.WorkItem.deadline_at:type_name -> google.protobuf.Timestamp
-	84,  // 22: hcmnext.journey.v1.WorkItem.created_at:type_name -> google.protobuf.Timestamp
-	84,  // 23: hcmnext.journey.v1.WorkItemTransition.at:type_name -> google.protobuf.Timestamp
-	84,  // 24: hcmnext.journey.v1.LedgerEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	84,  // 25: hcmnext.journey.v1.LedgerEvent.effective_at:type_name -> google.protobuf.Timestamp
-	84,  // 26: hcmnext.journey.v1.LedgerEvent.recorded_at:type_name -> google.protobuf.Timestamp
-	84,  // 27: hcmnext.journey.v1.TimelineEvent.at:type_name -> google.protobuf.Timestamp
-	7,   // 28: hcmnext.journey.v1.JourneyDetail.journey:type_name -> hcmnext.journey.v1.Journey
-	10,  // 29: hcmnext.journey.v1.JourneyDetail.findings:type_name -> hcmnext.journey.v1.Finding
-	11,  // 30: hcmnext.journey.v1.JourneyDetail.instance:type_name -> hcmnext.journey.v1.Instance
-	12,  // 31: hcmnext.journey.v1.JourneyDetail.nodes:type_name -> hcmnext.journey.v1.NodeExecution
-	13,  // 32: hcmnext.journey.v1.JourneyDetail.work_items:type_name -> hcmnext.journey.v1.WorkItem
-	14,  // 33: hcmnext.journey.v1.JourneyDetail.transitions:type_name -> hcmnext.journey.v1.WorkItemTransition
-	15,  // 34: hcmnext.journey.v1.JourneyDetail.ledger:type_name -> hcmnext.journey.v1.LedgerEvent
-	16,  // 35: hcmnext.journey.v1.JourneyDetail.timeline:type_name -> hcmnext.journey.v1.TimelineEvent
-	7,   // 36: hcmnext.journey.v1.ListJourneysResponse.journeys:type_name -> hcmnext.journey.v1.Journey
-	6,   // 37: hcmnext.journey.v1.ProposeJourneyRequest.target:type_name -> hcmnext.journey.v1.Placement
-	7,   // 38: hcmnext.journey.v1.ProposeJourneyResponse.journey:type_name -> hcmnext.journey.v1.Journey
-	0,   // 39: hcmnext.journey.v1.ProposePromotionResponse.stage:type_name -> hcmnext.journey.v1.JourneyStage
-	17,  // 40: hcmnext.journey.v1.InspectJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
-	17,  // 41: hcmnext.journey.v1.ExecuteJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
-	17,  // 42: hcmnext.journey.v1.DecideJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
-	6,   // 43: hcmnext.journey.v1.EditProposalRequest.target:type_name -> hcmnext.journey.v1.Placement
-	7,   // 44: hcmnext.journey.v1.EditProposalResponse.journey:type_name -> hcmnext.journey.v1.Journey
-	5,   // 45: hcmnext.journey.v1.PreviewJourneyInterventionRequest.kind:type_name -> hcmnext.journey.v1.JourneyInterventionKind
-	85,  // 46: hcmnext.journey.v1.PreviewJourneyInterventionResponse.likely_outcome:type_name -> hcmnext.common.v1.InterventionOutcome
-	5,   // 47: hcmnext.journey.v1.RequestJourneyInterventionRequest.kind:type_name -> hcmnext.journey.v1.JourneyInterventionKind
-	7,   // 48: hcmnext.journey.v1.RequestJourneyInterventionResponse.journey:type_name -> hcmnext.journey.v1.Journey
-	85,  // 49: hcmnext.journey.v1.RequestJourneyInterventionResponse.outcome:type_name -> hcmnext.common.v1.InterventionOutcome
-	17,  // 50: hcmnext.journey.v1.WatchJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
-	84,  // 51: hcmnext.journey.v1.Worker.created_at:type_name -> google.protobuf.Timestamp
-	40,  // 52: hcmnext.journey.v1.WorkforceOptions.placements:type_name -> hcmnext.journey.v1.WorkforcePlacementOption
-	41,  // 53: hcmnext.journey.v1.WorkforceOptions.promotion_paths:type_name -> hcmnext.journey.v1.PromotionPathOption
-	38,  // 54: hcmnext.journey.v1.ListWorkersResponse.workers:type_name -> hcmnext.journey.v1.Worker
-	39,  // 55: hcmnext.journey.v1.ListWorkersResponse.options:type_name -> hcmnext.journey.v1.WorkforceOptions
-	38,  // 56: hcmnext.journey.v1.CreateWorkerResponse.worker:type_name -> hcmnext.journey.v1.Worker
-	80,  // 57: hcmnext.journey.v1.TablePreferences.filters:type_name -> hcmnext.journey.v1.TablePreferences.FiltersEntry
-	47,  // 58: hcmnext.journey.v1.UserPreferences.accessibility:type_name -> hcmnext.journey.v1.AccessibilityPreferences
-	81,  // 59: hcmnext.journey.v1.UserPreferences.navigation_groups:type_name -> hcmnext.journey.v1.UserPreferences.NavigationGroupsEntry
-	82,  // 60: hcmnext.journey.v1.UserPreferences.tables:type_name -> hcmnext.journey.v1.UserPreferences.TablesEntry
-	83,  // 61: hcmnext.journey.v1.UserPreferences.workflow_uses:type_name -> hcmnext.journey.v1.UserPreferences.WorkflowUsesEntry
-	48,  // 62: hcmnext.journey.v1.GetProductPreferencesResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
-	49,  // 63: hcmnext.journey.v1.GetProductPreferencesResponse.theme:type_name -> hcmnext.journey.v1.CustomerTheme
-	56,  // 64: hcmnext.journey.v1.GetProductPreferencesResponse.organization_visibility:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
-	48,  // 65: hcmnext.journey.v1.SaveUserPreferencesRequest.user:type_name -> hcmnext.journey.v1.UserPreferences
-	48,  // 66: hcmnext.journey.v1.SaveUserPreferencesResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
-	49,  // 67: hcmnext.journey.v1.SaveTenantAppearanceRequest.theme:type_name -> hcmnext.journey.v1.CustomerTheme
-	49,  // 68: hcmnext.journey.v1.SaveTenantAppearanceResponse.theme:type_name -> hcmnext.journey.v1.CustomerTheme
-	56,  // 69: hcmnext.journey.v1.SaveOrganizationVisibilityRequest.policy:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
-	56,  // 70: hcmnext.journey.v1.SaveOrganizationVisibilityResponse.policy:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
-	59,  // 71: hcmnext.journey.v1.GetRoleAccessResponse.roles:type_name -> hcmnext.journey.v1.AccessRole
-	60,  // 72: hcmnext.journey.v1.GetRoleAccessResponse.assignments:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
-	61,  // 73: hcmnext.journey.v1.GetRoleAccessResponse.visibility_policies:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
-	62,  // 74: hcmnext.journey.v1.GetRoleAccessResponse.page_permissions:type_name -> hcmnext.journey.v1.RolePagePermission
-	59,  // 75: hcmnext.journey.v1.SaveAccessRoleRequest.role:type_name -> hcmnext.journey.v1.AccessRole
-	59,  // 76: hcmnext.journey.v1.SaveAccessRoleResponse.role:type_name -> hcmnext.journey.v1.AccessRole
-	60,  // 77: hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest.assignment:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
-	60,  // 78: hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse.assignment:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
-	61,  // 79: hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest.policy:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
-	61,  // 80: hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse.policy:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
-	62,  // 81: hcmnext.journey.v1.SaveRolePagePermissionRequest.permission:type_name -> hcmnext.journey.v1.RolePagePermission
-	62,  // 82: hcmnext.journey.v1.SaveRolePagePermissionResponse.permission:type_name -> hcmnext.journey.v1.RolePagePermission
-	48,  // 83: hcmnext.journey.v1.RecordWorkflowUseResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
-	75,  // 84: hcmnext.journey.v1.GetWorkerIDPolicyResponse.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
-	75,  // 85: hcmnext.journey.v1.SaveWorkerIDPolicyRequest.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
-	75,  // 86: hcmnext.journey.v1.SaveWorkerIDPolicyResponse.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
-	46,  // 87: hcmnext.journey.v1.UserPreferences.TablesEntry.value:type_name -> hcmnext.journey.v1.TablePreferences
-	18,  // 88: hcmnext.journey.v1.JourneyService.ListJourneys:input_type -> hcmnext.journey.v1.ListJourneysRequest
-	20,  // 89: hcmnext.journey.v1.JourneyService.ProposeJourney:input_type -> hcmnext.journey.v1.ProposeJourneyRequest
-	22,  // 90: hcmnext.journey.v1.JourneyService.ProposePromotion:input_type -> hcmnext.journey.v1.ProposePromotionRequest
-	24,  // 91: hcmnext.journey.v1.JourneyService.InspectJourney:input_type -> hcmnext.journey.v1.InspectJourneyRequest
-	26,  // 92: hcmnext.journey.v1.JourneyService.ExecuteJourney:input_type -> hcmnext.journey.v1.ExecuteJourneyRequest
-	28,  // 93: hcmnext.journey.v1.JourneyService.DecideJourney:input_type -> hcmnext.journey.v1.DecideJourneyRequest
-	30,  // 94: hcmnext.journey.v1.JourneyService.EditProposal:input_type -> hcmnext.journey.v1.EditProposalRequest
-	32,  // 95: hcmnext.journey.v1.JourneyService.PreviewJourneyIntervention:input_type -> hcmnext.journey.v1.PreviewJourneyInterventionRequest
-	34,  // 96: hcmnext.journey.v1.JourneyService.RequestJourneyIntervention:input_type -> hcmnext.journey.v1.RequestJourneyInterventionRequest
-	36,  // 97: hcmnext.journey.v1.JourneyService.WatchJourney:input_type -> hcmnext.journey.v1.WatchJourneyRequest
-	42,  // 98: hcmnext.journey.v1.JourneyService.ListWorkers:input_type -> hcmnext.journey.v1.ListWorkersRequest
-	44,  // 99: hcmnext.journey.v1.JourneyService.CreateWorker:input_type -> hcmnext.journey.v1.CreateWorkerRequest
-	50,  // 100: hcmnext.journey.v1.JourneyService.GetProductPreferences:input_type -> hcmnext.journey.v1.GetProductPreferencesRequest
-	52,  // 101: hcmnext.journey.v1.JourneyService.SaveUserPreferences:input_type -> hcmnext.journey.v1.SaveUserPreferencesRequest
-	54,  // 102: hcmnext.journey.v1.JourneyService.SaveTenantAppearance:input_type -> hcmnext.journey.v1.SaveTenantAppearanceRequest
-	57,  // 103: hcmnext.journey.v1.JourneyService.SaveOrganizationVisibility:input_type -> hcmnext.journey.v1.SaveOrganizationVisibilityRequest
-	63,  // 104: hcmnext.journey.v1.JourneyService.GetRoleAccess:input_type -> hcmnext.journey.v1.GetRoleAccessRequest
-	65,  // 105: hcmnext.journey.v1.JourneyService.SaveAccessRole:input_type -> hcmnext.journey.v1.SaveAccessRoleRequest
-	67,  // 106: hcmnext.journey.v1.JourneyService.SaveWorkerRoleAssignment:input_type -> hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest
-	69,  // 107: hcmnext.journey.v1.JourneyService.SaveRoleOrganizationVisibility:input_type -> hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest
-	71,  // 108: hcmnext.journey.v1.JourneyService.SaveRolePagePermission:input_type -> hcmnext.journey.v1.SaveRolePagePermissionRequest
-	73,  // 109: hcmnext.journey.v1.JourneyService.RecordWorkflowUse:input_type -> hcmnext.journey.v1.RecordWorkflowUseRequest
-	76,  // 110: hcmnext.journey.v1.JourneyService.GetWorkerIDPolicy:input_type -> hcmnext.journey.v1.GetWorkerIDPolicyRequest
-	78,  // 111: hcmnext.journey.v1.JourneyService.SaveWorkerIDPolicy:input_type -> hcmnext.journey.v1.SaveWorkerIDPolicyRequest
-	19,  // 112: hcmnext.journey.v1.JourneyService.ListJourneys:output_type -> hcmnext.journey.v1.ListJourneysResponse
-	21,  // 113: hcmnext.journey.v1.JourneyService.ProposeJourney:output_type -> hcmnext.journey.v1.ProposeJourneyResponse
-	23,  // 114: hcmnext.journey.v1.JourneyService.ProposePromotion:output_type -> hcmnext.journey.v1.ProposePromotionResponse
-	25,  // 115: hcmnext.journey.v1.JourneyService.InspectJourney:output_type -> hcmnext.journey.v1.InspectJourneyResponse
-	27,  // 116: hcmnext.journey.v1.JourneyService.ExecuteJourney:output_type -> hcmnext.journey.v1.ExecuteJourneyResponse
-	29,  // 117: hcmnext.journey.v1.JourneyService.DecideJourney:output_type -> hcmnext.journey.v1.DecideJourneyResponse
-	31,  // 118: hcmnext.journey.v1.JourneyService.EditProposal:output_type -> hcmnext.journey.v1.EditProposalResponse
-	33,  // 119: hcmnext.journey.v1.JourneyService.PreviewJourneyIntervention:output_type -> hcmnext.journey.v1.PreviewJourneyInterventionResponse
-	35,  // 120: hcmnext.journey.v1.JourneyService.RequestJourneyIntervention:output_type -> hcmnext.journey.v1.RequestJourneyInterventionResponse
-	37,  // 121: hcmnext.journey.v1.JourneyService.WatchJourney:output_type -> hcmnext.journey.v1.WatchJourneyResponse
-	43,  // 122: hcmnext.journey.v1.JourneyService.ListWorkers:output_type -> hcmnext.journey.v1.ListWorkersResponse
-	45,  // 123: hcmnext.journey.v1.JourneyService.CreateWorker:output_type -> hcmnext.journey.v1.CreateWorkerResponse
-	51,  // 124: hcmnext.journey.v1.JourneyService.GetProductPreferences:output_type -> hcmnext.journey.v1.GetProductPreferencesResponse
-	53,  // 125: hcmnext.journey.v1.JourneyService.SaveUserPreferences:output_type -> hcmnext.journey.v1.SaveUserPreferencesResponse
-	55,  // 126: hcmnext.journey.v1.JourneyService.SaveTenantAppearance:output_type -> hcmnext.journey.v1.SaveTenantAppearanceResponse
-	58,  // 127: hcmnext.journey.v1.JourneyService.SaveOrganizationVisibility:output_type -> hcmnext.journey.v1.SaveOrganizationVisibilityResponse
-	64,  // 128: hcmnext.journey.v1.JourneyService.GetRoleAccess:output_type -> hcmnext.journey.v1.GetRoleAccessResponse
-	66,  // 129: hcmnext.journey.v1.JourneyService.SaveAccessRole:output_type -> hcmnext.journey.v1.SaveAccessRoleResponse
-	68,  // 130: hcmnext.journey.v1.JourneyService.SaveWorkerRoleAssignment:output_type -> hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
-	70,  // 131: hcmnext.journey.v1.JourneyService.SaveRoleOrganizationVisibility:output_type -> hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse
-	72,  // 132: hcmnext.journey.v1.JourneyService.SaveRolePagePermission:output_type -> hcmnext.journey.v1.SaveRolePagePermissionResponse
-	74,  // 133: hcmnext.journey.v1.JourneyService.RecordWorkflowUse:output_type -> hcmnext.journey.v1.RecordWorkflowUseResponse
-	77,  // 134: hcmnext.journey.v1.JourneyService.GetWorkerIDPolicy:output_type -> hcmnext.journey.v1.GetWorkerIDPolicyResponse
-	79,  // 135: hcmnext.journey.v1.JourneyService.SaveWorkerIDPolicy:output_type -> hcmnext.journey.v1.SaveWorkerIDPolicyResponse
-	112, // [112:136] is the sub-list for method output_type
-	88,  // [88:112] is the sub-list for method input_type
-	88,  // [88:88] is the sub-list for extension type_name
-	88,  // [88:88] is the sub-list for extension extendee
-	0,   // [0:88] is the sub-list for field type_name
+	86,  // 11: hcmnext.journey.v1.JourneyWorkItemSummary.due_at:type_name -> google.protobuf.Timestamp
+	86,  // 12: hcmnext.journey.v1.Instance.created_at:type_name -> google.protobuf.Timestamp
+	86,  // 13: hcmnext.journey.v1.Instance.started_at:type_name -> google.protobuf.Timestamp
+	86,  // 14: hcmnext.journey.v1.Instance.completed_at:type_name -> google.protobuf.Timestamp
+	86,  // 15: hcmnext.journey.v1.NodeExecution.started_at:type_name -> google.protobuf.Timestamp
+	86,  // 16: hcmnext.journey.v1.NodeExecution.completed_at:type_name -> google.protobuf.Timestamp
+	86,  // 17: hcmnext.journey.v1.NodeExecution.recorded_at:type_name -> google.protobuf.Timestamp
+	86,  // 18: hcmnext.journey.v1.WorkItem.claimed_at:type_name -> google.protobuf.Timestamp
+	86,  // 19: hcmnext.journey.v1.WorkItem.claim_expires_at:type_name -> google.protobuf.Timestamp
+	86,  // 20: hcmnext.journey.v1.WorkItem.completed_at:type_name -> google.protobuf.Timestamp
+	86,  // 21: hcmnext.journey.v1.WorkItem.deadline_at:type_name -> google.protobuf.Timestamp
+	86,  // 22: hcmnext.journey.v1.WorkItem.created_at:type_name -> google.protobuf.Timestamp
+	86,  // 23: hcmnext.journey.v1.WorkItemTransition.at:type_name -> google.protobuf.Timestamp
+	86,  // 24: hcmnext.journey.v1.LedgerEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	86,  // 25: hcmnext.journey.v1.LedgerEvent.effective_at:type_name -> google.protobuf.Timestamp
+	86,  // 26: hcmnext.journey.v1.LedgerEvent.recorded_at:type_name -> google.protobuf.Timestamp
+	86,  // 27: hcmnext.journey.v1.TimelineEvent.at:type_name -> google.protobuf.Timestamp
+	8,   // 28: hcmnext.journey.v1.JourneyDetail.journey:type_name -> hcmnext.journey.v1.Journey
+	11,  // 29: hcmnext.journey.v1.JourneyDetail.findings:type_name -> hcmnext.journey.v1.Finding
+	12,  // 30: hcmnext.journey.v1.JourneyDetail.instance:type_name -> hcmnext.journey.v1.Instance
+	13,  // 31: hcmnext.journey.v1.JourneyDetail.nodes:type_name -> hcmnext.journey.v1.NodeExecution
+	14,  // 32: hcmnext.journey.v1.JourneyDetail.work_items:type_name -> hcmnext.journey.v1.WorkItem
+	15,  // 33: hcmnext.journey.v1.JourneyDetail.transitions:type_name -> hcmnext.journey.v1.WorkItemTransition
+	16,  // 34: hcmnext.journey.v1.JourneyDetail.ledger:type_name -> hcmnext.journey.v1.LedgerEvent
+	17,  // 35: hcmnext.journey.v1.JourneyDetail.timeline:type_name -> hcmnext.journey.v1.TimelineEvent
+	87,  // 36: hcmnext.journey.v1.ListJourneysRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	8,   // 37: hcmnext.journey.v1.ListJourneysResponse.journeys:type_name -> hcmnext.journey.v1.Journey
+	88,  // 38: hcmnext.journey.v1.ListJourneysResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	7,   // 39: hcmnext.journey.v1.ProposeJourneyRequest.target:type_name -> hcmnext.journey.v1.Placement
+	8,   // 40: hcmnext.journey.v1.ProposeJourneyResponse.journey:type_name -> hcmnext.journey.v1.Journey
+	0,   // 41: hcmnext.journey.v1.ProposePromotionResponse.stage:type_name -> hcmnext.journey.v1.JourneyStage
+	18,  // 42: hcmnext.journey.v1.InspectJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
+	18,  // 43: hcmnext.journey.v1.ExecuteJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
+	18,  // 44: hcmnext.journey.v1.DecideJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
+	7,   // 45: hcmnext.journey.v1.EditProposalRequest.target:type_name -> hcmnext.journey.v1.Placement
+	8,   // 46: hcmnext.journey.v1.EditProposalResponse.journey:type_name -> hcmnext.journey.v1.Journey
+	5,   // 47: hcmnext.journey.v1.PreviewJourneyInterventionRequest.kind:type_name -> hcmnext.journey.v1.JourneyInterventionKind
+	89,  // 48: hcmnext.journey.v1.PreviewJourneyInterventionResponse.likely_outcome:type_name -> hcmnext.common.v1.InterventionOutcome
+	5,   // 49: hcmnext.journey.v1.RequestJourneyInterventionRequest.kind:type_name -> hcmnext.journey.v1.JourneyInterventionKind
+	8,   // 50: hcmnext.journey.v1.RequestJourneyInterventionResponse.journey:type_name -> hcmnext.journey.v1.Journey
+	89,  // 51: hcmnext.journey.v1.RequestJourneyInterventionResponse.outcome:type_name -> hcmnext.common.v1.InterventionOutcome
+	18,  // 52: hcmnext.journey.v1.WatchJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
+	86,  // 53: hcmnext.journey.v1.Worker.created_at:type_name -> google.protobuf.Timestamp
+	81,  // 54: hcmnext.journey.v1.Worker.manager_relationship:type_name -> hcmnext.journey.v1.ManagerRelationshipProjection
+	41,  // 55: hcmnext.journey.v1.WorkforceOptions.placements:type_name -> hcmnext.journey.v1.WorkforcePlacementOption
+	42,  // 56: hcmnext.journey.v1.WorkforceOptions.promotion_paths:type_name -> hcmnext.journey.v1.PromotionPathOption
+	39,  // 57: hcmnext.journey.v1.ListWorkersResponse.workers:type_name -> hcmnext.journey.v1.Worker
+	40,  // 58: hcmnext.journey.v1.ListWorkersResponse.options:type_name -> hcmnext.journey.v1.WorkforceOptions
+	39,  // 59: hcmnext.journey.v1.CreateWorkerResponse.worker:type_name -> hcmnext.journey.v1.Worker
+	82,  // 60: hcmnext.journey.v1.TablePreferences.filters:type_name -> hcmnext.journey.v1.TablePreferences.FiltersEntry
+	48,  // 61: hcmnext.journey.v1.UserPreferences.accessibility:type_name -> hcmnext.journey.v1.AccessibilityPreferences
+	83,  // 62: hcmnext.journey.v1.UserPreferences.navigation_groups:type_name -> hcmnext.journey.v1.UserPreferences.NavigationGroupsEntry
+	84,  // 63: hcmnext.journey.v1.UserPreferences.tables:type_name -> hcmnext.journey.v1.UserPreferences.TablesEntry
+	85,  // 64: hcmnext.journey.v1.UserPreferences.workflow_uses:type_name -> hcmnext.journey.v1.UserPreferences.WorkflowUsesEntry
+	49,  // 65: hcmnext.journey.v1.GetProductPreferencesResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
+	50,  // 66: hcmnext.journey.v1.GetProductPreferencesResponse.theme:type_name -> hcmnext.journey.v1.CustomerTheme
+	57,  // 67: hcmnext.journey.v1.GetProductPreferencesResponse.organization_visibility:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
+	49,  // 68: hcmnext.journey.v1.SaveUserPreferencesRequest.user:type_name -> hcmnext.journey.v1.UserPreferences
+	49,  // 69: hcmnext.journey.v1.SaveUserPreferencesResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
+	50,  // 70: hcmnext.journey.v1.SaveTenantAppearanceRequest.theme:type_name -> hcmnext.journey.v1.CustomerTheme
+	50,  // 71: hcmnext.journey.v1.SaveTenantAppearanceResponse.theme:type_name -> hcmnext.journey.v1.CustomerTheme
+	57,  // 72: hcmnext.journey.v1.SaveOrganizationVisibilityRequest.policy:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
+	57,  // 73: hcmnext.journey.v1.SaveOrganizationVisibilityResponse.policy:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
+	60,  // 74: hcmnext.journey.v1.GetRoleAccessResponse.roles:type_name -> hcmnext.journey.v1.AccessRole
+	61,  // 75: hcmnext.journey.v1.GetRoleAccessResponse.assignments:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
+	62,  // 76: hcmnext.journey.v1.GetRoleAccessResponse.visibility_policies:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
+	63,  // 77: hcmnext.journey.v1.GetRoleAccessResponse.page_permissions:type_name -> hcmnext.journey.v1.RolePagePermission
+	60,  // 78: hcmnext.journey.v1.SaveAccessRoleRequest.role:type_name -> hcmnext.journey.v1.AccessRole
+	60,  // 79: hcmnext.journey.v1.SaveAccessRoleResponse.role:type_name -> hcmnext.journey.v1.AccessRole
+	61,  // 80: hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest.assignment:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
+	61,  // 81: hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse.assignment:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
+	62,  // 82: hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest.policy:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
+	62,  // 83: hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse.policy:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
+	63,  // 84: hcmnext.journey.v1.SaveRolePagePermissionRequest.permission:type_name -> hcmnext.journey.v1.RolePagePermission
+	63,  // 85: hcmnext.journey.v1.SaveRolePagePermissionResponse.permission:type_name -> hcmnext.journey.v1.RolePagePermission
+	49,  // 86: hcmnext.journey.v1.RecordWorkflowUseResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
+	76,  // 87: hcmnext.journey.v1.GetWorkerIDPolicyResponse.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
+	76,  // 88: hcmnext.journey.v1.SaveWorkerIDPolicyRequest.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
+	76,  // 89: hcmnext.journey.v1.SaveWorkerIDPolicyResponse.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
+	6,   // 90: hcmnext.journey.v1.ManagerRelationshipProjection.disposition:type_name -> hcmnext.journey.v1.ManagerRelationshipProjection.Disposition
+	47,  // 91: hcmnext.journey.v1.UserPreferences.TablesEntry.value:type_name -> hcmnext.journey.v1.TablePreferences
+	19,  // 92: hcmnext.journey.v1.JourneyService.ListJourneys:input_type -> hcmnext.journey.v1.ListJourneysRequest
+	21,  // 93: hcmnext.journey.v1.JourneyService.ProposeJourney:input_type -> hcmnext.journey.v1.ProposeJourneyRequest
+	23,  // 94: hcmnext.journey.v1.JourneyService.ProposePromotion:input_type -> hcmnext.journey.v1.ProposePromotionRequest
+	25,  // 95: hcmnext.journey.v1.JourneyService.InspectJourney:input_type -> hcmnext.journey.v1.InspectJourneyRequest
+	27,  // 96: hcmnext.journey.v1.JourneyService.ExecuteJourney:input_type -> hcmnext.journey.v1.ExecuteJourneyRequest
+	29,  // 97: hcmnext.journey.v1.JourneyService.DecideJourney:input_type -> hcmnext.journey.v1.DecideJourneyRequest
+	31,  // 98: hcmnext.journey.v1.JourneyService.EditProposal:input_type -> hcmnext.journey.v1.EditProposalRequest
+	33,  // 99: hcmnext.journey.v1.JourneyService.PreviewJourneyIntervention:input_type -> hcmnext.journey.v1.PreviewJourneyInterventionRequest
+	35,  // 100: hcmnext.journey.v1.JourneyService.RequestJourneyIntervention:input_type -> hcmnext.journey.v1.RequestJourneyInterventionRequest
+	37,  // 101: hcmnext.journey.v1.JourneyService.WatchJourney:input_type -> hcmnext.journey.v1.WatchJourneyRequest
+	43,  // 102: hcmnext.journey.v1.JourneyService.ListWorkers:input_type -> hcmnext.journey.v1.ListWorkersRequest
+	45,  // 103: hcmnext.journey.v1.JourneyService.CreateWorker:input_type -> hcmnext.journey.v1.CreateWorkerRequest
+	51,  // 104: hcmnext.journey.v1.JourneyService.GetProductPreferences:input_type -> hcmnext.journey.v1.GetProductPreferencesRequest
+	53,  // 105: hcmnext.journey.v1.JourneyService.SaveUserPreferences:input_type -> hcmnext.journey.v1.SaveUserPreferencesRequest
+	55,  // 106: hcmnext.journey.v1.JourneyService.SaveTenantAppearance:input_type -> hcmnext.journey.v1.SaveTenantAppearanceRequest
+	58,  // 107: hcmnext.journey.v1.JourneyService.SaveOrganizationVisibility:input_type -> hcmnext.journey.v1.SaveOrganizationVisibilityRequest
+	64,  // 108: hcmnext.journey.v1.JourneyService.GetRoleAccess:input_type -> hcmnext.journey.v1.GetRoleAccessRequest
+	66,  // 109: hcmnext.journey.v1.JourneyService.SaveAccessRole:input_type -> hcmnext.journey.v1.SaveAccessRoleRequest
+	68,  // 110: hcmnext.journey.v1.JourneyService.SaveWorkerRoleAssignment:input_type -> hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest
+	70,  // 111: hcmnext.journey.v1.JourneyService.SaveRoleOrganizationVisibility:input_type -> hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest
+	72,  // 112: hcmnext.journey.v1.JourneyService.SaveRolePagePermission:input_type -> hcmnext.journey.v1.SaveRolePagePermissionRequest
+	74,  // 113: hcmnext.journey.v1.JourneyService.RecordWorkflowUse:input_type -> hcmnext.journey.v1.RecordWorkflowUseRequest
+	77,  // 114: hcmnext.journey.v1.JourneyService.GetWorkerIDPolicy:input_type -> hcmnext.journey.v1.GetWorkerIDPolicyRequest
+	79,  // 115: hcmnext.journey.v1.JourneyService.SaveWorkerIDPolicy:input_type -> hcmnext.journey.v1.SaveWorkerIDPolicyRequest
+	20,  // 116: hcmnext.journey.v1.JourneyService.ListJourneys:output_type -> hcmnext.journey.v1.ListJourneysResponse
+	22,  // 117: hcmnext.journey.v1.JourneyService.ProposeJourney:output_type -> hcmnext.journey.v1.ProposeJourneyResponse
+	24,  // 118: hcmnext.journey.v1.JourneyService.ProposePromotion:output_type -> hcmnext.journey.v1.ProposePromotionResponse
+	26,  // 119: hcmnext.journey.v1.JourneyService.InspectJourney:output_type -> hcmnext.journey.v1.InspectJourneyResponse
+	28,  // 120: hcmnext.journey.v1.JourneyService.ExecuteJourney:output_type -> hcmnext.journey.v1.ExecuteJourneyResponse
+	30,  // 121: hcmnext.journey.v1.JourneyService.DecideJourney:output_type -> hcmnext.journey.v1.DecideJourneyResponse
+	32,  // 122: hcmnext.journey.v1.JourneyService.EditProposal:output_type -> hcmnext.journey.v1.EditProposalResponse
+	34,  // 123: hcmnext.journey.v1.JourneyService.PreviewJourneyIntervention:output_type -> hcmnext.journey.v1.PreviewJourneyInterventionResponse
+	36,  // 124: hcmnext.journey.v1.JourneyService.RequestJourneyIntervention:output_type -> hcmnext.journey.v1.RequestJourneyInterventionResponse
+	38,  // 125: hcmnext.journey.v1.JourneyService.WatchJourney:output_type -> hcmnext.journey.v1.WatchJourneyResponse
+	44,  // 126: hcmnext.journey.v1.JourneyService.ListWorkers:output_type -> hcmnext.journey.v1.ListWorkersResponse
+	46,  // 127: hcmnext.journey.v1.JourneyService.CreateWorker:output_type -> hcmnext.journey.v1.CreateWorkerResponse
+	52,  // 128: hcmnext.journey.v1.JourneyService.GetProductPreferences:output_type -> hcmnext.journey.v1.GetProductPreferencesResponse
+	54,  // 129: hcmnext.journey.v1.JourneyService.SaveUserPreferences:output_type -> hcmnext.journey.v1.SaveUserPreferencesResponse
+	56,  // 130: hcmnext.journey.v1.JourneyService.SaveTenantAppearance:output_type -> hcmnext.journey.v1.SaveTenantAppearanceResponse
+	59,  // 131: hcmnext.journey.v1.JourneyService.SaveOrganizationVisibility:output_type -> hcmnext.journey.v1.SaveOrganizationVisibilityResponse
+	65,  // 132: hcmnext.journey.v1.JourneyService.GetRoleAccess:output_type -> hcmnext.journey.v1.GetRoleAccessResponse
+	67,  // 133: hcmnext.journey.v1.JourneyService.SaveAccessRole:output_type -> hcmnext.journey.v1.SaveAccessRoleResponse
+	69,  // 134: hcmnext.journey.v1.JourneyService.SaveWorkerRoleAssignment:output_type -> hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
+	71,  // 135: hcmnext.journey.v1.JourneyService.SaveRoleOrganizationVisibility:output_type -> hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse
+	73,  // 136: hcmnext.journey.v1.JourneyService.SaveRolePagePermission:output_type -> hcmnext.journey.v1.SaveRolePagePermissionResponse
+	75,  // 137: hcmnext.journey.v1.JourneyService.RecordWorkflowUse:output_type -> hcmnext.journey.v1.RecordWorkflowUseResponse
+	78,  // 138: hcmnext.journey.v1.JourneyService.GetWorkerIDPolicy:output_type -> hcmnext.journey.v1.GetWorkerIDPolicyResponse
+	80,  // 139: hcmnext.journey.v1.JourneyService.SaveWorkerIDPolicy:output_type -> hcmnext.journey.v1.SaveWorkerIDPolicyResponse
+	116, // [116:140] is the sub-list for method output_type
+	92,  // [92:116] is the sub-list for method input_type
+	92,  // [92:92] is the sub-list for extension type_name
+	92,  // [92:92] is the sub-list for extension extendee
+	0,   // [0:92] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_journey_v1_journey_service_proto_init() }
@@ -6914,8 +7196,8 @@ func file_hcmnext_journey_v1_journey_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_journey_v1_journey_service_proto_rawDesc), len(file_hcmnext_journey_v1_journey_service_proto_rawDesc)),
-			NumEnums:      6,
-			NumMessages:   78,
+			NumEnums:      7,
+			NumMessages:   79,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

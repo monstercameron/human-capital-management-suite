@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"unicode"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -35,7 +36,7 @@ func appShellWithHeading(view View, page ui.Node, showHeading bool) ui.Node {
 		showHeading = false
 	} else if view.LoadError != "" {
 		content = html.Div(html.Props{Class: "page-stack"},
-			unavailablePanel(view.Locale.Text("shell.live_unavailable"), view.LoadError),
+			unavailablePanel(view.Locale.Text("shell.live_unavailable"), view.Locale.Text("shell.load_recovery")),
 			page,
 		)
 	}
@@ -91,8 +92,9 @@ func NavigationDrawerScope(props navigationDrawerScopeProps) ui.Node {
 func appHeader(view View, drawerOpen bool, drawerToggle func()) ui.Node {
 	appearance := NormalizeCustomerTheme(view.Appearance)
 	toggle := navigationToggleProps(view)
-	brandProps := html.Props{Class: "wordmark", Title: appearance.BrandName, Data: map[string]string{"hcm-brand-link": ""}}
-	brandContent := ui.CreateElement(BrandLogo, BrandLogoProps{Name: appearance.BrandName, Mark: appearance.BrandMark, LogoURL: appearance.BrandLogoURL})
+	brandName, brandMark := HeaderBrandIdentity(appearance, view.Tenant)
+	brandProps := html.Props{Class: "wordmark", Title: brandName, Data: map[string]string{"hcm-brand-link": ""}}
+	brandContent := ui.CreateElement(BrandLogo, BrandLogoProps{Name: brandName, AccessibleName: brandName, Mark: brandMark, LogoURL: appearance.BrandLogoURL})
 	var brand ui.Node = html.Div(brandProps, brandContent)
 	if navigationDestinationAuthorized(view, PageHome) {
 		brand = appLink(view, brandProps, navigationHref(view, PageHome), brandContent)
@@ -118,6 +120,12 @@ func appHeader(view View, drawerOpen bool, drawerToggle func()) ui.Node {
 						drawerToggle()
 					}
 				}),
+				OnKeyDown: ui.UseEvent(func(event ui.KeyboardEvent) {
+					if drawerOpen && drawerEscapeCloses(event.GetKey()) && drawerToggle != nil {
+						event.PreventDefault()
+						drawerToggle()
+					}
+				}),
 			}, navIcon("menu")),
 		),
 		html.Div(html.Props{Class: "header-navigation-tools"},
@@ -132,6 +140,31 @@ func appHeader(view View, drawerOpen bool, drawerToggle func()) ui.Node {
 		notificationSlot(view),
 		viewerProfileLink(view),
 	)
+}
+
+// HeaderBrandIdentity resolves the company name used by both the Go render
+// and the WASM appearance controller. Explicit customer branding wins; a
+// generic, unconfigured theme uses the admitted tenant display name.
+func HeaderBrandIdentity(appearance CustomerTheme, tenant string) (name, mark string) {
+	name, mark = appearance.BrandName, appearance.BrandMark
+	defaults := DefaultCustomerTheme()
+	if name != defaults.BrandName || strings.TrimSpace(tenant) == "" {
+		return name, mark
+	}
+	name = normalizedBrandText(tenant, 120, defaults.BrandName, false)
+	if mark == defaults.BrandMark {
+		var initials []rune
+		for _, word := range strings.Fields(name) {
+			initials = append(initials, unicode.ToUpper([]rune(word)[0]))
+			if len(initials) == 2 {
+				break
+			}
+		}
+		if len(initials) > 0 {
+			mark = string(initials)
+		}
+	}
+	return name, mark
 }
 
 func contextSwitcherSlot(view View) ui.Node {
@@ -170,18 +203,19 @@ func viewerProfileLink(view View) ui.Node {
 		}, html.Span(html.Props{Class: "loading-block loading-viewer-profile"}))
 	}
 	profile := view.Viewer
-	if strings.TrimSpace(profile.Name) == "" {
-		profile.Name = view.Principal
-	}
+	name := strings.TrimSpace(profile.Name)
 	if strings.TrimSpace(profile.Initials) == "" {
-		profile.Initials = uicomponents.Initials(profile.Name)
+		profile.Initials = uicomponents.Initials(name)
 	}
-	label := view.Locale.Text("shell.myself", map[string]string{"name": profile.Name})
+	label := view.Locale.Text("shell.myself_unidentified")
+	if name != "" {
+		label = view.Locale.Text("shell.myself", map[string]string{"name": name})
+	}
 	props := html.Props{
 		Class: "viewer-profile-link network-slot network-slot-ready", Title: label,
 		Aria: map[string]string{"label": label},
 	}
-	avatar := personAvatar(profile.Name, profile.Initials, profile.PhotoURL, "viewer")
+	avatar := personAvatar(name, profile.Initials, profile.PhotoURL, "viewer")
 	if !navigationDestinationAuthorized(view, PageMyself) {
 		return html.Div(props, avatar)
 	}
@@ -228,11 +262,116 @@ func authorizedActionLauncherItems(view View, items []ActionLauncherItem) []Acti
 	allowed := authorizedNavigationPages(view)
 	result := make([]ActionLauncherItem, 0, len(items))
 	for _, item := range items {
-		if allowed[item.Page] {
-			result = append(result, item)
+		state, admitted := actionLauncherItemPolicy(view, item)
+		if !admitted || state.Availability == ActionHidden || !allowed[item.Page] || !actionLauncherDestinationValid(item) {
+			continue
 		}
+		item.Availability = state
+		result = append(result, item)
 	}
 	return result
+}
+
+// actionLauncherItemPolicy binds each registered action to the server's exact,
+// unique semantic verdict. Item-provided fields are checked rather than
+// trusted, and page CRUD never manufactures action authority. Safe-to-disclose
+// denials require both an explicit reason and an authorized recovery route.
+func actionLauncherItemPolicy(view View, item ActionLauncherItem) (ActionState, bool) {
+	if item.Kind == ActionLauncherAction {
+		if strings.HasPrefix(item.ID, "action:") || strings.HasPrefix(item.ID, "action-unavailable:") {
+			for _, canonical := range personActionLauncherItems(view) {
+				if item.ID == canonical.ID && item.Page == canonical.Page && item.Action == canonical.Action &&
+					item.Kind == canonical.Kind && item.Href == canonical.Href && item.Label == canonical.Label &&
+					item.Description == canonical.Description && item.Reason == canonical.Reason &&
+					item.Availability.Availability == canonical.Availability.Availability &&
+					item.Availability.Reason == canonical.Availability.Reason {
+					return canonical.Availability, true
+				}
+			}
+			return ActionState{Availability: ActionHidden}, false
+		}
+		definition, registered := semanticLauncherDefinitionByID(item.ID)
+		if !registered || item.Page != definition.Page || item.Action != definition.Action || item.Href != definition.Href(view) {
+			return ActionState{Availability: ActionHidden}, false
+		}
+		projection, projected := uniqueLauncherActionProjection(view.LauncherActions, item.ID)
+		if !projected || projection.Priority < 0 {
+			return ActionState{Availability: ActionHidden}, false
+		}
+		switch projection.State.Availability {
+		case ActionAvailable:
+			return ActionState{Availability: ActionAvailable}, true
+		case ActionUnavailable:
+			if strings.TrimSpace(projection.State.Reason) == "" || !actionLauncherRecoveryValid(view, projection.State.Recovery) {
+				return ActionState{Availability: ActionHidden}, false
+			}
+			return projection.State, true
+		default:
+			return ActionState{Availability: ActionHidden}, false
+		}
+	}
+	if item.Kind != ActionLauncherDestination || item.Action != "view" || item.ID != actionLauncherDestinationID(item.Page) || !view.Allows(item.Page, "view") {
+		return ActionState{Availability: ActionHidden}, false
+	}
+	return ActionState{Availability: ActionAvailable}, true
+}
+
+func actionLauncherRecoveryValid(view View, recovery ActionLinkProps) bool {
+	if strings.TrimSpace(recovery.Label) == "" || strings.TrimSpace(recovery.Href) == "" {
+		return false
+	}
+	parsed, err := url.Parse(recovery.Href)
+	if err != nil || parsed.IsAbs() || parsed.Opaque != "" || parsed.Scheme != "" || parsed.Host != "" || parsed.Fragment != "" {
+		return false
+	}
+	definition, ok := LookupRoute(parsed.Path)
+	if !ok || !view.Can(definition.ID, "view") {
+		return false
+	}
+	for key, values := range parsed.Query() {
+		if (key != "locale" && key != "nav" && key != "favorites") || len(values) != 1 {
+			return false
+		}
+	}
+	return true
+}
+
+func actionLauncherDestinationValid(item ActionLauncherItem) bool {
+	definition, ok := LookupPage(item.Page)
+	if !ok {
+		return false
+	}
+	if item.Href == "" && strings.HasPrefix(item.ID, "action-unavailable:") && item.Availability.Availability == ActionUnavailable {
+		return true // policy already compared the entire item with its canonical denial.
+	}
+	if strings.TrimSpace(item.Href) == "" {
+		return false
+	}
+	parsed, err := url.Parse(item.Href)
+	return err == nil && !parsed.IsAbs() && parsed.Opaque == "" && parsed.Scheme == "" && parsed.User == nil && parsed.Host == "" &&
+		parsed.Path == definition.Route && parsed.RawPath == "" && parsed.Fragment == "" && actionLauncherQueryValid(item, parsed.Query())
+}
+
+func actionLauncherQueryValid(item ActionLauncherItem, query url.Values) bool {
+	allowed := map[string]bool{"locale": true, "nav": true, "favorites": true}
+	if item.ID == actionLauncherPromoteWorker {
+		allowed["eligible"] = true
+		if query.Get("eligible") != "1" {
+			return false
+		}
+	}
+	if strings.HasPrefix(item.ID, "action:") {
+		allowed["mode"], allowed["worker"], allowed["type"] = true, true, true
+		if query.Get("mode") != "new" || query.Get("worker") == "" {
+			return false
+		}
+	}
+	for key, values := range query {
+		if !allowed[key] || len(values) != 1 {
+			return false
+		}
+	}
+	return true
 }
 
 func authorizedGlobalSearchItems(view View, items []GlobalSearchItem) []GlobalSearchItem {
@@ -333,11 +472,15 @@ func localeMenu(view View) ui.Node {
 	localePreferences := localePreferencesProps(view)
 	items := make([]ui.Node, 0, len(localePreferences.Options))
 	for _, option := range localePreferences.Options {
-		props := html.Props{Class: "locale-option"}
-		if option.Current {
-			props.Aria = map[string]string{"current": "true"}
+		props := html.Props{
+			Class: "locale-option", Lang: option.Language, Dir: option.TextDirection,
+			Aria: map[string]string{"label": option.Label},
 		}
-		items = append(items, softwareLink(option.Navigate, props, option.Href, ui.Text(option.Label)))
+		if option.Current {
+			props.Aria["current"] = "true"
+		}
+		items = append(items, softwareLink(option.Navigate, props, option.Href,
+			html.Span(html.Props{Lang: option.Language, Dir: option.TextDirection}, ui.Text(option.Label))))
 	}
 	label := locale.Text("shell.locale")
 	return ui.CreateElement(TransientPopover, TransientPopoverProps{
@@ -372,6 +515,14 @@ func statefulHrefAtRoute(view View, route string) string {
 		return pageHref(PageHome)
 	}
 	values := parsed.Query()
+	// Projected navigation items carry a server-owned destination href. The
+	// current shell state still belongs to this navigation, even when that href
+	// is already populated, so a collapsed sidebar must not reopen on select.
+	if view.NavCollapsed {
+		values.Set("nav", "collapsed")
+	} else {
+		values.Del("nav")
+	}
 	setMenuAddressState(values, view)
 	parsed.RawQuery = values.Encode()
 	return parsed.String()
@@ -444,6 +595,23 @@ func currentPageAddressState(view View, collapsed bool) url.Values {
 		}
 	case PageHistory:
 		setHistoryAddressState(values, view)
+	case PageOrganization, PageOrgExplorer, PageOrgOutline, PageOrgResponsive:
+		if view.OrganizationView != "" {
+			values.Set("org_view", view.OrganizationView)
+		}
+		if view.Query != "" {
+			values.Set("q", view.Query)
+		}
+		if view.SelectedPerson != "" {
+			values.Set("person", view.SelectedPerson)
+		}
+	case PageRoles:
+		if view.Query != "" {
+			values.Set("q", view.Query)
+		}
+		if view.RolePage > 1 {
+			values.Set("role_page", fmt.Sprint(view.RolePage))
+		}
 	}
 	return values
 }
@@ -485,10 +653,6 @@ func setHistoryAddressState(values url.Values, view View) {
 }
 
 func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
-	source := view.Source
-	if source == "" {
-		source = view.Locale.Text("shell.no_source")
-	}
 	children := make([]ui.Node, 0, 3)
 	if view.Refreshing {
 		children = append(children, html.Div(html.Props{
@@ -501,8 +665,8 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 	}
 	children = append(children, page,
 		html.Footer(html.Props{Class: "footer"},
-			html.Span(html.Props{Data: map[string]string{"hcm-brand-name": ""}}, ui.Text(NormalizeCustomerTheme(view.Appearance).BrandName+" · GoWebComponents")),
-			html.Span(html.Props{}, ui.Text(view.Locale.Text("shell.live_source", map[string]string{"source": source}))),
+			html.Span(html.Props{Data: map[string]string{"hcm-brand-name": ""}}, ui.Text(NormalizeCustomerTheme(view.Appearance).BrandName)),
+			html.Span(html.Props{}, ui.Text(view.Locale.Text("shell.live_source"))),
 		),
 	)
 	// UIPOLISH-004: ".main-scroll" is the page's one scroll owner and must

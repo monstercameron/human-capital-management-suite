@@ -25,8 +25,8 @@ func TestSharedComponentsOwnResponsiveSizingContracts(t *testing.T) {
 // TestMobileShellKeepsOneBoundedNavigableTree pins the UXAUDIT-001 contract:
 // at narrow widths the sidebar is a fixed, off-canvas overlay drawer hidden
 // by default (fail-closed — nothing about NavCollapsed's value changes
-// that), the header stays a single grid row with every child accounted
-// for, the persistent desktop toggle and the drawer trigger are mutually
+// that), the header accounts for every child (using two rows below 360px),
+// the persistent desktop toggle and the drawer trigger are mutually
 // exclusive so brand-cluster never has to size a third visible item, and a
 // closed drawer's own nav contributes no scrollable region — only an open
 // one may scroll internally.
@@ -38,7 +38,7 @@ func TestMobileShellKeepsOneBoundedNavigableTree(t *testing.T) {
 		`@media (max-width:760px){.topbar,.app-shell.nav-collapsed .topbar{grid-template-columns:minmax(0,120px) minmax(0,1fr) auto auto auto;}`,
 		`.header-nav-toggle,.app-shell.nav-collapsed .header-nav-toggle{display:none;}`,
 		`.nav-drawer-trigger{display:none;}`,
-		`.nav-drawer-trigger{background:transparent;border:0;border-radius:var(--hcm-radius-control,var(--radius));color:var(--ink);display:grid;height:38px;margin:0 4px 0 0;padding:0;place-items:center;width:38px;}`,
+		`.nav-drawer-trigger{background:transparent;border:0;border-radius:var(--hcm-radius-control,var(--radius));color:var(--ink);display:grid;height:44px;margin:0 4px 0 0;padding:0;place-items:center;width:44px;}`,
 		`.sidebar,.sidebar.collapsed{border-inline-end:1px solid var(--line);border-right:0;box-shadow:0 18px 48px color-mix(in srgb,var(--ink) 22%,transparent);display:flex;flex-direction:column;height:100dvh;inset-block:0;inset-inline-start:-336px;max-width:100%;overflow:hidden;`,
 		`visibility:hidden;width:min(86vw,320px);z-index:55;}`,
 		`.sidebar.nav-drawer-open,.sidebar.collapsed.nav-drawer-open{inset-inline-start:0!important;visibility:visible!important;}`,
@@ -62,7 +62,7 @@ func TestMobileShellKeepsOneBoundedNavigableTree(t *testing.T) {
 func TestNarrowContentReflowsInsteadOfClipping(t *testing.T) {
 	css := Stylesheet()
 	contracts := []string{
-		`@media (max-width:760px){.work-row{column-gap:12px;display:grid;grid-template-columns:auto minmax(0,1fr);`,
+		`@media (max-width:760px){.work-row{column-gap:12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;`,
 		`.facts>div{display:grid;grid-template-columns:minmax(0,0.8fr) minmax(0,1.2fr);}`,
 		`.settings-nav{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-inline:contain;}`,
 		`.people-row-actions{flex-direction:column;}`,

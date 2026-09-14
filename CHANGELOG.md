@@ -733,6 +733,243 @@
   the fourth component in a row that is fully built and tested but rendered on
   no page a user reaches, because no live promotion-proposal form exists yet.
 
+## 2026-09-13 (workspace visual polish in progress)
+
+- Localized History headings, filters, actions, columns, outcomes and dates in
+  German and Arabic. Recorded outcomes now pass the Completed filter, and
+  searches match the localized text users can see. Arabic plural counts and
+  decimal digits follow the locale rather than English fallback behavior.
+- Changed the narrow History filter stack from flex-basis sizing to an
+  intrinsic-height grid, removing oversized controls on phones. Narrow rows
+  now identify the Change field visibly and give Change/Outcome cells
+  contextual accessible names.
+- Rebalanced Home into independent primary and supporting rails, removing a
+  large desktop gap while preserving a linear narrow-screen reading order.
+- Extended the shared 44px interactive target floor to utility, recovery,
+  policy, dismissal, delegation and mobile profile controls.
+- Fenced unorderable equal-version Journey stage responses so a late update
+  cannot rewind the visible request or displace its confirmation notice.
+- Localized Home recent-activity promotion labels from semantic adapter keys
+  so terminal request titles and stages follow English, German and Arabic.
+- Kept the Home document title generic while authorized worker identity is
+  loading, avoiding a brief raw-principal greeting before the preferred name.
+- Prevented an older same-route Journey response from replacing a newer
+  durable request state or its confirmation notice. The client compares
+  instance identity and version before timestamps, including the first
+  proposal-to-execution transition; native regression tests cover response
+  reordering and atomic detail/notice publication.
+- Routed search focus and workspace status/count radii through production
+  semantic tokens. A review caught an undefined status-radius reference;
+  the final shared alias derives from the validated customer control radius,
+  and its definition and consumers are regression-tested.
+- Replaced literal checkmarks in the shared activity list and Myself
+  read-only notice with a registered, decorative SVG, preserving their
+  textual meaning for assistive technology.
+- At narrow phone widths, the Myself read-only notice now gives its copy the
+  full card measure and hides only the decorative glyph; the localized
+  "View only" badge remains after the explanation in reading order.
+- Clarified the Myself view-only notice with a workflow-based next step and
+  localized its full message in English, German, and RTL Arabic.
+- Kept the embedded Journeys header action inside narrow phone layouts by
+  allowing its label to wrap, including long German and RTL Arabic copy.
+- Raised the context switcher and generic popover triggers to the shared 44px
+  touch-target minimum, and made mobile drawer travel immediate under the
+  explicit Limited motion preference. The visible mobile drawer trigger now
+  also closes on Escape while it retains keyboard focus.
+- Contained action, utility-drawer, and People workflow overlay scrolling in
+  the owning panel. Scoped the Journey stylesheet's generic link, focus,
+  typography, media, and reduced-motion rules to Journey roots so its
+  embedded CSS cannot recolor unrelated workspace controls; live dark-mode
+  launcher hover now keeps readable text.
+- Moved page and navigation scrollbar widths to shared CSS size tokens and
+  included table and overlay scroll owners in the same semantic treatment,
+  preserving the existing desktop and mobile dimensions and edge placement.
+- Bounded finite Journey RPC work in the standalone WASM composition and
+  retained duplicate-mutation suppression in native embeddings that omit
+  the scheduler. Updated Journey refusal assertions to the current localized
+  product copy.
+- Routed the sidebar menu-search glyph through the governed icon registry and
+  replaced favorite stars, submenu chevrons, Organization disclosures and
+  Work-row arrows, context/delegation selectors, sensitive-detail disclosure,
+  and People workflow-menu arrows with semantic SVGs, including RTL disclosure
+  behavior and responsive Work-row placement. The reusable People row now
+  supplies its table cells instead of panicking during direct render, and
+  workflow options have a nonempty accessible-label fallback. The personal-
+  information disclosure now uses a governed, decorative lock icon, and
+  workflow cards use a governed launch mark instead of a text arrow. Profile
+  facts no longer repeat an "Available" badge beside every present value or
+  a "Not supplied" badge when the localized value already says "Not reported";
+  unknown and restricted states remain explicit. An empty workflow launcher
+  no longer repeats a zero-result count. Profile sections now lead with
+  available facts and keep two or more unreported fields in a localized,
+  keyboard-accessible disclosure. The Settings sign-out utility no
+  longer stretches to match the taller session card. German sidebar group names now wrap
+  without truncation; Settings account/session messages use localized catalog
+  keys while missing viewer identities remain privacy-safe. The full UIPOLISH
+  visual and accessibility matrices remain open.
+
+## 2026-09-13 (development persona access)
+
+- Local development sign-in now describes only capabilities admitted by the
+  same effective role policy as the workspace. The four seeded worker
+  identities land on role-appropriate pages; payroll can review assigned
+  promotion work without a promotion-start or organization-browsing path.
+  Empty or unavailable policy and mismatched worker bindings fail closed,
+  while administrator-edited grants survive local-dev bootstrap replay.
+
+## 2026-09-13 (task-oriented workspace copy)
+
+- Replaced protocol and service vocabulary in ordinary page, loading, empty
+  and error states with localized task and recovery language. Appearance no
+  longer exposes internal asset paths or offers logo actions without a working
+  handler; the full governed asset picker remains follow-up work.
+
+## 2026-09-13 (promotion refusal recovery)
+
+- Typed promotion refusals now keep exact server-owned pay bounds even when a
+  generic field violation arrives first. The field-linked correction preserves
+  entered values, moves focus to the invalid field and exposes a copyable
+  request reference only inside Support details. A real gRPC-to-render
+  regression and desktop/mobile light/dark browser checks cover the path.
+
+## 2026-09-13 (promotion chronology, in progress)
+
+- Promotion request headers and list cards now derive their updated time from
+  the latest durable business transition, including in-flight approvals. The
+  simulation timeline keeps its original timestamp, and a created-but-unstarted
+  workflow no longer claims that approval processing started.
+
+## 2026-09-13 (promotion confirmation review)
+
+- Start, Approve and Reject now keep a compact shared confirmation open through
+  server latency, with a visible in-place pending state and disabled actions;
+  outcome focus moves to the resolved notice. Review geometry and keyboard
+  behavior were checked in the Codex browser at desktop and narrow widths.
+- Added blocked-RPC duplicate-submit regressions for all three actions and a
+  five-action render latency budget. The review listener now binds only after
+  successful product-shell hydration.
+
+## 2026-09-13 (People directory viewport)
+
+- Tightened the People page's desktop information density and kept its filter,
+  table and compact row actions inside one stable, sticky-header scroll layout.
+  Searching, sorting, eligibility filtering and page-size changes update the
+  directory without replacing the application shell; saved page size still
+  comes from server-side user preferences.
+- Added focused regression, accessibility, locale and 100-row performance
+  coverage. The live Go/WASM page was exercised in the Codex browser at desktop
+  and narrow widths; the same Go components were visually checked in light
+  mode without altering the organization's saved appearance.
+
+## 2026-09-12 (honest workspace navigation)
+
+- Live navigation, search and the utility drawer now include only published,
+  authorized destinations. Unavailable Admin modules retain honest direct
+  fallback pages but no longer appear as working product areas.
+- Home uses task-oriented headings for work and activity, with promotion-only
+  figures explicitly scoped; the new headings are localized in English,
+  German and Arabic.
+
+## 2026-09-12 (authorized organization hierarchy)
+
+- Organization, explorer, outline, responsive and Myself views now share one
+  expandable reporting-line composition backed by a typed authorized manager
+  projection. Stable worker identities replace display-name joins, while root,
+  visible, orphan and withheld relationships remain explicit and privacy-safe.
+
+- Flat and tree views retain selection and equivalent facts, filtered trees keep
+  admitted ancestor context, and the tree-only outline route canonicalizes its
+  address without discarding search or shell state. Native disclosures, logical
+  connectors, RTL localization and narrow-screen layouts were exercised directly
+  in the Codex browser for administrative and employee visibility scopes.
+
+## 2026-09-12 (authorized action launcher)
+
+- The production Go/WASM launcher now ranks server-authorized semantic actions,
+  starts promotion through the shared software router, and falls back to a
+  clearly labelled destination launcher when the viewer has no executable
+  actions. Missing, malformed, unknown and revoked action projections fail
+  closed instead of being reconstructed by the browser.
+
+- Fuzzy search, Escape and outside-focus dismissal, focus restoration, localized
+  English/German/Arabic copy, RTL layout, dark/light themes, reduced motion and
+  fixed viewport-safe phone presentation are covered by focused regressions and
+  manual Codex-browser checks at desktop, 390px and 320px.
+
+## 2026-09-12 (browser runtime and UX quality harness)
+
+- The production Go/WASM client now preserves page scroll and focus on local
+  table/filter updates while resetting only for genuine resource navigation.
+  Route changes retain the persistent shell, network work uses sequenced
+  invalidation and loading regions, and the promotion client presents distinct
+  finance, manager, effective-date and recorded states using business language.
+
+- Workspace sign-in, locale propagation, gateway origin handling and browser
+  session recovery have focused regressions. The latency and WCAG tooling now
+  records production evidence, while hydration and page-definition helpers keep
+  loading geometry aligned with the resolved components.
+
+## 2026-09-12 (product UI component refinement)
+
+- Shared Go web components now carry the current product refinements across
+  Home, My Work, People, Person, Journeys, History, Organization, Insights,
+  Help, Settings, Appearance and administration surfaces. The work keeps
+  tables, loading states, navigation, popovers, worker identity, validation,
+  role controls and page sections as reusable typed compositions instead of
+  page-local markup.
+
+- The component regressions cover directory filtering and sorting, page-level
+  loading continuity, readable visual tokens, keyboard and screen-reader
+  semantics, localized text, organization metadata and the promotion entry
+  points. This checkpoint changes no client transport behavior; that remains a
+  separate browser-runtime group.
+
+## 2026-09-12 (promotion execution and review hardening)
+
+- The production promotion plan now routes finance and manager approvals to
+  distinct configured principals, propagates the application clock and
+  telemetry through the composed executor, and gives the local-development
+  profile an explicit RFC3339 clock override. That override is rejected by
+  every production profile and drives authentication, workflow execution and
+  the scheduler together, allowing a future effective-date wait to be tested
+  without weakening production time authority.
+
+- Journey inspection completed history now comes from durable execution state,
+  with runtime identifiers and evidence omitted at the server boundary for
+  ordinary reviewers. The recorded manager reviewer retains narrow access to
+  the case they decided after completion; another manager, a reassigned owner,
+  and an unattributed completion do not gain that access.
+
+- Promotion candidates, lifecycle findings and duplicate-active-request
+  admission are projected through the governed application boundary. Finance
+  and manager work-item events remain distinct in the business timeline.
+
+- The serializable-start integration fixture now starts its 20-second operation
+  deadline after embedded PostgreSQL has booted. This removes a Windows-host
+  timing race without lengthening the transaction deadline or weakening the
+  typed withdrawn-approval assertion.
+
+## 2026-09-12 (OBS-023 trace-pivot hardening)
+
+- Workflow advancement and terminal spans now retain the same bounded instance,
+  node, attempt and terminal vocabulary used by the inspector. The instrumentation
+  previously emitted private attribute names that the shared telemetry allowlist
+  correctly discarded, leaving operators unable to pivot from a durable execution
+  row to its span. The canonical `logical_operation_id`, `node_id`, `attempt_id`
+  and `terminal_code` keys are now admitted for spans only; none is a metric label
+  or an authority input.
+
+- The golden and terminal-span regressions exercise the real filtered in-memory
+  exporter, so they fail if policy drops any required pivot again. No payload,
+  approver identity or unbounded baggage was added.
+
+## 2026-09-12 (main synchronization)
+
+- Merged PROMOUX-004 and PROMOUX-005 from `main` into the UX topic branch.
+  The sandbox promotion proof now signs in a separate routed approval principal
+  after its author proposes and executes, preserving the real separation-of-
+  duties and WorkItem-owner checks in the combined tree.
+
 ## 2026-09-12 (PROMOUX-006)
 
 - The promotion form can show an authorized proposer the real compensation

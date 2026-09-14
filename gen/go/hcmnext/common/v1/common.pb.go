@@ -1283,12 +1283,15 @@ func (x *EvidenceRef) GetDigest() string {
 // FieldViolation reports one safe, non-sensitive field-level rejection
 // reason.
 type FieldViolation struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FieldPath     string                 `protobuf:"bytes,1,opt,name=field_path,json=fieldPath,proto3" json:"field_path,omitempty"`
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	RuleRef       string                 `protobuf:"bytes,3,opt,name=rule_ref,json=ruleRef,proto3" json:"rule_ref,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	FieldPath   string                 `protobuf:"bytes,1,opt,name=field_path,json=fieldPath,proto3" json:"field_path,omitempty"`
+	Description string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	RuleRef     string                 `protobuf:"bytes,3,opt,name=rule_ref,json=ruleRef,proto3" json:"rule_ref,omitempty"`
+	// Present only when an authorized domain decision can provide exact,
+	// server-owned monetary correction bounds for this rejected field.
+	PermittedMoneyRange *MoneyRange `protobuf:"bytes,4,opt,name=permitted_money_range,json=permittedMoneyRange,proto3" json:"permitted_money_range,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *FieldViolation) Reset() {
@@ -1342,6 +1345,73 @@ func (x *FieldViolation) GetRuleRef() string {
 	return ""
 }
 
+func (x *FieldViolation) GetPermittedMoneyRange() *MoneyRange {
+	if x != nil {
+		return x.PermittedMoneyRange
+	}
+	return nil
+}
+
+type MoneyRange struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Minimum       string                 `protobuf:"bytes,1,opt,name=minimum,proto3" json:"minimum,omitempty"`
+	Maximum       string                 `protobuf:"bytes,2,opt,name=maximum,proto3" json:"maximum,omitempty"`
+	Currency      string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoneyRange) Reset() {
+	*x = MoneyRange{}
+	mi := &file_hcmnext_common_v1_common_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoneyRange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoneyRange) ProtoMessage() {}
+
+func (x *MoneyRange) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_common_v1_common_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoneyRange.ProtoReflect.Descriptor instead.
+func (*MoneyRange) Descriptor() ([]byte, []int) {
+	return file_hcmnext_common_v1_common_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *MoneyRange) GetMinimum() string {
+	if x != nil {
+		return x.Minimum
+	}
+	return ""
+}
+
+func (x *MoneyRange) GetMaximum() string {
+	if x != nil {
+		return x.Maximum
+	}
+	return ""
+}
+
+func (x *MoneyRange) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
 // ErrorDetail is the canonical typed error payload carried alongside every
 // transport failure. It never carries a raw stack trace, SQL, policy source
 // or secret value.
@@ -1361,7 +1431,7 @@ type ErrorDetail struct {
 
 func (x *ErrorDetail) Reset() {
 	*x = ErrorDetail{}
-	mi := &file_hcmnext_common_v1_common_proto_msgTypes[14]
+	mi := &file_hcmnext_common_v1_common_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1373,7 +1443,7 @@ func (x *ErrorDetail) String() string {
 func (*ErrorDetail) ProtoMessage() {}
 
 func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_common_v1_common_proto_msgTypes[14]
+	mi := &file_hcmnext_common_v1_common_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1386,7 +1456,7 @@ func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
 func (*ErrorDetail) Descriptor() ([]byte, []int) {
-	return file_hcmnext_common_v1_common_proto_rawDescGZIP(), []int{14}
+	return file_hcmnext_common_v1_common_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ErrorDetail) GetCode() ErrorCode {
@@ -1497,12 +1567,18 @@ const file_hcmnext_common_v1_common_proto_rawDesc = "" +
 	"\vevidence_id\x18\x01 \x01(\tR\n" +
 	"evidenceId\x12#\n" +
 	"\revidence_kind\x18\x02 \x01(\tR\fevidenceKind\x12\x16\n" +
-	"\x06digest\x18\x03 \x01(\tR\x06digest\"l\n" +
+	"\x06digest\x18\x03 \x01(\tR\x06digest\"\xbf\x01\n" +
 	"\x0eFieldViolation\x12\x1d\n" +
 	"\n" +
 	"field_path\x18\x01 \x01(\tR\tfieldPath\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x19\n" +
-	"\brule_ref\x18\x03 \x01(\tR\aruleRef\"\xb4\x02\n" +
+	"\brule_ref\x18\x03 \x01(\tR\aruleRef\x12Q\n" +
+	"\x15permitted_money_range\x18\x04 \x01(\v2\x1d.hcmnext.common.v1.MoneyRangeR\x13permittedMoneyRange\"\\\n" +
+	"\n" +
+	"MoneyRange\x12\x18\n" +
+	"\aminimum\x18\x01 \x01(\tR\aminimum\x12\x18\n" +
+	"\amaximum\x18\x02 \x01(\tR\amaximum\x12\x1a\n" +
+	"\bcurrency\x18\x03 \x01(\tR\bcurrency\"\xb4\x02\n" +
 	"\vErrorDetail\x120\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x1c.hcmnext.common.v1.ErrorCodeR\x04code\x12L\n" +
 	"\x10field_violations\x18\x02 \x03(\v2!.hcmnext.common.v1.FieldViolationR\x0ffieldViolations\x12\x1c\n" +
@@ -1568,7 +1644,7 @@ func file_hcmnext_common_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_hcmnext_common_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_hcmnext_common_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_hcmnext_common_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_hcmnext_common_v1_common_proto_goTypes = []any{
 	(Presence)(0),                 // 0: hcmnext.common.v1.Presence
 	(DecimalSign)(0),              // 1: hcmnext.common.v1.DecimalSign
@@ -1590,28 +1666,30 @@ var file_hcmnext_common_v1_common_proto_goTypes = []any{
 	(*VersionRef)(nil),            // 17: hcmnext.common.v1.VersionRef
 	(*EvidenceRef)(nil),           // 18: hcmnext.common.v1.EvidenceRef
 	(*FieldViolation)(nil),        // 19: hcmnext.common.v1.FieldViolation
-	(*ErrorDetail)(nil),           // 20: hcmnext.common.v1.ErrorDetail
-	(*timestamppb.Timestamp)(nil), // 21: google.protobuf.Timestamp
+	(*MoneyRange)(nil),            // 20: hcmnext.common.v1.MoneyRange
+	(*ErrorDetail)(nil),           // 21: hcmnext.common.v1.ErrorDetail
+	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
 }
 var file_hcmnext_common_v1_common_proto_depIdxs = []int32{
 	6,  // 0: hcmnext.common.v1.RevisionToken.entity:type_name -> hcmnext.common.v1.EntityRef
-	21, // 1: hcmnext.common.v1.RevisionToken.issued_at:type_name -> google.protobuf.Timestamp
+	22, // 1: hcmnext.common.v1.RevisionToken.issued_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: hcmnext.common.v1.Decimal.sign:type_name -> hcmnext.common.v1.DecimalSign
 	9,  // 3: hcmnext.common.v1.Money.amount:type_name -> hcmnext.common.v1.Decimal
-	21, // 4: hcmnext.common.v1.TimePoint.instant:type_name -> google.protobuf.Timestamp
+	22, // 4: hcmnext.common.v1.TimePoint.instant:type_name -> google.protobuf.Timestamp
 	11, // 5: hcmnext.common.v1.TimePoint.local_date:type_name -> hcmnext.common.v1.LocalDate
 	3,  // 6: hcmnext.common.v1.EffectiveTimeRange.kind:type_name -> hcmnext.common.v1.EffectiveTimeRangeKind
 	12, // 7: hcmnext.common.v1.EffectiveTimeRange.start_inclusive:type_name -> hcmnext.common.v1.TimePoint
 	12, // 8: hcmnext.common.v1.EffectiveTimeRange.end_exclusive:type_name -> hcmnext.common.v1.TimePoint
 	2,  // 9: hcmnext.common.v1.EffectiveTimeRange.disambiguation:type_name -> hcmnext.common.v1.DisambiguationRule
-	5,  // 10: hcmnext.common.v1.ErrorDetail.code:type_name -> hcmnext.common.v1.ErrorCode
-	19, // 11: hcmnext.common.v1.ErrorDetail.field_violations:type_name -> hcmnext.common.v1.FieldViolation
-	18, // 12: hcmnext.common.v1.ErrorDetail.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	20, // 10: hcmnext.common.v1.FieldViolation.permitted_money_range:type_name -> hcmnext.common.v1.MoneyRange
+	5,  // 11: hcmnext.common.v1.ErrorDetail.code:type_name -> hcmnext.common.v1.ErrorCode
+	19, // 12: hcmnext.common.v1.ErrorDetail.field_violations:type_name -> hcmnext.common.v1.FieldViolation
+	18, // 13: hcmnext.common.v1.ErrorDetail.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_common_v1_common_proto_init() }
@@ -1629,7 +1707,7 @@ func file_hcmnext_common_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_common_v1_common_proto_rawDesc), len(file_hcmnext_common_v1_common_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

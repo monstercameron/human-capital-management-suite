@@ -44,7 +44,7 @@ type SelfServiceBoundaryProps struct{ I18nProps }
 // requests executed by governed workflows.
 func SelfServiceBoundary(props SelfServiceBoundaryProps) ui.Node {
 	return html.Section(html.Props{Class: "surface self-service-boundary", Raw: map[string]any{"role": "note"}},
-		html.Div(html.Props{Class: "self-service-boundary-icon", Aria: map[string]string{"hidden": "true"}}, ui.Text("✓")),
+		html.Div(html.Props{Class: "self-service-boundary-icon"}, productIcon("check", "self-service-boundary-glyph")),
 		html.Div(html.Props{Class: "self-service-boundary-copy"},
 			html.H2(html.Props{}, ui.Text(props.Text("myself.read_only_title"))),
 			html.P(html.Props{Class: "muted"}, ui.Text(props.Text("myself.read_only_detail"))),

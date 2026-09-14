@@ -162,6 +162,20 @@ func TestPagePermissionsAreAdditiveAndKeepCRUDIndependent(t *testing.T) {
 	if !CanPageAction(worker, "insights", ActionView) || CanPageAction(worker, "insights", ActionCreate) {
 		t.Fatalf("employee report defaults = %#v", worker)
 	}
+	for _, page := range []string{"organization", "org-explorer", "org-outline", "org-responsive"} {
+		if !CanPageAction(worker, page, ActionView) {
+			t.Errorf("employee cannot view the implemented organization surface %q", page)
+		}
+		if CanPageAction(worker, page, ActionCreate) || CanPageAction(worker, page, ActionUpdate) || CanPageAction(worker, page, ActionDelete) {
+			t.Errorf("employee gained mutation access to the organization surface %q", page)
+		}
+	}
+	admin := EffectivePagePermissions(Snapshot{PagePermissions: defaults}, []string{"hcm_admin"})
+	for _, page := range []string{"organization", "org-explorer", "org-outline", "org-responsive"} {
+		if !CanPageAction(admin, page, ActionView) {
+			t.Errorf("administrator cannot view the implemented organization surface %q", page)
+		}
+	}
 }
 
 type testStore struct{}

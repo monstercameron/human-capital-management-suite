@@ -71,15 +71,15 @@ var promotionProposeContractFields = []string{
 }
 
 // promotionProposeRequiredFields are the fields a request must actually carry.
-// desired_org_unit, desired_manager_ref and desired_pay_currency are the three
-// optional ones, and each is optional because empty has a server-resolved
-// meaning ("where they are today", "unchanged", "their own currency") rather
-// than because it may be left unsaid.
+// desired_position_id, desired_org_unit, desired_manager_ref and
+// desired_pay_currency are optional: an empty position makes no claim on a
+// vacant slot, while the other empty values mean current organization,
+// unchanged manager and the subject's own currency. A supplied position is
+// still checked against the governed position store before execution.
 var promotionProposeRequiredFields = []string{
 	"subject_worker_ref",
 	"desired_job_code",
 	"desired_grade",
-	"desired_position_id",
 	"desired_base_pay",
 	"effective_date",
 	"reason",
@@ -244,24 +244,28 @@ func parsePromotionEffectiveDate(text string) (values.LocalDate, error) {
 	return values.ParseLocalDate(text)
 }
 
-// PromotionSubjectRevision is the revision coordinate a promotion.propose
-// request must state as expected_subject_revision.
+// PromotionSubjectRevision is the fixed-corpus revision coordinate a
+// promotion.propose request must state as expected_subject_revision.
 //
 // It is the subject's compensation revision coordinate,
 // "<revision_stream>@<revision_sequence>", and it is derived from the worker
-// key the journey's own worker list publishes, so a client holding the list is
-// holding everything it needs to state it. It is exported because the server's
-// comparison and any client's construction of the same value must be one
-// implementation: a coordinate two sides compute differently is a coordinate
-// that refuses correct requests.
+// key. Created workers instead publish their durable row's actual revision in
+// ListWorkers and are checked against that value. Callers should use the
+// listed SubjectRevision, which keeps later worker revisions visible.
 func PromotionSubjectRevision(workerKey string) string {
 	return promotionRevisionStream(workerKey) + "@" + promotionRevisionSequence
 }
 
-// promotionRevisionStream and promotionRevisionSequence are the same stream
-// and sequence [journeyRequestPayload] writes into the request's compensation
-// sides. They are stated here so the revision a caller must declare and the
-// revision the payload records cannot drift apart.
+func promotionSubjectRevision(subject WorkerLocation) string {
+	if subject.Created != nil {
+		return fmt.Sprintf("%s@%d", subject.Created.RevisionStream, subject.Created.RevisionSequence)
+	}
+	return PromotionSubjectRevision(subject.Key)
+}
+
+// promotionRevisionStream and promotionRevisionSequence are the fixed-corpus
+// stream and sequence [journeyRequestPayload] writes into the request's
+// compensation sides. Created workers use the revision stored on their row.
 const promotionRevisionSequence = "1"
 
 func promotionRevisionStream(workerKey string) string {
@@ -356,7 +360,7 @@ func (e *journeyEngine) ProposePromotion(
 	if !resolved {
 		return nil, journeyInputError("subject_worker_ref", "no such worker in this workforce")
 	}
-	if want := PromotionSubjectRevision(subject.Key); fields["expected_subject_revision"] != want {
+	if want := promotionSubjectRevision(subject); fields["expected_subject_revision"] != want {
 		// A refusal rather than a silent re-base: the caller formed this
 		// intention against a view of the subject this cell does not hold, and
 		// promoting somebody from a state that is not theirs is the lost
@@ -431,10 +435,7 @@ func (e *journeyEngine) ProposePromotion(
 			Kind:                 journeyInitiatorKind(principal.SubjectKind()),
 			IdentityAssuranceRef: principal.EvidenceID(),
 		},
-		Subjects: []*intentsv1.SubjectReference{
-			{SubjectKind: "EMPLOYMENT", SubjectId: subject.Ref.Id, AuthorityDomain: "PEOPLE"},
-			{SubjectKind: "POSITION", SubjectId: fields["desired_position_id"], AuthorityDomain: "POSITION"},
-		},
+		Subjects: journeySubjects(subject.Ref.Id, fields["desired_position_id"]),
 		Request: &intentsv1.TypedPayload{
 			Schema: &intentsv1.SchemaReference{
 				SchemaId:         def.InputSchema.SchemaID,

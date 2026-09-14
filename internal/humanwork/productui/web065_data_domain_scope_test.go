@@ -48,9 +48,8 @@ func TestTodo_WEB_065(t *testing.T) {
 		t.Fatal("domain scope resolution mutates its inputs")
 	}
 
-	// Each active role editor resolves its admitted data domains from the
-	// policy: the granted role names its domains, the ungranted role shows
-	// the honest empty state with no domain chips.
+	// Only a role with admitted domains displays a domain scope. An ungranted
+	// role must not imply that the server supplied an empty domain projection.
 	doc, err := Render(web065View("en-US"))
 	if err != nil {
 		t.Fatal(err)
@@ -68,9 +67,8 @@ func TestTodo_WEB_065(t *testing.T) {
 			t.Fatalf("manager domain scope misses %q: %q", want, manager)
 		}
 	}
-	support := web064RoleScope(t, root, "support", "data-domain-scope")
-	if !strings.Contains(support, "No data domains in scope") {
-		t.Fatalf("support domain scope misses the empty state: %q", support)
+	if findClassToken(supportNode(t, root, "support"), "data-domain-scope") != nil {
+		t.Fatal("support role fabricated an empty data-domain scope")
 	}
 	if chips := countClassTokens(supportNode(t, root, "support"), "data-domain-scope-domain"); chips != 0 {
 		t.Fatalf("ungranted role renders %d domain chips", chips)
@@ -150,8 +148,8 @@ func TestTodo_WEB_065_Golden(t *testing.T) {
 	}
 }
 
-// Browser: the armed visibility document carries one labelled data-domain
-// scope block per active role, with list semantics and no positive
+// Browser: the armed visibility document carries only admitted data-domain
+// scope blocks, with list semantics and no positive
 // tabindex stops.
 func TestTodo_WEB_065_Browser(t *testing.T) {
 	doc, err := Render(web065View("en-US"))
@@ -162,10 +160,10 @@ func TestTodo_WEB_065_Browser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count := countClassTokens(root, "data-domain-scope"); count != 2 {
-		t.Fatalf("visibility document resolves %d data-domain scopes, want 2 (one per active role)", count)
+	if count := countClassTokens(root, "data-domain-scope"); count != 1 {
+		t.Fatalf("visibility document resolves %d data-domain scopes, want 1 admitted role", count)
 	}
-	for _, roleID := range []string{"manager", "support"} {
+	for _, roleID := range []string{"manager"} {
 		block := findClassToken(supportNode(t, root, roleID), "data-domain-scope")
 		if block == nil {
 			t.Fatalf("role %q resolves no data-domain scope block", roleID)
@@ -266,14 +264,8 @@ func TestTodo_WEB_065_Security(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	block := web064RoleScope(t, unknownRoot, "contractor", "data-domain-scope")
-	for _, leaked := range []string{"Payroll", "Ghost", "People", "Position", "Organization", "Compensation"} {
-		if strings.Contains(block, leaked) {
-			t.Fatalf("unknown-domain policy renders %q: %q", leaked, block)
-		}
-	}
-	if !strings.Contains(block, "No data domains in scope") {
-		t.Fatalf("unknown-domain policy misses the empty state: %q", block)
+	if findClassToken(supportNode(t, unknownRoot, "contractor"), "data-domain-scope") != nil {
+		t.Fatal("unknown-domain policy rendered an unsupported domain scope")
 	}
 }
 

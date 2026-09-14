@@ -57,8 +57,12 @@ func personActiveWorkflowsProps(view View, person Person, target PageID) PersonA
 		if href == "" {
 			href = JourneyDetailHref(view, item.ID)
 		}
+		title := localizedWorkTitle(view.Locale, item)
+		if title == "" {
+			title = text("history.promotion")
+		}
 		props.Items = append(props.Items, PersonActiveWorkflowProps{
-			ID: item.ID, Title: text("history.promotion"), Summary: item.Summary, Status: item.Status,
+			ID: item.ID, Title: title, Summary: item.Summary, Status: localizedWorkStatus(view.Locale, item),
 			NextStep: workNextStepText(view.Locale, item.NextStep), WaitingOn: workWaitingOnText(view.Locale, item.WaitingOn),
 			Action: action, LinkLabel: text("person.workflow_link_label", map[string]string{"action": action, "name": person.Name}),
 			Href: href, Navigate: view.Navigate, Actionable: WorkNeedsViewerAction(item),

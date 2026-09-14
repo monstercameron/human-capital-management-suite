@@ -13,25 +13,30 @@ import (
 // BrandPack service can supply the same callbacks without changing the page.
 type AppearancePageProps struct {
 	I18nProps
-	Theme      CustomerTheme
-	ColorModes []AppearanceOption
-	Palettes   []AppearanceOption
-	Shapes     []AppearanceOption
-	Densities  []AppearanceOption
-	Glyphs     []AppearanceOption
-	Typefaces  []AppearanceOption
-	Navigation []AppearanceOption
-	Motions    []AppearanceOption
-	Editable   bool
-	OnPreview  func(CustomerTheme)
-	OnSave     func(CustomerTheme)
-	OnReset    func()
+	Theme                CustomerTheme
+	ColorModes           []AppearanceOption
+	Palettes             []AppearanceOption
+	Shapes               []AppearanceOption
+	Densities            []AppearanceOption
+	Glyphs               []AppearanceOption
+	Typefaces            []AppearanceOption
+	Navigation           []AppearanceOption
+	Motions              []AppearanceOption
+	Editable             bool
+	OnPreview            func(CustomerTheme)
+	OnSave               func(CustomerTheme)
+	OnReset              func()
+	BrandAssetStatus     string
+	OnUploadBrandAsset   func(string)
+	OnPreviewBrandAsset  func(string)
+	OnRemoveBrandAsset   func()
+	OnRollbackBrandAsset func()
 }
 
 // AppearancePage is the composed administration surface for tenant branding.
 func AppearancePage(props AppearancePageProps) ui.Node {
 	draft := NormalizeCustomerTheme(props.Theme)
-	return html.Div(html.Props{Class: "appearance-page"},
+	return html.Div(html.Props{Class: "appearance-page", Data: map[string]string{"hcm-appearance-scope": "tenant"}},
 		html.Section(html.Props{Class: "surface appearance-intro"},
 			html.Div(html.Props{Class: "appearance-intro-copy"},
 				html.H2(html.Props{}, ui.Text(props.Text("appearance.intro_title"))),
@@ -56,6 +61,13 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 					}, func(value string) {
 						draft.BrandLogoURL = value
 						previewAppearance(props.OnPreview, draft)
+					}, BrandAssetPickerProps{
+						I18nProps: props.I18nProps, Name: draft.BrandName, Mark: draft.BrandMark, LogoURL: draft.BrandLogoURL,
+						Editable: props.Editable, Status: props.BrandAssetStatus,
+						OnUpload:   props.OnUploadBrandAsset,
+						OnPreview:  props.OnPreviewBrandAsset,
+						OnRemove:   props.OnRemoveBrandAsset,
+						OnRollback: props.OnRollbackBrandAsset,
 					}),
 					appearanceChoices(props.Text("appearance.palette"), props.Text("appearance.palette_help"), "palette", draft.Palette, props.Palettes, "palette-choices", func(value string) {
 						draft.Palette = value
@@ -92,19 +104,21 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 	)
 }
 
-func appearanceBrandSignature(i18n I18nProps, theme CustomerTheme, onName, onMark, onLogo func(string)) ui.Node {
+func appearanceBrandSignature(i18n I18nProps, theme CustomerTheme, onName, onMark, onLogo func(string), picker ...BrandAssetPickerProps) ui.Node {
 	name := html.Props{ID: "appearance-brand-name", Type: "text", Name: "brand_name", Value: theme.BrandName, MaxLength: 40, AutoComplete: "off"}
 	mark := html.Props{ID: "appearance-brand-mark", Type: "text", Name: "brand_mark", Value: theme.BrandMark, MaxLength: 3, AutoComplete: "off"}
-	logoHelpID := "appearance-brand-logo-help"
-	logo := html.Props{ID: "appearance-brand-logo", Type: "text", Name: "brand_logo_url", Value: theme.BrandLogoURL, MaxLength: 240, AutoComplete: "off", Aria: map[string]string{"describedby": logoHelpID}, Raw: map[string]any{"placeholder": i18n.Text("appearance.company_logo_placeholder"), "inputmode": "url"}}
 	if onName != nil {
 		name.OnInput = ui.UseEvent(func(event ui.InputEvent) { onName(event.GetValue()) })
 	}
 	if onMark != nil {
 		mark.OnInput = ui.UseEvent(func(event ui.InputEvent) { onMark(event.GetValue()) })
 	}
-	if onLogo != nil {
-		logo.OnInput = ui.UseEvent(func(event ui.InputEvent) { onLogo(event.GetValue()) })
+	assetProps := BrandAssetPickerProps{I18nProps: i18n, Name: theme.BrandName, Mark: theme.BrandMark, LogoURL: theme.BrandLogoURL, Editable: true, OnChange: onLogo}
+	if len(picker) > 0 {
+		assetProps = picker[0]
+		assetProps.I18nProps = i18n
+		assetProps.Name, assetProps.Mark, assetProps.LogoURL = theme.BrandName, theme.BrandMark, theme.BrandLogoURL
+		assetProps.OnChange = onLogo
 	}
 	return html.Fieldset(html.Props{Class: "surface appearance-group"},
 		html.Legend(html.Props{}, ui.Text(i18n.Text("appearance.brand_signature"))),
@@ -112,7 +126,7 @@ func appearanceBrandSignature(i18n I18nProps, theme CustomerTheme, onName, onMar
 		html.Div(html.Props{Class: "appearance-brand-fields"},
 			html.Label(html.Props{For: name.ID}, html.Span(html.Props{}, ui.Text(i18n.Text("appearance.workspace_name"))), html.Input(name), html.Small(html.Props{}, ui.Text(i18n.Text("appearance.workspace_name_help")))),
 			html.Label(html.Props{For: mark.ID}, html.Span(html.Props{}, ui.Text(i18n.Text("appearance.short_mark"))), html.Input(mark), html.Small(html.Props{}, ui.Text(i18n.Text("appearance.short_mark_help")))),
-			html.Label(html.Props{Class: "appearance-brand-logo-field", For: logo.ID}, html.Span(html.Props{}, ui.Text(i18n.Text("appearance.company_logo"))), html.Input(logo), html.Small(html.Props{ID: logoHelpID}, ui.Text(i18n.Text("appearance.company_logo_help"))), html.Small(html.Props{Class: "appearance-logo-action-help"}, ui.Text(appearanceCopy(i18n, "appearance.company_logo_action_help", "Enter an approved image path supplied by your workspace administrator. This page does not upload or choose files.")))),
+			html.Div(html.Props{Class: "appearance-brand-logo-field"}, ui.CreateElement(BrandAssetPicker, assetProps)),
 		),
 	)
 }
@@ -164,23 +178,71 @@ func appearanceChoices(title, help, name, selected string, options []AppearanceO
 func appearancePreview(props AppearancePageProps) ui.Node {
 	theme := NormalizeCustomerTheme(props.Theme)
 	reset := html.Props{Class: "button", Type: "button", Disabled: !props.Editable}
+	reset.Data = map[string]string{"hcm-action": "rollback-appearance"}
 	if props.OnReset != nil {
 		reset.OnClick = ui.UseEvent(func(ui.MouseEvent) { props.OnReset() })
 	}
-	return html.Aside(html.Props{Class: "surface appearance-preview", Aria: map[string]string{"label": props.Text("appearance.preview_aria")}},
+	return html.Aside(html.Props{Class: "surface appearance-preview", Data: map[string]string{"hcm-preview-surface": "appearance"}, Aria: map[string]string{"label": props.Text("appearance.preview_aria")}},
 		html.Div(html.Props{}, html.H2(html.Props{}, ui.Text(props.Text("appearance.preview"))), html.P(html.Props{Class: "muted"}, ui.Text(props.Text("appearance.preview_help")))),
-		html.Div(html.Props{Class: "appearance-preview-window", Aria: map[string]string{"hidden": "true"}},
-			html.Div(html.Props{Class: "appearance-preview-bar"},
-				ui.CreateElement(BrandLogo, BrandLogoProps{Name: theme.BrandName, Mark: theme.BrandMark, LogoURL: theme.BrandLogoURL, Class: "appearance-preview-logo"}),
-			),
-			html.Div(html.Props{Class: "appearance-preview-body"},
-				html.Div(html.Props{Class: "appearance-preview-nav"}, navIcon("home"), navIcon("people"), navIcon("journeys")),
-				html.Div(html.Props{Class: "appearance-preview-content"}, html.Span(html.Props{}), html.Div(html.Props{Class: "appearance-preview-card"}, html.I(html.Props{}), html.Span(html.Props{}), html.Span(html.Props{}))),
-			),
+		html.Div(html.Props{Class: "appearance-preview-grid"},
+			appearancePreviewWindow(props, theme, "light", appearancePreviewLabel(props.Locale, "light"), "appearance-preview-light"),
+			appearancePreviewWindow(props, theme, "dark", appearancePreviewLabel(props.Locale, "dark"), "appearance-preview-dark"),
+			appearancePreviewWindow(props, theme, "compact", appearancePreviewLabel(props.Locale, "compact"), "appearance-preview-compact"),
 		),
 		html.P(html.Props{Class: "callout"}, ui.Text(props.Text("appearance.protected"))),
-		html.Div(html.Props{Class: "appearance-actions"}, html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: !props.Editable}, ui.Text(props.Text("appearance.save"))), html.Button(reset, ui.Text(props.Text("appearance.restore")))),
+		html.Div(html.Props{Class: "appearance-actions appearance-actions-sticky", Data: map[string]string{"hcm-sticky-actions": "true"}}, html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: !props.Editable, Data: map[string]string{"hcm-action": "save-appearance"}}, ui.Text(props.Text("appearance.save"))), html.Button(reset, ui.Text(props.Text("appearance.restore")))),
 		html.P(html.Props{ID: "appearance-status", Class: "appearance-status", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, ui.Text(props.Text("appearance.status"))),
+	)
+}
+
+func appearancePreviewLabel(locale LocaleContext, mode string) string {
+	switch locale.normalized().Resolved {
+	case "de-DE":
+		switch mode {
+		case "dark":
+			return "Dunkle Vorschau"
+		case "compact":
+			return "Kompakte Vorschau"
+		default:
+			return "Helle Vorschau"
+		}
+	case "ar":
+		switch mode {
+		case "dark":
+			return "معاينة داكنة"
+		case "compact":
+			return "معاينة مدمجة"
+		default:
+			return "معاينة فاتحة"
+		}
+	default:
+		switch mode {
+		case "dark":
+			return "Dark preview"
+		case "compact":
+			return "Compact preview"
+		default:
+			return "Light preview"
+		}
+	}
+}
+
+func appearancePreviewWindow(props AppearancePageProps, theme CustomerTheme, mode, label, class string) ui.Node {
+	previewTheme := theme
+	previewTheme.ColorMode = mode
+	if mode == "compact" {
+		previewTheme.Density = "compact"
+		previewTheme.ColorMode = "light"
+	}
+	return html.Div(html.Props{Class: "appearance-preview-window " + class, Data: map[string]string{"hcm-preview-mode": mode, "hcm-preview-color-mode": previewTheme.ColorMode, "hcm-preview-density": previewTheme.Density}, Aria: map[string]string{"label": label}},
+		html.H3(html.Props{}, ui.Text(label)),
+		html.Div(html.Props{Class: "appearance-preview-bar"},
+			ui.CreateElement(BrandLogo, BrandLogoProps{Name: previewTheme.BrandName, Mark: previewTheme.BrandMark, LogoURL: previewTheme.BrandLogoURL, Class: "appearance-preview-logo"}),
+		),
+		html.Div(html.Props{Class: "appearance-preview-body"},
+			html.Div(html.Props{Class: "appearance-preview-nav"}, navIcon("home"), navIcon("people"), navIcon("journeys")),
+			html.Div(html.Props{Class: "appearance-preview-content"}, html.Span(html.Props{}), html.Div(html.Props{Class: "appearance-preview-card"}, html.I(html.Props{}), html.Span(html.Props{}), html.Span(html.Props{}))),
+		),
 	)
 }
 

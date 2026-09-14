@@ -138,12 +138,35 @@ func promotionProposeRequest(clientRequestID string) *journeyv1.ProposePromotion
 		SubjectWorkerRef:        "omar-reyes",
 		DesiredJobCode:          "OPS-HRBP3",
 		DesiredGrade:            "P3",
-		DesiredPositionId:       "POS-HRBP-301",
+		DesiredPositionId:       "",
 		DesiredBasePay:          "98000.00",
 		EffectiveDate:           "2026-06-01",
 		Reason:                  "promotion_into_senior_hrbp",
 		ExpectedSubjectRevision: app.PromotionSubjectRevision("omar-reyes"),
 		ClientRequestId:         clientRequestID,
+	}
+}
+
+func TestTodo_PROMOUX_007_Integration_RealLadderRangeParity(t *testing.T) {
+	c := newPromotionCell(t)
+	for name, client := range c.transports() {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := c.callCtx(t)
+			defer cancel()
+			req := promotionProposeRequest("req-pay-correction-" + name)
+			req.DesiredBasePay = "100.00"
+			_, err := client.ProposePromotion(ctx, req)
+			owned := assertPromotionRefusal(t, err, envelope.CodeInvalidArgument)
+			got := owned.Violations()
+			want := envelope.MoneyRange{Minimum: "97650.00", Maximum: "106950.00", Currency: "USD"}
+			if len(got) != 1 || got[0].FieldPath != "proposed_base" ||
+				got[0].RuleRef != "promotion.ladder.base_increase_out_of_range" || got[0].MoneyRange != want {
+				t.Fatalf("real ladder correction through %s = %+v, want %+v", name, got, want)
+			}
+			if strings.Contains(err.Error(), "0.0500") || strings.Contains(err.Error(), "93000.00") {
+				t.Fatalf("%s refusal exposed internal diagnostic: %v", name, err)
+			}
+		})
 	}
 }
 
@@ -273,6 +296,21 @@ func TestTodo_PROMO_007_Integration(t *testing.T) {
 	})
 }
 
+func TestPromotionProposeWithoutUnconfirmedPositionCreatesAProposedJourney(t *testing.T) {
+	c := newPromotionCell(t)
+	ctx, cancel := c.callCtx(t)
+	defer cancel()
+	req := promotionProposeRequest("req-no-position-1")
+	req.DesiredPositionId = ""
+	res, err := c.direct.ProposePromotion(ctx, req)
+	if err != nil {
+		t.Fatalf("position-free ProposePromotion: %v", err)
+	}
+	if res.GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED || res.GetProposalRevisionId() == "" {
+		t.Fatalf("position-free promotion did not reach a proposed stage: %+v", res)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // SECURITY
 // ---------------------------------------------------------------------------
@@ -305,16 +343,16 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 			req := promotionProposeRequest("req-norev-" + name)
 			req.ExpectedSubjectRevision = ""
 			owned := assertPromotionRefusal(t, mustFail(client.ProposePromotion(ctx, req)), envelope.CodeInvalidArgument)
-			if !strings.Contains(owned.Message(), "expected_subject_revision") {
-				t.Fatalf("refusal %q does not name expected_subject_revision", owned.Message())
+			if !hasPromotionViolation(owned, "expected_subject_revision") {
+				t.Fatalf("refusal %+v does not identify expected_subject_revision", owned.Violations())
 			}
 		})
 
 		t.Run(name+"/the client request id is required", func(t *testing.T) {
 			req := promotionProposeRequest("")
 			owned := assertPromotionRefusal(t, mustFail(client.ProposePromotion(ctx, req)), envelope.CodeInvalidArgument)
-			if !strings.Contains(owned.Message(), "client_request_id") {
-				t.Fatalf("refusal %q does not name client_request_id", owned.Message())
+			if !hasPromotionViolation(owned, "client_request_id") {
+				t.Fatalf("refusal %+v does not identify client_request_id", owned.Violations())
 			}
 		})
 
@@ -337,8 +375,8 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 			req := promotionProposeRequest("req-currency-" + name)
 			req.DesiredPayCurrency = "EUR"
 			owned := assertPromotionRefusal(t, mustFail(client.ProposePromotion(ctx, req)), envelope.CodeInvalidArgument)
-			if !strings.Contains(owned.Message(), "desired_pay_currency") {
-				t.Fatalf("refusal %q does not name desired_pay_currency", owned.Message())
+			if !hasPromotionViolation(owned, "desired_pay_currency") {
+				t.Fatalf("refusal %+v does not identify desired_pay_currency", owned.Violations())
 			}
 		})
 
@@ -690,4 +728,13 @@ func assertPromotionRefusal(t *testing.T, err error, want envelope.Code) *envelo
 			owned.Code(), want, owned.ReasonRef(), owned.Message())
 	}
 	return owned
+}
+
+func hasPromotionViolation(err *envelope.Error, field string) bool {
+	for _, violation := range err.Violations() {
+		if violation.FieldPath == field {
+			return true
+		}
+	}
+	return false
 }

@@ -97,13 +97,12 @@ func TestUXBLIND005PersonaCopyNamesUsefulTasks(t *testing.T) {
 		if !ok {
 			t.Fatalf("no canonical role fixture for persona %q", id)
 		}
-		h.devPersonas[id] = DevPersona{ID: id, Name: "Worker " + id, Access: id, Roles: roles, Token: "token"}
+		h.devPersonas[id] = DevPersona{ID: id, Name: "Worker " + id, Access: id, Roles: roles, Token: frontendE2EToken(t, id+"-copy", roles)}
 	}
 	req := httptest.NewRequest(http.MethodGet, "http://cell.test"+PathLogin, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	body := rec.Body.String()
-
 	cards := personaCards(t, body, "admin", "hiring-manager", "payroll-manager", "individual-contributor")
 
 	// RED clause 1: no persona may promise a page it cannot open. Assert

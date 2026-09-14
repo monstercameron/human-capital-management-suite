@@ -185,14 +185,22 @@ type AuthorizedNavigationProjection struct {
 }
 
 type WorkItem struct {
-	ID              string
-	Initials        string
-	PhotoURL        string
-	Title           string
-	Person          string
-	PersonRef       string
+	ID       string
+	Initials string
+	PhotoURL string
+	Title    string
+	// TitleKey and StatusKey are semantic presentation keys supplied by an
+	// authorized adapter. They let locale changes re-project labels without
+	// treating English service copy as a translation identifier.
+	TitleKey  string
+	Person    string
+	PersonRef string
+	// AssigneeRef is the server-selected principal who currently owes the
+	// human decision. PersonRef remains the subject of the workflow.
+	AssigneeRef     string
 	Summary         string
 	Status          string
+	StatusKey       string
 	Due             string
 	Tone            string
 	Href            string
@@ -229,7 +237,6 @@ type WorkItem struct {
 	// never re-derive them from Status.
 	ViewerRelationships  []string
 	ViewerResponsibility string
-	AssigneeRef          string
 	AssigneeName         string
 	WorkDue              string
 	ViewerMembership     string
@@ -260,8 +267,14 @@ type Person struct {
 	Role          string
 	Team          string
 	Manager       string
-	Location      string
-	WorkerNumber  string
+	// ManagerRelationship and ManagerWorkerRef are the service-authorized
+	// reporting projection. ManagerWorkerRef is populated only when the
+	// manager is another admitted Person; hierarchy code never uses Manager
+	// display text as identity.
+	ManagerRelationship OrganizationRelationshipState
+	ManagerWorkerRef    string
+	Location            string
+	WorkerNumber        string
 	// PromotionAvailability is the server's four-state promotion-workflow
 	// verdict for this worker (see ResolvePromotionAvailability). The zero
 	// value means no verdict was recorded and fails closed: no launchable
@@ -420,13 +433,18 @@ type View struct {
 	Work                 []WorkItem
 	People               []Person
 	PersonWorkflows      []PersonWorkflow
-	SelectedWork         string
-	SelectedPerson       string
-	Query                string
-	PeoplePage           int
-	PeoplePageSize       int
-	PeopleTeam           string
-	PeopleLocation       string
+	// LauncherActions is the server-resolved semantic-action projection for
+	// the current principal. It is deliberately separate from page CRUD and
+	// PersonWorkflows, neither of which grants authority to start an action.
+	LauncherActions []LauncherActionProjection
+	SelectedWork    string
+	SelectedPerson  string
+	Query           string
+	RolePage        int
+	PeoplePage      int
+	PeoplePageSize  int
+	PeopleTeam      string
+	PeopleLocation  string
 	// PeopleEligibleOnly filters the directory to workers whose
 	// PromotionAvailability resolves to PromotionEligible for the current
 	// viewer, so an authorized reader can find candidates without knowing

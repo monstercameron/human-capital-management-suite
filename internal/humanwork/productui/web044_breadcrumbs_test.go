@@ -44,8 +44,8 @@ func TestTodo_WEB_044(t *testing.T) {
 	// A profile names its worker instead of repeating the generic page title.
 	person := testView(PagePerson)
 	personCrumbs := ResolveBreadcrumbs(person)
-	if len(personCrumbs) != 1 || personCrumbs[0].Label != "Avery Patel" || !personCrumbs[0].Current {
-		t.Fatalf("person trail = %#v, want current Avery Patel", personCrumbs)
+	if len(personCrumbs) != 1 || personCrumbs[0].Label != "Avery Patel · NW-40118" || !personCrumbs[0].Current {
+		t.Fatalf("person trail = %#v, want current Avery Patel · NW-40118", personCrumbs)
 	}
 	unselected := testView(PagePerson)
 	unselected.SelectedPerson = ""

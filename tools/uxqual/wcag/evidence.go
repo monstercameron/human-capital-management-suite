@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -50,12 +52,20 @@ func (e Evidence) Validate() error {
 	if e.Todo != "UX-003" || e.Standard != "WCAG 2.2 AA" || e.Artifact == "" {
 		return fmt.Errorf("invalid UX-003 evidence identity")
 	}
+	if filepath.IsAbs(e.Artifact) || strings.HasPrefix(filepath.Clean(e.Artifact), ".."+string(filepath.Separator)) || filepath.Clean(e.Artifact) == ".." {
+		return fmt.Errorf("evidence artifact must be a repository-relative path")
+	}
 	want := map[string]bool{"zoom-200": false, "reflow-400": false, "reduced-motion": false, "accessible-auth": false}
+	seenScenarios := map[string]bool{}
 	for _, s := range e.Scenarios {
 		if _, ok := want[s.ID]; !ok {
 			return fmt.Errorf("unknown scenario %q", s.ID)
 		}
-		if s.Kind == "" || (s.Status != "PASS" && s.Status != "PENDING") || s.Method == "" {
+		if seenScenarios[s.ID] {
+			return fmt.Errorf("duplicate scenario %q", s.ID)
+		}
+		seenScenarios[s.ID] = true
+		if s.Kind == "" || (s.Status != "PASS" && s.Status != "PENDING") || strings.TrimSpace(s.Method) == "" {
 			return fmt.Errorf("scenario %q lacks kind/status/method", s.ID)
 		}
 		want[s.ID] = true
@@ -65,9 +75,17 @@ func (e Evidence) Validate() error {
 			return fmt.Errorf("missing named scenario %q", id)
 		}
 	}
+	seenWaivers := map[string]bool{}
 	for _, w := range e.Waivers {
 		if w.ID == "" || w.Criterion == "" || w.Owner == "" || w.Severity == "" || w.Workaround == "" || w.Expires == "" || w.ApprovedBy == "" {
 			return fmt.Errorf("waiver %q is incomplete", w.ID)
+		}
+		if seenWaivers[w.ID] {
+			return fmt.Errorf("duplicate waiver %q", w.ID)
+		}
+		seenWaivers[w.ID] = true
+		if _, err := time.Parse("2006-01-02", w.Expires); err != nil {
+			return fmt.Errorf("waiver %q has invalid expiry %q", w.ID, w.Expires)
 		}
 	}
 	return nil
@@ -82,6 +100,12 @@ func (e Evidence) ReleaseReady() error {
 	for _, s := range e.Scenarios {
 		if s.Status != "PASS" {
 			return fmt.Errorf("scenario %q has not passed", s.ID)
+		}
+	}
+	today := time.Now().UTC().Format("2006-01-02")
+	for _, w := range e.Waivers {
+		if w.Expires < today {
+			return fmt.Errorf("waiver %q expired on %s", w.ID, w.Expires)
 		}
 	}
 	return nil

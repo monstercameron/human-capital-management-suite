@@ -35,7 +35,7 @@ type MetricProps struct {
 type ActivityProps struct {
 	Title  string
 	Detail string
-	When   string
+	Status string
 }
 
 // PanelProps is the common titled-surface composition primitive. Body is a
@@ -207,10 +207,14 @@ func MetricGrid(metrics []MetricProps) ui.Node {
 func ActivityList(items []ActivityProps, emptyTitle, emptyDescription string) ui.Node {
 	children := make([]ui.Node, 0, len(items))
 	for _, item := range items {
+		main := []ui.Node{html.Strong(html.Props{}, ui.Text(item.Title))}
+		if item.Detail != "" {
+			main = append(main, html.Small(html.Props{}, ui.Text(item.Detail)))
+		}
 		children = append(children, html.Li(html.Props{Class: "activity"},
-			html.Span(html.Props{Class: "check", Aria: map[string]string{"hidden": "true"}}, ui.Text("✓")),
-			html.Span(html.Props{Class: "row-main"}, html.Strong(html.Props{}, ui.Text(item.Title)), html.Small(html.Props{}, ui.Text(item.Detail))),
-			html.Tag("time", html.Props{}, ui.Text(item.When)),
+			html.Span(html.Props{Class: "check"}, productIcon("check", "activity-check-glyph")),
+			html.Span(html.Props{Class: "row-main"}, main...),
+			html.Small(html.Props{}, ui.Text(item.Status)),
 		))
 	}
 	if len(children) == 0 {

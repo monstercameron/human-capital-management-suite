@@ -297,8 +297,10 @@ func (a workspaceReader) worker(
 // stored intent's summary without a context or a database to reach the created
 // population with. That is safe there and nowhere else, because the summary's
 // worker id is immediately overwritten from the intent's own EMPLOYMENT
-// subject, which is the authoritative identity either way. Every surface that
-// resolves a reference somebody typed uses the cell's locator instead.
+// subject, which is the authoritative identity either way. The summary also
+// replaces the corpus tenant with the stored intent's tenant before exposing
+// the ref. Every surface that resolves a reference somebody typed uses the
+// cell's locator instead.
 func workspaceWorker(ref string) (values.EntityRef, bool) {
 	location, ok, err := locateCorpusWorker(fixtures.Tenant, ref)
 	if err != nil || !ok {

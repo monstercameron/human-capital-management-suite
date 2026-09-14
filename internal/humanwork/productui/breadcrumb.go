@@ -1,8 +1,6 @@
 package productui
 
 import (
-	"strings"
-
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -46,8 +44,8 @@ func ResolveBreadcrumbs(view View) []BreadcrumbItem {
 	if view.Page == PagePerson {
 		// An unadmitted record keeps the generic page label: naming the
 		// worker in the chrome would leak what the page withholds.
-		if person, ok := exactPerson(view); ok && strings.TrimSpace(person.Name) != "" && DiscoveryAdmitted(person.ID, view.RecordVerdicts) {
-			current.Label = person.Name
+		if label, ok := resolvedPersonPageLabel(view); ok {
+			current.Label = label
 		}
 	}
 	return append(items, current)

@@ -2,12 +2,14 @@ package journeyclient
 
 import (
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 )
@@ -253,8 +255,49 @@ func stageOf(s journeyv1.JourneyStage) string {
 // Work and Journeys share (PROMOUX-012): before it, Journeys said "Proposed"
 // where My Work said "Ready to start approval".
 func stageLabel(stage string) string {
-	label, _ := StagePresentation(journeyv1.JourneyStage(journeyv1.JourneyStage_value[stagePrefix+stage]))
-	return label
+	return stageLabelLocale("en-US", stage)
+}
+
+func stageLabelLocale(locale, stage string) string {
+	if locale == "" || locale == "en-US" {
+		label, _ := StagePresentation(journeyv1.JourneyStage(journeyv1.JourneyStage_value[stagePrefix+stage]))
+		return label
+	}
+	copy := productui.ResolveProductLocale(locale)
+	switch stage {
+	case stageProposed:
+		return copy.Text("journey.stage_proposed")
+	case stageBlocked:
+		return copy.Text("journey.stage_blocked")
+	case stageAwaitingApproval:
+		return copy.Text("journey.stage_awaiting_approval")
+	case stageCompleted:
+		return copy.Text("journey.stage_completed")
+	case stageRejected:
+		return copy.Text("journey.stage_rejected")
+	case stageFailed:
+		return copy.Text("journey.stage_failed")
+	case stageFinanceApproval:
+		return copy.Text("journey.stage_finance_approval")
+	case stageManagerApproval:
+		return copy.Text("journey.stage_manager_approval")
+	case stageWaitingEffective:
+		return copy.Text("journey.stage_waiting_effective")
+	case stageRevalidation:
+		return copy.Text("journey.stage_revalidation")
+	case stageReapproval:
+		return copy.Text("journey.stage_reapproval")
+	case stageExecuted:
+		return copy.Text("journey.stage_updating_record")
+	case stageObservingEffects:
+		return copy.Text("journey.stage_updating_record")
+	case stageRecorded:
+		return copy.Text("journey.stage_recorded")
+	case stageRepairRequired:
+		return copy.Text("journey.stage_repair_required")
+	default:
+		return copy.Text("journey.stage_unknown")
+	}
 }
 
 func stageTone(stage string) string {
@@ -311,8 +354,20 @@ func StagePresentation(stage journeyv1.JourneyStage) (label, tone string) {
 // rendered Principal, so a reviewer told "Purpose: compensation_review" had
 // an explanation with no paired way to leave it.
 func chrome(cfg Config, title string, notice *journey.Notice, values map[string]string, currentDetail bool) journey.Page {
+	copy := productui.ResolveProductLocale(cfg.Locale)
+	if notice != nil && (notice.TitleKey != "" || notice.MessageKey != "") {
+		localized := *notice
+		if notice.TitleKey != "" {
+			localized.Title = copy.Text(notice.TitleKey)
+		}
+		if notice.MessageKey != "" {
+			localized.Detail = copy.Text(notice.MessageKey)
+		}
+		notice = &localized
+	}
 	return journey.Page{
 		Title:       title,
+		Locale:      copy.Resolved,
 		Brand:       Brand,
 		TenantLabel: cfg.Tenant,
 		Principal: journey.Principal{
@@ -331,7 +386,7 @@ func chrome(cfg Config, title string, notice *journey.Notice, values map[string]
 		Notice: notice,
 		Footer: journey.Footer{
 			Lines: []string{
-				"Every figure here was read live from this cell over the gRPC tunnel, under the purpose above. Nothing on this page is cached in the browser.",
+				copy.Text("journey.footer"),
 			},
 		},
 		Values: values,
@@ -360,12 +415,17 @@ type ListData struct {
 	// WorkerErrors are per-field refusals from the last CreateWorker
 	// attempt, keyed by the request field name the engine named.
 	WorkerErrors map[string]string
+	// ProposalErrors are already-sanitized messages keyed by proposal field
+	// id. The projector only binds them to controls; it never interprets raw
+	// server failures.
+	ProposalErrors map[string]string
 }
 
 // ListPage projects the journeys overview: the workforce, the journeys and
 // the two forms that add to either.
 func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[string]string) journey.Page {
-	p := chrome(cfg, "Promotion journeys · "+Brand, notice, values, false)
+	copy := productui.ResolveProductLocale(cfg.Locale)
+	p := chrome(cfg, copy.Text("journey.list_title")+" · "+Brand, notice, values, false)
 	cards := make([]journey.JourneyCard, 0, len(data.Journeys))
 	for _, j := range data.Journeys {
 		if j == nil {
@@ -378,15 +438,17 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 	// order.
 	cards = groupJourneyCards(cards)
 	form := ProposalForm(values, data.Workers, data.SelectedRef, data.Options)
+	applyProposalErrors(&form, data.ProposalErrors)
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("journeys", "create") {
 		form.Disabled = true
-		form.DisabledReason = "Your assigned role can review promotion journeys but cannot create one."
+		form.DisabledReason = copy.Text("journey.form_no_access")
 	}
 	applyProposalCurrency(&form, workerCurrency(findWorker(data.Workers, data.SelectedRef), data.Options))
+	localizeProposalForm(&form, copy, false, nil, nil)
 	p.List = &journey.ListView{
 		Journeys: cards,
 		Groups:   journeySubjectGroups(cards),
-		Empty:    "No promotion has been proposed in this tenant yet. The form below starts one.",
+		Empty:    copy.Text("journey.list_empty"),
 		Form:     form,
 		People:   PeopleView(cfg, data, values),
 		// Whether the cell was composed with the P1B execution authority is
@@ -404,32 +466,97 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 // context and carried as a hidden form value; no unrelated worker or
 // journey is put on the page.
 func ProposalPage(cfg Config, data ListData, notice *journey.Notice, values map[string]string) journey.Page {
+	copy := productui.ResolveProductLocale(cfg.Locale)
 	worker := findWorker(data.Workers, data.SelectedRef)
-	title := "Start a promotion · " + Brand
+	title := copy.Text("journey.list_title") + " · " + Brand
 	if worker != nil && workerName(worker) != "" {
-		title = "Promote " + workerName(worker) + " · " + Brand
+		title = copy.Text("journey.promote_person", map[string]string{"name": workerName(worker)}) + " · " + Brand
 	}
 	p := chrome(cfg, title, notice, values, true)
 	form := focusedProposalForm(values, data.SelectedRef, data.Options, worker)
+	applyProposalErrors(&form, data.ProposalErrors)
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("journeys", "create") {
 		form.Disabled = true
-		form.DisabledReason = "Your assigned role can review promotion journeys but cannot create one."
+		form.DisabledReason = copy.Text("journey.form_no_access")
 	}
 	applyProposalCurrency(&form, workerCurrency(worker, data.Options))
-	loading := worker == nil && notice != nil && notice.Title == "Working…"
+	loading := worker == nil && notice != nil && notice.Busy
 	if worker == nil && !loading {
 		form.Disabled = true
-		form.DisabledReason = "This employee is not available under the current access purpose. Return to their profile and try again."
+		form.DisabledReason = copy.Text("journey.form_no_employee")
 	}
+	if jobs, _ := governedProposalChoices(data.Options, worker, ""); worker != nil && (len(cfg.PagePermissions) == 0 || cfg.CanPageAction("journeys", "create")) && len(jobs) == 0 {
+		form.Disabled = true
+		form.DisabledReason = copy.Text("journey.form_no_path")
+	}
+	path := selectedPromotionPath(data.Options, worker, values[FieldJobCode], values[FieldGrade])
+	localizeProposalForm(&form, copy, true, path, proposalPayRangeFor(worker, data.Options, path))
 	p.Proposal = &journey.ProposalView{
-		Subject:         promotionSubject(worker, data.Options),
+		Subject:         promotionSubject(worker, data.Options, copy),
 		Form:            form,
 		Loading:         loading,
 		BackHref:        personHref(data.SelectedRef),
-		JourneysLink:    journey.NavLink{Label: "View all promotion journeys", Href: ListHref()},
+		JourneysLink:    journey.NavLink{Label: copy.Text("journey.all_link"), Href: ListHref()},
 		EngineAvailable: true,
 	}
 	return p
+}
+
+func localizeProposalForm(form *journey.ProposalForm, copy productui.LocaleContext, focused bool, path *journeyv1.PromotionPathOption, payRange *proposalPayRange) {
+	if form == nil {
+		return
+	}
+	form.Submit = copy.Text("journey.form_submit")
+	for i := range form.Fields {
+		field := &form.Fields[i]
+		switch field.ID {
+		case FieldWorker:
+			field.Label, field.Help = copy.Text("journey.form_worker"), copy.Text("journey.form_worker_help")
+			if len(field.Options) > 0 {
+				field.Options[0].Label = copy.Text("journey.form_worker_option")
+			}
+		case FieldJobCode:
+			field.Label, field.Help = copy.Text("journey.form_next_role"), copy.Text("journey.form_next_role_help")
+			if len(field.Options) > 0 {
+				field.Options[0].Label = copy.Text("journey.form_next_role_option")
+			}
+		case FieldGrade:
+			field.Label, field.Help = copy.Text("journey.form_grade"), copy.Text("journey.form_grade_help")
+			if len(field.Options) > 0 {
+				field.Options[0].Label = copy.Text("journey.form_grade_option")
+			}
+		case FieldPosition:
+			field.Label, field.Help = copy.Text("journey.form_position"), copy.Text("journey.form_position_help")
+		case FieldBase:
+			field.Label, field.Help = copy.Text("journey.form_base"), copy.Text("journey.form_base_help")
+			field.Suffix = copy.Text("journey.form_base_year")
+			if focused {
+				field.Help = copy.Text("journey.form_choose_role_rule")
+				if path != nil {
+					field.Help = promotionPathRuleHelpLocale(path, copy)
+					if bounds := payRange.localizedBounds(copy); bounds != nil {
+						field.Help += " " + copy.Text("journey.form_base_amounts", bounds)
+					}
+				}
+			}
+		case FieldEffective:
+			field.Label, field.Help = copy.Text("journey.form_effective"), copy.Text("journey.form_effective_help")
+		case FieldReason:
+			field.Label, field.Help = copy.Text("journey.form_reason"), copy.Text("journey.form_reason_help")
+			field.Placeholder = copy.Text("journey.form_reason_placeholder")
+		}
+	}
+}
+
+func applyProposalErrors(form *journey.ProposalForm, fieldErrors map[string]string) {
+	if form == nil || len(fieldErrors) == 0 {
+		return
+	}
+	for i := range form.Fields {
+		if message := strings.TrimSpace(fieldErrors[form.Fields[i].ID]); message != "" {
+			form.Fields[i].Error = message
+		}
+	}
 }
 
 func findWorker(workers []*journeyv1.Worker, ref string) *journeyv1.Worker {
@@ -442,7 +569,7 @@ func findWorker(workers []*journeyv1.Worker, ref string) *journeyv1.Worker {
 	return nil
 }
 
-func promotionSubject(worker *journeyv1.Worker, options *journeyv1.WorkforceOptions) *journey.PromotionSubject {
+func promotionSubject(worker *journeyv1.Worker, options *journeyv1.WorkforceOptions, copy productui.LocaleContext) *journey.PromotionSubject {
 	if worker == nil {
 		return nil
 	}
@@ -451,12 +578,12 @@ func promotionSubject(worker *journeyv1.Worker, options *journeyv1.WorkforceOpti
 		Name:     workerName(worker),
 		PhotoURL: worker.GetProfilePhotoUrl(),
 		Number:   worker.GetWorkerNumber(),
-		Title:    JobTitle(worker.GetJobCode()),
+		Title:    nonEmpty(worker.GetJobTitle(), JobTitle(worker.GetJobCode())),
 		JobCode:  worker.GetJobCode(),
 		Grade:    worker.GetGrade(),
-		OrgUnit:  worker.GetOrgUnit(),
+		OrgUnit:  productui.DisplayLabel(worker.GetOrgUnit()),
 		Location: worker.GetLocation(),
-		PayLine:  orDash(formatAmount(workerCurrency(worker, options), worker.GetBasePay())),
+		PayLine:  orDash(copy.FormatMoney(worker.GetBasePay(), workerCurrency(worker, options), 2)),
 	}
 }
 
@@ -486,14 +613,15 @@ func card(cfg Config, j *journeyv1.Journey) journey.JourneyCard {
 		WorkerName:            j.GetWorkerName(),
 		WorkerRef:             j.GetWorkerRef(),
 		Headline:              headline(j.GetCurrent().GetJobCode(), j.GetCurrent().GetGrade(), j.GetTarget().GetJobCode(), j.GetTarget().GetGrade()),
-		PayLine:               payLine(j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()),
-		EffectiveDate:         formatDate(j.GetEffectiveDate()),
+		PayLine:               payLineLocale(cfg.Locale, j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()),
+		EffectiveDate:         formatDateLocale(cfg.Locale, j.GetEffectiveDate()),
 		Stage:                 stage,
-		StageLabel:            stageLabel(stage),
+		StageLabel:            stageLabelLocale(cfg.Locale, stage),
+		Group:                 journeyGroup(stage),
 		StageTone:             stageTone(stage),
 		NextStep:              NextStepLabel(JourneyStatusDimension(j).NextStep),
 		Closed:                JourneyClosed(j),
-		Updated:               formatTime(j.GetUpdatedAt()),
+		Updated:               formatTimeLocale(cfg.Locale, j.GetUpdatedAt()),
 		InstanceID:            j.GetInstanceId(),
 		DiagnosticsAuthorized: cfg.CanPageAction(diagnosticsPageID, "view"),
 	}
@@ -596,6 +724,21 @@ func appendJourneyStatusChip(statuses []journey.JourneyStatusChip, c journey.Jou
 	return append(statuses, journey.JourneyStatusChip{Label: c.StageLabel, Tone: c.StageTone})
 }
 
+func journeyGroup(stage string) journey.JourneyGroup {
+	switch stage {
+	case stageProposed, stageAwaitingApproval, stageFinanceApproval, stageManagerApproval, stageRevalidation, stageReapproval:
+		return journey.JourneyGroupReview
+	case stageWaitingEffective, stageExecuted, stageObservingEffects:
+		return journey.JourneyGroupWaiting
+	case stageBlocked, stageFailed, stageRepairRequired:
+		return journey.JourneyGroupIssue
+	case stageCompleted, stageRecorded, stageRejected:
+		return journey.JourneyGroupClosed
+	default:
+		return journey.JourneyGroupIssue
+	}
+}
+
 // DefaultEffectiveDate is the proposal form's seeded effective date: the
 // first day of the month three months out.
 //
@@ -632,7 +775,7 @@ func ProposalForm(values map[string]string, workers []*journeyv1.Worker, selecte
 	}
 	workerObj := findWorker(workers, worker)
 	jobCodes, grades := governedProposalChoices(options, workerObj, values[FieldJobCode])
-	return journey.ProposalForm{
+	form := journey.ProposalForm{
 		Action: ListHref(),
 		Hidden: map[string]string{},
 		Submit: "Propose and simulate",
@@ -645,12 +788,11 @@ func ProposalForm(values map[string]string, workers []*journeyv1.Worker, selecte
 		// through the same headline/payLine/workerName helpers
 		// actionConfirmation's callers already use elsewhere in this file.
 		Confirmation:     proposalConfirmation(workerObj, options, values[FieldJobCode], values[FieldGrade], values[FieldBase], effective),
-		ConfirmationNote: "The proposal is simulated on submit; nothing is executed until the gate admits it.",
+		ConfirmationNote: productui.ResolveProductLocale("").Text("journey.form_submit_help"),
 		Fields: []journey.Field{
 			{
-				ID: FieldWorker, Name: NameWorker, Label: "Worker", Kind: kindSelect, Required: true,
+				ID: FieldWorker, Name: NameWorker, Kind: kindSelect, Required: true,
 				Value: worker,
-				Help:  "Only workers whose records you may read under this purpose can be proposed. The current placement, pay and budget authority are read from the record, never from this form.",
 				// The list is the workforce the cell just answered with,
 				// never a list this client keeps: an employee added a minute
 				// ago is proposable, and one the caller may not read is not
@@ -658,38 +800,33 @@ func ProposalForm(values map[string]string, workers []*journeyv1.Worker, selecte
 				Options: workerOptions(workers, worker),
 			},
 			{
-				ID: FieldJobCode, Name: NameJobCode, Label: "Target job code", Kind: kindSelect,
-				Required: true, Options: stringOptions("Select a governed job code", jobCodes, values[FieldJobCode]),
-				Help: "Published by this organization's compensation catalog; an arbitrary code cannot be submitted.",
+				ID: FieldJobCode, Name: NameJobCode, Kind: kindSelect,
+				Required: true, Value: values[FieldJobCode], Options: stringOptions("Select a governed job code", jobCodes, values[FieldJobCode]),
 			},
 			{
-				ID: FieldGrade, Name: NameGrade, Label: "Target grade", Kind: kindSelect, Required: true,
-				Options: stringOptions("Select target grade", grades, values[FieldGrade]),
-				Help:    "Published grades only. The simulation verifies the job-code and grade combination and routes any required additional approval.",
+				ID: FieldGrade, Name: NameGrade, Kind: kindSelect, Required: true,
+				Value: values[FieldGrade], Options: stringOptions("Select target grade", grades, values[FieldGrade]),
 			},
 			{
-				ID: FieldPosition, Name: NamePosition, Label: "Target position", Kind: kindText,
-				Required: true, Placeholder: "e.g. POS-HRBP-301",
-				Help: "Required. The position is the governed assignment the promoted worker will occupy.",
+				ID: FieldPosition, Name: NamePosition, Kind: kindText,
+				Value: values[FieldPosition],
 			},
 			{
-				ID: FieldBase, Name: NameBase, Label: "Proposed base pay", Kind: kindNumber,
-				Required: true, Step: "0.01", Min: "0", Placeholder: "0.00",
-				Suffix: "per year",
-				Help:   "In the worker's current currency. The budget envelope is checked during simulation.",
+				ID: FieldBase, Name: NameBase, Kind: kindNumber,
+				Required: true, Value: values[FieldBase], Step: "0.01", Min: "0", Placeholder: "0.00",
 			},
 			{
-				ID: FieldEffective, Name: NameEffective, Label: "Effective date", Kind: kindDate,
+				ID: FieldEffective, Name: NameEffective, Kind: kindDate,
 				Required: true, Value: effective,
-				Help: "Choose when the promotion should take effect. Simulation checks the date against the applicable promotion rules; recording still requires approvals and final checks.",
 			},
 			{
-				ID: FieldReason, Name: NameReason, Label: "Business reason", Kind: kindTextarea,
-				Required: true, Placeholder: "Describe the business need and expanded responsibilities.",
-				Help: "Kept with the intent and carried into the ledger event's evidence.",
+				ID: FieldReason, Name: NameReason, Kind: kindTextarea, Required: true,
+				Value: values[FieldReason],
 			},
 		},
 	}
+	localizeProposalForm(&form, productui.ResolveProductLocale(""), false, nil, nil)
+	return form
 }
 
 // FocusedProposalForm removes the worker chooser from ProposalForm and pins
@@ -709,18 +846,12 @@ func focusedProposalForm(values map[string]string, selectedRef string, options *
 	jobCodes, grades := governedProposalChoices(options, worker, values[FieldJobCode])
 	if worker != nil && len(jobCodes) == 0 {
 		form.Disabled = true
-		form.DisabledReason = "No promotion path is available for this employee's current job and grade. Ask your HR administrator to publish an eligible next role in the job ladder, then return to this employee's profile."
+		form.DisabledReason = productui.ResolveProductLocale("").Text("journey.form_no_path")
 	}
-	form.Fields[1].Label = "Valid next role"
 	form.Fields[1].Options = promotionJobOptions(options, worker, jobCodes, values[FieldJobCode])
-	form.Fields[1].Help = "Published by this organization's job architecture. Pay bands alone do not make an unrelated role a valid promotion target."
 	form.Fields[2].Options = stringOptions("Select target grade", grades, values[FieldGrade])
-	form.Fields[2].Help = "Pinned to the selected ladder edge; the server refuses a job and grade that are not published together."
-	if path := selectedPromotionPath(options, worker, values[FieldJobCode], values[FieldGrade]); path != nil {
-		form.Fields[4].Help = promotionPathRuleHelp(path)
-	} else {
-		form.Fields[4].Help = "Select a valid next role to see its exact base-pay guardrail and benefit-eligibility rules."
-	}
+	path := selectedPromotionPath(options, worker, values[FieldJobCode], values[FieldGrade])
+	localizeProposalForm(&form, productui.ResolveProductLocale(""), true, path, proposalPayRangeFor(worker, options, path))
 	form.Action = ProposalHref(selectedRef)
 	form.Fields[0] = journey.Field{
 		ID: FieldWorker, Name: NameWorker, Kind: kindHidden, Value: strings.TrimSpace(selectedRef),
@@ -820,15 +951,21 @@ func promotionJobOptions(options *journeyv1.WorkforceOptions, worker *journeyv1.
 }
 
 func promotionPathRuleHelp(path *journeyv1.PromotionPathOption) string {
+	return promotionPathRuleHelpLocale(path, productui.ResolveProductLocale(""))
+}
+
+func promotionPathRuleHelpLocale(path *journeyv1.PromotionPathOption, copy productui.LocaleContext) string {
 	if path == nil {
 		return ""
 	}
-	help := "This ladder edge allows a base increase from " + fractionPercentLabel(path.GetMinimumBaseIncrease()) + " to " + fractionPercentLabel(path.GetMaximumBaseIncrease()) + "."
-	if policy := strings.TrimSpace(path.GetCompensationPolicyRef()); policy != "" {
-		help += " Compensation is evaluated under " + policy + "."
+	minimum := fractionPercentLabel(path.GetMinimumBaseIncrease())
+	maximum := fractionPercentLabel(path.GetMaximumBaseIncrease())
+	help := copy.Text("journey.form_base_rule_unavailable")
+	if minimum != "" && maximum != "" {
+		help = copy.Text("journey.form_base_rule", map[string]string{"minimum": minimum, "maximum": maximum})
 	}
 	if rules := path.GetBenefitRuleRefs(); len(rules) > 0 {
-		help += " Benefit eligibility is reevaluated under " + strings.Join(rules, ", ") + "; existing elections are not changed directly."
+		help += " " + copy.Text("journey.form_benefit_rule")
 	}
 	return help
 }
@@ -881,11 +1018,11 @@ func applyProposalCurrency(form *journey.ProposalForm, currency string) {
 // an employee here actually does, because "add an employee" in a governed
 // cell is a durable fact rather than a row in a demo table, and a reader who
 // does not know that will not understand why it cannot be edited away.
-const PeopleNote = "Employees you add are recorded as facts in this cell's workforce table and become visible to every governed read."
+const PeopleNote = "Employees you add appear in the directory after the request succeeds."
 
 // PeopleEmpty is the empty state. It names the form below it, so an empty
 // cell reads as a starting point rather than as a failure.
-const PeopleEmpty = "This cell knows no employees under this purpose yet. The form below records the first one."
+const PeopleEmpty = "No employees are available in this view yet. Add the first employee below."
 
 // jobTitles is the human name for each job code the release's corpus and
 // pay-band catalog carry.
@@ -967,7 +1104,7 @@ func workerCard(w *journeyv1.Worker, open map[string]int, selectedRef string, op
 		Title:        JobTitle(w.GetJobCode()),
 		JobCode:      w.GetJobCode(),
 		Grade:        w.GetGrade(),
-		OrgUnit:      w.GetOrgUnit(),
+		OrgUnit:      productui.DisplayLabel(w.GetOrgUnit()),
 		Location:     w.GetLocation(),
 		PayLine:      orDash(formatAmount(workerCurrency(w, options), w.GetBasePay())),
 		HireDate:     orDash(formatDate(w.GetHireDate())),
@@ -1126,7 +1263,7 @@ func WorkerForm(options *journeyv1.WorkforceOptions, values map[string]string, f
 			labelledOptions(options.GetGrades(), nil), true, ""),
 		selectField(FieldWorkerOrgUnit, NameOrgUnit, "Org unit", values,
 			labelledOptions(options.GetOrgUnits(), nil), true,
-			"The org units this cell observes. It is also where the location falls back to."),
+			"Choose the employee's organization. It also supplies the default location when none is provided."),
 		{
 			ID: FieldWorkerPosition, Name: NameWorkerPosition, Label: "Position id", Kind: kindText,
 			Value:       valueOr(values, FieldWorkerPosition, firstOr(options.GetPositions(), DefaultPositionID)),
@@ -1192,7 +1329,7 @@ func currencyField(currency string, values map[string]string) journey.Field {
 		ID: FieldWorkerCurrency, Name: NameCurrency, Label: "Currency", Kind: kindText,
 		Required: true, Value: valueOr(values, FieldWorkerCurrency, DefaultCurrency),
 		Placeholder: DefaultCurrency,
-		Help:        "This cell's pay-band catalog declared no currency, so the record needs one.",
+		Help:        "Choose the currency used for this employee's base pay.",
 	}
 }
 
@@ -1286,34 +1423,54 @@ func DetailPageWithInterventions(
 	cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string,
 	withdrawPreview, cancelPreview *journeyv1.PreviewJourneyInterventionResponse,
 ) journey.Page {
+	copy := productui.ResolveProductLocale(cfg.Locale)
+	if detail == nil {
+		p := chrome(cfg, copy.Text("journey.detail_title")+" · "+Brand, notice, values, true)
+		p.Detail = &journey.DetailView{
+			Unavailable:  true,
+			JourneysLink: journey.NavLink{Label: copy.Text("journey.all_link"), Href: ListHref()},
+		}
+		return p
+	}
 	summary := detail.GetJourney()
 	head := card(cfg, summary)
-	title := "Promotion journey · " + Brand
+	title := copy.Text("journey.detail_title") + " · " + Brand
 	if name := summary.GetWorkerName(); name != "" {
-		title = name + " · Promotion journey · " + Brand
+		title = name + " · " + copy.Text("journey.detail_title") + " · " + Brand
 	}
 	p := chrome(cfg, title, notice, values, true)
-	detailActions := actions(head, detail.GetApprover(), detail.GetWorkItems(), withdrawPreview, cancelPreview)
+	detailActions := actionsLocale(cfg.Locale, head, detail.GetApprover(), detail.GetWorkItems(), withdrawPreview, cancelPreview)
+	if approvalStage(head.Stage) && !detail.GetCanDecide() {
+		allowed := detailActions[:0]
+		for _, action := range detailActions {
+			if action.ID != ActionApprove && action.ID != ActionReject {
+				allowed = append(allowed, action)
+			}
+		}
+		detailActions = allowed
+	}
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("journeys", "update") && !cfg.CanPageAction("work", "update") {
 		detailActions = nil
 	}
 	p.Detail = &journey.DetailView{
 		Journey:         head,
-		BackLink:        journey.NavLink{Label: "Back to " + nonEmpty(summary.GetWorkerName(), "employee") + " in People", Href: personHref(summary.GetWorkerRef())},
-		JourneysLink:    journey.NavLink{Label: "View all promotion journeys", Href: ListHref()},
-		Steps:           steps(head.Stage, detail.GetTimeline()),
-		Proposal:        proposalFacts(detail),
-		Comparison:      comparison(summary),
-		Findings:        findings(detail.GetFindings()),
+		Diagnostics:     detail.GetDiagnosticsAvailable() && head.DiagnosticsAuthorized,
+		BackLink:        journey.NavLink{Label: copy.Text("journey.back_to_profile", map[string]string{"name": nonEmpty(summary.GetWorkerName(), copy.Text("journey.employee_label"))}), Href: personHref(summary.GetWorkerRef())},
+		JourneysLink:    journey.NavLink{Label: copy.Text("journey.all_link"), Href: ListHref()},
+		Steps:           stepsLocale(cfg.Locale, head.Stage, detail.GetTimeline(), summary.GetEffectiveDate()),
+		Proposal:        proposalFactsLocale(cfg.Locale, detail),
+		Comparison:      comparisonLocale(cfg.Locale, summary),
+		Findings:        findingsLocale(cfg.Locale, detail.GetFindings()),
 		WaitExplanation: waitExplanationFacts(detail.GetFindings()),
 		Engine:          engineFacts(detail.GetInstance()),
 		Nodes:           nodes(detail.GetNodes()),
 		WorkItems:       workItems(detail.GetWorkItems()),
-		Ledger:          ledger(detail.GetLedger(), summary.GetEffectiveDate()),
+		Ledger:          ledgerLocale(cfg.Locale, detail.GetLedger(), summary.GetEffectiveDate()),
+		PendingOutcome:  pendingOutcomeLocale(cfg.Locale, head.Stage, head.EffectiveDate),
 		Evidence:        detail.GetEvidenceIds(),
-		Timeline:        timeline(detail.GetTimeline()),
+		Timeline:        timelineLocale(cfg.Locale, detail.GetTimeline()),
 		Actions:         detailActions,
-		EffectiveWindow: effectiveWindow(summary),
+		EffectiveWindow: effectiveWindowLocale(cfg.Locale, summary),
 	}
 	// PayBand and Budget stay nil: the detail carries no band and no
 	// envelope, and a gauge drawn from numbers the engine did not send would
@@ -1322,35 +1479,60 @@ func DetailPageWithInterventions(
 	return p
 }
 
-// stepIDs and stepLabels are the four stages of the stepper, in order.
-var (
-	stepIDs        = [4]string{"proposed", "executed", "approval", "recorded"}
-	stepLabels     = [4]string{"Proposal", "Execution", "Approval", "Record"}
-	stepDoneDetail = [4]string{
-		"The proposal was saved and checked against promotion rules.",
-		"The workflow was authorized and started.",
-		"The required approval step was completed.",
-		"The promotion was recorded in the audit ledger.",
+func pendingOutcome(stage, effectiveDate string) string {
+	return pendingOutcomeLocale("en-US", stage, effectiveDate)
+}
+
+func pendingOutcomeLocale(locale, stage, effectiveDate string) string {
+	copy := productui.ResolveProductLocale(locale)
+	switch stage {
+	case stageWaitingEffective:
+		return copy.Text("journey.outcome_waiting", map[string]string{"date": nonEmpty(effectiveDate, copy.Text("journey.effective_date_fallback"))})
+	case stageManagerApproval, stageReapproval:
+		return copy.Text("journey.outcome_manager")
+	case stageAwaitingApproval, stageFinanceApproval:
+		return copy.Text("journey.outcome_finance")
+	case stageBlocked, stageRejected, stageFailed, stageRepairRequired:
+		return copy.Text("journey.outcome_blocked")
+	default:
+		return copy.Text("journey.outcome_default")
 	}
+}
+
+func approvalStage(stage string) bool {
+	switch stage {
+	case stageAwaitingApproval, stageFinanceApproval, stageManagerApproval, stageReapproval:
+		return true
+	default:
+		return false
+	}
+}
+
+// stepIDs are the business stages a reader needs to follow.
+// Finance and manager review remain distinct because they are performed by
+// different people with different authority; execution machinery is kept in
+// diagnostics instead of masquerading as a user task.
+var (
+	stepIDs = [5]string{"proposal", "finance-review", "manager-review", "effective-date", "recorded"}
 	// stepStates is the whole of this page's reading of a stage. Each row is
-	// the four steps' states at one stage, so "what does BLOCKED look like"
+	// the five steps' states at one stage, so "what does BLOCKED look like"
 	// is one line to read rather than a walk through conditionals.
-	stepStates = map[string][4]string{
-		stageProposed:         {stepDone, stepActive, stepUpcoming, stepUpcoming},
-		stageBlocked:          {stepFailed, stepUpcoming, stepUpcoming, stepUpcoming},
-		stageAwaitingApproval: {stepDone, stepDone, stepActive, stepUpcoming},
-		stageFinanceApproval:  {stepDone, stepDone, stepActive, stepUpcoming},
-		stageManagerApproval:  {stepDone, stepDone, stepActive, stepUpcoming},
-		stageReapproval:       {stepDone, stepDone, stepActive, stepUpcoming},
-		stageWaitingEffective: {stepDone, stepDone, stepDone, stepActive},
-		stageRevalidation:     {stepDone, stepActive, stepDone, stepUpcoming},
-		stageExecuted:         {stepDone, stepDone, stepDone, stepActive},
-		stageObservingEffects: {stepDone, stepDone, stepDone, stepActive},
-		stageCompleted:        {stepDone, stepDone, stepDone, stepDone},
-		stageRecorded:         {stepDone, stepDone, stepDone, stepDone},
-		stageRejected:         {stepDone, stepDone, stepFailed, stepUpcoming},
-		stageFailed:           {stepDone, stepFailed, stepUpcoming, stepUpcoming},
-		stageRepairRequired:   {stepDone, stepFailed, stepUpcoming, stepUpcoming},
+	stepStates = map[string][5]string{
+		stageProposed:         {stepDone, stepActive, stepUpcoming, stepUpcoming, stepUpcoming},
+		stageBlocked:          {stepFailed, stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming},
+		stageAwaitingApproval: {stepDone, stepActive, stepUpcoming, stepUpcoming, stepUpcoming},
+		stageFinanceApproval:  {stepDone, stepActive, stepUpcoming, stepUpcoming, stepUpcoming},
+		stageManagerApproval:  {stepDone, stepDone, stepActive, stepUpcoming, stepUpcoming},
+		stageReapproval:       {stepDone, stepDone, stepActive, stepUpcoming, stepUpcoming},
+		stageWaitingEffective: {stepDone, stepDone, stepDone, stepActive, stepUpcoming},
+		stageRevalidation:     {stepDone, stepDone, stepDone, stepDone, stepActive},
+		stageExecuted:         {stepDone, stepDone, stepDone, stepDone, stepActive},
+		stageObservingEffects: {stepDone, stepDone, stepDone, stepDone, stepActive},
+		stageCompleted:        {stepDone, stepDone, stepDone, stepDone, stepDone},
+		stageRecorded:         {stepDone, stepDone, stepDone, stepDone, stepDone},
+		stageRejected:         {stepDone, stepFailed, stepUpcoming, stepUpcoming, stepUpcoming},
+		stageFailed:           {stepDone, stepFailed, stepUpcoming, stepUpcoming, stepUpcoming},
+		stageRepairRequired:   {stepDone, stepDone, stepDone, stepFailed, stepUpcoming},
 	}
 )
 
@@ -1358,18 +1540,30 @@ var (
 // rather than from a second reading of the same rows: whichever event kind
 // marks a step is where that step's timestamp comes from, and a step with no
 // such event carries no time rather than a guess.
-func steps(stage string, events []*journeyv1.TimelineEvent) []journey.Step {
+func steps(stage string, events []*journeyv1.TimelineEvent, effectiveDate string) []journey.Step {
+	return stepsLocale("en-US", stage, events, effectiveDate)
+}
+
+func stepsLocale(locale, stage string, events []*journeyv1.TimelineEvent, effectiveDate string) []journey.Step {
+	copy := productui.ResolveProductLocale(locale)
 	states, ok := stepStates[stage]
 	if !ok {
-		states = [4]string{stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming}
+		states = [5]string{stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming}
 	}
-	at := stepTimes(events)
+	at := stepTimesLocale(locale, events)
+	if states[3] == stepActive || states[3] == stepDone {
+		at[3] = formatDateLocale(locale, effectiveDate)
+	}
 	out := make([]journey.Step, 0, len(stepIDs))
 	for i := range stepIDs {
+		detail := copy.Text("journey.step." + stepIDs[i] + "." + states[i])
+		if i == 1 && stage == stageProposed {
+			detail = copy.Text("journey.step.finance-review.pending-start")
+		}
 		out = append(out, journey.Step{
 			ID:     stepIDs[i],
-			Label:  stepLabels[i],
-			Detail: stepDescription(i, states[i]),
+			Label:  copy.Text("journey.step." + stepIDs[i] + ".label"),
+			Detail: detail,
 			State:  states[i],
 			At:     at[i],
 		})
@@ -1377,63 +1571,40 @@ func steps(stage string, events []*journeyv1.TimelineEvent) []journey.Step {
 	return out
 }
 
-func stepDescription(index int, state string) string {
-	if index < 0 || index >= len(stepDoneDetail) {
-		return ""
-	}
-	if state == stepDone {
-		return stepDoneDetail[index]
-	}
-	active := [4]string{
-		"Review the simulation findings and correct any blocked proposal details.",
-		"Ready to review and start the approval workflow.",
-		"Waiting for the assigned approver's decision.",
-		"Waiting for the effective date and final checks before recording.",
-	}
-	upcoming := [4]string{
-		"Submit the proposed change for policy checks.",
-		"An authorized reviewer can start the workflow.",
-		"The required approvers will receive a review request.",
-		"The promotion will be recorded after approvals and final checks.",
-	}
-	failed := [4]string{
-		"The proposal cannot advance until the simulation findings are resolved.",
-		"Execution stopped before an approval could be completed.",
-		"The proposal was rejected; no promotion fact was recorded.",
-		"The terminal fact could not be recorded and needs attention.",
-	}
-	switch state {
-	case stepActive:
-		return active[index]
-	case stepFailed:
-		return failed[index]
-	default:
-		return upcoming[index]
-	}
+// stepTimes maps timeline kinds onto the five business steps. Distinct work
+// item references identify the finance and manager reviews without parsing
+// localized titles; the effective-date timestamp comes from the immutable
+// proposal rather than from a browser clock.
+func stepTimes(events []*journeyv1.TimelineEvent) [5]string {
+	return stepTimesLocale("en-US", events)
 }
 
-// stepTimes maps timeline kinds onto the four steps: the intent's creation,
-// the instance start, the last work item transition (a step is "reached"
-// when the latest thing that happened to it happened), and the ledger write.
-func stepTimes(events []*journeyv1.TimelineEvent) [4]string {
-	var at [4]string
+func stepTimesLocale(locale string, events []*journeyv1.TimelineEvent) [5]string {
+	var at [5]string
+	workItems := make([]string, 0, 2)
 	for _, e := range events {
 		if e == nil {
 			continue
 		}
-		when := formatTime(e.GetAt())
+		when := formatTimeLocale(locale, e.GetAt())
 		if when == "" {
 			continue
 		}
 		switch e.GetKind() {
 		case eventIntentCreated:
 			at[0] = when
-		case eventInstanceStarted:
-			at[1] = when
 		case eventWorkItem:
-			at[2] = when
+			ref := strings.TrimSpace(e.GetRef())
+			index := slices.Index(workItems, ref)
+			if index < 0 && ref != "" && len(workItems) < 2 {
+				workItems = append(workItems, ref)
+				index = len(workItems) - 1
+			}
+			if index >= 0 && index < 2 {
+				at[index+1] = when
+			}
 		case eventLedgerRecorded:
-			at[3] = when
+			at[4] = when
 		}
 	}
 	return at
@@ -1441,10 +1612,15 @@ func stepTimes(events []*journeyv1.TimelineEvent) [4]string {
 
 // proposalFacts is the request as the engine recorded it.
 func proposalFacts(detail *journeyv1.JourneyDetail) []journey.Fact {
+	return proposalFactsLocale("en-US", detail)
+}
+
+func proposalFactsLocale(locale string, detail *journeyv1.JourneyDetail) []journey.Fact {
+	copy := productui.ResolveProductLocale(locale)
 	j := detail.GetJourney()
 	facts := []journey.Fact{}
 	if v := j.GetBusinessReason(); v != "" {
-		facts = append(facts, journey.Fact{Label: "Business reason", Value: v})
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.business_reason"), Value: v})
 	}
 	if v := j.GetWorkerRef(); v != "" {
 		facts = append(facts, journey.Fact{Label: "Worker", Value: v, Mono: true})
@@ -1472,34 +1648,39 @@ func proposalFacts(detail *journeyv1.JourneyDetail) []journey.Fact {
 
 // comparison is the before/after table.
 func comparison(j *journeyv1.Journey) []journey.ComparisonRow {
+	return comparisonLocale("en-US", j)
+}
+
+func comparisonLocale(locale string, j *journeyv1.Journey) []journey.ComparisonRow {
 	if j == nil {
 		return nil
 	}
+	copy := productui.ResolveProductLocale(locale)
 	cur, tgt := j.GetCurrent(), j.GetTarget()
 	rows := []journey.ComparisonRow{
-		row("Job code", cur.GetJobCode(), tgt.GetJobCode()),
-		row("Grade", cur.GetGrade(), tgt.GetGrade()),
-		row("Position", cur.GetPositionId(), tgt.GetPositionId()),
-		row("Org unit", cur.GetOrgUnit(), tgt.GetOrgUnit()),
+		row(copy.Text("journey.compare_job"), cur.GetJobCode(), tgt.GetJobCode()),
+		row(copy.Text("journey.compare_grade"), cur.GetGrade(), tgt.GetGrade()),
+		row(copy.Text("journey.compare_position"), cur.GetPositionId(), tgt.GetPositionId()),
+		row(copy.Text("journey.compare_org"), productui.DisplayLabel(cur.GetOrgUnit()), productui.DisplayLabel(tgt.GetOrgUnit())),
 	}
 
 	pay := journey.ComparisonRow{
-		Label:    "Base pay",
-		Current:  orDash(formatAmount(j.GetCurrency(), j.GetCurrentBase())),
-		Proposed: orDash(formatAmount(j.GetCurrency(), j.GetProposedBase())),
+		Label:    copy.Text("journey.compare_base"),
+		Current:  orDash(formatAmountLocale(locale, j.GetCurrency(), j.GetCurrentBase())),
+		Proposed: orDash(formatAmountLocale(locale, j.GetCurrency(), j.GetProposedBase())),
 	}
-	if delta, ok := amountDelta(j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()); ok {
+	if delta, ok := amountDeltaLocale(locale, j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()); ok {
 		pay.Delta = delta
 		pay.Changed = true
-		if pct, okPct := percentDelta(j.GetCurrentBase(), j.GetProposedBase()); okPct {
+		if pct, okPct := percentDeltaLocale(locale, j.GetCurrentBase(), j.GetProposedBase()); okPct {
 			pay.Delta = delta + " (" + pct + ")"
 		}
 	}
 	rows = append(rows, pay)
 
-	effective := formatDate(j.GetEffectiveDate())
+	effective := formatDateLocale(locale, j.GetEffectiveDate())
 	rows = append(rows, journey.ComparisonRow{
-		Label:    "Effective date",
+		Label:    copy.Text("journey.compare_effective"),
 		Current:  emDash,
 		Proposed: orDash(effective),
 		Changed:  effective != "",
@@ -1530,6 +1711,10 @@ func orDash(s string) string {
 // [waitExplanationFacts] projects them onto their own, correctly labelled
 // section instead.
 func findings(in []*journeyv1.Finding) []journey.Finding {
+	return findingsLocale("en-US", in)
+}
+
+func findingsLocale(locale string, in []*journeyv1.Finding) []journey.Finding {
 	if len(in) == 0 {
 		return nil
 	}
@@ -1538,10 +1723,16 @@ func findings(in []*journeyv1.Finding) []journey.Finding {
 		if f == nil || isWaitExplanationCode(f.GetCode()) {
 			continue
 		}
+		message := strings.TrimSpace(f.GetMessage())
+		// This server-authored finding has a stable semantic code. Localize
+		// that code rather than parsing or translating its English prose.
+		if strings.TrimSpace(f.GetCode()) == "promotion.budget_authority_observation_only" {
+			message = productui.ResolveProductLocale(locale).Text("journey.finding_budget_observation")
+		}
 		out = append(out, journey.Finding{
 			Severity: severityOf(f.GetSeverity()),
-			Code:     f.GetCode(),
-			Message:  f.GetMessage(),
+			Code:     strings.TrimSpace(f.GetCode()),
+			Message:  message,
 		})
 	}
 	return out
@@ -1617,6 +1808,8 @@ func severityOf(s string) string {
 		return severityBlocking
 	case "warning", "warn":
 		return severityWarning
+	case "needs_data", "needs-data", "needs data":
+		return "needs-data"
 	case "success", "ok", "pass", "passed":
 		return severitySuccess
 	default:
@@ -1754,12 +1947,16 @@ func whoWhen(who, when string) string {
 }
 
 func ledger(l *journeyv1.LedgerEvent, proposalEffectiveDate string) *journey.LedgerCard {
+	return ledgerLocale("en-US", l, proposalEffectiveDate)
+}
+
+func ledgerLocale(locale string, l *journeyv1.LedgerEvent, proposalEffectiveDate string) *journey.LedgerCard {
 	if l == nil {
 		return nil
 	}
-	effectiveAt := formatDateOf(l.GetEffectiveAt())
+	effectiveAt := formatDateOfLocale(locale, l.GetEffectiveAt())
 	if effectiveAt == "" {
-		effectiveAt = formatDate(proposalEffectiveDate)
+		effectiveAt = formatDateLocale(locale, proposalEffectiveDate)
 	}
 	return &journey.LedgerCard{
 		StreamKey:      l.GetStreamKey(),
@@ -1767,7 +1964,7 @@ func ledger(l *journeyv1.LedgerEvent, proposalEffectiveDate string) *journey.Led
 		SchemaRef:      l.GetSchemaRef(),
 		Digest:         l.GetDigest(),
 		IdempotencyKey: l.GetIdempotencyKey(),
-		RecordedAt:     formatTime(l.GetRecordedAt()),
+		RecordedAt:     formatTimeLocale(locale, l.GetRecordedAt()),
 		EffectiveAt:    effectiveAt,
 	}
 }
@@ -1777,6 +1974,10 @@ func ledger(l *journeyv1.LedgerEvent, proposalEffectiveDate string) *journey.Led
 // the page wants the last thing that happened at the top, which is how the
 // reference page reads.
 func timeline(in []*journeyv1.TimelineEvent) []journey.TimelineEvent {
+	return timelineLocale("en-US", in)
+}
+
+func timelineLocale(locale string, in []*journeyv1.TimelineEvent) []journey.TimelineEvent {
 	if len(in) == 0 {
 		return nil
 	}
@@ -1787,13 +1988,115 @@ func timeline(in []*journeyv1.TimelineEvent) []journey.TimelineEvent {
 			continue
 		}
 		out = append(out, journey.TimelineEvent{
-			At:     formatTime(e.GetAt()),
-			Actor:  e.GetActor(),
-			Title:  e.GetTitle(),
-			Detail: e.GetDetail(),
-			Ref:    e.GetRef(),
+			At:     formatTimeLocale(locale, e.GetAt()),
+			Actor:  timelineActorLocale(locale, e),
+			Title:  timelineTitleLocale(locale, e),
+			Detail: timelineDetailLocale(locale, e),
 			Tone:   eventTone(e),
 		})
+	}
+	return collapseTimeline(out)
+}
+
+func timelineActor(e *journeyv1.TimelineEvent) string {
+	return timelineActorLocale("en-US", e)
+}
+
+func timelineActorLocale(locale string, e *journeyv1.TimelineEvent) string {
+	copy := productui.ResolveProductLocale(locale)
+	actor := strings.TrimSpace(e.GetActor())
+	if actor == "" {
+		return ""
+	}
+	if actor == "workflow" || actor == "system" || strings.HasPrefix(actor, "system:") {
+		return copy.Text("journey.timeline_system")
+	}
+	return copy.Text("journey.timeline_reviewer")
+}
+
+func timelineTitle(e *journeyv1.TimelineEvent) string {
+	return timelineTitleLocale("en-US", e)
+}
+
+func timelineTitleLocale(locale string, e *journeyv1.TimelineEvent) string {
+	copy := productui.ResolveProductLocale(locale)
+	switch e.GetKind() {
+	case eventIntentCreated:
+		return copy.Text("journey.timeline_requested")
+	case eventSimulated:
+		return copy.Text("journey.timeline_checked")
+	case eventInstanceStarted:
+		return copy.Text("journey.timeline_started")
+	case eventLedgerRecorded:
+		return copy.Text("journey.timeline_recorded")
+	case eventNode:
+		// Node names belong to the authorized diagnostics projection, not
+		// the business history. collapseTimeline drops an empty title.
+		return ""
+	case eventWorkItem:
+		title := strings.TrimSpace(e.GetTitle())
+		switch strings.ToUpper(title) {
+		case "CREATED", "ROUTED", "ASSIGNED", "AVAILABLE", "OPEN", "READY":
+			return copy.Text("journey.timeline_assigned")
+		case "CLAIMED", "IN_PROGRESS":
+			return copy.Text("journey.timeline_review_started")
+		case "COMPLETED":
+			return copy.Text("journey.timeline_approved")
+		case "CANCELLED", "CANCELED":
+			return copy.Text("journey.timeline_cancelled")
+		case "EXPIRED":
+			return copy.Text("journey.timeline_expired")
+		}
+		for _, review := range []struct{ prefix, key string }{
+			{"Finance review", "journey.timeline_review_finance"},
+			{"Manager review", "journey.timeline_review_manager"},
+			{"Reapproval", "journey.timeline_review_reapproval"},
+			{"Approval", "journey.timeline_review_approval"},
+		} {
+			for _, state := range []struct{ suffix, key string }{
+				{" assigned", "journey.timeline_state_assigned"},
+				{" started", "journey.timeline_state_started"},
+				{" completed", "journey.timeline_state_completed"},
+				{" cancelled", "journey.timeline_state_cancelled"},
+				{" expired", "journey.timeline_state_expired"},
+			} {
+				if title == review.prefix+state.suffix {
+					return copy.Text("journey.timeline_review_state", map[string]string{
+						"review": copy.Text(review.key), "state": copy.Text(state.key),
+					})
+				}
+			}
+		}
+		return copy.Text("journey.timeline_review_updated")
+	}
+	return copy.Text("journey.timeline_update")
+}
+
+func timelineDetail(e *journeyv1.TimelineEvent) string {
+	return timelineDetailLocale("en-US", e)
+}
+
+func timelineDetailLocale(locale string, e *journeyv1.TimelineEvent) string {
+	switch e.GetKind() {
+	case eventIntentCreated:
+		return strings.TrimSpace(e.GetDetail())
+	case eventLedgerRecorded:
+		return productui.ResolveProductLocale(locale).Text("journey.step.recorded.done")
+	default:
+		return ""
+	}
+}
+
+func collapseTimeline(events []journey.TimelineEvent) []journey.TimelineEvent {
+	out := make([]journey.TimelineEvent, 0, len(events))
+	for _, event := range events {
+		if event.Title == "" || strings.Contains(event.Title, "_") {
+			continue
+		}
+		if len(out) > 0 && out[len(out)-1].At == event.At && out[len(out)-1].Title == event.Title {
+			continue
+		}
+		out = append(out, event)
 	}
 	return out
 }
@@ -1818,6 +2121,15 @@ func eventTone(e *journeyv1.TimelineEvent) string {
 		case toneSuccess, toneDanger:
 			return tone
 		}
+		title := strings.ToLower(strings.TrimSpace(e.GetTitle()))
+		if strings.HasSuffix(title, " completed") {
+			return toneSuccess
+		}
+		for _, ending := range []string{" cancelled", " expired", " rejected", " failed"} {
+			if strings.HasSuffix(title, ending) {
+				return toneDanger
+			}
+		}
 		return toneInfo
 	case eventNode:
 		if statusTone(e.GetDetail()) == toneDanger {
@@ -1837,12 +2149,16 @@ func eventTone(e *journeyv1.TimelineEvent) string {
 // and KnownAt the instant the engine last updated the record -- which is the
 // as-known-at time every figure on the page was read at.
 func effectiveWindow(j *journeyv1.Journey) *journey.EffectiveWindow {
+	return effectiveWindowLocale("en-US", j)
+}
+
+func effectiveWindowLocale(locale string, j *journeyv1.Journey) *journey.EffectiveWindow {
 	if j == nil {
 		return nil
 	}
-	effective := formatDate(j.GetEffectiveDate())
-	start := formatDateOf(j.GetCreatedAt())
-	knownAt := formatTime(j.GetUpdatedAt())
+	effective := formatDateLocale(locale, j.GetEffectiveDate())
+	start := formatDateOfLocale(locale, j.GetCreatedAt())
+	knownAt := formatTimeLocale(locale, j.GetUpdatedAt())
 	if effective == "" && start == "" {
 		return nil
 	}
@@ -1850,7 +2166,7 @@ func effectiveWindow(j *journeyv1.Journey) *journey.EffectiveWindow {
 		Start:         start,
 		EffectiveDate: effective,
 		KnownAt:       knownAt,
-		Note:          "Every figure above was read as known at that instant; a later correction to the same period would not change this page retroactively.",
+		Note:          productui.ResolveProductLocale(locale).Text("journey.effective_window_note"),
 	}
 }
 
@@ -1862,68 +2178,71 @@ func effectiveWindow(j *journeyv1.Journey) *journey.EffectiveWindow {
 // (a completed journey's approval work item is closed) or hide the reason an
 // action is unavailable.
 func actions(head journey.JourneyCard, approver string, workItems []*journeyv1.WorkItem, withdrawPreview, cancelPreview *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
+	return actionsLocale("en-US", head, approver, workItems, withdrawPreview, cancelPreview)
+}
+
+func actionsLocale(locale string, head journey.JourneyCard, approver string, workItems []*journeyv1.WorkItem, withdrawPreview, cancelPreview *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
+	copy := productui.ResolveProductLocale(locale)
 	href := DetailHref(head.IntentID)
-	confirm := actionConfirmation(head)
+	confirm := actionConfirmationLocale(locale, head)
 	var out []journey.Action
 	switch head.Stage {
 	case stageProposed:
 		out = []journey.Action{{
-			ID: ActionExecute, Label: "Start approval workflow", Variant: "primary",
-			Description:      "Review the proposal, then start its approval workflow. Required approvals and final checks still apply; starting does not record the promotion.",
+			ID: ActionExecute, Label: copy.Text("journey.action_start"), Variant: "primary",
+			Description:      copy.Text("journey.action_start_description"),
 			Action:           href,
 			Hidden:           map[string]string{},
 			Confirmation:     confirm,
-			ConfirmationNote: "Starting sends the proposal through its required approvals. It does not record the promotion yet.",
+			ConfirmationNote: copy.Text("journey.action_start_note"),
+			ConfirmTitle:     copy.Text("journey.action_confirm_execute"),
+			ReviewLabel:      copy.Text("journey.action_review_execute"),
 		}}
 	case stageBlocked:
-		out = []journey.Action{{
-			ID: ActionExecute, Label: "Start approval workflow", Variant: "primary",
-			Description: "Start the approval workflow after the proposal passes its required checks.",
-			Action:      href,
-			Hidden:      map[string]string{},
-			Disabled:    true,
-			DisabledReason: "The simulation produced no executable plan, so the execution authority would refuse this " +
-				"with p1b.no_executable_plan. Re-propose with the findings above addressed.",
-		}}
+		// The findings explain a blocked proposal; no misleading primary action.
 	case stageAwaitingApproval, stageFinanceApproval, stageManagerApproval, stageReapproval:
 		if !hasActionableApproval(workItems) {
 			out = []journey.Action{{
-				ID: ActionApprove, Label: "Preparing approval", Variant: "primary",
-				Description: "The workflow is creating and routing the durable approval work item.",
+				ID: ActionApprove, Label: copy.Text("journey.action_preparing"), Variant: "primary",
+				Description: copy.Text("journey.action_preparing_description"),
 				Action:      href, Hidden: map[string]string{}, Disabled: true,
-				DisabledReason: "This page will enable the decision as soon as the assigned work item is durable and actionable.",
+				DisabledReason: copy.Text("journey.action_preparing_reason"),
 			}}
 			break
 		}
 		out = []journey.Action{
 			{
-				ID: ActionApprove, Label: "Approve", Variant: "primary",
-				Description:      "Claims and completes the current approval work item and resumes the workflow. Another approval or the effective-date wait may follow.",
+				ID: ActionApprove, Label: copy.Text("journey.action_approve"), Variant: "primary",
+				Description:      copy.Text("journey.action_approve_description"),
 				Action:           href,
 				Hidden:           map[string]string{},
 				ActsAs:           approver,
-				ActsAsLabel:      approverLabel(head.Stage, approver),
+				ActsAsLabel:      approverLabelLocale(locale, head.Stage, approver),
 				Confirmation:     confirm,
-				ConfirmationNote: "Approval resumes the workflow. The promotion is recorded only after every required approval and effective-date gate completes. Review the worker, date, and compensation before confirming.",
+				ConfirmationNote: copy.Text("journey.action_approve_note"),
+				ConfirmTitle:     copy.Text("journey.action_confirm_approve"),
+				ReviewLabel:      copy.Text("journey.action_review_approve"),
 				Fields: []journey.Field{{
-					ID: FieldApproveReason, Name: NameDecisionReason, Label: "Reason for the record",
-					Kind: kindTextarea, Placeholder: "What made this the right call?",
-					Help: "Optional. Kept on the work item transition and carried into the ledger event's evidence.",
+					ID: FieldApproveReason, Name: NameDecisionReason, Label: copy.Text("journey.action_approve_reason"),
+					Kind: kindTextarea, Placeholder: copy.Text("journey.action_approve_placeholder"),
+					Help: copy.Text("journey.action_approve_help"),
 				}},
 			},
 			{
-				ID: ActionReject, Label: "Reject", Variant: "danger",
-				Description:      "Rejects the proposal. The instance ends at its REJECTED terminal and no promotion fact is written.",
+				ID: ActionReject, Label: copy.Text("journey.action_reject"), Variant: "danger",
+				Description:      copy.Text("journey.action_reject_description"),
 				Action:           href,
 				Hidden:           map[string]string{},
 				ActsAs:           approver,
-				ActsAsLabel:      approverLabel(head.Stage, approver),
+				ActsAsLabel:      approverLabelLocale(locale, head.Stage, approver),
 				Confirmation:     confirm,
-				ConfirmationNote: "Rejection ends this workflow without recording a promotion fact. The manager will see the reason verbatim.",
+				ConfirmationNote: copy.Text("journey.action_reject_note"),
+				ConfirmTitle:     copy.Text("journey.action_confirm_reject"),
+				ReviewLabel:      copy.Text("journey.action_review_reject"),
 				Fields: []journey.Field{{
-					ID: FieldRejectReason, Name: NameDecisionReason, Label: "What needs to change",
+					ID: FieldRejectReason, Name: NameDecisionReason, Label: copy.Text("journey.action_reject_reason"),
 					Kind: kindTextarea, Required: true,
-					Help: "Required. The manager sees this verbatim.",
+					Help: copy.Text("journey.action_reject_help"),
 				}},
 			},
 		}
@@ -2116,15 +2435,20 @@ func interventionActions(base []journey.Action, head journey.JourneyCard, withdr
 }
 
 func actionConfirmation(head journey.JourneyCard) []journey.Fact {
-	facts := []journey.Fact{{Label: "Employee", Value: nonEmpty(head.WorkerName, "Employee")}}
+	return actionConfirmationLocale("en-US", head)
+}
+
+func actionConfirmationLocale(locale string, head journey.JourneyCard) []journey.Fact {
+	copy := productui.ResolveProductLocale(locale)
+	facts := []journey.Fact{{Label: copy.Text("journey.action_employee"), Value: nonEmpty(head.WorkerName, copy.Text("journey.action_employee"))}}
 	if head.Headline != "" {
-		facts = append(facts, journey.Fact{Label: "Placement", Value: head.Headline})
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.action_placement"), Value: head.Headline})
 	}
 	if head.PayLine != "" {
-		facts = append(facts, journey.Fact{Label: "Base pay", Value: head.PayLine})
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.action_base"), Value: head.PayLine})
 	}
 	if head.EffectiveDate != "" {
-		facts = append(facts, journey.Fact{Label: "Effective date", Value: head.EffectiveDate})
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.action_effective"), Value: head.EffectiveDate})
 	}
 	return facts
 }
@@ -2175,16 +2499,21 @@ func hasActionableApproval(items []*journeyv1.WorkItem) bool {
 }
 
 func approverLabel(stage, principal string) string {
+	return approverLabelLocale("en-US", stage, principal)
+}
+
+func approverLabelLocale(locale, stage, principal string) string {
 	_ = principal // The principal is displayed separately; stage names the authority being exercised.
+	copy := productui.ResolveProductLocale(locale)
 	switch stage {
 	case stageFinanceApproval:
-		return "Finance approver authorization"
+		return copy.Text("journey.action_finance_review")
 	case stageManagerApproval:
-		return "Manager approver authorization"
+		return copy.Text("journey.action_manager_review")
 	case stageReapproval:
-		return "Reapproval authorization"
+		return copy.Text("journey.action_updated_review")
 	default:
-		return "Compensation Approver authorization"
+		return copy.Text("journey.action_comp_review")
 	}
 }
 

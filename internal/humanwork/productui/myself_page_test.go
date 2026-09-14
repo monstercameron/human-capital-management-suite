@@ -41,8 +41,8 @@ func TestMyselfPageUsesOnlyTheAuthenticatedViewerBinding(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"Changes use governed workflows", "View only", "Avery Patel", "Payroll &amp; compensation",
-		"CAD 118,000", "CA-ON", "Pay statements, deductions, taxes, bank details, and pay schedules are not exposed",
+		view.Locale.Text("myself.read_only_title"), "View only", "Avery Patel", "Payroll &amp; compensation",
+		"CAD 118,000", "CA-ON", "Pay statements, deductions, taxes, bank details, and pay schedules are not available here yet",
 		"My workflow history", `href="/workspace/app/journeys?mode=new&amp;worker=worker-avery"`,
 		`action="/workspace/app/myself"`,
 		// UXAUDIT-004: the Myself subtree is a real WAI-ARIA tree
@@ -83,7 +83,7 @@ func TestMyselfFailsClosedWithoutAuthorizedWorkerBinding(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(doc, "Employee profile not connected") || !strings.Contains(doc, "No employee or payroll data can be shown") {
-		t.Fatal("Myself did not explain the missing identity binding")
+		t.Fatalf("Myself did not explain the missing identity binding: %s", doc)
 	}
 	if strings.Contains(doc, "<h2>Avery Patel</h2>") || strings.Contains(doc, "Payroll &amp; compensation") || strings.Contains(doc, "Start a workflow") {
 		t.Fatal("Myself leaked worker data or actions without an identity binding")
@@ -117,5 +117,28 @@ func TestMyselfUsesSharedProfileComposition(t *testing.T) {
 	}
 	if !strings.Contains(doc, `class="person-profile-composition"`) || !strings.Contains(doc, `class="person-layout"`) {
 		t.Fatal("Myself did not reuse the shared person-profile composition")
+	}
+}
+
+func TestMyselfOrganizationShowsOnlyTheViewerSubtree(t *testing.T) {
+	view := testView(PageMyself)
+	view.Viewer = ViewerProfile{PersonID: "worker-avery", Name: "Avery Patel", Initials: "AP"}
+	view.People = []Person{
+		{ID: "worker-chief", Name: "Chief", Team: "Executive"},
+		{ID: "worker-avery", Name: "Avery Patel", Manager: "Chief", Team: "Product", WorkerNumber: "NW-40118"},
+		{ID: "worker-report", Name: "Report", Manager: "Avery Patel", Team: "Product", WorkerNumber: "NW-40119"},
+		{ID: "worker-other", Name: "Other", Manager: "Chief", Team: "Finance", WorkerNumber: "NW-40120"},
+	}
+	doc, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := strings.Index(doc, `class="myself-organization"`)
+	if start < 0 {
+		t.Fatal("self-service organization section missing")
+	}
+	section := doc[start:]
+	if !strings.Contains(section, "Avery Patel") || !strings.Contains(section, "Report") || strings.Contains(section, "Other") || strings.Contains(section, "worker-other") {
+		t.Fatalf("self-service organization tree disclosed an unrelated branch: %s", doc)
 	}
 }

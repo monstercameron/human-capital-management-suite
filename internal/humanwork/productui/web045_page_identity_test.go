@@ -21,16 +21,8 @@ func TestTodo_WEB_045(t *testing.T) {
 	if identity.Page != PageHistory || identity.Title != "Workflow History" || identity.Subtitle == "" {
 		t.Fatalf("history identity = %#v, want registry title and subtitle", identity)
 	}
-	if identity.ScopeHref != "/workspace/app/settings" {
-		t.Fatalf("history scope href = %q, want authorized settings destination", identity.ScopeHref)
-	}
-	// UXAUDIT-007 removed PageIdentity's own acting-context label: the
-	// header no longer says "Acting as yourself" on every page regardless
-	// of authority. Acting-context notices now come from the shell's one
-	// ActingAuthorityBanner component, gated on the server-resolved
-	// projection, not from a per-page identity field.
-	if identity.ScopeLabel == "" {
-		t.Fatalf("history scope label = %#v, want a scope label", identity)
+	if identity.ScopeHref != "" || identity.ScopeLabel != "" {
+		t.Fatalf("direct authority leaked global acting context: %#v", identity)
 	}
 
 	// The scope control never advertises settings the identity cannot open.
@@ -54,11 +46,11 @@ func TestTodo_WEB_045(t *testing.T) {
 		t.Fatalf("unknown page identity = %#v, want Home fallback", unknown)
 	}
 
-	// A profile keeps its registry title; the worker name belongs to the
-	// breadcrumb (WEB-044), not the H1.
+	// An admitted profile identifies its worker in the H1, using the same
+	// governed label as the breadcrumb rather than generic registry copy.
 	person := ResolvePageIdentity(testView(PagePerson))
-	if person.Title != "Person profile" {
-		t.Fatalf("person identity title = %q, want registry Person profile", person.Title)
+	if person.Title != "Avery Patel · NW-40118" {
+		t.Fatalf("person identity title = %q, want admitted display name and worker number", person.Title)
 	}
 }
 
@@ -71,10 +63,7 @@ func TestTodo_WEB_045_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(node))
 	got := hex.EncodeToString(digest[:])
-	// UXAUDIT-007 removed the header's unconditional "Acting as yourself"
-	// span from the scope-wrap (see PageIdentityHeader): re-pinned to the
-	// new bytes.
-	const want = "c2e610d1c312d48b62a05392c64ae4cae2dd1a27bb483666785e704b86841141"
+	const want = "cc4d3b0c6e3b09d69b82eb3442dc4677b1a622849315a5237c1abea1d22cae5f"
 	if got != want {
 		t.Fatalf("page-identity header golden digest = %s, want %s", got, want)
 	}
@@ -143,8 +132,11 @@ func TestTodo_WEB_045_Conformance(t *testing.T) {
 			view.Locale = ResolveProductLocale(locale)
 			view = ApplyLocale(view, view.Locale)
 			identity := ResolvePageIdentity(view)
-			if identity.Page != definition.ID || identity.Title == "" || identity.Subtitle == "" || identity.ScopeLabel == "" {
+			if identity.Page != definition.ID || identity.Title == "" || identity.Subtitle == "" {
 				t.Fatalf("page %s locale %s identity incomplete: %#v", definition.ID, locale, identity)
+			}
+			if identity.ScopeLabel != "" || identity.ScopeHref != "" {
+				t.Fatalf("page %s locale %s leaked direct acting context: %#v", definition.ID, locale, identity)
 			}
 			node, err := ui.RenderToString(PageIdentityHeader(view))
 			if err != nil {

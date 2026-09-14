@@ -133,6 +133,7 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	// reason to hold an opinion about it.
 	transportjourney.Register(srv, transportjourney.Dependencies{
 		Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+		CursorKey: append([]byte(nil), cursorKey...),
 	})
 	// The workflow transport consumes its string-ID reader port. The existing
 	// application reader remains owned by AdminService; this adapter supplies
@@ -189,7 +190,10 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 	}
 	rpc, err := edge.NewHandler(edge.Options{
 		Config: c.Config, Intent: c.Service, Registry: c.Service,
-		Journey:    &transportjourney.Dependencies{Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs},
+		Journey: &transportjourney.Dependencies{
+			Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+			CursorKey: append([]byte(nil), cursorKey...),
+		},
 		Workflow:   &transportworkflow.Dependencies{Instances: newWorkflowReader(instances), CursorKey: append([]byte(nil), cursorKey...)},
 		Work:       &transporthumanwork.Dependencies{Queue: newWorkQueueReader(workQueue), CursorKey: append([]byte(nil), cursorKey...)},
 		Operations: &transportoperations.Dependencies{Store: operationStore},

@@ -36,6 +36,8 @@ func localizeSourceRecord(source contract.SourceRecord, q Query, locale LocaleCo
 		FieldCurrentBasePay:       "field.current_base",
 		FieldProposedJobTitle:     "field.proposed_job",
 		FieldProposedGrade:        "field.proposed_grade",
+		FieldTargetPosition:       "field.target_position",
+		FieldTargetOrgUnit:        "field.target_org_unit",
 		FieldProposedComp:         "field.proposed_base",
 		FieldEffectiveDate:        "field.effective_date",
 		FieldBusinessReason:       "field.business_reason",

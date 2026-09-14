@@ -666,12 +666,28 @@ message JourneyDetail {
   // computed by internal/transport/journey, not by the engine, and is not a
   // governance artifact: the material proposal digest on Journey is.
   string detail_digest = 12;
+  // These are server-authorized, viewer-relative presentation capabilities.
+  // Clients must not infer them from locally held role strings.
+  bool diagnostics_available = 13;
+  bool can_decide = 14;
 }
 
-message ListJourneysRequest {}
+message ListJourneysRequest {
+  hcmnext.common.v1.PageRequest page = 1;
+  string worker_ref = 2;
+  string query = 3;
+  string sort = 4;
+  string direction = 5;
+  int32 page_number = 6;
+  string outcome = 7;
+  string year = 8;
+  bool terminal_only = 9;
+}
 
 message ListJourneysResponse {
   repeated Journey journeys = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+  int32 total_count = 3;
 }
 
 // ProposeJourneyRequest is what the manager fills in
@@ -1018,6 +1034,12 @@ message Worker {
   // job_title is the human-readable title; job_code remains the governed
   // classification used by workflows and compensation rules.
   string job_title = 20;
+  // Authoritative compensation revision a canonical promotion proposal must
+  // bind through expected_subject_revision.
+  string subject_revision = 21;
+  // Authorization-safe reporting relationship used by organization views.
+  // It is always present in ListWorkers responses; UNSPECIFIED fails closed.
+  ManagerRelationshipProjection manager_relationship = 22;
 }
 
 // WorkforceOptions is the closed set of placements a created worker may be
@@ -1250,4 +1272,30 @@ message SaveWorkerIDPolicyRequest { WorkerIDPolicy policy = 1; }
 message SaveWorkerIDPolicyResponse {
   WorkerIDPolicy policy = 1;
   repeated string previews = 2;
+}
+
+// ManagerRelationshipProjection is the authorization-safe reporting edge for
+// one returned worker. The raw relationship reference is not an endpoint: the
+// service resolves it before disclosure and only returns a manager worker
+// reference when that endpoint is also visible to the caller.
+message ManagerRelationshipProjection {
+  enum Disposition {
+    // UNSPECIFIED is fail-closed and must never be interpreted as a root.
+    DISPOSITION_UNSPECIFIED = 0;
+    // ROOT means the authoritative worker projection has no direct manager.
+    DISPOSITION_ROOT = 1;
+    // VISIBLE means manager_worker_ref names another returned worker.
+    DISPOSITION_VISIBLE = 2;
+    // WITHHELD says a manager exists but the endpoint is outside the caller's
+    // authorized population. No relationship or worker reference is exposed.
+    DISPOSITION_WITHHELD = 3;
+    // ORPHAN says the authorized relationship cannot be attached to a worker
+    // in this directory, including an external governance endpoint.
+    DISPOSITION_ORPHAN = 4;
+  }
+
+  Disposition disposition = 1;
+  // Set exactly when disposition is VISIBLE. It is a worker_ref, never the
+  // relationship identifier carried by Worker's legacy manager_ref field.
+  string manager_worker_ref = 2;
 }

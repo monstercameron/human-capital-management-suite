@@ -18,7 +18,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/productclient"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/taskmux"
-	"google.golang.org/grpc/status"
 )
 
 const productPathPrefix = "/workspace/app/"
@@ -65,6 +64,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 			View: permission.View, Create: permission.Create, Update: permission.Update, Delete: permission.Delete,
 		})
 	}
+	launcherActions := projectLauncherActions(cfg.LauncherActions)
 	// UXAUDIT-007: cfg.Purpose is the admitted principal's authorized
 	// data-processing purpose, not the product shell's "authorized scope"
 	// -- do not carry it into Session.Scope, which LoadingView renders as a
@@ -74,9 +74,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// journey experience itself (tools/uxqual/render/journey's
 	// principalChip), with a visually-hidden "Purpose: " explanation and
 	// its own sign-out exit action, mounted only on PageJourneys.
-	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath}
+	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, LauncherActions: launcherActions, EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath}
 	preferences := newServerPreferenceController(ctx, service)
-	appearance := newBrowserThemeController(preferences.SaveTheme)
+	appearance := newBrowserThemeController(productui.DisplayLabel(cfg.Tenant), preferences.SaveTheme)
 	appearance.Apply(appearance.Saved())
 	accessibility := newBrowserAccessibilityController(preferences.SaveAccessibility)
 	accessibility.Apply(accessibility.Saved())
@@ -107,6 +107,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	journeyStore := journey.NewStore(journey.Page{})
 	bindActionableNoticeFocus(journeyStore)
 	journeyApp := journeyclient.New(cfg, service, journeyStore, time.Now)
+	journeyApp.FocusField = focusJourneyField
 	journeyApp.Tasks = frontendTasks
 	journeyApp.Locate = func(fragment string) {
 		navigateProduct(productclient.ProductJourneyHref(fragment, currentQuery()))
@@ -146,6 +147,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				}
 				var view productui.View
 				var loadErr error
+				var baseline *productui.View
+				if lastResolvedProductView != nil {
+					previous := productBaselineForLoad(*lastResolvedProductView, state, journeys.fragment, productclient.JourneyFragment(state.Request))
+					baseline = &previous
+				}
 				handle, scheduleErr := frontendTasks.Submit(loadCtx, taskmux.Spec{
 					Key: "product:route-projection", Priority: taskmux.UserVisible, Duplicate: taskmux.ReplaceExisting,
 				}, func(taskCtx context.Context) error {
@@ -154,8 +160,8 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					// dataset consumed by this destination (and live preferences), while
 					// retaining the already-authorized shell projection for pages that
 					// do not consume that dataset.
-					if lastResolvedProductView != nil {
-						view, loadErr = productclient.LoadWithBaseline(taskCtx, liveService, session, state, *lastResolvedProductView)
+					if baseline != nil {
+						view, loadErr = productclient.LoadWithBaseline(taskCtx, liveService, session, state, *baseline)
 					} else {
 						view, loadErr = productclient.Load(taskCtx, liveService, session, state)
 					}
@@ -212,7 +218,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						statusNode := js.Global().Get("document").Call("getElementById", "worker-id-status")
 						if statusNode.Truthy() {
 							if err != nil {
-								statusNode.Set("textContent", "Could not save rules: "+status.Code(err).String())
+								statusNode.Set("textContent", "We couldn't save these rules. Review your changes and try again.")
 								return
 							}
 							statusNode.Set("textContent", "Worker ID rules saved for this organization.")
@@ -227,7 +233,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						statusNode := js.Global().Get("document").Call("getElementById", "organization-visibility-status")
 						if statusNode.Truthy() {
 							if err != nil {
-								statusNode.Set("textContent", "Could not save visibility: "+status.Code(err).String())
+								statusNode.Set("textContent", "We couldn't save visibility. Review your changes and try again.")
 								return
 							}
 							statusNode.Set("textContent", "Organization visibility saved.")
@@ -242,7 +248,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						statusNode := js.Global().Get("document").Call("getElementById", "role-access-status")
 						if statusNode.Truthy() {
 							if err != nil {
-								statusNode.Set("textContent", "Could not save role: "+status.Code(err).String())
+								statusNode.Set("textContent", "We couldn't save this role. Review your changes and try again.")
 								return
 							}
 							statusNode.Set("textContent", "Role created.")
@@ -264,7 +270,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						statusNode := js.Global().Get("document").Call("getElementById", "organization-visibility-status-"+policy.RoleID)
 						if statusNode.Truthy() {
 							if err != nil {
-								statusNode.Set("textContent", "Could not save visibility: "+status.Code(err).String())
+								statusNode.Set("textContent", "We couldn't save visibility. Review your changes and try again.")
 								return
 							}
 							statusNode.Set("textContent", "Role visibility saved.")
@@ -279,7 +285,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						statusNode := js.Global().Get("document").Call("getElementById", "role-page-permission-status-"+permission.RoleID+"-"+string(permission.Page))
 						if statusNode.Truthy() {
 							if err != nil {
-								statusNode.Set("textContent", "Could not save page access: "+status.Code(err).String())
+								statusNode.Set("textContent", "We couldn't save page access. Review your changes and try again.")
 								return
 							}
 							statusNode.Set("textContent", "Page access saved.")
@@ -311,11 +317,10 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				view.ResetAccessibility = accessibility.Reset
 				attrs := router.Attrs{productViewKey: view, productSourceHrefKey: canonicalHref, productResolvedHrefKey: resolvedHref}
 				if state.Page == productui.PageJourneys {
-					journeys.Load(productclient.JourneyFragment(state.Request))
 					attrs[productJourneyStoreKey] = journeyStore
 				}
 				if loadErr != nil {
-					view.LoadError = "The live Journey service could not complete this view (" + status.Code(loadErr).String() + ")."
+					view.LoadError = "We couldn't load this page. Try again."
 					attrs[productViewKey] = view
 				}
 				// Publish the stable shell projection at the loader completion
@@ -324,6 +329,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				// like a cold boot and replace global controls with placeholders.
 				if loadCtx.Err() != nil {
 					return nil, loadCtx.Err()
+				}
+				if state.Page == productui.PageJourneys {
+					journeys.Load(productclient.JourneyFragment(state.Request), view.Locale.Resolved)
+				} else {
+					journeys.Leave()
 				}
 				resolved := view
 				resolved.Loading = false
@@ -340,7 +350,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					state = productclient.State{Page: definition.ID, Request: productui.PageRequest{Page: definition.ID}}
 				}
 				view := productclient.LoadingView(session, state)
-				warmRefresh := lastResolvedProductView != nil && lastResolvedProductView.Page == state.Page && state.Page != productui.PageJourneys
+				warmRefresh := lastResolvedProductView != nil && keepResolvedProductViewDuringLoad(*lastResolvedProductView, state, journeys.fragment, productclient.JourneyFragment(state.Request))
 				contentTransition := lastResolvedProductView != nil && !warmRefresh
 				if warmRefresh {
 					// Same-page network effects retain the last authorized projection.
@@ -373,7 +383,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						view.NavigationGroupOpen[productui.PageID(page)] = open
 					}
 				}
-				applyThemeDocumentIdentity(view.Title, view.Appearance)
+				applyThemeDocumentIdentity(productui.ResolveDocumentPageTitle(view), view.Appearance, view.Tenant)
 				applyLocaleDocumentIdentity(view.Locale)
 				showHeading := state.Page != productui.PageJourneys
 				if warmRefresh {
@@ -381,6 +391,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					view.ContentLoading = false
 					view.Refreshing = view.RefreshingRegion == ""
 					setActiveProductLayout(view, showHeading)
+					if state.Page == productui.PageJourneys {
+						content := journey.LiveContentComponent(journeyStore)
+						content.Props["key"] = productclient.CanonicalHref(state)
+						return content
+					}
 					return productui.BuildPageContent(view)
 				}
 				if contentTransition {
@@ -398,7 +413,15 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 			},
 		})
 	}
-	return hydrateProductRouter(productRouter)
+	if err := hydrateProductRouter(productRouter); err != nil {
+		return err
+	}
+	// The shell may fall back to a separate startup mount when hydration
+	// fails. Bind document-level review listeners only after the live product
+	// tree is committed, so that fallback cannot leave a stale store behind.
+	bindConfirmationDialogs(journeyStore)
+	bindUnsavedFormGuard()
+	return nil
 }
 
 // hydrateProductRouter resumes the server-rendered loading shell before the
@@ -532,7 +555,7 @@ func renderProductRoute(data router.Attrs) ui.Node {
 			view.NavigationGroupOpen[productui.PageID(page)] = open
 		}
 	}
-	applyThemeDocumentIdentity(view.Title, view.Appearance)
+	applyThemeDocumentIdentity(productui.ResolveDocumentPageTitle(view), view.Appearance, view.Tenant)
 	applyLocaleDocumentIdentity(view.Locale)
 	focusProductRouteAfterNavigation()
 	resolved := view
@@ -546,6 +569,12 @@ func renderProductRoute(data router.Attrs) ui.Node {
 	if view.Page == productui.PageJourneys {
 		if store, storeOK := data[productJourneyStoreKey].(*journey.Store); storeOK {
 			result = journey.LiveContentComponent(store)
+			// A promotion form, detail, and list are distinct route-owned
+			// subscriptions even though they share one long-lived store. Do not
+			// reuse the prior route's fiber while its async render is in flight.
+			if sourceHref, sourceOK := data[productSourceHrefKey].(string); sourceOK {
+				result.Props["key"] = sourceHref
+			}
 		}
 	}
 	if result == nil {
@@ -603,20 +632,30 @@ func focusProductRouteAfterNavigation() {
 	if navigationCollapsedRouteChange(previousRoute, route) {
 		resetCollapsedNavigationScroll()
 	}
+	resetMainScroll := productRouteShouldResetMainScroll(previousRoute, route)
 	selector, caretAtEnd := productRouteFocusTarget(previousRoute, route)
-	if selector == "" {
+	if selector == "" && !resetMainScroll {
 		return
 	}
 	var callback js.Func
 	callback = js.FuncOf(func(js.Value, []js.Value) any {
 		defer callback.Release()
 		document := js.Global().Get("document")
+		if resetMainScroll {
+			main := document.Call("getElementById", "main-content")
+			if main.Truthy() {
+				main.Set("scrollTop", 0)
+			}
+		}
+		if selector == "" {
+			return nil
+		}
 		target := document.Call("querySelector", selector)
 		if target.Truthy() {
 			if !caretAtEnd && !target.Call("hasAttribute", "tabindex").Bool() {
 				target.Call("setAttribute", "tabindex", "-1")
 			}
-			target.Call("focus")
+			target.Call("focus", map[string]any{"preventScroll": true})
 			if caretAtEnd {
 				length := target.Get("value").Get("length").Int()
 				target.Call("setSelectionRange", length, length)
@@ -649,10 +688,14 @@ type productJourneyBridge struct {
 	fragment string
 }
 
-func (b *productJourneyBridge) Load(fragment string) {
+func (b *productJourneyBridge) Load(fragment, locale string) {
 	if b == nil || b.app == nil || fragment == b.fragment && b.started {
+		if b != nil && b.app != nil {
+			b.app.SetLocale(locale)
+		}
 		return
 	}
+	b.app.SetLocale(locale)
 	b.fragment = fragment
 	if !b.started {
 		b.started = true
@@ -660,6 +703,14 @@ func (b *productJourneyBridge) Load(fragment string) {
 		return
 	}
 	b.app.OnHashChange(fragment)
+}
+
+func (b *productJourneyBridge) Leave() {
+	if b == nil || b.app == nil || b.fragment == "" {
+		return
+	}
+	b.fragment = ""
+	b.app.Suspend()
 }
 
 func currentPath() string {

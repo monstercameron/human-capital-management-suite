@@ -181,6 +181,7 @@ func TestTodo_UXAUDIT_003_Browser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	root, err := xhtml.Parse(strings.NewReader(opened))
 	if err != nil {
 		t.Fatal(err)

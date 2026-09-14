@@ -23,6 +23,15 @@ func TestOpenWorkCountExcludesTerminalJourneys(t *testing.T) {
 	}
 }
 
+func TestTodo_UIPOLISH_009_LoadingHomeTitleDoesNotFlashPrincipalIdentifier(t *testing.T) {
+	for _, tc := range []struct{ locale, want string }{{"en-US", "Home"}, {"de-DE", "Start"}, {"ar", "الرئيسية"}} {
+		view := LoadingView(Session{Principal: "hc-050-rafael-torres"}, State{Page: productui.PageHome, Request: productui.PageRequest{Page: productui.PageHome, Locale: tc.locale}})
+		if view.Title != tc.want || strings.Contains(view.Title, "Hc 050") {
+			t.Fatalf("%s loading Home title = %q; want stable registry title %q", tc.locale, view.Title, tc.want)
+		}
+	}
+}
+
 func TestRecordedJourneyLeavesOpenWorkAndAllKnownStagesHaveLabels(t *testing.T) {
 	items, err := projectJourneys([]*journeyv1.Journey{{IntentId: "recorded", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED,
 		Viewer: &journeyv1.JourneyViewerProjection{Closed: true, Responsibility: journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_CLOSED}}})
@@ -32,6 +41,9 @@ func TestRecordedJourneyLeavesOpenWorkAndAllKnownStagesHaveLabels(t *testing.T) 
 	if len(items) != 1 || !items[0].Terminal || len(productui.OpenWorkItems(items)) != 0 {
 		t.Fatal("recorded promotion incorrectly remains open")
 	}
+	if items[0].TitleKey != "journey.detail_title" || items[0].StatusKey != "journey.stage_recorded" {
+		t.Fatalf("recorded promotion lost its locale-independent display identity: %+v", items[0])
+	}
 	for number, name := range journeyv1.JourneyStage_name {
 		if number == 0 {
 			continue
@@ -40,6 +52,27 @@ func TestRecordedJourneyLeavesOpenWorkAndAllKnownStagesHaveLabels(t *testing.T) 
 		if label == "Status unavailable" {
 			t.Errorf("known stage has no presentation: %s", name)
 		}
+		key := journeyStageKey(journeyv1.JourneyStage(number))
+		for _, locale := range productui.SupportedProductLocales() {
+			translated := productui.ResolveProductLocale(locale).Text(key)
+			if key == "" || translated == "" || strings.Contains(translated, "⟦") {
+				t.Errorf("%s stage %s has no translated semantic key %q: %q", locale, name, key, translated)
+			}
+		}
+	}
+}
+
+func TestProjectJourneysCarriesViewerScopedAssignmentWithoutOtherPrincipal(t *testing.T) {
+	items, err := projectJourneys([]*journeyv1.Journey{{
+		IntentId: "journey-finance", WorkerRef: "worker-omar", WorkerName: "Omar",
+		Stage:  journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL,
+		Viewer: &journeyv1.JourneyViewerProjection{Relationships: []journeyv1.JourneyViewerRelationship{journeyv1.JourneyViewerRelationship_JOURNEY_VIEWER_RELATIONSHIP_ASSIGNEE}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].PersonRef != "worker-omar" || items[0].AssigneeRef != "" || len(items[0].ViewerRelationships) != 1 {
+		t.Fatalf("projected assignment = %+v", items)
 	}
 }
 
@@ -74,6 +107,29 @@ func TestContentLoadingViewRetargetsRouteWithoutDiscardingAuthorizedShell(t *tes
 	}
 }
 
+func TestTodo_UXAUDIT_003_RevokedLauncherProjectionIsNotReused(t *testing.T) {
+	permissions := []productui.RolePagePermission{{Page: productui.PageHome, View: true}, {Page: productui.PageSettings, View: true}}
+	baselineSession := Session{
+		Tenant: "harborcare", Principal: "worker-1", Roles: []string{"worker_self"}, Permissions: permissions,
+		LauncherActions: []productui.LauncherActionProjection{{
+			ID: productui.SemanticActionPromoteWorker, State: productui.ActionState{Availability: productui.ActionAvailable},
+		}},
+	}
+	baseline := LoadingView(baselineSession, State{Page: productui.PageHome, Request: productui.PageRequest{Page: productui.PageHome}})
+	if len(baseline.LauncherActions) != 1 {
+		t.Fatal("test baseline has no semantic action")
+	}
+	current, err := LoadWithBaseline(context.Background(), Service{}, Session{
+		Tenant: "harborcare", Principal: "worker-1", Roles: []string{"worker_self"}, Permissions: permissions,
+	}, State{Page: productui.PageSettings, Request: productui.PageRequest{Page: productui.PageSettings}}, baseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(current.LauncherActions) != 0 {
+		t.Fatalf("revoked semantic action was resurrected from baseline: %+v", current.LauncherActions)
+	}
+}
+
 func TestConcisePlacementLabelRemovesDuplicatedSourceCodes(t *testing.T) {
 	if got := concisePlacementLabel("OPS-HRBP3OPS-HRBP3", "P3"); got != "OPS-HRBP3 P3" {
 		t.Fatalf("concisePlacementLabel = %q, want OPS-HRBP3 P3", got)
@@ -86,15 +142,82 @@ func TestConcisePlacementLabelRemovesDuplicatedSourceCodes(t *testing.T) {
 	}
 }
 
-func TestManagerLabelDoesNotExposeTechnicalRelationshipReferences(t *testing.T) {
-	if got := managerLabel("rel-mgr-01a07058", nil); got != "Not available" {
-		t.Fatalf("technical relationship reference rendered as %q", got)
+func TestManagerProjectionDoesNotInferFromTechnicalRelationshipReferences(t *testing.T) {
+	worker := &journeyv1.Worker{WorkerRef: "worker-live", ManagerRef: "rel-mgr-01a07058"}
+	if _, _, _, err := projectManagerRelationship(worker, map[string]int{"worker-live": 1}, nil); err == nil {
+		t.Fatal("missing typed relationship projection was inferred from the opaque reference")
 	}
-	if got := managerLabel("REL_MGR_01a07058", nil); got != "Not available" {
-		t.Fatalf("case/separator variant rendered as %q", got)
+	worker.ManagerRelationship = &journeyv1.ManagerRelationshipProjection{Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_WITHHELD}
+	state, ref, label, err := projectManagerRelationship(worker, map[string]int{"worker-live": 1}, nil)
+	if err != nil || state != productui.OrganizationRelationshipWithheld || ref != "" || label != "" {
+		t.Fatalf("withheld projection = %q/%q/%q err=%v", state, ref, label, err)
 	}
-	if got := managerLabel("manager-live", nil); got != "Manager Live" {
-		t.Fatalf("readable fallback = %q, want Manager Live", got)
+}
+
+func TestTodo_UXAUDIT_004_ClientUsesOnlyAuthorizedStableManagerEdges(t *testing.T) {
+	workers := []*journeyv1.Worker{
+		{WorkerRef: "manager-a", WorkerId: "manager-id", PreferredName: "Alex Morgan", ManagerRelationship: rootManagerRelationship()},
+		{WorkerRef: "manager-b", WorkerId: "other-manager-id", PreferredName: "Alex Morgan", ManagerRelationship: rootManagerRelationship()},
+		{WorkerRef: "report", WorkerId: "report-id", PreferredName: "Casey Lee", ManagerRef: "opaque-relationship", ManagerRelationship: &journeyv1.ManagerRelationshipProjection{
+			Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE, ManagerWorkerRef: "manager-a",
+		}},
+		{WorkerRef: "withheld", PreferredName: "Taylor", ManagerRef: "secret-manager", ManagerRelationship: &journeyv1.ManagerRelationshipProjection{Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_WITHHELD}},
+	}
+	people, err := projectWorkers(workers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if people[2].ManagerWorkerRef != "manager-a" || people[2].Manager != "Alex Morgan" || people[2].ManagerRelationship != productui.OrganizationRelationshipVisible {
+		t.Fatalf("stable duplicate-name relationship = %+v", people[2])
+	}
+	if people[3].Manager != "" || people[3].ManagerWorkerRef != "" || people[3].ManagerRelationship != productui.OrganizationRelationshipWithheld {
+		t.Fatalf("withheld relationship leaked through the client: %+v", people[3])
+	}
+
+	workers[2].ManagerRelationship.ManagerWorkerRef = "not-returned"
+	if _, err := projectWorkers(workers); err == nil {
+		t.Fatal("client admitted a VISIBLE relationship whose endpoint was absent")
+	}
+	workers[2].ManagerRelationship.ManagerWorkerRef = "manager-a"
+	workers = append(workers, &journeyv1.Worker{WorkerRef: "manager-a", PreferredName: "Imposter", ManagerRelationship: rootManagerRelationship()})
+	if _, err := projectWorkers(workers); err == nil {
+		t.Fatal("client admitted an ambiguous VISIBLE manager endpoint")
+	}
+}
+
+func TestTodo_UXAUDIT_004_OrganizationAddressStatePreservesSelectionAndFilter(t *testing.T) {
+	for _, page := range []productui.PageID{productui.PageOrganization, productui.PageOrgExplorer, productui.PageOrgOutline, productui.PageOrgResponsive} {
+		t.Run(string(page), func(t *testing.T) {
+			state, err := ParseState(productui.Path(page), "org_view=tree&q=casey&person=worker-casey&nav=collapsed")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if state.Request.OrganizationView != "tree" || state.Request.Query != "casey" || state.Request.SelectedPerson != "worker-casey" {
+				t.Fatalf("organization state = %+v", state.Request)
+			}
+			want := productui.Path(page) + "?nav=collapsed&org_view=tree&person=worker-casey&q=casey"
+			if got := CanonicalHref(state); got != want {
+				t.Fatalf("organization canonical href = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestTodo_UXAUDIT_004_OutlineCanonicalHrefForcesTree(t *testing.T) {
+	for _, raw := range []string{"", "org_view=flat", "org_view=tree", "org_view=flat&q=casey&person=worker-casey&nav=collapsed"} {
+		state, err := ParseState(productui.Path(productui.PageOrgOutline), raw)
+		if err != nil {
+			t.Fatalf("ParseState(%q): %v", raw, err)
+		}
+		got := CanonicalHref(state)
+		if !strings.Contains(got, "org_view=tree") || strings.Contains(got, "org_view=flat") {
+			t.Errorf("CanonicalHref(%q) = %q", raw, got)
+		}
+		view := productui.ApplyRequest(productui.NewView(productui.PageOrgOutline, "tenant", "principal", "scope"), state.Request)
+		resolved := ResolvedCanonicalHref(state, view)
+		if !strings.Contains(resolved, "org_view=tree") || strings.Contains(resolved, "org_view=flat") {
+			t.Errorf("ResolvedCanonicalHref(%q) = %q", raw, resolved)
+		}
 	}
 }
 
@@ -117,6 +240,7 @@ func TestLoadProjectsOnlyLiveServiceAnswers(t *testing.T) {
 				WorkerRef: "worker-live", WorkerId: "worker-id-live", LegalName: "Riley Morgan Chen", PreferredName: "Riley Chen", WorkerNumber: "NW-9", JobCode: "ENG2", Grade: "G6", OrgUnit: "Engineering",
 				PositionId: "pos-9", PayZone: "US-1", BasePay: "120000", Currency: "USD", BonusTarget: "0.10", HireDate: "2020-02-03", Source: "CREATED",
 				JobTitle: "Senior Software Engineer", ManagerRef: "manager-live", ProfilePhotoUrl: "/workspace/assets/person-live-small.jpg",
+				ManagerRelationship: &journeyv1.ManagerRelationshipProjection{Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_ORPHAN},
 			}}}, nil
 		},
 	}
@@ -138,8 +262,17 @@ func TestLoadProjectsOnlyLiveServiceAnswers(t *testing.T) {
 		person.BasePay.Amount().String() != "120000" || person.BasePay.Currency() != "USD" || person.Source != "CREATED" {
 		t.Fatalf("worker detail projection lost live facts: %+v", person)
 	}
-	if person.Role != "Senior Software Engineer · G6" || person.Manager != "Manager Live" || person.PhotoURL != "/workspace/assets/person-live-small.jpg" {
+	if person.Role != "Senior Software Engineer · G6" || person.Manager != "" || person.ManagerRelationship != productui.OrganizationRelationshipOrphan || person.PhotoURL != "/workspace/assets/person-live-small.jpg" {
 		t.Fatalf("worker display projection lost title, manager, or photo: %+v", person)
+	}
+	profile, err := Load(context.Background(), service, Session{Tenant: "tenant-live", Principal: "Riley", Scope: "manager"}, State{
+		Page: productui.PagePerson, Request: productui.PageRequest{Page: productui.PagePerson, SelectedPerson: "worker-live"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profile.RecordVerdicts) != 0 || productui.ResolveDocumentPageTitle(profile) != "Riley Chen · NW-9" {
+		t.Fatalf("live ListWorkers profile title = %q with verdicts %v", productui.ResolveDocumentPageTitle(profile), profile.RecordVerdicts)
 	}
 }
 
@@ -228,8 +361,8 @@ func TestPromotionEligibilityProjectsPublishedChoices(t *testing.T) {
 		},
 		ListWorkers: func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
 			return &journeyv1.ListWorkersResponse{Options: options, Workers: []*journeyv1.Worker{
-				{WorkerRef: "eligible", JobCode: "ENG1", Grade: "P1", PayZone: "US", Currency: "USD"},
-				{WorkerRef: "no-path", JobCode: "SALES1", Grade: "P1", PayZone: "US", Currency: "USD"},
+				{WorkerRef: "eligible", JobCode: "ENG1", Grade: "P1", PayZone: "US", Currency: "USD", ManagerRelationship: rootManagerRelationship()},
+				{WorkerRef: "no-path", JobCode: "SALES1", Grade: "P1", PayZone: "US", Currency: "USD", ManagerRelationship: rootManagerRelationship()},
 			}}, nil
 		},
 	}
@@ -257,7 +390,7 @@ func TestPersonRouteProjectsOnlySupportedWorkflowForSelectedWorker(t *testing.T)
 			return &journeyv1.ListJourneysResponse{}, nil
 		},
 		ListWorkers: func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
-			return &journeyv1.ListWorkersResponse{Workers: []*journeyv1.Worker{{WorkerRef: "worker-live", PreferredName: "Riley Chen"}}}, nil
+			return &journeyv1.ListWorkersResponse{Workers: []*journeyv1.Worker{{WorkerRef: "worker-live", PreferredName: "Riley Chen", ManagerRelationship: rootManagerRelationship()}}}, nil
 		},
 	}, Session{}, state)
 	if err != nil {
@@ -266,6 +399,10 @@ func TestPersonRouteProjectsOnlySupportedWorkflowForSelectedWorker(t *testing.T)
 	if len(view.PersonWorkflows) != 1 || view.PersonWorkflows[0].ID != "promotion" || view.PersonWorkflows[0].Href != "/workspace/app/journeys?mode=new&nav=collapsed&worker=worker-live" {
 		t.Fatalf("person workflow projection = %+v", view.PersonWorkflows)
 	}
+}
+
+func rootManagerRelationship() *journeyv1.ManagerRelationshipProjection {
+	return &journeyv1.ManagerRelationshipProjection{Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_ROOT}
 }
 
 func TestSessionTokensBecomeReadableLabelsWithoutChangingRPCState(t *testing.T) {

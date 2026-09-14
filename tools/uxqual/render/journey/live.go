@@ -162,7 +162,22 @@ func liveComponent(s *Store, build func(Page) ui.Node) ui.Node {
 		// subscription alone can leave the initial loading snapshot stuck.
 		// The store dependency also releases/rebinds when the source changes.
 		ui.UseEffect(func() func() {
-			refresh := func() { revision.Set(revision.Get() + 1) }
+			refresh := func() {
+				// Service answers can arrive while the product router is
+				// committing a new leaf. Post the update to the framework's
+				// frame inbox so it targets the committed fiber, not the leaf
+				// being replaced.
+				ui.PostAsync(func() {
+					// The native review dialog owns its pending presentation.
+					// Reconciling the page here strips the browser-managed open
+					// state and hides the only visible progress control. Re-read
+					// inside the queued frame as earlier updates can be pending.
+					if reviewActionPending(s.Page()) {
+						return
+					}
+					revision.Update(func(previous int) int { return previous + 1 })
+				})
+			}
 			unsubscribe := s.Subscribe(refresh)
 			refresh()
 			return unsubscribe

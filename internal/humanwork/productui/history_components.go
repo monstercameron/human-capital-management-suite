@@ -2,6 +2,7 @@ package productui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -20,6 +21,45 @@ type WorkflowHistoryProps struct {
 	Filter        *WorkflowHistoryFilterProps
 	Columns       []HistorySortColumnProps
 	Pagination    *PeoplePaginationProps
+	// Density is an optional, closed presentation hint for dense history
+	// surfaces. It changes spacing only; it never removes an authorized field.
+	Density HistoryDensity
+}
+
+// HistoryDensity is the safe density vocabulary accepted by WorkflowHistory.
+// Empty and comfortable retain the normal rhythm; compact is useful for
+// scan-heavy history panels while still preserving touch targets.
+type HistoryDensity string
+
+const (
+	HistoryDensityDefault     HistoryDensity = ""
+	HistoryDensityCompact     HistoryDensity = "compact"
+	HistoryDensityComfortable HistoryDensity = "comfortable"
+)
+
+func historyDensityClass(density HistoryDensity) string {
+	switch density {
+	case HistoryDensityCompact:
+		return " history-density-compact"
+	case HistoryDensityComfortable:
+		return " history-density-comfortable"
+	default:
+		return ""
+	}
+}
+
+// historyDensityFromTheme maps the persisted appearance choice to the
+// component vocabulary. Unknown values stay at the comfortable default;
+// callers never pass stored text directly into a class name.
+func historyDensityFromTheme(theme CustomerTheme) HistoryDensity {
+	switch NormalizeCustomerTheme(theme).Density {
+	case string(HistoryDensityCompact):
+		return HistoryDensityCompact
+	case string(HistoryDensityComfortable):
+		return HistoryDensityComfortable
+	default:
+		return HistoryDensityDefault
+	}
 }
 
 // WorkflowHistoryFilterProps carries only the address state owned by the
@@ -84,8 +124,11 @@ type WorkflowHistoryItemProps struct {
 	Tone          string
 	EffectiveDate string
 	CompletedAt   string
-	SourceLabel   string
 	Href          string
+	// Provenance is an already-authorized, display-safe evidence projection.
+	// It is rendered on demand so the table stays scannable while inspection
+	// remains available without exposing raw ledger identifiers.
+	Provenance ProvenanceProjection
 }
 
 // WorkflowHistory renders terminal records with enough context to recognize
@@ -138,12 +181,15 @@ func WorkflowHistory(props WorkflowHistoryProps) ui.Node {
 			html.P(html.Props{Class: "muted"}, ui.Text(empty)),
 		))
 	}
-	return html.Section(html.Props{Class: "surface workflow-history", Raw: map[string]any{"aria-labelledby": "workflow-history-title"}}, children...)
+	return html.Section(html.Props{Class: "surface workflow-history" + historyDensityClass(props.Density), Raw: map[string]any{"aria-labelledby": "workflow-history-title"}}, children...)
 }
 
 func historyCountLabel(locale LocaleContext, filtered, total int) string {
 	if total > filtered {
-		return locale.Text("history.filtered_count", map[string]string{"filtered": fmt.Sprint(filtered), "total": fmt.Sprint(total)})
+		return locale.Text("history.filtered_count", map[string]string{
+			"filtered": locale.FormatNumber(fmt.Sprint(filtered), 0),
+			"total":    locale.FormatNumber(fmt.Sprint(total), 0),
+		})
 	}
 	return locale.Plural("history.count", int64(filtered))
 }
@@ -260,8 +306,20 @@ func WorkflowHistoryItem(props WorkflowHistoryItemProps) ui.Node {
 		html.Small(html.Props{}, ui.Text(props.Text("history.closed", map[string]string{"value": valueOrUnavailable(props.CompletedAt)}))),
 		html.Small(html.Props{}, ui.Text(props.Text("history.effective", map[string]string{"value": valueOrUnavailable(props.EffectiveDate)}))),
 	}
-	if props.SourceLabel != "" {
-		dates = append(dates, html.Small(html.Props{Class: "history-source"}, ui.Text(props.SourceLabel)))
+	if props.Provenance.Bound {
+		dates = append(dates, html.Details(html.Props{Class: "history-evidence"},
+			html.Summary(html.Props{}, ui.Text(props.Text("provenance.group"))),
+			ui.CreateElement(ProvenancePresentation, ProvenancePresentationProps{
+				I18nProps: props.I18nProps, IDSeed: "history-evidence-" + props.Href, Projection: props.Provenance,
+			}),
+		))
+	}
+	status := historyOutcomeLabel(props.Locale, props.Outcome)
+	action := ui.Node(html.Span(html.Props{Class: "history-unavailable", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text("—")))
+	if strings.TrimSpace(props.Href) != "" {
+		action = softwareLink(props.Navigate, html.Props{Class: "button secondary", Aria: map[string]string{
+			"label": props.Text("history.open") + " · " + props.Person,
+		}}, props.Href, ui.Text(props.Text("history.open")))
 	}
 	return html.Article(html.Props{Class: "history-row", Raw: map[string]any{"role": "row"}},
 		html.Div(html.Props{Class: "history-identity", Raw: map[string]any{"role": "cell"}},
@@ -271,10 +329,17 @@ func WorkflowHistoryItem(props WorkflowHistoryItemProps) ui.Node {
 				historyPersonName(props),
 			),
 		),
-		html.P(html.Props{Class: "history-change muted", Raw: map[string]any{"role": "cell"}}, ui.Text(props.Summary)),
+		html.P(html.Props{Class: "history-change muted", Raw: map[string]any{
+			"role": "cell", "aria-label": props.Text("history.column_change") + " · " + props.Summary,
+		}},
+			html.Span(html.Props{Class: "history-mobile-label", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text(props.Text("history.column_change"))),
+			ui.Text(props.Summary),
+		),
 		html.Div(html.Props{Class: "history-dates", Raw: map[string]any{"role": "cell"}}, dates...),
-		html.Span(html.Props{Class: "status " + props.Tone, Raw: map[string]any{"role": "cell"}}, ui.Text(props.Outcome)),
-		html.Div(html.Props{Class: "history-action", Raw: map[string]any{"role": "cell"}}, softwareLink(props.Navigate, html.Props{Class: "button secondary"}, props.Href, ui.Text(props.Text("history.open")))),
+		html.Span(html.Props{Class: "status " + props.Tone, Raw: map[string]any{
+			"role": "cell", "aria-label": props.Text("history.column_outcome") + " · " + status,
+		}}, ui.Text(status)),
+		html.Div(html.Props{Class: "history-action", Raw: map[string]any{"role": "cell"}}, action),
 	)
 }
 

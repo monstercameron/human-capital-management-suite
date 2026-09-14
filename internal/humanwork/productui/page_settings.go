@@ -7,8 +7,9 @@ import (
 
 func settingsPage(view View) ui.Node {
 	profile := view.Viewer
+	signedInAs := valueOrUnavailableFor(view.Locale, profile.Name)
 	if profile.Name == "" {
-		profile.Name = view.Principal
+		profile.Name = view.Locale.Text("common.not_reported")
 	}
 	if profile.Initials == "" {
 		profile.Initials = uicomponents.Initials(profile.Name)
@@ -20,26 +21,36 @@ func settingsPage(view View) ui.Node {
 		Motions: AccessibilityMotionOptions(), LinkStyles: AccessibilityLinkOptions(),
 		OnPreview: view.PreviewAccessibility, OnSave: view.SaveAccessibility, OnReset: view.ResetAccessibility,
 	}
-	props := SettingsPageProps{
-		Profile: ViewerProfileProps{
-			SectionLabel: view.Locale.Text("settings.profile_title"), Description: view.Locale.Text("settings.profile_description"),
-			Name: profile.Name, Initials: profile.Initials, PhotoURL: profile.PhotoURL, Role: valueOrUnavailableFor(view.Locale, profile.Role),
+	profileProps := ViewerProfileProps{
+		SectionLabel: view.Locale.Text("settings.profile_title"), Description: view.Locale.Text("settings.profile_description"),
+		Name: profile.Name, Initials: profile.Initials, PhotoURL: profile.PhotoURL, Role: valueOrUnavailableFor(view.Locale, profile.Role),
+	}
+	security := AccessContextProps{
+		Title:       view.Locale.Text("settings.session_title"),
+		Description: view.Locale.Text("settings.access_context_description"),
+		Facts: []FactProps{
+			{Label: view.Locale.Text("settings.organization_fact"), Value: valueOrUnavailableFor(view.Locale, view.Tenant)},
+			{Label: view.Locale.Text("settings.signed_in_as"), Value: signedInAs},
 		},
-		Locale: &locale,
-		Access: AccessContextProps{
-			Title: view.Locale.Text("settings.access_title"), Description: view.Locale.Text("settings.access_description"),
-			Facts: []FactProps{
-				{Label: view.Locale.Text("settings.organization"), Value: valueOrUnavailableFor(view.Locale, view.Tenant)},
-				{Label: view.Locale.Text("settings.principal"), Value: valueOrUnavailableFor(view.Locale, view.Principal)},
-				{Label: view.Locale.Text("settings.purpose_scope"), Value: valueOrUnavailableFor(view.Locale, view.Scope)},
-				{Label: view.Locale.Text("settings.data_source"), Value: valueOrUnavailableFor(view.Locale, view.Source)},
-			},
-			Callout: view.Locale.Text("settings.access_callout"),
-		},
-		Accessibility: &accessibility,
+		Callout: view.Locale.Text("settings.access_callout"),
+	}
+	props := SettingsTaskGroupsProps{
+		Title: view.Locale.Text("settings.account_group_title"), AccountDescription: view.Locale.Text("settings.account_group_description"), PreferencesTitle: view.Locale.Text("settings.preferences_group_title"), Description: view.Locale.Text("settings.preferences_group_description"),
+		SettingsLocale: view.Locale,
+		Profile:        profileProps, Locale: &locale, Accessibility: &accessibility, Security: security,
+		Notifications:      settingsNotifications(view.Locale),
+		Navigation:         settingsNavigationProps(view),
+		SignOutDescription: view.Locale.Text("settings.signout_description"),
+	}
+	if view.Allows(PageMyself, "view") {
+		props.ProfileAction = &ActionLinkProps{Label: settingsProfileAction(view.Locale), Href: statefulHref(view, PageMyself), Class: "button secondary", Navigate: view.Navigate}
+	}
+	if view.Allows(PageAppearance, "view") {
+		props.Appearance = &ActionLinkProps{Label: view.Locale.Text("admin.appearance_action"), Href: statefulHref(view, PageAppearance), Class: "button secondary", Navigate: view.Navigate}
+		props.AppearanceLabel = view.Locale.Text("page.appearance.title")
 	}
 	if view.LogoutHref != "" {
-		props.SignOut = &ActionLinkProps{Label: "Sign out", Href: view.LogoutHref, Class: "button secondary"}
+		props.SignOut = &ActionLinkProps{Label: view.Locale.Text("settings.signout_action"), Href: view.LogoutHref, Class: "button danger settings-signout-action", Navigate: view.Navigate}
 	}
-	return ui.CreateElement(SettingsPage, props)
+	return ui.CreateElement(SettingsTaskGroups, props)
 }

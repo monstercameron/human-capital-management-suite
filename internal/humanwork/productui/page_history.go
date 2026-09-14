@@ -41,8 +41,10 @@ func workflowHistoryPropsForTarget(view View, personID string, target PageID, ti
 		rows = append(rows, WorkflowHistoryItemProps{
 			Type: view.Locale.Text("history.promotion"), Person: item.Person, PersonHref: personHref, Navigate: view.Navigate,
 			Initials: item.Initials, PhotoURL: item.PhotoURL, Summary: item.Summary,
-			Outcome: item.Status, Tone: item.Tone, EffectiveDate: item.EffectiveDate,
-			CompletedAt: item.CompletedAt, SourceLabel: historySourceLabel(item), Href: item.Href,
+			Outcome: historyOutcomeLabel(view.Locale, localizedWorkStatus(view.Locale, item)), Tone: item.Tone,
+			EffectiveDate: historyEffectiveDateLabel(view.Locale, item.EffectiveDate),
+			CompletedAt:   historyCompletedAtLabel(view.Locale, item.CompletedAt), Href: item.Href,
+			Provenance: item.Provenance,
 		})
 	}
 	props := WorkflowHistoryProps{
@@ -50,6 +52,7 @@ func workflowHistoryPropsForTarget(view View, personID string, target PageID, ti
 		Title:     title, Description: description,
 		EmptyText: view.Locale.Text("history.empty_terminal"),
 		Items:     rows, FilteredCount: len(items), TotalCount: len(universe),
+		Density: historyDensityFromTheme(view.Appearance),
 	}
 	if len(universe) > 0 && len(items) == 0 {
 		props.EmptyText = view.Locale.Text("history.none_detail")
@@ -154,16 +157,6 @@ func historyHrefPage(view View, target PageID, personID string, page, size int) 
 	return href
 }
 
-func historySourceLabel(item WorkItem) string {
-	if item.InstanceID == "" {
-		return "Authoritative record"
-	}
-	if item.InstanceVersion > 0 {
-		return fmt.Sprintf("Authoritative · v%d", item.InstanceVersion)
-	}
-	return "Authoritative"
-}
-
 func historyUniverse(view View, personID string) []WorkItem {
 	population := admittedWork(view)
 	items := make([]WorkItem, 0, len(population))
@@ -189,20 +182,90 @@ func filteredHistory(view View, personID string) []WorkItem {
 		if selectedPerson != "" && personID == "" && stablePersonID(view.People, item.PersonRef) != selectedPerson {
 			continue
 		}
-		if outcome != "" && strings.ToLower(item.Status) != outcome {
+		if outcome != "" && historyOutcomeCategory(item.Status) != outcome {
 			continue
 		}
 		if year != "" && historyEffectiveYear(item.EffectiveDate) != year {
 			continue
 		}
-		searchable := strings.ToLower(strings.Join([]string{item.Title, item.Person, item.Summary, item.Status, item.EffectiveDate, item.ID}, " "))
-		if query != "" && !strings.Contains(searchable, query) {
-			continue
+		if query != "" {
+			searchable := strings.ToLower(strings.Join([]string{
+				item.Title, localizedWorkTitle(view.Locale, item), view.Locale.Text("history.promotion"),
+				item.Person, item.Summary, item.Status, localizedWorkStatus(view.Locale, item),
+				item.EffectiveDate, historyEffectiveDateLabel(view.Locale, item.EffectiveDate),
+				item.CompletedAt, historyCompletedAtLabel(view.Locale, item.CompletedAt), item.InstanceID, item.ID,
+			}, " "))
+			if !strings.Contains(searchable, query) {
+				continue
+			}
 		}
 		items = append(items, item)
 	}
 	sortHistory(items, effectiveHistorySort(view.HistorySort), effectiveHistoryDirection(view.HistoryDirection))
 	return items
+}
+
+func historyOutcomeCategory(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "completed", "recorded":
+		return "completed"
+	case "rejected":
+		return "rejected"
+	case "failed":
+		return "failed"
+	default:
+		return ""
+	}
+}
+
+// Dates are formatted only for display. Filtering and ordering continue to
+// consume canonical service values, not locale-dependent labels.
+func historyEffectiveDateLabel(locale LocaleContext, value string) string {
+	if locale.normalized().Resolved == DefaultProductLocale {
+		return value
+	}
+	stamp, err := time.Parse("2006-01-02", strings.TrimSpace(value))
+	if err != nil {
+		return value
+	}
+	// An effective date is a civil date, not an instant. Applying the viewer's
+	// time zone to midnight UTC could silently move it to the prior day.
+	dateLocale := locale.normalized()
+	dateLocale.TimeZone = "UTC"
+	return dateLocale.FormatDate(stamp)
+}
+
+func historyCompletedAtLabel(locale LocaleContext, value string) string {
+	if locale.normalized().Resolved == DefaultProductLocale {
+		return value
+	}
+	var stamp time.Time
+	var err error
+	for _, layout := range []string{"2 Jan 2006 · 15:04 MST", time.RFC3339Nano, time.RFC3339} {
+		if stamp, err = time.Parse(layout, strings.TrimSpace(value)); err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return value
+	}
+	zone, zoneErr := time.LoadLocation(locale.normalized().TimeZone)
+	if zoneErr != nil {
+		zone = time.UTC
+	}
+	clock := stamp.In(zone).Format("15:04 MST")
+	if strings.HasPrefix(locale.normalized().Resolved, "ar") {
+		clock = strings.Map(func(digit rune) rune {
+			if digit >= '0' && digit <= '9' {
+				return '٠' + digit - '0'
+			}
+			return digit
+		}, clock)
+		// Keep the Latin timezone abbreviation and clock in one LTR run
+		// inside the surrounding Arabic label and civil date.
+		clock = "\u2066" + clock + "\u2069"
+	}
+	return locale.FormatDate(stamp) + " · " + clock
 }
 
 func historyPeopleOptions(view View, items []WorkItem) []HistoryFilterOption {
@@ -242,10 +305,15 @@ func historyYearOptions(items []WorkItem) []HistoryFilterOption {
 
 func historyEffectiveYear(date string) string {
 	date = strings.TrimSpace(date)
-	if len(date) >= 4 {
-		return date[:4]
+	if len(date) < 4 {
+		return ""
 	}
-	return ""
+	for _, character := range date[:4] {
+		if character < '0' || character > '9' {
+			return ""
+		}
+	}
+	return date[:4]
 }
 
 func normalizeHistorySort(value string) string {
@@ -302,10 +370,27 @@ func historySortValue(item WorkItem, sortKey string) string {
 	case historySortOutcome:
 		return strings.ToLower(item.Status)
 	default:
-		if stamp, err := time.Parse("2 Jan 2006 · 15:04 MST", item.CompletedAt); err == nil {
-			return stamp.UTC().Format(time.RFC3339)
+		for _, layout := range []string{"2 Jan 2006 · 15:04 MST", time.RFC3339Nano, time.RFC3339, "2006-01-02"} {
+			if stamp, err := time.Parse(layout, strings.TrimSpace(item.CompletedAt)); err == nil {
+				return stamp.UTC().Format(time.RFC3339Nano)
+			}
 		}
-		return item.CompletedAt
+		return strings.ToLower(strings.TrimSpace(item.CompletedAt))
+	}
+}
+
+func historyOutcomeLabel(locale LocaleContext, outcome string) string {
+	switch strings.ToLower(strings.TrimSpace(outcome)) {
+	case "completed":
+		return locale.Text("history.completed")
+	case "rejected":
+		return locale.Text("history.rejected")
+	case "failed":
+		return locale.Text("history.failed")
+	case "recorded":
+		return locale.Text("journey.stage_recorded")
+	default:
+		return outcome
 	}
 }
 
@@ -314,11 +399,11 @@ func historySortColumns(view View, target PageID, personID, sortKey, direction s
 		key, label string
 		sortable   bool
 	}{
-		{historySortPerson, "Employee", true}, {historySortChange, "Change", true},
-		{historySortClosed, "Closed", true}, {historySortOutcome, "Outcome", true},
+		{historySortPerson, view.Locale.Text("history.column_employee"), true}, {historySortChange, view.Locale.Text("history.column_change"), true},
+		{historySortClosed, view.Locale.Text("history.column_closed"), true}, {historySortOutcome, view.Locale.Text("history.column_outcome"), true},
 	}
 	if isIndividualHistoryTarget(target) {
-		definitions[0].label = "Workflow"
+		definitions[0].label = view.Locale.Text("history.column_workflow")
 		definitions[0].sortable = false
 	}
 	columns := make([]HistorySortColumnProps, 0, len(definitions))

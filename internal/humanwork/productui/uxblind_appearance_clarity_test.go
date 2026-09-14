@@ -43,13 +43,18 @@ func TestTodo_UXBLIND_021_ExplainsGovernedLogoAssetPathWithoutInventingUpload(t 
 	}
 	for _, want := range []string{
 		`id="appearance-brand-logo"`, `aria-describedby="appearance-brand-logo-help"`, `id="appearance-brand-logo-help"`,
-		`Enter an approved image path supplied by your workspace administrator. This page does not upload or choose files.`,
+		`Paste a logo link provided by your administrator, or leave blank to show the workspace name.`,
 	} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("logo guidance missing %q in %s", want, doc)
 		}
 	}
-	if strings.Contains(strings.ToLower(doc), "upload endpoint") || strings.Contains(strings.ToLower(doc), "asset picker") {
-		t.Fatal("logo guidance invented an unavailable upload capability")
+	for _, action := range []string{"upload", "preview", "remove", "rollback"} {
+		if strings.Contains(doc, `data-hcm-asset-action="`+action+`"`) {
+			t.Errorf("appearance advertised unwired %s action", action)
+		}
+	}
+	if strings.Contains(strings.ToLower(doc), "upload endpoint") {
+		t.Fatal("appearance guidance invented an unavailable upload capability")
 	}
 }

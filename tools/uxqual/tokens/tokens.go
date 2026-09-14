@@ -165,7 +165,7 @@ func CSSVariables() string {
 // only the harvested bytes are cached.
 var workspaceCSSOnce = sync.OnceValue(func() string {
 	return cssVariablesTyped() + workspaceBasePreTyped() + workspaceMedia640Typed() +
-		workspaceBasePostTyped() + responsiveLayoutTyped() + modeContractsTyped()
+		shapeContractsTyped() + workspaceBasePostTyped() + responsiveLayoutTyped() + modeContractsTyped()
 })
 
 func WorkspaceCSS() string {

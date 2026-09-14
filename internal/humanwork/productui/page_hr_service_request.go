@@ -4,23 +4,29 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-// hrServiceRequestPage is the route adapter for HR
-// service-request intake. The governed help service is
-// not published to this UI yet, so the surface keeps the
-// journeys fallback contract: an honest empty state with
-// a recovery link that intakes nothing — request truth
-// stays server authority. The live intake composition
-// replaces this body once the governed service
-// publishes; until then the UI will not simulate one.
 func hrServiceRequestPage(view View) ui.Node {
-	return ui.CreateElement(EmptyState, EmptyStateProps{
-		Title:       view.Locale.Text("hr_service_request.unavailable_title"),
-		Description: view.Locale.Text("hr_service_request.unavailable_detail"),
-		Role:        "status",
-		Action: &ActionLinkProps{
-			Label: view.Locale.Text("hr_service_request.return_home"), Href: statefulHref(view, PageHome),
-			Class:    "button primary",
-			Navigate: view.Navigate,
+	escalation := SupportDestinationProps{}
+	if view.Allows(PageConfidentialCase, "view") {
+		definition, ok := LookupPage(PageConfidentialCase)
+		if ok {
+			escalation = SupportDestinationProps{
+				Category: "Need a confidential route?",
+				Title:    view.Locale.Text(definition.TitleKey), Description: view.Locale.Text(definition.SubtitleKey),
+				ActionLabel: view.Locale.Text("help.open"), Href: statefulHref(view, PageConfidentialCase), Navigate: view.Navigate,
+			}
+		}
+	}
+	return ui.CreateElement(HRServiceRequestPage, HRServiceRequestPageProps{
+		Action:        statefulHref(view, PageHRServiceRequest),
+		CategoryLabel: view.Locale.Text("hr_request.category_label"), DetailsLabel: view.Locale.Text("hr_request.details_label"),
+		CategoryPlaceholder: view.Locale.Text("hr_request.category_placeholder"), DetailsPlaceholder: view.Locale.Text("hr_request.details_placeholder"),
+		SubmitLabel: view.Locale.Text("hr_request.submit"), SubmitDisabled: !view.Allows(PageHRServiceRequest, "create"), Escalation: escalation,
+		Categories: []SupportRequestCategory{
+			{Value: "pay-benefits", Label: view.Locale.Text("hr_request.pay_benefits")},
+			{Value: "time-leave", Label: view.Locale.Text("hr_request.time_leave")},
+			{Value: "workplace-access", Label: view.Locale.Text("hr_request.workplace_access")},
+			{Value: "other", Label: view.Locale.Text("hr_request.other")},
 		},
+		Unavailable: view.Locale.Text("hr_service_request.unavailable_detail"),
 	})
 }

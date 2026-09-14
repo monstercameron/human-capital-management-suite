@@ -70,24 +70,62 @@ func validRecoveryHref(href string) bool {
 	if !relative && !secure && !strings.HasPrefix(lower, "mailto:") {
 		return false
 	}
-	if relative || secure {
-		return !recoveryHrefCarriesCredentials(href)
-	}
-	return true
-}
-
-// recoveryHrefCarriesCredentials reports whether a destination carries a
-// denied credential query parameter. An unparsable destination keeps its
-// scheme verdict: the check refuses to invent credentials it cannot see.
-func recoveryHrefCarriesCredentials(href string) bool {
 	parsed, err := url.Parse(href)
 	if err != nil {
 		return false
 	}
-	for key := range parsed.Query() {
-		if _, denied := credentialQueryKeys[strings.ToLower(key)]; denied {
-			return true
+	if secure && (parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil) {
+		return false
+	}
+	if strings.HasPrefix(lower, "mailto:") && strings.TrimSpace(parsed.Opaque) == "" {
+		return false
+	}
+	// Query strings can be present on mailto links too. Treat all admitted
+	// destinations uniformly so a recovery address can never carry an
+	// authenticator into browser history, logs, or telemetry.
+	return !recoveryHrefCarriesCredentials(href)
+}
+
+// validFederationHref applies the same credential and scheme policy to an
+// issuer start link, while intentionally excluding mail contacts (which are
+// valid recovery links but cannot start a federation flow).
+func validFederationHref(href string) bool {
+	href = strings.TrimSpace(href)
+	if strings.HasPrefix(strings.ToLower(href), "mailto:") {
+		return false
+	}
+	return validRecoveryHref(href)
+}
+
+// recoveryHrefCarriesCredentials reports whether a destination carries a
+// denied credential query or fragment parameter. Malformed destinations fail
+// closed: a recovery gate must not render a link whose credential content it
+// cannot parse.
+func recoveryHrefCarriesCredentials(href string) bool {
+	parsed, err := url.Parse(href)
+	if err != nil {
+		return true
+	}
+	denied := func(values url.Values) bool {
+		for key := range values {
+			if _, denied := credentialQueryKeys[strings.ToLower(key)]; denied {
+				return true
+			}
 		}
+		return false
+	}
+	if denied(parsed.Query()) {
+		return true
+	}
+	// Fragments are not sent to the server, but they remain visible in browser
+	// history and may be captured by client telemetry. Treat query-shaped
+	// fragments with the same policy.
+	fragment, err := url.ParseQuery(parsed.Fragment)
+	if err != nil {
+		return true
+	}
+	if denied(fragment) {
+		return true
 	}
 	return false
 }
@@ -130,7 +168,8 @@ func federationEntryProps(view View) FederationEntryProps {
 // protocol metadata. No configured issuer is an honest empty state, never
 // an empty page or an invented destination.
 func FederationEntryList(props FederationEntryProps) ui.Node {
-	if len(props.Entries) == 0 {
+	groups := federationEntryGroups(props.Entries)
+	if len(groups) == 0 {
 		return html.Section(html.Props{ID: "federation-entry", Class: "federation-entry", Aria: map[string]string{"labelledby": "page-title"}},
 			html.H1(html.Props{ID: "page-title", Raw: map[string]any{"tabindex": "-1"}}, ui.Text(props.Text("federation_entry.title"))),
 			html.Div(html.Props{Class: "federation-entry-empty"},
@@ -138,7 +177,6 @@ func FederationEntryList(props FederationEntryProps) ui.Node {
 			federationRecoverySection(props),
 		)
 	}
-	groups := federationEntryGroups(props.Entries)
 	sections := make([]ui.Node, 0, len(groups))
 	for _, tenant := range groups {
 		items := make([]ui.Node, 0, len(tenant.entries))
@@ -174,14 +212,39 @@ func federationEntryGroups(entries []FederationEntry) []federationTenantGroup {
 	index := map[string]int{}
 	groups := make([]federationTenantGroup, 0)
 	for _, entry := range entries {
-		at, ok := index[entry.Tenant]
+		entry.Tenant = strings.TrimSpace(entry.Tenant)
+		entry.Issuer = strings.TrimSpace(entry.Issuer)
+		entry.Protocol = strings.TrimSpace(entry.Protocol)
+		entry.Assurance = strings.TrimSpace(entry.Assurance)
+		entry.Href = strings.TrimSpace(entry.Href)
+		if !validFederationHref(entry.Href) || entry.Tenant == "" || entry.Issuer == "" {
+			continue
+		}
+		at, ok := index[strings.ToLower(entry.Tenant)]
 		if !ok {
 			at = len(groups)
-			index[entry.Tenant] = at
+			index[strings.ToLower(entry.Tenant)] = at
 			groups = append(groups, federationTenantGroup{name: entry.Tenant})
 		}
 		groups[at].entries = append(groups[at].entries, entry)
 	}
-	sort.Slice(groups, func(i, j int) bool { return groups[i].name < groups[j].name })
+	sort.Slice(groups, func(i, j int) bool {
+		return strings.ToLower(groups[i].name) < strings.ToLower(groups[j].name)
+	})
+	for i := range groups {
+		sort.SliceStable(groups[i].entries, func(a, b int) bool {
+			left, right := groups[i].entries[a], groups[i].entries[b]
+			if strings.ToLower(left.Issuer) != strings.ToLower(right.Issuer) {
+				return strings.ToLower(left.Issuer) < strings.ToLower(right.Issuer)
+			}
+			if left.Protocol != right.Protocol {
+				return left.Protocol < right.Protocol
+			}
+			if left.Assurance != right.Assurance {
+				return left.Assurance < right.Assurance
+			}
+			return left.Href < right.Href
+		})
+	}
 	return groups
 }

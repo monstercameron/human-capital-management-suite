@@ -23,6 +23,43 @@ type LoadingProxyProps struct {
 	Message string
 }
 
+// LoadingRegionPage is the stable outlet used by route transitions. Keeping
+// this identity on both a resolved page and its proxy lets the browser retain
+// the outlet's scroll and focus state while the authorized projection changes.
+const LoadingRegionPage = "page-content"
+
+// LoadingContractVersion identifies the geometry contract encoded by a
+// loading proxy. It is presentation metadata only; changing it deliberately
+// makes browser visual baselines and CLS checks fail together.
+const LoadingContractVersion = "v1"
+
+// LoadingGeometry describes the coarse shape a page proxy reserves. Skeletons
+// do not copy business values, but they must reserve the same kind of region so
+// the final projection can replace them without a major layout shift.
+type LoadingGeometry struct {
+	Layout  string
+	Rows    int
+	Columns int
+}
+
+// LoadingProxyGeometry returns the immutable geometry contract for a page
+// family. Unknown pages use the settings shape, which is the conservative
+// fallback for a route that cannot be classified.
+func LoadingProxyGeometry(page PageID) LoadingGeometry {
+	switch page {
+	case PagePeople, PageHistory:
+		return LoadingGeometry{Layout: "table", Rows: 8, Columns: 4}
+	case PagePerson, PageMyself:
+		return LoadingGeometry{Layout: "profile", Rows: 10, Columns: 2}
+	case PageOrganization, PageInsights:
+		return LoadingGeometry{Layout: "analysis", Rows: 13, Columns: 2}
+	case PageHome, PageWork, PageJourneys:
+		return LoadingGeometry{Layout: "work", Rows: 12, Columns: 2}
+	default:
+		return LoadingGeometry{Layout: "settings", Rows: 11, Columns: 2}
+	}
+}
+
 // BuildLoading returns the real product shell with a component-shaped proxy
 // in place of database and network-backed content. The router swaps this tree
 // atomically for Build(view) when every required answer has resolved.
@@ -30,6 +67,8 @@ func BuildLoading(view View) ui.Node {
 	view.Loading = true
 	view.ContentLoading = false
 	view.Refreshing = false
+	view.RefreshingRegion = ""
+	view.LoadError = ""
 	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page}))
 }
 
@@ -42,6 +81,7 @@ func BuildContentLoading(view View) ui.Node {
 	view.ContentLoading = true
 	view.Refreshing = false
 	view.RefreshingRegion = ""
+	view.LoadError = ""
 	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page}))
 }
 
@@ -51,7 +91,7 @@ func BuildContentLoading(view View) ui.Node {
 func BuildRefreshing(view View) ui.Node {
 	view.Loading = false
 	view.ContentLoading = false
-	if view.RefreshingRegion != "" {
+	if isFocusedRefreshRegion(view.RefreshingRegion) {
 		view.Refreshing = false
 		return Build(view)
 	}
@@ -106,6 +146,7 @@ func BuildFailure(view View, message string) ui.Node {
 // unannounced failure -- both of which would hide a real programming
 // mistake from assistive technology.
 func LoadingProxy(props LoadingProxyProps) ui.Node {
+	geometry := LoadingProxyGeometry(props.Page)
 	class := "loading-proxy loading-proxy-" + safeLoadingPageClass(props.Page)
 	body := html.Fragment(
 		html.Div(html.Props{Class: "loading-progress"}),
@@ -113,7 +154,7 @@ func LoadingProxy(props LoadingProxyProps) ui.Node {
 	)
 	switch props.State {
 	case AsyncRegionLoading, AsyncRegionEmpty, AsyncRegionStale, AsyncRegionResolved:
-		return html.Section(html.Props{Class: class, Raw: map[string]any{"aria-hidden": "true"}}, body)
+		return html.Section(html.Props{Class: class, Raw: map[string]any{"aria-hidden": "true", "data-async-region": LoadingRegionPage, "data-loading-contract": LoadingContractVersion, "data-loading-layout": geometry.Layout, "data-preserve-scroll": "true", "data-preserve-focus": "true"}}, body)
 	case AsyncRegionFailure:
 		return html.Section(html.Props{Class: class, Raw: map[string]any{"role": "alert", "aria-live": "assertive"}},
 			html.Span(html.Props{Class: "sr-only"}, ui.Text(strings.TrimSpace(props.Message))),
@@ -254,4 +295,13 @@ func safeLoadingPageClass(page PageID) string {
 		return string(page)
 	}
 	return string(PageHome)
+}
+
+func isFocusedRefreshRegion(region string) bool {
+	switch region {
+	case RefreshRegionPeopleDirectory:
+		return true
+	default:
+		return false
+	}
 }

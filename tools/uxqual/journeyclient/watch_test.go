@@ -181,7 +181,7 @@ func TestWatchSurfacesARefusal(t *testing.T) {
 
 	h.app.Start(context.Background(), DetailHref(testIntentID))
 
-	p := h.awaitPage(t, "the refusal", noticeTitled("Refused"))
+	p := h.awaitPage(t, "the refusal", noticeTitled("You can't complete this action"))
 	if p.Notice.Tone != toneDanger {
 		t.Errorf("notice tone = %q, want danger", p.Notice.Tone)
 	}

@@ -14,6 +14,74 @@ import (
 
 func TestMain(m *testing.M) { pgtest.RunMain(m) }
 
+func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
+	db := pgtest.New(t)
+	tenantID := uuid.New()
+	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-test','Persona Access','ACTIVE',$3)`, tenantID, "persona-access-test", time.Now().UTC())
+	store := New(db.Conn, func(values.TenantId) uuid.UUID { return tenantID })
+	ctx := context.Background()
+	tenant := values.TenantId("persona-access-test")
+	if err := store.Bootstrap(ctx, tenant, "system:bootstrap"); err != nil {
+		t.Fatal(err)
+	}
+	permissions := func(roles ...string) []roleaccess.PagePermission {
+		t.Helper()
+		snapshot, err := store.Load(ctx, tenant, "org:persona-access-test:people-ops")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return roleaccess.EffectivePagePermissions(snapshot, roles)
+	}
+	payrollRoles := []string{"payroll_manager", "promotion_operator"}
+	orgPages := []string{"organization", "org-explorer", "org-outline", "org-responsive"}
+	for _, page := range orgPages {
+		if !roleaccess.CanPageAction(permissions(payrollRoles...), page, roleaccess.ActionView) {
+			t.Fatalf("test did not start from broad historical %s access", page)
+		}
+	}
+	if !roleaccess.CanPageAction(permissions(payrollRoles...), "journeys", roleaccess.ActionCreate) {
+		t.Fatal("test did not start from the broad historical demo grants")
+	}
+	if err := store.BootstrapLocalDevPersonaPermissions(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.BootstrapLocalDevPersonaPermissions(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	for _, page := range orgPages {
+		if roleaccess.CanPageAction(permissions(payrollRoles...), page, roleaccess.ActionView) {
+			t.Fatalf("payroll demo persona retained %s browsing", page)
+		}
+	}
+	if roleaccess.CanPageAction(permissions(payrollRoles...), "journeys", roleaccess.ActionCreate) {
+		t.Fatal("payroll demo persona retained promotion initiation")
+	}
+	if !roleaccess.CanPageAction(permissions(payrollRoles...), "work", roleaccess.ActionView) ||
+		!roleaccess.CanPageAction(permissions("hiring_manager", "manager", "intent_author"), "organization", roleaccess.ActionView) {
+		t.Fatal("demo policy removed assigned-work review or hiring-manager organization access")
+	}
+	// An administrator's edited grant has a higher version and survives replay.
+	snapshot, err := store.Load(ctx, tenant, "org:persona-access-test:people-ops")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, grant := range snapshot.PagePermissions {
+		if grant.RoleID == "payroll_manager" && grant.PageID == "organization" {
+			grant.View = true
+			if _, err := store.SavePagePermission(ctx, tenant, "admin", grant); err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+	}
+	if err := store.BootstrapLocalDevPersonaPermissions(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	if !roleaccess.CanPageAction(permissions(payrollRoles...), "organization", roleaccess.ActionView) {
+		t.Fatal("local-dev replay overwrote an administrator-edited role grant")
+	}
+}
+
 func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 	db := pgtest.New(t)
 	tenantID := uuid.New()

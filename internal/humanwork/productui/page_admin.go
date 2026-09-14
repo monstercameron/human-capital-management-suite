@@ -16,10 +16,10 @@ type adminCapability struct {
 }
 
 func adminPage(view View) ui.Node {
-	journeyState, journeyTone := "Connected", "positive"
+	journeyState, journeyTone := view.Locale.Text("admin.available"), "positive"
 	journeyAvailability := ActionState{}
 	if view.LoadError != "" {
-		journeyState, journeyTone = "Unavailable", "warning"
+		journeyState, journeyTone = view.Locale.Text("admin.unavailable"), "warning"
 		journeyAvailability = ActionState{Availability: ActionUnavailable, Reason: view.Locale.Text("admin.journeys_unavailable_reason")}
 	}
 	// This organization has no page-configuration capability published yet:
@@ -28,28 +28,28 @@ func adminPage(view View) ui.Node {
 	studioAvailability := ActionState{Availability: ActionUnavailable, Reason: view.Locale.Text("admin.studio_unavailable_reason")}
 	capabilities := []adminCapability{
 		{
-			page: PageRoles, title: "Roles & access", description: "Create tenant roles and assign one or more roles to every employee from the live workforce directory.", state: "Available", tone: "positive",
-			actionLabel: "Manage roles →",
+			page: PageRoles, title: view.Locale.Text("page.roles.title"), description: view.Locale.Text("admin.roles_description"), state: view.Locale.Text("admin.available"), tone: "positive",
+			actionLabel: view.Locale.Text("admin.roles_action"),
 		},
 		{
-			page: PageOrganizationVisibility, title: "Organization visibility", description: "For each role, choose everyone, the employee's own unit, an approved set of units, or all units except a restricted set.", state: "Available", tone: "positive",
-			actionLabel: "Configure visibility →",
+			page: PageOrganizationVisibility, title: view.Locale.Text("page.organization_visibility.title"), description: view.Locale.Text("admin.visibility_description"), state: view.Locale.Text("admin.available"), tone: "positive",
+			actionLabel: view.Locale.Text("admin.visibility_action"),
 		},
 		{
-			page: PageWorkerIDs, title: "Worker ID rules", description: "Issue organization-specific worker numbers from an atomic, non-reusing sequence with governed formatting rules.", state: "Available", tone: "positive",
-			actionLabel: "Configure worker IDs →",
+			page: PageWorkerIDs, title: view.Locale.Text("page.worker_ids.title"), description: view.Locale.Text("admin.worker_ids_description"), state: view.Locale.Text("admin.available"), tone: "positive",
+			actionLabel: view.Locale.Text("admin.worker_ids_action"),
 		},
 		{
-			page: PageAppearance, title: "Brand & appearance", description: "Governed palettes, shapes, density, glyphs, and motion are available across the product shell.", state: "Available", tone: "positive",
-			actionLabel: "Configure appearance →",
+			page: PageAppearance, title: view.Locale.Text("page.appearance.title"), description: view.Locale.Text("admin.appearance_description"), state: view.Locale.Text("admin.available"), tone: "positive",
+			actionLabel: view.Locale.Text("admin.appearance_action"),
 		},
 		{
-			page: PageJourneys, title: "Journey service", description: view.Locale.Text("admin.journey_card_description"), state: journeyState, tone: journeyTone, availability: journeyAvailability,
-			actionLabel: "Open details →",
+			page: PageJourneys, title: view.Locale.Text("admin.promotion_title"), description: view.Locale.Text("admin.promotion_description"), state: journeyState, tone: journeyTone, availability: journeyAvailability,
+			actionLabel: view.Locale.Text("admin.promotion_action"),
 		},
 		{
-			page: PageStudio, title: "Experience configuration", description: view.Locale.Text("admin.studio_card_description"), state: "Unavailable", tone: "warning", availability: studioAvailability,
-			actionLabel: "Open details →",
+			page: PageStudio, title: view.Locale.Text("admin.custom_title"), description: view.Locale.Text("admin.custom_description"), state: view.Locale.Text("admin.unavailable"), tone: "warning", availability: studioAvailability,
+			actionLabel: view.Locale.Text("admin.promotion_action"),
 		},
 	}
 	// An admitted identity only sees cards for pages it may

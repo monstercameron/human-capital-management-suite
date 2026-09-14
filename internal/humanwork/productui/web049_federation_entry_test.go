@@ -184,3 +184,24 @@ func TestTodo_WEB_049_Conformance(t *testing.T) {
 		}
 	}
 }
+
+func TestFederationEntryDropsUnsafeOrIncompleteIssuerProjection(t *testing.T) {
+	props := FederationEntryProps{
+		I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")},
+		Entries: []FederationEntry{
+			{Tenant: "", Issuer: "missing-tenant", Protocol: "oidc", Href: "/workspace/login/start"},
+			{Tenant: "harborcare-demo", Issuer: "unsafe", Protocol: "oidc", Href: "javascript:alert(1)"},
+			{Tenant: "harborcare-demo", Issuer: "leaky", Protocol: "oidc", Href: "/workspace/login/start?access_token=secret"},
+		},
+	}
+	node, err := ui.RenderToString(FederationEntryList(props))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(node, "unsafe") || strings.Contains(node, "leaky") || strings.Contains(node, "javascript:") || strings.Contains(node, "access_token") {
+		t.Fatalf("unsafe issuer projection survived: %s", node)
+	}
+	if !strings.Contains(node, "No federated sign-in") || !strings.Contains(node, `role="status"`) {
+		t.Fatalf("filtered issuer projection did not become an honest empty state: %s", node)
+	}
+}

@@ -62,7 +62,7 @@ func TestTodo_WEB_164_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "d8a22100deb743b0e10694611cbfc2ae527253274d1658777bed65a92261b3b6"
+	const want = "f17e495b71636a6a41ebdde92ba9fbb5854c0bb84d57a38804f15b5ffba04bfd"
 	if got != want {
 		t.Fatalf("compensation calibration digest = %s, want %s", got, want)
 	}

@@ -145,13 +145,16 @@ func (o *OTelInstrumentation) StartResumeSpan(ctx context.Context, req execute.R
 func spanAttributeMap(attrs execute.SpanAttributes) map[string]string {
 	kv := make(map[string]string, 4)
 	if attrs.InstanceID != "" {
-		kv["instance_id"] = attrs.InstanceID
+		// A workflow instance is the durable logical operation callers use to
+		// pivot between execution spans and the inspector. Use the canonical
+		// topology key so the shared allow-list preserves it.
+		kv["logical_operation_id"] = attrs.InstanceID
 	}
 	if attrs.NodeID != "" {
 		kv["node_id"] = attrs.NodeID
 	}
 	if attrs.Attempt > 0 {
-		kv["attempt"] = strconv.Itoa(attrs.Attempt)
+		kv["attempt_id"] = strconv.Itoa(attrs.Attempt)
 	}
 	if attrs.TerminalCode != "" {
 		kv["terminal_code"] = attrs.TerminalCode

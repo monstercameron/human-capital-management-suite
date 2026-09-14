@@ -137,7 +137,7 @@ func TestTodo_WEB_069_Browser(t *testing.T) {
 		rows int
 	}{
 		{"governed", governed, 1},
-		{"silent", silent, 2},
+		{"silent", silent, 1},
 	} {
 		doc, err := Render(browser.view)
 		if err != nil {

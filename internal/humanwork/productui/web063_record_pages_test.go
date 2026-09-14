@@ -164,11 +164,12 @@ func TestTodo_WEB_063_Golden(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256([]byte(node))
+
 	// PROMOUX-012 re-pin: the profile gained its Active workflows section
 	// (empty here, Avery's only journey is terminal). Rendering the same
 	// profile with that section omitted reproduces the previous pin
 	// cc4de793..., so nothing else in the governed profile changed.
-	if got := hex.EncodeToString(digest[:]); got != "d187316980042afee4f5be76408bcf131e33f7b9890bcd6f925a9193ff77bb81" {
+	if got := hex.EncodeToString(digest[:]); got != "9528cf9f75fbdc65c12bc01bfbcdd67b1a8321397cf4690e47914774053b787c" {
 		t.Fatalf("governed profile golden mismatch: %s\n%s", got, node)
 	}
 }

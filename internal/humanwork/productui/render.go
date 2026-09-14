@@ -16,7 +16,7 @@ func Render(view View) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("productui: render: %w", err)
 	}
-	return document(view.Title, view.Appearance, view.Accessibility, view.Locale, body), nil
+	return document(ResolveDocumentPageTitle(view), view.Appearance, view.Accessibility, view.Locale, body), nil
 }
 
 // Build returns the same component tree used by SSR tests and the browser
@@ -31,7 +31,7 @@ func Build(view View) ui.Node {
 func BuildPageContent(view View) ui.Node {
 	page, err := renderPage(view)
 	if err != nil {
-		page = unavailablePanel("Page unavailable", err.Error())
+		page = unavailablePanel(view.Locale.Text("shell.page_unavailable"), view.Locale.Text("shell.page_recovery"))
 	}
 	return page
 }

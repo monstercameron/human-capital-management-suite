@@ -422,9 +422,10 @@ func TestTodo_PROMOUX_012_Regression(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// finance x2, manager x2, blocked x1; the waits and the closed journey are not attention.
-		if !strings.Contains(doc, ">5<") {
-			t.Fatalf("insights attention is not 5: %s", doc)
+		// Only the viewer's assigned finance, claimable manager and own
+		// correction are attention; other approvers' work is not.
+		if !strings.Contains(doc, ">3<") {
+			t.Fatalf("insights attention is not 3: %s", doc)
 		}
 	})
 

@@ -27,14 +27,15 @@ func peoplePage(view View) ui.Node {
 		I18nProps: I18nProps{Locale: view.Locale},
 		Summary: PeopleSummaryProps{
 			CountLabel: peopleCountLabel(view.Locale, filterActive, len(filtered), len(population)),
-			ScopeLabel: view.Locale.Text("people.scope", map[string]string{"scope": valueOrUnavailableFor(view.Locale, view.Scope)}),
+			ScopeLabel: view.Locale.Text("people.scope"),
 		},
 		Filter: PeopleFilterProps{
 			Query: view.Query, Team: view.PeopleTeam, Location: view.PeopleLocation, EligibleOnly: view.PeopleEligibleOnly,
 			Teams:     peopleFilterOptions(peopleFacetOptions(population, func(person Person) string { return person.Team })),
 			Locations: peopleFilterOptions(peopleFacetOptions(population, func(person Person) string { return person.Location })),
 			Sort:      view.PeopleSort, Direction: view.PeopleDirection,
-			Action: pageHref(PagePeople), ClearHref: peopleClearHref(view),
+			PageSize: view.PeoplePageSize,
+			Action:   pageHref(PagePeople), ClearHref: peopleClearHref(view),
 			NavCollapsed: view.NavCollapsed, Navigate: view.Navigate,
 		},
 		Empty: PeopleEmptyStateProps{
@@ -91,12 +92,12 @@ func peopleDirectoryInputKey(props PeopleDirectoryProps) string {
 			_, _ = fmt.Fprintf(hash, "%d:%s|", len(value), value)
 		}
 	}
-	write(props.Locale.Resolved, strconv.Itoa(props.Pagination.Page), strconv.Itoa(props.Pagination.PageCount), strconv.Itoa(props.Pagination.PageSize.Value))
+	write(props.Locale.Resolved, strconv.Itoa(props.Pagination.Page), strconv.Itoa(props.Pagination.PageCount), strconv.Itoa(props.Pagination.PageSize.Value), strconv.Itoa(props.Pagination.First), strconv.Itoa(props.Pagination.Last), strconv.Itoa(props.Pagination.Total))
 	for _, column := range props.Columns {
 		write(column.ID, column.Label, column.Href, strconv.FormatBool(column.Active), strconv.FormatBool(column.Descending))
 	}
 	for _, row := range props.Rows {
-		write(row.ID, row.Name, row.Role, row.Team, row.Manager, row.Location, row.PhotoURL, row.Href)
+		write(row.ID, row.Name, row.WorkerNumber, row.Role, row.Team, row.Manager, row.Location, row.PhotoURL, row.Href, row.WorkflowsUnavailableReason)
 		for _, action := range row.QuickActions {
 			write(action.Label, action.AccessibleLabel, action.Href, strconv.FormatBool(action.Frequent))
 		}

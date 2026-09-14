@@ -17,6 +17,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	ledgerport "github.com/monstercameron/human-capital-management-suite/internal/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 )
 
 // ErrIntentNotFound is what a [Store] returns when no intent is visible at the
@@ -267,6 +268,10 @@ type ResolveRequest struct {
 	Principal  *trust.Principal
 	// Purpose is the resolved purpose of processing for this invocation.
 	Purpose string
+	// Relationships are trusted scope facts resolved by the calling surface.
+	// The ordinary intent API leaves this empty. Journey inspection supplies a
+	// single assignment-derived fact only for the current work-item owner.
+	Relationships []authz.RelationshipFact
 }
 
 // DomainInputs resolves a [DomainCall] from a stored instance.

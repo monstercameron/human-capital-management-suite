@@ -151,9 +151,10 @@ func (e *journeyEngine) listCreated(ctx context.Context, principal *trust.Princi
 
 // createdWorkerSummary projects one durable row onto the port's listing row.
 func createdWorkerSummary(row workforce.WorkerRow) workspace.WorkerSummary {
-	return workspace.WorkerSummary{
+	worker := workspace.WorkerSummary{
 		WorkerRef:       row.WorkerKey,
 		WorkerID:        row.WorkerID.String(),
+		SubjectRevision: fmt.Sprintf("%s@%d", row.RevisionStream, row.RevisionSequence),
 		LegalName:       row.LegalName,
 		PreferredName:   row.PreferredName,
 		WorkerNumber:    row.WorkerNumber,
@@ -173,38 +174,82 @@ func createdWorkerSummary(row workforce.WorkerRow) workspace.WorkerSummary {
 		Source:          workspace.WorkerSourceCreated,
 		CreatedAt:       row.RecordedAt,
 	}
+	// A board relationship is an accountable external authority, not a
+	// missing employee. It therefore starts the employee ownership tree while
+	// the opaque relationship reference remains available to the governed
+	// domain. Other unresolved references stay unspecified so the authorized
+	// transport projection can distinguish hidden managers from bad edges.
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(row.ManagerRelationshipRef)), "board:") {
+		worker.ManagerDisposition = workspace.ManagerRelationshipRoot
+	}
+	return worker
 }
 
 // corpusWorkers projects the release's fixed population onto listing rows.
 //
-// Their pay is deliberately blank. A corpus worker's compensation baseline is
-// the ported legacy scenario's, not a fact of their own record, and copying
-// one worker's declared amounts onto all four would be inventing three
-// salaries.
+// Compensation is present only where the release declares a baseline for that
+// exact worker. Jane's reference promotion and Omar's ported scenario each do;
+// the other corpus workers remain blank. This distinction lets the promotion
+// form state the current amount it is evaluating without copying one scenario's
+// pay onto unrelated employees.
 func corpusWorkers() ([]workspace.WorkerSummary, error) {
 	profiles, err := fixtures.Workers()
 	if err != nil {
 		return nil, fmt.Errorf("app: journey: read the worker corpus: %w", err)
 	}
+	baselines, err := corpusCompensationBaselines()
+	if err != nil {
+		return nil, err
+	}
 	out := make([]workspace.WorkerSummary, 0, len(profiles))
 	for _, p := range profiles {
-		out = append(out, workspace.WorkerSummary{
-			WorkerRef:     p.Key,
-			WorkerID:      p.ID,
-			LegalName:     p.LegalName,
-			PreferredName: p.PreferredName,
-			WorkerNumber:  p.WorkerNumber,
-			JobCode:       p.JobCode,
-			Grade:         p.Grade,
-			OrgUnit:       p.OrgUnit,
-			PositionID:    p.PositionID,
-			Location:      p.Location,
-			PayZone:       p.PayZone,
-			HireDate:      p.HireDate,
-			Source:        workspace.WorkerSourceCorpus,
-		})
+		worker := workspace.WorkerSummary{
+			WorkerRef:       p.Key,
+			WorkerID:        p.ID,
+			SubjectRevision: PromotionSubjectRevision(p.Key),
+			LegalName:       p.LegalName,
+			PreferredName:   p.PreferredName,
+			WorkerNumber:    p.WorkerNumber,
+			JobCode:         p.JobCode,
+			Grade:           p.Grade,
+			OrgUnit:         p.OrgUnit,
+			PositionID:      p.PositionID,
+			Location:        p.Location,
+			PayZone:         p.PayZone,
+			HireDate:        p.HireDate,
+			Source:          workspace.WorkerSourceCorpus,
+		}
+		if baseline, ok := baselines[p.Key]; ok {
+			worker.BasePay = baseline.currentBase
+			worker.Currency = baseline.currency
+			worker.BonusTarget = baseline.bonusTarget
+		}
+		out = append(out, worker)
 	}
 	return out, nil
+}
+
+func corpusCompensationBaselines() (map[string]journeyBaselineFacts, error) {
+	set, err := fixtures.LegacyScenarios()
+	if err != nil {
+		return nil, fmt.Errorf("app: journey: read declared compensation baselines: %w", err)
+	}
+	if len(set.Scenarios) == 0 {
+		return nil, fmt.Errorf("app: journey: the promotion corpus declares no scenario")
+	}
+	legacy := set.Scenarios[0]
+	return map[string]journeyBaselineFacts{
+		"jane-doe": {
+			currentBase: fixtures.JanePromotionBase,
+			currency:    "USD",
+			bonusTarget: fixtures.JanePromotionBonus,
+		},
+		set.Worker: {
+			currentBase: legacy.CurrentAmount,
+			currency:    legacy.CurrentCurrency,
+			bonusTarget: legacy.BonusTarget,
+		},
+	}, nil
 }
 
 // workforceOptions derives the closed set of placements a created worker may
@@ -326,6 +371,7 @@ func appendDemoWorkforcePromotionPaths(options *workspace.WorkforceOptions) {
 			SourceJobCode: edge.SourceJobCode, SourceGrade: edge.SourceGrade,
 			TargetJobCode: edge.TargetJobCode, TargetGrade: edge.TargetGrade,
 			TargetTitle: edge.TargetTitle, Kind: "UPWARD",
+			MinimumBaseIncrease: edge.MinimumBaseIncrease, MaximumBaseIncrease: edge.MaximumBaseIncrease,
 		})
 		for _, zone := range zones {
 			key := edge.TargetJobCode + "|" + edge.TargetGrade + "|" + zone

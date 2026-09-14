@@ -8,6 +8,12 @@ import (
 // items, actions rail, timeline, footer, responsive composition, motion, and
 // print rules, in original order.
 func declareJourneyMotion() {
+	declareGlobal(`.jn-wait-explanation`,
+		gwccss.BorderLeft(gwccss.Px(3), gwccss.Var("jn-warning")),
+	)
+	declareGlobal(`.jn-wait-explanation .jn-facts`,
+		gwccss.Raw("margin-top", "var(--jn-s2)"),
+	)
 	declareGlobal(`.jn-checkpill[data-tone="warning"]`,
 		gwccss.Keyframes("jn-amber", jnAmberFrames...),
 		gwccss.Animation(gwccss.RawDuration("2.8s"), gwccss.EaseInOut),
@@ -340,38 +346,77 @@ func declareJourneyMotion() {
 		gwccss.Rounded(gwccss.VarLength("jn-r1")),
 		gwccss.PaddingY(gwccss.Rem(.3125)), gwccss.PaddingX(gwccss.Rem(.5)),
 	)
-	declareGlobal(`.jn-confirm`,
-		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("jn-hairline")),
-		gwccss.Raw("padding-top", ".625rem"),
-	)
-	declareGlobal(`.jn-confirm>summary`,
-		gwccss.Raw("list-style", "none"),
+	declareGlobal(`.jn-confirm-trigger`,
 		gwccss.W(gwccss.Percent(100)),
-		gwccss.Raw("text-align", "center"),
-		gwccss.Raw("cursor", "pointer"),
 	)
-	declareGlobal(`.jn-confirm>summary::-webkit-details-marker`,
-		gwccss.Display.None,
+	declareGlobal(`.jn-confirm-dialog`,
+		gwccss.Position.Fixed,
+		gwccss.Raw("inset", "0"),
+		gwccss.Raw("margin", "auto"),
+		gwccss.Raw("width", "min(38rem, calc(100vw - 1.25rem))"),
+		gwccss.Raw("max-height", "calc(100dvh - 1.5rem)"),
+		gwccss.Raw("padding", "0"),
+		gwccss.Bg(gwccss.Var("jn-surface")),
+		gwccss.TextColor(gwccss.Var("jn-ink")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("jn-control-border")),
+		gwccss.Rounded(gwccss.VarLength("jn-r3")),
+		gwccss.Raw("box-shadow", "0 1.5rem 4rem rgba(0,0,0,.35)"),
+		gwccss.Raw("overflow", "hidden"),
 	)
-	declareGlobal(`.jn-confirm-close-label`,
-		gwccss.Display.None,
-	)
-	declareGlobal(`.jn-confirm[open] .jn-confirm-open-label`, gwccss.Display.None)
-	declareGlobal(`.jn-confirm[open] .jn-confirm-close-label`, gwccss.Display.Inline)
-	declareGlobal(`.jn-confirm-body`,
+	declareGlobal(`.jn-confirm-dialog[open]`,
 		gwccss.Display.Flex,
 		gwccss.FlexDir.Col,
-		gwccss.Gap(gwccss.Rem(.625)),
-		gwccss.Raw("padding-top", ".125rem"),
+	)
+	declareGlobal(`.jn-confirm-dialog::backdrop`,
+		gwccss.Raw("background", "rgba(8,15,22,.72)"),
+	)
+	declareGlobal(`.jn-confirm-head`,
+		gwccss.Display.Flex,
+		gwccss.Items.Center,
+		gwccss.Raw("justify-content", "space-between"),
+		gwccss.Gap(gwccss.Rem(.75)),
+		gwccss.Padding(gwccss.Rem(1)),
+		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("jn-hairline")),
 	)
 	declareGlobal(`.jn-confirm-title`,
-		gwccss.FontSize(gwccss.Rem(.875)),
+		gwccss.FontSize(gwccss.Rem(1.125)),
 		gwccss.Raw("font-weight", "680"),
+	)
+	declareGlobal(`.jn-confirm-cancel`,
+		gwccss.Raw("min-height", "2.5rem"),
+		gwccss.Raw("white-space", "nowrap"),
+		gwccss.Raw("flex", "0 0 2.5rem"),
+		gwccss.Raw("width", "2.5rem"),
+		gwccss.Raw("padding", "0"),
+		mediaRule(gwccss.RawMedia("(min-width:22.5625rem)"),
+			gwccss.Raw("flex", "0 1 auto"),
+			gwccss.Raw("width", "auto"),
+			gwccss.PaddingY(gwccss.Rem(.625)), gwccss.PaddingX(gwccss.Rem(1)),
+		),
+	)
+	declareGlobal(`.jn-confirm-cancel-label`,
+		gwccss.Display.None,
+		mediaRule(gwccss.RawMedia("(min-width:22.5625rem)"), gwccss.Display.Inline),
+	)
+	declareGlobal(`.jn-confirm-cancel-glyph`,
+		gwccss.Display.Inline,
+		gwccss.FontSize(gwccss.Rem(1.375)),
+		mediaRule(gwccss.RawMedia("(min-width:22.5625rem)"), gwccss.Display.None),
+	)
+	declareGlobal(`.jn-confirm-scroll`,
+		gwccss.Display.Flex,
+		gwccss.FlexDir.Col,
+		gwccss.Gap(gwccss.Rem(.875)),
+		gwccss.Raw("min-height", "0"),
+		gwccss.Raw("overflow-y", "auto"),
+		gwccss.Raw("overscroll-behavior", "contain"),
+		gwccss.Padding(gwccss.Rem(1)),
 	)
 	declareGlobal(`.jn-confirm-facts`,
 		gwccss.Display.Grid,
 		gwccss.GridCols(gwccss.Fr(1)),
 		gwccss.Gap(gwccss.Rem(.5)),
+		mediaRule(gwccss.RawMedia("(min-width:30rem)"), gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))))),
 	)
 	declareGlobal(`.jn-confirm-facts .jn-fact dd`,
 		gwccss.FontSize(gwccss.Rem(.8125)),
@@ -465,7 +510,7 @@ func declareJourneyMotion() {
 	declareGlobal(`.jn-tl::before`,
 		gwccss.Raw("content", "\"\""),
 		gwccss.Position.Absolute,
-		gwccss.Left(gwccss.Rem(.4375)),
+		gwccss.Raw("inset-inline-start", ".4375rem"),
 		gwccss.Top(gwccss.Rem(1.125)),
 		gwccss.Bottom(gwccss.Zero),
 		gwccss.W(gwccss.Px(2)),
@@ -539,7 +584,7 @@ func declareJourneyMotion() {
 		gwccss.Raw("flex-wrap", "wrap"),
 		gwccss.RowGap(gwccss.Rem(.25)), gwccss.ColumnGap(gwccss.Rem(1)),
 	)
-	declareGlobal(`img,svg,video,canvas`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) :is(img,svg,video,canvas)`,
 		gwccss.MaxWidth(gwccss.Percent(100)),
 	)
 	declareGlobal(`:where(.jn-shell,.jn-page,.jn-pagehead,.jn-card,.jn-cardhead,.jn-grid,.jn-griditem,
@@ -547,7 +592,7 @@ func declareJourneyMotion() {
 .jn-network-stage,.jn-proxy-copy)`,
 		gwccss.MinWidth(gwccss.Zero),
 	)
-	declareGlobal(`:where(input,select,textarea,button)`,
+	declareGlobal(`:where(.jn-page,.jn-embedded) :is(input,select,textarea,button)`,
 		gwccss.MaxWidth(gwccss.Percent(100)),
 	)
 	declareGlobal(`:where(.jn-pagehead,.jn-cardhead,.jn-toolbar,.jn-actions,.jn-provenance)`,
@@ -649,7 +694,7 @@ func declareJourneyMotion() {
 	declareGlobal(`.jn-proxy-control`,
 		mediaRule(gwccss.RawMedia("(min-width:40rem)"), gwccss.W(gwccss.Rem(9))),
 	)
-	declareGlobal(`body`,
+	declareGlobal(`.jn-page`,
 		mediaRule(gwccss.RawMedia("print"), gwccss.Bg(gwccss.Var("jn-surface"))),
 	)
 	declareGlobal(`.jn-masthead,.jn-skip,.jn-actions,.jn-btn`,
@@ -664,7 +709,7 @@ func declareJourneyMotion() {
 	declareGlobal(`.jn-rail`,
 		mediaRule(gwccss.RawMedia("print"), gwccss.Position.Static, gwccss.MaxHeight(gwccss.RawLength("none")), gwccss.Raw("overflow", "visible")),
 	)
-	declareGlobal(`*,*::before,*::after`,
+	declareGlobal(`:where(.jn-page,.jn-embedded),:where(.jn-page,.jn-embedded) *,:where(.jn-page,.jn-embedded) *::before,:where(.jn-page,.jn-embedded) *::after`,
 		mediaRule(gwccss.RawMedia("(prefers-reduced-motion:reduce)"), gwccss.Raw("animation-duration", ".001ms !important"), gwccss.Raw("animation-iteration-count", "1 !important"), gwccss.TransitionDuration(gwccss.RawDuration(".001ms !important")), gwccss.Raw("scroll-behavior", "auto !important")),
 	)
 	declareGlobal(`.jn-journey:hover`,

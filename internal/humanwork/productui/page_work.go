@@ -11,6 +11,21 @@ import (
 type workCollectionOptions struct {
 	Title      string
 	ListDetail bool
+	Kind       string
+}
+
+func localizedWorkTitle(locale LocaleContext, item WorkItem) string {
+	if item.TitleKey != "" {
+		return locale.Text(item.TitleKey)
+	}
+	return item.Title
+}
+
+func localizedWorkStatus(locale LocaleContext, item WorkItem) string {
+	if item.StatusKey != "" {
+		return locale.Text(item.StatusKey)
+	}
+	return item.Status
 }
 
 // workPage is a route adapter: it resolves application state into immutable,
@@ -19,14 +34,60 @@ func workPage(view View) ui.Node {
 	// The queue and its preview draw from the admitted population, so
 	// denied proposal artifacts never render.
 	scoped := view
-	scoped.Work = admittedWork(view)
-	collection := workCollectionProps(scoped, workCollectionOptions{Title: scoped.Locale.Text("work.promotion_journeys"), ListDetail: true})
+	scoped.Work = MyWorkItems(admittedWork(view), scoped.Viewer)
+	collection := workCollectionProps(scoped, workCollectionOptions{Title: scoped.Locale.Text("home.needs_action"), ListDetail: true})
+	collection.Description = scoped.Locale.Text("work.action_queue_description")
+	if scoped.WorkFilter == "" {
+		collection.EmptyTitle = scoped.Locale.Text("work.empty_title")
+		collection.EmptyDetail = scoped.Locale.Text("work.action_queue_empty_detail")
+	} else if scoped.WorkFilter == "review" {
+		collection.EmptyTitle = scoped.Locale.Text("work.review_empty_title")
+		collection.EmptyDetail = scoped.Locale.Text("work.review_empty_detail")
+	} else if scoped.WorkFilter == "blocked" {
+		collection.EmptyTitle = scoped.Locale.Text("work.blocked_empty_title")
+		collection.EmptyDetail = scoped.Locale.Text("work.blocked_empty_detail")
+	}
+	collection.Footer.Label = ""
+	if len(collection.Rows) == 0 && (len(scoped.EffectivePermissions) == 0 || scoped.Can(PageJourneys, "view")) {
+		collection.Footer.Action = ActionLinkProps{Label: scoped.Locale.Text("work.track_requests"), Href: statefulHref(scoped, PageJourneys), Navigate: scoped.Navigate}
+	}
+	buckets := pageWorkBuckets(scoped.Work, scoped.Viewer)
+	draftsView := scoped
+	draftsView.Work = buckets.Drafts
+	draftsView.WorkFilter = "drafts"
+	drafts := workCollectionProps(draftsView, workCollectionOptions{Title: scoped.Locale.Text("work.resumable_drafts"), Kind: "drafts"})
+	drafts.Description = scoped.Locale.Text("work.drafts_description")
+	drafts.Tabs = nil
+	tracked := trackedRequestsFor(scoped, append(append([]WorkItem(nil), buckets.Tracked...), buckets.PassiveWaits...))
 	return ui.CreateElement(WorkPage, WorkPageProps{
 		I18nProps:   I18nProps{Locale: scoped.Locale},
 		Collection:  collection,
 		Preview:     workPreviewProps(scoped, selectedOpenWork(scoped)),
 		HidePreview: len(collection.Rows) == 0,
+		Drafts:      drafts, Tracked: tracked,
+		// A filtered queue must not silently append unrelated tracked people
+		// beneath its result set; the explicit Tracked tab owns those rows.
+		ShowSecondary: scoped.WorkFilter == "" && len(drafts.Rows) > 0,
 	})
+}
+
+func trackedRequestsFor(view View, items []WorkItem) TrackedRequestsProps {
+	props := TrackedRequestsProps{
+		I18nProps: I18nProps{Locale: view.Locale},
+		Title:     view.Locale.Text("home.tracked_title"), Description: view.Locale.Text("home.tracked_description"),
+		EmptyTitle: view.Locale.Text("home.tracked_empty_title"), EmptyDetail: view.Locale.Text("home.tracked_empty_detail"),
+	}
+	byID := make(map[string]WorkItem, len(items))
+	for _, item := range items {
+		if _, exists := byID[item.ID]; !exists {
+			byID[item.ID] = item
+		}
+	}
+	for _, summary := range SummarizeTracked(items) {
+		source := byID[summary.ID]
+		props.Items = append(props.Items, TrackedRequestProps{ID: summary.ID, Title: localizedWorkTitle(view.Locale, source), Person: source.Person, Status: localizedWorkStatus(view.Locale, source), Due: summary.Due, Open: summary.Open, Href: source.Href, Navigate: view.Navigate})
+	}
+	return props
 }
 
 func workCollectionProps(view View, options workCollectionOptions) WorkCollectionProps {
@@ -59,8 +120,8 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 	for _, item := range items {
 		undisclosed = undisclosed || !item.WorkSummary
 		rows = append(rows, WorkRowProps{
-			ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: item.Title, Person: item.Person,
-			Summary: item.Summary, Due: item.Due, JourneyStage: item.Status,
+			ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: localizedWorkTitle(view.Locale, item), Person: item.Person,
+			Summary: item.Summary, Due: item.Due, JourneyStage: localizedWorkStatus(view.Locale, item),
 			NextStep: workNextStepText(view.Locale, item.NextStep), WaitingOn: workWaitingOnText(view.Locale, item.WaitingOn),
 			Assignment: workAssignmentText(view.Locale, item), WorkDue: workDueText(view.Locale, item),
 			NextAction:       workNextActionText(view.Locale, item),
@@ -87,8 +148,13 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 	if view.WorkFilter == "tracked" {
 		emptyTitle, emptyDetail = view.Locale.Text("work.tracked_empty_title"), view.Locale.Text("work.tracked_empty_detail")
 	}
+	kind := options.Kind
+	if kind == "" {
+		kind = "action-queue"
+	}
 	return WorkCollectionProps{
-		Title: options.Title, CountLabel: view.Locale.Plural("work.item_count", int64(len(items))), Tabs: tabs, Rows: rows,
+		I18nProps: I18nProps{Locale: view.Locale},
+		Title:     options.Title, Kind: kind, CountLabel: view.Locale.Plural("work.item_count", int64(len(items))), Tabs: tabs, Rows: rows,
 		Footer: footer, EmptyTitle: emptyTitle, EmptyDetail: emptyDetail,
 	}
 }
@@ -233,8 +299,8 @@ func workPreviewProps(view View, item WorkItem) WorkPreviewProps {
 		}
 	}
 	return WorkPreviewProps{
-		ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: item.Title, Person: item.Person,
-		Summary: item.Summary, JourneyStage: item.Status, StatusProjection: item.StatusProjection, Provenance: item.Provenance,
+		ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: localizedWorkTitle(view.Locale, item), Person: item.Person,
+		Summary: item.Summary, JourneyStage: localizedWorkStatus(view.Locale, item), StatusProjection: item.StatusProjection, Provenance: item.Provenance,
 		Disposition: approvalDispositionCardProps(view.Locale, item.Disposition), FactsTitle: view.Locale.Text("work.server_proposal"),
 		Facts: append(facts,
 			FactProps{Label: view.Locale.Text("work.effective_date"), Value: valueOrUnavailableFor(view.Locale, item.EffectiveDate)},

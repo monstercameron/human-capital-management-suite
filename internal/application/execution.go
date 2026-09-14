@@ -53,15 +53,18 @@ func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 		startRetryFor = composeExecutionRetryFor(pool, cfg, now)
 	}
 	execution, err := platformexecution.NewPromotionExecution(platformexecution.PromotionExecutionConfig{
-		DB:                  pool,
-		StartRetryFor:       startRetryFor,
-		Terminal:            terminal,
-		Plan:                platformexecution.PromotionPlan(cfg.WorkflowPlan),
-		ApproverPrincipalID: cfg.ExecutionApprover,
-		AuthorityDigest:     cfg.ExecutionAuthorityDigest,
-		RequiredRole:        cfg.ExecutionAuthorityRole,
-		Evidence:            evidence,
-		TimerDataset:        cfg.TimerDataset(),
+		DB:                         pool,
+		StartRetryFor:              startRetryFor,
+		Terminal:                   terminal,
+		Plan:                       platformexecution.PromotionPlan(cfg.WorkflowPlan),
+		ApproverPrincipalID:        cfg.ExecutionApprover,
+		ManagerApproverPrincipalID: cfg.ExecutionManagerApprover,
+		AuthorityDigest:            cfg.ExecutionAuthorityDigest,
+		RequiredRole:               cfg.ExecutionAuthorityRole,
+		Clock:                      cellConfig.Now,
+		Telemetry:                  cellConfig.Telemetry,
+		Evidence:                   evidence,
+		TimerDataset:               cfg.TimerDataset(),
 	})
 	if err != nil {
 		return fmt.Errorf("build the promotion execution driver: %w", err)

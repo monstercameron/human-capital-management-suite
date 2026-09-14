@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
 func TestServerPreferencesBecomeDefaultsButExplicitURLStateWins(t *testing.T) {
@@ -40,6 +41,45 @@ func TestServerPreferencesBecomeDefaultsButExplicitURLStateWins(t *testing.T) {
 	}
 	if view.WorkflowUses["promotion"] != 9 || view.StoredPreferences.Version != 7 {
 		t.Fatalf("usage/baseline missing: %+v", view)
+	}
+}
+
+func TestTodo_UXAUDIT_024_HydratedBrandKeepsTenantIdentity(t *testing.T) {
+	theme := &journeyv1.CustomerTheme{}
+	service := Service{
+		ListJourneys: func(context.Context, *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error) {
+			return &journeyv1.ListJourneysResponse{}, nil
+		},
+		ListWorkers: func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
+			return &journeyv1.ListWorkersResponse{}, nil
+		},
+		GetPreferences: func(context.Context, *journeyv1.GetProductPreferencesRequest) (*journeyv1.GetProductPreferencesResponse, error) {
+			return &journeyv1.GetProductPreferencesResponse{Theme: theme}, nil
+		},
+	}
+	session := Session{Tenant: "harborcare-demo", Principal: "rafael"}
+	state, err := ParseState("/workspace/app/home", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	loading := LoadingView(session, state)
+	view, err := Load(context.Background(), service, session, state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range []productui.View{loading, view} {
+		name, mark := productui.HeaderBrandIdentity(productui.NormalizeCustomerTheme(candidate.Appearance), candidate.Tenant)
+		if name != "Harborcare Demo" || mark != "HD" {
+			t.Fatalf("loading/resolved identity diverged: tenant=%q name=%q mark=%q", candidate.Tenant, name, mark)
+		}
+	}
+	theme.BrandName, theme.BrandMark, theme.BrandLogoUrl = "Northstar People", "NP", "/workspace/assets/northstar.svg"
+	branded, err := Load(context.Background(), service, session, state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name, mark := productui.HeaderBrandIdentity(branded.Appearance, branded.Tenant); name != "Northstar People" || mark != "NP" || branded.Appearance.BrandLogoURL != theme.BrandLogoUrl {
+		t.Fatalf("explicit configured brand lost: name=%q mark=%q logo=%q", name, mark, branded.Appearance.BrandLogoURL)
 	}
 }
 

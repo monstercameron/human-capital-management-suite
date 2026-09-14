@@ -76,6 +76,7 @@ const (
 	FieldExecutionAuthorityDigest         = "execution-authority-digest"
 	FieldExecutionAuthorityRole           = "execution-authority-role"
 	FieldExecutionApprover                = "execution-authority-approver"
+	FieldExecutionManagerApprover         = "execution-authority-manager-approver"
 	FieldTimerTzdbVersion                 = "timer-tzdb-version"
 	FieldTimerCalendarVersion             = "timer-calendar-version"
 	FieldScheduler                        = "scheduler"
@@ -87,6 +88,7 @@ const (
 	FieldExecutionRetryMaxAttempts        = "execution-retry-max-attempts"
 	FieldExecutionRetryResolutionAttempts = "execution-retry-resolution-attempts"
 	FieldPublicOrigin                     = "public-origin"
+	FieldLocalDevNow                      = "local-dev-now"
 )
 
 // Serve profiles are named sets of defaults, not alternate implementations.
@@ -184,6 +186,7 @@ type ServeConfig struct {
 	ExecutionAuthorityDigest string
 	ExecutionAuthorityRole   string
 	ExecutionApprover        string
+	ExecutionManagerApprover string
 	// TimerTzdbVersion and TimerCalendarVersion are the dataset releases the
 	// execution driver's durable timers resolve wake instants against
 	// (WF-RUN-004). Both set composes the timer ports; both empty composes
@@ -209,6 +212,11 @@ type ServeConfig struct {
 	// bare-VPS default. Set it for complex deployments: a proxy that
 	// terminates TLS or rewrites Host, a tunnel, a preview gateway.
 	PublicOrigin string
+	// LocalDevNow pins the application clock used by authentication, workflow
+	// execution and scheduling; the database keeps its own physical audit clock.
+	// It is accepted only by the loopback-only local-dev profile and can never
+	// override production time.
+	LocalDevNow string
 }
 
 // ServeConfigFields declares every flag/env-backed configuration value the
@@ -234,7 +242,8 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldExecutionAuthority, Usage: "P1B gate: compose this cell with the caller-driven promotion execution driver, so ExecuteIntent can run instead of refusing (planning/next-steps.md \"P1B exists only after a signed Gate A PROCEED\")", Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldExecutionAuthorityDigest, Usage: "the signed P1B authority amendment digest this cell asserts; carried through as evidence, never verified by this process"},
 		{Name: FieldExecutionAuthorityRole, Usage: "the principal role ExecuteIntent additionally requires under -" + FieldExecutionAuthority, Default: "promotion_operator"},
-		{Name: FieldExecutionApprover, Usage: "the principal the composed promotion approval workflow routes its one approval WorkItem to", Default: "principal:promotion-approver"},
+		{Name: FieldExecutionApprover, Usage: "the principal the composed promotion workflow routes its finance approval WorkItem to", Default: "principal:promotion-approver"},
+		{Name: FieldExecutionManagerApprover, Usage: "the distinct principal the composed execute promotion workflow routes its current-manager approval WorkItem to", Default: "principal:promotion-manager-approver"},
 		{Name: FieldTimerTzdbVersion, Usage: "tzdb release the execution driver's durable timers resolve wake instants against; with -" + FieldTimerCalendarVersion + " it composes the WAIT-node timer ports, empty composes none", Default: DefaultTimerTzdbVersion},
 		{Name: FieldTimerCalendarVersion, Usage: "business-calendar release the execution driver's durable timers resolve wake instants against", Default: DefaultTimerCalendarVersion},
 		{Name: FieldScheduler, Usage: "run the in-process workflow timer/ready-work dispatcher", Default: "false", Kind: bootstrap.KindBool},
@@ -246,6 +255,7 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldExecutionRetryMaxAttempts, Usage: "maximum execution START attempts including the initial attempt; required when retries are enabled", Default: "1", Kind: bootstrap.KindInt},
 		{Name: FieldExecutionRetryResolutionAttempts, Usage: "maximum bounded attempts to resolve uncertain retry consumption", Default: "2", Kind: bootstrap.KindInt},
 		{Name: FieldPublicOrigin, Env: EnvPublicOrigin, Usage: "absolute http(s) origin (e.g. https://hcm.example.com) browsers reach this cell at; required behind a TLS-terminating or Host-rewriting proxy"},
+		{Name: FieldLocalDevNow, Usage: "local-dev only: pin the application clock to an RFC3339 instant so future effective-date workflows can be completed safely"},
 	}
 }
 
@@ -265,6 +275,8 @@ func ServeConfigFieldsForArgs(args []string) []bootstrap.Field {
 		FieldDevBrowserLogin:          "true",
 		FieldExecutionAuthority:       "true",
 		FieldExecutionAuthorityDigest: "sha256:local-dev-profile-authority",
+		FieldExecutionApprover:        "hc-054-thomas-baker",
+		FieldExecutionManagerApprover: "hc-052-dominic-collins",
 		// The executable plan contains a durable effective-date WAIT. Leaving
 		// its dispatcher disabled produces a half-enabled development profile:
 		// approvals succeed and a due-today timer is written, but nothing is
@@ -326,12 +338,14 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		ExecutionAuthorityDigest: values.String(FieldExecutionAuthorityDigest),
 		ExecutionAuthorityRole:   values.String(FieldExecutionAuthorityRole),
 		ExecutionApprover:        values.String(FieldExecutionApprover),
+		ExecutionManagerApprover: values.String(FieldExecutionManagerApprover),
 		TimerTzdbVersion:         values.String(FieldTimerTzdbVersion),
 		TimerCalendarVersion:     values.String(FieldTimerCalendarVersion),
 		HealthAddr:               values.String(FieldHealthAddr),
 		WorkflowPlan:             values.String(FieldWorkflowPlan),
 		LegalEvidenceIssuerKeys:  values.String(FieldLegalEvidenceIssuerKeys),
 		ExecutionRetryVersion:    values.String(FieldExecutionRetryVersion),
+		LocalDevNow:              values.String(FieldLocalDevNow),
 	}
 	var err error
 	if cfg.PublicOrigin, err = canonicalPublicOrigin(values.String(FieldPublicOrigin)); err != nil {
@@ -379,6 +393,14 @@ func (c ServeConfig) Validate() error {
 			return fmt.Errorf("-%s requires a version, max attempts >= 2 and resolution attempts >= 1", FieldExecutionRetry)
 		}
 	}
+	if c.LocalDevNow != "" {
+		if c.Profile != ServeProfileLocalDev {
+			return fmt.Errorf("-%s is available only with -%s=%s", FieldLocalDevNow, FieldProfile, ServeProfileLocalDev)
+		}
+		if _, err := time.Parse(time.RFC3339, c.LocalDevNow); err != nil {
+			return fmt.Errorf("-%s must be an RFC3339 instant: %w", FieldLocalDevNow, err)
+		}
+	}
 	switch c.Profile {
 	case "", ServeProfileStandard:
 	case ServeProfileLocalDev:
@@ -415,6 +437,11 @@ func (c ServeConfig) Validate() error {
 		}
 		if c.ExecutionApprover == "" {
 			return fmt.Errorf("-%s is required when -%s=true", FieldExecutionApprover, FieldExecutionAuthority)
+		}
+		if c.WorkflowPlan == WorkflowPlanExecute {
+			if c.ExecutionManagerApprover != "" && c.ExecutionManagerApprover == c.ExecutionApprover {
+				return fmt.Errorf("-%s must be distinct from -%s for the execute workflow plan", FieldExecutionManagerApprover, FieldExecutionApprover)
+			}
 		}
 	}
 	if c.Scheduler {

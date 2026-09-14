@@ -16,7 +16,7 @@ func TestUXBLIND_012_EmptyWorkOmitsCircularActions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(markup, view.Locale.Text("work.empty_title")) {
+	if !strings.Contains(markup, view.Locale.Text("work.action_queue_empty_title")) {
 		t.Fatalf("empty work state missing: %s", markup)
 	}
 	if strings.Contains(markup, view.Locale.Text("work.view")) {
@@ -39,6 +39,8 @@ func TestUXBLIND008ScopeDoesNotPretendToBeADropdown(t *testing.T) {
 
 func TestUXBLIND_012_PopulatedWorkKeepsSelectionDetail(t *testing.T) {
 	view := testView(PageWork)
+	view.Viewer.PersonID = "worker-jordan"
+	view.Work[0].AssigneeRef = "worker-jordan"
 	markup, err := ui.RenderToString(workPage(view))
 	if err != nil {
 		t.Fatal(err)

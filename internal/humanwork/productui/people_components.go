@@ -3,6 +3,7 @@ package productui
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -32,12 +33,9 @@ type PeopleSummaryProps struct {
 // software navigation in the WASM client.
 type PeopleFilterProps struct {
 	I18nProps
-	Query    string
-	Team     string
-	Location string
-	// EligibleOnly filters the directory to promotion-eligible workers
-	// (GREEN #1: the authorized directory can filter directly to them,
-	// rather than requiring a viewer to already know a candidate's name).
+	Query        string
+	Team         string
+	Location     string
 	EligibleOnly bool
 	Teams        []PeopleFilterOption
 	Locations    []PeopleFilterOption
@@ -45,6 +43,10 @@ type PeopleFilterProps struct {
 	Direction    string
 	Action       string
 	ClearHref    string
+	// PageSize is carried through filter submissions so changing a filter
+	// does not silently reset a user's chosen table density. A zero value is
+	// treated as the default by the page adapter.
+	PageSize     int
 	NavCollapsed bool
 	Navigate     func(string)
 	OnFilter     func(query, team, location string, eligibleOnly bool)
@@ -82,6 +84,11 @@ type peopleDirectoryState struct {
 
 func reconcilePeopleDirectoryState(incoming PeopleDirectoryProps, current peopleDirectoryState) (peopleDirectoryState, bool) {
 	if current.InputKey == incoming.InputKey {
+		// InputKey deliberately excludes transient refresh state. Keep any
+		// component-local ordering, but refresh the surrounding contract so a
+		// warm server projection can expose busy state without replacing rows.
+		current.Current.Refreshing = incoming.Refreshing
+		current.Current.I18nProps = incoming.I18nProps
 		return current, false
 	}
 	return peopleDirectoryState{InputKey: incoming.InputKey, Current: incoming}, true
@@ -265,6 +272,9 @@ func peopleFilterForm(props PeopleFilterProps, inputProps, teamProps, locationPr
 			children = append(children, html.Tag("input", html.Props{Name: field.name, Value: field.value, Raw: map[string]any{"type": "hidden"}}))
 		}
 	}
+	if value := pageSizeValue(props.PageSize); value != "" {
+		children = append(children, html.Tag("input", html.Props{Name: "page_size", Value: value, Raw: map[string]any{"type": "hidden"}}))
+	}
 	if locale := props.Locale.normalized(); locale.Resolved != DefaultProductLocale {
 		children = append(children, html.Tag("input", html.Props{Name: "locale", Value: locale.Resolved, Raw: map[string]any{"type": "hidden"}}))
 	}
@@ -348,7 +358,7 @@ func PeopleTable(props PeopleTableProps) ui.Node {
 		row.I18nProps = props.I18nProps
 		rows = append(rows, peopleDataTableRow(row))
 	}
-	return ui.CreateElement(DataTable, DataTableProps{Caption: props.Text("people.table_aria"), AriaLabel: props.Text("people.table_aria"), SortLabel: props.Text("people.sort_by"), Class: "people-table", Columns: columns, Rows: rows})
+	return ui.CreateElement(DataTable, DataTableProps{ID: "people-directory-table", Caption: props.Text("people.table_aria"), AriaLabel: props.Text("people.table_aria"), SortLabel: props.Text("people.sort_by"), Class: "people-table", Columns: columns, Rows: rows})
 }
 
 // PeopleSortColumn renders one sortable header with its current direction.
@@ -373,7 +383,8 @@ func PeopleRow(props PeopleRowProps) ui.Node {
 		{ID: peopleSortLocation, Label: props.Text("people.column.location")},
 		{ID: "actions", Label: props.Text("people.column.actions"), AlignEnd: true},
 	}
-	return ui.CreateElement(dataTableRow, dataTableRowRenderProps{Columns: columns, Row: peopleDataTableRow(props)})
+	row := peopleDataTableRow(props)
+	return ui.CreateElement(dataTableRow, dataTableRowRenderProps{Columns: columns, Row: row, Cells: row.Cells})
 }
 
 func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
@@ -387,45 +398,42 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 		if action.Frequent {
 			label += " · " + props.Text("people.frequent")
 		}
+		accessibleLabel := strings.TrimSpace(action.AccessibleLabel)
+		if accessibleLabel == "" {
+			accessibleLabel = label
+		}
 		actions = append(actions, html.Li(html.Props{}, softwareLink(props.Navigate, html.Props{
 			Class: "people-workflow-option",
-			Aria:  map[string]string{"label": action.AccessibleLabel},
-			Raw:   map[string]any{"title": action.AccessibleLabel},
+			Aria:  map[string]string{"label": accessibleLabel},
+			Raw:   map[string]any{"title": accessibleLabel},
 		}, action.Href, ui.Text(label))))
 	}
-	// GREEN #2: the empty-menu fallback always carries the server's reason
-	// when one was resolved; only a genuinely unconditional empty
-	// QuickActions list (no availability verdict computed at all) falls
-	// back to the bare, unexplained label.
+	// Keep the server-resolved reason available without repeating its full
+	// paragraph across a dense directory. The same shared popover handles
+	// unavailable information and executable row actions.
 	noWorkflowsLabel := props.WorkflowsUnavailableReason
+	unavailableAriaKey := "people.workflow_unavailable_reason_aria"
 	if noWorkflowsLabel == "" {
 		noWorkflowsLabel = props.Text("people.no_workflows")
+		unavailableAriaKey = "people.workflow_unavailable_generic_aria"
 	}
-	// UXAUDIT-008 GREEN: an unavailable row used to render the full reason
-	// sentence directly in the row, which is what made 10 of 20 rows on the
-	// live audit repeat a long paragraph and inflate every one of those
-	// rows' height. The reason is never dropped -- PROMOUX-001's contract
-	// requires every displayed availability state to carry a non-empty,
-	// server-provided reason, and its own tests assert on the reason value,
-	// not on how it is presented -- it just stops being the row's only
-	// visible content. A short, compact badge carries a title tooltip and an
-	// aria-describedby link to a visually-hidden span holding the same full
-	// reason text, so a sighted pointer user and a screen reader both still
-	// reach it; only the constant-width short label competes for row space.
-	reasonID := "people-unavailable-" + props.ID
-	workflowMenu := ui.Node(html.Span(html.Props{
-		Class: "people-availability-badge muted",
-		Title: noWorkflowsLabel,
-		Raw:   map[string]any{"aria-describedby": reasonID},
-	},
-		ui.Text(props.Text("people.workflows_unavailable_short")),
-		html.Span(html.Props{ID: reasonID, Class: "sr-only"}, ui.Text(noWorkflowsLabel)),
-	))
+	// The short disclosure keeps dense rows scannable while giving pointer,
+	// keyboard, and touch users the same server-projected explanation.
+	workflowMenu := ui.Node(ui.CreateElement(TransientPopover, TransientPopoverProps{
+		Kind: "people-workflows", Class: "people-workflow-menu people-unavailable-menu",
+		TriggerClass:  "people-availability-badge muted",
+		Title:         noWorkflowsLabel,
+		DescriptionID: "people-unavailable-" + props.ID,
+		Label:         props.Text(unavailableAriaKey, map[string]string{"name": props.Name, "reason": noWorkflowsLabel}),
+		Trigger:       []ui.Node{ui.Text(props.Text("people.workflows_unavailable_short")), productIcon("expand", "people-workflow-chevron")},
+		PanelClass:    "people-workflow-options",
+		Children:      []ui.Node{html.P(html.Props{ID: "people-unavailable-" + props.ID, Class: "people-workflow-unavailable-reason"}, ui.Text(noWorkflowsLabel))},
+	}))
 	if len(actions) > 0 {
 		workflowMenu = ui.CreateElement(TransientPopover, TransientPopoverProps{
 			Kind: "people-workflows", Class: "people-workflow-menu", TriggerClass: "button secondary people-row-action",
 			Label:   props.Text("people.workflows_aria", map[string]string{"name": props.Name}),
-			Trigger: []ui.Node{ui.Text(props.Text("people.workflows"))}, PanelClass: "people-workflow-options",
+			Trigger: []ui.Node{ui.Text(props.Text("people.workflows")), productIcon("expand", "people-workflow-chevron")}, PanelClass: "people-workflow-options",
 			Children: []ui.Node{html.Ul(html.Props{Class: "people-workflow-options-list"}, actions...)},
 		})
 	}

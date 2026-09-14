@@ -1,11 +1,79 @@
 package journey
 
 import (
-	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait"
 )
+
+func TestBlockedDetailShowsActualCheckNearStatusWithoutFakeRevisionAction(t *testing.T) {
+	detail := DetailView{
+		Journey:  JourneyCard{Stage: "BLOCKED"},
+		Findings: []Finding{{Severity: "blocking", Message: "Proposed pay exceeds the approved band."}},
+	}
+	markup := renderNode(t, blockedFindingBannerLocale("en-US", detail))
+	for _, want := range []string{"Proposed pay exceeds the approved band.", "Blocked"} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("blocked summary lacks %q: %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, "Start approval workflow") {
+		t.Fatalf("blocked summary invented an action: %s", markup)
+	}
+	if strings.Contains(markup, "#findings-heading") {
+		t.Fatalf("blocked summary used document-fragment scrolling outside the main pane: %s", markup)
+	}
+	if node := blockedFindingBannerLocale("en-US", DetailView{Journey: JourneyCard{Stage: "PROPOSED"}, Findings: detail.Findings}); node != nil {
+		t.Fatal("unblocked detail showed a blocking summary")
+	}
+}
+
+func TestBlockedPayFindingUsesBusinessCopyWhilePreservingExactChecks(t *testing.T) {
+	for _, tc := range []struct {
+		locale string
+		code   string
+		want   string
+	}{
+		{"en-US", "promotion.pay_below_band_minimum", "below the approved minimum"},
+		{"de-DE", "promotion.pay_below_band_minimum", "unter der genehmigten Untergrenze"},
+		{"ar", "promotion.pay_above_band_maximum", "أعلى من الحد الأقصى"},
+	} {
+		detail := DetailView{Journey: JourneyCard{Stage: "BLOCKED"}, Findings: []Finding{{Severity: "blocking", Code: tc.code, Message: "annualized base 75000.00 USD is below the band minimum (compa-ratio 0.7653)"}}}
+		markup := renderNode(t, blockedFindingBannerLocale(tc.locale, detail))
+		if !strings.Contains(markup, tc.want) || strings.Contains(markup, "compa-ratio") {
+			t.Fatalf("%s blocked banner should use localized business copy: %s", tc.locale, markup)
+		}
+	}
+}
+
+func TestTodo_PROMOUX_014_EffectiveDateWaitExplanationRendersTypedFacts(t *testing.T) {
+	explanation := &wait.EffectiveDateWait{
+		EffectiveInstant: values.NewInstant(time.Date(2026, 6, 17, 14, 0, 0, 0, time.UTC)),
+		Timezone:         "America/New_York@2026a", Owner: "promotion owner",
+		ScheduledAction: "revalidate and commit promotion", RemainingChecks: "approvals and references",
+		NotificationBehavior: "notify owner when effective", AuthorizedIntervention: "cancel with an authorized reason",
+		ReviewRequired: true, ReviewReason: "calendar changed",
+	}
+	markup, err := ui.RenderToString(effectiveDateWaitLocale("en-US", explanation))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"2026-06-17T14:00:00Z", "America/New_York@2026a", "promotion owner", "revalidate and commit promotion", "approvals and references", "notify owner when effective", "cancel with an authorized reason", "calendar changed"} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("wait explanation omitted %q: %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, "countdown") || strings.Contains(markup, "Advance") {
+		t.Error("wait explanation exposed an untyped countdown or timer bypass")
+	}
+}
 
 func TestUXBLIND007EmbeddedJourneyListHasOneResponsibility(t *testing.T) {
 	view := ListView{People: &PeopleView{DirectoryLink: NavLink{Href: "/workspace/app/people"}}}
@@ -108,7 +176,7 @@ func TestJourneyNextActionsPrecedeSupportingDetails(t *testing.T) {
 }
 
 func TestJourneyHeroTechnicalIdentifiersAreCollapsed(t *testing.T) {
-	markup, err := ui.RenderToString(heroSection(JourneyCard{WorkerName: "Jane", WorkerRef: "worker-test", IntentID: "intent-test", InstanceID: "instance-test", EffectiveDate: "date-test", Updated: "updated-test", DiagnosticsAuthorized: true}))
+	markup, err := ui.RenderToString(heroSection(JourneyCard{WorkerName: "Jane", WorkerRef: "worker-test", IntentID: "intent-test", InstanceID: "instance-test", EffectiveDate: "date-test", Updated: "updated-test", DiagnosticsAuthorized: true}, true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,6 +203,144 @@ func TestJourneyHeroTechnicalIdentifiersAreCollapsed(t *testing.T) {
 		if at < 0 || at >= start {
 			t.Fatalf("primary date hidden: %s", value)
 		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_JourneyHeroLocale(t *testing.T) {
+	for _, tc := range []struct {
+		locale, title, effective, updated, technical string
+	}{
+		{"en-US", "Promotion journey", "Effective", "Updated", "Technical details"},
+		{"de-DE", "Beförderungsantrag", "Wirksam", "Aktualisiert", "Technische Details"},
+		{"ar", "طلب الترقية", "السريان", "آخر تحديث", "التفاصيل التقنية"},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			markup, err := ui.RenderToString(heroSectionLocale(tc.locale, JourneyCard{WorkerName: "Omar Reyes", WorkerRef: "worker-ref", EffectiveDate: "date-value", Updated: "updated-value", DiagnosticsAuthorized: true}, true))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{tc.title, tc.effective, tc.updated, tc.technical} {
+				if !strings.Contains(markup, want) {
+					t.Fatalf("%s hero missing %q: %s", tc.locale, want, markup)
+				}
+			}
+		})
+	}
+}
+
+func TestTodo_UXAUDIT_006_PromotionStepperLocale(t *testing.T) {
+	for _, tc := range []struct{ locale, heading, state string }{
+		{"en-US", "Stages", "Current stage"},
+		{"de-DE", "Schritte", "Aktueller Schritt"},
+		{"ar", "مراحل الطلب", "المرحلة الحالية"},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			markup, err := ui.RenderToString(stepperSectionLocale(tc.locale, []Step{{ID: "finance-review", Label: "finance", State: stepActive}}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(markup, tc.heading) || !strings.Contains(markup, tc.state) || !strings.Contains(markup, `aria-current="step"`) {
+				t.Fatalf("localized stepper lost heading, state or current semantics: %s", markup)
+			}
+		})
+	}
+}
+
+func TestTodo_UXAUDIT_006_I18N_PromotionDetailSections(t *testing.T) {
+	for _, tc := range []struct {
+		locale string
+		wants  []string
+	}{
+		{"de-DE", []string{"Aktuell und vorgeschlagen", "Geschäftliche Begründung", "Grundgehalt", "Prüfungen und Zeitplan", "Angaben fehlen", "Zeitlicher Ablauf", "Erfasstes Ergebnis", "Aktionen und Verlauf", "Beförderung erfasst"}},
+		{"ar", []string{"الحالي والمقترح", "مبرر العمل", "الأجر الأساسي", "الفحوص والتوقيت", "تنقص معلومات", "الفترة الفعالة", "النتيجة المسجلة", "الإجراءات والسجل", "سُجلت الترقية"}},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			markup, err := ui.RenderToString(detailView(Page{Locale: tc.locale}, DetailView{
+				Journey:         JourneyCard{WorkerName: "Omar Reyes", Stage: "recorded"},
+				Proposal:        []Fact{{Label: tc.wants[1], Value: "reason-value"}},
+				Comparison:      []ComparisonRow{{Label: tc.wants[2], Current: "93", Proposed: "98", Changed: true}},
+				Findings:        []Finding{{Severity: "needs-data", Message: "finding-value"}},
+				EffectiveWindow: &EffectiveWindow{Start: "start-value", EffectiveDate: "date-value", KnownAt: "known-value"},
+				Ledger:          &LedgerCard{EffectiveAt: "date-value", RecordedAt: "recorded-value"},
+				Timeline:        []TimelineEvent{{At: "time-value", Title: tc.wants[8], Actor: "actor-value"}},
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range tc.wants {
+				if !strings.Contains(markup, want) {
+					t.Errorf("%s detail missing %q", tc.locale, want)
+				}
+			}
+			for _, forbidden := range []string{"⟦", ">Current<", ">Changed<", ">Outcome<", ">Timeline<"} {
+				if strings.Contains(markup, forbidden) {
+					t.Errorf("%s detail leaked unresolved or English copy %q", tc.locale, forbidden)
+				}
+			}
+		})
+	}
+}
+
+func TestTodo_UXAUDIT_006_Browser_RTLMoneyIsDirectionallyIsolated(t *testing.T) {
+	markup, err := ui.RenderToString(detailView(Page{Locale: "ar"}, DetailView{
+		Journey:    JourneyCard{WorkerName: "Naomi", PayLine: "USD 125,000.00 → 135,000.00 (+8.0%)"},
+		Comparison: []ComparisonRow{{Label: "الأجر الأساسي", Current: "USD 125,000.00", Proposed: "USD 135,000.00", Delta: "+USD 10,000.00 (+8.0%)", Changed: true}},
+		Proposal:   []Fact{{Label: "مبرر العمل", Value: "Expanded enterprise responsibilities."}},
+		Timeline:   []TimelineEvent{{Title: "قُدم طلب الترقية", Detail: "Expanded enterprise responsibilities."}},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`class="jn-hero-pay"><span dir="ltr"`, `class="jn-delta" dir="ltr"`, `class="jn-num" dir="auto"`, `<dd dir="auto">Expanded enterprise responsibilities.</dd>`, `class="jn-tldetail" dir="auto"`} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("RTL money lost directional isolation %q: %s", want, markup)
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_Browser_TimelineSpineFollowsTextDirection(t *testing.T) {
+	css := Stylesheet()
+	if !regexp.MustCompile(`\.jn-tl::before\{[^}]*inset-inline-start:\.4375rem`).MatchString(css) {
+		t.Error("timeline spine must follow inline start in both LTR and RTL")
+	}
+}
+
+func TestTodo_UXAUDIT_006_Regression_PendingIsNotCalledRecorded(t *testing.T) {
+	for _, tc := range []struct{ locale, want, recorded string }{
+		{"en-US", "What happens next", "Recorded outcome"},
+		{"de-DE", "Nächste Schritte", "Erfasstes Ergebnis"},
+		{"ar", "ما التالي", "النتيجة المسجلة"},
+	} {
+		markup, err := ui.RenderToString(outcomeSectionLocale(tc.locale, nil, "pending-value"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(markup, tc.want) || strings.Contains(markup, tc.recorded) {
+			t.Errorf("%s pending outcome is mislabeled: %s", tc.locale, markup)
+		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_Accessibility_DetailNavigationAndDiagnosticsLocale(t *testing.T) {
+	for _, tc := range []struct{ locale, context, back, all, diagnostics string }{
+		{"de-DE", "Kontext des Antrags", "Zurück zum Mitarbeiterprofil", "Alle Beförderungsanträge anzeigen", "Systemdiagnose"},
+		{"ar", "التنقل بين الطلبات", "العودة إلى ملف الموظف", "عرض جميع طلبات الترقية", "تشخيص النظام"},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			markup, err := ui.RenderToString(detailView(Page{Locale: tc.locale}, DetailView{
+				Journey: JourneyCard{WorkerName: "Naomi", DiagnosticsAuthorized: true}, Diagnostics: true,
+				BackLink: NavLink{Href: "/employee"}, JourneysLink: NavLink{Href: "/journeys"},
+				Engine: []Fact{{Label: "Instance", Value: "diagnostic-only", Mono: true}},
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{`aria-label="` + tc.context + `"`, tc.back, tc.all, tc.diagnostics} {
+				if !strings.Contains(markup, want) {
+					t.Errorf("%s detail lacks localized control %q", tc.locale, want)
+				}
+			}
+		})
 	}
 }
 
@@ -205,15 +411,97 @@ func TestFocusedProposalShowsOnlyItsSubject(t *testing.T) {
 		},
 	}
 	out := mustRender(t, p)
-	for _, want := range []string{"Promote Jane Doe", "Promotion subject", "Profile context locked", `name="worker_ref" type="hidden" value="jane-doe"`, "Promotion details", "View all promotion journeys"} {
+	for _, want := range []string{"Promote Jane Doe", "Employee", "Employee details ready", `name="worker_ref" type="hidden" value="jane-doe"`, "Promotion details", "View all promotion requests", "Software Engineer III · P3"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("focused proposal missing %q\n%s", want, out)
 		}
+	}
+	if strings.Contains(out, "ENG-SWE3 · P3") {
+		t.Fatal("the ordinary current-role fact exposed the job code despite an available title")
 	}
 	for _, unrelated := range []string{"Omar Reyes", "Priya Raghunathan", `id="people-heading"`, `id="journeys-heading"`, `for="worker">Worker`} {
 		if strings.Contains(out, unrelated) {
 			t.Fatalf("focused proposal leaked unrelated/global context %q", unrelated)
 		}
+	}
+}
+
+func TestTodo_UXAUDIT_006_Browser_PromotionFormLocale(t *testing.T) {
+	for _, tc := range []struct {
+		locale, direction, heading, submitHelp string
+	}{
+		{"en-US", "ltr", "Promote Jane Doe", "We check this request before submission"},
+		{"de-DE", "ltr", "Jane Doe befördern", "Wir prüfen diesen Antrag vor der Einreichung"},
+		{"ar", "rtl", "ترقية Jane Doe", "نتحقق من الطلب قبل تقديمه"},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			p := Page{Locale: tc.locale, Proposal: &ProposalView{
+				Subject: &PromotionSubject{Name: "Jane Doe", Number: "W-1001"},
+				Form:    ProposalForm{Submit: "Continue", Fields: []Field{{ID: "reason", Name: "reason", Label: "Reason", Required: true}}},
+			}}
+			out, err := Document(p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{`lang="` + tc.locale + `"`, `dir="` + tc.direction + `"`, tc.heading, tc.submitHelp} {
+				if !strings.Contains(out, want) {
+					t.Errorf("document missing %q", want)
+				}
+			}
+			if strings.Contains(out, "Pinned to the selected ladder edge") || strings.Contains(out, "⟦journey.") {
+				t.Fatal("ordinary promotion form contains internal language or unresolved catalog key")
+			}
+		})
+	}
+}
+
+func TestTodo_UXAUDIT_006_Browser_EnhancedPromotionUsesLocalizedValidation(t *testing.T) {
+	form := ProposalForm{Fields: []Field{{ID: "propose-position", Name: "target_position", Label: "Target position", Required: true}}}
+	page := Page{Proposal: &ProposalView{Form: form}}
+	plain := mustRender(t, page)
+	if strings.Contains(strings.ToLower(plain), "novalidate") {
+		t.Fatal("plain POST lost native constraint validation")
+	}
+	page.Proposal.Form.OnSubmit = func(map[string]string) {}
+	if got := proposalFormProps(live{}, page.Proposal.Form).Raw["noValidate"]; got != true {
+		t.Fatalf("live form did not set the browser's noValidate property: %v", got)
+	}
+	enhanced := mustRender(t, page)
+	if !strings.Contains(strings.ToLower(enhanced), "novalidate") {
+		t.Fatal("enhanced promotion form still blocks localized field validation")
+	}
+}
+
+func TestTodo_UXAUDIT_006_Accessibility_LocalizedSeverityNames(t *testing.T) {
+	page := Page{Locale: "de-DE", Notice: &Notice{Tone: toneWarning, Title: "Pflichtfelder ausfüllen"}, Proposal: &ProposalView{Form: ProposalForm{Fields: []Field{{ID: "propose-base", Name: "proposed_base", Label: "Gehalt", Error: "Füllen Sie dieses Feld aus."}}}}}
+	out := mustRender(t, page)
+	if !strings.Contains(out, "Warnung: ") || !strings.Contains(out, "Fehler: ") {
+		t.Fatalf("localized visible copy had English-only assistive severity names: %s", out)
+	}
+}
+
+func TestTodo_PROMOUX_007_Accessibility_ErrorSummaryLinksToInvalidFields(t *testing.T) {
+	for _, tc := range []struct{ locale, heading string }{
+		{"en-US", "Fields to correct"},
+		{"de-DE", "Zu korrigierende Felder"},
+		{"ar", "الحقول المطلوب تصحيحها"},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			page := Page{Locale: tc.locale, Notice: &Notice{Tone: toneWarning, Title: "Correct the form"}, Proposal: &ProposalView{Form: ProposalForm{Fields: []Field{
+				{ID: "propose-position", Name: "target_position", Label: "Target position", Error: "Required"},
+				{ID: "propose-base", Name: "proposed_base", Label: "Proposed base pay", Error: "Required"},
+				{ID: "propose-reason", Name: "reason", Label: "Reason"},
+			}}}}
+			out := mustRender(t, page)
+			for _, want := range []string{tc.heading, `href="#propose-position"`, `href="#propose-base"`, "Target position", "Proposed base pay"} {
+				if !strings.Contains(out, want) {
+					t.Errorf("error summary missing %q", want)
+				}
+			}
+			if strings.Contains(out, `href="#propose-reason"`) {
+				t.Error("valid field was included in error summary")
+			}
+		})
 	}
 }
 
@@ -231,16 +519,20 @@ func TestListShowsItsEmptyStateWhenThereAreNoJourneys(t *testing.T) {
 	if strings.Contains(out, `class="jn-grid"`) {
 		t.Error("the card grid rendered alongside the empty state")
 	}
-	if !strings.Contains(out, ">0 journeys<") {
+	if !strings.Contains(out, ">0 requests<") {
 		t.Error("the section count did not fall to zero")
 	}
 }
 
-func TestJourneyCardsProgressivelyDiscloseTechnicalIdentifiers(t *testing.T) {
-	out := mustRender(t, SampleListPage())
-	for _, want := range []string{`class="jn-journey-technical"`, ">Technical details<", ">Worker<"} {
-		if !strings.Contains(out, want) {
-			t.Fatalf("journey card does not disclose technical context through %q", want)
+func TestJourneyCardsKeepTechnicalIdentifiersOutOfTheOverview(t *testing.T) {
+	page := SampleListPage()
+	for index := range page.List.Journeys {
+		page.List.Journeys[index].DiagnosticsAuthorized = false
+	}
+	out := mustRender(t, page)
+	for _, forbidden := range []string{`class="jn-journey-technical"`, ">Technical details<", ">Instance<"} {
+		if strings.Contains(out, forbidden) {
+			t.Fatalf("journey overview disclosed technical context through %q", forbidden)
 		}
 	}
 	if got := readableTenantLabel("harborcare-demo"); got != "Harborcare Demo" {
@@ -261,8 +553,8 @@ func TestListExplainsWhenTheEngineIsNotComposed(t *testing.T) {
 	p.List.People.Form.DisabledReason = "Nothing can be recorded here."
 	out := mustRender(t, p)
 
-	if !strings.Contains(out, "jn-callout") || !strings.Contains(out, p.List.EngineNotice) {
-		t.Error("the engine notice did not render as a callout")
+	if !strings.Contains(out, "jn-callout") || strings.Contains(out, p.List.EngineNotice) || !strings.Contains(out, "Your request has not changed") {
+		t.Error("the engine notice leaked its technical cause or lost task guidance")
 	}
 	if !strings.Contains(out, `id="proposal-disabled"`) || !strings.Contains(out, p.List.Form.DisabledReason) {
 		t.Error("the disabled reason did not render")
@@ -447,17 +739,119 @@ func TestActionsCarryTheirVariantDescriptionAndActsAsLine(t *testing.T) {
 	}
 }
 
-func TestConsequentialActionRequiresAReviewDisclosure(t *testing.T) {
+func TestTodo_PROMOUX_010_Localized(t *testing.T) {
 	p := SampleDetailPage()
 	p.Detail.Actions = []Action{{
 		ID: "approve", Label: "Approve", Variant: "primary", Action: "/approve",
 		Confirmation:     []Fact{{Label: "Employee", Value: "Priya"}, {Label: "Effective date", Value: "1 Dec 2026"}},
 		ConfirmationNote: "Approval records the governed promotion fact.",
+		Fields:           []Field{{ID: "approve-reason", Name: "reason", Label: "Reason", Kind: fieldKindTextarea}},
 	}}
 	out := mustRender(t, p)
-	for _, want := range []string{`class="jn-confirm"`, "Review and approve", "Cancel review", `class="jn-confirm-close-label"`, "Confirm approve", "Priya", "1 Dec 2026", "Approval records the governed promotion fact."} {
+	for _, want := range []string{`class="jn-confirm"`, `class="jn-confirm-body"`, "Review and approve", "Cancel review", "Confirm approval", "Priya", "1 Dec 2026", "Approval records the governed promotion fact.", `id="approve-reason"`} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("confirmation markup is missing %q\n%s", want, out)
+		}
+	}
+	if start := strings.Index(out, `<details class="jn-confirm"`); start < 0 || !strings.Contains(out[start:strings.Index(out[start:], `</details>`)+start], `id="approve-reason"`) {
+		t.Fatal("decision reason is not contained in the shared review disclosure")
+	}
+}
+
+func TestTodo_PROMOUX_010_Browser_Localized(t *testing.T) {
+	p := SampleDetailPage()
+	p.Detail.Actions = []Action{
+		{ID: "execute", Label: "Start", Action: "/start", ConfirmationNote: "Start the reviews."},
+		{ID: "approve", Label: "Approve", Action: "/approve", ConfirmationNote: "Record your approval."},
+		{ID: "reject", Label: "Reject", Action: "/reject", ConfirmationNote: "End the request."},
+		{ID: "withdraw", Label: "Withdraw", Action: "/withdraw", ConfirmationNote: "Withdraw the request."},
+		{ID: "cancel", Label: "Cancel", Action: "/cancel", ConfirmationNote: "Cancel the request."},
+	}
+	out := mustRender(t, p)
+	if got := strings.Count(out, `class="jn-confirm"`); got != len(p.Detail.Actions) {
+		t.Fatalf("shared review surfaces = %d, want %d", got, len(p.Detail.Actions))
+	}
+	for _, action := range p.Detail.Actions {
+		id := "action-" + action.ID + "-review-heading"
+		if !strings.Contains(out, `id="`+id+`"`) {
+			t.Errorf("%s does not use the shared labeled review surface", action.ID)
+		}
+	}
+	if strings.Count(out, `class="jn-confirm-open-label"`) != len(p.Detail.Actions) {
+		t.Fatal("a consequential action bypasses the shared review trigger")
+	}
+}
+
+func TestTodo_PROMOUX_010_Accessibility_Localized(t *testing.T) {
+	p := SampleDetailPage()
+	p.Detail.Actions = []Action{{ID: "approve", Label: "Approve", Action: "/approve", Confirmation: []Fact{{Label: "Employee", Value: "Priya"}}}}
+	out := mustRender(t, p)
+	for _, want := range []string{`<details`, `<summary`, `id="action-approve-review-heading"`, `class="jn-btn jn-confirm-cancel"`, "Cancel review", `type="button"`, `role="status"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("modal review lacks %q", want)
+		}
+	}
+}
+
+func TestTodo_PROMOUX_010_Performance_Localized(t *testing.T) {
+	css := Stylesheet()
+	for _, want := range []string{`.jn-confirm-surface{`, "position:fixed", "max-height:calc(100vh - 2rem)", "overflow-y:auto", ".jn-confirm-actionbar{"} {
+		if !strings.Contains(css, want) {
+			t.Errorf("bounded, non-reflowing review surface lacks %q", want)
+		}
+	}
+	for _, want := range []string{".jn-confirm-backdrop{", ".jn-confirm-status{", "position:sticky"} {
+		if !strings.Contains(css, want) {
+			t.Errorf("narrow confirmation controls lack %q", want)
+		}
+	}
+	p := SampleDetailPage()
+	p.Detail.Actions = []Action{
+		{ID: "execute", Label: "Start", Action: "/start", ConfirmationNote: "Start the reviews."},
+		{ID: "approve", Label: "Approve", Action: "/approve", ConfirmationNote: "Record your approval."},
+		{ID: "reject", Label: "Reject", Action: "/reject", ConfirmationNote: "End the request."},
+		{ID: "withdraw", Label: "Withdraw", Action: "/withdraw", ConfirmationNote: "Withdraw the request."},
+		{ID: "cancel", Label: "Cancel", Action: "/cancel", ConfirmationNote: "Cancel the request."},
+	}
+	if _, err := RenderToString(p); err != nil {
+		t.Fatal(err)
+	}
+	durations := make([]time.Duration, 40)
+	for i := range durations {
+		start := time.Now()
+		if _, err := RenderToString(p); err != nil {
+			t.Fatal(err)
+		}
+		durations[i] = time.Since(start)
+	}
+	sort.Slice(durations, func(i, j int) bool { return durations[i] < durations[j] })
+	if p95 := durations[37]; p95 > 50*time.Millisecond {
+		t.Errorf("five-action review p95 render = %s, budget 50ms", p95)
+	}
+}
+
+func TestTodo_UXAUDIT_006_I18N_ConfirmationControls(t *testing.T) {
+	for _, tc := range []struct {
+		locale, heading, review, confirm, cancel, rejectHelp string
+	}{
+		{"en-US", "Actions", "Review and approve", "Confirm approval", "Cancel review", "Required. The requester sees this exactly as written."},
+		{"de-DE", "Aktionen", "Genehmigung prüfen", "Genehmigung bestätigen", "Prüfung abbrechen", "Erforderlich. Die antragstellende Person sieht diesen Text unverändert."},
+		{"ar", "الإجراءات", "مراجعة الموافقة", "تأكيد الموافقة", "إلغاء المراجعة", "مطلوب. يرى مقدم الطلب هذا النص كما كتبته."},
+	} {
+		p := SampleDetailPage()
+		p.Locale = tc.locale
+		p.Detail.Actions = []Action{{ID: "approve", Label: tc.confirm, Action: "/approve", Confirmation: []Fact{{Label: "Employee", Value: "Priya"}}, ConfirmTitle: tc.confirm, ReviewLabel: tc.review}}
+		out := mustRender(t, p)
+		for _, want := range []string{tc.heading, tc.review, tc.confirm, tc.cancel} {
+			if !strings.Contains(out, want) {
+				t.Errorf("%s confirmation missing %q", tc.locale, want)
+			}
+		}
+		if strings.Contains(out, "⟦") {
+			t.Errorf("%s confirmation uses a missing catalog key", tc.locale)
+		}
+		if got := productui.ResolveProductLocale(tc.locale).Text("journey.action_reject_help"); got != tc.rejectHelp {
+			t.Errorf("%s rejection audience = %q, want %q", tc.locale, got, tc.rejectHelp)
 		}
 	}
 }
@@ -553,6 +947,18 @@ func TestFieldNodeRendersEveryKind(t *testing.T) {
 	}
 }
 
+func TestPromotionSelectPlaceholderHasExplicitEmptyValue(t *testing.T) {
+	field := Field{ID: "propose-job", Name: "job_code", Label: "Next role", Kind: fieldKindSelect, Required: true, Options: []Option{
+		{Value: "", Label: "Select a next role", Selected: true},
+		{Value: "FIN-DIR", Label: "Finance Director"},
+	}}
+	markup := renderNode(t, fieldNode(live{values: map[string]string{}, onFieldChange: func(string, string) {}}, field, false))
+	if !strings.Contains(markup, `<option selected value="">Select a next role</option>`) ||
+		!strings.Contains(markup, `<option value="FIN-DIR">Finance Director</option>`) {
+		t.Fatalf("required promotion select lost its explicit empty choice: %s", markup)
+	}
+}
+
 // TestFieldNodeWiresLabelHelpErrorAndAdornments checks the whole
 // accessibility contract of one control in one place: the label points at
 // the control, the description order is prefix, suffix, help, error, and a
@@ -611,7 +1017,7 @@ func TestToneAndSeverityVocabulariesAreClosed(t *testing.T) {
 		}
 	}
 	severityCases := map[string]string{
-		severityBlocking: severityBlocking, severityWarning: severityWarning,
+		severityBlocking: severityBlocking, severityWarning: severityWarning, severityNeedsData: severityNeedsData,
 		severitySuccess: severitySuccess, severityInfo: severityInfo,
 		"": severityInfo, "FATAL": severityInfo,
 	}
@@ -630,7 +1036,7 @@ func TestToneAndSeverityVocabulariesAreClosed(t *testing.T) {
 		}
 	}
 	toneForSeverity := map[string]string{
-		severityBlocking: toneDanger, severityWarning: toneWarning,
+		severityBlocking: toneDanger, severityWarning: toneWarning, severityNeedsData: toneWarning,
 		severitySuccess: toneSuccess, severityInfo: toneInfo, "unknown": toneInfo,
 	}
 	for in, want := range toneForSeverity {
@@ -669,6 +1075,18 @@ func TestNothingMeansAnythingByColorAlone(t *testing.T) {
 	}
 	if !strings.Contains(out, ">No change</span>") {
 		t.Error("unchanged comparison rows say nothing at all in the change column")
+	}
+}
+
+func TestNeedsDataFindingIsNotPresentedAsHarmlessInformation(t *testing.T) {
+	p := SampleDetailPage()
+	p.Detail.Findings = []Finding{{Severity: severityNeedsData, Code: "pay_band.missing", Message: "A pay band is required."}}
+	out := mustRender(t, p)
+	if !strings.Contains(out, `<span class="jn-checkpill-label">Needs information</span>`) {
+		t.Fatal("missing governed pay-band data was not named as a prerequisite")
+	}
+	if !strings.Contains(out, "A pay band is required.") {
+		t.Fatal("missing-data finding lost its explanation")
 	}
 }
 
@@ -789,7 +1207,7 @@ func TestEffectiveWindowNamesTheAsKnownAtInstant(t *testing.T) {
 		Note: "As known at that instant.",
 	}))
 	for _, want := range []string{"Cycle opens", "1 Apr 2026", "Takes effect", "1 Jun 2026",
-		"As known at", "12 May 2026, 09:12 UTC", `data-which="effective"`} {
+		"Information current as of", "12 May 2026, 09:12 UTC", `data-which="effective"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}

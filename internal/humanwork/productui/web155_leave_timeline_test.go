@@ -62,7 +62,7 @@ func TestTodo_WEB_155_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "4b4f5af09e94bee8e6b149fc5d13759b2bceb5ef8c93d567e64f2a145003ca4b"
+	const want = "21e702083603d6a420cb08b4575e18fb57eb9e80bb04dfea8d2702f4692805c9"
 	if got != want {
 		t.Fatalf("leave timeline digest = %s, want %s", got, want)
 	}

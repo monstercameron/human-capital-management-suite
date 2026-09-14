@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/repair"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
@@ -63,12 +64,15 @@ type FixtureInputs struct {
 	// port -- including the durable workers a user created, which the corpus
 	// reader alone does not know about.
 	workers people.WorkerFacts
-	bands   *fixtures.MemoryBandCatalog
+	bands   rewards.PayBandCatalog
 	// locate resolves a request's worker reference. It starts as the
 	// corpus-only locator and is rebound by [NewCell] to the cell's own
 	// ([BindWorkerLocator]), so this resolver and every other surface that
 	// accepts a worker reference agree about what one names.
 	locate WorkerLocator
+	// The simulation and workspace preview must validate selected positions
+	// against the same composed, tenant-scoped Position facts reader.
+	positionReader position.PositionFacts
 	// externalSource is the observing system the comparison intents read
 	// their external side from. It is empty until the cell binds a connector,
 	// and a diagnostic resolved without one refuses rather than comparing
@@ -88,7 +92,11 @@ func NewFixtureInputs() (*FixtureInputs, error) {
 	if err != nil {
 		return nil, fmt.Errorf("app: load pay band corpus: %w", err)
 	}
-	return &FixtureInputs{workers: workers, bands: bands, locate: corpusWorkerLocator}, nil
+	demoBands, err := newDemoBandCatalog(bands)
+	if err != nil {
+		return nil, fmt.Errorf("app: load demo pay bands: %w", err)
+	}
+	return &FixtureInputs{workers: workers, bands: demoBands, locate: corpusWorkerLocator}, nil
 }
 
 // BindExternalSource names the observing system the comparison intents read.
@@ -125,6 +133,12 @@ func (f *FixtureInputs) BindWorkerLocator(locate WorkerLocator) {
 	if locate != nil {
 		f.locate = locate
 	}
+}
+
+// BindPositionReader gives promotion simulation the position reader already
+// used by the workspace preview. A nil reader keeps named positions blocked.
+func (f *FixtureInputs) BindPositionReader(reader position.PositionFacts) {
+	f.positionReader = reader
 }
 
 // Bands exposes the pay-band catalog the domain handlers evaluate against.
@@ -262,10 +276,11 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 	// assignment but not the pay is refused here rather than handed a
 	// simulation with the money silently missing.
 	decision, err := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: inst.CreatedAt,
-		Gate:        []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
-		Read:        peopleFields(fieldSet),
+		Subject:       subject,
+		EvaluatedAt:   inst.CreatedAt,
+		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Read:          peopleFields(fieldSet),
+		Relationships: req.Relationships,
 	})
 	if err != nil {
 		return DomainCall{}, err
@@ -290,6 +305,30 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 	if proposed.Base.IsValue() {
 		present = append(present, "proposed_base_pay")
 	}
+	baseline := baselineFor(inst, facts, subject, target, present)
+	if target.PositionID != "" && f.positionReader != nil {
+		selected, _, decodeErr := position.RevisionRef(target.PositionID).Decode()
+		if decodeErr == nil && selected.Tenant == inst.Tenant {
+			knownAt, knownErr := values.NewKnownAt(values.NewInstant(time.Date(int(evaluation.Year()), evaluation.Month(), int(evaluation.Day()), 0, 0, 0, 0, time.UTC)))
+			if knownErr != nil {
+				return DomainCall{}, fmt.Errorf("app: target position known-at: %w", knownErr)
+			}
+			revision, exists, readErr := f.positionReader.PositionRevisionAt(ctx, position.PositionQuery{
+				Tenant: inst.Tenant, Position: selected, AsOf: position.AsOf{EffectiveOn: effective, KnownAt: knownAt},
+			})
+			if readErr != nil {
+				return DomainCall{}, fmt.Errorf("app: governed target position read: %w", readErr)
+			}
+			if exists {
+				for _, declared := range inst.Subjects {
+					if declared.Kind == "POSITION" && declared.SubjectID == selected.Id {
+						baseline.KnownSubjects = append(baseline.KnownSubjects, declared)
+						baseline.Revisions[selected.String()] = revision.Revision
+					}
+				}
+			}
+		}
+	}
 
 	return DomainCall{
 		Explain: &explain,
@@ -305,8 +344,9 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 			Budget:         budget,
 			Policy:         promotion.DefaultPolicy(),
 			Annualization:  rewards.DefaultAnnualization(),
+			PositionReader: f.positionReader,
 		},
-		Baseline: baselineFor(inst, facts, subject, target, present),
+		Baseline: baseline,
 	}, nil
 }
 
@@ -331,9 +371,10 @@ func (f *FixtureInputs) resolveExplain(ctx context.Context, req ResolveRequest, 
 	}
 	fieldSet := people.AllFields()
 	decision, err := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: inst.CreatedAt,
-		Read:        peopleFields(fieldSet),
+		Subject:       subject,
+		EvaluatedAt:   inst.CreatedAt,
+		Read:          peopleFields(fieldSet),
+		Relationships: req.Relationships,
 	})
 	if err != nil {
 		return DomainCall{}, err
@@ -374,9 +415,10 @@ func (f *FixtureInputs) resolveCompensation(ctx context.Context, req ResolveRequ
 	// reads gates it: there is no partial answer worth returning when the
 	// caller may not see compensation under this purpose.
 	if _, authErr := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: inst.CreatedAt,
-		Gate:        []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Subject:       subject,
+		EvaluatedAt:   inst.CreatedAt,
+		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+		Relationships: req.Relationships,
 	}); authErr != nil {
 		return DomainCall{}, authErr
 	}
@@ -436,9 +478,10 @@ func (f *FixtureInputs) resolvePayBand(ctx context.Context, req ResolveRequest, 
 	// Where a worker's pay sits in a band is a compensation disclosure, and
 	// it is gated as one.
 	if _, authErr := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
-		Subject:     subject,
-		EvaluatedAt: inst.CreatedAt,
-		Gate:        []authz.FieldID{authz.FieldBaseSalary},
+		Subject:       subject,
+		EvaluatedAt:   inst.CreatedAt,
+		Gate:          []authz.FieldID{authz.FieldBaseSalary},
+		Relationships: req.Relationships,
 	}); authErr != nil {
 		return DomainCall{}, authErr
 	}
@@ -506,7 +549,9 @@ func resolvesAgainst(s intent.SubjectReference, worker values.EntityRef, target 
 	case "PERSON", "EMPLOYMENT", "ASSIGNMENT", "WORKER", "COMPENSATION":
 		return s.SubjectID == worker.Id || s.SubjectID == worker.String()
 	case "POSITION":
-		return target.PositionID != "" && s.SubjectID == target.PositionID
+		// Promotion resolves the selected position from PositionFacts above;
+		// a request string alone is never evidence that a subject exists.
+		return false
 	case "ORGANIZATION":
 		return target.OrgUnit != "" && s.SubjectID == target.OrgUnit
 	case "PAY_BAND":

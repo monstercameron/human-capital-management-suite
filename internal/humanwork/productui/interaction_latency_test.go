@@ -1,9 +1,8 @@
-//go:build !race
+//go:build !race && !covergate
 
 package productui
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -142,6 +141,28 @@ func TestInteractionLatencyGate(t *testing.T) {
 	})
 }
 
+// TestTodo_UXAUDIT_008_Performance bounds the component-side cost of the
+// largest selectable People page. Network and browser-paint latency are
+// separate concerns; this gate does not claim to measure either one.
+func TestTodo_UXAUDIT_008_Performance_MergedUX(t *testing.T) {
+	view := testView(PagePeople)
+	view.People = latencyPeople(100)
+	view.PeoplePageSize = 100
+	IndexPeople(view.People)
+	window := paginatePeople(sortedPeople(filteredPeople(view), peopleSortManager, peopleSortDescending), 1, 100)
+	props := peopleDirectoryProps(view, window)
+	if len(props.Rows) != 100 {
+		t.Fatalf("performance fixture has %d visible rows, want 100", len(props.Rows))
+	}
+	assertInteractionLatency(t, latencygate.Budget{
+		Name: "People directory render (100 rows)", P95: 50 * time.Millisecond,
+		Warmups: 3, Samples: interactionLatencySamples,
+	}, func() error {
+		_, err := ui.RenderToString(ui.CreateElement(PeopleDirectory, props))
+		return err
+	})
+}
+
 // interactionLatencyAttempts is how many times a budget may be measured before
 // the gate calls it a failure.
 //
@@ -180,32 +201,4 @@ func assertInteractionLatency(t *testing.T, budget latencygate.Budget, operation
 	}
 	t.Fatalf("%s exceeded its budget on all %d attempts: %v",
 		budget.Name, interactionLatencyAttempts, lastErr)
-}
-
-func latencyPeople(count int) []Person {
-	people := make([]Person, count)
-	for index := range people {
-		people[index] = Person{
-			ID: fmt.Sprintf("id-%09d", index), Name: fmt.Sprintf("Person %09d", count-index),
-			Role: fmt.Sprintf("Role %03d", index%200), Team: fmt.Sprintf("Team %03d", index%75),
-			Manager: fmt.Sprintf("Manager %04d", index%1000), Location: fmt.Sprintf("Location %03d", index%120),
-		}
-	}
-	return people
-}
-
-func latencyDataTable(rowCount, columnCount int) DataTableProps {
-	columns := make([]DataTableColumnProps, columnCount)
-	for column := range columns {
-		columns[column] = DataTableColumnProps{ID: fmt.Sprintf("c%d", column), Label: fmt.Sprintf("Column %d", column)}
-	}
-	rows := make([]DataTableRowProps, rowCount)
-	for row := range rows {
-		cells := make([]DataTableCellProps, columnCount)
-		for column := range cells {
-			cells[column] = DataTableCellProps{ColumnID: columns[column].ID, Text: "value"}
-		}
-		rows[row] = DataTableRowProps{ID: fmt.Sprint(row), Cells: cells}
-	}
-	return DataTableProps{Caption: "Latency gate matrix", Columns: columns, Rows: rows}
 }

@@ -28740,7 +28740,9 @@
       "PROMOUX-011",
       "PROMOUX-012",
       "PROMOUX-013",
-      "PROMOUX-014"
+      "PROMOUX-014",
+      "PROMOUX-016",
+      "PROMOUX-017"
     ],
     "test": "TestTodo_PROMOUX_015",
     "test_matrix": {
@@ -28758,6 +28760,59 @@
     "green": "a real PostgreSQL and browser harness signs in separately as proposer, finance approver, manager approver and employee; discovers an eligible worker without foreknowledge; selects a real position and exact Money; proposes, reviews, approves under separated authority, waits, commits once and reviews the outcome from Person, Journeys, My Work and History; denial, stale revision, duplicate start, reconnect and recovery variants prove zero unauthorized or duplicate effects; desktop, 390 px and 320 px light/dark/reduced-motion/en-US/de-DE/RTL baselines pass the latency, accessibility and layout-shift gates",
     "refactor": "the harness drives production endpoints and components with one versioned fixture; no mock workflow engine, fake browser data or test-only authorization shortcut",
     "refs": "[promotion workflow](reference-workflows/promote-into-management.md), `test/workflow`, `test/workspace`, `tools/uxqual/latencygate`, `tools/uxqual/wcag`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "PROMOUX-016",
+    "phase": "P0",
+    "model": "SOL_HIGH",
+    "title": "Wire the approved promotion outcome to authoritative successor facts",
+    "section": "70. Promotion workflow live-audit remediation",
+    "depends": [
+      "PROMO-005",
+      "PROMO-013",
+      "WF-RUN-030",
+      "PROMOUX-002"
+    ],
+    "test": "TestTodo_PROMOUX_016",
+    "test_matrix": {
+      "FAULT": "TestTodo_PROMOUX_016_Fault",
+      "INTEGRATION": "TestTodo_PROMOUX_016_Integration",
+      "MUTATION": "TestTodo_PROMOUX_016_Mutation",
+      "PRIMARY": "TestTodo_PROMOUX_016",
+      "RECOVERY": "TestTodo_PROMOUX_016_Recovery",
+      "SECURITY": "TestTodo_PROMOUX_016_Security"
+    },
+    "red": "production `ComposeExecutionAuthority` supplies `LedgerTerminalWriter` directly; `promotionterminal.Writer` and `promotioncommit` have tested adapters but no production resolver/composition. END can record a `PromotionOutcome/v2` without applying the corresponding assignment, position, compensation and budget successor facts, so a completed promotion can leave the People and pay reads unchanged",
+    "green": "the admitted immutable transaction plan resolves a validated promotion commit command; the production END writes all local successor facts and the outcome ledger/outbox in one transaction, with rejected terminals writing no successor facts. Effective-dated People and compensation reads show the new state after approval, old state before effectivity, and a new proposal uses a changed revision; injected failure at each participant rolls everything back and replay cannot duplicate effects. External observation and repair remain separately accounted for",
+    "refactor": "reuse `internal/platform/execution/promotionterminal`, `internal/data/promotioncommit` and the shared transaction-plan binding; do not fabricate a second worker mutation path inside the journey UI or outbox consumer",
+    "refs": "`internal/application/execution.go`, `internal/platform/execution/promotionterminal`, `internal/data/promotioncommit`, [promotion workflow](reference-workflows/promote-into-management.md)",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "PROMOUX-017",
+    "phase": "P0",
+    "model": "SOL_HIGH",
+    "title": "Make promotion admission and intent creation one recoverable operation",
+    "section": "70. Promotion workflow live-audit remediation",
+    "depends": [
+      "PROMOUX-002",
+      "TX-006"
+    ],
+    "test": "TestTodo_PROMOUX_017",
+    "test_matrix": {
+      "FAULT": "TestTodo_PROMOUX_017_Fault",
+      "INTEGRATION": "TestTodo_PROMOUX_017_Integration",
+      "PRIMARY": "TestTodo_PROMOUX_017",
+      "RACE": "TestTodo_PROMOUX_017_Race",
+      "RECOVERY": "TestTodo_PROMOUX_017_Recovery"
+    },
+    "red": "`admitPromotionWindow` commits a reservation before `CreateIntent` opens its own transaction. A changed request using the same idempotency key and a different effective day can leave a second ACTIVE reservation when `CreateIntent` refuses the changed digest; a crash before CreateIntent can leave a reservation with no intent indefinitely",
+    "green": "the reservation and intent are committed atomically under one idempotency identity, or a fenced recovery protocol closes unbound reservations without closing any committed intent's guard. A replay returns and confirms the original guard ID; changed payloads, concurrent callers, uncertain commit outcomes and crash points leave exactly one intended active window and no orphan window",
+    "refactor": "keep the database unique-window constraint as the admission authority; do not replace it with a SELECT-before-INSERT race or a browser-only check",
+    "refs": "`internal/intent/app/promotionguard_wire.go`, `internal/data/promotionguard`, `internal/intent/app/pgstore`, `migrations/00286_promoux002_active_promotion_guard.sql`",
     "retired": false,
     "done": false
   },
@@ -36941,7 +36996,8 @@
     "refactor": "derive visibility and availability from the page and capability registries; do not hard-code a second release map in the shell",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), [master plan](plan.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`PageDefinition.NavigationPublished` is the single registry release flag used by server navigation and forged-projection validation; the shell, menu filter, global search and utility drawer no longer advertise Experience Studio or the eleven unpublished Admin fallbacks. Those registered direct routes still render explicit unavailable states. Home uses durable task/activity headings while its figures explicitly say they cover promotion journeys and visible employees. Named `TestTodo_UXAUDIT_005`, `_Golden`, `_Browser`, `_Security` and `_Conformance` pass in `internal/humanwork/productui`; the browser-facing test checks rendered navigation, launcher and drawer, and manual Codex-browser checks exercised the live Go/WASM shell, Admin submenu, menu/global search, direct Studio fallback and Home in dark desktop English, German and Arabic RTL. The new Home labels resolve directly from each locale without fallback; remaining English body copy is tracked under `UXAUDIT-006`. `go test -count=1 -cover ./internal/humanwork/productui` PASS at 92.4%, `go test -count=1 ./internal/humanwork/workspace ./test/workspace` PASS, and `npm test` PASS. The current Codex browser-control API does not expose an exact viewport override, so this checkpoint does not claim fresh 390px/320px manual screenshots; existing responsive shell tests and the prior launcher/organization mobile checks remain the narrower-layout evidence"
   },
   {
     "id": "UXAUDIT-006",

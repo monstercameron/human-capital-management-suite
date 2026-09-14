@@ -96,7 +96,7 @@ func findSearchForm(root *xhtml.Node) *xhtml.Node {
 }
 
 // web041GoldenDigest is pinned from the GREEN implementation run.
-const web041GoldenDigest = "fef9457543a1b84f42e9f7b8090b99c604bea8abd34c70d9b6abdb2303640213"
+const web041GoldenDigest = "c8c983c19d30b613989bdc539a6099b9a42e88d1f8f9c2607e5ff9373c5a64a2"
 
 func TestTodo_WEB_041_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

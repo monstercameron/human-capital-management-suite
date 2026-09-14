@@ -74,7 +74,7 @@ func DelegationSelector(props ContextSwitcherProps) ui.Node {
 			html.Aria("label", label),
 		), html.Span(html.Props{Class: "delegation-selector-trigger"},
 			html.Span(html.Props{Class: "delegation-selector-current"}, ui.Text(label)),
-			html.Span(html.Props{Class: "delegation-selector-chevron", Aria: map[string]string{"hidden": "true"}}, ui.Text("⌄")),
+			productIcon("expand", "delegation-selector-chevron"),
 		)),
 		ui.CreateElement(PopoverSurface, PopoverSurfaceProps{Class: "delegation-selector-panel", Raw: panelRaw, Children: children}),
 	)

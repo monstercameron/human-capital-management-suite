@@ -55,7 +55,7 @@ func TestTodo_PROMOUX_008(t *testing.T) {
 	t.Run("unauthorized hero discloses nothing", func(t *testing.T) {
 		card := unauthorizedTechnicalCard()
 		card.IntentID = "int-should-not-leak"
-		out := mustRenderNode(t, heroSection(card))
+		out := mustRenderNode(t, heroSection(card, card.DiagnosticsAuthorized))
 		for _, forbidden := range []string{"jn-journey-technical", "Technical details", "int-should-not-leak", "worker:NW-40118", fixtureInstanceID} {
 			if strings.Contains(out, forbidden) {
 				t.Fatalf("unauthorized hero leaked %q:\n%s", forbidden, out)
@@ -66,7 +66,7 @@ func TestTodo_PROMOUX_008(t *testing.T) {
 	t.Run("authorized hero discloses all three redacted identifiers", func(t *testing.T) {
 		card := fixtureSubject()
 		card.IntentID = "int-authorized-visible"
-		out := mustRenderNode(t, heroSection(card))
+		out := mustRenderNode(t, heroSection(card, card.DiagnosticsAuthorized))
 		for _, label := range []string{">Worker </span>", ">Intent </span>", ">Instance </span>"} {
 			if !strings.Contains(out, label) {
 				t.Fatalf("authorized hero disclosure is missing the %q row", label)
@@ -81,7 +81,7 @@ func TestTodo_PROMOUX_008(t *testing.T) {
 		p := SampleDetailPage()
 		p.Detail.Journey.DiagnosticsAuthorized = false
 		out := mustRender(t, p)
-		for _, forbidden := range []string{`id="workflow-heading"`, `id="outcome-heading"`, `id="evidence-heading"`, "jn-journey-technical"} {
+		for _, forbidden := range []string{`id="workflow-heading"`, `id="evidence-heading"`, "jn-journey-technical", "Request identifiers"} {
 			if strings.Contains(out, forbidden) {
 				t.Fatalf("unauthorized detail page still renders %q", forbidden)
 			}
@@ -124,7 +124,7 @@ func mustRenderNode(t *testing.T, n ui.Node) string {
 // repeated three times with no other context, would be indistinguishable to
 // a screen reader.
 func TestTodo_PROMOUX_008_Accessibility(t *testing.T) {
-	out := mustRenderNode(t, heroSection(fixtureSubject()))
+	out := mustRenderNode(t, heroSection(fixtureSubject(), true))
 
 	if !strings.Contains(out, "<details") || !strings.Contains(out, "<summary") {
 		t.Fatal("the disclosure is not a native <details>/<summary> pair, so it is not keyboard-operable without extra script")
@@ -153,13 +153,13 @@ func TestTodo_PROMOUX_008_Accessibility(t *testing.T) {
 // produced by this same journeyCard/heroSection call and read in full
 // before being pinned, per this repository's golden-test discipline.
 func TestTodo_PROMOUX_008_Golden(t *testing.T) {
-	const wantCard = `<article class="jn-card jn-journey" data-stage="AWAITING_APPROVAL"><div class="jn-journey-top"><h3><a href="/workspace/journeys/int_01JX6Y8B2C7D9EFG">Omar Reyes<span class="jn-visually-hidden"> — open this journey</span></a></h3><span class="jn-chip" data-tone="warning"><svg aria-hidden="true" class="jn-chip-icon" fill="none" focusable="false" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"></path><path d="M12 10v4"></path><path d="M12 17h.01"></path></svg>Awaiting approval</span></div><p class="jn-journey-headline">OPS-HRBP2 · P2 → OPS-HRBP3 · P3</p><p class="jn-journey-pay">USD 93,000.00 → 98,000.00 (+5.4%)</p><p class="jn-meta"><span class="jn-meta-item"><span class="jn-meta-key">Effective </span><span class="jn-meta-value">1 Jun 2026</span></span><span class="jn-meta-item"><span class="jn-meta-key">Updated </span><span class="jn-meta-value">12 May 2026, 09:12 UTC</span></span></p><p aria-hidden="true" class="jn-journey-foot">Open journey<svg aria-hidden="true" class="jn-journey-arrow" fill="none" focusable="false" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></p></article>`
-	const wantHero = `<section aria-labelledby="journey-heading" class="jn-panel jn-hero"><div class="jn-hero-top"><div><p class="jn-eyebrow">Promotion journey</p><h1 class="jn-display" id="journey-heading">Omar Reyes</h1><p class="jn-lead">OPS-HRBP2 · P2 → OPS-HRBP3 · P3</p></div><span class="jn-chip" data-tone="warning"><svg aria-hidden="true" class="jn-chip-icon" fill="none" focusable="false" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"></path><path d="M12 10v4"></path><path d="M12 17h.01"></path></svg>Awaiting approval</span></div><p class="jn-hero-pay">USD 93,000.00 → 98,000.00 (+5.4%)</p><p class="jn-meta jn-hero-ids"><span class="jn-meta-item"><span class="jn-meta-key">Effective </span><span class="jn-meta-value">1 Jun 2026</span></span><span class="jn-meta-item"><span class="jn-meta-key">Updated </span><span class="jn-meta-value">12 May 2026, 09:12 UTC</span></span></p></section>`
+	const wantCard = `<article class="jn-card jn-journey" data-stage="AWAITING_APPROVAL"><div class="jn-journey-top"><h3><a href="/workspace/journeys/int_01JX6Y8B2C7D9EFG">Omar Reyes<span class="jn-visually-hidden"> — Open request</span></a></h3><span class="jn-chip" data-tone="warning"><svg aria-hidden="true" class="jn-chip-icon" fill="none" focusable="false" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"></path><path d="M12 10v4"></path><path d="M12 17h.01"></path></svg>Awaiting approval</span></div><p class="jn-journey-headline">OPS-HRBP2 · P2 → OPS-HRBP3 · P3</p><p class="jn-journey-pay">USD 93,000.00 → 98,000.00 (+5.4%)</p><p class="jn-meta"><span class="jn-meta-item"><span class="jn-meta-key">Effective </span><span class="jn-meta-value" dir="auto">1 Jun 2026</span></span><span class="jn-meta-item"><span class="jn-meta-key">Updated </span><span class="jn-meta-value" dir="auto">12 May 2026, 09:12 UTC</span></span></p><p aria-hidden="true" class="jn-journey-foot">Open request<svg aria-hidden="true" class="jn-journey-arrow" fill="none" focusable="false" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></p></article>`
+	const wantHero = `<section aria-labelledby="journey-heading" class="jn-panel jn-hero"><div class="jn-hero-top"><div><p class="jn-eyebrow">Promotion journey</p><h1 class="jn-display" id="journey-heading">Omar Reyes</h1><p class="jn-lead">OPS-HRBP2 · P2 → OPS-HRBP3 · P3</p></div><span class="jn-chip" data-tone="warning"><svg aria-hidden="true" class="jn-chip-icon" fill="none" focusable="false" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"></path><path d="M12 10v4"></path><path d="M12 17h.01"></path></svg>Awaiting approval</span></div><p class="jn-hero-pay"><span dir="ltr">USD 93,000.00 → 98,000.00 (+5.4%)</span></p><p class="jn-meta jn-hero-ids"><span class="jn-meta-item"><span class="jn-meta-key">Effective </span><span class="jn-meta-value" dir="auto">1 Jun 2026</span></span><span class="jn-meta-item"><span class="jn-meta-key">Updated </span><span class="jn-meta-value" dir="auto">12 May 2026, 09:12 UTC</span></span></p></section>`
 
 	if got := mustRenderNode(t, journeyCard(unauthorizedTechnicalCard())); got != wantCard {
 		t.Fatalf("unauthorized journey card drifted from its pinned golden:\ngot:  %s\nwant: %s", got, wantCard)
 	}
-	if got := mustRenderNode(t, heroSection(unauthorizedTechnicalCard())); got != wantHero {
+	if got := mustRenderNode(t, heroSection(unauthorizedTechnicalCard(), false)); got != wantHero {
 		t.Fatalf("unauthorized hero drifted from its pinned golden:\ngot:  %s\nwant: %s", got, wantHero)
 	}
 }

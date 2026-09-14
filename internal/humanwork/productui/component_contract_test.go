@@ -98,7 +98,7 @@ func TestPersonComponentsRenderIndependentlyFromRouteProjection(t *testing.T) {
 	markup, err := ui.RenderToString(ui.CreateElement(PersonPage, PersonPageProps{
 		BackHref: "/people?q=product",
 		Profile: &PersonProfileProps{
-			Hero:         PersonHeroProps{Initials: "AP", Name: "Avery Patel", Role: "Designer", Status: "Visible in scope", Source: "CREATED"},
+			Hero:         PersonHeroProps{Initials: "AP", Name: "Avery Patel", Role: "Designer"},
 			Details:      EmploymentDetailsProps{Title: "Employment overview", Facts: []ProfileFactProps{{Label: "Worker number", Value: "NW-1"}}},
 			Organization: EmploymentDetailsProps{Title: "Organization", Facts: []ProfileFactProps{{Label: "Organization unit", Value: "Product"}}},
 			Compensation: EmploymentDetailsProps{Title: "Compensation", Facts: []ProfileFactProps{{Label: "Pay zone", Value: "CA-ON"}}},

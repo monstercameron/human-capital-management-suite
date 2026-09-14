@@ -32,6 +32,11 @@ func declareuxReviewRefinementsStyles() {
 	declareGlobal(".side-stack .facts",
 		gwccss.Raw("padding", "2px 22px 17px"),
 	)
+	declareGlobal(".side-stack .summary-scope",
+		gwccss.Raw("margin", "0"),
+		gwccss.Raw("padding", "0 22px"),
+		gwccss.FontSize(gwccss.Rem(.8125)),
+	)
 	declareGlobal(".side-stack .facts>div",
 		gwccss.Raw("padding-block", "10px"),
 	)
@@ -42,6 +47,16 @@ func declareuxReviewRefinementsStyles() {
 	declareGlobal(".quick-actions .button",
 		gwccss.W(gwccss.Percent(100)),
 		gwccss.MinHeight(gwccss.Px(42)),
+	)
+	// Home shortcuts are contextual links, not the primary task on a landing
+	// page. Help and other quick-action instances keep their own grid sizing.
+	declareGlobal(".home-quick-actions .quick-actions",
+		gwccss.Raw("justify-items", "start"),
+	)
+	declareGlobal(".home-quick-actions .quick-actions .button",
+		gwccss.W(gwccss.Auto),
+		gwccss.MaxWidth(gwccss.Percent(100)),
+		gwccss.MinHeight(gwccss.Px(44)),
 	)
 	declareGlobal(".settings-overview-grid",
 		gwccss.Raw("align-items", "start"),
@@ -126,7 +141,7 @@ func declareuxReviewRefinementsStyles() {
 		mediaRule(gwccss.MinW(1191), gwccss.Left(gwccss.Px(72))),
 	)
 	declareGlobal(".history-filter-controls",
-		mediaRule(gwccss.MaxW(760), gwccss.Display.Flex, gwccss.FlexDir.Col),
+		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
 	)
 	declareGlobal(".history-filter-controls>*",
 		mediaRule(gwccss.MaxW(760), gwccss.W(gwccss.Percent(100))),
@@ -135,7 +150,7 @@ func declareuxReviewRefinementsStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.Fr(1))),
 	)
 	declareGlobal(".jn-embedded .jn-journey-technical>summary",
-		mediaRule(gwccss.MaxW(760), gwccss.MinHeight(gwccss.Px(40)), gwccss.Display.Flex, gwccss.Items.Center),
+		mediaRule(gwccss.MaxW(760), gwccss.MinHeight(gwccss.Px(44)), gwccss.Display.Flex, gwccss.Items.Center),
 	)
 	declareGlobal(".jn-embedded .jn-journey-technical",
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.BorderColor(gwccss.Color("CanvasText"))),
@@ -201,7 +216,7 @@ func declareloadingProxyStylesStyles() {
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("panel")),
 		gwccss.Bg(gwccss.Var("surface")),
-		gwccss.Raw("box-shadow", "var(--hcm-shadow-resting)"),
+		gwccss.Raw("box-shadow", "none"),
 	)
 	declareGlobal(".loading-two-column",
 		gwccss.Display.Grid,
@@ -553,6 +568,8 @@ func declarenavigationScrollbarStylesStyles() {
 		gwccss.Custom("hcm-nav-scrollbar-thumb", "color-mix(in srgb,var(--muted) 58%,var(--surface))"),
 		gwccss.Custom("hcm-nav-scrollbar-thumb-hover", "color-mix(in srgb,var(--accent) 82%,var(--muted))"),
 		gwccss.Custom("hcm-nav-scrollbar-thumb-active", "var(--accent-hover)"),
+		gwccss.CustomLength("hcm-nav-scrollbar-size", gwccss.Px(10)),
+		gwccss.CustomLength("hcm-nav-scrollbar-size-rail", gwccss.Px(7)),
 	)
 	declareGlobal(".sidebar",
 		gwccss.Raw("scrollbar-width", "thin"),
@@ -560,7 +577,7 @@ func declarenavigationScrollbarStylesStyles() {
 		gwccss.Raw("scrollbar-gutter", "stable"),
 	)
 	declareGlobal(".sidebar::-webkit-scrollbar",
-		gwccss.W(gwccss.Px(10)),
+		gwccss.W(gwccss.VarLength("hcm-nav-scrollbar-size")),
 	)
 	declareGlobal(".sidebar::-webkit-scrollbar-track",
 		gwccss.Bg(gwccss.Var("hcm-nav-scrollbar-track")),
@@ -615,7 +632,7 @@ func declarenavigationViewportStylesStyles() {
 		gwccss.Raw("scrollbar-gutter", "stable"),
 	)
 	declareGlobal(".primary-nav::-webkit-scrollbar",
-		gwccss.W(gwccss.Px(10)),
+		gwccss.W(gwccss.VarLength("hcm-nav-scrollbar-size")),
 	)
 	declareGlobal(".primary-nav::-webkit-scrollbar-track",
 		gwccss.Bg(gwccss.Var("hcm-nav-scrollbar-track")),

@@ -45,7 +45,7 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 		},
 	}
 
-	markup, err := ui.RenderToString(journeysSection(view))
+	markup, err := ui.RenderToString(journeysSection("en-US", view))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 
 	// The tracker's empty state names the tracking task, in both the
 	// standalone and the embedded product composition.
-	empty, err := ui.RenderToString(journeysSection(ListView{Empty: "No promotion has been proposed in this tenant yet."}))
+	empty, err := ui.RenderToString(journeysSection("en-US", ListView{Empty: "No promotion has been proposed in this tenant yet."}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestTodo_UXAUDIT_017_Regression(t *testing.T) {
 		{IntentID: "int-1", WorkerName: "Priya Nair", StageLabel: "Recorded", StageTone: "success"},
 		{IntentID: "int-2", WorkerName: "Sam Okafor", StageLabel: "Blocked", StageTone: "warning"},
 	}}
-	markup, err := ui.RenderToString(journeysSection(flat))
+	markup, err := ui.RenderToString(journeysSection("en-US", flat))
 	if err != nil {
 		t.Fatal(err)
 	}

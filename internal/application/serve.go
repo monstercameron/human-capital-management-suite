@@ -177,7 +177,10 @@ type ServeInput struct {
 // shutdown that drains them.
 func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	cfg := in.Config
-	options := in.Options
+	options, err := optionsForServeConfig(cfg, in.Options)
+	if err != nil {
+		return nil, err
+	}
 	logger := in.Logger
 	if logger == nil {
 		logger = discardLogger{}
@@ -272,6 +275,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		if err := roleAccess.Bootstrap(ctx, kernelvalues.TenantId(cfg.Tenant), "system:bootstrap"); err != nil {
 			return nil, fmt.Errorf("bootstrap role access: %w", err)
 		}
+		if cfg.DevBrowserLogin && cfg.Tenant == demoworkforce.CompanyKey {
+			if err := roleAccess.BootstrapLocalDevPersonaPermissions(ctx, kernelvalues.TenantId(cfg.Tenant)); err != nil {
+				return nil, fmt.Errorf("bootstrap local development personas: %w", err)
+			}
+		}
 	}
 	cellConfig := app.CellConfig{
 		Store:           store,
@@ -342,7 +350,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 
 	var schedulerWorkload bootstrap.Workload
 	if cfg.Scheduler {
-		schedulerWorkload, err = composeSchedulerWorkload(cfg, in.Pool, in.Identity, cell, logger)
+		schedulerWorkload, err = composeSchedulerWorkload(cfg, in.Pool, in.Identity, cell, logger, options.Now)
 		if err != nil {
 			return nil, fmt.Errorf("compose workflow scheduler: %w", err)
 		}
@@ -503,6 +511,21 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}, nil
 }
 
+func optionsForServeConfig(cfg ServeConfig, options Options) (Options, error) {
+	if cfg.LocalDevNow == "" {
+		return options, nil
+	}
+	at, err := time.Parse(time.RFC3339, cfg.LocalDevNow)
+	if err != nil || cfg.Profile != ServeProfileLocalDev {
+		return Options{}, fmt.Errorf("application: invalid local development clock; validate configuration before composition")
+	}
+	if options.Now == nil {
+		pinned := at.UTC()
+		options.Now = func() time.Time { return pinned }
+	}
+	return options, nil
+}
+
 // composeStore builds the persistence adapter, or takes the supplied one.
 func composeStore(pool *pgxadapter.Pool, cfg ServeConfig, options Options) (app.Store, error) {
 	if options.NewStore != nil {
@@ -534,6 +557,7 @@ func composeVerifier(cfg ServeConfig, options Options) (trust.Verifier, error) {
 		Key:      []byte(cfg.DevHMACKey),
 		Issuer:   cfg.Issuer,
 		Audience: cfg.Audience,
+		Now:      options.Now,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build the credential verifier: %w", err)
@@ -631,7 +655,7 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 			// different workers in different parts of the organization.
 			access = worker.JobTitle + " (self-service)"
 		}
-		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: access, Roles: roles, Token: token})
+		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: access, Roles: roles, Token: token, WorkerRef: worker.Row.WorkerKey})
 	}
 	return personas
 }

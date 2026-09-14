@@ -12,11 +12,20 @@
 // GOOS=js GOARCH=wasm, live into the DOM.
 package journey
 
+import "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait"
+
 // Page is the whole document. Exactly one of List, Proposal and Detail is
 // set.
 type Page struct {
 	// Title is the document title.
 	Title string
+	// Locale is the canonical BCP-47 presentation locale for the document.
+	// Empty uses DefaultLocale so older callers still emit an explicit
+	// language rather than the ambiguous generic `en` tag.
+	Locale string
+	// Direction is the resolved text direction for Locale (ltr or rtl).
+	// Empty is inferred from Locale.
+	Direction string
 	// Brand is the product name in the masthead.
 	Brand string
 	// TenantLabel is the human name of the tenant the page is served for.
@@ -28,6 +37,10 @@ type Page struct {
 	// Notice, when set, is the one status message for this response (an
 	// action's outcome or refusal).
 	Notice *Notice
+	// FocusInvalidRevision changes on each rejected live proposal attempt.
+	// The browser adapter uses it after render to focus the first invalid
+	// control, including when the same invalid form is submitted twice.
+	FocusInvalidRevision uint64
 
 	List     *ListView
 	Proposal *ProposalView
@@ -46,6 +59,9 @@ type Page struct {
 	// value as a plain attribute the browser owns. Nil (the SSR and test
 	// path) leaves the controls uncontrolled and the forms plain.
 	OnFieldChange func(fieldID, value string)
+	// OnFocusField upgrades error-summary anchors to in-place focus without
+	// changing the journey's hash route. Nil leaves ordinary fragment links.
+	OnFocusField func(fieldID string)
 }
 
 // Principal is the signed-in caller as the masthead shows them.
@@ -76,6 +92,15 @@ type Notice struct {
 	Tone   string
 	Title  string
 	Detail string
+	// Busy marks an in-flight client request. The optional catalog keys
+	// localize notices without parsing rendered copy or changing their state.
+	Busy       bool
+	TitleKey   string
+	MessageKey string
+	// SupportReference is an opaque server-issued request id. The renderer
+	// exposes it only inside a closed, copyable support disclosure, never in
+	// the ordinary status sentence.
+	SupportReference string
 }
 
 // Footer carries the provenance line every page ends with.
@@ -257,6 +282,15 @@ type WorkerForm struct {
 }
 
 // JourneyCard is one journey in the list and the header of its detail.
+type JourneyGroup string
+
+const (
+	JourneyGroupReview  JourneyGroup = "review"
+	JourneyGroupWaiting JourneyGroup = "waiting"
+	JourneyGroupIssue   JourneyGroup = "issue"
+	JourneyGroupClosed  JourneyGroup = "closed"
+)
+
 type JourneyCard struct {
 	IntentID   string
 	Href       string
@@ -270,6 +304,9 @@ type JourneyCard struct {
 	EffectiveDate string
 	Stage         string
 	StageLabel    string
+	// Group is a semantic lifecycle bucket resolved by the projector, not
+	// inferred from localized status copy by the renderer.
+	Group JourneyGroup
 	// StageTone is one of neutral, info, warning, success, danger.
 	StageTone string
 	// NextStep is the display wording of the single next step the stage names
@@ -359,6 +396,14 @@ type Field struct {
 // DetailView is one journey.
 type DetailView struct {
 	Journey JourneyCard
+	// Unavailable marks a route whose detail was refused or no longer exists.
+	// The renderer keeps recovery navigation but must not invent an empty
+	// journey, unknown stage, or future workflow steps for that route.
+	Unavailable bool
+	// Diagnostics admits the operator-only disclosure containing protocol
+	// identifiers, workflow nodes, work-item routing and evidence references.
+	// Ordinary approvers never receive that machinery in their component tree.
+	Diagnostics bool
 	// BackLink returns to the employee context that launched this journey.
 	// JourneysLink remains available as the broader operational escape hatch.
 	BackLink     NavLink
@@ -392,6 +437,14 @@ type DetailView struct {
 
 	// Ledger is nil until the terminal write is recorded.
 	Ledger *LedgerCard
+	// PendingOutcome explains precisely what remains before the employee
+	// record changes. It is derived from the durable business stage.
+	PendingOutcome string
+	// EffectiveDateWait is the typed, server-projected explanation of a
+	// durable effective-date wait. It is nil until the journey transport
+	// carries the wait requirement; the renderer must not manufacture one
+	// from a date-only journey summary.
+	EffectiveDateWait *wait.EffectiveDateWait
 
 	Evidence []string
 
@@ -487,7 +540,7 @@ type ComparisonRow struct {
 
 // Finding is one simulation finding.
 type Finding struct {
-	// Severity is one of blocking, warning, info, success.
+	// Severity is one of blocking, warning, needs-data, info, success.
 	Severity string
 	Code     string
 	Message  string
@@ -574,6 +627,10 @@ type Action struct {
 	// is true and this is empty.
 	Busy      bool
 	BusyLabel string
+	// ConfirmTitle and ReviewLabel are localized, action-specific copy from
+	// the projection. Empty values use the shared generic review wording.
+	ConfirmTitle string
+	ReviewLabel  string
 
 	// OnSubmit, when set, makes this action a live call: the renderer
 	// prevents the browser's own POST and calls it with every hidden entry

@@ -45,7 +45,8 @@ func TestTodo_PROMOUX_014_Integration(t *testing.T) {
 		Migrate: false, Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux014-integration-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: approver,
-		WorkflowPlan: WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
+		ExecutionManagerApprover: approver + "-manager",
+		WorkflowPlan:             WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
 		TimerCalendarVersion: DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
@@ -104,7 +105,7 @@ func TestTodo_PROMOUX_014_Integration(t *testing.T) {
 	}
 
 	now = now.Add(10 * time.Minute)
-	finance, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
+	finance, err := journey.Decide(promotionApproverContext(t, now, approver), proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
 	if err != nil {
 		t.Fatalf("Journey.Decide(finance): %v", err)
 	}
@@ -113,7 +114,7 @@ func TestTodo_PROMOUX_014_Integration(t *testing.T) {
 	}
 
 	now = now.Add(10 * time.Minute)
-	waiting, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
+	waiting, err := journey.Decide(promotionApproverContext(t, now, approver+"-manager"), proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
 	if err != nil {
 		t.Fatalf("Journey.Decide(manager): %v", err)
 	}

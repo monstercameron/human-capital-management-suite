@@ -322,7 +322,7 @@ const PageJourneyDiagnostics = "journey-diagnostics"
 // important read-only case: it can view Insights but cannot create, update, or
 // delete reports there.
 func DefaultPagePermissions() []PagePermission {
-	pages := []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "insights", "admin", "worker-ids", "roles", "organization-visibility", "appearance", "studio", "help", "settings", PageJourneyDiagnostics}
+	pages := []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "admin", "worker-ids", "roles", "organization-visibility", "appearance", "studio", "help", "settings", PageJourneyDiagnostics}
 	result := make([]PagePermission, 0, len(pages)*2+64)
 	grant := func(role, page string, create, update, delete bool) {
 		result = append(result, PagePermission{RoleID: role, PageID: page, View: true, Create: create, Update: update, Delete: delete})
@@ -333,12 +333,12 @@ func DefaultPagePermissions() []PagePermission {
 		}
 	}
 	for _, role := range []string{"manager", "hr_partner", "hiring_manager", "payroll_manager"} {
-		for _, page := range []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "insights", "help", "settings"} {
+		for _, page := range []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "help", "settings"} {
 			create, update := page == "journeys", page == "journeys" || page == "work" || page == "settings"
 			grant(role, page, create, update, false)
 		}
 	}
-	for _, page := range []string{"home", "myself", "organization", "insights", "help", "settings"} {
+	for _, page := range []string{"home", "myself", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "help", "settings"} {
 		grant("worker_self", page, false, page == "settings", false)
 	}
 	for _, page := range []string{"home", "journeys", "work", "history", "people", "person", "organization", "insights", "help", "settings"} {

@@ -431,9 +431,11 @@ func toTimelineEvent(e workspace.JourneyEvent) *journeyv1.TimelineEvent {
 // blanked per item instead.
 func toDetail(d workspace.JourneyDetail, diagAuthorized bool) *journeyv1.JourneyDetail {
 	out := &journeyv1.JourneyDetail{
-		Journey:  toJourney(d.Summary, diagAuthorized),
-		Instance: toInstance(d.Instance, diagAuthorized),
-		Approver: d.Approver,
+		Journey:              toJourney(d.Summary, diagAuthorized),
+		Instance:             toInstance(d.Instance, diagAuthorized),
+		Approver:             d.Approver,
+		DiagnosticsAvailable: d.DiagnosticsAvailable,
+		CanDecide:            d.CanDecide,
 	}
 	if diagAuthorized {
 		out.PlannedWrites = append([]string(nil), d.PlannedWrites...)
@@ -506,52 +508,104 @@ func detailDigest(d *journeyv1.JourneyDetail) string {
 // asserting a salary it was never told.
 func toWorker(w workspace.WorkerSummary) *journeyv1.Worker {
 	return &journeyv1.Worker{
-		WorkerRef:       w.WorkerRef,
-		WorkerId:        w.WorkerID,
-		LegalName:       w.LegalName,
-		PreferredName:   w.PreferredName,
-		WorkerNumber:    w.WorkerNumber,
-		JobCode:         w.JobCode,
-		JobTitle:        w.JobTitle,
-		Grade:           w.Grade,
-		OrgUnit:         w.OrgUnit,
-		PositionId:      w.PositionID,
-		Location:        w.Location,
-		PayZone:         w.PayZone,
-		BasePay:         w.BasePay,
-		Currency:        w.Currency,
-		BonusTarget:     w.BonusTarget,
-		HireDate:        w.HireDate,
-		Source:          w.Source,
-		CreatedAt:       toTimestamp(w.CreatedAt),
-		ManagerRef:      w.ManagerRef,
-		ProfilePhotoUrl: w.ProfilePhotoURL,
+		WorkerRef:           w.WorkerRef,
+		WorkerId:            w.WorkerID,
+		SubjectRevision:     w.SubjectRevision,
+		LegalName:           w.LegalName,
+		PreferredName:       w.PreferredName,
+		WorkerNumber:        w.WorkerNumber,
+		JobCode:             w.JobCode,
+		JobTitle:            w.JobTitle,
+		Grade:               w.Grade,
+		OrgUnit:             w.OrgUnit,
+		PositionId:          w.PositionID,
+		Location:            w.Location,
+		PayZone:             w.PayZone,
+		BasePay:             w.BasePay,
+		Currency:            w.Currency,
+		BonusTarget:         w.BonusTarget,
+		HireDate:            w.HireDate,
+		Source:              w.Source,
+		CreatedAt:           toTimestamp(w.CreatedAt),
+		ManagerRef:          w.ManagerRef,
+		ManagerRelationship: toManagerRelationship(w.ManagerDisposition, w.ManagerWorkerRef),
+		ProfilePhotoUrl:     w.ProfilePhotoURL,
 	}
+}
+
+func toManagerRelationship(disposition, managerWorkerRef string) *journeyv1.ManagerRelationshipProjection {
+	if disposition == "" && managerWorkerRef == "" {
+		return nil
+	}
+	value := journeyv1.ManagerRelationshipProjection_DISPOSITION_UNSPECIFIED
+	switch disposition {
+	case workspace.ManagerRelationshipRoot:
+		value = journeyv1.ManagerRelationshipProjection_DISPOSITION_ROOT
+	case workspace.ManagerRelationshipVisible:
+		value = journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE
+	case workspace.ManagerRelationshipWithheld:
+		value = journeyv1.ManagerRelationshipProjection_DISPOSITION_WITHHELD
+	case workspace.ManagerRelationshipOrphan:
+		value = journeyv1.ManagerRelationshipProjection_DISPOSITION_ORPHAN
+	}
+	return &journeyv1.ManagerRelationshipProjection{Disposition: value, ManagerWorkerRef: managerWorkerRef}
 }
 
 // fromWorker is [toWorker]'s inverse.
 func fromWorker(w *journeyv1.Worker) workspace.WorkerSummary {
 	return workspace.WorkerSummary{
-		WorkerRef:       w.GetWorkerRef(),
-		WorkerID:        w.GetWorkerId(),
-		LegalName:       w.GetLegalName(),
-		PreferredName:   w.GetPreferredName(),
-		WorkerNumber:    w.GetWorkerNumber(),
-		JobCode:         w.GetJobCode(),
-		JobTitle:        w.GetJobTitle(),
-		Grade:           w.GetGrade(),
-		OrgUnit:         w.GetOrgUnit(),
-		PositionID:      w.GetPositionId(),
-		Location:        w.GetLocation(),
-		PayZone:         w.GetPayZone(),
-		BasePay:         w.GetBasePay(),
-		Currency:        w.GetCurrency(),
-		BonusTarget:     w.GetBonusTarget(),
-		HireDate:        w.GetHireDate(),
-		Source:          w.GetSource(),
-		CreatedAt:       fromTimestamp(w.GetCreatedAt()),
-		ManagerRef:      w.GetManagerRef(),
-		ProfilePhotoURL: w.GetProfilePhotoUrl(),
+		WorkerRef:          w.GetWorkerRef(),
+		WorkerID:           w.GetWorkerId(),
+		SubjectRevision:    w.GetSubjectRevision(),
+		LegalName:          w.GetLegalName(),
+		PreferredName:      w.GetPreferredName(),
+		WorkerNumber:       w.GetWorkerNumber(),
+		JobCode:            w.GetJobCode(),
+		JobTitle:           w.GetJobTitle(),
+		Grade:              w.GetGrade(),
+		OrgUnit:            w.GetOrgUnit(),
+		PositionID:         w.GetPositionId(),
+		Location:           w.GetLocation(),
+		PayZone:            w.GetPayZone(),
+		BasePay:            w.GetBasePay(),
+		Currency:           w.GetCurrency(),
+		BonusTarget:        w.GetBonusTarget(),
+		HireDate:           w.GetHireDate(),
+		Source:             w.GetSource(),
+		CreatedAt:          fromTimestamp(w.GetCreatedAt()),
+		ManagerRef:         w.GetManagerRef(),
+		ManagerDisposition: fromManagerRelationship(w.GetManagerRelationship()),
+		ManagerWorkerRef:   managerWorkerRef(w.GetManagerRelationship()),
+		ProfilePhotoURL:    w.GetProfilePhotoUrl(),
+	}
+}
+
+func fromManagerRelationship(value *journeyv1.ManagerRelationshipProjection) string {
+	if value == nil {
+		return ""
+	}
+	return fromManagerRelationshipDisposition(value.GetDisposition())
+}
+
+func managerWorkerRef(value *journeyv1.ManagerRelationshipProjection) string {
+	if value == nil {
+		return ""
+	}
+	return value.GetManagerWorkerRef()
+}
+
+func fromManagerRelationshipDisposition(value journeyv1.ManagerRelationshipProjection_Disposition) string {
+	switch value {
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_ROOT:
+		return workspace.ManagerRelationshipRoot
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE:
+		return workspace.ManagerRelationshipVisible
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_WITHHELD:
+		return workspace.ManagerRelationshipWithheld
+	case journeyv1.ManagerRelationshipProjection_DISPOSITION_ORPHAN:
+		return workspace.ManagerRelationshipOrphan
+	default:
+		return ""
 	}
 }
 

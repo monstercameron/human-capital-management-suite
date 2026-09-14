@@ -211,6 +211,15 @@ message FieldViolation {
   string field_path = 1;
   string description = 2;
   string rule_ref = 3;
+  // Present only when an authorized domain decision can provide exact,
+  // server-owned monetary correction bounds for this rejected field.
+  MoneyRange permitted_money_range = 4;
+}
+
+message MoneyRange {
+  string minimum = 1;
+  string maximum = 2;
+  string currency = 3;
 }
 
 // ErrorDetail is the canonical typed error payload carried alongside every

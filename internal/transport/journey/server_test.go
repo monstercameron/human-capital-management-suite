@@ -11,6 +11,7 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -306,7 +307,7 @@ func TestJourneyServiceErrorMapping(t *testing.T) {
 // field violation rather than being flattened into prose.
 func TestJourneyServiceInvalidInputNamesTheField(t *testing.T) {
 	engine := newFakeEngine()
-	engine.proposeErr = errors.Join(workspace.ErrJourneyInput, errors.New("effective_date must be ISO-8601"))
+	engine.proposeErr = &workspace.JourneyInputError{FieldPath: "effective_date", ReasonRef: "journey.input.invalid", Detail: "must be ISO-8601"}
 	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
 
 	_, err := client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{WorkerRef: fixtureWorkerID})
@@ -319,6 +320,71 @@ func TestJourneyServiceInvalidInputNamesTheField(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("violations = %+v, want one naming effective_date", owned.Violations())
+	}
+}
+
+func TestJourneyServiceInvalidInputNeverParsesOrProjectsDiagnosticPayRule(t *testing.T) {
+	engine := newFakeEngine()
+	engine.proposeErr = &workspace.JourneyInputError{
+		FieldPath: "proposed_base", ReasonRef: "promotion.ladder.base_increase_out_of_range",
+		Detail: "private worker pay: increase 0.0500 to 0.1500",
+	}
+	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
+	_, err := client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{WorkerRef: fixtureWorkerID})
+	owned := assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	if got := owned.Violations(); len(got) != 1 || got[0].FieldPath != "proposed_base" || got[0].RuleRef != "promotion.ladder.base_increase_out_of_range" {
+		t.Fatalf("typed refusal was not preserved: %+v", got)
+	}
+	for _, secret := range []string{"private worker pay", "0.0500", "0.1500"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Errorf("wire refusal leaked %q: %v", secret, err)
+		}
+	}
+
+	engine.proposeErr = errors.Join(workspace.ErrJourneyInput, errors.New("effective_date private worker pay 0.0500"))
+	_, err = client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{WorkerRef: fixtureWorkerID})
+	owned = assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	if got := owned.Violations(); len(got) != 1 || got[0].FieldPath != "request" {
+		t.Fatalf("legacy untyped refusal should remain request-level: %+v", got)
+	}
+	if strings.Contains(err.Error(), "private worker pay") || strings.Contains(err.Error(), "0.0500") {
+		t.Fatalf("legacy refusal leaked diagnostic text: %v", err)
+	}
+
+	engine.proposeErr = &workspace.JourneyInputError{
+		FieldPath: "salary_of_private_worker_123", ReasonRef: "private.policy:98765", Detail: "private worker pay 0.0500",
+	}
+	_, err = client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{WorkerRef: fixtureWorkerID})
+	owned = assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	if got := owned.Violations(); len(got) != 1 || got[0].FieldPath != "request" || got[0].RuleRef != "journey.input.invalid" {
+		t.Fatalf("unrecognized typed coordinates were projected: %+v", got)
+	}
+	for _, secret := range []string{"private.policy", "private worker pay", "salary_of_private_worker", "0.0500"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Errorf("malformed typed refusal leaked %q", secret)
+		}
+	}
+}
+
+func TestTodo_PROMOUX_007_Security_NonProposalCannotDisclosePayBounds(t *testing.T) {
+	minimum, err := values.NewMoney("105.04", "USD", 2, values.RoundingExactRequired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	maximum, err := values.NewMoney("115.03", "USD", 2, values.RoundingExactRequired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := newFakeEngine()
+	engine.executeErr = &workspace.JourneyInputError{
+		FieldPath: "proposed_base", ReasonRef: "promotion.ladder.base_increase_out_of_range",
+		PayRange: &workspace.JourneyPayRange{Minimum: minimum, Maximum: maximum},
+	}
+	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
+	_, err = client.ExecuteJourney(testContext(t), &journeyv1.ExecuteJourneyRequest{IntentId: fixtureIntentID})
+	owned := assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	if got := owned.Violations()[0].MoneyRange; got != (envelope.MoneyRange{}) {
+		t.Fatalf("execute response disclosed pay correction: %+v", got)
 	}
 }
 

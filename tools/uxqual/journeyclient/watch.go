@@ -98,7 +98,7 @@ func (a *App) watch(ctx context.Context, generation int, intentID, sinceDigest s
 			// page is no longer live.
 			attempts++
 			if attempts >= maxWatchAttempts {
-				a.show(NoticeFromError(err))
+				a.show(noticeFromError(err, a.localeCopy()))
 				return
 			}
 			if !sleepUntil(ctx, retry) {
@@ -145,11 +145,7 @@ func (a *App) watch(ctx context.Context, generation int, intentID, sinceDigest s
 			attempts++
 		}
 		if attempts >= maxWatchAttempts {
-			a.show(&journey.Notice{
-				Tone:   toneWarning,
-				Title:  "Live updates stopped",
-				Detail: "This journey's change feed could not be kept open. What you see is still what the engine last said; reload the page to follow it again.",
-			})
+			a.show(keyedNotice(toneWarning, "journey.watch_stopped_title", "journey.watch_stopped_detail"))
 			return
 		}
 		if !sleepUntil(ctx, retry) {

@@ -6,7 +6,29 @@ type WorkerFact struct {
 	Name  string
 	Label string
 	Value string
+	// Status is the authoritative presentation state for the fact. It keeps
+	// an empty value (MISSING), an absent field verdict (UNKNOWN), and a
+	// policy-withheld value (WITHHELD) distinct from a real value (PRESENT).
+	Status WorkerFactStatus
 }
+
+// WorkerFactStatus is the deliberately small vocabulary rendered by worker
+// object sections. These are presentation states, not business lifecycle
+// states and must not be inferred by callers from the display text.
+type WorkerFactStatus string
+
+const (
+	WorkerFactPresent  WorkerFactStatus = "PRESENT"
+	WorkerFactMissing  WorkerFactStatus = "MISSING"
+	WorkerFactUnknown  WorkerFactStatus = "UNKNOWN"
+	WorkerFactWithheld WorkerFactStatus = "WITHHELD"
+	// Verbose aliases make call sites read naturally while retaining the
+	// compact names used by the worker section constructors.
+	WorkerFactStatusPresent  = WorkerFactPresent
+	WorkerFactStatusMissing  = WorkerFactMissing
+	WorkerFactStatusUnknown  = WorkerFactUnknown
+	WorkerFactStatusWithheld = WorkerFactWithheld
+)
 
 // WorkerSection is one independently resolved worker object
 // page section: title, description, and facts.

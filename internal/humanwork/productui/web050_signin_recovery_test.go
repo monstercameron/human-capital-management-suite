@@ -149,7 +149,13 @@ func TestTodo_WEB_050_Conformance(t *testing.T) {
 		"https://idp.example/reset": true, "http://idp.example/reset": false,
 		"/workspace/login/start?tenant=x": true, "//evil.example": false,
 		"mailto:helpdesk@example.com": true, "javascript:alert(1)": false,
-		"data:text/html,hi": false, "": false, "ftp://files.example/x": false,
+		"mailto:helpdesk@example.com?token=leak":      false,
+		"https://idp.example/reset?access_token=leak": false,
+		"https://idp.example/reset#access_token=leak": false,
+		"https://":                      false,
+		"mailto:":                       false,
+		"https://idp.example/reset/%zz": false,
+		"data:text/html,hi":             false, "": false, "ftp://files.example/x": false,
 	} {
 		if got := validRecoveryHref(href); got != valid {
 			t.Fatalf("validRecoveryHref(%q) = %v, want %v", href, got, valid)

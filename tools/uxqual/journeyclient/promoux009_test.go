@@ -50,8 +50,11 @@ func TestTodo_PROMOUX_009_Browser(t *testing.T) {
 		t.Fatalf("len(rendered Findings) = %d, want %d: the render boundary must preserve count exactly", len(got), len(detail.Findings))
 	}
 	for i, wire := range detail.Findings {
-		if got[i].Code != wire.Code || got[i].Message != wire.Message {
-			t.Fatalf("rendered finding %d = %+v, want Code/Message from wire finding %+v (order must be preserved, not resorted)", i, got[i], wire)
+		if got[i].Code != wire.Code {
+			t.Fatalf("rendered finding %d = %+v, want code from wire finding %+v (order must be preserved, not resorted)", i, got[i], wire)
+		}
+		if wire.Code == "promotion.budget_authority_observation_only" && got[i].Message == wire.Message {
+			t.Fatal("the coded budget observation exposed a misleading raw wire message instead of safe business copy")
 		}
 	}
 	if got[0].Severity != severityBlocking {

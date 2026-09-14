@@ -14,12 +14,14 @@ package covergate
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -155,7 +157,8 @@ var (
 	failedTestLine = regexp.MustCompile(`^\s*--- FAIL: (\S+)`)
 	// failureLogLine matches the indented "file_test.go:12: message" lines go
 	// test prints under a failing test.
-	failureLogLine = regexp.MustCompile(`^\s+\S+_test\.go:\d+: `)
+	failureLogLine     = regexp.MustCompile(`^\s+\S+_test\.go:\d+: `)
+	windowsCleanupLine = regexp.MustCompile(`(?i)^go: unlinkat .+go-build.+\.test\.exe: access is denied\.$`)
 )
 
 // ParseGoTestOutput turns go test's per-package summary lines into results.
@@ -339,13 +342,155 @@ func AllPackages(root string) ([]string, error) {
 // The exit error is returned alongside the output and is only decisive when
 // no package line could be parsed, so the Windows unlink quirk is tolerated.
 func RunGoTest(root string, pkgs []string, timeout time.Duration) (string, error) {
-	args := append([]string{"test", "-count=1", "-cover", "-timeout", timeout.String()}, pkgs...)
+	return runGoTest(root, pkgs, timeout, true, nil, "", false)
+}
+
+// RunGoTestUninstrumented runs go test without coverage instrumentation. It
+// is used by Gate for wall-clock quality tests whose measurements must not
+// include the overhead of the coverage counter writes.
+func RunGoTestUninstrumented(root string, pkgs []string, timeout time.Duration) (string, error) {
+	return runGoTest(root, pkgs, timeout, false, nil, "", false)
+}
+
+func runGoTest(root string, pkgs []string, timeout time.Duration, coverage bool, tags []string, runPattern string, jsonOutput bool) (string, error) {
+	args := []string{"test", "-count=1"}
+	if coverage {
+		args = append(args, "-cover")
+	}
+	if len(tags) > 0 {
+		args = append(args, "-tags", strings.Join(tags, ","))
+	}
+	if runPattern != "" {
+		args = append(args, "-run", runPattern)
+	}
+	if jsonOutput {
+		args = append(args, "-json")
+	}
+	args = append(args, "-timeout", timeout.String())
+	args = append(args, pkgs...)
 	cmd := exec.Command("go", args...)
 	cmd.Dir = root
 	var buf bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &buf, &buf
 	err := cmd.Run()
 	return buf.String(), err
+}
+
+const productUIPackage = "./internal/humanwork/productui"
+
+func includesProductUIPackage(pkgs []string) bool {
+	for _, pkg := range pkgs {
+		normalized := normalizePackageArg(pkg)
+		if normalized == strings.TrimPrefix(productUIPackage, "./") || normalized == "" || strings.HasPrefix(normalized, strings.TrimPrefix(productUIPackage, "./")+"/") || normalized == "..." || normalized == "internal/..." || strings.HasPrefix(normalized, "internal/humanwork/") && strings.HasSuffix(normalized, "/...") {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizePackageArg(pkg string) string {
+	pkg = filepath.ToSlash(strings.TrimSpace(pkg))
+	pkg = strings.TrimPrefix(pkg, "./")
+	if pkg == Module {
+		return ""
+	}
+	return strings.TrimPrefix(pkg, Module+"/")
+}
+
+func appendUninstrumentedFindings(report *Report, output string, runErr error) error {
+	results, passed, failed := parseJSONTestOutput(output)
+	expected := Module + "/internal/humanwork/productui"
+	wantTests := map[string]bool{"TestInteractionLatencyGate": true, "TestTodo_UXAUDIT_008_Performance": true, "TestTodo_UXAUDIT_015_Performance": true, "TestTodo_WEB_039_InteractionP95": true}
+	for name := range wantTests {
+		if failed[name] {
+			return fmt.Errorf("covergate: uninstrumented productui test failed %s", name)
+		}
+		if !passed[name] {
+			return fmt.Errorf("covergate: uninstrumented productui test did not pass %s", name)
+		}
+	}
+	if len(results) != 1 || results[0].Package != expected {
+		if runErr != nil {
+			return fmt.Errorf("covergate: uninstrumented productui test did not produce exactly one productui result: %w\n%s", runErr, output)
+		}
+		return fmt.Errorf("covergate: uninstrumented productui test did not produce exactly one productui result: got %d", len(results))
+	}
+	result := results[0]
+	if result.Status == "notests" {
+		return errors.New("covergate: uninstrumented productui test reported no test files")
+	}
+	if result.Status != "ok" && result.Status != "fail" {
+		return fmt.Errorf("covergate: uninstrumented productui test returned unknown status %q", result.Status)
+	}
+	if result.Status == "fail" {
+		report.Findings = append(report.Findings, Finding{Package: Relative(result.Package), Kind: FindingTestFailure, Detail: result.Line})
+	}
+	if runErr != nil && result.Status == "ok" && !isWindowsTestCleanupError(runErr, output) {
+		return fmt.Errorf("covergate: uninstrumented productui test failed: %w\n%s", runErr, output)
+	}
+	sort.Slice(report.Findings, func(i, j int) bool {
+		if report.Findings[i].Kind != report.Findings[j].Kind {
+			return report.Findings[i].Kind < report.Findings[j].Kind
+		}
+		return report.Findings[i].Package < report.Findings[j].Package
+	})
+	return nil
+}
+
+func parseJSONTestOutput(output string) ([]Result, map[string]bool, map[string]bool) {
+	var results []Result
+	passed := map[string]bool{}
+	failed := map[string]bool{}
+	for line := range strings.SplitSeq(output, "\n") {
+		var event struct {
+			Action, Package, Test, Output string
+		}
+		if json.Unmarshal([]byte(line), &event) != nil {
+			continue
+		}
+		if event.Action == "pass" && event.Test != "" {
+			passed[event.Test] = true
+		}
+		if event.Action == "fail" && event.Test != "" {
+			failed[event.Test] = true
+		}
+		if event.Test == "" && (event.Action == "pass" || event.Action == "fail") && event.Package != "" {
+			status := "ok"
+			if event.Action == "fail" {
+				status = "fail"
+			}
+			results = append(results, Result{Package: event.Package, Status: status, Line: event.Output})
+		}
+	}
+	return results, passed, failed
+}
+
+func isWindowsTestCleanupError(err error, output string) bool {
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	if !strings.Contains(message, "exit status") {
+		return false
+	}
+	foundCleanup := false
+	for line := range strings.SplitSeq(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if windowsCleanupLine.MatchString(line) {
+			foundCleanup = true
+			continue
+		}
+		// The command may emit ordinary package summaries, or JSON events for
+		// the latency run; neither is an additional tool failure.
+		if strings.HasPrefix(line, "{") || strings.HasPrefix(line, "ok ") || strings.HasPrefix(line, "? ") {
+			continue
+		}
+		return false
+	}
+	return foundCleanup
 }
 
 // Gate runs the whole check for pkgs under root with the policy at cfgPath.
@@ -358,16 +503,95 @@ func Gate(root, cfgPath string, pkgs []string, now time.Time, timeout time.Durat
 	if len(pkgs) == 0 {
 		return report, nil
 	}
-	out, runErr := RunGoTest(root, pkgs, timeout)
+	resolved, err := resolvePackagePatterns(root, pkgs)
+	if err != nil {
+		return report, err
+	}
+	pkgs = resolved
+	report.Packages = len(pkgs)
+	// The product UI's wall-clock tests are excluded by the covergate build
+	// tag from this functional coverage run. They are then required to pass in
+	// a separate, uninstrumented invocation below. This preserves both the
+	// coverage floor and the latency contract without changing either one's
+	// thresholds, attempts, or samples.
+	coverageTags := []string(nil)
+	if includesProductUIPackage(pkgs) {
+		coverageTags = []string{"covergate"}
+	}
+	out, runErr := runGoTest(root, pkgs, timeout, true, coverageTags, "", false)
 	report.Results = ParseGoTestOutput(out)
+	for _, requested := range pkgs {
+		normalized := normalizePackageArg(requested)
+		if strings.Contains(normalized, "...") || normalized == "" {
+			continue
+		}
+		found := false
+		for _, result := range report.Results {
+			if normalizePackageArg(result.Package) == normalized {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return report, fmt.Errorf("covergate: go test produced no result for requested package %s", requested)
+		}
+	}
 	if len(report.Results) == 0 {
 		if runErr != nil {
 			return report, fmt.Errorf("covergate: go test produced no package results: %w\n%s", runErr, out)
 		}
 		return report, errors.New("covergate: go test produced no package results")
 	}
+	if runErr != nil && !hasFailResult(report.Results) && !isWindowsTestCleanupError(runErr, out) {
+		return report, fmt.Errorf("covergate: go test failed without a reported package failure: %w\n%s", runErr, out)
+	}
 	report.Findings, report.Waived = Evaluate(cfg, report.Results, now)
+	if includesProductUIPackage(pkgs) {
+		latencyOut, latencyRunErr := runGoTest(root, []string{productUIPackage}, timeout, false, nil,
+			"^(TestInteractionLatencyGate|TestTodo_UXAUDIT_008_Performance|TestTodo_UXAUDIT_015_Performance|TestTodo_WEB_039_InteractionP95)$", true)
+		if err := appendUninstrumentedFindings(&report, latencyOut, latencyRunErr); err != nil {
+			return report, err
+		}
+	}
 	return report, nil
+}
+
+func hasFailResult(results []Result) bool {
+	for _, result := range results {
+		if result.Status == "fail" {
+			return true
+		}
+	}
+	return false
+}
+
+func resolvePackagePatterns(root string, pkgs []string) ([]string, error) {
+	var resolved []string
+	for _, pkg := range pkgs {
+		if !strings.Contains(pkg, "...") {
+			resolved = append(resolved, pkg)
+			continue
+		}
+		cmd := exec.Command("go", "list", "-f", "{{.ImportPath}}", pkg)
+		cmd.Dir = root
+		out, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("covergate: resolve package pattern %s: %w", pkg, err)
+		}
+		for line := range strings.SplitSeq(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || !strings.HasPrefix(line, Module) {
+				continue
+			}
+			rel := Relative(line)
+			if excludedDir(rel) {
+				continue
+			}
+			resolved = append(resolved, "./"+filepath.ToSlash(rel))
+		}
+	}
+	sort.Strings(resolved)
+	return resolved, nil
 }
 
 // Format renders the report for a terminal: one line per finding, then the

@@ -62,7 +62,7 @@ func TestTodo_WEB_152_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "ee61687ed4149c9760bafd187ca63ce22089125b4112cf16f1e90c9e5860e452"
+	const want = "e81cba1f3d1b128a3d9f0c7af6c901be137d37ef85d5f991fd1ebc00120abfa3"
 	if got != want {
 		t.Fatalf("team coverage digest = %s, want %s", got, want)
 	}

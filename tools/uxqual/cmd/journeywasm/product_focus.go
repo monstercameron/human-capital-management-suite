@@ -15,17 +15,52 @@ func productRouteFocusTarget(previous, current string) (selector string, caretAt
 	if menuFilterOnlyRouteChange(previous, current) {
 		return menuFilterFocusSelector, true
 	}
-	if peopleDirectoryOnlyRouteChange(previous, current) {
-		// Keep focus on the activated table header or collection control. The
-		// browser then preserves the independently scrolling main viewport.
-		return "", false
-	}
-	if navigationOnlyRouteChange(previous, current) {
-		// The navigation toggle owns focus. Do not jump the main viewport back
-		// to its heading for a shell-only state change.
+	if !productRouteDestinationChanged(previous, current) {
+		// Same-destination query changes belong to the control that initiated
+		// them. Keep focus and scroll where they are for sorting, filtering,
+		// paging, locale, favorites, and other presentation state.
 		return "", false
 	}
 	return productPageFocusSelector, false
+}
+
+// productRouteShouldResetMainScroll distinguishes destination navigation from
+// presentation changes. The product shell owns an independently scrolling main
+// region, so the browser cannot provide its usual new-document scroll reset.
+func productRouteShouldResetMainScroll(previous, current string) bool {
+	return productRouteDestinationChanged(previous, current)
+}
+
+// productRouteDestinationChanged reports whether the address names a new page
+// or a new record/workflow within the same page. All other same-path query
+// changes are presentation state and must not disorient the user by moving the
+// viewport or page-heading focus.
+func productRouteDestinationChanged(previous, current string) bool {
+	before, beforeErr := url.Parse(previous)
+	after, afterErr := url.Parse(current)
+	if beforeErr != nil || afterErr != nil {
+		return true
+	}
+	if before.Path != after.Path {
+		return true
+	}
+	for _, key := range productResourceRouteKeys(before.Path) {
+		if before.Query().Get(key) != after.Query().Get(key) {
+			return true
+		}
+	}
+	return false
+}
+
+func productResourceRouteKeys(path string) []string {
+	switch path {
+	case "/workspace/app/person":
+		return []string{"person"}
+	case "/workspace/app/journeys":
+		return []string{"journey", "mode", "worker"}
+	default:
+		return nil
+	}
 }
 
 func navigationOnlyRouteChange(previous, current string) bool {

@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/latencygate"
+	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
 )
@@ -129,7 +130,7 @@ func TestTodo_WEB_033_Browser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(nativeWorkspace, "<script") || strings.Contains(nativeWorkspace, ` style=`) || !strings.Contains(nativeWorkspace, "<style>"+tokens.WorkspaceCSS()+"</style>") {
+	if strings.Contains(nativeWorkspace, "<script") || strings.Contains(nativeWorkspace, ` style=`) || !strings.Contains(nativeWorkspace, "<style>"+gwc.Stylesheet()+"</style>") {
 		t.Fatal("native workspace document is not CSP-compatible")
 	}
 	enhancedWorkspace, err := Render(ux002Contract(), "csrf", "worker", true)

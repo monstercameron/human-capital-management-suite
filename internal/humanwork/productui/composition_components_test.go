@@ -113,14 +113,14 @@ func TestAdminHeroWithoutActionDoesNotRenderEmptyNavigation(t *testing.T) {
 	}
 }
 
-func TestVisibilitySummaryKeepsBoundaryVisibleAndRoleListCollapsed(t *testing.T) {
-	markup, err := ui.RenderToString(organizationVisibilityEffectiveSummary(OrganizationVisibilityPageProps{}, []AccessRole{{ID: "reviewer", Name: "Reviewer"}}, nil))
+func TestVisibilityPageUsesOneRoleSelector(t *testing.T) {
+	props := OrganizationVisibilityPageProps{I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")}, Roles: []AccessRole{{ID: "reviewer", Name: "Reviewer", Active: true}}}
+	markup, err := ui.RenderToString(OrganizationVisibilityPage(props))
 	if err != nil {
 		t.Fatal(err)
 	}
-	start := strings.Index(markup, "<details>")
-	if start < 0 || strings.Index(markup, "Role grants are additive") > start || strings.Index(markup, "Reviewer:") < start {
-		t.Fatal("boundary must precede collapsed configured-role list")
+	if strings.Count(markup, `class="role-visibility-list"`) != 1 || strings.Contains(markup, "organization-visibility-role-selector") || !strings.Contains(markup, `name="organization-visibility-editors"`) {
+		t.Fatal("expected one native role selector without duplicate navigation")
 	}
 }
 

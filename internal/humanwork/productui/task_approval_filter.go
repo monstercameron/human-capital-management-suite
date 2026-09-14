@@ -27,6 +27,13 @@ const (
 	// next step -- including passive waits, which appear here and never in
 	// the actionable views.
 	WorkCollectionTracked
+	// WorkCollectionAction is the explicitly actionable queue, excluding
+	// resumable drafts and passive waits.
+	WorkCollectionAction
+	// WorkCollectionDraft is the resumable-draft view.
+	WorkCollectionDraft
+	// WorkCollectionWaiting is the passive-wait view.
+	WorkCollectionWaiting
 )
 
 // ParseWorkCollectionFilter resolves a request filter string
@@ -46,6 +53,12 @@ func ParseWorkCollectionFilter(raw string) WorkCollectionFilter {
 		return WorkCollectionMine
 	case "tracked":
 		return WorkCollectionTracked
+	case "action":
+		return WorkCollectionAction
+	case "draft", "drafts":
+		return WorkCollectionDraft
+	case "waiting", "wait":
+		return WorkCollectionWaiting
 	}
 	return WorkCollectionFilter(0)
 }
@@ -70,6 +83,12 @@ func FilterWorkCollection(items []WorkItem, filter WorkCollectionFilter) []WorkI
 			include = !item.Terminal && WorkViewerOwnershipRank(item) < 2
 		case WorkCollectionTracked:
 			include = !item.Terminal && WorkViewerInitiated(item)
+		case WorkCollectionAction:
+			include = ClassifyWork(item) == WorkDispositionAction
+		case WorkCollectionDraft:
+			include = ClassifyWork(item) == WorkDispositionDraft
+		case WorkCollectionWaiting:
+			include = ClassifyWork(item) == WorkDispositionPassive
 		}
 		if include {
 			filtered = append(filtered, item)

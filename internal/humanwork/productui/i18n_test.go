@@ -76,7 +76,7 @@ func TestComponentOwnedCopyCannotBypassI18n(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowedGlyphs := []string{`ui.Text("✓")`, `ui.Text("›")`, `ui.Text("●")`, `ui.Text("↗")`, `ui.Text("⌕")`}
+	allowedGlyphs := []string{`ui.Text("")`, `ui.Text("✓")`, `ui.Text("›")`, `ui.Text("●")`, `ui.Text("↗")`, `ui.Text("⌕")`, `ui.Text("—")`}
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), "_components.go") {
 			continue

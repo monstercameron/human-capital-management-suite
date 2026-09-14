@@ -90,9 +90,25 @@ func declareCustomerIdentityStyles() {
 	)
 	declareGlobal(".wordmark-label",
 		gwccss.MinWidth(gwccss.Zero),
+		gwccss.MaxWidth(gwccss.Percent(100)),
+		gwccss.Raw("overflow-wrap", "anywhere"),
+		gwccss.Raw("text-overflow", "clip"),
+		gwccss.Raw("white-space", "normal"),
+		gwccss.Raw("line-height", "1.15"),
+	)
+	declareGlobal(".brand-cluster .wordmark-label",
+		gwccss.Raw("display", "-webkit-box"),
+		gwccss.Raw("-webkit-box-orient", "vertical"),
+		gwccss.Raw("-webkit-line-clamp", "2"),
 		gwccss.Raw("overflow", "hidden"),
-		gwccss.TextOverflowEllipsis(),
-		gwccss.Raw("white-space", "nowrap"),
+	)
+	// The persistent desktop icon rail must never lay out the fallback name
+	// in its narrow brand cell. The sibling sr-only name remains accessible.
+	declareGlobal(".app-shell.nav-collapsed .brand-cluster .brand-logo-slot .wordmark-label",
+		mediaRule(gwccss.MinW(761), gwccss.Raw("display", "none!important")),
+	)
+	declareGlobal(".sidebar.collapsed .nav-empty,.sidebar.collapsed .nav-support-label",
+		mediaRule(gwccss.MinW(761), gwccss.Raw("display", "none!important")),
 	)
 	declareGlobal(".appearance-brand-fields",
 		gwccss.Display.Grid,
@@ -388,7 +404,7 @@ func declareAppearanceStyles() {
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("panel")),
 		gwccss.Bg(gwccss.Var("surface")),
-		gwccss.Raw("box-shadow", "var(--hcm-shadow-resting)"),
+		gwccss.Raw("box-shadow", "none"),
 	)
 	declareGlobal(".appearance-preview-card i",
 		gwccss.W(gwccss.Percent(42)),
@@ -466,6 +482,9 @@ func declareSemanticThemeStyles() {
 		gwccss.Custom("danger", "var(--hcm-color-danger)"),
 		gwccss.Custom("radius", "var(--hcm-radius-control)"),
 		gwccss.Custom("panel", "var(--hcm-radius-surface)"),
+		// Status chips follow the customer's validated control shape without
+		// exposing a second, independently drifting radius preference.
+		gwccss.Custom("hcm-radius-status", "var(--hcm-radius-control)"),
 	)
 	declareGlobal("body",
 		gwccss.FontSize(gwccss.VarLength("hcm-font-size-body")),
@@ -524,7 +543,7 @@ func declareMotionStyles() {
 		mediaRule(gwccss.RawMedia("(hover:hover) and (prefers-reduced-motion:no-preference)"), gwccss.Raw("transform", "translateY(0) scale(.985)")),
 	)
 	declareGlobal(".surface:hover",
-		mediaRule(gwccss.RawMedia("(hover:hover) and (prefers-reduced-motion:no-preference)"), gwccss.Raw("box-shadow", "var(--hcm-shadow-resting)")),
+		mediaRule(gwccss.RawMedia("(hover:hover) and (prefers-reduced-motion:no-preference)"), gwccss.BorderColor(gwccss.Var("control-border"))),
 	)
 	declareGlobal(".notifications[open] .popover",
 		mediaRule(gwccss.RawMedia("(hover:hover) and (prefers-reduced-motion:no-preference)"), gwccss.Raw("box-shadow", "var(--hcm-shadow-raised)")),
@@ -570,8 +589,8 @@ func declareInteractionMotionStyles() {
 		gwccss.Display.Grid,
 		gwccss.Raw("place-items", "center"),
 		gwccss.Raw("flex", "none"),
-		gwccss.W(gwccss.Px(38)),
-		gwccss.H(gwccss.Px(38)),
+		gwccss.W(gwccss.Px(44)),
+		gwccss.H(gwccss.Px(44)),
 		gwccss.Raw("margin-right", "8px"),
 		gwccss.Border(gwccss.Px(1), gwccss.Transparent),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
@@ -708,7 +727,7 @@ func declareInteractionMotionStyles() {
 		mediaRule(gwccss.RawMedia("(hover:hover) and (prefers-reduced-motion:no-preference)"), gwccss.Transform(gwccss.TranslateX(gwccss.Px(2)))),
 	)
 	declareGlobal(":where(.metric,.org-node,.workflow-card,.choice,.accessibility-choice):hover",
-		mediaRule(gwccss.RawMedia("(hover:hover) and (prefers-reduced-motion:no-preference)"), gwccss.Transform(gwccss.TranslateY(gwccss.Px(-2))), gwccss.Raw("box-shadow", "var(--hcm-shadow-resting)")),
+		mediaRule(gwccss.RawMedia("(hover:hover) and (prefers-reduced-motion:no-preference)"), gwccss.BorderColor(gwccss.Var("control-border"))),
 	)
 	declareGlobal(".activity:hover .check",
 		mediaRule(gwccss.RawMedia("(hover:hover) and (prefers-reduced-motion:no-preference)"), gwccss.Transform(gwccss.Scale(1.06))),
@@ -807,7 +826,7 @@ func declareJourneyIntegrationStyles() {
 	declareGlobal(".jn-embedded .jn-btn[data-variant=\"primary\"]",
 		gwccss.Raw("background", "linear-gradient(180deg,var(--accent),var(--accent-hover))"),
 		gwccss.BorderColor(gwccss.Var("accent")),
-		gwccss.Raw("box-shadow", "var(--hcm-shadow-resting)"),
+		gwccss.Raw("box-shadow", "none"),
 	)
 	declareGlobal(".jn-embedded .jn-card:hover",
 		gwccss.BorderColor(gwccss.Var("accent")),
@@ -847,8 +866,8 @@ func declareNavigationEnhancementsStyles() {
 	declareGlobal(".menu-filter input",
 		gwccss.W(gwccss.Percent(100)),
 		gwccss.MinWidth(gwccss.Zero),
-		gwccss.H(gwccss.Px(38)),
-		gwccss.Raw("padding", "7px 36px 7px 11px"),
+		gwccss.H(gwccss.Px(44)),
+		gwccss.Raw("padding", "7px 47px 7px 11px"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
 		gwccss.Bg(gwccss.Var("canvas")),
@@ -861,12 +880,12 @@ func declareNavigationEnhancementsStyles() {
 	)
 	declareGlobal(".menu-filter-submit",
 		gwccss.Position.Absolute,
-		gwccss.Right(gwccss.Px(3)),
-		gwccss.Top(gwccss.Px(3)),
+		gwccss.Right(gwccss.Zero),
+		gwccss.Top(gwccss.Zero),
 		gwccss.Display.Grid,
 		gwccss.Raw("place-items", "center"),
-		gwccss.W(gwccss.Px(32)),
-		gwccss.H(gwccss.Px(32)),
+		gwccss.W(gwccss.Px(44)),
+		gwccss.H(gwccss.Px(44)),
 		gwccss.Padding(gwccss.Zero),
 		gwccss.Raw("border", "0"),
 		gwccss.Rounded(gwccss.Px(6)),
@@ -878,7 +897,14 @@ func declareNavigationEnhancementsStyles() {
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
+	declareGlobal(".menu-filter-glyph",
+		gwccss.W(gwccss.Px(18)),
+		gwccss.H(gwccss.Px(18)),
+	)
 	declareGlobal(".menu-filter-clear",
+		gwccss.Display.InlineFlex,
+		gwccss.Items.Center,
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.W(gwccss.RawLength("max-content")),
 		gwccss.TextColor(gwccss.Var("accent")),
 		gwccss.FontSize(gwccss.Rem(.72)),
@@ -917,6 +943,13 @@ func declareNavigationEnhancementsStyles() {
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
+	declareGlobal(".nav-favorite-glyph",
+		gwccss.W(gwccss.Px(18)),
+		gwccss.H(gwccss.Px(18)),
+	)
+	declareGlobal(".nav-favorite.is-favorite .nav-favorite-glyph",
+		gwccss.Raw("fill", "currentColor"),
+	)
 	declareGlobal(".nav-section-label",
 		gwccss.Raw("padding", "13px 13px 5px"),
 		gwccss.TextColor(gwccss.Var("muted")),
@@ -928,6 +961,19 @@ func declareNavigationEnhancementsStyles() {
 	)
 	declareGlobal(".nav-section-label:first-child",
 		gwccss.Raw("padding-top", "4px"),
+	)
+	declareGlobal(".nav-section-all",
+		gwccss.Raw("padding-top", "6px"),
+	)
+	declareGlobal(".nav-empty small",
+		gwccss.Display.Block,
+		gwccss.Raw("margin-top", "5px"),
+		gwccss.LineHeight(gwccss.Num(1.35)),
+	)
+	declareGlobal(".nav-support-label",
+		gwccss.Raw("margin", "0 12px 4px"),
+		gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.FontSize(gwccss.Rem(.68)),
 	)
 	declareGlobal(".nav-group",
 		gwccss.MarginY(gwccss.Px(2)), gwccss.MarginX(gwccss.Zero),
@@ -959,6 +1005,8 @@ func declareNavigationEnhancementsStyles() {
 	)
 	declareGlobal(".nav-chevron",
 		gwccss.Raw("margin-left", "auto"),
+		gwccss.W(gwccss.Px(16)),
+		gwccss.H(gwccss.Px(16)),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(1.1)),
 		gwccss.LineHeight(gwccss.Num(1)),
@@ -977,7 +1025,7 @@ func declareNavigationEnhancementsStyles() {
 		gwccss.Raw("padding", "2px 0 5px 10px!important"),
 	)
 	declareGlobal(".subnav .nav-link",
-		gwccss.MinHeight(gwccss.Px(40)),
+		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.MarginY(gwccss.Px(1)), gwccss.MarginX(gwccss.Zero),
 		gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(8)),
 		gwccss.Gap(gwccss.Px(8)),

@@ -148,9 +148,9 @@ func TestTodo_UIPOLISH_004_Browser(t *testing.T) {
 		t.Fatal("drawer region (#workspace-navigation) is not both keyboard-focusable and named")
 	}
 
-	table := findElementByID(root, "data-table-scroll")
+	table := findElementByID(root, "people-directory-table-viewport")
 	if table == nil || attr(table, "tabindex") != "0" || attr(table, "role") != "region" || attr(table, "aria-label") == "" {
-		t.Fatal("table region (#data-table-scroll) lost its keyboard-focusable, named region contract")
+		t.Fatal("table region (#people-directory-table-viewport) lost its keyboard-focusable, named region contract")
 	}
 
 	overlay := findElementByID(root, "action-launcher-dialog")
@@ -288,8 +288,8 @@ func TestTodo_UIPOLISH_004_Performance(t *testing.T) {
 		if got := strings.Count(doc, `id="primary-nav"`); got != 1 {
 			t.Fatalf("id=\"primary-nav\" occurrences = %d, want exactly 1", got)
 		}
-		if got := strings.Count(doc, `id="data-table-scroll"`); got != 1 {
-			t.Fatalf("id=\"data-table-scroll\" occurrences = %d, want exactly 1", got)
+		if got := strings.Count(doc, `id="people-directory-table-viewport"`); got != 1 {
+			t.Fatalf("id=\"people-directory-table-viewport\" occurrences = %d, want exactly 1", got)
 		}
 	}
 

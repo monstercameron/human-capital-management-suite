@@ -411,6 +411,9 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
 		positionReader = positionfacts.Reader{DB: cfg.ExecutionDB, TenantUUID: cfg.TenantUUID}
 	}
+	if fixtureBacked != nil {
+		fixtureBacked.BindPositionReader(positionReader)
+	}
 
 	// PROMOUX-005: the same condition as positionReader above. Without an
 	// execution database and a tenant mapping there is no journey_worker

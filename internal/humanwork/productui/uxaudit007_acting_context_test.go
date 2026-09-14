@@ -114,9 +114,8 @@ func TestTodo_UXAUDIT_007(t *testing.T) {
 }
 
 // Browser: the banner, when present, sits between the topbar and the
-// content grid exactly as WEB-056 pinned, and the header's scope-wrap now
-// carries exactly one child -- the scope span -- never a second
-// acting-context label competing with it (UXAUDIT-007's REFACTOR: one
+// content grid exactly as WEB-056 pinned. The page header carries no second
+// acting-context or global scope line (UXAUDIT-007's REFACTOR: one
 // acting-context component, not a page-level fork).
 func TestTodo_UXAUDIT_007_Browser(t *testing.T) {
 	view := testView(PageHome)
@@ -146,23 +145,11 @@ func TestTodo_UXAUDIT_007_Browser(t *testing.T) {
 		t.Fatal("authority banner is not placed between topbar and content")
 	}
 
-	scopeWrap := findClassNode(root, "scope-wrap")
-	if scopeWrap == nil {
-		t.Fatal("document renders no scope-wrap")
-	}
-	var spans []*xhtml.Node
-	for child := scopeWrap.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == xhtml.ElementNode {
-			spans = append(spans, child)
-		}
-	}
-	if len(spans) != 1 {
-		t.Fatalf("scope-wrap has %d element children, want exactly the scope span (no second acting-context label): %v", len(spans), spans)
+	if scopeWrap := findClassNode(root, "scope-wrap"); scopeWrap != nil {
+		t.Fatal("page header renders a redundant global scope line")
 	}
 
-	// Quiet self context: no banner, and the scope-wrap still carries
-	// exactly its one scope span, never an empty stand-in for the removed
-	// label.
+	// Quiet self context: no banner and no empty stand-in for the removed label.
 	quiet := testView(PageHome)
 	quietDoc, err := Render(quiet)
 	if err != nil {
@@ -175,18 +162,8 @@ func TestTodo_UXAUDIT_007_Browser(t *testing.T) {
 	if findElementByID(quietRoot, "acting-authority") != nil {
 		t.Fatal("self context renders a banner")
 	}
-	quietScopeWrap := findClassNode(quietRoot, "scope-wrap")
-	if quietScopeWrap == nil {
-		t.Fatal("quiet document renders no scope-wrap")
-	}
-	var quietSpans int
-	for child := quietScopeWrap.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == xhtml.ElementNode {
-			quietSpans++
-		}
-	}
-	if quietSpans != 1 {
-		t.Fatalf("quiet scope-wrap has %d element children, want exactly one", quietSpans)
+	if quietScopeWrap := findClassNode(quietRoot, "scope-wrap"); quietScopeWrap != nil {
+		t.Fatal("quiet document renders a redundant scope-wrap")
 	}
 }
 
@@ -346,16 +323,15 @@ func TestTodo_UXAUDIT_007_Regression(t *testing.T) {
 	}
 	assertBanner(t, doc, "pre-existing WEB-056 delegated fixture", "HarborCare", "Covering HR", "Maya Chen", "2026-09-18")
 
-	// The header still resolves a complete, non-empty scope identity for
-	// every registered page (WEB-045), even though it no longer carries an
-	// acting-context label of its own.
+	// The header still resolves a complete page identity for every registered
+	// page without inventing an acting-context label of its own.
 	for _, definition := range PageDefinitions() {
 		roles := []string{"manager"}
 		if !PageVisible(definition.ID, roles) {
 			roles = []string{RoleHCMAdmin}
 		}
 		identity := ResolvePageIdentity(ApplyRoleVisibility(testView(definition.ID), roles))
-		if identity.Page != definition.ID || identity.Title == "" || identity.Subtitle == "" || identity.ScopeLabel == "" {
+		if identity.Page != definition.ID || identity.Title == "" || identity.Subtitle == "" {
 			t.Fatalf("page %s identity incomplete after UXAUDIT-007: %#v", definition.ID, identity)
 		}
 	}

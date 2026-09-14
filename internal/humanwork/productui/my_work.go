@@ -114,20 +114,97 @@ func isoDateLess(a, b string) bool {
 	return a < b
 }
 
+// MyWorkBuckets is the viewer-scoped composition for My Work. The slices are
+// independent projections, so an item can never appear both as something to
+// do and as a passive status update. Completed items remain available to the
+// existing history surface rather than being presented as pending work.
+type MyWorkBuckets struct {
+	ActionQueue  []WorkItem
+	Drafts       []WorkItem
+	Tracked      []WorkItem
+	PassiveWaits []WorkItem
+}
+
+// ResolveMyWorkBuckets scopes first, then classifies. Keeping authorization
+// before categorization prevents denied records from influencing counts or
+// leaking through a secondary summary.
+func ResolveMyWorkBuckets(items []WorkItem, viewer ViewerProfile) MyWorkBuckets {
+	mine := MyWorkItems(items, viewer)
+	return classifyMyWorkBuckets(mine)
+}
+
+// pageWorkBuckets is the page adapter for the same fail-closed collection.
+// An unbound preview therefore cannot accidentally expose an assigned draft
+// or tracked request merely because it was included in a broad projection.
+func pageWorkBuckets(items []WorkItem, viewer ViewerProfile) MyWorkBuckets {
+	return ResolveMyWorkBuckets(items, viewer)
+}
+
+func classifyMyWorkBuckets(mine []WorkItem) MyWorkBuckets {
+	buckets := MyWorkBuckets{
+		ActionQueue:  make([]WorkItem, 0, len(mine)),
+		Drafts:       make([]WorkItem, 0, len(mine)),
+		Tracked:      make([]WorkItem, 0, len(mine)),
+		PassiveWaits: make([]WorkItem, 0, len(mine)),
+	}
+	for _, item := range mine {
+		switch ClassifyWork(item) {
+		case WorkDispositionDraft:
+			buckets.Drafts = append(buckets.Drafts, item)
+		case WorkDispositionPassive:
+			buckets.PassiveWaits = append(buckets.PassiveWaits, item)
+		case WorkDispositionAction:
+			buckets.ActionQueue = append(buckets.ActionQueue, item)
+		default:
+			if !item.Terminal {
+				buckets.Tracked = append(buckets.Tracked, item)
+			}
+		}
+	}
+	return buckets
+}
+
+// ResumableDrafts is the viewer-scoped draft slice used by Home and My Work.
+// The historical DraftCenterItems helper remains the compatibility surface;
+// this name makes the resume affordance explicit at composition call sites.
+func ResumableDrafts(items []WorkItem, viewer ViewerProfile) []WorkItem {
+	mine := MyWorkItems(items, viewer)
+	drafts := make([]WorkItem, 0, len(mine))
+	for _, item := range mine {
+		if ClassifyWork(item) == WorkDispositionDraft {
+			drafts = append(drafts, item)
+		}
+	}
+	return drafts
+}
+
 // MyWorkItems scopes one work stream to the viewer's
-// collection for the My Work page: items whose PersonRef
-// equals the viewer's PersonID, in admission order. Empty
-// viewer identities and empty refs match nothing
-// fail-closed, so unassigned work never leaks into a
-// collection and logged-out viewers see none. Items pass
-// through untouched.
+// collection for the My Work page. A server-selected AssigneeRef owns active
+// human work; older/draft projections without one retain the subject-based
+// compatibility rule. Empty viewer identities and empty refs match nothing
+// fail-closed, so unassigned work never leaks into a collection and logged-out
+// viewers see none. Items pass through untouched.
 func MyWorkItems(items []WorkItem, viewer ViewerProfile) []WorkItem {
 	mine := make([]WorkItem, 0, len(items))
 	if viewer.PersonID == "" {
 		return mine
 	}
 	for _, item := range items {
-		if item.PersonRef != "" && item.PersonRef == viewer.PersonID {
+		// Newer journey projections express responsibility relative to the
+		// authenticated viewer, independently of the promotion subject. A
+		// subject/assignee comparison would drop a manager's assigned queue.
+		// Such records still enter here only from the admitted View.Work slice.
+		if item.ViewerResponsibility != "" || len(item.ViewerRelationships) != 0 {
+			if WorkNeedsViewerAction(item) || WorkViewerInitiated(item) || WorkViewerOwnershipRank(item) < 2 {
+				mine = append(mine, item)
+			}
+			continue
+		}
+		owner := item.AssigneeRef
+		if owner == "" {
+			owner = item.PersonRef
+		}
+		if owner == viewer.PersonID {
 			mine = append(mine, item)
 		}
 	}

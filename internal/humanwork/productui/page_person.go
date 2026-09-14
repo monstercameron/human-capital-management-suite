@@ -1,8 +1,42 @@
 package productui
 
 import (
+	"strings"
+
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
+
+// resolvedPersonPageLabel is the single identity source for the object page's
+// title and breadcrumb. The preferred display name has its own discovery
+// verdict; a worker number is appended only when the server explicitly
+// admits that field. Legal name remains in the closed personal-data section.
+func resolvedPersonPageLabel(view View) (string, bool) {
+	// A route transition may still carry the previous worker population while
+	// its destination read is in flight. Never identify the new subject from
+	// that stale baseline, even when its ID happens to be present there.
+	if view.Loading || view.ContentLoading {
+		return "", false
+	}
+	person, ok := exactPerson(view)
+	if !ok || !DiscoveryAdmitted(person.ID, view.RecordVerdicts) {
+		return "", false
+	}
+	identity := ResolveWorkerIdentity(view.Locale, person, view.RecordVerdicts)
+	if identity.NameStatus != WorkerFactPresent || strings.TrimSpace(identity.Name) == "" {
+		return "", false
+	}
+	name := strings.TrimSpace(identity.Name)
+	// The current ListWorkers transport admits complete worker summaries, not
+	// field-level verdicts. Its silent-verdict projection is the same admitted
+	// record already shown in Employment overview. Once field verdicts arrive,
+	// only an explicit PRESENT worker_number may enter persistent page chrome.
+	for _, fact := range ResolveWorkerOverview(view.Locale, person, view.RecordVerdicts).Facts {
+		if fact.Name == "worker_number" && fact.Status == WorkerFactPresent && strings.TrimSpace(fact.Value) != "" {
+			return view.Locale.Text("person.profile_identity", map[string]string{"name": name, "worker": strings.TrimSpace(fact.Value)}), true
+		}
+	}
+	return name, true
+}
 
 // personPage is the route adapter. It resolves authorized projection data and
 // passes presentation-only props into the reusable component tree.
@@ -25,6 +59,10 @@ func personPage(view View) ui.Node {
 // the same facts and composition; only their navigation state differs.
 func personProfileProps(view View, person Person, target PageID) PersonProfileProps {
 	text := view.Locale.Text
+	identity := ResolveWorkerIdentity(view.Locale, person, view.RecordVerdicts)
+	overview := ResolveWorkerOverview(view.Locale, person, view.RecordVerdicts)
+	employment := ResolveWorkerEmployment(view.Locale, person, view.RecordVerdicts)
+	pay := ResolveWorkerPay(view.Locale, person, view.RecordVerdicts)
 	value := func(raw string) string { return valueOrUnavailableFor(view.Locale, raw) }
 	// fact renders one fact through the record's field verdict once the
 	// server sends verdicts, honoring its disposition: HIDE omits the row
@@ -35,54 +73,47 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 	silent := len(view.RecordVerdicts) == 0
 	fact := func(facts []ProfileFactProps, label, name, raw string) []ProfileFactProps {
 		if silent {
-			return append(facts, ProfileFactProps{Label: label, Value: value(raw)})
+			status := WorkerFactPresent
+			if raw == "" {
+				status = WorkerFactMissing
+			}
+			return append(facts, ProfileFactProps{Label: label, Value: value(raw), Status: status})
 		}
-		projected, admitted := ProjectField(view.Locale, raw, fields[name])
+		field, known := fields[name]
+		if record, hasRecord := view.RecordVerdicts[person.ID]; hasRecord && !record.Disclosable {
+			// A governed record that is not disclosable is a policy decision,
+			// not an absent field verdict. Keep that distinction in the
+			// presentation contract and never inspect or render its raw value.
+			return append(facts, ProfileFactProps{Label: label, Value: view.Locale.Text("provenance.value.withheld"), Status: WorkerFactWithheld})
+		}
+		if !known {
+			projected, _ := ProjectField(view.Locale, raw, AuthorizedField{})
+			return append(facts, ProfileFactProps{Label: label, Value: projected.Text, Status: WorkerFactUnknown})
+		}
+		projected, admitted := ProjectField(view.Locale, raw, field)
 		if !admitted {
 			return facts
 		}
-		return append(facts, ProfileFactProps{Label: label, Value: projected.Text})
-	}
-	// heroFact projects one hero string; a hidden hero field reads as
-	// withheld so the admitted profile keeps its anchor.
-	heroFact := func(name, raw string) string {
-		if silent {
-			return value(raw)
+		status := WorkerFactWithheld
+		if field.Disposition == FieldShow || field.Disposition == "" && field.Effect == PresentationAllow {
+			status = WorkerFactPresent
+			if raw == "" {
+				status = WorkerFactMissing
+			}
 		}
-		projected, admitted := ProjectField(view.Locale, raw, fields[name])
-		if !admitted {
-			return view.Locale.Text("provenance.value.withheld")
-		}
-		return projected.Text
+		return append(facts, ProfileFactProps{Label: label, Value: projected.Text, Status: status})
 	}
-	details := fact(nil, text("person.worker_number"), "worker_number", person.WorkerNumber)
-	details = fact(details, text("person.job_code"), "job_code", person.JobCode)
-	details = fact(details, text("person.job_level"), "job_level", person.Grade)
-	details = fact(details, text("person.hire_date"), "hire_date", person.HireDate)
-	details = fact(details, text("person.employment_type"), "employment_type", "")
-	details = fact(details, text("person.time_type"), "time_type", "")
-	details = fact(details, text("person.record_source"), "record_source", person.Source)
-	details = fact(details, text("person.record_created"), "record_created", person.CreatedAt)
-	organization := fact(nil, text("person.organization_unit"), "organization_unit", person.Team)
-	organization = fact(organization, text("person.manager"), "manager", person.Manager)
-	organization = fact(organization, text("person.position_id"), "position_id", person.PositionID)
-	organization = fact(organization, text("person.work_location"), "work_location", person.Location)
-	organization = fact(organization, text("person.company"), "company", "")
-	organization = fact(organization, text("person.business_unit"), "business_unit", "")
-	organization = fact(organization, text("person.cost_center"), "cost_center", "")
-	organization = fact(organization, text("person.work_arrangement"), "work_arrangement", "")
-	compensation := fact(nil, text("person.base_pay"), "base_pay", money(view.Locale, person.BasePay))
-	compensation = fact(compensation, text("person.bonus_target"), "bonus_target", percentage(view.Locale, person.BonusTarget))
-	compensation = fact(compensation, text("person.pay_zone"), "pay_zone", person.PayZone)
-	compensation = fact(compensation, text("person.pay_frequency"), "pay_frequency", "")
+	details := profileFactsFromWorkerSection(overview)
+	organization := profileFactsFromWorkerSection(employment)
+	compensation := profileFactsFromWorkerSection(pay)
 	personal := fact(nil, text("person.legal_name"), "legal_name", person.LegalName)
 	personal = fact(personal, text("person.preferred_name"), "preferred_name", person.PreferredName)
 	personal = fact(personal, text("person.worker_id"), "worker_id", person.WorkerID)
 	personal = fact(personal, text("person.worker_ref"), "record_id", person.ID)
 	return PersonProfileProps{
 		Hero: PersonHeroProps{
-			Initials: person.Initials, PhotoURL: person.PhotoURL, Name: heroFact("name", person.Name), Role: heroFact("role", person.Role),
-			Status: text("person.visible_scope"), Source: heroFact("source", person.Source),
+			Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Name, Role: identity.Role,
+			NameStatus: identity.NameStatus, RoleStatus: identity.RoleStatus,
 		},
 		Details: EmploymentDetailsProps{
 			Title: text("person.employment_overview"), Description: text("person.employment_overview_detail"),
@@ -101,45 +132,95 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 		Workflows: personWorkflowLauncherProps(view, person, target),
 		Active:    personActiveWorkflowsProps(view, person, target),
 		History: workflowHistoryPropsForTarget(view, person.ID, target, text("work.past"),
-			text("person.history_detail", map[string]string{"name": person.Name}), true),
+			text("person.history_detail", map[string]string{"name": identity.Name}), true),
 	}
 }
 
-func personWorkflowLauncherProps(view View, person Person, target PageID) WorkflowLauncherProps {
-	filtered := filteredPersonWorkflows(view)
-	if len(view.EffectivePermissions) > 0 && !view.Can(PageJourneys, "create") {
-		filtered = nil
+func profileFactsFromWorkerSection(section WorkerSection) []ProfileFactProps {
+	facts := make([]ProfileFactProps, 0, len(section.Facts))
+	for _, fact := range section.Facts {
+		// Provenance metadata belongs in authorized diagnostics, not the
+		// ordinary employee overview. The underlying section retains it.
+		if fact.Name == "record_source" || fact.Name == "record_created" {
+			continue
+		}
+		facts = append(facts, ProfileFactProps{Label: fact.Label, Value: fact.Value, Status: fact.Status})
 	}
-	workflows := make([]WorkflowCardProps, 0, len(filtered))
-	// PROMOUX-012: an open journey the view already holds for this worker
-	// suppresses Start even when the availability verdict disagrees, so the
-	// profile can never list an active promotion beside a duplicate start.
+	return facts
+}
+
+func activeWorkflowsProps(view View, person Person) ActiveWorkflowsProps {
+	identity := ResolveWorkerIdentity(view.Locale, person, view.RecordVerdicts)
+	rows := make([]WorkRowProps, 0)
+	for _, item := range OpenWorkItems(admittedWork(view)) {
+		if item.PersonRef != person.ID {
+			continue
+		}
+		rows = append(rows, WorkRowProps{
+			ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: item.Title,
+			Person: identity.Name, Summary: item.Summary, Due: item.Due, JourneyStage: item.Status,
+			StatusProjection: item.StatusProjection, Href: item.Href, Navigate: view.Navigate,
+		})
+	}
+	return ActiveWorkflowsProps{I18nProps: I18nProps{Locale: view.Locale}, Title: view.Locale.Text("work.all"), Description: view.Locale.Text("work.collection_label"), Rows: rows}
+}
+
+func personWorkflowLauncherProps(view View, person Person, target PageID) WorkflowLauncherProps {
+	identity := ResolveWorkerIdentity(view.Locale, person, view.RecordVerdicts)
+	authorized := len(view.EffectivePermissions) == 0 || view.Can(PageJourneys, "create")
+	actions := []WorkerAction(nil)
+	if authorized {
+		actions = DiscoverWorkerActions(view.PersonWorkflows, person, view.WorkflowQuery)
+	}
+	workflows := make([]WorkflowCardProps, 0, len(actions))
 	activeItem, hasActiveJourney := activePromotionWorkItem(view, person.ID)
-	for _, workflow := range filtered {
-		if workflow.ID == "promotion" && (person.PromotionAvailability == PromotionActiveConflict || hasActiveJourney) {
-			// PROMOUX-002 GREEN #3: Start becomes a link to the journey
-			// already in flight, exactly as the People row does, instead of
-			// disappearing with only a reason left behind.
+	hasActivePromotion := false
+	for _, action := range actions {
+		// Never advertise a duplicate Start when an open journey already
+		// exists, even if an availability projection lags the journey state.
+		if action.ID == "promotion" && (person.PromotionAvailability == PromotionActiveConflict || hasActiveJourney) {
 			if hasActiveJourney {
+				hasActivePromotion = true
 				workflows = append(workflows, WorkflowCardProps{
-					Name: view.Locale.Text("people.open_active_promotion"), Category: workflow.Category,
+					Name:        view.Locale.Text("people.open_active_promotion"),
+					ActionLabel: view.Locale.Text("people.open_active_promotion"),
+					Category:    action.Category,
 					Description: PromotionAvailabilityReason(view.Locale, PromotionActiveConflict),
 					Href:        JourneyDetailHref(view, activeItem.ID), Navigate: view.Navigate,
 				})
 			}
 			continue
 		}
-		if workflow.ID == "promotion" && !personPromotionEligible(person) {
+		if action.ID == "promotion" && !personPromotionEligible(person) {
 			continue
 		}
-		href := workflow.Href
-		if workflow.LaunchHref != nil {
-			href = workflow.LaunchHref(person.ID)
-		}
 		workflows = append(workflows, WorkflowCardProps{
-			Name: workflow.Name, Category: workflow.Category, Description: workflow.Description, Href: href, Navigate: view.Navigate,
+			Name: action.Name, Category: action.Category, Description: action.Description, Href: action.Href, Navigate: view.Navigate,
 		})
 	}
+	filter := workflowFilterProps(view, person, target)
+	unavailableDetail := ""
+	switch {
+	case !authorized:
+		unavailableDetail = PromotionAvailabilityReason(view.Locale, PromotionWithheld)
+	case hasActiveJourney:
+		// The active-promotion card above is the recovery path.
+	case !personPromotionEligible(person):
+		unavailableDetail = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability)
+	}
+	launcher := WorkflowLauncherProps{
+		UnavailableDetail: unavailableDetail,
+		PersonName:        identity.Name, TotalCount: len(workflows), Filter: filter, Workflows: workflows,
+	}
+	if hasActivePromotion {
+		launcher.Heading = view.Locale.Text("workflow.continue_heading")
+		launcher.Description = view.Locale.Text("workflow.continue_detail", map[string]string{"name": identity.Name})
+		launcher.HideCount = true // "available" would count a request already in progress.
+	}
+	return launcher
+}
+
+func workflowFilterProps(view View, person Person, target PageID) WorkflowFilterProps {
 	personID := person.ID
 	if target == PageMyself {
 		// The self-service route always derives its worker from Viewer.PersonID;
@@ -162,30 +243,7 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 				"page", peoplePageValue(view.PeoplePage), "workflow_q", query))
 		}
 	}
-	// GREEN #2: every displayed availability state carries a server-provided
-	// reason -- including a viewer this page has already denied every
-	// workflow to above, who previously saw a blank UnavailableDetail. The
-	// local create-authority check is asked again here (matching the
-	// `filtered = nil` gate above) rather than trusted from
-	// person.PromotionAvailability alone, because a caller may construct a
-	// Person directly (as component tests here do) without routing it
-	// through the productclient projection that would otherwise have baked
-	// the same authorization into the code.
-	authorized := len(view.EffectivePermissions) == 0 || view.Can(PageJourneys, "create")
-	unavailableDetail := ""
-	switch {
-	case !authorized:
-		unavailableDetail = PromotionAvailabilityReason(view.Locale, PromotionWithheld)
-	case hasActiveJourney:
-		// The "Open active promotion" card above already carries continuity;
-		// this is not also an empty-menu fallback.
-	case !personPromotionEligible(person):
-		unavailableDetail = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability)
-	}
-	return WorkflowLauncherProps{
-		UnavailableDetail: unavailableDetail,
-		PersonName:        person.Name, TotalCount: len(workflows), Filter: filter, Workflows: workflows,
-	}
+	return filter
 }
 
 func peopleReturnHref(view View) string {

@@ -52,12 +52,12 @@ func LocalePreferencesPanel(props LocalePreferencesProps) ui.Node {
 		}
 		options = append(options, html.Li(html.Props{}, softwareLink(option.Navigate, linkProps, option.Href, content...)))
 	}
-	return html.Section(html.Props{Class: "surface locale-preferences", Raw: map[string]any{"aria-labelledby": "locale-preferences-title"}},
+	return html.Section(html.Props{Class: "surface locale-preferences", Data: map[string]string{"hcm-setting-group": "language"}, Raw: map[string]any{"aria-labelledby": "locale-preferences-title"}},
 		html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{},
-			html.H2(html.Props{ID: "locale-preferences-title"}, ui.Text(props.Title)),
+			html.H3(html.Props{ID: "locale-preferences-title"}, ui.Text(props.Title)),
 			html.P(html.Props{Class: "muted"}, ui.Text(props.Description)),
 		)),
-		html.Ul(html.Props{Class: "locale-choice-list", Raw: map[string]any{"role": "list"}}, options...),
+		html.Ul(html.Props{Class: "locale-choice-list", Raw: map[string]any{"role": "list", "aria-label": props.Title}}, options...),
 		html.P(html.Props{Class: "locale-preferences-status", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, ui.Text(props.Status)),
 	)
 }

@@ -18,7 +18,7 @@ import (
 // of this seam.
 type Service interface {
 	ListJourneys(ctx context.Context, in *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error)
-	ProposeJourney(ctx context.Context, in *journeyv1.ProposeJourneyRequest) (*journeyv1.ProposeJourneyResponse, error)
+	ProposePromotion(ctx context.Context, in *journeyv1.ProposePromotionRequest) (*journeyv1.ProposePromotionResponse, error)
 	InspectJourney(ctx context.Context, in *journeyv1.InspectJourneyRequest) (*journeyv1.InspectJourneyResponse, error)
 	ExecuteJourney(ctx context.Context, in *journeyv1.ExecuteJourneyRequest) (*journeyv1.ExecuteJourneyResponse, error)
 	DecideJourney(ctx context.Context, in *journeyv1.DecideJourneyRequest) (*journeyv1.DecideJourneyResponse, error)
@@ -108,8 +108,8 @@ func (s *grpcService) ListJourneys(ctx context.Context, in *journeyv1.ListJourne
 	return s.client.ListJourneys(ctx, in)
 }
 
-func (s *grpcService) ProposeJourney(ctx context.Context, in *journeyv1.ProposeJourneyRequest) (*journeyv1.ProposeJourneyResponse, error) {
-	return s.client.ProposeJourney(ctx, in)
+func (s *grpcService) ProposePromotion(ctx context.Context, in *journeyv1.ProposePromotionRequest) (*journeyv1.ProposePromotionResponse, error) {
+	return s.client.ProposePromotion(ctx, in)
 }
 
 func (s *grpcService) InspectJourney(ctx context.Context, in *journeyv1.InspectJourneyRequest) (*journeyv1.InspectJourneyResponse, error) {

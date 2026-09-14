@@ -98,8 +98,8 @@ func TestTodo_WEB_072(t *testing.T) {
 		t.Fatal("work-addressed directory loses Jordan Lee")
 	}
 
-	// A person-addressed map renders the full journey set: both
-	// summaries reach the review-filtered queue.
+	// A person-addressed map preserves the admitted journey set, while the
+	// review filter still excludes the terminal item.
 	workView := testView(PageWork)
 	workView.WorkFilter = "review"
 	workView.RecordVerdicts = personAddressed
@@ -111,8 +111,8 @@ func TestTodo_WEB_072(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count := countClassTokens(workRoot, "work-row"); count != 2 {
-		t.Fatalf("person-addressed queue renders %d rows, want 2", count)
+	if count := countClassTokens(workRoot, "work-row"); count != 1 {
+		t.Fatalf("person-addressed queue renders %d rows, want 1", count)
 	}
 }
 

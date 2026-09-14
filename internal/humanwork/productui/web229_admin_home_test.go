@@ -26,7 +26,7 @@ func TestTodo_WEB_229(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker ID rules", "Brand &amp; appearance", "Journey service", "Experience configuration"} {
+	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker ID rules", "Brand &amp; appearance", "Promotion workflows", "Experience configuration"} {
 		if !strings.Contains(adminDoc, card) {
 			t.Fatalf("admin home hides %q from the platform admin", card)
 		}
@@ -64,7 +64,7 @@ func adminHomeCardsForRoles(t *testing.T, roles []string) []string {
 		t.Fatal(err)
 	}
 	var titles []string
-	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker ID rules", "Brand &amp; appearance", "Journey service", "Experience configuration"} {
+	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker ID rules", "Brand &amp; appearance", "Promotion workflows", "Experience configuration"} {
 		if strings.Contains(doc, card) {
 			titles = append(titles, card)
 		}
@@ -82,7 +82,7 @@ func TestTodo_WEB_229_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "6e0eeea62bb28f6871e4383a216d3cc22dda17528dbc53a087be688ec9aba92b"
+	const want = "cd77ec18d3238bb09ea043015a1417cb08b531dfe3283048057dba1fc97088bf"
 	if got != want {
 		t.Fatalf("admin home resolution digest = %s, want %s", got, want)
 	}

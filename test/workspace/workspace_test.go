@@ -157,7 +157,7 @@ func TestPromotionWorkspaceRendersFromTheLiveCellWithZeroEffects(t *testing.T) {
 		}
 	})
 
-	t.Run("the response carries a strict content-security-policy and pinned enhancement", func(t *testing.T) {
+	t.Run("the response carries a strict content-security-policy and the safe server-rendered fallback", func(t *testing.T) {
 		policy := page.Header.Get("Content-Security-Policy")
 		for _, want := range []string{
 			"default-src 'none'", "base-uri 'none'", "form-action 'self'",
@@ -182,7 +182,7 @@ func TestPromotionWorkspaceRendersFromTheLiveCellWithZeroEffects(t *testing.T) {
 				t.Error("the enhanced workspace dropped its pinned contract island or Go/WASM client")
 			}
 		} else {
-			if !strings.Contains(policy, "script-src 'none'") {
+			if !strings.Contains(policy, "script-src 'none'") || !strings.Contains(policy, "script-src-elem 'none'") || !strings.Contains(policy, "connect-src 'none'") {
 				t.Errorf("the native-only workspace's content-security-policy %q does not refuse script execution", policy)
 			}
 			if strings.Contains(page.Body, "<script") || strings.Contains(page.Body, workspace.PathWasm) {

@@ -259,7 +259,7 @@ func TestSidebarRendersAccessibleFilterFavoriteAndDisclosureControls(t *testing.
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`id="menu-filter"`, `aria-label="Filter navigation menu"`, `>Favorites</li>`,
+		`id="menu-filter"`, `aria-label="Filter pages"`, `>Favorites</li>`,
 		`aria-label="Remove People from favorites"`, `class="nav-group current"`, `open`,
 		`data-hcm-nav-group="work"`, `>Work queue</span>`, `>Work History</span>`,
 	} {

@@ -149,8 +149,14 @@ func uxaudit014Login(t *testing.T, serverURL, personaID string) *http.Client {
 		t.Fatal(err)
 	}
 	res.Body.Close()
-	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != workspace.PathProductHome {
-		t.Fatalf("login as %s = %d location %q", personaID, res.StatusCode, res.Header.Get("Location"))
+	wantLanding := map[string]string{
+		"admin":                  workspace.PathProductHome,
+		"hiring-manager":         workspace.PathProductPrefix + "people",
+		"payroll-manager":        workspace.PathProductPrefix + "myself",
+		"individual-contributor": workspace.PathProductPrefix + "myself",
+	}[personaID]
+	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != wantLanding {
+		t.Fatalf("login as %s = %d location %q, want %q", personaID, res.StatusCode, res.Header.Get("Location"), wantLanding)
 	}
 	return client
 }

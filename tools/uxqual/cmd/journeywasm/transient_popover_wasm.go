@@ -50,6 +50,10 @@ func (c *browserTransientPopoverController) Bind() {
 		if !details.Truthy() || !details.Get("open").Bool() {
 			return nil
 		}
+		if transientPopoverLinkActivated(eventType, target.Call("closest", "a[href]").Truthy()) {
+			c.close(details)
+			return nil
+		}
 
 		relatedInside := false
 		if related := event.Get("relatedTarget"); related.Truthy() {
@@ -78,7 +82,7 @@ func (c *browserTransientPopoverController) Bind() {
 		return nil
 	})
 	document := js.Global().Get("document")
-	for _, eventType := range []string{"mouseover", "mouseout", "focusin", "focusout", "keydown", "pointerdown"} {
+	for _, eventType := range []string{"mouseover", "mouseout", "focusin", "focusout", "keydown", "pointerdown", "click"} {
 		document.Call("addEventListener", eventType, c.listener)
 	}
 }

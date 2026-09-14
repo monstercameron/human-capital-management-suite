@@ -19,6 +19,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
@@ -252,11 +253,11 @@ func (e *journeyEngine) instanceIn(
 //     which routes the APPROVED or REJECTED edge, reaches a terminal and
 //     records the one governed ledger fact the END node raises.
 //
-// The decision is recorded as the routed approver principal, because that is
-// who the assignment authorizes: the claim, the completion and the decision
-// all name [journeyEngine.approver], never the caller. The signed-in principal
-// is recorded as the actor on every WorkItem transition, so the audit trail
-// says who pressed the button and on whose authority the decision stands.
+// The decision is recorded as the WorkItem's routed approver principal,
+// because that is who the assignment authorizes: the claim, completion and
+// decision all use the server-resolved owner, never a request field. The
+// signed-in principal must be that owner and is recorded as the actor on every
+// WorkItem transition.
 func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace.Decision) (workspace.JourneyDetail, error) {
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
@@ -298,7 +299,16 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 			"%w: this cell was composed with no execution driver", workspace.ErrJourneyUnavailable)
 	}
 
-	simulated, simErr := e.resimulateDetailed(ctx, intentID)
+	// A current manager assignment grants case-scoped review of this one
+	// proposal, not broad workforce access. Resolve that durable relationship
+	// before re-simulation; completeApproval independently reloads and rechecks
+	// the assignment inside the write transaction, so this read cannot grant
+	// stale action authority.
+	reviewRelationships, reviewErr := e.approvalDecisionRelationships(ctx, principal, intentID, inst)
+	if reviewErr != nil {
+		return workspace.JourneyDetail{}, reviewErr
+	}
+	simulated, simErr := e.resimulateDetailedWithRelationships(ctx, intentID, reviewRelationships)
 	if simErr != nil {
 		return workspace.JourneyDetail{}, simErr
 	}
@@ -319,7 +329,7 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 	if decideErr != nil {
 		return workspace.JourneyDetail{}, decideErr
 	}
-	if !done.replayed {
+	if done.needsResume() {
 		result, resumeErr := e.svc.executor.Resume(ctx, ExecutionResumeRequest{
 			Start:                   start,
 			InstanceID:              done.instance.InstanceID,
@@ -334,7 +344,32 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 			return workspace.JourneyDetail{}, outcomeErr
 		}
 	}
-	return e.Inspect(ctx, intentID)
+	return e.inspectWithRelationships(ctx, intentID, reviewRelationships)
+}
+
+func (e *journeyEngine) approvalDecisionRelationships(
+	ctx context.Context, principal *trust.Principal, intentID string, inst intent.Instance,
+) ([]authz.RelationshipFact, error) {
+	tx, err := e.beginTenant(ctx, principal)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	_, record, executed, err := e.readExecutedRecordForIntent(ctx, tx, principal, intentID)
+	if err != nil || !executed {
+		return nil, err
+	}
+	worker := values.EntityRef{Tenant: principal.Tenant(), Kind: "worker"}
+	for _, subject := range inst.Subjects {
+		if subject.Kind == "EMPLOYMENT" {
+			worker.Id = subject.SubjectID
+			break
+		}
+	}
+	if err := worker.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: promotion worker subject: %v", workspace.ErrJourneyUnknown, err)
+	}
+	return approvalReviewRelationships(principal, worker, inst.CreatedAt, record.items)
 }
 
 // decidedApproval is what one committed decision leaves behind: the
@@ -347,6 +382,25 @@ type decidedApproval struct {
 	outcome   frontier.NodeOutcome
 	replayed  bool
 	execution ExecutionResult
+}
+
+// needsResume distinguishes a completed decision from a completed workflow
+// step. The WorkItem decision commits before the driver advances the instance;
+// a crash in that interval must not make a replay strand the frontier. Once
+// the instance has moved past this node, the same decision is a pure replay.
+func (d decidedApproval) needsResume() bool {
+	if !d.replayed {
+		return true
+	}
+	if d.instance.RuntimeStatus.Terminal() {
+		return false
+	}
+	for _, nodeID := range d.instance.CurrentNodeIDs {
+		if nodeID == d.item.NodeID {
+			return true
+		}
+	}
+	return false
 }
 
 // completeProposalDecision is the one durable implementation shared by the
@@ -362,13 +416,6 @@ func (e *journeyEngine) completeProposalDecision(
 	req ProposalDecisionRequest,
 	approve bool,
 ) (decidedApproval, error) {
-	if principal.Subject() == e.approver {
-		if inst.Initiator.PrincipalID == principal.Subject() {
-			return decidedApproval{}, ErrProposalDecisionSeparation
-		}
-	} else {
-		return decidedApproval{}, ErrProposalDecisionRoute
-	}
 	if req.ProposalRevisionID != start.Proposal.Revision.ProposalRevisionID ||
 		req.MaterialProposalDigest != start.Proposal.Revision.MaterialDigest.Digest {
 		return decidedApproval{}, ErrProposalDecisionStale
@@ -436,7 +483,10 @@ func (e *journeyEngine) completeApproval(
 			if expectedProjectionDigest != "" && existing.Binding.RenderedProjectionDigest != expectedProjectionDigest {
 				return decidedApproval{}, ErrProposalDecisionStale
 			}
-			outcome, outcomeErr := journeyApprovalOutcome(completed, e.approver, revision, existing, existing.DecidedAt.Time())
+			if completed.CompletedBy != principal.Subject() {
+				return decidedApproval{}, ErrProposalDecisionRoute
+			}
+			outcome, outcomeErr := journeyApprovalOutcome(completed, completed.CompletedBy, revision, existing, existing.DecidedAt.Time())
 			if outcomeErr != nil {
 				return decidedApproval{}, outcomeErr
 			}
@@ -450,6 +500,24 @@ func (e *journeyEngine) completeApproval(
 	if expectedProjectionDigest != "" && item.AssignmentDigest != expectedProjectionDigest {
 		return decidedApproval{}, ErrProposalDecisionStale
 	}
+	approver := item.Assignment.ChosenOwner
+	if approver == "" || principal.Subject() != approver {
+		return decidedApproval{}, ErrProposalDecisionRoute
+	}
+	if inst.Initiator.PrincipalID == approver {
+		return decidedApproval{}, ErrProposalDecisionSeparation
+	}
+	// Current authority is checked before claim/start/complete. The WorkItem
+	// assignment proves the routed authority class and the verified principal's
+	// credential proves the actor is still current at this instant; neither is
+	// inferred from a button payload. The history check prevents one principal
+	// from satisfying both finance and current-manager approval classes.
+	if err := ValidatePromotionJourneyApprover(principal, item, approver, decidedAt); err != nil {
+		return decidedApproval{}, err
+	}
+	if err := ValidatePromotionApprovalHistory(items, item, approver); err != nil {
+		return decidedApproval{}, err
+	}
 	// A decision after the routed deadline would complete the item and then
 	// resolve to EXPIRED, cancelling the run on the approver's own click.
 	// Refusing before the claim leaves the item open for the deadline
@@ -458,19 +526,10 @@ func (e *journeyEngine) completeApproval(
 		return decidedApproval{}, fmt.Errorf("%w: the approval deadline %s has passed", ErrProposalDecisionExpired, item.DeadlineAt.UTC().Format(time.RFC3339))
 	}
 
-	// PROMOUX-003: the principal this engine acts as depends on which node's
-	// item is open, never a single engine-wide approver -- otherwise finance
-	// and manager approvals would always be claimed and completed as the
-	// identical identity, exactly RED clause 2's "undifferentiated owner".
-	nodeApprover, err := e.approverForNode(item.NodeID)
-	if err != nil {
-		return decidedApproval{}, fmt.Errorf("app: journey: derive the routed approver for %s: %w", item.NodeID, err)
-	}
-
 	actor := principal.Subject()
 	claimed, err := store.Claim(ctx, tx, workitem.ClaimInput{
 		TenantID: tenantID, WorkItemID: item.WorkItemID, ExpectedVersion: item.ItemVersion,
-		ClaimantPrincipalID: nodeApprover,
+		ClaimantPrincipalID: approver,
 		ClaimExpiresAt:      decidedAt.Add(journeyClaimWindow), Now: decidedAt,
 		Meta: workitem.TransitionMeta{ActorPrincipalID: actor, Reason: journeyReasonClaimed, At: decidedAt},
 	})
@@ -489,7 +548,7 @@ func (e *journeyEngine) completeApproval(
 	if started.Kind == workitem.KindTask {
 		completed, err = store.Complete(ctx, tx, workitem.CompleteInput{
 			TenantID: started.TenantID, WorkItemID: started.WorkItemID, ExpectedVersion: started.ItemVersion,
-			CompletedBy: nodeApprover, CompletedOutputDigest: "sha256:" + strings.Repeat("0", 64), Now: decidedAt,
+			CompletedBy: approver, CompletedOutputDigest: "sha256:" + strings.Repeat("0", 64), Now: decidedAt,
 			Meta: workitem.TransitionMeta{ActorPrincipalID: actor, Reason: journeyReasonDecided, At: decidedAt},
 		})
 		if err != nil {
@@ -501,13 +560,13 @@ func (e *journeyEngine) completeApproval(
 		}
 		outcome = frontier.NodeOutcome{NodeID: completed.NodeID, Outcome: result, OutputDigest: completed.CompletedOutputDigest}
 	} else {
-		decision = e.approvalDecision(started, inst, revision.ProposalRevisionID, revision.MaterialDigest, d, decidedAt, nodeApprover)
+		decision = e.approvalDecision(started, inst, revision.ProposalRevisionID, revision.MaterialDigest, d, decidedAt, approver)
 		completed, err = stepsapproval.Complete(ctx, tx, store, started, decision, decidedAt,
 			workitem.TransitionMeta{ActorPrincipalID: actor, Reason: journeyReasonDecided, At: decidedAt})
 		if err != nil {
 			return decidedApproval{}, journeyWorkItemError(err)
 		}
-		outcome, err = journeyApprovalOutcome(completed, e.approver, revision, decision, decidedAt)
+		outcome, err = journeyApprovalOutcome(completed, approver, revision, decision, decidedAt)
 		if err != nil {
 			return decidedApproval{}, err
 		}
@@ -676,26 +735,38 @@ func journeyApprovalOutcome(
 ) (frontier.NodeOutcome, error) {
 	var requirement humanwork.ApprovalRequirement
 	var err error
-	// PROMOUX-003: approver is the engine's one configured base identity;
-	// the finance and manager nodes each rebuild their requirement against
-	// their own authority-class-scoped derivation of it
-	// (promotionexec.FinanceApproverFor/ManagerApproverFor), the same
-	// derivation execution.go's WorkItemFactory used when it routed and
-	// pinned this item's candidate, so the requirement rebuilt here always
-	// matches the one that was compiled at routing time.
+	// A caller normally supplies the exact routed owner. Tests and legacy
+	// callers may still supply the engine's base identity, in which case the
+	// authority-class identity is derived exactly as the work-item factory did.
+	routedApprover := approver
+	assignedApprover := item.Assignment.ChosenOwner
+	if assignedApprover == "" && len(item.Assignment.Resolution.Candidates) == 1 {
+		assignedApprover = item.Assignment.Resolution.Candidates[0].PrincipalID
+	}
+	if assignedApprover != "" {
+		if assignedApprover == approver {
+			routedApprover = assignedApprover
+		} else {
+			routedApprover = ""
+		}
+	}
 	switch item.NodeID {
 	case promotionexec.NodeApproveFinance:
-		var financeApprover string
-		if financeApprover, err = promotionexec.FinanceApproverFor(approver); err == nil {
-			requirement, err = promotionexec.CompileFinanceApprovalRequirement(financeApprover, item.DeadlineAt)
+		if routedApprover == "" {
+			routedApprover, err = promotionexec.FinanceApproverFor(approver)
+		}
+		if err == nil {
+			requirement, err = promotionexec.CompileFinanceApprovalRequirement(routedApprover, item.DeadlineAt)
 		}
 	case promotionexec.NodeApproveManager:
-		var managerApprover string
-		if managerApprover, err = promotionexec.ManagerApproverFor(approver); err == nil {
-			requirement, err = promotionexec.CompileManagerApprovalRequirement(managerApprover, item.DeadlineAt)
+		if routedApprover == "" {
+			routedApprover, err = promotionexec.ManagerApproverFor(approver)
+		}
+		if err == nil {
+			requirement, err = promotionexec.CompileManagerApprovalRequirement(routedApprover, item.DeadlineAt)
 		}
 	default:
-		requirement, err = prototype.CompileApprovalRequirement(approver, item.DeadlineAt)
+		requirement, err = prototype.CompileApprovalRequirement(routedApprover, item.DeadlineAt)
 	}
 	if err != nil {
 		return frontier.NodeOutcome{}, fmt.Errorf("app: journey: rebuild the approval requirement: %w", err)

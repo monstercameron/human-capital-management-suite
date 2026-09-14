@@ -12,6 +12,22 @@ import (
 
 const actionLauncherLimit = 10
 
+type ActionLauncherItemKind string
+
+const (
+	ActionLauncherAction      ActionLauncherItemKind = "action"
+	ActionLauncherDestination ActionLauncherItemKind = "destination"
+)
+
+const (
+	// SemanticActionPromoteWorker is the stable server/browser identifier for
+	// the governed promotion start exposed through the global launcher.
+	SemanticActionPromoteWorker = "promote-worker"
+	actionLauncherPromoteWorker = SemanticActionPromoteWorker
+	actionLauncherBrowsePeople  = "destination:people"
+	actionLauncherViewJourneys  = "destination:journeys"
+)
+
 // actionLauncherStylesheet builds the launcher styles from typed css rules.
 // Raw covers only what has no typed constructor (var() fallbacks, logical
 // inset properties, system colors, text alignment); everything else is typed.
@@ -78,20 +94,41 @@ func declareActionLauncherStyles() {
 		gwccss.Raw("border-color", "var(--accent)"),
 		gwccss.Raw("background", "var(--surface-hover,var(--soft))"),
 	)
+
 	declareGlobal(".action-launcher-result-unavailable",
 		gwccss.Raw("cursor", "default"), gwccss.Raw("opacity", "0.72"),
 	)
 	declareGlobal(".action-launcher-result-unavailable:hover",
 		gwccss.Raw("border-color", "var(--line)"), gwccss.Raw("background", "var(--surface)"),
 	)
+
+	declareGlobal(".action-launcher-result[aria-disabled=true]",
+		gwccss.Raw("cursor", "not-allowed"),
+		gwccss.Raw("opacity", ".78"),
+		gwccss.Raw("border-color", "var(--line)"),
+		gwccss.Raw("background", "var(--surface-subtle,var(--soft))"),
+	)
 	declareGlobal(".action-launcher-result small",
 		gwccss.Display.Block,
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.72)),
 	)
+	declareGlobal(".action-launcher-reason",
+		gwccss.Raw("margin-top", "3px"),
+		gwccss.Raw("font-weight", "650"),
+		gwccss.TextColor(gwccss.Var("muted")),
+	)
+	declareGlobal(".action-launcher-recovery",
+		gwccss.Raw("margin", "6px 0 2px 42px"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+	)
 	declareGlobal(".action-launcher-dialog",
 		mediaRule(gwccss.MaxW(760),
-			gwccss.Raw("inset-inline-start", "0"), gwccss.Raw("inset-inline-end", "auto"),
+			gwccss.Position.Fixed,
+			gwccss.Raw("inset-block-start", "68px"),
+			gwccss.Raw("inset-inline", "12px"),
+			gwccss.W(gwccss.RawLength("auto")),
+			gwccss.MaxHeight(gwccss.RawLength("calc(100dvh - 80px)")),
 		),
 	)
 	declareGlobal(".action-launcher-trigger",
@@ -134,20 +171,22 @@ func declareActionLauncherStyles() {
 // intent, decision, or approval from a row: a non-blank Href is always a
 // navigation, never an RPC.
 type ActionLauncherItem struct {
-	Page        PageID
-	ID          string
-	Label       string
-	Description string
-	Href        string
-	Icon        string
-	Keywords    []string
-	// Reason explains a blank-Href item's unavailability. See the type
-	// doc: this is the PROMOUX-001-style disclosure-safe text, never the
-	// raw underlying fact.
-	Reason string
-	// IsNavigationDestination marks a plain page destination rather than
-	// a ranked action on a specific authorized record.
+	Page                    PageID
+	Reason                  string
 	IsNavigationDestination bool
+	Kind                    ActionLauncherItemKind
+	// Action is the capability operation that makes this start available.
+	// Navigation visibility is a separate boundary; a route alone never
+	// grants an action.
+	Action       string
+	ID           string
+	Label        string
+	Description  string
+	Href         string
+	Icon         string
+	Keywords     []string
+	Priority     int64
+	Availability ActionState
 }
 
 // ActionLauncherProps keeps the shell launcher independently composable and
@@ -159,14 +198,51 @@ type ActionLauncherProps struct {
 	InitialQuery string
 }
 
-// actionLauncherProps derives the shell launcher's items from the same
-// registries the People directory already uses for its own row actions
-// (personActionLauncherItems, backed by personWorkflowActions in
-// page_people.go) plus the plain page destinations a viewer with no
-// resolved action can still reach. It keeps no page-specific action
-// inventory of its own.
+type semanticLauncherDefinition struct {
+	ID             string
+	Page           PageID
+	Action         string
+	LabelKey       string
+	DescriptionKey string
+	Icon           string
+	Keywords       []string
+	UsageID        string
+	Href           func(View) string
+}
+
+var semanticLauncherRegistry = []semanticLauncherDefinition{{
+	ID: SemanticActionPromoteWorker, Page: PagePeople, Action: "create_promotion",
+	LabelKey: "action_launcher.promote_worker", DescriptionKey: "action_launcher.promote_worker_description",
+	Icon: "people", Keywords: []string{"promote", "promotion", "career", "compensation", "employee", "worker"}, UsageID: "promotion",
+	Href: func(view View) string { return statefulHref(view, PagePeople, "eligible", "1") },
+}}
+
 func actionLauncherProps(view View) ActionLauncherProps {
-	items := append(personActionLauncherItems(view), navigationLauncherItems(view)...)
+	items := make([]ActionLauncherItem, 0, len(view.Navigation)+len(view.NavigationSupport)+len(semanticLauncherRegistry))
+	for _, definition := range semanticLauncherRegistry {
+		projection, ok := uniqueLauncherActionProjection(view.LauncherActions, definition.ID)
+		if !ok {
+			continue
+		}
+		priority := projection.Priority
+		if useCount := view.WorkflowUses[definition.UsageID]; useCount > priority {
+			priority = useCount
+		}
+		items = append(items, ActionLauncherItem{
+			Page: definition.Page, Kind: ActionLauncherAction, Action: definition.Action,
+			ID: definition.ID, Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.DescriptionKey),
+			Href: definition.Href(view), Icon: definition.Icon,
+			Keywords: append([]string(nil), definition.Keywords...), Priority: priority, Availability: projection.State,
+		})
+	}
+	// A named-worker start comes from the same admitted workflow catalogue and
+	// per-worker verdict as the People row. The shell revalidates each item
+	// against this derived inventory before it can be displayed.
+	items = append(items, personActionLauncherItems(view)...)
+
+	seen := map[PageID]bool{view.Page: true}
+	items = appendActionLauncherDestinations(items, view, view.Navigation, seen)
+	items = appendActionLauncherDestinations(items, view, view.NavigationSupport, seen)
 	return ActionLauncherProps{
 		I18nProps: I18nProps{Locale: view.Locale}, Items: items, Navigate: view.Navigate,
 	}
@@ -215,7 +291,7 @@ func personActionLauncherItems(view View) []ActionLauncherItem {
 				label = action.Label
 			}
 			items = append(items, ActionLauncherItem{
-				Page: PageJourneys, ID: fmt.Sprintf("action:%s:%d", person.ID, index),
+				Page: PageJourneys, Kind: ActionLauncherAction, Action: "create_promotion", Availability: ActionState{Availability: ActionAvailable}, ID: fmt.Sprintf("action:%s:%d", person.ID, index),
 				Label: label, Description: person.Role, Href: action.Href,
 				Keywords: []string{person.Name, person.Team, person.Location, person.WorkerNumber, person.Role},
 			})
@@ -225,7 +301,7 @@ func personActionLauncherItems(view View) []ActionLauncherItem {
 		}
 		if reason != "" {
 			items = append(items, ActionLauncherItem{
-				Page: PageJourneys, ID: "action-unavailable:" + person.ID,
+				Page: PageJourneys, Kind: ActionLauncherAction, Action: "create_promotion", Availability: ActionState{Availability: ActionUnavailable, Reason: reason}, ID: "action-unavailable:" + person.ID,
 				Label:       view.Locale.Text("people.workflow_aria", map[string]string{"workflow": reasonWorkflow, "name": person.Name}),
 				Description: reason, Reason: reason,
 				Keywords: []string{person.Name, person.Team, person.Location, person.WorkerNumber, person.Role},
@@ -244,8 +320,8 @@ func navigationLauncherItems(view View) []ActionLauncherItem {
 	if view.Allows(PageJourneys, "create") {
 		if definition, ok := LookupPage(PageJourneys); ok {
 			items = append(items, ActionLauncherItem{
-				Page: PageJourneys,
-				ID:   "start:journeys", Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.SubtitleKey),
+				Page: PageJourneys, Kind: ActionLauncherDestination, Action: "view", Availability: ActionState{Availability: ActionAvailable},
+				ID: "start:journeys", Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.SubtitleKey),
 				Href: statefulHref(view, PageJourneys), Icon: definition.Icon,
 				Keywords:                append(append([]string{"start", "new", "create"}, definition.SearchTerms...), view.Locale.Text(definition.TitleKey)),
 				IsNavigationDestination: true,
@@ -255,8 +331,8 @@ func navigationLauncherItems(view View) []ActionLauncherItem {
 	if view.Allows(PagePeople, "view") {
 		if definition, ok := LookupPage(PagePeople); ok {
 			items = append(items, ActionLauncherItem{
-				Page: PagePeople,
-				ID:   "start:people", Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.SubtitleKey),
+				Page: PagePeople, Kind: ActionLauncherDestination, Action: "view", Availability: ActionState{Availability: ActionAvailable},
+				ID: "start:people", Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.SubtitleKey),
 				Href: statefulHref(view, PagePeople), Icon: definition.Icon,
 				Keywords:                append(append([]string{"find", "select", "choose"}, definition.SearchTerms...), view.Locale.Text(definition.TitleKey)),
 				IsNavigationDestination: true,
@@ -266,20 +342,74 @@ func navigationLauncherItems(view View) []ActionLauncherItem {
 	return items
 }
 
-// actionLauncherIsNavigationOnly reports whether every item is a plain
-// destination. It is derived from Items rather than carried as a
-// separate prop: recomputing it from whatever Items actually rendered
-// means a caller can never pass a stale or forgotten flag that disagrees
-// with what the dialog shows. Vacuously true for an empty list: with
-// nothing resolved at all, the control must not claim action framing
-// either.
 func actionLauncherIsNavigationOnly(items []ActionLauncherItem) bool {
-	for _, item := range items {
-		if !item.IsNavigationDestination {
-			return false
+	return !actionLauncherHasAction(items)
+}
+
+func appendActionLauncherDestinations(items []ActionLauncherItem, view View, navigation []NavItem, seen map[PageID]bool) []ActionLauncherItem {
+	for _, destination := range navigation {
+		if destination.Page != "" && !seen[destination.Page] {
+			seen[destination.Page] = true
+			label, description := destination.Label, destination.Description
+			keywords := append([]string(nil), destination.Keywords...)
+			switch destination.Page {
+			case PagePeople:
+				label, description = view.Locale.Text("action_launcher.browse_people"), view.Locale.Text("action_launcher.browse_people_description")
+				keywords = append(keywords, "find", "browse", "directory", "employee", "worker")
+			case PageJourneys:
+				label, description = view.Locale.Text("action_launcher.view_journeys"), view.Locale.Text("action_launcher.view_journeys_description")
+				keywords = append(keywords, "view", "track", "workflow", "request", "journey")
+			}
+			href := destination.Href
+			if href == "" {
+				href = statefulHref(view, destination.Page)
+			}
+			items = append(items, ActionLauncherItem{
+				Page: destination.Page, Kind: ActionLauncherDestination, Action: "view",
+				ID: actionLauncherDestinationID(destination.Page), Label: label, Description: description,
+				Href: href, Icon: destination.Icon, Keywords: keywords, Availability: ActionState{Availability: ActionAvailable},
+			})
+		}
+		items = appendActionLauncherDestinations(items, view, destination.Children, seen)
+	}
+	return items
+}
+
+func actionLauncherDestinationID(page PageID) string {
+	return "destination:" + string(page)
+}
+
+func semanticLauncherDefinitionByID(id string) (semanticLauncherDefinition, bool) {
+	for _, definition := range semanticLauncherRegistry {
+		if definition.ID == id {
+			return definition, true
 		}
 	}
-	return true
+	return semanticLauncherDefinition{}, false
+}
+
+func uniqueLauncherActionProjection(values []LauncherActionProjection, id string) (LauncherActionProjection, bool) {
+	var result LauncherActionProjection
+	found := false
+	for _, value := range values {
+		if value.ID != id {
+			continue
+		}
+		if found {
+			return LauncherActionProjection{}, false
+		}
+		result, found = value, true
+	}
+	return result, found
+}
+
+func personWorkflowByID(workflows []PersonWorkflow, id string) (PersonWorkflow, bool) {
+	for _, workflow := range workflows {
+		if workflow.ID == id {
+			return workflow, true
+		}
+	}
+	return PersonWorkflow{}, false
 }
 
 // RankActionLauncherItems performs deterministic typo-tolerant ranking over
@@ -291,8 +421,18 @@ func RankActionLauncherItems(items []ActionLauncherItem, query string, limit int
 	}
 	tokens := strings.Fields(normalizeNavigationSearch(query))
 	if len(tokens) == 0 {
-		results := make([]ActionLauncherItem, 0, minInt(limit, len(items)))
-		for _, item := range items {
+		ordered := append([]ActionLauncherItem(nil), items...)
+		sort.SliceStable(ordered, func(left, right int) bool {
+			if ordered[left].Priority != ordered[right].Priority {
+				return ordered[left].Priority > ordered[right].Priority
+			}
+			if ordered[left].Kind != ordered[right].Kind {
+				return ordered[left].Kind == ActionLauncherAction
+			}
+			return strings.ToLower(ordered[left].Label) < strings.ToLower(ordered[right].Label)
+		})
+		results := make([]ActionLauncherItem, 0, minInt(limit, len(ordered)))
+		for _, item := range ordered {
 			results = append(results, item)
 			if len(results) == limit {
 				break
@@ -358,26 +498,24 @@ func actionLauncherScore(item ActionLauncherItem, tokens []string) int {
 // ActionLauncher is the shell "Start an action" control: a trigger button
 // opening a non-modal dialog that filters the authorized starts locally.
 func ActionLauncher(props ActionLauncherProps) ui.Node {
+	props.Items = presentableActionLauncherItems(props.Items)
 	query := ui.UseState(props.InitialQuery)
 	open := ui.UseState(strings.TrimSpace(props.InitialQuery) != "")
 	active := ui.UseState(0)
 	usePopoverFocusDismissal("action-launcher", "action-launcher-trigger", open.Get(), func() { open.Set(false) })
+	ui.UseEffectOf(func() func() {
+		if open.Get() {
+			// Run after the reconciler commits the dialog. The native helper is a
+			// no-op, so SSR and WASM share one component contract.
+			focusPopoverElement("action-launcher-input")
+		}
+		return nil
+	}, open.Get())
 	results := RankActionLauncherItems(props.Items, query.Get(), actionLauncherLimit)
 	activeIndex := active.Get()
 	if activeIndex >= len(results) && len(results) > 0 {
 		activeIndex = len(results) - 1
 	}
-
-	// GREEN's last clause: a control offering only page destinations must
-	// not claim it starts actions it cannot offer. Derived from Items
-	// itself (see actionLauncherIsNavigationOnly) so the label can never
-	// disagree with what the dialog actually lists.
-	navigationOnly := actionLauncherIsNavigationOnly(props.Items)
-	triggerKey := "action_launcher.trigger"
-	if navigationOnly {
-		triggerKey = "action_launcher.navigate_trigger"
-	}
-	triggerLabel := props.Text(triggerKey)
 
 	navigate := func(item ActionLauncherItem) {
 		if item.Href == "" {
@@ -392,10 +530,12 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 			props.Navigate(item.Href)
 		}
 	}
+	triggerKey, dialogKey, filterKey, placeholderKey := actionLauncherCopyKeys(props.Items)
 	trigger := html.Button(html.Props{
 		ID: "action-launcher-trigger", Class: "action-launcher-trigger", Type: "button",
 		Aria: map[string]string{
-			"label": triggerLabel, "haspopup": "dialog",
+
+			"label": props.Text(triggerKey), "haspopup": "dialog",
 			"expanded": fmt.Sprint(open.Get()), "controls": "action-launcher-dialog",
 		},
 		OnClick: ui.UseEvent(func(ui.MouseEvent) {
@@ -406,7 +546,7 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 			open.Set(true)
 			active.Set(0)
 		}),
-	}, navIcon("actions"), html.Span(html.Props{Class: "action-launcher-label"}, ui.Text(triggerLabel)))
+	}, navIcon("actions"), html.Span(html.Props{Class: "action-launcher-label"}, ui.Text(props.Text(triggerKey))))
 
 	// The dialog scaffold (title, input) stays in the document while
 	// closed so its accessible name resolves without client state; hidden
@@ -417,21 +557,17 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 	// into every page's markup regardless of whether anyone opened it.
 	dialogHidden := !open.Get()
 	inputAria := map[string]string{
-		"label": props.Text("action_launcher.filter_label"), "autocomplete": "list",
+		"label": props.Text(filterKey), "autocomplete": "list",
 		"expanded": fmt.Sprint(open.Get() && len(results) > 0),
 	}
 	if open.Get() && len(results) > 0 {
 		inputAria["controls"] = "action-launcher-results"
 		inputAria["activedescendant"] = "action-launcher-result-" + fmt.Sprint(activeIndex)
 	}
-	dialogTitleKey := "action_launcher.dialog_title"
-	if navigationOnly {
-		dialogTitleKey = "action_launcher.navigate_trigger"
-	}
-	dialogTitle := props.Text(dialogTitleKey)
 	dialogProps := html.Props{
 		ID: "action-launcher-dialog", Class: "action-launcher-dialog",
-		Raw: map[string]any{"role": "dialog", "aria-label": dialogTitle},
+
+		Raw: map[string]any{"role": "dialog", "aria-label": props.Text(dialogKey)},
 	}
 	if dialogHidden {
 		dialogProps.Class += " action-launcher-dialog-hidden"
@@ -440,10 +576,12 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 	}
 	dialogChildren := []ui.Node{
 		html.Div(html.Props{Class: "action-launcher-head"},
-			html.Strong(html.Props{}, ui.Text(dialogTitle)),
+
+			html.Strong(html.Props{}, ui.Text(props.Text(dialogKey))),
+			html.Label(html.Props{Class: "sr-only", For: "action-launcher-input"}, ui.Text(props.Text(filterKey))),
 			html.Tag("input", html.Props{
 				ID: "action-launcher-input", Name: "action", Value: query.Get(), Class: "action-launcher-input", Aria: inputAria,
-				Raw: map[string]any{"type": "search", "role": "combobox", "placeholder": props.Text("action_launcher.filter_placeholder"), "autocomplete": "off", "spellcheck": "false"},
+				Raw: map[string]any{"type": "search", "role": "combobox", "placeholder": props.Text(placeholderKey), "autocomplete": "off", "spellcheck": "false"},
 				OnInput: ui.UseEvent(func(event ui.InputEvent) {
 					query.Set(event.GetValue())
 					active.Set(0)
@@ -468,7 +606,9 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 					case event.GetKey() == "Enter":
 						if len(results) > 0 && results[activeIndex].Href != "" {
 							event.PreventDefault()
-							navigate(results[activeIndex])
+							if actionLauncherItemAvailable(results[activeIndex]) {
+								navigate(results[activeIndex])
+							}
 						}
 					}
 				}),
@@ -493,17 +633,54 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 	return html.Div(html.Props{ID: "action-launcher", Class: class}, trigger, dialog)
 }
 
+func presentableActionLauncherItems(items []ActionLauncherItem) []ActionLauncherItem {
+	result := make([]ActionLauncherItem, 0, len(items))
+	for _, item := range items {
+		// Legacy compositional callers pass an explicit explanation without an
+		// ActionState. It is a disabled presentation, never a launch grant.
+		if item.Availability.Availability == "" && strings.TrimSpace(item.Reason) != "" {
+			item.Availability = ActionState{Availability: ActionUnavailable, Reason: item.Reason}
+		}
+		switch item.Availability.Availability {
+		case ActionAvailable, ActionUnavailable:
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+func actionLauncherCopyKeys(items []ActionLauncherItem) (trigger, dialog, filter, placeholder string) {
+	if actionLauncherHasAction(items) {
+		return "action_launcher.trigger", "action_launcher.dialog_title", "action_launcher.filter_label", "action_launcher.filter_placeholder"
+	}
+	return "action_launcher.navigation_trigger", "action_launcher.navigation_title", "action_launcher.navigation_filter_label", "action_launcher.navigation_filter_placeholder"
+}
+
+func actionLauncherItemAvailable(item ActionLauncherItem) bool {
+	return item.Availability.Availability == ActionAvailable
+}
+
 func actionLauncherResults(props ActionLauncherProps, results []ActionLauncherItem, active int, navigate func(ActionLauncherItem)) ui.Node {
 	if len(results) == 0 {
-		title, description := props.Text("action_launcher.empty_title"), props.Text("action_launcher.empty_description")
+		actionMode := actionLauncherHasAction(props.Items)
+		titleKey, descriptionKey := "action_launcher.navigation_empty_title", "action_launcher.navigation_empty_description"
+		if actionMode {
+			titleKey, descriptionKey = "action_launcher.empty_title", "action_launcher.empty_description"
+		}
+		title, description := props.Text(titleKey), props.Text(descriptionKey)
 		if len(props.Items) > 0 {
-			title, description = props.Text("action_launcher.no_matches_title"), props.Text("action_launcher.no_matches_description")
+			titleKey, descriptionKey = "action_launcher.navigation_no_matches_title", "action_launcher.navigation_no_matches_description"
+			if actionMode {
+				titleKey, descriptionKey = "action_launcher.no_matches_title", "action_launcher.no_matches_description"
+			}
+			title, description = props.Text(titleKey), props.Text(descriptionKey)
 		}
 		// This is a status message, not an expanded listbox with missing options.
 		return html.Div(html.Props{ID: "action-launcher-empty", Raw: map[string]any{"role": "status"}},
 			unavailablePanel(title, description))
 	}
 	children := make([]ui.Node, 0, len(results))
+	recoveries := make([]ui.Node, 0, len(results))
 	for index, result := range results {
 		item := result
 		class := "action-launcher-result"
@@ -511,41 +688,58 @@ func actionLauncherResults(props ActionLauncherProps, results []ActionLauncherIt
 		if selected {
 			class += " active"
 		}
-		if item.Href == "" {
-			// An authorized-in-general but currently-blocked action:
-			// explained, never a link -- there is nothing for a click or
-			// Enter to execute, and no-disclosure means the reason is the
-			// only fact this row carries about why.
-			descID := "action-launcher-result-" + fmt.Sprint(index) + "-reason"
-			children = append(children, html.Div(html.Props{
-				ID: "action-launcher-result-" + fmt.Sprint(index), Class: class + " action-launcher-result-unavailable",
-				Raw: map[string]any{"role": "option", "aria-selected": fmt.Sprint(selected), "aria-disabled": "true", "aria-describedby": descID},
-			},
-				navIcon(item.Icon),
-				html.Span(html.Props{Class: "action-launcher-copy"},
-					html.Strong(html.Props{}, ui.Text(item.Label)),
-					html.Small(html.Props{ID: descID}, ui.Text(item.Reason)),
-				),
-			))
+
+		copy := []ui.Node{
+			html.Strong(html.Props{}, ui.Text(item.Label)),
+			html.Small(html.Props{}, ui.Text(item.Description)),
+		}
+		if !actionLauncherItemAvailable(item) && strings.TrimSpace(item.Availability.Reason) != "" {
+			copy = append(copy, html.Small(html.Props{ID: "action-launcher-reason-" + fmt.Sprint(index), Class: "action-launcher-reason"}, ui.Text(item.Availability.Reason)))
+		}
+		content := []ui.Node{navIcon(item.Icon), html.Span(html.Props{Class: "action-launcher-copy"}, copy...)}
+		resultProps := html.Props{
+			ID: "action-launcher-result-" + fmt.Sprint(index), Class: class,
+			Raw: map[string]any{"role": "option", "aria-selected": fmt.Sprint(selected), "tabindex": "-1"},
+		}
+		if !actionLauncherItemAvailable(item) {
+			resultProps.Type = "button"
+			resultProps.Disabled = true
+			resultProps.Raw["aria-disabled"] = "true"
+			if strings.TrimSpace(item.Availability.Reason) != "" {
+				resultProps.Raw["aria-describedby"] = "action-launcher-reason-" + fmt.Sprint(index)
+			}
+			if recovery := item.Availability.Recovery; recovery.Href != "" {
+				recoveryID := "action-launcher-recovery-" + fmt.Sprint(index)
+				resultProps.Raw["aria-describedby"] = recoveryID
+				recoveries = append(recoveries, html.Div(html.Props{ID: recoveryID, Class: "action-launcher-recovery"},
+					softwareLink(func(href string) { navigate(ActionLauncherItem{Href: href}) }, html.Props{}, recovery.Href, ui.Text(recovery.Label))))
+			}
+			children = append(children, html.Button(resultProps, content...))
 			continue
 		}
-		children = append(children, softwareLink(func(href string) { navigate(item) }, html.Props{
-			ID: "action-launcher-result-" + fmt.Sprint(index), Class: class,
-			Raw: map[string]any{"role": "option", "aria-selected": fmt.Sprint(selected)},
-		}, item.Href,
-			navIcon(item.Icon),
-			html.Span(html.Props{Class: "action-launcher-copy"},
-				html.Strong(html.Props{}, ui.Text(item.Label)),
-				html.Small(html.Props{}, ui.Text(item.Description)),
-			),
-		))
+		children = append(children, softwareLink(func(href string) { navigate(item) }, resultProps, item.Href, content...))
 	}
-	listboxLabelKey := "action_launcher.dialog_title"
-	if actionLauncherIsNavigationOnly(props.Items) {
-		listboxLabelKey = "action_launcher.navigate_trigger"
-	}
-	return ui.CreateElement(PopoverSurface, PopoverSurfaceProps{
+
+	listbox := ui.CreateElement(PopoverSurface, PopoverSurfaceProps{
 		ID: "action-launcher-results", Class: "action-launcher-panel",
-		Raw: map[string]any{"role": "listbox", "aria-label": props.Text(listboxLabelKey)}, Children: children,
+		Raw: map[string]any{"role": "listbox", "aria-label": props.Text(actionLauncherListboxLabelKey(props.Items))}, Children: children,
 	})
+	if len(recoveries) == 0 {
+		return listbox
+	}
+	return html.Div(html.Props{Class: "action-launcher-results-wrap"}, append([]ui.Node{listbox}, recoveries...)...)
+}
+
+func actionLauncherHasAction(items []ActionLauncherItem) bool {
+	for _, item := range items {
+		if item.Kind == ActionLauncherAction && item.Availability.Availability != ActionHidden {
+			return true
+		}
+	}
+	return false
+}
+
+func actionLauncherListboxLabelKey(items []ActionLauncherItem) string {
+	_, dialog, _, _ := actionLauncherCopyKeys(items)
+	return dialog
 }

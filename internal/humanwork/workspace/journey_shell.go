@@ -125,13 +125,27 @@ type JourneyConfig struct {
 	// PagePermissions is the effective union of durable role grants. It is
 	// presentation metadata only; RPC handlers enforce the same policy.
 	PagePermissions []roleaccess.PagePermission `json:"page_permissions,omitempty"`
-	Purpose         string                      `json:"purpose"`
+	// LauncherActions is a server-resolved semantic-action projection. The
+	// browser may render these entries, but every RPC still authorizes again.
+	LauncherActions []LauncherActionConfig `json:"launcher_actions,omitempty"`
+	Purpose         string                 `json:"purpose"`
 	// JourneysPath is this page's own address, so the client can build
 	// links back to itself.
 	JourneysPath string `json:"journeys_path"`
 	// LogoutPath is populated only for the explicitly enabled local browser
 	// session. Enterprise deployments leave sign-out to their identity edge.
 	LogoutPath string `json:"logout_path,omitempty"`
+}
+
+// LauncherActionConfig is the JSON-island form of one launcher verdict. Copy
+// remains localized in the client; the server owns only identity and state.
+type LauncherActionConfig struct {
+	ID            string `json:"id"`
+	Availability  string `json:"availability"`
+	Reason        string `json:"reason,omitempty"`
+	RecoveryLabel string `json:"recovery_label,omitempty"`
+	RecoveryHref  string `json:"recovery_href,omitempty"`
+	Priority      int64  `json:"priority,omitempty"`
 }
 
 // serveJourney renders the Promotion journey page shell.

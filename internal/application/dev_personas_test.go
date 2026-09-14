@@ -32,6 +32,10 @@ func TestComposeDevPersonasIssuesFourDistinctVerifiedIdentities(t *testing.T) {
 		"admin": "Rafael Torres", "hiring-manager": "Dominic Collins",
 		"payroll-manager": "Thomas Baker", "individual-contributor": "Samuel Rivera",
 	}
+	wantPurpose := map[string]string{
+		"admin": "compensation_review", "hiring-manager": "compensation_review",
+		"payroll-manager": "self_service_view", "individual-contributor": "self_service_view",
+	}
 	planned, err := demoworkforce.Plan(pgstore.TenantID(cfg.Tenant))
 	if err != nil {
 		t.Fatal(err)
@@ -52,8 +56,17 @@ func TestComposeDevPersonasIssuesFourDistinctVerifiedIdentities(t *testing.T) {
 		if persona.Name != wantName[persona.ID] {
 			t.Errorf("%s name = %q, want %q", persona.ID, persona.Name, wantName[persona.ID])
 		}
+		if !principal.AuthorizesPurpose(wantPurpose[persona.ID]) {
+			t.Errorf("%s does not authorize its assigned purpose %q", persona.ID, wantPurpose[persona.ID])
+		}
+		if persona.ID == "payroll-manager" && (principal.HasRole("payroll_manager") || !principal.HasRole("worker_self")) {
+			t.Error("the payroll-labelled demo persona must remain limited to its verified self-service grant")
+		}
 		if !plannedByKey[principal.Subject()] {
 			t.Errorf("%s subject %q is not an active worker in the durable demo seed plan", persona.ID, principal.Subject())
+		}
+		if persona.WorkerRef != principal.Subject() {
+			t.Errorf("%s worker binding = %q, want verified subject %q", persona.ID, persona.WorkerRef, principal.Subject())
 		}
 		if seen[principal.Subject()] {
 			t.Errorf("duplicate subject %q", principal.Subject())

@@ -53,6 +53,9 @@ type SimulationResult struct {
 	// before this contract is digested, so this slice is always the
 	// deterministic, deduplicated set (PROMOUX-009).
 	Findings []promotion.Finding
+	// CanonicalFindings is the typed, deduplicated finding projection. Findings
+	// remains for source compatibility with PROMO-004 callers.
+	CanonicalFindings []Finding
 	// Refusals are the typed effect refusals PROMO-002/003 produced, if any.
 	Refusals []simassign.Refusal
 
@@ -88,8 +91,9 @@ type AssembleInput struct {
 	Completion   Completion
 	Revalidation Revalidation
 
-	Findings []promotion.Finding
-	Refusals []simassign.Refusal
+	Findings          []promotion.Finding
+	CanonicalFindings []Finding
+	Refusals          []simassign.Refusal
 }
 
 // clone returns a copy that preserves nilness: nil stays nil (the section was
@@ -134,6 +138,16 @@ func Assemble(in AssembleInput) (SimulationResult, error) {
 		return SimulationResult{}, fmt.Errorf("%w: proposal candidate digest is required", ErrInvalidInput)
 	}
 
+	legacy := clone(in.Findings)
+	for i := range legacy {
+		if legacy[i].Owner == "" {
+			legacy[i].Owner = "promotion"
+		}
+	}
+	canonical, err := canonicalFindings(legacy, in.CanonicalFindings)
+	if err != nil {
+		return SimulationResult{}, err
+	}
 	r := SimulationResult{
 		Intent:                  in.Intent,
 		Snapshot:                in.Snapshot,
@@ -162,8 +176,9 @@ func Assemble(in AssembleInput) (SimulationResult, error) {
 		// depending on how many times a rule fired" bug this todo exists to
 		// close -- and [Persist] never re-derives anything from what it is
 		// handed, so it must already be canonical when it arrives.
-		Findings: promotion.DeduplicateFindings(clone(in.Findings)),
-		Refusals: clone(in.Refusals),
+		Findings:          promotion.DeduplicateFindings(append(legacy, legacyFindings(in.CanonicalFindings)...)),
+		CanonicalFindings: clone(canonical),
+		Refusals:          clone(in.Refusals),
 	}
 	r.Status = deriveStatus(r.Findings, r.Refusals)
 
@@ -310,6 +325,11 @@ func (r SimulationResult) Validate() error {
 	if err := r.Revalidation.Validate(); err != nil {
 		return refuse(SectionRevalidation, "%v", err)
 	}
+	for i, f := range r.CanonicalFindings {
+		if err := f.Validate(); err != nil {
+			return fmt.Errorf("%w: finding %d: %v", ErrInvalidInput, i, err)
+		}
+	}
 
 	if !r.Status.Valid() {
 		return fmt.Errorf("%w: result status is unstated", ErrInvalidInput)
@@ -390,14 +410,26 @@ func (r SimulationResult) canonicalBody() ([]byte, error) {
 	w.Value("completion", r.Completion)
 	w.Value("revalidation", r.Revalidation)
 
-	w.Count("findings", len(r.Findings))
+	// Preserve the legacy finding's deduplicated owner and corroborating
+	// authorities in the digest as well as the typed effect/source projection.
+	w.Count("legacy_findings", len(r.Findings))
 	for _, f := range r.Findings {
-		w.String("finding.code", f.Code).
+		w.String("legacy_finding.code", f.Code).
+			String("legacy_finding.severity", f.Severity.String()).
+			String("legacy_finding.field", f.Field).
+			String("legacy_finding.message", f.Message).
+			String("legacy_finding.owner", f.Owner).
+			SortedStrings("legacy_finding.corroborated_by", f.CorroboratedBy)
+	}
+	w.Count("findings", len(r.CanonicalFindings))
+	for _, f := range r.CanonicalFindings {
+		w.String("finding.identity", f.Identity).
+			String("finding.owner", f.Owner).
 			String("finding.severity", f.Severity.String()).
 			String("finding.field", f.Field).
-			String("finding.message", f.Message).
-			String("finding.owner", f.Owner).
-			SortedStrings("finding.corroborated_by", f.CorroboratedBy)
+			String("finding.effect", f.Effect).
+			String("finding.explanation", f.Explanation).
+			String("finding.source", f.Source)
 	}
 	w.Count("refusals", len(r.Refusals))
 	for _, ref := range r.Refusals {

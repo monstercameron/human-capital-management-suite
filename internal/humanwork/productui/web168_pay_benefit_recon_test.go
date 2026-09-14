@@ -63,7 +63,7 @@ func TestTodo_WEB_168_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "da407132e65e45cc554b62cc4f00af430b2c3716bb865bd3f0425ac004ec5aed"
+	const want = "77e714e4e5935fd7acf724fcec1b3f80b0222c659d63d975e179814e07ddb241"
 	if got != want {
 		t.Fatalf("reconciliation status digest = %s, want %s", got, want)
 	}

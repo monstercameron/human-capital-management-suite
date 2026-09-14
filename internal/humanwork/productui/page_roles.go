@@ -5,11 +5,12 @@ import "github.com/monstercameron/GoWebComponents/v5/ui"
 func rolesPage(view View) ui.Node {
 	pages := make([]RolePageOption, 0, len(PageDefinitions()))
 	for _, definition := range PageDefinitions() {
-		pages = append(pages, RolePageOption{ID: definition.ID, Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.SubtitleKey)})
+		pages = append(pages, RolePageOption{ID: definition.ID, Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.SubtitleKey), Published: definition.NavigationPublished})
 	}
 	return ui.CreateElement(RolesPage, RolesPageProps{
 		I18nProps: I18nProps{Locale: view.Locale},
-		Roles:     view.AccessRoles, Assignments: view.RoleAssignments, People: view.People, Query: view.Query,
+		Roles:     view.AccessRoles, Assignments: view.RoleAssignments, People: view.People, Query: view.Query, Page: view.RolePage,
+		Policies:   view.RoleVisibilityPolicies,
 		FilterHref: statefulHref(view, PageRoles), Navigate: view.Navigate,
 		Back:            ActionLinkProps{Label: "← " + view.Locale.Text("page.admin.title"), Href: statefulHref(view, PageAdmin), Class: "button secondary", Navigate: view.Navigate},
 		PagePermissions: view.RolePagePermissions, Pages: pages,

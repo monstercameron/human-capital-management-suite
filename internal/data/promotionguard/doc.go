@@ -59,14 +59,9 @@
 //
 // # What this package does not do
 //
-// It does not decide when a promotion is done. [Release] exists and is
-// proven in isolation, but wiring it to fire automatically the moment a
-// promotion reaches a terminal stage was out of this change's scope: the
-// journey engine currently derives "terminal" only at read time
-// (internal/intent/app's deriveJourneyStage, from workflow runtime node
-// executions), and there is no single existing write-time "this intent just
-// went terminal" event to hook -- adding one would mean changing the shared
-// internal/workflow/runtime engine, well outside this package's file root.
-// A caller that knows an intent has reached a terminal stage may call
-// [Release] directly; nothing does so automatically yet.
+// It does not decide when a promotion is done. The promotion terminal writer
+// calls [Release] in the same transaction as the terminal ledger/outbox fact;
+// this package only applies the tenant-scoped guarded state transition. A
+// different caller that reaches a terminal stage must make the same explicit
+// release decision at its own authoritative commit boundary.
 package promotionguard

@@ -40,8 +40,13 @@ func SignedOut(props SignedOutProps) ui.Node {
 		nodes = append(nodes, html.P(html.Props{Class: "signed-out-detail"}, ui.Text(props.Detail)))
 	}
 	var revoked []string
+	seen := make(map[string]struct{}, len(props.Revoked))
 	for _, grant := range props.Revoked {
 		if trimmed := strings.TrimSpace(grant); trimmed != "" {
+			if _, duplicate := seen[trimmed]; duplicate {
+				continue
+			}
+			seen[trimmed] = struct{}{}
 			revoked = append(revoked, trimmed)
 		}
 	}

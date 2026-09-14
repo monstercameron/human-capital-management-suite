@@ -63,7 +63,7 @@ func TestTodo_WEB_210_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "54da54c88627a685ce03918a1c6168fed074be92f65b1c7211ae2fc59d4f484f"
+	const want = "d2d4b205e620c2929fc69cbb4d833e8d64c6e403279f85860aee859daec4cf69"
 	if got != want {
 		t.Fatalf("manager and work reassignment review digest = %s, want %s", got, want)
 	}

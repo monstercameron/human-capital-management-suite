@@ -330,7 +330,7 @@ func (sb *Sandbox) executeUnder(ctx context.Context, mode intent.Mode, env inten
 		return nil, fmt.Errorf("%w: asked for %s/%s", ErrContractMismatch, mode, env)
 	}
 
-	principalCtx, err := sb.authenticatedContext(ctx)
+	principalCtx, err := sb.authenticatedContext(ctx, "sandbox-principal:"+sb.tenant)
 	if err != nil {
 		return nil, fmt.Errorf("sandbox: authenticate the sandbox principal: %w", err)
 	}
@@ -347,7 +347,11 @@ func (sb *Sandbox) executeUnder(ctx context.Context, mode intent.Mode, env inten
 		return nil, fmt.Errorf("sandbox: execute %s: %w", proposed.IntentID, err)
 	}
 
-	decided, err := sb.cell.Journey.Decide(principalCtx, proposed.IntentID, workspace.Decision{
+	approverCtx, err := sb.authenticatedContext(ctx, sandboxApproverRef)
+	if err != nil {
+		return nil, fmt.Errorf("sandbox: authenticate the routed approver: %w", err)
+	}
+	decided, err := sb.cell.Journey.Decide(approverCtx, proposed.IntentID, workspace.Decision{
 		Approve: true, Reason: "sandbox proof: automatic approval",
 	})
 	if err != nil {
@@ -368,14 +372,15 @@ func (sb *Sandbox) executeUnder(ctx context.Context, mode intent.Mode, env inten
 // internal/transport/cell's authentication interceptor does for a wire call -
 // except there is no wire here, so this package does that half of the
 // interceptor's job itself. [workspace.JourneyEngine.Propose] derives the
-// intent's trusted initiator from this same principal on its own, the same
-// way internal/transport.ApplyTrustedContext would for a wire call.
-func (sb *Sandbox) authenticatedContext(ctx context.Context) (context.Context, error) {
+// intent's trusted initiator from the author principal; [Decide] uses a
+// distinct credential whose subject is the routed WorkItem owner. The
+// separation is required by the real approval policy, not a sandbox bypass.
+func (sb *Sandbox) authenticatedContext(ctx context.Context, subject string) (context.Context, error) {
 	now := sb.now()
 	token, err := sb.verifier.Issue(trust.Claims{
 		Issuer:               sandboxIssuer,
 		Audience:             sandboxAudience,
-		Subject:              "sandbox-principal:" + sb.tenant,
+		Subject:              subject,
 		SubjectKind:          "human",
 		Tenant:               sb.tenant,
 		OrganizationScopeID:  "org-" + sb.tenant,

@@ -43,7 +43,7 @@ func timerDispatcher(tenantID string, tenant string, resume firedTimerResumer) e
 	})
 }
 
-func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity string, cell *app.Cell, logger bootstrap.Logger) (bootstrap.Workload, error) {
+func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity string, cell *app.Cell, logger bootstrap.Logger, now func() time.Time) (bootstrap.Workload, error) {
 	if pool == nil {
 		return bootstrap.Workload{}, fmt.Errorf("application: -%s needs a database pool", FieldScheduler)
 	}
@@ -63,7 +63,7 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 		}},
 		Leases: lease.Manager{}, Timers: timer.Scheduler{Attempts: runtime.Store{}},
 		Misfire:    schedule.MisfireConfig{Policy: schedule.MisfireCatchUpOnce, Grace: time.Hour, MaxCatchUp: 1},
-		Dispatcher: dispatcher, Logger: logger,
+		Dispatcher: dispatcher, Logger: logger, Clock: now,
 	})
 	if err != nil {
 		return bootstrap.Workload{}, err

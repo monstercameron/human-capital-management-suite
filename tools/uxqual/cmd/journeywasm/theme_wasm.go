@@ -12,13 +12,14 @@ import (
 
 type browserThemeController struct {
 	saved     productui.CustomerTheme
+	tenant    string
 	save      func(productui.CustomerTheme, func(error))
 	logoLoad  js.Func
 	logoError js.Func
 }
 
-func newBrowserThemeController(save func(productui.CustomerTheme, func(error))) *browserThemeController {
-	controller := &browserThemeController{saved: productui.DefaultCustomerTheme(), save: save}
+func newBrowserThemeController(tenant string, save func(productui.CustomerTheme, func(error))) *browserThemeController {
+	controller := &browserThemeController{saved: productui.DefaultCustomerTheme(), tenant: tenant, save: save}
 	controller.logoLoad = js.FuncOf(func(_ js.Value, args []js.Value) any {
 		setBrandLogoEventState(args, "configured")
 		return nil
@@ -90,13 +91,17 @@ func (c *browserThemeController) Apply(theme productui.CustomerTheme) {
 	}
 	setThemeText(`[data-hcm-brand-name]`, theme.BrandName)
 	setThemeText(`[data-hcm-brand-mark]`, theme.BrandMark)
-	setThemeAttribute(`[data-hcm-brand-link]`, "title", theme.BrandName)
+	brandName, brandMark := productui.HeaderBrandIdentity(theme, c.tenant)
+	setThemeText(`[data-hcm-brand-link] [data-hcm-brand-name]`, brandName)
+	setThemeText(`[data-hcm-brand-link] [data-hcm-brand-mark]`, brandMark)
+	setThemeAttribute(`[data-hcm-brand-link]`, "title", brandName)
 	applyThemeBrandLogo(theme.BrandLogoURL, c.logoLoad, c.logoError)
-	applyThemeDocumentIdentity("", theme)
+	applyThemeDocumentIdentity("", theme, c.tenant)
 }
 
-func applyThemeDocumentIdentity(pageTitle string, theme productui.CustomerTheme) {
+func applyThemeDocumentIdentity(pageTitle string, theme productui.CustomerTheme, tenant string) {
 	theme = productui.NormalizeCustomerTheme(theme)
+	brandName, _ := productui.HeaderBrandIdentity(theme, tenant)
 	document := js.Global().Get("document")
 	if !document.Truthy() {
 		return
@@ -109,14 +114,14 @@ func applyThemeDocumentIdentity(pageTitle string, theme productui.CustomerTheme)
 		}
 	}
 	if strings.TrimSpace(pageTitle) != "" {
-		document.Set("title", pageTitle+" · "+theme.BrandName)
+		document.Set("title", pageTitle+" · "+brandName)
 		if root.Truthy() {
 			root.Call("setAttribute", "data-hcm-page-title", pageTitle)
 		}
 	}
 	meta := document.Call("querySelector", `meta[name="application-name"]`)
 	if meta.Truthy() {
-		meta.Call("setAttribute", "content", theme.BrandName)
+		meta.Call("setAttribute", "content", brandName)
 	}
 }
 

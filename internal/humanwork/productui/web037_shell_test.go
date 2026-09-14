@@ -99,6 +99,7 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(doc))
 	got := hex.EncodeToString(digest[:])
+
 	// Closed launcher omits active-option references and does not claim modality.
 	// UXAUDIT-007 removed the page-identity header's unconditional
 	// "Acting as yourself" span (see PageIdentityHeader): acting-context
@@ -140,7 +141,7 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// attention. Verified before re-pinning by substituting exactly those
 	// two old strings back into the new document, which reproduced the
 	// previous digest byte for byte.
-	const want = "e7a704642cc2affb75c8c9209529255cf548772138148a6025a97972dc16046d"
+	const want = "20898b8341278494f197d9af00a7253701dc14136f7bd0fe0ef1e611b49eeb79"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

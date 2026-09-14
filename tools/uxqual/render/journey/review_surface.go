@@ -50,12 +50,18 @@ type reviewSurfaceProps struct {
 	// Facts is the compact employee/change/date/consequence summary the
 	// reader confirms against before the final action fires.
 	Facts []Fact
+	// Fields are decision-specific inputs that must remain inside the review
+	// surface beside the consequence summary and final action.
+	Fields []ui.Node
 	// Note is an optional consequence warning, e.g. irreversibility.
 	Note string
 	// CancelLabel defaults to "Cancel". It is a real, keyboard-reachable
 	// control distinct from the disclosure's own "Cancel review" toggle
 	// text, deliberately styled no more prominently than Submit.
 	CancelLabel string
+	// DismissLabel is the disclosure's close text; CancelLabel names the
+	// secondary button inside the review surface.
+	DismissLabel string
 	// Submit is the fully-built final-action button (its own label,
 	// variant, disabled state and click handler already wired by the
 	// caller); this surface only decides where it sits and what surrounds
@@ -137,9 +143,10 @@ func reviewSurface(props reviewSurfaceProps) ui.Node {
 	if len(props.Facts) > 0 {
 		bodyChildren = append(bodyChildren, factsListWithClass(props.Facts, "jn-confirm-facts"))
 	}
+	bodyChildren = append(bodyChildren, props.Fields...)
 	if props.Note != "" {
 		bodyChildren = append(bodyChildren,
-			html.P(html.Props{Class: "jn-confirm-note"}, iconWarning("jn-confirm-icon"), html.Text(props.Note)))
+			html.P(html.Props{Class: "jn-confirm-note"}, RenderIcon(IconWarning, "jn-confirm-icon", nil), html.Text(props.Note)))
 	}
 	cancelBtn := html.Button(html.Props{
 		Type: "button", Class: "jn-btn jn-confirm-cancel",
@@ -168,7 +175,7 @@ func reviewSurface(props reviewSurfaceProps) ui.Node {
 			DataAttr: html.DataAttribute{Name: "variant", Value: triggerVariant},
 			Raw:      map[string]any{"role": "button"}},
 			html.Span(html.Props{Class: "jn-confirm-open-label"}, html.Text(props.TriggerLabel)),
-			html.Span(html.Props{Class: "jn-confirm-close-label"}, html.Text("Cancel review"))),
+			html.Span(html.Props{Class: "jn-confirm-close-label"}, html.Text(nonEmpty(props.DismissLabel, "Cancel review")))),
 		overlay,
 	)
 }

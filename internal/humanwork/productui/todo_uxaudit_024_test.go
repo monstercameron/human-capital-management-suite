@@ -217,7 +217,7 @@ func TestTodo_UXAUDIT_024(t *testing.T) {
 		if !strings.Contains(searchMarkup, `aria-label="`+searchLabel+`"`) {
 			t.Fatalf("global search aria-label = %q not found in %s", searchLabel, searchMarkup)
 		}
-		if !strings.Contains(filterMarkup, `placeholder="`+view.Locale.Text("nav.filter_placeholder")+`"`) {
+		if !strings.Contains(filterMarkup, `placeholder="`+view.Locale.Text("nav.filter_pages")+`"`) {
 			t.Fatal("menu filter must scope its placeholder to menu destinations")
 		}
 		if !strings.Contains(searchMarkup, `placeholder="`+view.Locale.Text("global_search.placeholder")+`"`) {
@@ -654,7 +654,8 @@ func TestTodo_UXAUDIT_024_Regression(t *testing.T) {
 // missing global search fragment \"id=\\\"global-search-input\\\"\"".
 // Restoring the ID field made it PASS again.
 func TestTodo_UXAUDIT_024_Browser(t *testing.T) {
-	doc, err := Render(testView(PageHome))
+	view := testView(PageHome)
+	doc, err := Render(view)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -723,7 +724,8 @@ func TestTodo_UXAUDIT_024_Browser(t *testing.T) {
 	} else if strings.Contains(brandImage, "src=") {
 		t.Errorf("fallback brand slot must render an <img> with no src attribute, got: %s", brandImage)
 	}
-	if !strings.Contains(doc, `class="sr-only" data-hcm-brand-name="">Human Capital Management Suite</span>`) {
+	brandName, _ := HeaderBrandIdentity(NormalizeCustomerTheme(view.Appearance), view.Tenant)
+	if !strings.Contains(doc, `class="sr-only" data-hcm-brand-name="">`+brandName+`</span>`) {
 		t.Error("composed page's brand slot has no .sr-only accessible name for the spec (and assistive tech) to read")
 	}
 }

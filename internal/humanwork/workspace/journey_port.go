@@ -50,6 +50,33 @@ var (
 	ErrJourneyActiveConflict = errors.New("workspace: an active promotion already claims this worker and effective window")
 )
 
+// JourneyInputError carries a machine-readable correction target across the
+// journey port. Detail is for internal diagnostics; transport must project only
+// FieldPath, ReasonRef and an optional exact pay range, never infer any of
+// them from or expose the detail text.
+type JourneyInputError struct {
+	FieldPath string
+	ReasonRef string
+	Detail    string
+	PayRange  *JourneyPayRange
+}
+
+// JourneyPayRange is the inclusive server-owned correction for a rejected
+// salary. Both values are exact Money in the same currency.
+type JourneyPayRange struct {
+	Minimum values.Money
+	Maximum values.Money
+}
+
+func (e *JourneyInputError) Error() string {
+	if e == nil {
+		return ErrJourneyInput.Error()
+	}
+	return ErrJourneyInput.Error() + ": " + e.FieldPath + ": " + e.Detail
+}
+
+func (e *JourneyInputError) Unwrap() error { return ErrJourneyInput }
+
 // JourneyStage is where one promotion journey currently stands. It is
 // derived by the engine from durable state (the intent record, the workflow
 // instance, its work items and the ledger), never asserted by the page.
@@ -102,6 +129,17 @@ const (
 	JourneyStageRepairRequired JourneyStage = "REPAIR_REQUIRED"
 )
 
+// Manager relationship dispositions are the closed, authorization-safe
+// reporting-line states exposed by a workforce listing. They deliberately do
+// not expose the raw relationship reference when its endpoint is hidden.
+const (
+	ManagerRelationshipUnspecified = "UNSPECIFIED"
+	ManagerRelationshipRoot        = "ROOT"
+	ManagerRelationshipVisible     = "VISIBLE"
+	ManagerRelationshipWithheld    = "WITHHELD"
+	ManagerRelationshipOrphan      = "ORPHAN"
+)
+
 // JourneyPlacement is one side (current or target) of the placement change.
 type JourneyPlacement struct {
 	JobCode    string
@@ -143,6 +181,9 @@ type JourneySummary struct {
 	// executed; empty/zero before.
 	InstanceID      string
 	InstanceVersion int64
+	// Approver is the chosen owner of the currently open human-work item. It
+	// is presentation evidence for personal queues, never action authority.
+	Approver string
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -263,6 +304,33 @@ type JourneyWorkItemSummary struct {
 	ViewerMembership string
 }
 
+// JourneyListRequest is the server-owned query for the history projection.
+// Cursor is opaque to callers; the engine validates it before use.
+type JourneyListRequest struct {
+	PageSize  int
+	Page      int
+	Cursor    string
+	WorkerRef string
+	Query     string
+	Outcome   string
+	Year      string
+	Sort      string
+	Direction string
+}
+
+type JourneyListPage struct {
+	Journeys   []JourneySummary
+	NextCursor string
+	TotalCount int
+}
+
+// HistoryEngine is an optional extension implemented by live engines that
+// can resolve history queries server-side. Keeping it separate preserves the
+// small JourneyEngine test seam and makes uncomposed cells fail closed.
+type HistoryEngine interface {
+	ListJourneysPage(context.Context, JourneyListRequest) (JourneyListPage, error)
+}
+
 // ProposalInput is what the manager fills in. Everything else the intent
 // needs (the worker's current placement and pay, the budget authority) the
 // engine reads through the governed worker read, never from the form.
@@ -372,6 +440,11 @@ type JourneyDetail struct {
 	// Approver is the principal the approval WorkItem is routed to. The
 	// page shows who will decide; the engine decides as that principal.
 	Approver string
+
+	// Server-authorized, viewer-relative presentation capabilities. A client
+	// must not reconstruct either from roles or principal identifiers.
+	DiagnosticsAvailable bool
+	CanDecide            bool
 }
 
 // Decision is the approver's answer.
@@ -506,6 +579,9 @@ type WorkerSummary struct {
 	WorkerRef string
 	// WorkerID is the entity id the governed read names the worker by.
 	WorkerID string
+	// SubjectRevision is the server-projected revision a canonical promotion
+	// proposal must bind through expected_subject_revision.
+	SubjectRevision string
 
 	LegalName     string
 	PreferredName string
@@ -533,8 +609,13 @@ type WorkerSummary struct {
 	// ManagerRef is the stable relationship reference. ProfilePhotoURL is
 	// always the display-safe proxy; the retained original is never exposed
 	// through this listing surface.
-	ManagerRef      string
-	ProfilePhotoURL string
+	ManagerRef string
+	// ManagerDisposition and ManagerWorkerRef form the authorization-safe
+	// reporting-edge projection. ManagerWorkerRef is set exactly for VISIBLE
+	// and names a returned Worker's WorkerRef.
+	ManagerDisposition string
+	ManagerWorkerRef   string
+	ProfilePhotoURL    string
 
 	// Source is [WorkerSourceCorpus] or [WorkerSourceCreated].
 	Source string

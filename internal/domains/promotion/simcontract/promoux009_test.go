@@ -549,7 +549,7 @@ func TestTodo_PROMOUX_009_Golden(t *testing.T) {
 
 	result := promoux009Assemble(t, findings)
 
-	const wantDigest = "sha256:7c94303195685e0de778ddce7fd84fd8e2b2095a0c08954f40aa097fa1729f35"
+	const wantDigest = "sha256:f09ec2d078428f0302ed5cd2431894bf31b8b30ea9e1aa0fd37697c508301625"
 	if result.Digest != wantDigest {
 		t.Fatalf("digest = %s, want %s", result.Digest, wantDigest)
 	}

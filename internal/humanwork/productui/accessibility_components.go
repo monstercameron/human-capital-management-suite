@@ -21,9 +21,9 @@ type AccessibilityPreferencesProps struct {
 
 func AccessibilityPreferencesPanel(props AccessibilityPreferencesProps) ui.Node {
 	draft := NormalizeAccessibilityPreferences(props.Value)
-	return html.Section(html.Props{Class: "surface accessibility-preferences", Raw: map[string]any{"aria-labelledby": "accessibility-title"}},
+	return html.Section(html.Props{Class: "surface accessibility-preferences", Data: map[string]string{"hcm-setting-group": "accessibility"}, Raw: map[string]any{"aria-labelledby": "accessibility-title"}},
 		html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{},
-			html.H2(html.Props{ID: "accessibility-title"}, ui.Text(props.Text("accessibility.title"))),
+			html.H3(html.Props{ID: "accessibility-title"}, ui.Text(props.Text("accessibility.title"))),
 			html.P(html.Props{Class: "muted"}, ui.Text(props.Text("accessibility.description"))),
 		)),
 		html.Form(html.Props{Class: "accessibility-form", OnSubmit: saveAccessibilityPreferences(props.OnSave, &draft)},
@@ -43,8 +43,8 @@ func AccessibilityPreferencesPanel(props AccessibilityPreferencesProps) ui.Node 
 				draft.Links = value
 				previewAccessibilityPreferences(props.OnPreview, draft)
 			}),
-			html.Div(html.Props{Class: "accessibility-actions"},
-				html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(props.Text("accessibility.save"))),
+			html.Div(html.Props{Class: "accessibility-actions", Data: map[string]string{"hcm-sticky-actions": "true"}},
+				html.Button(html.Props{Class: "button primary", Type: "submit", Data: map[string]string{"hcm-action": "save-preferences"}}, ui.Text(props.Text("accessibility.save"))),
 				html.Button(accessibilityResetProps(props.OnReset), ui.Text(props.Text("accessibility.reset"))),
 			),
 			html.P(html.Props{ID: "accessibility-status", Class: "accessibility-status", Raw: map[string]any{"role": "status", "aria-live": "polite", "aria-atomic": "true"}}, ui.Text(props.Text("accessibility.status"))),
@@ -71,7 +71,7 @@ func accessibilityChoices(props AccessibilityPreferencesProps, name, title, help
 		))
 	}
 	helpID := "accessibility-" + name + "-help"
-	return html.Fieldset(html.Props{Class: "accessibility-group", Raw: map[string]any{"aria-describedby": helpID}},
+	return html.Fieldset(html.Props{Class: "accessibility-group accessibility-group-" + name, Raw: map[string]any{"aria-describedby": helpID}},
 		html.Legend(html.Props{}, ui.Text(title)),
 		html.P(html.Props{ID: helpID, Class: "muted"}, ui.Text(help)),
 		html.Div(html.Props{Class: "accessibility-options"}, items...),

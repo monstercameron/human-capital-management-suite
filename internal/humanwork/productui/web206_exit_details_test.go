@@ -63,7 +63,7 @@ func TestTodo_WEB_206_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "2e0deb4fda4f4111a8a12480facbdad9b922846130bbfd41952373f200a6a9c1"
+	const want = "c378b3cfefa0fe92a195013f40ca61338178e2c0002388e94d5ea51ee211715a"
 	if got != want {
 		t.Fatalf("exit reason and effective-date collection digest = %s, want %s", got, want)
 	}

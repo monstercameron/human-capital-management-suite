@@ -14,7 +14,8 @@ func TestRenderEveryAuthorizedProductPage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, want := range []string{"Human Capital Management Suite", `id="main-content"`, `aria-label="Main"`, "manager", "Live source · Workforce directory"} {
+
+			for _, want := range []string{"Human Capital Management Suite", `id="main-content"`, `aria-label="Main"`, "manager", "Workspace information"} {
 				if !strings.Contains(doc, want) {
 					t.Fatalf("document missing %q", want)
 				}
@@ -88,7 +89,7 @@ func TestExperienceStudioDoesNotSimulateAnUnpublishedService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(doc, "Custom page editing is not enabled") || strings.Contains(doc, "Validation passed") || strings.Contains(doc, "Request publication") {
+	if !strings.Contains(doc, "Custom pages cannot be edited here yet") || strings.Contains(doc, "Validation passed") || strings.Contains(doc, "Request publication") {
 		t.Fatal("Studio simulated a configuration service the cell did not publish")
 	}
 }
@@ -120,6 +121,7 @@ func TestExperienceStudioIsOmittedFromAuthorizedAdminNavigation(t *testing.T) {
 		t.Fatal("vertical-slice customization control escaped into the production header")
 	}
 	if strings.Contains(doc, `>Experience Studio</span>`) {
+
 		t.Fatal("Experience Studio still claims a menu slot under Admin")
 	}
 	navigation := findElementByID(mustParse(t, doc), "workspace-navigation")
@@ -131,10 +133,11 @@ func TestExperienceStudioIsOmittedFromAuthorizedAdminNavigation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if primaryNavAriaCurrentCount(doc) != 0 || strings.Contains(doc, `class="nav-group current"`) {
 		t.Fatal("an unadmitted route falsely claimed an active navigation leaf")
 	}
-	if !strings.Contains(doc, "Custom page editing is not enabled") {
+	if !strings.Contains(doc, "Custom pages cannot be edited here yet") {
 		t.Fatal("Studio route no longer explains its unavailable state directly")
 	}
 }
@@ -227,6 +230,7 @@ func TestMyWorkKeepsTerminalJourneysInHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	for _, want := range []string{"Needs your action", "Jordan Lee", "Past workflows", "Nothing selected"} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("open-work projection missing %q", want)
@@ -290,7 +294,7 @@ func TestPerPersonHistoryKeepsScopedRouteAndFullControls(t *testing.T) {
 	for _, want := range []string{
 		"Past workflows", "Completed, rejected, and failed workflows recorded for Avery Patel.",
 		`class="history-filter"`, `action="/workspace/app/person"`, `name="person"`, `value="worker-avery"`,
-		`name="history_year"`, `name="history_sort"`, "Workflow", "Closed ↓", "Search workflow, change, or outcome", "Authoritative · v9",
+		`name="history_year"`, `name="history_sort"`, "Workflow", "Closed ↓", "Search workflow, change, or outcome",
 	} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("person history missing %q", want)
@@ -298,6 +302,9 @@ func TestPerPersonHistoryKeepsScopedRouteAndFullControls(t *testing.T) {
 	}
 	if strings.Contains(doc, "All employees") {
 		t.Fatal("person-scoped history rendered a cross-employee filter")
+	}
+	if strings.Contains(doc, "Authoritative · v9") {
+		t.Fatal("person-scoped history exposed a storage version outside evidence details")
 	}
 }
 
@@ -369,10 +376,11 @@ func TestPeopleRowsOfferEmployeeScopedWorkflowMenus(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`href="/workspace/app/journeys?mode=new&amp;worker=worker-jordan"`,
+		`href="/workspace/app/journeys?journey=intent-1"`,
 		`href="/workspace/app/journeys?mode=new&amp;worker=worker-avery"`,
 		`aria-label="Choose a workflow for Avery Patel"`,
 		`aria-label="Start Promotion for Avery Patel"`,
+		`aria-label="Open the active promotion for Jordan Lee"`,
 		`class="button secondary people-row-action"`,
 		`class="popover-surface people-workflow-options"`,
 		`data-hcm-transient-popover="people-workflows"`,
@@ -407,7 +415,7 @@ func TestPersonPageShowsServerFactsAndFilterableWorkflowLaunchers(t *testing.T) 
 	if primaryNavAriaCurrentCount(doc) != 1 {
 		t.Fatal("person page must keep exactly its People navigation parent active")
 	}
-	if !strings.Contains(doc, `aria-current="page">Avery Patel</span>`) {
+	if !strings.Contains(doc, `aria-current="page">Avery Patel · NW-40118</span>`) {
 		t.Fatal("person breadcrumb must name its worker beside the navigation marker")
 	}
 
@@ -521,7 +529,7 @@ func TestPeopleDirectoryCombinesFacetsSortAndPagination(t *testing.T) {
 func TestPeopleSortAndFacetControlsUseSharedResponsiveStyles(t *testing.T) {
 	css := Stylesheet()
 	for _, want := range []string{
-		`.people-filter-control{align-items:center;grid-template-columns:minmax(220px,1.8fr)`,
+		`.people-filter-control{align-items:center;grid-template-columns:minmax(175px,1.25fr) minmax(132px,0.85fr) minmax(170px,1.1fr)`,
 		`.people-filter select{background-color:var(--surface);border:1px solid var(--control-border);`,
 		`.people-sort{align-items:center;color:var(--muted);display:flex;font:inherit;min-height:44px;`,
 		`@media (max-width:760px){.people-filter-control{grid-template-columns:1fr;}`,

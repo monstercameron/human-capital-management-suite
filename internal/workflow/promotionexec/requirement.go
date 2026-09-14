@@ -43,12 +43,17 @@ func compileApprovalRequirement(id, approver string, decideBy time.Time, policyR
 		Separation: humanwork.SeparationConstraints{
 			RequesterMayNotApprove: true,
 			SubjectMayNotApprove:   true,
-			RuleID:                 "rule.promotion.separation/v1",
+			// Finance and current-manager approvals are independent authority
+			// classes. A principal who already filled one requirement must not
+			// be routed into the other, even when both expressions resolve them.
+			OneRequirementPerPrincipal: true,
+			RuleID:                     "rule.promotion.separation/v1",
 		},
-		Invalidators: []humanwork.Invalidator{{
-			Kind:   humanwork.InvalidatorMaterialProposalChange,
-			RuleID: "rule.promotion.invalidate.material_change/v1",
-		}},
+		Invalidators: []humanwork.Invalidator{
+			{Kind: humanwork.InvalidatorMaterialProposalChange, RuleID: "rule.promotion.invalidate.material_change/v1"},
+			{Kind: humanwork.InvalidatorAuthorityRevoked, RuleID: "rule.promotion.invalidate.authority_revoked/v1"},
+			{Kind: humanwork.InvalidatorDeadlineExpired, RuleID: "rule.promotion.invalidate.deadline/v1"},
+		},
 		Source: humanwork.RequirementSource{
 			Tier:                rules.ApprovalTierStandard,
 			TableID:             "promotion.approval.tier",

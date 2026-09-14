@@ -3,7 +3,6 @@ package journey
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -154,12 +153,6 @@ func evidence(principal *trust.Principal) envelope.Evidence {
 	return envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"}
 }
 
-// engineErrorPrefix is stripped from a sentinel-matched port error before its
-// remaining text is used, because every workspace journey sentinel is worded
-// as "workspace: ..." and repeating that package name to a browser client
-// says nothing it can act on.
-const engineErrorPrefix = "workspace: "
-
 // ownedError projects a workspace.JourneyEngine failure onto the repository's
 // owned error model, so the journey surface's wire shape is the same one
 // every other service produces (*envelope.Error implements grpc-go's status
@@ -209,10 +202,18 @@ func ownedError(err error, principal *trust.Principal, inv *transport.Invocation
 			"journey."+op+".stage",
 			"the action is not available at this stage")
 	case errors.Is(err, workspace.ErrJourneyInput):
+		field, reason, payRange := inputRefusal(err)
 		out = envelope.New(envelope.CodeInvalidArgument,
 			"journey."+op+".input",
-			inputMessage(err)).
-			WithViolation(inputField(err), "the proposal input is not acceptable", "workspace.ErrJourneyInput")
+			"the request input is not acceptable").
+			WithViolation(field, "review this field and try again", reason).
+			WithDiagnostic(err)
+		// Only the two promotion proposal operations may publish a corrected
+		// salary range. Other journey calls can return ErrJourneyInput but do
+		// not establish a pay-disclosure context.
+		if payRange != nil && (op == "propose" || op == "propose_promotion") {
+			out.WithViolationMoneyRange(payRange.Minimum, payRange.Maximum)
+		}
 	case errors.Is(err, workspace.ErrJourneyUnavailable):
 		out = envelope.New(envelope.CodeUnavailable,
 			"journey."+op+".engine_unavailable",
@@ -235,41 +236,40 @@ func ownedError(err error, principal *trust.Principal, inv *transport.Invocation
 	return out
 }
 
-// inputMessage renders an ErrJourneyInput failure's own wording, which names
-// the offending field, with the engine's package prefix removed. The text is
-// authored by internal/humanwork/workspace and internal/intent/app - both
-// ours - so it is safe to project; envelope.New screens it once more anyway
-// and demotes anything unsafe to the generic summary.
-func inputMessage(err error) string {
-	msg := strings.TrimPrefix(err.Error(), engineErrorPrefix)
-	if msg == "" {
-		return "the proposal input is malformed"
-	}
-	return msg
-}
-
-// inputField is the best available field path for an ErrJourneyInput
-// violation. The port promises the message names the field but not that it
-// names it in a machine-readable position, so the violation is attached to
-// the request as a whole unless the wrapped text starts with a known field
-// name.
-func inputField(err error) string {
-	msg := strings.TrimPrefix(err.Error(), engineErrorPrefix)
-	for _, field := range []string{
-		"worker_ref", "target", "job_code", "grade", "position_id",
-		"proposed_base", "effective_date", "business_reason", "reason", "intent_id",
-		// The create-worker form's own fields. They are listed after the
-		// proposal's because a refusal that names both (a job code, say) is
-		// about the placement either way, and the proposal is the older
-		// contract.
-		"legal_name", "preferred_name", "org_unit", "pay_zone", "location",
-		"base_pay", "currency", "bonus_target", "hire_date", "worker_key",
-	} {
-		if strings.Contains(msg, field) {
-			return field
+// inputRefusal accepts only the typed port contract. Legacy sentinel-only
+// failures remain request-level, never guessed from potentially sensitive prose.
+func inputRefusal(err error) (field, reason string, payRange *workspace.JourneyPayRange) {
+	var typed *workspace.JourneyInputError
+	if errors.As(err, &typed) && typed != nil {
+		// A typed port error is still an internal error, not a licence to
+		// publish arbitrary strings. Keep both wire coordinates closed so a
+		// future caller cannot accidentally expose a worker value or policy
+		// detail by putting it in FieldPath or ReasonRef.
+		if knownInputFields[typed.FieldPath] && knownInputReasons[typed.ReasonRef] {
+			if typed.FieldPath == "proposed_base" && typed.ReasonRef == "promotion.ladder.base_increase_out_of_range" && typed.PayRange != nil {
+				payRange = typed.PayRange
+			}
+			return typed.FieldPath, typed.ReasonRef, payRange
 		}
 	}
-	return "request"
+	return "request", "journey.input.invalid", nil
+}
+
+var knownInputFields = map[string]bool{
+	"(request)": true, "worker_ref": true, "subject_worker_ref": true,
+	"expected_subject_revision": true, "client_request_id": true,
+	"target_job_code": true, "desired_job_code": true, "target_grade": true, "desired_grade": true,
+	"position_id": true, "desired_position_id": true, "proposed_base": true, "desired_base_pay": true,
+	"desired_pay_currency": true, "effective_date": true, "reason": true, "business_reason": true,
+	"worker_key": true, "worker": true, "legal_name": true, "preferred_name": true,
+	"org_unit": true, "pay_zone": true, "location": true, "job_code": true, "grade": true,
+	"base_pay": true, "currency": true, "bonus_target": true, "hire_date": true,
+}
+
+var knownInputReasons = map[string]bool{
+	"journey.input.invalid":                       true,
+	"promotion.base_pay.not_exact":                true,
+	"promotion.ladder.base_increase_out_of_range": true,
 }
 
 // engine returns the configured port, or a typed UNAVAILABLE when the

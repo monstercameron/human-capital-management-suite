@@ -61,7 +61,7 @@ func TestTodo_WEB_134_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "1a0c3d978730782045baa3e34e87a94ba6d582bc21614866630b329d3126b5ac"
+	const want = "d9b4df584f38661866c9ef6e099c96d7850fcbd45373124f5409fe1a6ba00fbc"
 	if got != want {
 		t.Fatalf("position digest = %s, want %s", got, want)
 	}

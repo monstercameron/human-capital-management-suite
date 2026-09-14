@@ -62,7 +62,7 @@ func TestTodo_WEB_207_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "661854944af5b390a6177ca60cf8f9177defa61a4a4bab354c0b63591b3c86a6"
+	const want = "499507a376aa55563ecf008fa418fa4f7831428557446236e558a411082e00b5"
 	if got != want {
 		t.Fatalf("offboarding impact simulation digest = %s, want %s", got, want)
 	}

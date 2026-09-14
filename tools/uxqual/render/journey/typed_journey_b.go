@@ -204,12 +204,11 @@ func declareJourneyForms() {
 		gwccss.Raw("text-decoration", "none"),
 		gwccss.Raw("white-space", "nowrap"),
 		gwccss.Raw("background", "linear-gradient(180deg,var(--jn-accent),var(--jn-accent-strong))"),
-		gwccss.Raw("box-shadow", "var(--jn-shadow),inset 0 1px 0 rgba(255,255,255,.14)"),
+		gwccss.Raw("box-shadow", "none"),
 		gwccss.Raw("transition", "transform .12s var(--jn-ease),box-shadow .15s var(--jn-ease),filter .15s var(--jn-ease)"),
 	)
 	declareGlobal(`.jn-btn:hover`,
 		gwccss.Raw("filter", "brightness(1.08)"),
-		gwccss.Raw("box-shadow", "var(--jn-shadow-raised)"),
 	)
 	declareGlobal(`.jn-btn:active`,
 		gwccss.Transform(gwccss.TranslateY(gwccss.Px(1))),
@@ -218,7 +217,7 @@ func declareJourneyForms() {
 		gwccss.Raw("background", "var(--jn-surface)"),
 		gwccss.TextColor(gwccss.Var("jn-accent")),
 		gwccss.BorderColor(gwccss.Var("jn-control-border")),
-		gwccss.Raw("box-shadow", "var(--jn-shadow)"),
+		gwccss.Raw("box-shadow", "none"),
 	)
 	declareGlobal(`.jn-btn[data-variant="secondary"]:hover`,
 		gwccss.Raw("background", "var(--jn-surface-sunk)"),

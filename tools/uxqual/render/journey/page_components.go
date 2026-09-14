@@ -5,6 +5,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
 // pageHeaderProps is the shared heading contract for the journey overview
@@ -50,15 +51,16 @@ func pageHeader(props pageHeaderProps) ui.Node {
 // engineUnavailableCallout is shared by every page that can offer an
 // execution-backed action. Feature views decide availability; the callout
 // owns one consistent explanation and accessible structure.
-func engineUnavailableCallout(available bool, notice string) ui.Node {
+func engineUnavailableCallout(locale string, available bool, notice string) ui.Node {
 	if available || notice == "" {
 		return nil
 	}
+	copy := productui.ResolveProductLocale(locale)
 	return html.Div(html.Props{Class: "jn-callout"},
-		iconInfo("jn-callout-icon"),
+		RenderIcon(IconInfo, "jn-callout-icon", nil),
 		html.Div(html.Props{},
-			html.P(html.Props{Class: "jn-callout-title"}, html.Text("Execution is not composed on this cell")),
-			html.P(html.Props{Class: "jn-callout-detail"}, html.Text(notice)),
+			html.P(html.Props{Class: "jn-callout-title"}, html.Text(copy.Text("journey.actions_unavailable_title"))),
+			html.P(html.Props{Class: "jn-callout-detail"}, html.Text(copy.Text("journey.actions_unavailable_detail"))),
 		),
 	)
 }
@@ -79,7 +81,7 @@ func loadingPanel(title, detail string) ui.Node {
 // informational notices remain fully interactive; a server refusal can never
 // accidentally turn the page into a loading state.
 func networkPending(p Page) bool {
-	return p.Notice != nil && p.Notice.Title == "Working…"
+	return p.Notice != nil && p.Notice.Busy
 }
 
 // networkAwarePageBody retains enough of the previous surface to preserve
@@ -87,13 +89,28 @@ func networkPending(p Page) bool {
 // unresolved region with a component-shaped proxy. The focused proposal has
 // its own narrower loadingPanel and does not need a second proxy.
 func networkAwarePageBody(p Page, body ui.Node) ui.Node {
-	if !networkPending(p) || p.Proposal != nil && p.Proposal.Loading {
+	if !networkPending(p) || p.Proposal != nil && p.Proposal.Loading || reviewActionPending(p) {
 		return body
 	}
 	return html.Div(html.Props{Class: "jn-network-stage"},
 		html.Div(html.Props{Class: "jn-network-stale", Raw: map[string]any{"aria-hidden": "true", "inert": true}}, body),
 		journeyLoadingProxy(),
 	)
+}
+
+// A consequential action keeps its native confirmation dialog mounted while
+// the RPC is in flight. The dialog controller disables both actions and shows
+// its own progress status; replacing the detail with a proxy would hide it.
+func reviewActionPending(p Page) bool {
+	if p.Detail == nil || p.Notice == nil || !p.Notice.Busy {
+		return false
+	}
+	switch p.Notice.MessageKey {
+	case "journey.busy_start", "journey.busy_approve", "journey.busy_reject":
+		return true
+	default:
+		return false
+	}
 }
 
 func journeyLoadingProxy() ui.Node {

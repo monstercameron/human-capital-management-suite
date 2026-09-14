@@ -14,6 +14,33 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
+// promotionApproverContext supplies the independently authenticated, routed
+// finance or manager actor. The proposal initiator must never decide either
+// approval, even in an integration fixture.
+func promotionApproverContext(t *testing.T, now time.Time, subject string) context.Context {
+	t.Helper()
+	verifier, err := trust.NewHMACVerifier(trust.HMACVerifierConfig{
+		Key: []byte(integrationSigningKey), Issuer: DefaultIssuer, Audience: DefaultAudience, Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatalf("approver verifier: %v", err)
+	}
+	token, err := verifier.Issue(trust.Claims{
+		Issuer: DefaultIssuer, Audience: DefaultAudience, Subject: subject, SubjectKind: "human", Tenant: string(fixtures.Tenant),
+		OrganizationScopeID: "org-north-america", Roles: []string{"comp_admin", "promotion_operator"}, Purposes: []string{"compensation_review"},
+		AuthenticationMethod: "bearer_token", Assurance: "substantial", SessionRef: "session:" + subject,
+		IssuedAtUnix: now.Add(-time.Minute).Unix(), ExpiresAtUnix: now.Add(48 * time.Hour).Unix(),
+	})
+	if err != nil {
+		t.Fatalf("issue routed approver credential: %v", err)
+	}
+	principal, err := verifier.Verify(context.Background(), trust.Credential{Scheme: "Bearer", Token: token, Audience: DefaultAudience})
+	if err != nil {
+		t.Fatalf("verify routed approver credential: %v", err)
+	}
+	return trust.WithPrincipal(context.Background(), principal)
+}
+
 // promoux013Composed builds one full production composition (real
 // PostgreSQL via pgtest, the real journey engine, the real P1B execution
 // authority) exactly as TestTodo_PROMOUX_014_Integration does, and returns a
@@ -38,7 +65,8 @@ func promoux013Composed(t *testing.T, now *time.Time) (context.Context, workspac
 		Migrate: false, Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux013-integration-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: approver,
-		WorkflowPlan: WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
+		ExecutionManagerApprover: approver + "-manager",
+		WorkflowPlan:             WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
 		TimerCalendarVersion: DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
@@ -198,7 +226,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 			t.Fatalf("after execute stage = %s, want FINANCE_APPROVAL", financeWaiting.Summary.Stage)
 		}
 		now = now.Add(10 * time.Minute)
-		finance, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
+		finance, err := journey.Decide(promotionApproverContext(t, now, "principal:promoux013-integration-approver"), proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"})
 		if err != nil {
 			t.Fatalf("Journey.Decide(finance): %v", err)
 		}
@@ -327,11 +355,11 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 		}
 		_ = financeWaiting
 		now = now.Add(10 * time.Minute)
-		if _, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"}); err != nil {
+		if _, err := journey.Decide(promotionApproverContext(t, now, "principal:promoux013-integration-approver"), proposed.IntentID, workspace.Decision{Approve: true, Reason: "finance approved"}); err != nil {
 			t.Fatalf("Journey.Decide(finance): %v", err)
 		}
 		now = now.Add(10 * time.Minute)
-		waiting, err := journey.Decide(ctx, proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
+		waiting, err := journey.Decide(promotionApproverContext(t, now, "principal:promoux013-integration-approver-manager"), proposed.IntentID, workspace.Decision{Approve: true, Reason: "manager approved"})
 		if err != nil {
 			t.Fatalf("Journey.Decide(manager): %v", err)
 		}

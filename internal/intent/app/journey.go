@@ -2,10 +2,13 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,8 +17,10 @@ import (
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
@@ -24,6 +29,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 )
 
 // The Promotion journey engine: the server side of the workspace's journey
@@ -122,7 +128,7 @@ func journeyError(err error) error {
 	}
 	switch owned.ReasonRef() {
 	case reasonNoExecutablePlan, reasonProposalDecisionRejected, reasonProposalDecisionExpired,
-		reasonProposalDecisionConflict, reasonProposalDecisionStage, reasonStaleRevision:
+		reasonProposalDecisionConflict, reasonProposalDecisionStage, reasonStaleRevision, reasonPromotionActive:
 		return fmt.Errorf("%w: %s", workspace.ErrJourneyStage, owned.Error())
 	case reasonExecutionUnavailable, reasonNoGovernedWrite, reasonProposalDecisionRoute:
 		return fmt.Errorf("%w: %s", workspace.ErrJourneyUnavailable, owned.Error())
@@ -136,7 +142,11 @@ func journeyError(err error) error {
 
 // journeyInputError names the field the manager has to fix.
 func journeyInputError(field, detail string) error {
-	return fmt.Errorf("%w: %s: %s", workspace.ErrJourneyInput, field, detail)
+	return journeyInputErrorReason(field, "journey.input.invalid", detail)
+}
+
+func journeyInputErrorReason(field, reason, detail string) error {
+	return &workspace.JourneyInputError{FieldPath: field, ReasonRef: reason, Detail: detail}
 }
 
 // journeyPrincipal reads the verified principal the whole call runs on behalf
@@ -170,11 +180,18 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 	if err != nil {
 		return nil, err
 	}
-	listed, listErr := e.svc.ListIntents(ctx, &intentsv1.ListIntentsRequest{
-		Page: &commonv1.PageRequest{PageSize: journeyListPageSize},
-	})
-	if listErr != nil {
-		return nil, journeyError(listErr)
+	var all []*intentsv1.IntentInstance
+	cursor := ""
+	for {
+		listed, listErr := e.svc.ListIntents(ctx, &intentsv1.ListIntentsRequest{Page: &commonv1.PageRequest{PageSize: journeyListPageSize, Cursor: cursor}})
+		if listErr != nil {
+			return nil, journeyError(listErr)
+		}
+		all = append(all, listed.GetIntents()...)
+		cursor = listed.GetPage().GetNextCursor()
+		if cursor == "" {
+			break
+		}
 	}
 
 	tx, txErr := e.beginTenant(ctx, principal)
@@ -183,12 +200,12 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	out := make([]workspace.JourneySummary, 0, len(listed.GetIntents()))
+	out := make([]workspace.JourneySummary, 0, len(all))
 	// UXAUDIT-017: one clock reading and one bounded name resolver for the
 	// whole page; the work item summary itself reuses record.items below.
 	now := e.now()
 	assigneeName := e.assigneeNameResolver(ctx, principal.Tenant())
-	for _, msg := range listed.GetIntents() {
+	for _, msg := range all {
 		if msg.GetDefinition().GetIntentTypeId() != promotion.IntentType {
 			continue
 		}
@@ -228,6 +245,9 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 			summary.InstanceID = record.instance.InstanceID.String()
 			summary.InstanceVersion = record.instance.InstanceVersion
 		}
+		if item, open := openJourneyWorkItem(record.items); open {
+			summary.Approver = item.Assignment.ChosenOwner
+		}
 		applyDurableJourneyTime(&summary, record)
 		summary.CurrentWorkItem = journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), now, assigneeName)
 		// PROMOUX-012: the viewer's relationship and the next transition, from
@@ -245,22 +265,144 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 	return out, nil
 }
 
-// applyDurableJourneyTime makes the list's "closed" coordinate come from the
-// strongest durable row available. Ledger recorded_at wins because it is when
-// the business fact entered the authoritative chronology; a terminal runtime
-// without that fact uses its own completed_at and never the intent's earlier
-// simulation timestamp.
+func (e *journeyEngine) ListJourneysPage(ctx context.Context, req workspace.JourneyListRequest) (workspace.JourneyListPage, error) {
+	all, err := e.ListJourneys(ctx)
+	if err != nil {
+		return workspace.JourneyListPage{}, err
+	}
+	query := strings.ToLower(strings.TrimSpace(req.Query))
+	worker := strings.TrimSpace(req.WorkerRef)
+	filtered := all[:0]
+	for _, item := range all {
+		if worker != "" && item.Worker.String() != worker {
+			continue
+		}
+		if query != "" && !strings.Contains(strings.ToLower(item.WorkerName+" "+item.BusinessReason+" "+item.IntentID), query) {
+			continue
+		}
+		if outcome := strings.ToLower(strings.TrimSpace(req.Outcome)); outcome != "" && strings.ToLower(string(item.Stage)) != outcome {
+			continue
+		}
+		if year := strings.TrimSpace(req.Year); year != "" && !strings.HasPrefix(item.EffectiveDate, year) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		var left, right string
+		switch strings.ToLower(req.Sort) {
+		case "person":
+			left, right = strings.ToLower(filtered[i].WorkerName), strings.ToLower(filtered[j].WorkerName)
+		case "change":
+			left, right = strings.ToLower(filtered[i].Target.JobCode), strings.ToLower(filtered[j].Target.JobCode)
+		default:
+			left, right = filtered[i].UpdatedAt.UTC().Format(time.RFC3339Nano), filtered[j].UpdatedAt.UTC().Format(time.RFC3339Nano)
+		}
+		if left == right {
+			return filtered[i].IntentID < filtered[j].IntentID
+		}
+		if strings.ToLower(req.Direction) == "desc" {
+			return left > right
+		}
+		return left < right
+	})
+	size := req.PageSize
+	if size <= 0 {
+		size = 50
+	}
+	if size > 100 {
+		size = 100
+	}
+	start := 0
+	if req.Page > 1 {
+		start = (req.Page - 1) * size
+	}
+	fingerprint := historyQueryFingerprint(req, size)
+	if req.Cursor != "" {
+		raw, decErr := base64.RawURLEncoding.DecodeString(req.Cursor)
+		if decErr != nil {
+			return workspace.JourneyListPage{}, fmt.Errorf("journey: invalid history cursor: %w", decErr)
+		}
+		var cursor historyCursor
+		decErr = json.Unmarshal(raw, &cursor)
+		if decErr != nil || cursor.Fingerprint != fingerprint || cursor.Offset < 0 {
+			return workspace.JourneyListPage{}, fmt.Errorf("journey: invalid history cursor")
+		}
+		start = cursor.Offset
+	}
+	if start > len(filtered) {
+		start = len(filtered)
+	}
+	end := start + size
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	next := ""
+	if end < len(filtered) {
+		nextBytes, _ := json.Marshal(historyCursor{Fingerprint: fingerprint, Offset: end})
+		next = base64.RawURLEncoding.EncodeToString(nextBytes)
+	}
+	return workspace.JourneyListPage{Journeys: append([]workspace.JourneySummary(nil), filtered[start:end]...), NextCursor: next, TotalCount: len(filtered)}, nil
+}
+
+type historyCursor struct {
+	Fingerprint string `json:"fingerprint"`
+	Offset      int    `json:"offset"`
+}
+
+func historyQueryFingerprint(req workspace.JourneyListRequest, size int) string {
+	canonical := strings.Join([]string{strings.TrimSpace(req.WorkerRef), strings.ToLower(strings.TrimSpace(req.Query)), strings.ToLower(strings.TrimSpace(req.Outcome)), strings.TrimSpace(req.Year), strings.ToLower(strings.TrimSpace(req.Sort)), strings.ToLower(strings.TrimSpace(req.Direction)), strconv.Itoa(size)}, "\x00")
+	sum := sha256.Sum256([]byte(canonical))
+	return fmt.Sprintf("%x", sum[:])
+}
+
+// applyDurableJourneyTime makes the summary's updated coordinate follow the
+// latest durable business transition, including an in-flight approval. The
+// intent's simulation timestamp remains the floor for an unexecuted draft.
 func applyDurableJourneyTime(summary *workspace.JourneySummary, record journeyRecord) {
 	if summary == nil {
 		return
 	}
-	if record.ledger != nil && !record.ledger.RecordedAt.IsZero() {
-		summary.UpdatedAt = record.ledger.RecordedAt.UTC()
-		return
+	latest := summary.UpdatedAt
+	advance := func(at time.Time) {
+		if at.After(latest) {
+			latest = at.UTC()
+		}
 	}
-	if record.instance != nil && record.instance.CompletedAt != nil {
-		summary.UpdatedAt = record.instance.CompletedAt.UTC()
+	if record.instance != nil {
+		advance(record.instance.CreatedAt)
+		if record.instance.StartedAt != nil {
+			advance(*record.instance.StartedAt)
+		}
+		if record.instance.CompletedAt != nil {
+			advance(*record.instance.CompletedAt)
+		}
 	}
+	for _, node := range record.nodes {
+		advance(node.RecordedAt)
+		if node.StartedAt != nil {
+			advance(*node.StartedAt)
+		}
+		if node.CompletedAt != nil {
+			advance(*node.CompletedAt)
+		}
+	}
+	for _, item := range record.items {
+		advance(item.CreatedAt)
+		if item.ClaimedAt != nil {
+			advance(*item.ClaimedAt)
+		}
+		if item.CompletedAt != nil {
+			advance(*item.CompletedAt)
+		}
+	}
+	for _, transition := range record.transitions {
+		advance(transition.At)
+	}
+	if record.ledger != nil {
+		advance(record.ledger.RecordedAt)
+	}
+	summary.UpdatedAt = latest
 }
 
 // resimulate re-runs the read-only simulation for one intent and returns the
@@ -268,7 +410,7 @@ func applyDurableJourneyTime(summary *workspace.JourneySummary, record journeyRe
 // a journey whose simulation no longer produces an executable plan is a
 // BLOCKED row on the list, not a failed page.
 func (e *journeyEngine) resimulate(ctx context.Context, intentID string) (*intentsv1.SimulationArtifact, error) {
-	simulated, err := e.resimulateDetailed(ctx, intentID)
+	simulated, err := e.resimulateDetailedWithRelationships(ctx, intentID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -276,6 +418,22 @@ func (e *journeyEngine) resimulate(ctx context.Context, intentID string) (*inten
 }
 
 func (e *journeyEngine) resimulateDetailed(ctx context.Context, intentID string) (simulationResult, error) {
+	return e.resimulateDetailedWithRelationships(ctx, intentID, nil)
+}
+
+func (e *journeyEngine) resimulateWithRelationships(
+	ctx context.Context, intentID string, relationships []authz.RelationshipFact,
+) (*intentsv1.SimulationArtifact, error) {
+	simulated, err := e.resimulateDetailedWithRelationships(ctx, intentID, relationships)
+	if err != nil {
+		return nil, err
+	}
+	return simulated.Artifact, nil
+}
+
+func (e *journeyEngine) resimulateDetailedWithRelationships(
+	ctx context.Context, intentID string, relationships []authz.RelationshipFact,
+) (simulationResult, error) {
 	principal, inv, err := caller(ctx)
 	if err != nil {
 		return simulationResult{}, journeyError(err)
@@ -288,7 +446,7 @@ func (e *journeyEngine) resimulateDetailed(ctx context.Context, intentID string)
 	if resolveErr != nil {
 		return simulationResult{}, journeyError(resolveErr)
 	}
-	simulated, simErr := e.svc.simulateDetailed(ctx, principal, purposeOf(principal, inv), inst, def)
+	simulated, simErr := e.svc.simulateDetailedWithRelationships(ctx, principal, purposeOf(principal, inv), inst, def, relationships)
 	if simErr != nil {
 		return simulationResult{}, journeyError(simErr)
 	}
@@ -448,8 +606,15 @@ func journeySubjects(workerID, targetPositionID string) []*intentsv1.SubjectRefe
 		{SubjectKind: "EMPLOYMENT", SubjectId: workerID, AuthorityDomain: "PEOPLE"},
 	}
 	if strings.TrimSpace(targetPositionID) != "" {
+		// The proposal payload binds the exact picker-issued revision, while
+		// the intent's material subject names the underlying position entity.
+		// RevisionRef's wire separator is not canonical subject-id text.
+		positionID := targetPositionID
+		if selected, _, err := position.RevisionRef(targetPositionID).Decode(); err == nil {
+			positionID = selected.Id
+		}
 		subjects = append(subjects, &intentsv1.SubjectReference{
-			SubjectKind: "POSITION", SubjectId: targetPositionID, AuthorityDomain: "POSITION",
+			SubjectKind: "POSITION", SubjectId: positionID, AuthorityDomain: "POSITION",
 		})
 	}
 	return subjects
@@ -496,32 +661,55 @@ func validatePublishedPromotionPath(current journeyCurrent, in workspace.Proposa
 			scope.TargetJobCode != strings.TrimSpace(in.TargetJobCode) || scope.TargetGrade != strings.TrimSpace(in.TargetGrade) {
 			continue
 		}
-		currentPay, err := values.NewMoney(baseline.currentBase, baseline.currency, fixtures.MoneyScale, fixtures.MoneyRounding)
+		return validatePublishedBaseIncrease(in.ProposedBase, baseline, scope.Path.MinimumBaseIncrease, scope.Path.MaximumBaseIncrease)
+	}
+	// The workforce options publish the demo company's deterministic ladder in
+	// addition to the fixed conformance corpus. Admission must read that same
+	// source, or the UI offers a next role the server always rejects.
+	for _, edge := range demoworkforce.PromotionPaths() {
+		if edge.OrgUnit != current.orgUnit || edge.SourceJobCode != current.jobCode ||
+			edge.SourceGrade != current.grade || edge.TargetJobCode != strings.TrimSpace(in.TargetJobCode) ||
+			edge.TargetGrade != strings.TrimSpace(in.TargetGrade) {
+			continue
+		}
+		minimum, err := values.NewPercentage(edge.MinimumBaseIncrease, fixtures.PercentScale, values.RoundingExactRequired)
 		if err != nil {
-			return fmt.Errorf("app: journey: parse current base for ladder rule: %w", err)
+			return fmt.Errorf("app: journey: invalid demo ladder minimum: %w", err)
 		}
-		proposedPay, err := values.NewMoney(strings.TrimSpace(in.ProposedBase), baseline.currency, fixtures.MoneyScale, fixtures.MoneyRounding)
+		maximum, err := values.NewPercentage(edge.MaximumBaseIncrease, fixtures.PercentScale, values.RoundingExactRequired)
 		if err != nil {
-			return journeyInputError("proposed_base", "must be an exact monetary amount in the worker's currency")
+			return fmt.Errorf("app: journey: invalid demo ladder maximum: %w", err)
 		}
-		difference, err := proposedPay.Sub(currentPay)
-		if err != nil {
-			return fmt.Errorf("app: journey: compare proposed base to ladder rule: %w", err)
-		}
-		fraction, err := difference.Amount().Div(currentPay.Amount(), fixtures.PercentScale, fixtures.MoneyRounding)
-		if err != nil {
-			return fmt.Errorf("app: journey: calculate exact base increase: %w", err)
-		}
-		increase, err := values.NewPercentage(fraction.String(), fixtures.PercentScale, values.RoundingExactRequired)
-		if err != nil {
-			return fmt.Errorf("app: journey: represent exact base increase: %w", err)
-		}
-		if err := scope.Path.AllowsBaseIncrease(increase); err != nil {
-			return journeyInputError("proposed_base", "the published ladder edge requires a base increase between "+scope.Path.MinimumBaseIncrease.String()+" and "+scope.Path.MaximumBaseIncrease.String()+" (decimal fractions)")
-		}
-		return nil
+		return validatePublishedBaseIncrease(in.ProposedBase, baseline, minimum, maximum)
 	}
 	return journeyInputError("target_job_code", "the target job and grade are not a published next step from the worker's current profile")
+}
+
+// validatePublishedBaseIncrease compares exact decimal money differences with
+// exact fractional thresholds. Dividing and rounding a ratio first can admit
+// a cent just outside the published bound; the threshold multiplication keeps
+// the admission predicate identical at every penny boundary.
+func validatePublishedBaseIncrease(proposedBase string, baseline journeyBaselineFacts, minimum, maximum values.Percentage) error {
+	currentPay, err := values.NewMoney(baseline.currentBase, baseline.currency, fixtures.MoneyScale, fixtures.MoneyRounding)
+	if err != nil {
+		return fmt.Errorf("app: journey: parse current base for ladder rule: %w", err)
+	}
+	proposedPay, err := values.NewMoney(strings.TrimSpace(proposedBase), baseline.currency, fixtures.MoneyScale, values.RoundingExactRequired)
+	if err != nil {
+		return journeyInputErrorReason("proposed_base", "promotion.base_pay.not_exact", "must be an exact monetary amount in the worker's currency")
+	}
+	minimumPay, maximumPay, err := promotion.BasePayBounds(currentPay, minimum, maximum)
+	if err != nil {
+		return fmt.Errorf("app: journey: calculate exact ladder bounds: %w", err)
+	}
+	if proposedPay.Amount().Cmp(minimumPay.Amount()) < 0 || proposedPay.Amount().Cmp(maximumPay.Amount()) > 0 {
+		return &workspace.JourneyInputError{
+			FieldPath: "proposed_base", ReasonRef: "promotion.ladder.base_increase_out_of_range",
+			Detail:   "the published ladder edge requires a base increase between " + minimum.String() + " and " + maximum.String() + " (decimal fractions)",
+			PayRange: &workspace.JourneyPayRange{Minimum: minimumPay, Maximum: maximumPay},
+		}
+	}
+	return nil
 }
 
 // journeyBaseline is the declared, corpus-sourced half of a promotion request:
@@ -539,6 +727,8 @@ type journeyBaselineFacts struct {
 	currentBase    string
 	currency       string
 	bonusTarget    string
+	revisionStream string
+	revisionSeq    string
 	budgetAvailabe string
 	evaluationDate string
 	// knownAt is the knowledge cut-off the governed worker read is taken at,
@@ -596,6 +786,8 @@ func journeyBaseline(in workspace.ProposalInput, subject WorkerLocation) (journe
 		facts.currentBase = created.BasePay
 		facts.currency = created.Currency
 		facts.bonusTarget = created.BonusTarget
+		facts.revisionStream = created.RevisionStream
+		facts.revisionSeq = fmt.Sprint(created.RevisionSequence)
 		facts.knownAt = created.KnownAt.UTC().Format(time.DateOnly)
 	} else if subject.Key == "jane-doe" {
 		facts.currentBase = fixtures.JanePromotionBase
@@ -702,7 +894,12 @@ func journeyRequestPayload(
 	if len(extras) > 0 {
 		extra = extras[0]
 	}
-	stream := promotionRevisionStream(workerKey)
+	stream := baseline.revisionStream
+	sequence := baseline.revisionSeq
+	if stream == "" {
+		stream = promotionRevisionStream(workerKey)
+		sequence = promotionRevisionSequence
+	}
 	side := func(base string) map[string]any {
 		return map[string]any{
 			"base":              base,
@@ -711,7 +908,7 @@ func journeyRequestPayload(
 			"bonus_target":      baseline.bonusTarget,
 			"effective_date":    baseline.effectiveText,
 			"revision_stream":   stream,
-			"revision_sequence": promotionRevisionSequence,
+			"revision_sequence": sequence,
 		}
 	}
 	fields := map[string]any{
@@ -844,6 +1041,10 @@ func journeySummaryFromProto(msg *intentsv1.IntentInstance) (workspace.JourneySu
 	if msg == nil {
 		return workspace.JourneySummary{}, fmt.Errorf("app: journey: no intent")
 	}
+	tenant := values.TenantId(msg.GetTenantId())
+	if err := tenant.Validate(); err != nil {
+		return workspace.JourneySummary{}, fmt.Errorf("app: journey: invalid stored tenant: %w", err)
+	}
 	payload, err := decodeStruct(msg.GetRequest().GetProtobufWireBytes())
 	if err != nil {
 		return workspace.JourneySummary{}, fmt.Errorf("app: journey: %w", err)
@@ -855,6 +1056,9 @@ func journeySummaryFromProto(msg *intentsv1.IntentInstance) (workspace.JourneySu
 		BusinessReason: optionalStr(payload, "business_reason"),
 	}
 	if worker, ok := workspaceWorker(optionalStr(payload, "worker_ref")); ok {
+		// The corpus lookup can supply an ID, never the authority tenant. A
+		// sandbox or imported tenant must retain the intent's stored scope.
+		worker.Tenant = tenant
 		summary.Worker = worker
 	} else {
 		// A created worker's key is not a well-formed entity identifier, so
@@ -862,7 +1066,7 @@ func journeySummaryFromProto(msg *intentsv1.IntentInstance) (workspace.JourneySu
 		// the authoritative id in from the intent's own EMPLOYMENT subject;
 		// this only supplies the tenant and kind so the reference is
 		// well-formed once it does.
-		summary.Worker = values.EntityRef{Tenant: fixtures.Tenant, Kind: people.KindWorker}
+		summary.Worker = values.EntityRef{Tenant: tenant, Kind: people.KindWorker}
 	}
 	summary.WorkerName = optionalStr(payload, "worker_name")
 	if summary.WorkerName == "" {

@@ -28,6 +28,7 @@ func TestDataTableRendersConfigurableRectangularMatrix(t *testing.T) {
 		`role="region"`, `aria-label="Compensation matrix results"`, `<table`, `<caption`, `<thead`, `<tbody`,
 		`scope="col"`, `scope="row"`, `aria-sort="ascending"`, `data-row-id="worker-1"`,
 		`data-column="salary"`, `data-label="Salary"`, `data-table-width-14`, `tabIndex="0"`,
+		`data-preserve-scroll="true"`, `data-preserve-focus="true"`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("configurable data table missing %q\n%s", want, markup)
@@ -41,11 +42,32 @@ func TestDataTableRendersConfigurableRectangularMatrix(t *testing.T) {
 	}
 }
 
+func TestDataTableMarksEverySortableHeaderAndKeepsStableIdentity(t *testing.T) {
+	markup, err := ui.RenderToString(ui.CreateElement(DataTable, DataTableProps{
+		ID: "people-directory-table", Caption: "People", AriaLabel: "People", Columns: []DataTableColumnProps{
+			{ID: "name", Label: "Name", Href: "/people?sort=name", Sort: DataTableAscending},
+			{ID: "team", Label: "Team", Href: "/people?sort=team", Sort: DataTableUnsorted},
+			{ID: "actions", Label: "Actions"},
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`id="people-directory-table-viewport"`, `id="people-directory-table"`, `aria-sort="ascending"`} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("data table missing %q: %s", want, markup)
+		}
+	}
+	if got := strings.Count(markup, `aria-sort=`); got != 1 {
+		t.Fatalf("active sorted headers=%d want=1: %s", got, markup)
+	}
+}
+
 func TestDataTableNormalizesUnsafeColumnDefinitions(t *testing.T) {
 	columns := normalizedDataTableColumns([]DataTableColumnProps{
-		{ID: " name ", Label: "Name"}, {ID: "", Label: "Missing"}, {ID: "name", Label: "Duplicate"}, {ID: "role", Label: "Role"},
+		{ID: " name ", Label: "Name"}, {ID: "", Label: "Missing"}, {ID: "name", Label: "Duplicate"}, {ID: "role", Label: "Role", Sort: DataTableSortDirection("invalid")},
 	})
-	if len(columns) != 2 || columns[0].ID != "name" || columns[0].Sort != DataTableUnsorted || columns[1].ID != "role" {
+	if len(columns) != 2 || columns[0].ID != "name" || columns[0].Sort != DataTableUnsorted || columns[1].ID != "role" || columns[1].Sort != DataTableUnsorted {
 		t.Fatalf("normalized columns = %+v", columns)
 	}
 }

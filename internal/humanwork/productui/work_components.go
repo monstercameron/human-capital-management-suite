@@ -9,22 +9,27 @@ import (
 
 type WorkPageProps struct {
 	I18nProps
-	Collection  WorkCollectionProps
-	Preview     WorkPreviewProps
-	HidePreview bool
+	Collection    WorkCollectionProps
+	Preview       WorkPreviewProps
+	HidePreview   bool
+	Drafts        WorkCollectionProps
+	Tracked       TrackedRequestsProps
+	ShowSecondary bool
 }
 
 type WorkCollectionProps struct {
 	I18nProps
-	Title      string
-	CountLabel string
-	Tabs       []WorkTabProps
-	Rows       []WorkRowProps
-	Footer     WorkCollectionFooterProps
 	// EmptyTitle and EmptyDetail are the localized empty state for the
 	// current view; empty falls back to the action-queue copy.
+	Title       string
+	Description string
 	EmptyTitle  string
 	EmptyDetail string
+	Kind        string
+	CountLabel  string
+	Tabs        []WorkTabProps
+	Rows        []WorkRowProps
+	Footer      WorkCollectionFooterProps
 }
 
 type WorkTabProps struct {
@@ -141,13 +146,26 @@ type WorkPreviewProps struct {
 func WorkPage(props WorkPageProps) ui.Node {
 	props.Collection.I18nProps = props.I18nProps
 	props.Preview.I18nProps = props.I18nProps
+	var primary ui.Node
 	if props.HidePreview {
-		return html.Div(html.Props{Class: "page-stack"}, ui.CreateElement(WorkCollection, props.Collection))
+		primary = html.Div(html.Props{Class: "page-stack"}, ui.CreateElement(WorkCollection, props.Collection))
+	} else {
+		primary = html.Div(html.Props{Class: "workbench"},
+			ui.CreateElement(WorkCollection, props.Collection),
+			ui.CreateElement(WorkPreview, props.Preview),
+		)
 	}
-	return html.Div(html.Props{Class: "workbench"},
-		ui.CreateElement(WorkCollection, props.Collection),
-		ui.CreateElement(WorkPreview, props.Preview),
-	)
+	if !props.ShowSecondary {
+		return primary
+	}
+	secondary := make([]ui.Node, 0, 2)
+	if len(props.Drafts.Rows) > 0 {
+		secondary = append(secondary, ui.CreateElement(WorkCollection, props.Drafts))
+	}
+	if len(props.Tracked.Items) > 0 {
+		secondary = append(secondary, ui.CreateElement(TrackedRequests, props.Tracked))
+	}
+	return html.Div(html.Props{Class: "page-stack"}, primary, html.Div(html.Props{Class: "work-secondary"}, secondary...))
 }
 
 func WorkCollection(props WorkCollectionProps) ui.Node {
@@ -161,28 +179,49 @@ func WorkCollection(props WorkCollectionProps) ui.Node {
 		rows = append(rows, ui.CreateElement(WorkRow, item))
 	}
 	if len(rows) == 0 {
-		title, detail := props.EmptyTitle, props.EmptyDetail
-		if title == "" {
-			title, detail = props.Text("work.empty_title"), props.Text("work.empty_detail")
+		emptyTitle, emptyDetail := props.EmptyTitle, props.EmptyDetail
+		if emptyTitle == "" {
+			emptyTitle = props.Text("work.empty_title")
+		}
+		if emptyDetail == "" {
+			emptyDetail = props.Text("work.empty_detail")
 		}
 		rows = append(rows, html.Li(html.Props{Class: "collection-empty"},
-			html.Strong(html.Props{}, ui.Text(title)),
-			html.Small(html.Props{}, ui.Text(detail)),
+			html.Strong(html.Props{}, ui.Text(emptyTitle)),
+			html.Small(html.Props{}, ui.Text(emptyDetail)),
 		))
 	}
-	foot := []ui.Node{html.Span(html.Props{}, ui.Text(props.Footer.Label))}
+	foot := []ui.Node{}
+	if props.Footer.Label != "" {
+		foot = append(foot, html.Span(html.Props{}, ui.Text(props.Footer.Label)))
+	}
 	if props.Footer.Note != "" {
 		foot = append(foot, html.Small(html.Props{Class: "work-list-note"}, ui.Text(props.Footer.Note)))
 	}
 	if props.Footer.Action.Href != "" {
 		foot = append(foot, ui.CreateElement(ActionLink, props.Footer.Action))
 	}
-	return html.Section(html.Props{Class: "surface work-list", Aria: map[string]string{"label": props.Text("work.collection_label")}},
-		html.Div(html.Props{Class: "section-head"}, html.H2(html.Props{}, ui.Text(props.Title)), html.Span(html.Props{Class: "count"}, ui.Text(props.CountLabel))),
-		html.Nav(html.Props{Class: "tabs", Aria: map[string]string{"label": props.Text("work.filter_label")}}, tabs...),
-		html.Ul(html.Props{Class: "work-rows", Raw: map[string]any{"role": "list"}}, rows...),
-		html.Div(html.Props{Class: "panel-foot"}, foot...),
-	)
+	sectionProps := html.Props{Class: "surface work-list", Aria: map[string]string{"label": props.Text("work.collection_label")}}
+	if props.Kind != "" {
+		sectionProps.DataAttr = html.DataAttribute{Name: "work-kind", Value: props.Kind}
+	}
+	title := ui.Node(html.H2(html.Props{}, ui.Text(props.Title)))
+	if props.Description != "" {
+		title = html.Div(html.Props{},
+			html.H2(html.Props{}, ui.Text(props.Title)),
+			html.P(html.Props{Class: "muted"}, ui.Text(props.Description)),
+		)
+	}
+	heading := []ui.Node{title, html.Span(html.Props{Class: "count"}, ui.Text(props.CountLabel))}
+	children := []ui.Node{html.Div(html.Props{Class: "section-head"}, heading...)}
+	if len(tabs) > 0 {
+		children = append(children, html.Nav(html.Props{Class: "tabs", Aria: map[string]string{"label": props.Text("work.filter_label")}}, tabs...))
+	}
+	children = append(children, html.Ul(html.Props{Class: "work-rows", Raw: map[string]any{"role": "list"}}, rows...))
+	if len(foot) > 0 {
+		children = append(children, html.Div(html.Props{Class: "panel-foot"}, foot...))
+	}
+	return html.Section(sectionProps, children...)
 }
 
 func WorkTab(props WorkTabProps) ui.Node {
@@ -242,7 +281,7 @@ func WorkRow(props WorkRowProps) ui.Node {
 		personAvatar(props.Person, props.Initials, props.PhotoURL, ""),
 		html.Span(html.Props{Class: "row-main"}, main...),
 		html.Span(html.Props{Class: "row-end"}, status, rowEffectiveDate(props.I18nProps, props.Due)),
-		html.Span(html.Props{Aria: map[string]string{"hidden": "true"}}, ui.Text("›")),
+		productIcon("expand", "work-row-chevron"),
 	))
 }
 

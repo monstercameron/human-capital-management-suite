@@ -21,9 +21,9 @@ summary: >-
   with one field's validation error populated
   (tools/uxqual/forms.FixtureWithValidationError), the Go SSR fallback
   (tools/uxqual/render/ssr) passes both; the GWC renderer
-  (tools/uxqual/render/gwc) now passes error association but still fails
-  required-field semantics. The remaining gap is documented and verified:
-  SSR is FORM-004's accessible route today.
+  (tools/uxqual/render/gwc) now passes both form-specific checks. SSR remains
+  FORM-004's designated accessible route, while the interactive renderer has
+  equivalent required-field and error-association semantics.
 
 method: >-
   tools/uxqual/forms.TestTodo_FORM_004 renders
@@ -34,7 +34,7 @@ method: >-
   with `go test -count=1 ./tools/uxqual/forms/...`.
 
 gwc_known_gaps:
-  required_field_semantics: true
+  required_field_semantics: false
   error_association: false
 
 candidates:
@@ -49,16 +49,15 @@ candidates:
       Validation.Message is non-empty.
   gwc:
     package: github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc
-    required_field_semantics: fail
+    required_field_semantics: pass
     error_association: pass
     detail: >-
       tools/uxqual/render/gwc/renderer.go's fieldNode sets
-      `aria-required="true"` via html.Props.Aria and, when
+      html.Props.Required so the native `required` attribute is emitted,
+      sets `aria-required="true"` via html.Props.Aria and, when
       Validation.Message is non-empty, also sets `aria-invalid="true"` and
       `aria-describedby="<id>-error"` against the visible
-      `<p id="<id>-error">` sibling. It still does not set the native
-      GoWebComponents v5 html.Props.Required bool field, so it does not emit
-      the native `required` attribute required by CheckRequiredFieldSemantics.
+      `<p id="<id>-error">` sibling.
 
 equivalent_route:
   kind: CAPABILITY_CALL
@@ -93,9 +92,8 @@ pending:
     status: PENDING
     owner: TBD
   - item: >-
-      Re-run if tools/uxqual/render/gwc is ever changed by another lane: if
-      it starts setting the native `required` attribute and
-      aria-invalid/aria-describedby, gwc_known_gaps above and
-      TestTodo_FORM_004's assertions must be updated together.
+      Re-run if tools/uxqual/render/gwc is changed by another lane: native
+      `required`, aria-required, aria-invalid, and aria-describedby must
+      continue to agree with gwc_known_gaps and TestTodo_FORM_004.
     status: PENDING
     owner: TBD

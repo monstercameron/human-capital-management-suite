@@ -21,6 +21,10 @@ const (
 // address cells by column ID, so callers may reorder or omit columns without
 // rebuilding every row.
 type DataTableProps struct {
+	// ID gives the semantic table a stable identity across projected updates.
+	// Callers can use it to restore focus to a changed table without coupling
+	// the reusable renderer to a route.
+	ID        string
 	Caption   string
 	AriaLabel string
 	SortLabel string
@@ -118,14 +122,18 @@ func DataTable(props DataTableProps) ui.Node {
 	if props.SortLabel != "" {
 		children = append(children, html.Span(html.Props{Class: "data-table-sort-label people-sort-label"}, ui.Text(props.SortLabel)))
 	}
-	children = append(children, html.Table(html.Props{Class: class},
+	viewportID := "data-table-scroll"
+	if props.ID != "" {
+		viewportID = props.ID + "-viewport"
+	}
+	children = append(children, html.Table(html.Props{ID: props.ID, Class: class},
 		html.Caption(html.Props{Class: "sr-only"}, ui.Text(props.Caption)),
 		html.Thead(html.Props{}, html.Tr(html.Props{Class: "data-table-head people-columns"}, headings...)),
 		html.Tbody(html.Props{Class: "data-table-body people-rows"}, rows...),
 	))
 	return ui.CreateElement(ScrollRegion, ScrollRegionProps{
-		ID: "data-table-scroll", Class: "data-table-scroll", Role: "region", Focusable: true,
-		RestoreScroll: true, Aria: map[string]string{"label": label}, Children: children,
+		ID: viewportID, Class: "data-table-scroll", Role: "region", Focusable: true,
+		RestoreScroll: true, Aria: map[string]string{"label": label}, Data: map[string]string{"preserve-scroll": "true", "preserve-focus": "true"}, Children: children,
 	})
 }
 
@@ -139,7 +147,7 @@ func DataTableColumn(column DataTableColumnProps) ui.Node {
 		class += " " + widthClass
 	}
 	props := html.Props{Class: class, Raw: map[string]any{"scope": "col"}}
-	if column.Sort != "" && column.Sort != DataTableUnsorted {
+	if column.Href != "" && column.Sort != "" && column.Sort != DataTableUnsorted {
 		props.Aria = map[string]string{"sort": string(column.Sort)}
 	}
 	if column.Href == "" {
@@ -265,6 +273,11 @@ func normalizedDataTableColumns(columns []DataTableColumnProps) []DataTableColum
 		}
 		seen[column.ID] = struct{}{}
 		if column.Sort == "" {
+			column.Sort = DataTableUnsorted
+		} else if column.Sort != DataTableUnsorted && column.Sort != DataTableAscending && column.Sort != DataTableDescending {
+			// Unknown sort states must not reach aria-sort, where they would
+			// create invalid accessibility semantics for an otherwise safe
+			// reusable column definition.
 			column.Sort = DataTableUnsorted
 		}
 		result = append(result, column)

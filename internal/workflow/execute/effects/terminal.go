@@ -14,6 +14,7 @@ import (
 	datalogger "github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	ledgerport "github.com/monstercameron/human-capital-management-suite/internal/ledger"
@@ -282,6 +283,15 @@ func (w *LedgerTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req exec
 	})
 	if err != nil {
 		return idempotency.ResultIdentity{}, fmt.Errorf("effects: commit workflow outcome ledger write: %w", err)
+	}
+	// The admission guard protects nonterminal promotion work. Release it in
+	// this same transaction as the terminal ledger/outbox fact so a crash
+	// cannot leave a completed request occupying the worker's window. A
+	// synthetic non-UUID intent cannot have a confirmed guard row.
+	if intentID, parseErr := uuid.Parse(req.Proposal.Revision.IntentID); parseErr == nil {
+		if releaseErr := promotionguard.Release(ctx, tx, req.TenantID, intentID, req.RecordedAt); releaseErr != nil {
+			return idempotency.ResultIdentity{}, fmt.Errorf("effects: release terminal promotion admission guard: %w", releaseErr)
+		}
 	}
 
 	return idempotency.ResultIdentity{

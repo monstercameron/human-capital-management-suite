@@ -62,7 +62,7 @@ func TestTodo_WEB_240_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "0460c7cd942d7e4a055196a999841b34c94c93980cff68d8231dfc8c3715b348"
+	const want = "f8b12791a7574d2bd8490bd761a6602ac932fc1830fc5fe0b9f0d3c4f5748763"
 	if got != want {
 		t.Fatalf("production frontend release gate digest = %s, want %s", got, want)
 	}

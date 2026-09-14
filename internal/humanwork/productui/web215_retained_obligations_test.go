@@ -63,7 +63,7 @@ func TestTodo_WEB_215_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "8f37a8263bd396f80adca490322d15f66aee49cf90571b8984e6965bfd431096"
+	const want = "3d7cfa8bf441b1722163c9cff8e2b726fbbe69a42fd2d62a93ac4d267744ae4f"
 	if got != want {
 		t.Fatalf("retained-obligation presentation digest = %s, want %s", got, want)
 	}

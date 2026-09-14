@@ -62,7 +62,7 @@ func TestTodo_WEB_153_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "df6ca2f97ae03b55ca48a2aa913a792bacafe7ec2771adb9443aea291f019ee5"
+	const want = "30a4e56b26512890d9f7ac5750f307422328010e6769b71db2738f915dc32f55"
 	if got != want {
 		t.Fatalf("protected-leave digest = %s, want %s", got, want)
 	}

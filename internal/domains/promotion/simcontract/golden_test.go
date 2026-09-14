@@ -9,20 +9,19 @@ import (
 // TestTodo_PROMO_004_Golden is PROMO-004's GOLDEN matrix test. It pins the
 // exact digest of the Promotion reference fixture and, per the REFACTOR line,
 // a second golden over the Manager Change fixture reusing the identical
-// contract shape. A change to either digest is a deliberate encoding change,
-// never an accident: update the constant only when the fixture or the
-// canonical encoding changed on purpose.
+// contract shape. PROMOUX-009 intentionally changed the finding portion of
+// the canonical encoding from rendered legacy fields to the typed identity,
+// owner, field, effect, explanation and corroboration source. The legacy
+// Findings API remains, but this digest must move because the contract now
+// commits to the typed canonical projection. A change to either digest is a
+// deliberate encoding change, never an accident: update the constant only
+// when the fixture or canonical encoding changed on purpose.
 func TestTodo_PROMO_004_Golden(t *testing.T) {
 	t.Run("promotion", func(t *testing.T) {
-		// Re-pinned for PROMOUX-009: canonicalBody now digests each
-		// finding's Owner and CorroboratedBy alongside Code/Severity/
-		// Field/Message, so adding those two fields to the encoding moved
-		// this digest even though the fixture's one finding is not a
-		// duplicate and dedup is a no-op on it. Verified by dumping and
-		// reading the actual computed value (`go test -run
-		// TestTodo_PROMO_004_Golden/promotion -v`) before pinning it here,
-		// per this repository's golden-repin discipline.
-		const wantDigest = "sha256:a5c04d903e0c5e2524e5b3b9a64eeff056a3c7d641a6421225dd0391738da64e"
+		// The reconciled encoding commits to both the deduplicated legacy
+		// owner/corroboration and typed finding effect/source projections.
+		// The digest below was observed from this fixture after that merge.
+		const wantDigest = "sha256:318bc843e5fa287bbf247c384234bb6b43a270dcfd506c3ab459482262efd623"
 		result, err := simcontract.Assemble(promotionFixtureInput(t))
 		if err != nil {
 			t.Fatalf("Assemble: %v", err)
@@ -40,7 +39,7 @@ func TestTodo_PROMO_004_Golden(t *testing.T) {
 	})
 
 	t.Run("manager_change", func(t *testing.T) {
-		const wantDigest = "sha256:71bca62030d236db6801abb7ee81057439e0e5b779889d58aeef1e4be7156211"
+		const wantDigest = "sha256:01bd20eed6aab4569f82ba7d7e8eca9fbf454c5f5f2b6a839b1b31b75c9891e8"
 		result, err := simcontract.Assemble(managerChangeFixtureInput(t))
 		if err != nil {
 			t.Fatalf("Assemble: %v", err)

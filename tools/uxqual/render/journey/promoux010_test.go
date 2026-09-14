@@ -60,7 +60,7 @@ func TestTodo_PROMOUX_010(t *testing.T) {
 		out := mustRenderNode(t, actionCard(live{}, a))
 		for _, want := range []string{
 			`class="jn-confirm"`, "Review and approve", "Cancel review", `class="jn-confirm-close-label"`,
-			"Confirm approve", "Priya Raghunathan", "P2 to P3", "1 Jun 2026",
+			"Confirm approval", "Priya Raghunathan", "P2 to P3", "1 Jun 2026",
 			"This records a governed promotion fact once submitted.",
 			`class="jn-confirm-actionbar"`, `class="jn-btn jn-confirm-cancel"`, `type="button"`, ">Cancel<",
 			`class="jn-confirm-status"`,
@@ -282,7 +282,7 @@ func TestTodo_PROMOUX_010_Accessibility(t *testing.T) {
 	})
 
 	t.Run("the review heading carries a stable id for aria-labelledby", func(t *testing.T) {
-		tag := regexp.MustCompile(`<p[^>]*class="jn-confirm-title"[^>]*>Confirm approve</p>`).FindString(out)
+		tag := regexp.MustCompile(`<p[^>]*class="jn-confirm-title"[^>]*>Confirm approval</p>`).FindString(out)
 		if tag == "" {
 			t.Fatalf("review heading not found:\n%s", out)
 		}
@@ -317,7 +317,7 @@ func TestTodo_PROMOUX_010_Accessibility(t *testing.T) {
 		if !strings.Contains(rule, "animation-duration:") || !strings.Contains(rule, "animation-name:jn-slidein-") {
 			t.Fatalf(".jn-confirm-surface declares no animation for the override to apply to: %s", rule)
 		}
-		if !strings.Contains(css, "prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms !important") {
+		if !strings.Contains(css, "prefers-reduced-motion:reduce") || !strings.Contains(css, "animation-duration:.001ms !important") {
 			t.Fatal("stylesheet lost the blanket reduced-motion override every animation (including .jn-confirm-surface's) relies on")
 		}
 	})

@@ -53,7 +53,7 @@ func TestUXBlind017InsightsUsesBusinessSummaryLanguage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Visible workflows", "Completed or closed", "limited workflow summary", "broader workforce reporting are not available"} {
+	for _, want := range []string{"Visible workflows", "Completed or closed", "summary covers promotion journeys you can view", "Broader workforce reporting is not available"} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("insights copy missing %q", want)
 		}
@@ -68,7 +68,7 @@ func TestUXBlind022StudioNamesOnlyUnavailablePageBuilder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"governed page-builder service", "Brand &amp; appearance", "Roles &amp; access"} {
+	for _, want := range []string{"Custom pages cannot be edited here yet", "Brand &amp; appearance", "Roles &amp; access"} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("studio copy missing %q", want)
 		}

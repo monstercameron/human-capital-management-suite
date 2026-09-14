@@ -27,14 +27,15 @@ func PopoverSurface(props PopoverSurfaceProps) ui.Node {
 // TransientPopoverProps is the narrow interaction contract shared by header
 // menus and contextual row actions.
 type TransientPopoverProps struct {
-	Kind         string
-	Class        string
-	TriggerClass string
-	PanelClass   string
-	Label        string
-	Title        string
-	Trigger      []ui.Node
-	Children     []ui.Node
+	Kind          string
+	Class         string
+	TriggerClass  string
+	PanelClass    string
+	Label         string
+	Title         string
+	DescriptionID string
+	Trigger       []ui.Node
+	Children      []ui.Node
 }
 
 // TransientPopover preserves native details/summary behavior as the
@@ -52,6 +53,12 @@ func TransientPopover(props TransientPopoverProps) ui.Node {
 	}
 	if props.Title != "" {
 		triggerProps.Raw = map[string]any{"title": props.Title}
+	}
+	if props.DescriptionID != "" {
+		if triggerProps.Raw == nil {
+			triggerProps.Raw = map[string]any{}
+		}
+		triggerProps.Raw["aria-describedby"] = props.DescriptionID
 	}
 	return html.Details(html.Props{Class: rootClass, Data: map[string]string{
 		"hcm-transient-popover": kind,

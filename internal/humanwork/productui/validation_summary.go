@@ -31,6 +31,43 @@ type ValidationSummaryModel struct {
 	Empty   bool
 }
 
+// ValidationFieldState is the inline counterpart to a summary entry. It is
+// resolved from the same validation issue text and registered field allowlist
+// used by ValidationSummary, ensuring a field never renders a stale or
+// unreviewed service key beside its control.
+type ValidationFieldState struct {
+	FieldID string
+	Invalid bool
+	Message string
+}
+
+// ResolveValidationFields resolves one inline state per registered field, in
+// the supplied control order. At most the first error for a field is shown;
+// warnings do not mark the control invalid. Unknown issue fields remain in the
+// page-level summary but cannot attach to a control that was not rendered.
+func ResolveValidationFields(locale LocaleContext, state ValidationState, fieldIDs []string) []ValidationFieldState {
+	i18n := I18nProps{Locale: locale}
+	result := make([]ValidationFieldState, 0, len(fieldIDs))
+	errors := state.Errors()
+	for _, rawID := range fieldIDs {
+		id := strings.TrimSpace(rawID)
+		if id == "" {
+			continue
+		}
+		field := ValidationFieldState{FieldID: id}
+		for _, issue := range errors {
+			if strings.TrimSpace(issue.FieldID) != id {
+				continue
+			}
+			field.Invalid = true
+			field.Message = validationIssueText(i18n, issue)
+			break
+		}
+		result = append(result, field)
+	}
+	return result
+}
+
 // ResolveValidationSummary resolves the summary model for
 // one validation state and the rendered controls that may
 // receive fragment links. Unknown service field
