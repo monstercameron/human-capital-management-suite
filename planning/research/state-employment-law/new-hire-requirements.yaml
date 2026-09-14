@@ -1,0 +1,1045 @@
+# New-hire compliance rules by jurisdiction (50 states + DC)
+#
+# Purpose: inputs for the lifecycle.recruit_hire_onboard/v1 workflow engine —
+# posting legality (step 3), pre-employment checks (step 11), tax/payroll
+# forms (step 14), and required notices (step 18).
+#
+# Sources: definitions/legal/packs/states/us-*.json (generated RulePacks, corpus-
+# verified), planning/research/state-employment-law/*.md section 8, plus the
+# new-hire reporting and withholding-form research recorded in
+# new-hire-requirements.md. Cells marked verify are unresolved — mirror the
+# corpus convention: do not fabricate.
+#
+schema_version: "1.0"
+dataset: new-hire-requirements
+generated: "2026-09-13"
+federal_baseline:
+  new_hire_reporting_deadline_days: 20
+  new_hire_reporting_statute: "42 U.S.C. § 653a (PRWORA)"
+  required_elements: "employee name, address, SSN, DOB (if known), DOH; employer name, address, EIN"
+  i9_deadline: "Section 1 by day 1; Section 2 within 3 business days of start"
+  forms_w4: "federal Form W-4 in all jurisdictions"
+jurisdictions:
+  AK:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "NONE"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "AS § 23.05.160"
+      content_fields:
+        - "pay_rate"
+        - "payday"
+        - "effective_date"
+      note: 'Written notice requirement: Any change in pay rate, payday, or place of pay must be communicated in writing no later than the payday preceding the effective date of the change (AS § 23.05.160''s "on the payday before...'
+    ban_the_box:
+      scope: "LOCAL_ONLY"
+      stage: "conditional offer"
+      statute: "Anchorage Muni Code § 5.20"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  AL:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "A-4"
+    e_verify:
+      mandate: "ALL_EMPLOYERS"
+      statute: "Ala. Code § 31-13-9"
+      verify: true
+      new_hires_only: true
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "LOCAL_ONLY"
+      verify: "Birmingham EO covers city jobs only"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  AR:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+      note: "ark.org new hire portal; verify: some matrices list 14 days, statute/A.C.A. materials state 20"
+    withholding_form:
+      form: "AR4EC"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "NONE"
+      verify: "local public rules only (Little Rock, Pulaski, Pine Bluff)"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  AZ:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "A-4 (percentage election; verify default)"
+    e_verify:
+      mandate: "ALL_EMPLOYERS"
+      statute: "A.R.S. § 23-214"
+      verify: true
+      new_hires_only: true
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      statute: "EO 2017-07"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  CA:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: "$600+/yr independent contractor"
+      note: "CA EDD New Employee Registry"
+    withholding_form:
+      form: "DE 4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "§ 2810.5"
+      timing_days: 7
+      content_fields:
+        - "payday"
+      note: "Wage notice (§ 2810.5): Upon hire, system must generate/display/send notice."
+    ban_the_box:
+      scope: "PRIVATE"
+      min_employees: 5
+      stage: "post conditional offer"
+      statute: "Gov. Code § 12952 (Fair Chance Act)"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  CO:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "DR 0004"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PRIVATE"
+      stage: "no criminal question on initial application"
+      statute: "CRS § 8-2-130 (Chance to Compete)"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  CT:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: ">$5,000/yr (verify)"
+    withholding_form:
+      form: "CT-W4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "§ 31-71f"
+      verify: true
+      note: "On any change of pay or role, employers should provide written notice of new terms to align with § 31-71f disclosure requirements; no specific statutory notice period mandated for pay changes except final pay timing..."
+    ban_the_box:
+      scope: "PRIVATE"
+      stage: "initial application"
+      statute: "§ 31-51i (verify)"
+      verify: "corpus says none for private; P.A. 16-83 bars criminal-history question on initial application"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  DC:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "D-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "D.C. Code § 32-1008"
+      timing_days: 30
+      content_fields:
+        - "pay_rate"
+        - "payday"
+      note: 'Wage Theft Prevention notice: Written "Notice of Hire" at hire, and an updated written notice within 30 days of any change to the notice''s contents (pay rate, payday, employer information); $500 administrative penalty...'
+    ban_the_box:
+      scope: "PRIVATE"
+      min_employees: 11
+      stage: "post conditional offer"
+      statute: "D.C. Code § 32-1341 et seq. (Fair Criminal Record Screening)"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  DE:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "DE W-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      stage: "before first interview"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: false
+  FL:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "NONE"
+    e_verify:
+      mandate: "PRIVATE_25+ / ALL_PUBLIC"
+      statute: "Fla. Stat. § 448.095"
+      note: "private employers with 25+ employees; all public employers"
+      verify: true
+      new_hires_only: true
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "LOCAL_ONLY"
+      verify: "Miami-Dade/Gainesville ordinances"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  GA:
+    new_hire_reporting:
+      deadline_days: 10
+      contractor_reporting: "NONE"
+      note: "10-day deadline"
+    withholding_form:
+      form: "G-4"
+    e_verify:
+      mandate: "PUBLIC + PRIVATE_11+"
+      statute: "O.C.G.A. § 13-10-91"
+      note: "public employers/contractors + private employers with 11+"
+      verify: true
+      new_hires_only: true
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      statute: "EO 2015"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  HI:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "HW-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "HRS §388-2"
+      content_fields:
+        - "pay_rate"
+        - "pay_frequency"
+      verify: true
+      note: "At time of hiring, employer should provide written notice of rate of pay, hours of work, pay frequency, and wage policies (best practice; no explicit statute, but HRS §388-2 requires semi-monthly pay)."
+    ban_the_box:
+      scope: "VERIFY"
+      statute: "HRS § 378-2.5?"
+      verify: "corpus unresolved: 2020 amendments may restrict private inquiry timing"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  IA:
+    new_hire_reporting:
+      deadline_days: 15
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: "$600+"
+      note: "15-day deadline"
+    withholding_form:
+      form: "IA W-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "Iowa Code § 91A.3"
+      timing_days: 3
+      content_fields:
+        - "pay_rate"
+      note: "Pay-rate change notice required: Iowa Code § 91A.3 requires written notice of any change in pay rate at least 3 days before the change becomes effective."
+    ban_the_box:
+      scope: "LOCAL_ONLY"
+      verify: "Waterloo local ordinance (verify)"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  ID:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "ID W-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "Idaho Code § 45-610"
+      note: "Three-year record retention: Idaho Code § 45-610 requires employers maintain employment records for 3 years from date of separation; must provide wage information and notice of wage reductions to employees."
+    ban_the_box:
+      scope: "NONE"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  IL:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "IL-W-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "820 ILCS 115/3"
+      content_fields:
+        - "pay_rate"
+        - "payday"
+      note: "Pay rate change notice (820 ILCS 115/3): Employer must provide written notice of any change in pay rate, basis, payday, or wage deductions at least one pay period in advance (or as agreed)."
+    ban_the_box:
+      scope: "PRIVATE"
+      stage: "post conditional offer"
+      statute: "820 ILCS 75 (Job Opportunities for Qualified Applicants Act)"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: true
+  IN:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "WH-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "NONE"
+      verify: "state law preempts local ban-the-box"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  KS:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "K-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "U.S.C. § 211"
+      content_fields:
+        - "pay_rate"
+      verify: true
+      note: "Record Retention and Notice: K.S.A."
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      statute: "EO 2018"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  KY:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "PARTIAL"
+      contractor_threshold: "job refusals + certain contractors (verify)"
+    withholding_form:
+      form: "K-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      statute: "EO 2017"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  LA:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "L-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "LOCAL_ONLY"
+      verify: "New Orleans: city + city contractors only"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  MA:
+    new_hire_reporting:
+      deadline_days: 14
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: "$600+"
+      note: "14-day deadline"
+    withholding_form:
+      form: "M-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PRIVATE"
+      stage: "initial application"
+      statute: "M.G.L. c. 151B § 4(9½)"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  MD:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "MW507"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "Empl. § 3-504(a)"
+      content_fields:
+        - "pay_rate"
+        - "payday"
+      note: "Md. Code, Lab. & Empl."
+    ban_the_box:
+      scope: "PRIVATE"
+      min_employees: 15
+      stage: "before first in-person interview"
+      statute: "Md. Lab. & Empl. § 3-402"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  ME:
+    new_hire_reporting:
+      deadline_days: 7
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: "$2,500+"
+      note: "7-day deadline"
+    withholding_form:
+      form: "W-4ME"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "M.R.S. § 621-A"
+      content_fields:
+        - "payday"
+      verify: true
+      note: "At hiring, employer must provide written notice of: rate of remuneration, hours of work, payday schedule, how wages will be paid, and a summary of leave policies (26 M.R.S."
+    ban_the_box:
+      scope: "VERIFY"
+      stage: "initial application"
+      statute: "26 M.R.S. § 600-A?"
+      verify: "corpus says none for private; statute enacted 2021 may bar initial-application criminal questions"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: false
+  MI:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "MI-W4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "(statutory section not stated in the research file)"
+      content_fields:
+        - "pay_frequency"
+      verify: true
+      note: "Pay change notice: Provide written notice to employee of any change in compensation, hours, or pay frequency; timestamp delivery and store in employee record."
+    ban_the_box:
+      scope: "VERIFY"
+      verify: "corpus claims private 15+ via EO; MI EO 2018-3 covers state employment — verify private coverage"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  MN:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: "independent contractors"
+    withholding_form:
+      form: "W-4MN"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "§ 181.032"
+      timing_days: 10
+      content_fields:
+        - "pay_rate"
+        - "effective_date"
+      verify: true
+      note: "Pre-effective-date notice (P1A trigger): § 181.032 requires written notice of pay rate or pay-basis change prior to the date the change takes effect (not after, not concurrent)."
+    ban_the_box:
+      scope: "PRIVATE"
+      stage: "until interview or conditional offer"
+      statute: "Minn. Stat. § 364.021"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  MO:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "MO W-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "U.S.C. § 206–214"
+      note: "Written Notices at Hire and on Change: No Missouri state law requires written notice to an employee at hire regarding at-will status, wage theft prevention, rights, duties, or any other employment term."
+    ban_the_box:
+      scope: "NONE"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  MS:
+    new_hire_reporting:
+      deadline_days: 15
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: "recurring contractors (verify)"
+      note: "15-day deadline"
+    withholding_form:
+      form: "89-350"
+    e_verify:
+      mandate: "ALL_EMPLOYERS"
+      statute: "Miss. Code § 71-11-3"
+      verify: true
+      new_hires_only: true
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "NONE"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  MT:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "MW-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "(statutory section not stated in the research file)"
+      verify: true
+      note: "Written Notice at Hire: Montana has no required written notice to the employee at hire about at-will status or wage-theft prevention; no state form mandated."
+    ban_the_box:
+      scope: "NONE"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  NC:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "NC-4"
+    e_verify:
+      mandate: "PRIVATE_25+"
+      statute: "N.C. Gen. Stat. § 64-26"
+      verify: true
+      new_hires_only: true
+    wage_notice_at_hire:
+      required: true
+      statute: "§ 95-25.13"
+      timing_days: 1
+      content_fields:
+        - "pay_rate"
+        - "payday"
+      verify: true
+      note: "Written notice at hire or change (§ 95-25.13): Employer must provide written notice of pay rate and paydays at hire; 24 hours' notice required before reduction in wages or wage benefits (amended 2021; verify exact..."
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      statute: "EO 158"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: false
+  ND:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "FEDERAL_W4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      stage: "until selected for interview"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  NE:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: "contractors (verify)"
+    withholding_form:
+      form: "W-4N"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "Neb. Rev. Stat. § 48-1230"
+      timing_days: 30
+      content_fields:
+        - "payday"
+      note: "Notice of payday changes: If an employer alters regular paydays, 30 days' written notice must be given to each employee before the change takes effect (Neb."
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      stage: "after minimum qualifications"
+      statute: "Neb. Rev. Stat. § 48-202"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  NH:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: "$2,500+"
+    withholding_form:
+      form: "NONE"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "(statutory section not stated in the research file)"
+      content_fields:
+        - "pay_rate"
+        - "effective_date"
+      verify: true
+      note: "Pay rate change notice (RSA 275:49): On any base-pay change (increase or decrease), generate automated written notice stating new rate and effective date."
+    ban_the_box:
+      scope: "NONE"
+      verify: "RSA 275-H repealed 2025-07-01"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  NJ:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "REQUIRED"
+      contractor_threshold: "all contractors"
+    withholding_form:
+      form: "NJ-W4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "N.J.S.A. 34:11-4.1"
+      content_fields:
+        - "payday"
+        - "pay_frequency"
+      note: "N.J.S.A."
+    ban_the_box:
+      scope: "PRIVATE"
+      min_employees: 15
+      stage: "initial application phase"
+      statute: "N.J.S.A. 34:6B-11 (Opportunity to Compete)"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  NM:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "FEDERAL_W4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "§ 50-4-2"
+      content_fields:
+        - "effective_date"
+      verify: true
+      note: "Base-pay change notice and timing (§ 50-4-2, § 50-4-3): For any wage increase, employer may implement immediately (no statutory advance notice required)."
+    ban_the_box:
+      scope: "PRIVATE"
+      stage: "initial application"
+      statute: "§ 28-2-3.1"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  NV:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "NONE"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "NRS 608.100"
+      timing_days: 7
+      note: "Decrease notice: Any pay decrease requires written notice at least 7 days before the employee works at the lower rate (NRS 608.100)."
+    ban_the_box:
+      scope: "VERIFY"
+      stage: "initial application"
+      statute: "NRS 613.330?"
+      verify: "corpus cites NRS 613.330 but its private-sector scope is unverified"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  NY:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+      note: "NY DOL New Hire Reporting"
+    withholding_form:
+      form: "IT-2104"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "§ 194-b"
+      note: "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting)."
+    ban_the_box:
+      scope: "VERIFY"
+      min_employees: 4
+      stage: "initial application"
+      statute: "Exec. Law § 296(16)?"
+      verify: "corpus cites Exec. Law § 296(16); NYC FCA is local; verify statewide private coverage"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  OH:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "IT-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      statute: "HB 56 (2015)"
+      verify: "Cincinnati local ordinance covers private"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  OK:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "OK-W-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "NONE"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  OR:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "OR-W-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PRIVATE"
+      stage: "until after initial interview"
+      statute: "ORS 659A.360"
+      verify: "Portland stricter: conditional offer"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: false
+  PA:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+      note: "PA also requires Local Earned Income Tax residency certification"
+    withholding_form:
+      form: "NONE (flat rate; Residency Certification Form required)"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "P.S. § 260"
+      content_fields:
+        - "pay_rate"
+      note: "WPCL Compliance (43 P.S."
+    ban_the_box:
+      scope: "PARTIAL"
+      statute: "18 Pa.C.S. § 9125 (use restrictions)"
+      verify: "Philadelphia local pre-offer ban"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  RI:
+    new_hire_reporting:
+      deadline_days: 14
+      contractor_reporting: "NONE"
+      note: "14-day deadline"
+    withholding_form:
+      form: "RI W-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "§ 28-14-2"
+      content_fields:
+        - "pay_rate"
+        - "pay_frequency"
+      note: "§ 28-14-2 requires written notice at hire of wages, pay rate, and frequency; advance written notice in advance of any change to wage, deduction, or pay frequency."
+    ban_the_box:
+      scope: "PRIVATE"
+      min_employees: 4
+      stage: "before first interview"
+      statute: "§ 28-5-7(7)"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  SC:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "SC W-4"
+    e_verify:
+      mandate: "ALL_EMPLOYERS"
+      statute: "S.C. Code § 41-8-20"
+      note: "S.C. driver's-license alternative permitted"
+      verify: true
+      new_hires_only: true
+    wage_notice_at_hire:
+      required: true
+      statute: "§ 41-10-30"
+      timing_days: 7
+      content_fields:
+        - "effective_date"
+      note: "Seven-day written notice before wage change (§ 41-10-30): Any increase or decrease in base wage, bonus structure, or commission rate requires seven calendar days' written advance notice before effective date."
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      statute: "EO (state agencies)"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  SD:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "NONE"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "NONE"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  TN:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "NONE"
+    e_verify:
+      mandate: "PRIVATE_35+"
+      statute: "Tenn. Code § 50-1-703"
+      verify: true
+      new_hires_only: true
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "NONE"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  TX:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+      note: "TX OAG Employer New Hire Reporting"
+    withholding_form:
+      form: "NONE"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      stage: "initial application"
+      statute: "EO RP-80"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  UT:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "FEDERAL_W4"
+    e_verify:
+      mandate: "PRIVATE_150+"
+      statute: "Utah Code § 63G-12-302"
+      note: "verify: public contractors also covered"
+      verify: true
+      new_hires_only: true
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  VA:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "VA-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "Va. Code § 40.1-29"
+      note: "Va. Code § 40.1-29: Written notice of wages, pay periods, and deductions required."
+    ban_the_box:
+      scope: "PUBLIC_ONLY"
+      statute: "§ 19.2-392.4 / § 19.2-389.3 (marijuana)"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  VT:
+    new_hire_reporting:
+      deadline_days: 10
+      contractor_reporting: "NONE"
+      note: "10-day deadline"
+    withholding_form:
+      form: "W-4VT"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "V.S.A. § 342"
+      content_fields:
+        - "pay_rate"
+        - "effective_date"
+      note: "Pay rate change notice (21 V.S.A."
+    ban_the_box:
+      scope: "PRIVATE"
+      stage: "initial application"
+      statute: "21 V.S.A. § 495j"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  WA:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "NONE"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "PRIVATE"
+      stage: "post conditional offer"
+      statute: "RCW 49.94 (HB 1747)"
+    screening:
+      salary_history_ban: true
+      pay_transparency_posting: true
+  WI:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "WT-4"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "NONE"
+      verify: "Madison/Dane County local (verify)"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  WV:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "WV/IT-104"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: true
+      statute: "W. Va. Code § 21-5-9(4)"
+      content_fields:
+        - "pay_rate"
+        - "effective_date"
+      note: "W. Va. Code § 21-5-9(4) specifies that when an employer changes an employee's rate of pay, pay period, place or method of payment, time of payment, or any other term of employment, the employer shall furnish written..."
+    ban_the_box:
+      scope: "NONE"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
+  WY:
+    new_hire_reporting:
+      deadline_days: 20
+      contractor_reporting: "NONE"
+    withholding_form:
+      form: "NONE"
+    e_verify:
+      mandate: "NONE"
+    wage_notice_at_hire:
+      required: false
+    ban_the_box:
+      scope: "NONE"
+    screening:
+      salary_history_ban: false
+      pay_transparency_posting: false
