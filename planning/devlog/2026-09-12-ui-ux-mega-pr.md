@@ -2640,3 +2640,24 @@ journey WASM, and product-client suites. The product UI suite reported `ok`
 before a Windows temporary-binary unlink denial. A combined staged-coverage
 pass, Linux race CI, and an interactive browser pass were not run in this
 reconciliation; they are not represented as green.
+
+### Go UI component decomposition (2026-09-14)
+
+The production Go UI now renders shared page headings, breadcrumb trails,
+labeled native controls, section headings, empty states, search inputs, table
+styling hooks, and pagination bounds through narrow props. Feature pages keep
+their route, authorization, form submission, and business presentation logic.
+An AST contract test checks exported component props transitively for a
+page-wide `View` dependency. Existing breadcrumb and page-heading goldens
+remain byte-identical.
+
+The full product UI package passed with the interaction-latency test excluded,
+and that latency gate passed separately without competing builds. The first
+combined run exceeded the latency budget while other jobs were running; it is
+not described as green. `npm test`, workspace asset tests, code-style and
+decomposition checks, scoped `go vet`, and `git diff --check` passed. The
+rebuilt Go/WASM app was manually inspected in the Codex browser on Worker IDs,
+Roles, Appearance, People, and History. The Roles form, People sort transition,
+page headings, breadcrumbs, and pagination behaved correctly, with no browser
+warnings or errors. Desktop was checked on the rebuilt bundle; earlier narrow
+viewport observations were inconclusive and are not claimed as visual proof.

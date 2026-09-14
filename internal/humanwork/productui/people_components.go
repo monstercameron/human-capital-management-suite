@@ -216,14 +216,12 @@ func PeopleSummary(props PeopleSummaryProps) ui.Node {
 // PeopleFilter renders an SSR-safe GET filter with an optional live callback.
 func PeopleFilter(props PeopleFilterProps) ui.Node {
 	query, team, location, eligibleOnly := props.Query, props.Team, props.Location, props.EligibleOnly
-	inputProps := html.Props{
-		ID: "people-filter", Name: "q", Value: props.Query,
-		Raw: map[string]any{"type": "search", "placeholder": props.Text("people.filter_placeholder"), "aria-label": props.Text("people.filter_aria")},
-	}
+	input := SearchInputProps{ID: "people-filter", Name: "q", Value: props.Query,
+		Placeholder: props.Text("people.filter_placeholder"), AriaLabel: props.Text("people.filter_aria")}
 	eligibleProps := html.Props{ID: "people-eligible-filter", Type: "checkbox", Name: "eligible", Value: "1", Checked: props.EligibleOnly, Aria: map[string]string{"label": props.Text("people.eligible_only")}}
 	formProps := html.Props{Class: "people-filter", Action: props.Action, Method: "get", Raw: map[string]any{"role": "search"}}
 	if props.OnFilter != nil {
-		inputProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { query = event.GetValue() })
+		input.OnInput = func(value string) { query = value }
 		onFilter := props.OnFilter
 		teamProps := html.Props{ID: "people-team-filter", Name: "team", Value: team, Raw: map[string]any{"aria-label": props.Text("people.team_aria")}}
 		locationProps := html.Props{ID: "people-location-filter", Name: "location", Value: location, Raw: map[string]any{"aria-label": props.Text("people.location_aria")}}
@@ -234,16 +232,16 @@ func PeopleFilter(props PeopleFilterProps) ui.Node {
 			event.PreventDefault()
 			onFilter(query, team, location, eligibleOnly)
 		})
-		return peopleFilterForm(props, inputProps, teamProps, locationProps, eligibleProps, formProps)
+		return peopleFilterForm(props, ui.CreateElement(SearchInput, input), teamProps, locationProps, eligibleProps, formProps)
 	}
-	return peopleFilterForm(props, inputProps,
+	return peopleFilterForm(props, ui.CreateElement(SearchInput, input),
 		html.Props{ID: "people-team-filter", Name: "team", Value: team, Raw: map[string]any{"aria-label": props.Text("people.team_aria")}},
 		html.Props{ID: "people-location-filter", Name: "location", Value: location, Raw: map[string]any{"aria-label": props.Text("people.location_aria")}},
 		eligibleProps,
 		formProps)
 }
 
-func peopleFilterForm(props PeopleFilterProps, inputProps, teamProps, locationProps, eligibleProps, formProps html.Props) ui.Node {
+func peopleFilterForm(props PeopleFilterProps, input ui.Node, teamProps, locationProps, eligibleProps, formProps html.Props) ui.Node {
 	teamOptions := []ui.Node{html.Option(html.Props{Value: "", Selected: props.Team == ""}, ui.Text(props.Text("people.all_teams")))}
 	for _, option := range props.Teams {
 		teamOptions = append(teamOptions, html.Option(html.Props{Value: option.Value, Selected: props.Team == option.Value}, ui.Text(option.Label)))
@@ -259,7 +257,7 @@ func peopleFilterForm(props PeopleFilterProps, inputProps, teamProps, locationPr
 	children := []ui.Node{
 		html.Label(html.Props{For: "people-filter"}, ui.Text(props.Text("people.find"))),
 		html.Div(html.Props{Class: "people-filter-control"},
-			html.Tag("input", inputProps),
+			input,
 			html.Select(teamProps, teamOptions...),
 			html.Select(locationProps, locationOptions...),
 			html.Label(html.Props{Class: "people-eligible-filter-label", For: "people-eligible-filter"},
@@ -350,7 +348,7 @@ func PeopleTable(props PeopleTableProps) ui.Node {
 				direction = DataTableDescending
 			}
 		}
-		columns = append(columns, DataTableColumnProps{ID: column.ID, Label: column.Label, Href: column.Href, Sort: direction, Navigate: column.Navigate})
+		columns = append(columns, DataTableColumnProps{ID: column.ID, Label: column.Label, Href: column.Href, Sort: direction, Navigate: column.Navigate, SortLinkClass: "people-sort"})
 	}
 	columns = append(columns, DataTableColumnProps{ID: "actions", Label: props.Text("people.column.actions"), Class: "people-action-heading", AlignEnd: true})
 	rows := make([]DataTableRowProps, 0, len(props.Rows))
@@ -358,7 +356,11 @@ func PeopleTable(props PeopleTableProps) ui.Node {
 		row.I18nProps = props.I18nProps
 		rows = append(rows, peopleDataTableRow(row))
 	}
-	return ui.CreateElement(DataTable, DataTableProps{ID: "people-directory-table", Caption: props.Text("people.table_aria"), AriaLabel: props.Text("people.table_aria"), SortLabel: props.Text("people.sort_by"), Class: "people-table", Columns: columns, Rows: rows})
+	return ui.CreateElement(DataTable, DataTableProps{
+		ID: "people-directory-table", Caption: props.Text("people.table_aria"), AriaLabel: props.Text("people.table_aria"), SortLabel: props.Text("people.sort_by"),
+		Class: "people-table", HeaderClass: "people-columns", BodyClass: "people-rows", SortLabelClass: "people-sort-label",
+		Columns: columns, Rows: rows,
+	})
 }
 
 // PeopleSortColumn renders one sortable header with its current direction.
@@ -370,7 +372,7 @@ func PeopleSortColumn(props PeopleSortColumnProps) ui.Node {
 			direction = DataTableDescending
 		}
 	}
-	return ui.CreateElement(DataTableColumn, DataTableColumnProps{ID: props.ID, Label: props.Label, Href: props.Href, Sort: direction, Navigate: props.Navigate})
+	return ui.CreateElement(DataTableColumn, DataTableColumnProps{ID: props.ID, Label: props.Label, Href: props.Href, Sort: direction, Navigate: props.Navigate, SortLinkClass: "people-sort"})
 }
 
 // PeopleRow is a software-routed, progressively enhanced directory row.
@@ -507,9 +509,8 @@ func PaginationLink(props PaginationLinkProps) ui.Node {
 
 // PeopleEmptyState retains a software-routed recovery action.
 func PeopleEmptyState(props PeopleEmptyStateProps) ui.Node {
-	return html.Section(html.Props{Class: "surface empty-state", Raw: map[string]any{"role": "status"}},
-		html.H2(html.Props{}, ui.Text(props.Text("people.empty_title"))),
-		html.P(html.Props{Class: "muted"}, ui.Text(props.Text("people.empty_detail"))),
-		softwareLink(props.Navigate, html.Props{Class: "button secondary"}, props.ClearHref, ui.Text(props.Text("people.clear_filter"))),
-	)
+	return ui.CreateElement(EmptyState, EmptyStateProps{
+		Title: props.Text("people.empty_title"), Description: props.Text("people.empty_detail"), Role: "status",
+		Action: &ActionLinkProps{Label: props.Text("people.clear_filter"), Href: props.ClearHref, Class: "button secondary", Navigate: props.Navigate},
+	})
 }

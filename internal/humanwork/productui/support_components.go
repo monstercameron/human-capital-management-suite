@@ -172,11 +172,11 @@ func HelpHubPage(props HelpHubPageProps) ui.Node {
 
 func KnowledgeSearchPage(props KnowledgeSearchPageProps) ui.Node {
 	query := props.Query
-	input := html.Props{ID: "knowledge-search-query", Name: "q", Value: query,
-		Raw: map[string]any{"type": "search", "placeholder": props.Placeholder, "aria-label": props.Label}}
+	input := SearchInputProps{ID: "knowledge-search-query", Name: "q", Value: query,
+		Placeholder: props.Placeholder, AriaLabel: props.Label}
 	form := html.Props{Class: "support-form support-search", Action: props.Action, Method: "get", Raw: map[string]any{"role": "search"}}
 	if props.Navigate != nil {
-		input.OnInput = ui.UseEvent(func(event ui.InputEvent) { query = event.GetValue() })
+		input.OnInput = func(value string) { query = value }
 		navigate := props.Navigate
 		action := props.Action
 		form.OnSubmit = ui.UseEvent(func(event ui.FormEvent) {
@@ -189,7 +189,7 @@ func KnowledgeSearchPage(props KnowledgeSearchPageProps) ui.Node {
 	return html.Div(html.Props{Class: "support-search-page"},
 		html.Form(form,
 			html.Label(html.Props{For: input.ID}, ui.Text(props.Label)),
-			html.Div(html.Props{Class: "support-search-controls"}, html.Tag("input", input), html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(props.SubmitLabel))),
+			html.Div(html.Props{Class: "support-search-controls"}, ui.CreateElement(SearchInput, input), html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(props.SubmitLabel))),
 		),
 		ui.CreateElement(EmptyState, props.Unavailable),
 	)

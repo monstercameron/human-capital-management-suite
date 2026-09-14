@@ -26,6 +26,13 @@ type PageIdentity struct {
 	ScopeHref  string
 }
 
+// PageHeadingProps is the narrow shell-header render contract. The shell
+// resolves authority, route identity, and breadcrumb visibility before render.
+type PageHeadingProps struct {
+	Identity PageIdentity
+	Trail    ui.Node
+}
+
 // ResolvePageIdentity derives the header identity from the canonical page
 // registry, the locale, and the authorized navigation projection. Unknown
 // pages fall back to Home exactly like ApplyLocale; the settings
@@ -74,10 +81,16 @@ func ResolveDocumentPageTitle(view View) string {
 // place, [ActingAuthorityBanner], shown in the shell above this header only
 // when the server-resolved authority actually calls for one.
 func PageIdentityHeader(view View) ui.Node {
-	identity := ResolvePageIdentity(view)
+	return ui.CreateElement(PageHeading, PageHeadingProps{
+		Identity: ResolvePageIdentity(view), Trail: Breadcrumbs(view, ResolveBreadcrumbs(view)),
+	})
+}
+
+// PageHeading renders a stable product page title from resolved narrow props.
+func PageHeading(props PageHeadingProps) ui.Node {
 	children := []ui.Node{
-		Breadcrumbs(view, ResolveBreadcrumbs(view)),
-		html.Div(html.Props{}, html.H1(html.Props{ID: "page-title", Raw: map[string]any{"tabindex": "-1"}}, ui.Text(identity.Title)), html.P(html.Props{Class: "subtitle"}, ui.Text(identity.Subtitle))),
+		props.Trail,
+		html.Div(html.Props{}, html.H1(html.Props{ID: "page-title", Raw: map[string]any{"tabindex": "-1"}}, ui.Text(props.Identity.Title)), html.P(html.Props{Class: "subtitle"}, ui.Text(props.Identity.Subtitle))),
 	}
-	return html.Div(html.Props{Class: "page-head", Data: map[string]string{"hcm-page": string(identity.Page)}}, children...)
+	return html.Div(html.Props{Class: "page-head", Data: map[string]string{"hcm-page": string(props.Identity.Page)}}, children...)
 }

@@ -21,10 +21,7 @@ type MyselfPageProps struct {
 func MyselfPage(props MyselfPageProps) ui.Node {
 	if props.Profile == nil {
 		return html.Div(html.Props{Class: "myself-page"},
-			html.Section(html.Props{Class: "surface empty-state", Raw: map[string]any{"role": "status"}},
-				html.H2(html.Props{}, ui.Text(props.Text("myself.unavailable_title"))),
-				html.P(html.Props{Class: "muted"}, ui.Text(props.Text("myself.unavailable_detail"))),
-			),
+			ui.CreateElement(EmptyState, EmptyStateProps{Title: props.Text("myself.unavailable_title"), Description: props.Text("myself.unavailable_detail"), Role: "status"}),
 		)
 	}
 	return html.Div(html.Props{Class: "myself-page"},

@@ -93,10 +93,9 @@ func PersonActiveWorkflows(props PersonActiveWorkflowsProps) ui.Node {
 	if !props.Show {
 		return nil
 	}
-	head := html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{},
-		html.H2(html.Props{ID: "person-active-workflows-title"}, ui.Text(props.Title)),
-		html.P(html.Props{Class: "muted"}, ui.Text(props.Description)),
-	))
+	head := ui.CreateElement(SectionHeading, SectionHeadingProps{
+		ID: "person-active-workflows-title", Title: props.Title, Description: props.Description,
+	})
 	if len(props.Items) == 0 {
 		return html.Section(html.Props{Class: "surface person-active-workflows", Raw: map[string]any{"aria-labelledby": "person-active-workflows-title"}},
 			head, html.P(html.Props{Class: "muted person-active-empty"}, ui.Text(props.EmptyText)))

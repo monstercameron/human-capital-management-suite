@@ -43,8 +43,7 @@ type RolePageOption struct {
 func RolesPage(props RolesPageProps) ui.Node {
 	filterQuery := ui.UseState(props.Query)
 	ui.UseEffectOf(func() func() { filterQuery.Set(props.Query); return nil }, props.Query)
-	filterInput := html.Props{ID: "role-directory-query", Name: "q", Type: "search", Value: filterQuery.Get(), Placeholder: props.Text("roles.placeholder")}
-	filterInput.OnInput = ui.UseEvent(func(event ui.InputEvent) { filterQuery.Set(event.GetValue()) })
+	filterInput := SearchInputProps{ID: "role-directory-query", Name: "q", Value: filterQuery.Get(), Placeholder: props.Text("roles.placeholder"), OnInput: filterQuery.Set}
 	filterSubmit := submitRoleFilter(props.Navigate, props.FilterHref, filterQuery.Get)
 	roleCards := make([]ui.Node, 0, len(props.Roles))
 	for _, role := range props.Roles {
@@ -70,17 +69,9 @@ func RolesPage(props RolesPageProps) ui.Node {
 		}
 		filteredPeople = append(filteredPeople, person)
 	}
-	page := roleDirectoryWindowPage(filteredPeople, "", props.Page)
-	start := (page - 1) * roleDirectoryPageSize
-	if start > len(filteredPeople) {
-		start = len(filteredPeople)
-	}
-	end := start + roleDirectoryPageSize
-	if end > len(filteredPeople) {
-		end = len(filteredPeople)
-	}
-	people := make([]ui.Node, 0, end-start)
-	for _, person := range filteredPeople[start:end] {
+	window := PaginateCollection(filteredPeople, props.Page, roleDirectoryPageSize)
+	people := make([]ui.Node, 0, len(window.Items))
+	for _, person := range window.Items {
 		assignment, ok := assignments[strings.ToLower(strings.TrimSpace(person.ID))]
 		if !ok {
 			assignment = WorkerRoleAssignment{WorkerRef: person.ID}
@@ -107,7 +98,7 @@ func RolesPage(props RolesPageProps) ui.Node {
 			),
 		)
 	}
-	pageControls := roleDirectoryPagination(props, page, len(filteredPeople))
+	pageControls := roleDirectoryPagination(props, window)
 
 	return html.Div(html.Props{Class: "roles-access-page"},
 		html.Div(html.Props{Class: "roles-access-intro"},
@@ -119,13 +110,13 @@ func RolesPage(props RolesPageProps) ui.Node {
 		),
 		html.Div(html.Props{Class: "roles-access-layout"},
 			html.Section(html.Props{Class: "surface role-catalog", ID: "role-catalog"},
-				html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{}, html.H2(html.Props{}, ui.Text(props.Text("roles.catalog"))), html.P(html.Props{Class: "muted"}, ui.Text(props.Text("roles.catalog_help"))))),
+				ui.CreateElement(SectionHeading, SectionHeadingProps{Title: props.Text("roles.catalog"), Description: props.Text("roles.catalog_help")}),
 				html.Tag("details", html.Props{Class: "role-create-disclosure"}, html.Tag("summary", html.Props{}, ui.Text(props.Text("roles.create"))), createRoleForm(props.I18nProps, props.CanCreate, props.OnSaveRole)),
 				html.Div(html.Props{Class: "access-role-grid"}, roleCards...),
 			),
 			html.Section(html.Props{Class: "surface employee-role-directory", ID: "role-assignments"},
-				html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{}, html.H2(html.Props{}, ui.Text(props.Text("roles.assignments"))), html.P(html.Props{Class: "muted"}, ui.Text(props.Text("roles.assignments_help"))))),
-				html.Form(html.Props{Class: "role-directory-filter", Action: props.FilterHref, Method: "get", OnSubmit: filterSubmit}, html.Label(html.Props{For: "role-directory-query"}, ui.Text(props.Text("roles.find"))), html.Div(html.Props{}, html.Input(filterInput), html.Button(html.Props{Class: "button secondary", Type: "submit"}, ui.Text(props.Text("roles.filter"))))),
+				ui.CreateElement(SectionHeading, SectionHeadingProps{Title: props.Text("roles.assignments"), Description: props.Text("roles.assignments_help")}),
+				html.Form(html.Props{Class: "role-directory-filter", Action: props.FilterHref, Method: "get", OnSubmit: filterSubmit}, html.Label(html.Props{For: "role-directory-query"}, ui.Text(props.Text("roles.find"))), html.Div(html.Props{}, ui.CreateElement(SearchInput, filterInput), html.Button(html.Props{Class: "button secondary", Type: "submit"}, ui.Text(props.Text("roles.filter"))))),
 				html.Div(html.Props{Class: "role-directory-guidance", Raw: map[string]any{"role": "status"}}, html.Span(html.Props{Class: "muted"}, ui.Text(props.Text("roles.per_worker_guidance")))),
 				html.P(html.Props{Class: "role-effective-boundary muted"}, ui.Text(props.Text("roles.effective_boundary"))),
 				assignmentTable,
@@ -422,9 +413,9 @@ func createRoleForm(i18n I18nProps, editable bool, save func(AccessRole)) ui.Nod
 	return html.Form(html.Props{Class: "create-role-form", OnSubmit: saveRole(save, &draft)},
 		html.H3(html.Props{}, ui.Text(i18n.Text("roles.create"))),
 		html.Div(html.Props{Class: "create-role-fields"},
-			html.Label(html.Props{For: "new-role-id"}, html.Span(html.Props{}, ui.Text(i18n.Text("roles.role_id"))), html.Input(id), html.Small(html.Props{}, ui.Text(i18n.Text("roles.role_id_help")))),
-			html.Label(html.Props{For: "new-role-name"}, html.Span(html.Props{}, ui.Text(i18n.Text("roles.display_name"))), html.Input(name)),
-			html.Label(html.Props{For: "new-role-description"}, html.Span(html.Props{}, ui.Text(i18n.Text("roles.description_label"))), html.Textarea(description)),
+			ui.CreateElement(LabeledControl, LabeledControlProps{For: id.ID, Label: i18n.Text("roles.role_id"), Control: html.Input(id), Help: i18n.Text("roles.role_id_help")}),
+			ui.CreateElement(LabeledControl, LabeledControlProps{For: name.ID, Label: i18n.Text("roles.display_name"), Control: html.Input(name)}),
+			ui.CreateElement(LabeledControl, LabeledControlProps{For: description.ID, Label: i18n.Text("roles.description_label"), Control: html.Textarea(description)}),
 		),
 		html.Div(html.Props{Class: "role-form-actions"}, html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(i18n.Text("roles.create_action"))), html.P(html.Props{ID: "role-access-status", Class: "muted", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, ui.Text(i18n.Text("roles.status")))),
 	)
@@ -496,7 +487,7 @@ func workerRoleAssignmentEditorWithSelection(i18n I18nProps, person Person, role
 	return html.Tr(html.Props{Class: "employee-role-editor", DataAttr: html.DataAttribute{Name: "worker-ref", Value: person.ID}},
 		html.Th(html.Props{Raw: map[string]any{"scope": "row"}},
 			html.Div(html.Props{Class: "employee-role-identity"},
-				personAvatar(person.Name, person.Name, person.PhotoURL, "small"),
+				personAvatar(person.Name, person.Initials, person.PhotoURL, "small"),
 				html.Strong(html.Props{}, ui.Text(person.Name)),
 				html.Small(html.Props{Class: "muted"}, ui.Text(strings.Trim(strings.Join([]string{person.Role, person.Team}, " · "), " ·"))),
 			),
@@ -507,25 +498,16 @@ func workerRoleAssignmentEditorWithSelection(i18n I18nProps, person Person, role
 	)
 }
 
-func roleDirectoryPagination(props RolesPageProps, page, total int) ui.Node {
-	first := (page-1)*roleDirectoryPageSize + 1
-	if total == 0 {
-		first = 0
-	}
-	last := roleMinInt(page*roleDirectoryPageSize, total)
-	pages := (total + roleDirectoryPageSize - 1) / roleDirectoryPageSize
-	if pages == 0 {
-		pages = 1
-	}
+func roleDirectoryPagination(props RolesPageProps, window PaginateWindow[Person]) ui.Node {
 	links := make([]ui.Node, 0, 2)
-	if page > 1 {
-		links = append(links, softwareLink(props.Navigate, html.Props{Class: "button secondary"}, roleDirectoryPageHref(props, page-1), ui.Text(props.Text("common.previous"))))
+	if window.Page > 1 {
+		links = append(links, softwareLink(props.Navigate, html.Props{Class: "button secondary"}, roleDirectoryPageHref(props, window.Page-1), ui.Text(props.Text("common.previous"))))
 	}
-	if page < pages {
-		links = append(links, softwareLink(props.Navigate, html.Props{Class: "button secondary"}, roleDirectoryPageHref(props, page+1), ui.Text(props.Text("common.next"))))
+	if window.Page < window.PageCount {
+		links = append(links, softwareLink(props.Navigate, html.Props{Class: "button secondary"}, roleDirectoryPageHref(props, window.Page+1), ui.Text(props.Text("common.next"))))
 	}
 	return html.Nav(html.Props{Class: "role-directory-pagination", Aria: map[string]string{"label": props.Text("roles.assignments")}},
-		html.Span(html.Props{Class: "muted"}, ui.Text(strconv.Itoa(first)+"–"+strconv.Itoa(last)+" / "+strconv.Itoa(total))),
+		html.Span(html.Props{Class: "muted"}, ui.Text(strconv.Itoa(window.First)+"–"+strconv.Itoa(window.Last)+" / "+strconv.Itoa(window.Total))),
 		html.Div(html.Props{Class: "role-form-actions"}, links...))
 }
 
@@ -551,24 +533,7 @@ func roleDirectoryWindowPage(people []Person, query string, page int) int {
 			count++
 		}
 	}
-	pages := (count + roleDirectoryPageSize - 1) / roleDirectoryPageSize
-	if pages < 1 {
-		pages = 1
-	}
-	if page < 1 {
-		return 1
-	}
-	if page > pages {
-		return pages
-	}
-	return page
-}
-
-func roleMinInt(left, right int) int {
-	if left < right {
-		return left
-	}
-	return right
+	return PaginateBounds(count, page, roleDirectoryPageSize).Page
 }
 
 func savePagePermission(save func(RolePagePermission), draft RolePagePermission) ui.Handler {

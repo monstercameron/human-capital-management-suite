@@ -163,7 +163,10 @@ func OrganizationVisibilityPage(props OrganizationVisibilityPageProps) ui.Node {
 		editors = append(editors, html.WithKey(ui.CreateElement(RoleVisibilityEditor, roleVisibilityEditorProps{Page: props, Role: role, Policy: policy, Expanded: len(editors) == 0}), role.ID))
 	}
 	if len(editors) == 0 {
-		editors = append(editors, html.Div(html.Props{Class: "surface empty-state"}, html.H2(html.Props{}, ui.Text(props.Text("organization_visibility.no_roles"))), html.P(html.Props{Class: "muted"}, ui.Text(props.Text("organization_visibility.no_roles_detail"))), ui.CreateElement(ActionLink, props.RolesLink)))
+		editors = append(editors, ui.CreateElement(EmptyState, EmptyStateProps{
+			Title: props.Text("organization_visibility.no_roles"), Description: props.Text("organization_visibility.no_roles_detail"),
+			Action: &props.RolesLink,
+		}))
 	}
 	return html.Div(html.Props{Class: "organization-visibility-page"},
 		html.Section(html.Props{Class: "surface organization-visibility-intro"},

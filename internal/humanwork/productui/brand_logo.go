@@ -103,7 +103,9 @@ func brandAssetReference(props BrandAssetPickerProps, logoURL string, governed b
 	}
 	// Keep the legacy reference input only when no complete adapter exists. A
 	// partial adapter must never turn a browser filename into persisted state.
-	return html.Label(html.Props{For: "appearance-brand-logo"}, html.Span(html.Props{}, ui.Text(props.Text("appearance.logo_link_label"))), html.Input(brandAssetPathProps(props, logoURL)))
+	return ui.CreateElement(LabeledControl, LabeledControlProps{
+		For: "appearance-brand-logo", Label: props.Text("appearance.logo_link_label"), Control: html.Input(brandAssetPathProps(props, logoURL)),
+	})
 }
 
 func brandAssetPathProps(props BrandAssetPickerProps, logoURL string) html.Props {

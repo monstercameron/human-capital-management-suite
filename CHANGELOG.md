@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-14 (Go UI component decomposition)
+
+- Extracted view-independent page headings, breadcrumbs, labeled form controls, section headings, empty states, and search inputs for reuse across the production Go UI.
+- Shared pagination bounds across People, History, and Roles, and removed People-specific styling from the generic data table through explicit caller-owned style hooks.
+- Added component-contract and rendered-output regressions, rebuilt the Go/WASM asset, and verified the affected pages in the browser.
+
 ## 2026-09-14 (UX reconciliation and PROMOUX-015)
 
 - Reconciled the UX workspace with promotion approval routing: finance approvals reach the configured finance partner, manager approvals use the worker's current manager when that relationship exists, and the two deciders remain separate from the requester and employee.

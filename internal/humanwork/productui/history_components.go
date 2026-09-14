@@ -140,13 +140,10 @@ func WorkflowHistory(props WorkflowHistoryProps) ui.Node {
 		rows = append(rows, ui.CreateElement(WorkflowHistoryItem, item))
 	}
 	children := []ui.Node{
-		html.Div(html.Props{Class: "section-head history-heading"},
-			html.Div(html.Props{},
-				html.H2(html.Props{ID: "workflow-history-title"}, ui.Text(props.Title)),
-				html.P(html.Props{Class: "muted"}, ui.Text(props.Description)),
-			),
-			html.Span(html.Props{Class: "count", Raw: map[string]any{"role": "status", "aria-live": "polite", "aria-atomic": "true"}}, ui.Text(historyCountLabel(props.Locale, props.FilteredCount, props.TotalCount))),
-		),
+		ui.CreateElement(SectionHeading, SectionHeadingProps{
+			ID: "workflow-history-title", Title: props.Title, Description: props.Description, ShowDescription: true, Class: "history-heading",
+			Trailing: html.Span(html.Props{Class: "count", Raw: map[string]any{"role": "status", "aria-live": "polite", "aria-atomic": "true"}}, ui.Text(historyCountLabel(props.Locale, props.FilteredCount, props.TotalCount))),
+		}),
 	}
 	if props.Filter != nil {
 		filter := *props.Filter
@@ -223,13 +220,13 @@ func WorkflowHistoryFilter(props WorkflowHistoryFilterProps) ui.Node {
 	if placeholder == "" {
 		placeholder = props.Text("history.search_placeholder")
 	}
-	inputProps := html.Props{ID: "history-search", Name: "history_q", Value: query,
-		Raw: map[string]any{"type": "search", "placeholder": placeholder, "aria-label": props.Text("history.search_aria")}}
+	input := SearchInputProps{ID: "history-search", Name: "history_q", Value: query,
+		Placeholder: placeholder, AriaLabel: props.Text("history.search_aria")}
 	selectProps := html.Props{ID: "history-outcome", Name: "outcome", Value: outcome,
 		Raw: map[string]any{"aria-label": props.Text("history.outcome_aria")}}
 	formProps := html.Props{Class: "history-filter", Action: props.Action, Method: "get", Raw: map[string]any{"role": "search"}}
 	if props.OnFilter != nil {
-		inputProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { query = event.GetValue() })
+		input.OnInput = func(value string) { query = value }
 		selectProps.OnChange = ui.UseEvent(func(event ui.InputEvent) { outcome = event.GetValue() })
 		onFilter := props.OnFilter
 		formProps.OnSubmit = ui.UseEvent(func(event ui.FormEvent) {
@@ -251,7 +248,7 @@ func WorkflowHistoryFilter(props WorkflowHistoryFilterProps) ui.Node {
 		personSelectProps.OnChange = ui.UseEvent(func(event ui.InputEvent) { person = event.GetValue() })
 		yearSelectProps.OnChange = ui.UseEvent(func(event ui.InputEvent) { year = event.GetValue() })
 	}
-	controls := []ui.Node{html.Tag("input", inputProps)}
+	controls := []ui.Node{ui.CreateElement(SearchInput, input)}
 	if props.ShowPerson {
 		controls = append(controls, html.Select(personSelectProps, personOptions...))
 	}

@@ -40,6 +40,43 @@ func TestDataTableRendersConfigurableRectangularMatrix(t *testing.T) {
 	if got := strings.Count(markup, `data-column="band"`); got != 2 {
 		t.Fatalf("short row was not padded to a rectangular matrix: band cells=%d", got)
 	}
+	if strings.Contains(markup, "people-") {
+		t.Fatalf("neutral data table inherited directory-specific classes: %s", markup)
+	}
+}
+
+func TestDataTableStyleHooksBelongToTheCaller(t *testing.T) {
+	markup, err := ui.RenderToString(ui.CreateElement(DataTable, DataTableProps{
+		Caption: "Report", SortLabel: "Sort report", HeaderClass: "report-columns", BodyClass: "report-rows", SortLabelClass: "report-sort-label",
+		Columns: []DataTableColumnProps{{ID: "name", Label: "Name", Href: "/report?sort=name", Sort: DataTableAscending, SortLinkClass: "report-sort"}},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`class="data-table-head report-columns"`, `class="data-table-body report-rows"`,
+		`class="data-table-sort-label report-sort-label"`, `class="data-table-sort report-sort active"`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("data table lost caller-owned class %q: %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, "people-") {
+		t.Fatalf("caller-owned report table inherited People styling: %s", markup)
+	}
+
+	people, err := ui.RenderToString(ui.CreateElement(PeopleTable, PeopleTableProps{
+		I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")},
+		Columns:   []PeopleSortColumnProps{{ID: peopleSortName, Label: "Person", Href: "/workspace/app/people?sort=name", Active: true}},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`class="data-table-head people-columns"`, `class="data-table-body people-rows"`, `class="data-table-sort-label people-sort-label"`, `class="data-table-sort people-sort active"`} {
+		if !strings.Contains(people, want) {
+			t.Fatalf("People table lost its existing style hook %q: %s", want, people)
+		}
+	}
 }
 
 func TestDataTableMarksEverySortableHeaderAndKeepsStableIdentity(t *testing.T) {
@@ -136,6 +173,42 @@ func TestDataTableStylesKeepHeadersStickyAndMobileCellsVisible(t *testing.T) {
 		if !strings.Contains(dataTableStylesStylesheet(), fragment) {
 			t.Fatalf("data table styles missing %q", fragment)
 		}
+	}
+}
+
+func TestPaginateBoundsAndCollectionSharePageGeometry(t *testing.T) {
+	for _, test := range []struct {
+		name              string
+		total, page, size int
+		want              PaginationBounds
+	}{
+		{name: "empty", total: 0, page: 500, size: 20, want: PaginationBounds{Page: 1, PageCount: 1}},
+		{name: "before-first", total: 61, page: -4, size: 20, want: PaginationBounds{Page: 1, PageCount: 4, First: 1, Last: 20, Total: 61}},
+		{name: "middle", total: 61, page: 3, size: 20, want: PaginationBounds{Page: 3, PageCount: 4, First: 41, Last: 60, Total: 61}},
+		{name: "after-last", total: 61, page: 500, size: 20, want: PaginationBounds{Page: 4, PageCount: 4, First: 61, Last: 61, Total: 61}},
+		{name: "invalid-size", total: 2, page: 1, size: 0, want: PaginationBounds{Page: 1, PageCount: 2, First: 1, Last: 1, Total: 2}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			bounds := PaginateBounds(test.total, test.page, test.size)
+			if bounds != test.want {
+				t.Fatalf("bounds = %+v, want %+v", bounds, test.want)
+			}
+			items := make([]int, test.total)
+			for index := range items {
+				items[index] = index + 1
+			}
+			window := PaginateCollection(items, test.page, test.size)
+			if window.Page != bounds.Page || window.PageCount != bounds.PageCount || window.First != bounds.First || window.Last != bounds.Last || window.Total != bounds.Total {
+				t.Fatalf("collection %+v disagrees with bounds %+v", window, bounds)
+			}
+			wantLen := 0
+			if bounds.Total > 0 {
+				wantLen = bounds.Last - bounds.First + 1
+			}
+			if got := len(window.Items); got != wantLen {
+				t.Fatalf("items = %d for %+v", got, bounds)
+			}
+		})
 	}
 }
 

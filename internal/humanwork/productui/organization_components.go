@@ -215,11 +215,11 @@ func organizationBrowseSummary(props OrganizationPageProps) ui.Node {
 
 func OrganizationSearch(props OrganizationSearchProps) ui.Node {
 	query := props.Query
-	input := html.Props{ID: "organization-search", Name: "q", Value: props.Query,
-		Raw: map[string]any{"type": "search", "placeholder": props.Text("people.filter_placeholder"), "aria-label": props.Text("people.filter_aria")}}
+	input := SearchInputProps{ID: "organization-search", Name: "q", Value: props.Query,
+		Placeholder: props.Text("people.filter_placeholder"), AriaLabel: props.Text("people.filter_aria")}
 	form := html.Props{Class: "organization-search", Action: props.Action, Method: "get", Raw: map[string]any{"role": "search"}}
 	if props.OnFilter != nil {
-		input.OnInput = ui.UseEvent(func(event ui.InputEvent) { query = event.GetValue() })
+		input.OnInput = func(value string) { query = value }
 		onFilter := props.OnFilter
 		form.OnSubmit = ui.UseEvent(func(event ui.FormEvent) {
 			event.PreventDefault()
@@ -238,7 +238,7 @@ func OrganizationSearch(props OrganizationSearchProps) ui.Node {
 	children = append(children,
 		html.Label(html.Props{For: "organization-search"}, ui.Text(props.Text("people.find"))),
 		html.Div(html.Props{Class: "organization-search-control"},
-			html.Tag("input", input),
+			ui.CreateElement(SearchInput, input),
 			html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(props.Text("people.filter"))),
 		),
 	)
@@ -475,10 +475,9 @@ func BusinessMetadata(props BusinessMetadataProps) ui.Node {
 		body = append(body, html.P(html.Props{Class: "business-metadata-boundary"}, ui.Text(props.Boundary)))
 	}
 	return html.Section(html.Props{Class: "surface organization-metadata", Raw: map[string]any{"aria-labelledby": "business-metadata-title"}},
-		html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{},
-			html.H2(html.Props{ID: "business-metadata-title"}, ui.Text(props.Title)),
-			html.P(html.Props{Class: "muted"}, ui.Text(props.Description)),
-		)),
+		ui.CreateElement(SectionHeading, SectionHeadingProps{
+			ID: "business-metadata-title", Title: props.Title, Description: props.Description,
+		}),
 		html.Div(html.Props{Class: "business-metadata-body"}, body...),
 	)
 }

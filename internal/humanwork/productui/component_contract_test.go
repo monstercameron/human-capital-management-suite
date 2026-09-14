@@ -1,6 +1,10 @@
 package productui
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
 	"reflect"
 	"strings"
 	"testing"
@@ -8,15 +12,114 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
+func TestAllExportedComponentPropsStayViewIndependent(t *testing.T) {
+	fset := token.NewFileSet()
+	packages, err := parser.ParseDir(fset, ".", func(info fs.FileInfo) bool {
+		return strings.HasSuffix(info.Name(), ".go") && !strings.HasSuffix(info.Name(), "_test.go")
+	}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg, ok := packages["productui"]
+	if !ok {
+		t.Fatal("productui source package not found")
+	}
+	types := make(map[string]ast.Expr)
+	for _, file := range pkg.Files {
+		for _, declaration := range file.Decls {
+			group, ok := declaration.(*ast.GenDecl)
+			if !ok || group.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range group.Specs {
+				typed := spec.(*ast.TypeSpec)
+				types[typed.Name.Name] = typed.Type
+			}
+		}
+	}
+	count := 0
+	for name, expr := range types {
+		if !ast.IsExported(name) || !strings.HasSuffix(name, "Props") {
+			continue
+		}
+		count++
+		if propsTypeContainsPageView(expr, types, map[string]bool{name: true}) {
+			t.Errorf("%s transitively carries page-wide View instead of a narrow render contract", name)
+		}
+	}
+	if count < 100 {
+		t.Fatalf("component-props audit covered only %d types; expected the product UI source package", count)
+	}
+}
+
+func propsTypeContainsPageView(expr ast.Expr, types map[string]ast.Expr, visited map[string]bool) bool {
+	found := false
+	ast.Inspect(expr, func(node ast.Node) bool {
+		if field, ok := node.(*ast.Field); ok {
+			if propsTypeContainsPageView(field.Type, types, visited) {
+				found = true
+			}
+			return false // Field names such as Permission.View are not types.
+		}
+		if _, ok := node.(*ast.SelectorExpr); ok {
+			return false // Qualified external types are outside this package.
+		}
+		identifier, ok := node.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		if identifier.Name == "View" {
+			found = true
+			return false
+		}
+		if nested, ok := types[identifier.Name]; ok && !visited[identifier.Name] {
+			visited[identifier.Name] = true
+			if propsTypeContainsPageView(nested, types, visited) {
+				found = true
+				return false
+			}
+		}
+		return !found
+	})
+	return found
+}
+
+func TestPropsViewDetectorDistinguishesTypeFromPermissionField(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		expr string
+		want bool
+	}{
+		{name: "direct page projection", expr: "struct { Projection View }", want: true},
+		{name: "permission field name", expr: "struct { View bool }", want: false},
+		{name: "transitive page projection", expr: "struct { Child Nested }", want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			expr, err := parser.ParseExpr(test.expr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			nested, err := parser.ParseExpr("struct { Projection View }")
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := propsTypeContainsPageView(expr, map[string]ast.Expr{"Nested": nested}, map[string]bool{})
+			if got != test.want {
+				t.Fatalf("%s: contains page View = %t, want %t", test.expr, got, test.want)
+			}
+		})
+	}
+}
+
 func TestFeatureComponentPropsNeverEmbedPageView(t *testing.T) {
 	viewType := reflect.TypeOf(View{})
 	props := []any{
-		ActionLinkProps{}, FactProps{}, MetricProps{}, ActivityProps{}, PanelProps{}, EmptyStateProps{}, PopoverSurfaceProps{}, TransientPopoverProps{},
+		ActionLinkProps{}, SearchInputProps{}, LabeledControlProps{}, SectionHeadingProps{}, BreadcrumbTrailProps{}, PageHeadingProps{}, FactProps{}, MetricProps{}, ActivityProps{}, PanelProps{}, EmptyStateProps{}, PopoverSurfaceProps{}, TransientPopoverProps{},
 		WorkPageProps{}, WorkCollectionProps{}, WorkTabProps{}, WorkRowProps{}, WorkCollectionFooterProps{}, WorkPreviewProps{},
 		ProvenancePresentationProps{},
 		HomePageProps{}, SummaryCardProps{}, QuickActionsProps{}, RecentActivityProps{},
 		OrganizationPageProps{}, OrganizationGroupProps{}, BusinessMetadataProps{}, BusinessMetadataItemProps{}, InsightsPageProps{}, AttentionPanelProps{},
-		AdminPageProps{}, AdminHeroProps{}, CapabilityCardProps{}, HelpPageProps{}, InformationalPanelProps{},
+		AdminPageProps{}, AdminHeroProps{}, CapabilityCardProps{}, HelpPageProps{}, InformationalPanelProps{}, KnowledgeSearchPageProps{},
 		SettingsPageProps{}, ViewerProfileProps{}, AccessContextProps{}, LocalePreferencesProps{}, LocaleOptionProps{}, StudioPageProps{}, AppearancePageProps{}, AppearanceOption{}, BrandLogoProps{},
 		ContextSwitcherProps{},
 		PeoplePageProps{}, PeopleSummaryProps{}, PeopleFilterProps{}, PeopleDirectoryProps{}, PeopleTableProps{}, PeopleRowProps{},

@@ -136,3 +136,19 @@ func TestRolesPageUsesScannableAssignmentTable(t *testing.T) {
 		t.Fatal("workforce assignment should not use one accordion per employee")
 	}
 }
+
+func TestRoleAssignmentUsesSharedAvatarFallback(t *testing.T) {
+	view := testView(PageRoles)
+	markup, err := ui.RenderToString(ui.CreateElement(WorkerRoleEditor, workerRoleEditorProps{
+		I18n: I18nProps{Locale: view.Locale}, Person: Person{ID: "worker-1", Name: "Priya Patel"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(markup, `class="avatar small"`) || !strings.Contains(markup, ">PP</span>") {
+		t.Fatalf("assignment row did not use the shared initials fallback: %s", markup)
+	}
+	if strings.Contains(markup, ">Priya Patel</span>") {
+		t.Fatal("assignment avatar printed the full name in an initials slot")
+	}
+}

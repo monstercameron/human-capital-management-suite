@@ -18,6 +18,28 @@ type ActionLinkProps struct {
 	Navigate func(string)
 }
 
+// SearchInputProps is the shared, label-compatible query input used by page
+// filters. Each feature form retains ownership of submission and hidden
+// route fields; this component owns only the input's accessible contract.
+type SearchInputProps struct {
+	ID          string
+	Name        string
+	Value       string
+	Placeholder string
+	AriaLabel   string
+	OnInput     func(string)
+}
+
+// LabeledControlProps composes a native control with its visible label and
+// optional help copy. The owning form keeps the control's value, validation,
+// and submission behavior; this component preserves their shared DOM shape.
+type LabeledControlProps struct {
+	For     string
+	Label   string
+	Control ui.Node
+	Help    string
+}
+
 // FactProps is an already-formatted label/value pair.
 type FactProps struct {
 	Label string
@@ -47,6 +69,20 @@ type PanelProps struct {
 	Body  ui.Node
 }
 
+// SectionHeadingProps describes the repeated heading row used inside product
+// surfaces. A description groups with its heading; ShowDescription keeps the
+// description slot when its text is temporarily empty. Trailing stays a
+// separate slot for counts or page-specific actions.
+type SectionHeadingProps struct {
+	ID              string
+	Title           string
+	Description     string
+	ShowDescription bool
+	Level           int
+	Class           string
+	Trailing        ui.Node
+}
+
 // EmptyStateProps standardizes honest empty and unavailable states.
 type EmptyStateProps struct {
 	Title       string
@@ -62,13 +98,61 @@ func ActionLink(props ActionLinkProps) ui.Node {
 	return softwareLink(props.Navigate, html.Props{Class: props.Class}, props.Href, ui.Text(props.Label))
 }
 
+func SearchInput(props SearchInputProps) ui.Node {
+	raw := map[string]any{"type": "search", "placeholder": props.Placeholder}
+	if props.AriaLabel != "" {
+		raw["aria-label"] = props.AriaLabel
+	}
+	input := html.Props{ID: props.ID, Name: props.Name, Value: props.Value, Raw: raw}
+	handler := ui.UseEvent(func(event ui.InputEvent) {
+		if props.OnInput != nil {
+			props.OnInput(event.GetValue())
+		}
+	})
+	if props.OnInput != nil {
+		input.OnInput = handler
+	}
+	return html.Tag("input", input)
+}
+
+func LabeledControl(props LabeledControlProps) ui.Node {
+	children := []ui.Node{html.Span(html.Props{}, ui.Text(props.Label)), props.Control}
+	if props.Help != "" {
+		children = append(children, html.Small(html.Props{}, ui.Text(props.Help)))
+	}
+	return html.Label(html.Props{For: props.For}, children...)
+}
+
+func SectionHeading(props SectionHeadingProps) ui.Node {
+	headingProps := html.Props{ID: props.ID}
+	var heading ui.Node = html.H2(headingProps, ui.Text(props.Title))
+	if props.Level == 3 {
+		heading = html.H3(headingProps, ui.Text(props.Title))
+	}
+	if props.Description != "" || props.ShowDescription || props.ID != "" {
+		group := []ui.Node{heading}
+		if props.Description != "" || props.ShowDescription {
+			group = append(group, html.P(html.Props{Class: "muted"}, ui.Text(props.Description)))
+		}
+		heading = html.Div(html.Props{}, group...)
+	}
+	class := "section-head"
+	if extra := strings.TrimSpace(props.Class); extra != "" {
+		class += " " + extra
+	}
+	if props.Trailing == nil {
+		return html.Div(html.Props{Class: class}, heading)
+	}
+	return html.Div(html.Props{Class: class}, heading, props.Trailing)
+}
+
 func Panel(props PanelProps) ui.Node {
 	class := "surface panel"
 	if props.Class != "" {
 		class += " " + props.Class
 	}
 	return html.Section(html.Props{Class: class},
-		html.Div(html.Props{Class: "section-head"}, html.H2(html.Props{}, ui.Text(props.Title))),
+		ui.CreateElement(SectionHeading, SectionHeadingProps{Title: props.Title}),
 		props.Body,
 	)
 }

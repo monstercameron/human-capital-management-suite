@@ -210,11 +210,10 @@ func activeWorkNode(props ActiveWorkflowsProps) ui.Node {
 
 // PersonUnavailable renders no worker data and offers one safe recovery path.
 func PersonUnavailable(props PersonUnavailableProps) ui.Node {
-	return html.Section(html.Props{Class: "surface empty-state", Raw: map[string]any{"role": "status"}},
-		html.H2(html.Props{}, ui.Text(props.Text("person.unavailable"))),
-		html.P(html.Props{Class: "muted"}, ui.Text(props.Text("person.unavailable_detail"))),
-		softwareLink(props.Navigate, html.Props{Class: "button secondary"}, props.DirectoryHref, ui.Text(props.Text("person.return_directory"))),
-	)
+	return ui.CreateElement(EmptyState, EmptyStateProps{
+		Title: props.Text("person.unavailable"), Description: props.Text("person.unavailable_detail"), Role: "status",
+		Action: &ActionLinkProps{Label: props.Text("person.return_directory"), Href: props.DirectoryHref, Class: "button secondary", Navigate: props.Navigate},
+	})
 }
 
 // PersonProfileHeader renders the employee identity without raw record metadata.
@@ -265,10 +264,7 @@ func EmploymentDetails(props EmploymentDetailsProps) ui.Node {
 		class += " " + props.Class
 	}
 	children := []ui.Node{
-		html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{},
-			html.H2(html.Props{}, ui.Text(title)),
-			html.P(html.Props{Class: "muted"}, ui.Text(description)),
-		)),
+		ui.CreateElement(SectionHeading, SectionHeadingProps{Title: title, Description: description, ShowDescription: true}),
 	}
 	if len(facts) > 0 {
 		children = append(children, html.Tag("dl", html.Props{Class: "person-fact-grid"}, facts...))
@@ -358,10 +354,10 @@ func ActiveWorkflows(props ActiveWorkflowsProps) ui.Node {
 		title = props.Text("work.all")
 	}
 	return html.Section(html.Props{Class: "surface active-workflows", Aria: map[string]string{"label": title}},
-		html.Div(html.Props{Class: "section-head"},
-			html.Div(html.Props{}, html.H2(html.Props{}, ui.Text(title)), html.P(html.Props{Class: "muted"}, ui.Text(props.Description))),
-			html.Span(html.Props{Class: "count"}, ui.Text(props.Locale.Plural("work.item_count", int64(len(props.Rows))))),
-		),
+		ui.CreateElement(SectionHeading, SectionHeadingProps{
+			Title: title, Description: props.Description, ShowDescription: true,
+			Trailing: html.Span(html.Props{Class: "count"}, ui.Text(props.Locale.Plural("work.item_count", int64(len(props.Rows))))),
+		}),
 		html.Ul(html.Props{Class: "work-rows", Raw: map[string]any{"role": "list"}}, rows...),
 	)
 }
@@ -395,14 +391,13 @@ func WorkflowLauncher(props WorkflowLauncherProps) ui.Node {
 	if description == "" {
 		description = props.Text("workflow.choose", map[string]string{"name": props.PersonName})
 	}
-	heading := []ui.Node{html.Div(html.Props{},
-		html.H2(html.Props{}, ui.Text(headingText)),
-		html.P(html.Props{Class: "muted"}, ui.Text(description)),
-	)}
+	var trailing ui.Node
 	if props.TotalCount > 0 && !props.HideCount {
-		heading = append(heading, html.Span(html.Props{Class: "count"}, ui.Text(props.Locale.Plural("workflow.available_count", int64(props.TotalCount)))))
+		trailing = html.Span(html.Props{Class: "count"}, ui.Text(props.Locale.Plural("workflow.available_count", int64(props.TotalCount))))
 	}
-	children := []ui.Node{html.Div(html.Props{Class: "section-head workflow-heading"}, heading...)}
+	children := []ui.Node{ui.CreateElement(SectionHeading, SectionHeadingProps{
+		Title: headingText, Description: description, ShowDescription: true, Class: "workflow-heading", Trailing: trailing,
+	})}
 	if props.TotalCount > 0 {
 		children = append(children, ui.CreateElement(WorkflowFilter, props.Filter))
 	}
@@ -413,13 +408,11 @@ func WorkflowLauncher(props WorkflowLauncherProps) ui.Node {
 // WorkflowFilter is an SSR-safe GET filter with an optional live callback.
 func WorkflowFilter(props WorkflowFilterProps) ui.Node {
 	query := props.Query
-	inputProps := html.Props{
-		ID: "workflow-search", Name: "workflow_q", Value: props.Query,
-		Raw: map[string]any{"type": "search", "placeholder": props.Text("workflow.filter_placeholder"), "aria-label": props.Text("workflow.filter_aria")},
-	}
+	input := SearchInputProps{ID: "workflow-search", Name: "workflow_q", Value: props.Query,
+		Placeholder: props.Text("workflow.filter_placeholder"), AriaLabel: props.Text("workflow.filter_aria")}
 	formProps := html.Props{Class: "workflow-search", Action: props.Action, Method: "get", Raw: map[string]any{"role": "search"}}
 	if props.OnFilter != nil {
-		inputProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { query = event.GetValue() })
+		input.OnInput = func(value string) { query = value }
 		onFilter := props.OnFilter
 		formProps.OnSubmit = ui.UseEvent(func(event ui.FormEvent) {
 			event.PreventDefault()
@@ -429,7 +422,7 @@ func WorkflowFilter(props WorkflowFilterProps) ui.Node {
 	children := []ui.Node{
 		html.Label(html.Props{For: "workflow-search"}, ui.Text(props.Text("workflow.find"))),
 		html.Div(html.Props{Class: "workflow-search-control"},
-			html.Tag("input", inputProps),
+			ui.CreateElement(SearchInput, input),
 			html.Button(html.Props{Class: "button secondary", Type: "submit"}, ui.Text(props.Text("workflow.filter"))),
 		),
 	}

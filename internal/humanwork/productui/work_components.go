@@ -205,15 +205,10 @@ func WorkCollection(props WorkCollectionProps) ui.Node {
 	if props.Kind != "" {
 		sectionProps.DataAttr = html.DataAttribute{Name: "work-kind", Value: props.Kind}
 	}
-	title := ui.Node(html.H2(html.Props{}, ui.Text(props.Title)))
-	if props.Description != "" {
-		title = html.Div(html.Props{},
-			html.H2(html.Props{}, ui.Text(props.Title)),
-			html.P(html.Props{Class: "muted"}, ui.Text(props.Description)),
-		)
-	}
-	heading := []ui.Node{title, html.Span(html.Props{Class: "count"}, ui.Text(props.CountLabel))}
-	children := []ui.Node{html.Div(html.Props{Class: "section-head"}, heading...)}
+	children := []ui.Node{ui.CreateElement(SectionHeading, SectionHeadingProps{
+		Title: props.Title, Description: props.Description,
+		Trailing: html.Span(html.Props{Class: "count"}, ui.Text(props.CountLabel)),
+	})}
 	if len(tabs) > 0 {
 		children = append(children, html.Nav(html.Props{Class: "tabs", Aria: map[string]string{"label": props.Text("work.filter_label")}}, tabs...))
 	}

@@ -23,11 +23,10 @@ type JourneysPageProps struct {
 func JourneysPage(props JourneysPageProps) ui.Node {
 	return html.Div(html.Props{Class: "page-stack journeys-page"},
 		html.Section(html.Props{Class: "surface journeys-overview", Aria: map[string]string{"labelledby": "journeys-page-title"}},
-			html.Div(html.Props{Class: "section-head"},
-				html.Div(html.Props{},
-					html.H2(html.Props{ID: "journeys-page-title"}, ui.Text(props.Text("page.journeys.title"))),
-					html.P(html.Props{Class: "muted"}, ui.Text(props.Text("page.journeys.subtitle")))),
-				typedJourneyLaunch(props.Launch)),
+			ui.CreateElement(SectionHeading, SectionHeadingProps{
+				ID: "journeys-page-title", Title: props.Text("page.journeys.title"), Description: props.Text("page.journeys.subtitle"),
+				Trailing: typedJourneyLaunch(props.Launch),
+			}),
 		),
 		ui.CreateElement(TrackedRequests, props.Tracker),
 	)

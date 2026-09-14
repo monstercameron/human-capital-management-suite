@@ -10,6 +10,21 @@ import (
 	xhtml "golang.org/x/net/html"
 )
 
+func TestPageHeadingRendersResolvedIdentityWithoutPageView(t *testing.T) {
+	markup, err := ui.RenderToString(ui.CreateElement(PageHeading, PageHeadingProps{
+		Identity: PageIdentity{Page: PageRoles, Title: "Roles", Subtitle: "Manage access"},
+		Trail:    ui.Text(""),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`class="page-head"`, `data-hcm-page="roles"`, `id="page-title"`, "Roles", "Manage access"} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("narrow page heading missing %q: %s", want, markup)
+		}
+	}
+}
+
 // RED for WEB-045: canonical page-identity header. The header must resolve
 // its identity (stable page id, localized title/subtitle, scope label and
 // scope destination) from the registry in one governed resolution instead

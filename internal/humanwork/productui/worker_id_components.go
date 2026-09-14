@@ -139,7 +139,7 @@ func WorkerIDPage(props WorkerIDPageProps) ui.Node {
 			ui.CreateElement(ValidationSummary, ValidationSummaryProps{I18nProps: props.I18nProps, ID: "worker-id-validation-summary", Issues: errors, FieldIDs: workerIDValidationFieldIDs, Ref: summaryRef}),
 			html.Fieldset(html.Props{Class: "worker-id-edit-boundary", Disabled: !props.Editable},
 				html.Section(html.Props{Class: "surface worker-id-rules"},
-					html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{}, html.H2(html.Props{}, ui.Text(props.Text("worker_ids.format_title"))), html.P(html.Props{Class: "muted"}, ui.Text(props.Text("worker_ids.format_help"))))),
+					ui.CreateElement(SectionHeading, SectionHeadingProps{Title: props.Text("worker_ids.format_title"), Description: props.Text("worker_ids.format_help"), ShowDescription: true}),
 					html.Div(html.Props{Class: "worker-id-fields"},
 						AdminFormSection(AdminFormSectionProps{ID: "worker-id-identity", Title: props.Text("worker_ids.prefix"), Fields: []ui.Node{
 							workerIDTextField(props.I18nProps, "worker-prefix", props.Text("worker_ids.prefix"), props.Text("worker_ids.prefix_help"), draft.Prefix, 12, props.Validation.ForField("worker-prefix"), func(v string) { draft.Prefix = v; refresh() }),
@@ -235,7 +235,7 @@ func workerIDSelect(id, label, selected string, values []workerIDOption, update 
 	}
 	p := html.Props{ID: id}
 	p.OnChange = ui.UseEvent(func(event ui.InputEvent) { update(event.GetValue()) })
-	return html.Label(html.Props{For: id}, html.Span(html.Props{}, ui.Text(label)), html.Select(p, options...))
+	return ui.CreateElement(LabeledControl, LabeledControlProps{For: id, Label: label, Control: html.Select(p, options...)})
 }
 
 func workerIDSeparatorOptions(locale LocaleContext) []workerIDOption {

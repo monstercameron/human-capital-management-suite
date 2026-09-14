@@ -124,8 +124,8 @@ func appearanceBrandSignature(i18n I18nProps, theme CustomerTheme, onName, onMar
 		html.Legend(html.Props{}, ui.Text(i18n.Text("appearance.brand_signature"))),
 		html.P(html.Props{Class: "muted appearance-group-help"}, ui.Text(i18n.Text("appearance.brand_help"))),
 		html.Div(html.Props{Class: "appearance-brand-fields"},
-			html.Label(html.Props{For: name.ID}, html.Span(html.Props{}, ui.Text(i18n.Text("appearance.workspace_name"))), html.Input(name), html.Small(html.Props{}, ui.Text(i18n.Text("appearance.workspace_name_help")))),
-			html.Label(html.Props{For: mark.ID}, html.Span(html.Props{}, ui.Text(i18n.Text("appearance.short_mark"))), html.Input(mark), html.Small(html.Props{}, ui.Text(i18n.Text("appearance.short_mark_help")))),
+			ui.CreateElement(LabeledControl, LabeledControlProps{For: name.ID, Label: i18n.Text("appearance.workspace_name"), Control: html.Input(name), Help: i18n.Text("appearance.workspace_name_help")}),
+			ui.CreateElement(LabeledControl, LabeledControlProps{For: mark.ID, Label: i18n.Text("appearance.short_mark"), Control: html.Input(mark), Help: i18n.Text("appearance.short_mark_help")}),
 			html.Div(html.Props{Class: "appearance-brand-logo-field"}, ui.CreateElement(BrandAssetPicker, assetProps)),
 		),
 	)

@@ -22,10 +22,9 @@ type AccessibilityPreferencesProps struct {
 func AccessibilityPreferencesPanel(props AccessibilityPreferencesProps) ui.Node {
 	draft := NormalizeAccessibilityPreferences(props.Value)
 	return html.Section(html.Props{Class: "surface accessibility-preferences", Data: map[string]string{"hcm-setting-group": "accessibility"}, Raw: map[string]any{"aria-labelledby": "accessibility-title"}},
-		html.Div(html.Props{Class: "section-head"}, html.Div(html.Props{},
-			html.H3(html.Props{ID: "accessibility-title"}, ui.Text(props.Text("accessibility.title"))),
-			html.P(html.Props{Class: "muted"}, ui.Text(props.Text("accessibility.description"))),
-		)),
+		ui.CreateElement(SectionHeading, SectionHeadingProps{
+			ID: "accessibility-title", Title: props.Text("accessibility.title"), Description: props.Text("accessibility.description"), Level: 3,
+		}),
 		html.Form(html.Props{Class: "accessibility-form", OnSubmit: saveAccessibilityPreferences(props.OnSave, &draft)},
 			accessibilityChoices(props, "text-size", props.Text("accessibility.text_size"), props.Text("accessibility.text_size_help"), draft.TextSize, props.TextSizes, func(value string) {
 				draft.TextSize = value
