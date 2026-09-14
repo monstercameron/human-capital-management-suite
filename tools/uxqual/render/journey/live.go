@@ -262,6 +262,17 @@ func Wire(s *Store, p Page, nav func(href string), submit func(actionID string, 
 				p.List.Journeys[i].OnOpen = func() { nav(href) }
 			}
 		}
+		// The overview renders Groups when present, not Journeys. Bind the
+		// displayed copies too or a click falls through to the fragment href
+		// while the host history router remains on the list.
+		for group := range p.List.Groups {
+			for i := range p.List.Groups[group].Journeys {
+				href := p.List.Groups[group].Journeys[i].Href
+				if nav != nil {
+					p.List.Groups[group].Journeys[i].OnOpen = func() { nav(href) }
+				}
+			}
+		}
 		if submit != nil {
 			p.List.Form.OnSubmit = func(values map[string]string) { submit(actionPropose, values) }
 		}

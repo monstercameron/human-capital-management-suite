@@ -62,7 +62,7 @@ func TestAppearancePreviewShowsLightDarkAndCompactModesWithStickyActions(t *test
 	for _, want := range []string{
 		`data-hcm-preview-mode="light"`, `data-hcm-preview-mode="dark"`, `data-hcm-preview-mode="compact"`,
 		`data-hcm-preview-color-mode="dark"`, `data-hcm-preview-density="compact"`,
-		`class="appearance-actions appearance-actions-sticky"`, `data-hcm-sticky-actions="true"`,
+		`class="appearance-actions appearance-actions-sticky sticky-actions"`, `data-hcm-sticky-actions="true"`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("appearance preview missing %q in %s", want, markup)

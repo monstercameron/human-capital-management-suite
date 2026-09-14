@@ -292,5 +292,5 @@ func (c *serverPreferenceController) saveUser(mutate func(*journeyv1.UserPrefere
 
 func themeToProto(theme productui.CustomerTheme, version int64) *journeyv1.CustomerTheme {
 	theme = productui.NormalizeCustomerTheme(theme)
-	return &journeyv1.CustomerTheme{Version: version, BrandName: theme.BrandName, BrandMark: theme.BrandMark, BrandLogoUrl: theme.BrandLogoURL, ColorMode: theme.ColorMode, Palette: theme.Palette, Shape: theme.Shape, Density: theme.Density, Glyphs: theme.Glyphs, Typeface: theme.Typeface, Navigation: theme.Navigation, Motion: theme.Motion}
+	return &journeyv1.CustomerTheme{Version: version, BrandName: theme.BrandName, BrandMark: theme.BrandMark, BrandLogoUrl: theme.BrandLogoURL, ColorMode: theme.ColorMode, Palette: theme.Palette, Shape: theme.Shape, Density: theme.Density, Glyphs: theme.Glyphs, Typeface: theme.Typeface, Navigation: theme.Navigation, Motion: theme.Motion, TokenOverrides: theme.TokenOverrides, DarkTokenOverrides: theme.DarkTokenOverrides}
 }

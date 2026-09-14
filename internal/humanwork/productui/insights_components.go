@@ -9,9 +9,11 @@ import (
 
 type InsightsPageProps struct {
 	I18nProps
-	Metrics   []MetricProps
-	Attention AttentionPanelProps
-	Evidence  InsightsEvidenceProps
+	Metrics       []MetricProps
+	Attention     AttentionPanelProps
+	Empty         *EmptyStateProps
+	EvidenceTitle string
+	Evidence      InsightsEvidenceProps
 }
 
 // InsightsEvidenceProps keeps the boundary of a lightweight workflow
@@ -37,9 +39,11 @@ func InsightsPage(props InsightsPageProps) ui.Node {
 	// these are siblings of the evidence panel, the two-column page grid makes
 	// the attention card the narrow third of the row and wraps its copy one
 	// character at a time at desktop widths.
-	summary := []ui.Node{
-		MetricGrid(props.Metrics),
-		ui.CreateElement(AttentionPanel, props.Attention),
+	var summary []ui.Node
+	if props.Empty != nil {
+		summary = append(summary, ui.CreateElement(EmptyState, *props.Empty))
+	} else {
+		summary = append(summary, MetricGrid(props.Metrics), ui.CreateElement(AttentionPanel, props.Attention))
 	}
 	children := []ui.Node{html.Div(html.Props{Class: "insights-summary"}, summary...)}
 	if strings.TrimSpace(props.Evidence.TimeRange) != "" || strings.TrimSpace(props.Evidence.Freshness) != "" || strings.TrimSpace(props.Evidence.Lineage) != "" {
@@ -49,9 +53,17 @@ func InsightsPage(props InsightsPageProps) ui.Node {
 			{Label: props.Text("insights.source_label"), Value: props.Evidence.Lineage},
 		})}
 		if strings.TrimSpace(props.Evidence.ScopeDescription) != "" {
-			evidenceBody = append(evidenceBody, html.P(html.Props{Class: "muted"}, ui.Text(props.Evidence.ScopeDescription)))
+			evidenceBody = append(evidenceBody, html.P(html.Props{Class: "muted insights-evidence-note"}, ui.Text(props.Evidence.ScopeDescription)))
 		}
-		children = append(children, ui.CreateElement(Panel, PanelProps{Title: props.Text("insights.context_title"), Body: html.Div(html.Props{}, evidenceBody...)}))
+		title := props.EvidenceTitle
+		if title == "" {
+			title = props.Text("insights.context_title")
+		}
+		children = append(children, ui.CreateElement(Panel, PanelProps{
+			Title: title,
+			Class: "insights-evidence",
+			Body:  html.Div(html.Props{Class: "insights-evidence-body"}, evidenceBody...),
+		}))
 	}
 	// Keep the page family hook on the component itself so its layout remains
 	// stable when the route shell is rendered in isolation (for example in a

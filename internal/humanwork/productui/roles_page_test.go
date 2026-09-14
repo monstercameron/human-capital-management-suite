@@ -132,6 +132,9 @@ func TestRolesPageUsesScannableAssignmentTable(t *testing.T) {
 	if !strings.Contains(doc, `class="employee-role-table`) || !strings.Contains(doc, `scope="col"`) || !strings.Contains(doc, `data-worker-ref="worker-1"`) {
 		t.Fatal("role assignment directory should render as an accessible table")
 	}
+	if !strings.Contains(doc, `class="muted role-page-scroll-hint role-effective-boundary">`+view.Locale.Text("roles.scroll_hint")) {
+		t.Fatal("narrow assignment table must explain how to reach off-screen Save controls")
+	}
 	if strings.Contains(doc, `class="employee-role-editor"><summary`) {
 		t.Fatal("workforce assignment should not use one accordion per employee")
 	}

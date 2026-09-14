@@ -87,6 +87,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// Normalize the cold address before GWC constructs its first loader key.
 	// This keeps unknown, wrong-page, and action/credential-shaped parameters
 	// out of both the visible address and the router's internal loader cache.
+	// A copied embedded journey link still uses its standalone fragment href.
+	// Resolve it before the history router forms the cold loader key.
+	if href, ok := productclient.ProductJourneyHashHref(currentPath(), currentHash(), currentQuery()); ok {
+		browserReplaceURL(href)
+	}
 	canonicalizeCurrentProductLocation()
 	productRouter := router.NewHistoryRouter(router.RouterOptions{DefaultRoute: productui.Path(productui.PageHome)})
 	// Product routing has page-aware focus continuity: collection controls keep

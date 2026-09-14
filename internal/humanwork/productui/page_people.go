@@ -173,8 +173,13 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 		if workflowReason != "" {
 			reason = workflowReason
 		}
+		identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
+		workerNumber := ""
+		if identity.WorkerNumberStatus == WorkerFactPresent {
+			workerNumber = identity.WorkerNumber
+		}
 		rows = append(rows, PeopleRowProps{
-			ID: person.ID, Initials: person.Initials, PhotoURL: person.PhotoURL, Name: person.Name, WorkerNumber: person.WorkerNumber, Role: person.Role, Team: person.Team,
+			ID: person.ID, Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Name, WorkerNumber: workerNumber, Role: identity.Role, Team: person.Team,
 			Manager: person.Manager, Location: person.Location, Navigate: view.Navigate,
 			Href: peoplePersonHref(view, person.ID, window.Page), QuickActions: actions,
 			WorkflowsUnavailableReason: reason,
@@ -197,6 +202,7 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 // have to re-derive which workflow the reason belongs to.
 func personWorkflowActions(view View, person Person, workflows []PersonWorkflow) (actions []PeopleQuickActionProps, reason string, reasonWorkflow string) {
 	actions = make([]PeopleQuickActionProps, 0, len(workflows))
+	accessiblePerson := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view)).Label
 	// PROMOUX-012: an open journey in view guards Start even when the
 	// availability verdict disagrees, the same rule the profile applies.
 	_, hasActiveJourney := activePromotionWorkItem(view, person.ID)
@@ -209,7 +215,7 @@ func personWorkflowActions(view View, person Person, workflows []PersonWorkflow)
 			if item, ok := activePromotionWorkItem(view, person.ID); ok {
 				actions = append(actions, PeopleQuickActionProps{
 					Label:           view.Locale.Text("people.open_active_promotion"),
-					AccessibleLabel: view.Locale.Text("people.open_active_promotion_aria", map[string]string{"name": person.Name}),
+					AccessibleLabel: view.Locale.Text("people.open_active_promotion_aria", map[string]string{"name": accessiblePerson}),
 					Href:            JourneyDetailHref(view, item.ID),
 				})
 				continue
@@ -233,7 +239,7 @@ func personWorkflowActions(view View, person Person, workflows []PersonWorkflow)
 			continue
 		}
 		actions = append(actions, PeopleQuickActionProps{Label: workflow.Name,
-			AccessibleLabel: view.Locale.Text("people.workflow_aria", map[string]string{"workflow": workflow.Name, "name": person.Name}),
+			AccessibleLabel: view.Locale.Text("people.workflow_aria", map[string]string{"workflow": workflow.Name, "name": accessiblePerson}),
 			Href:            href, Frequent: workflow.UseCount > 0})
 	}
 	return actions, reason, reasonWorkflow

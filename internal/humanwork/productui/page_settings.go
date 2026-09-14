@@ -35,7 +35,7 @@ func settingsPage(view View) ui.Node {
 		Callout: view.Locale.Text("settings.access_callout"),
 	}
 	props := SettingsTaskGroupsProps{
-		Title: view.Locale.Text("settings.account_group_title"), AccountDescription: view.Locale.Text("settings.account_group_description"), PreferencesTitle: view.Locale.Text("settings.preferences_group_title"), Description: view.Locale.Text("settings.preferences_group_description"),
+		Title: view.Locale.Text("settings.account_group_title"), AccountDescription: view.Locale.Text("settings.account_group_description"), OrganizationTitle: view.Locale.Text("settings.organization_group_title"), OrganizationDescription: view.Locale.Text("settings.organization_group_description"), PreferencesTitle: view.Locale.Text("settings.preferences_group_title"), Description: view.Locale.Text("settings.preferences_group_description"),
 		SettingsLocale: view.Locale,
 		Profile:        profileProps, Locale: &locale, Accessibility: &accessibility, Security: security,
 		Notifications:      settingsNotifications(view.Locale),

@@ -169,7 +169,11 @@ func TestTodo_WEB_063_Golden(t *testing.T) {
 	// (empty here, Avery's only journey is terminal). Rendering the same
 	// profile with that section omitted reproduces the previous pin
 	// cc4de793..., so nothing else in the governed profile changed.
-	if got := hex.EncodeToString(digest[:]); got != "9528cf9f75fbdc65c12bc01bfbcdd67b1a8321397cf4690e47914774053b787c" {
+	// UXSCAN-001 re-pin: the Promotion and Internal transfer action links
+	// gained accessible names carrying the worker's full name ("Start
+	// Promotion for Avery Patel"); the rendered markup differs from 9528cf9f...
+	// only in those two aria-label attributes.
+	if got := hex.EncodeToString(digest[:]); got != "05ce9c3bca15084b641b981818621c21b118f9430f6222669a2ef6f326eebbe8" {
 		t.Fatalf("governed profile golden mismatch: %s\n%s", got, node)
 	}
 }

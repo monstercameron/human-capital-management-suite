@@ -370,6 +370,7 @@ func organizationToggleGlyph(expanded bool) string {
 // UXAUDIT-004's flat organization list, organization tree, and Myself
 // subtree all render every person through this one function.
 func organizationPersonCard(props OwnershipNodeProps) ui.Node {
+	identityLabel := ResolveWorkerIdentity(props.Locale, Person{Name: props.Name, WorkerNumber: props.WorkerNumber}, nil).Label
 	class := "ownership-card"
 	if props.Current {
 		class += " current-person"
@@ -378,7 +379,7 @@ func organizationPersonCard(props OwnershipNodeProps) ui.Node {
 
 		class += " selected selected-person"
 	}
-	metadata := []ui.Node{html.Strong(html.Props{}, ui.Text(props.Name))}
+	metadata := []ui.Node{html.Strong(html.Props{}, ui.Text(identityLabel))}
 	if props.Current {
 		metadata = append(metadata, html.Span(html.Props{Class: "sr-only"}, ui.Text(props.Text("organization.current_you"))))
 	}
@@ -445,7 +446,7 @@ func organizationPersonCard(props OwnershipNodeProps) ui.Node {
 	}
 	if len(details) > 0 {
 		nodes = append(nodes, html.Details(html.Props{Class: "ownership-person-disclosure"},
-			html.Summary(html.Props{Aria: map[string]string{"label": props.Text("organization.employee_details_for", map[string]string{"name": props.Name})}}, ui.Text(props.Text("organization.employee_details"))),
+			html.Summary(html.Props{Aria: map[string]string{"label": props.Text("organization.employee_details_for", map[string]string{"name": identityLabel})}}, ui.Text(props.Text("organization.employee_details"))),
 			html.Div(html.Props{Class: "ownership-person-details"}, details...),
 		))
 	}

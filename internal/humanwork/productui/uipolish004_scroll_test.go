@@ -71,7 +71,7 @@ func TestTodo_UIPOLISH_004_ScrollbarTokens(t *testing.T) {
 	for _, want := range []string{
 		`--hcm-scrollbar-size:10px;`,
 		`--hcm-nav-scrollbar-size:10px;`,
-		`--hcm-nav-scrollbar-size-rail:7px;`,
+		`--hcm-nav-scrollbar-size-rail:6px;`,
 		`:is(.main-scroll,.global-search-panel,.data-table-scroll,.action-launcher-dialog,.utility-drawer-dialog,.people-workflow-options)::-webkit-scrollbar{height:var(--hcm-scrollbar-size);width:var(--hcm-scrollbar-size);}`,
 		`@media (forced-colors:active){:where(.app-shell,.jn-embedded) :is(.main-scroll,.global-search-panel,.data-table-scroll,.action-launcher-dialog,.utility-drawer-dialog,.people-workflow-options){scrollbar-color:ButtonText Canvas;}}`,
 	} {

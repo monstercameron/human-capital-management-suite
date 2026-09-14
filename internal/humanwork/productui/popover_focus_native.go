@@ -11,4 +11,6 @@ func focusElementByID(_ any, _ string) {}
 
 func focusPopoverElement(_ string) {}
 
+func scrollPopoverElementIntoView(_ string) {}
+
 func useMobileNavigationDrawer(_, _, _ string) {}

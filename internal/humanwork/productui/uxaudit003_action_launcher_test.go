@@ -118,7 +118,7 @@ func TestTodo_UXAUDIT_003(t *testing.T) {
 		if row.Href != "" {
 			t.Fatalf("a blocked action rendered launchable: %+v", row)
 		}
-		if row.Reason == "" || row.Description != row.Reason {
+		if row.Reason == "" || row.Availability.Reason != row.Reason {
 			t.Fatalf("a blocked action carried no explanation: %+v", row)
 		}
 	})
@@ -236,8 +236,8 @@ func TestTodo_UXAUDIT_003_Browser(t *testing.T) {
 			}
 		}
 	})
-	if !strings.Contains(descText.String(), blocked.Reason) {
-		t.Fatalf("described reason text %q does not contain the resolved reason %q", descText.String(), blocked.Reason)
+	if descText.String() != compactActionLauncherReason(blocked.Reason) {
+		t.Fatalf("described reason text %q is not the concise resolved reason %q", descText.String(), blocked.Reason)
 	}
 
 	css := Stylesheet()
@@ -372,8 +372,13 @@ func TestTodo_UXAUDIT_003_Accessibility(t *testing.T) {
 		items := append(personActionLauncherItems(view), navigationLauncherItems(view)...)
 		all := RankActionLauncherItems(items, "", actionLauncherLimit)
 		narrowed := RankActionLauncherItems(items, "avery", actionLauncherLimit)
-		if len(narrowed) >= len(all) {
-			t.Fatalf("typing a specific worker's name did not narrow the ranked results: all=%d narrowed=%d", len(all), len(narrowed))
+		for _, item := range all {
+			if item.SearchOnly {
+				t.Fatalf("unfiltered launcher includes a named-worker row: %+v", item)
+			}
+		}
+		if len(narrowed) == 0 {
+			t.Fatal("typing a specific worker's name found no result")
 		}
 		for _, item := range narrowed {
 			if strings.Contains(item.Label+item.Description, "Jordan Lee") {

@@ -38,44 +38,41 @@ func insightsPage(view View) ui.Node {
 		{Label: view.Locale.Text("insights.closed_label"), Value: fmt.Sprint(terminal), Note: view.Locale.Text("insights.closed_note")},
 	}
 	attentionDescription := view.Locale.Text("insights.attention_description")
-	attentionTitle := view.Locale.Text("insights.attention_title")
 	if len(attentionPopulation) == 0 {
 		attentionDescription = view.Locale.Text("work.action_queue_empty_detail")
 	}
-	if len(population) == 0 {
-		notReported := view.Locale.Text("common.not_reported")
-		metrics = []MetricProps{
-			{Label: view.Locale.Text("insights.visible_label"), Value: notReported, Note: view.Locale.Text("insights.no_data_note")},
-			{Label: view.Locale.Text("insights.in_progress_label"), Value: notReported, Note: view.Locale.Text("insights.no_data_note")},
-			{Label: view.Locale.Text("insights.closed_label"), Value: notReported, Note: view.Locale.Text("insights.no_data_note")},
-		}
-		// A zero attention count would imply that the source was queried and
-		// found no attention items. With no admitted records, that conclusion
-		// is not supported by the projection.
-		attention = -1
-		attentionTitle = view.Locale.Text("insights.no_data_title")
-		attentionDescription = view.Locale.Text("insights.no_data_description")
+	evidence := InsightsEvidenceProps{
+		// This is a current authorized snapshot, not a historical trend or
+		// an organization-wide population. No source timestamp is supplied.
+		TimeRange:        view.Locale.Text("insights.time_range_value"),
+		Freshness:        view.Locale.Text("insights.freshness_value"),
+		Lineage:          view.Locale.Text("insights.source_value"),
+		ScopeDescription: view.Locale.Text("insights.attention_description"),
 	}
-	attentionValue := fmt.Sprint(attention)
-	if attention < 0 {
-		attentionValue = view.Locale.Text("common.not_reported")
+	if len(population) == 0 {
+		empty := &EmptyStateProps{
+			Title:       view.Locale.Text("insights.no_data_title"),
+			Description: view.Locale.Text("insights.no_data_description"),
+			Class:       "insights-empty",
+		}
+		// Only the server's semantic-action projection may offer a start.
+		// Page CRUD alone is not promotion authority.
+		if globalSearchCanStartPromotion(view) {
+			empty.Action = &ActionLinkProps{Label: view.Locale.Text("insights.start_promotion"), Href: statefulHref(view, PagePeople, "eligible", "1"), Class: "button primary", Navigate: view.Navigate}
+		}
+		return ui.CreateElement(InsightsPage, InsightsPageProps{
+			I18nProps: I18nProps{Locale: view.Locale}, Empty: empty,
+			EvidenceTitle: view.Locale.Text("insights.empty_context_title"), Evidence: evidence,
+		})
 	}
 	return ui.CreateElement(InsightsPage, InsightsPageProps{
 		I18nProps: I18nProps{Locale: view.Locale},
 		Metrics:   metrics,
 		Attention: AttentionPanelProps{
-			Title: attentionTitle, CountLabel: view.Locale.Text("insights.needs_attention"), CountValue: attentionValue,
+			Title: view.Locale.Text("insights.attention_title"), CountLabel: view.Locale.Text("insights.needs_attention"), CountValue: fmt.Sprint(attention),
 			Description: attentionDescription,
 			Action:      action,
 		},
-		Evidence: InsightsEvidenceProps{
-			// The current projection has no historical comparison. Saying so in
-			// the period value is important: a live snapshot must not look like a
-			// trend report merely because it contains numeric measures.
-			TimeRange:        view.Locale.Text("insights.time_range_value"),
-			Freshness:        view.Locale.Text("insights.freshness_value"),
-			Lineage:          view.Locale.Text("insights.source_value"),
-			ScopeDescription: view.Locale.Text("insights.attention_description"),
-		},
+		Evidence: evidence,
 	})
 }

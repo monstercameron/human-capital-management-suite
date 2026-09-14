@@ -216,6 +216,7 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 			DevBrowserLogin: c.DevBrowserLogin(),
 			DevPersonas:     c.DevPersonas(),
 			RoleAccess:      c.RoleAccess,
+			Preferences:     c.Preferences,
 			PublicOrigin:    c.PublicOrigin(),
 		})
 		if wsErr != nil {

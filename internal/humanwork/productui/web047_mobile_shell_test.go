@@ -61,7 +61,7 @@ func TestTodo_WEB_047(t *testing.T) {
 func TestTodo_WEB_047_Golden(t *testing.T) {
 	digest := sha256.Sum256([]byte(MobileShellStylesheet()))
 	got := hex.EncodeToString(digest[:])
-	const want = "b12d94f627c7b2ea5f46ab2536acd51c34aae7e2479d811e71b6332ba701b9f3"
+	const want = "7e60e773f2671541115c3a8f3093d3fc9572d681a996af860abcb026cf19a4b8"
 	if got != want {
 		t.Fatalf("mobile shell stylesheet golden digest = %s, want %s", got, want)
 	}

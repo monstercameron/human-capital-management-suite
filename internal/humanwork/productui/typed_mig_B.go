@@ -123,7 +123,10 @@ func declarenavigationInteractionRefinementsStyles() {
 		mediaRule(gwccss.MinW(761), gwccss.Raw("margin-inline-end", "calc(5px + var(--hcm-nav-content-inset))")),
 	)
 	declareGlobal(".primary-nav",
-		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "1 1 auto"), gwccss.Raw("align-self", "stretch"), gwccss.W(gwccss.RawLength("calc(100% + var(--hcm-nav-rail-shift))")), gwccss.MinWidth(gwccss.RawLength("calc(100% + var(--hcm-nav-rail-shift))")), gwccss.MaxWidth(gwccss.RawLength("none")), gwccss.Raw("margin-inline-end", "calc(-1 * var(--hcm-nav-rail-shift))"), gwccss.Raw("padding-inline-end", "0"), gwccss.Raw("scrollbar-gutter", "auto"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) transparent")),
+		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "1 1 auto"), gwccss.Raw("align-self", "stretch"), gwccss.W(gwccss.RawLength("calc(100% + var(--hcm-nav-rail-shift))")), gwccss.MinWidth(gwccss.RawLength("calc(100% + var(--hcm-nav-rail-shift))")), gwccss.MaxWidth(gwccss.RawLength("none")), gwccss.Raw("margin-inline-end", "calc(-1 * var(--hcm-nav-rail-shift))"), gwccss.Raw("padding-inline-end", "0"), gwccss.Raw("scrollbar-gutter", "auto"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) transparent"), gwccss.Raw("scroll-padding-block", "12px 24px")),
+	)
+	declareGlobal(".primary-nav>ul",
+		gwccss.Raw("padding-block-end", "20px"),
 	)
 	declareGlobal(".primary-nav>ul,.nav-bottom",
 		mediaRule(gwccss.MinW(761), gwccss.Raw("padding-inline-end", "var(--hcm-nav-content-inset)")),
@@ -688,7 +691,7 @@ func declareresponsiveComponentStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("flex", "1"), gwccss.W(gwccss.Percent(100)), gwccss.MinWidth(gwccss.Zero), gwccss.MaxWidth(gwccss.Percent(100)), gwccss.Raw("overflow", "hidden")),
 	)
 	declareGlobal(".sidebar.nav-drawer-open .primary-nav,.sidebar.nav-drawer-open nav:first-of-type",
-		mediaRule(gwccss.MaxW(760), gwccss.Raw("overflow-x", "hidden"), gwccss.Raw("overflow-y", "auto"), gwccss.Raw("overscroll-behavior", "contain"), gwccss.Raw("scrollbar-width", "thin"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) var(--hcm-nav-scrollbar-track)"), gwccss.Raw("scrollbar-gutter", "stable")),
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("overflow-x", "hidden"), gwccss.Raw("overflow-y", "auto"), gwccss.Raw("overscroll-behavior", "contain"), gwccss.Raw("scroll-padding-block", "16px"), gwccss.Raw("scrollbar-width", "thin"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) var(--hcm-nav-scrollbar-track)"), gwccss.Raw("scrollbar-gutter", "stable")),
 	)
 	declareGlobal(".primary-nav>ul,.sidebar nav:first-of-type>ul",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("display", "grid!important"), gwccss.W(gwccss.RawLength("100%!important")), gwccss.MaxWidth(gwccss.RawLength("100%!important"))),

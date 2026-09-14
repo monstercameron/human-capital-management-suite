@@ -52,6 +52,24 @@ func TestTodo_UXAUDIT_018_Accessibility(t *testing.T) {
 	}
 }
 
+func TestInsightsEvidenceLayoutKeepsFactsInsideThePanel(t *testing.T) {
+	doc, err := Render(testView(PageInsights))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`class="surface panel insights-evidence"`, `class="insights-evidence-body"`, `class="muted insights-evidence-note"`, `<dl class="facts">`} {
+		if !strings.Contains(doc, want) {
+			t.Fatalf("insights evidence missing %q", want)
+		}
+	}
+	css := Stylesheet()
+	for _, want := range []string{`.insights-evidence-body{`, `.insights-evidence .facts>div{`, `.insights-evidence .facts dd{`, `.insights-evidence-note{`} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("insights evidence stylesheet missing %q", want)
+		}
+	}
+}
+
 func TestTodo_UXAUDIT_018_Security(t *testing.T) {
 	view := testView(PageInsights)
 	view.Work = []WorkItem{{ID: "visible", Status: "Blocked"}, {ID: "denied", Status: "Awaiting approval", Person: "Private worker"}}
@@ -110,13 +128,13 @@ func TestTodo_UXAUDIT_018_Regression(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Not enough information yet", "Not enough visible requests to report a count", "a missing count is not zero"} {
+	for _, want := range []string{"No journeys to summarize in your view", "Your current access scope contains no visible promotion journeys", "does not establish an organization-wide count"} {
 		if !strings.Contains(doc, want) {
-			t.Fatalf("insufficient-data state missing %q", want)
+			t.Fatalf("empty Insights state missing %q", want)
 		}
 	}
-	if strings.Contains(doc, ">0<") {
-		t.Fatal("insufficient-data state regressed to a zero facade")
+	if strings.Contains(doc, "Not reported") || strings.Contains(doc, `class="metrics"`) {
+		t.Fatal("empty Insights state regressed to repeated unreported metrics")
 	}
 
 	view.LoadError = "service unavailable"
@@ -124,8 +142,8 @@ func TestTodo_UXAUDIT_018_Regression(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(doc, "Not enough information yet") {
-		t.Fatal("failed read was presented as insufficient data")
+	if strings.Contains(doc, "No journeys to summarize in your view") {
+		t.Fatal("failed read was presented as a known-empty view")
 	}
 }
 

@@ -390,6 +390,7 @@ func PeopleRow(props PeopleRowProps) ui.Node {
 }
 
 func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
+	identityLabel := ResolveWorkerIdentity(props.Locale, Person{Name: props.Name, WorkerNumber: props.WorkerNumber}, nil).Label
 	identity := []ui.Node{html.Strong(html.Props{}, ui.Text(props.Name))}
 	if props.WorkerNumber != "" {
 		identity = append(identity, html.Small(html.Props{Class: "muted"}, ui.Text(props.WorkerNumber)))
@@ -426,7 +427,7 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 		TriggerClass:  "people-availability-badge muted",
 		Title:         noWorkflowsLabel,
 		DescriptionID: "people-unavailable-" + props.ID,
-		Label:         props.Text(unavailableAriaKey, map[string]string{"name": props.Name, "reason": noWorkflowsLabel}),
+		Label:         props.Text(unavailableAriaKey, map[string]string{"name": identityLabel, "reason": noWorkflowsLabel}),
 		Trigger:       []ui.Node{ui.Text(props.Text("people.workflows_unavailable_short")), productIcon("expand", "people-workflow-chevron")},
 		PanelClass:    "people-workflow-options",
 		Children:      []ui.Node{html.P(html.Props{ID: "people-unavailable-" + props.ID, Class: "people-workflow-unavailable-reason"}, ui.Text(noWorkflowsLabel))},
@@ -434,7 +435,7 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 	if len(actions) > 0 {
 		workflowMenu = ui.CreateElement(TransientPopover, TransientPopoverProps{
 			Kind: "people-workflows", Class: "people-workflow-menu", TriggerClass: "button secondary people-row-action",
-			Label:   props.Text("people.workflows_aria", map[string]string{"name": props.Name}),
+			Label:   props.Text("people.workflows_aria", map[string]string{"name": identityLabel}),
 			Trigger: []ui.Node{ui.Text(props.Text("people.workflows")), productIcon("expand", "people-workflow-chevron")}, PanelClass: "people-workflow-options",
 			Children: []ui.Node{html.Ul(html.Props{Class: "people-workflow-options-list"}, actions...)},
 		})

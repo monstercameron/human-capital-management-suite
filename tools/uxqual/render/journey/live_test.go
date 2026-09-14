@@ -168,6 +168,29 @@ func TestWireBindsEveryCallbackTheRendererUnderstands(t *testing.T) {
 	}
 }
 
+func TestWireBindsGroupedJourneyCards(t *testing.T) {
+	page := SampleListPage()
+	first := page.List.Journeys[0]
+	second := page.List.Journeys[1]
+	page.List.Groups = []JourneySubjectGroup{
+		{Subject: "Jane", Journeys: []JourneyCard{first}},
+		{Subject: "Priya", Journeys: []JourneyCard{second}},
+	}
+	var navigated []string
+	page = Wire(NewStore(page), page, func(href string) { navigated = append(navigated, href) }, nil)
+	for group := range page.List.Groups {
+		for _, card := range page.List.Groups[group].Journeys {
+			if card.OnOpen == nil {
+				t.Fatalf("group %q card %q has no live navigation", page.List.Groups[group].Subject, card.IntentID)
+			}
+			card.OnOpen()
+		}
+	}
+	if len(navigated) != 2 || navigated[0] != first.Href || navigated[1] != second.Href {
+		t.Fatalf("grouped navigation = %q, want [%q %q]", navigated, first.Href, second.Href)
+	}
+}
+
 func TestWireBindsOneCallbackPerAction(t *testing.T) {
 	s := NewStore(Page{})
 	var fired []string

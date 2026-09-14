@@ -11,23 +11,25 @@ import (
 // is supplied by the authorized route projection; unavailable controls remain
 // visibly unavailable instead of pretending to persist a preference.
 type SettingsTaskGroupsProps struct {
-	Profile            ViewerProfileProps
-	ProfileAction      *ActionLinkProps
-	ProfileActionLabel string
-	Locale             *LocalePreferencesProps
-	Accessibility      *AccessibilityPreferencesProps
-	Notifications      SettingsUnavailableProps
-	Navigation         SettingsNavigationProps
-	Security           AccessContextProps
-	SignOut            *ActionLinkProps
-	SignOutDescription string
-	Appearance         *ActionLinkProps
-	AppearanceLabel    string
-	Title              string
-	AccountDescription string
-	PreferencesTitle   string
-	Description        string
-	SettingsLocale     LocaleContext
+	Profile                 ViewerProfileProps
+	ProfileAction           *ActionLinkProps
+	ProfileActionLabel      string
+	Locale                  *LocalePreferencesProps
+	Accessibility           *AccessibilityPreferencesProps
+	Notifications           SettingsUnavailableProps
+	Navigation              SettingsNavigationProps
+	Security                AccessContextProps
+	SignOut                 *ActionLinkProps
+	SignOutDescription      string
+	Appearance              *ActionLinkProps
+	AppearanceLabel         string
+	Title                   string
+	AccountDescription      string
+	OrganizationTitle       string
+	OrganizationDescription string
+	PreferencesTitle        string
+	Description             string
+	SettingsLocale          LocaleContext
 }
 
 type SettingsUnavailableProps struct {
@@ -111,11 +113,16 @@ func SettingsTaskGroups(props SettingsTaskGroupsProps) ui.Node {
 	}
 	preferences = append(preferences, settingsUnavailable(props.Notifications, "notifications"), settingsNavigation(props.Navigation))
 	account := []ui.Node{ui.CreateElement(AccessContext, props.Security)}
+	var organization ui.Node
 	if props.Appearance != nil {
-		account = append(account, html.Section(html.Props{Class: "surface settings-task-card", Data: map[string]string{"hcm-setting-group": "tenant-appearance"}, Raw: map[string]any{"aria-labelledby": "settings-appearance-title"}},
+		appearance := html.Section(html.Props{Class: "surface settings-task-card", Data: map[string]string{"hcm-setting-group": "tenant-appearance"}, Raw: map[string]any{"aria-labelledby": "settings-appearance-title"}},
 			html.H3(html.Props{ID: "settings-appearance-title"}, ui.Text(props.AppearanceLabel)),
 			html.P(html.Props{Class: "muted"}, ui.Text(settingsAppearanceBoundary(props.SettingsLocale))),
-			ui.CreateElement(ActionLink, *props.Appearance)))
+			ui.CreateElement(ActionLink, *props.Appearance))
+		organization = html.Div(html.Props{Class: "settings-group settings-organization-group", Data: map[string]string{"hcm-setting-group": "organization-configuration"}},
+			html.H2(html.Props{}, ui.Text(props.OrganizationTitle)),
+			html.P(html.Props{Class: "muted settings-group-description"}, ui.Text(props.OrganizationDescription)),
+			html.Div(html.Props{Class: "settings-group-content"}, appearance))
 	}
 	if props.SignOut != nil {
 		children := []ui.Node{html.H3(html.Props{ID: "settings-signout-title"}, ui.Text(props.SignOut.Label))}
@@ -140,6 +147,7 @@ func SettingsTaskGroups(props SettingsTaskGroupsProps) ui.Node {
 		html.Div(html.Props{Class: "settings-task-groups"},
 			html.Div(html.Props{Class: "settings-overview-grid"},
 				html.Div(html.Props{Class: "settings-group settings-account-group", Data: map[string]string{"hcm-setting-group": "account-security"}}, accountGroup...),
+				organization,
 			),
 			html.Div(html.Props{Class: "settings-group settings-preferences-group", Data: map[string]string{"hcm-setting-group": "personal-preferences"}}, preferencesGroup...),
 		),

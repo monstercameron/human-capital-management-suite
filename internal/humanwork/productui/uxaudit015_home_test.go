@@ -251,8 +251,8 @@ func TestTodo_UXAUDIT_015_Regression_HomePromotionIsContextualQuickAction(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(markup, `class="surface panel home-quick-actions"`) || !strings.Contains(markup, `class="button secondary"`) || !strings.Contains(markup, "Choose an employee to promote") {
-		t.Fatalf("promotion shortcut lost its discoverable contextual treatment: %s", markup)
+	if !strings.Contains(markup, `class="surface panel home-quick-actions home-empty-primary"`) || !strings.Contains(markup, `class="button primary"`) || !strings.Contains(markup, "Choose an employee to promote") {
+		t.Fatalf("quiet Home lost its primary promotion start: %s", markup)
 	}
 	assertCSSContains(t, ".home-quick-actions .quick-actions", "justify-items:start", ".home-quick-actions .quick-actions .button", "width:auto", "max-width:100%")
 }
@@ -321,10 +321,10 @@ func TestTodo_UXAUDIT_015_Regression_RecentPersonProfileRequiresProfileGrant(t *
 }
 
 func TestTodo_UXAUDIT_015_I18N(t *testing.T) {
-	for locale, want := range map[string]struct{ quick, tracked, empty string }{
-		"en-US": {"Quick links", "Tracked requests", "No tracked requests"},
-		"de-DE": {"Schnellzugriffe", "Verfolgte Anfragen", "Keine verfolgten Anfragen"},
-		"ar":    {"روابط سريعة", "الطلبات المتابَعة", "لا توجد طلبات متابَعة"},
+	for locale, want := range map[string]struct{ quick, empty string }{
+		"en-US": {"Quick links", "No work in progress"},
+		"de-DE": {"Schnellzugriffe", "Keine laufenden Vorgänge"},
+		"ar":    {"روابط سريعة", "لا يوجد عمل قيد التنفيذ"},
 	} {
 		t.Run(locale, func(t *testing.T) {
 			view := NewView(PageHome, "HarborCare", "principal", "scope")
@@ -334,7 +334,7 @@ func TestTodo_UXAUDIT_015_I18N(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !strings.Contains(markup, want.quick) || !strings.Contains(markup, want.tracked) || !strings.Contains(markup, want.empty) || strings.Contains(markup, "No recent people") && locale != "en-US" {
+			if !strings.Contains(markup, want.quick) || !strings.Contains(markup, want.empty) || strings.Contains(markup, "No recent people") && locale != "en-US" {
 				t.Fatalf("Home did not use localized continuity and quick-link copy: %s", markup)
 			}
 		})

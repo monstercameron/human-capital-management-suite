@@ -114,6 +114,15 @@ func focusPopoverElement(id string) {
 	focusElementByID(js.Global().Get("document"), id)
 }
 
+// Keep the active descendant visible without moving keyboard focus away from
+// the combobox. "nearest" limits movement to the popover scrollport.
+func scrollPopoverElementIntoView(id string) {
+	defer func() { _ = recover() }()
+	if element := js.Global().Get("document").Call("getElementById", id); element.Truthy() {
+		element.Call("scrollIntoView", js.ValueOf(map[string]any{"block": "nearest", "inline": "nearest"}))
+	}
+}
+
 // useMobileNavigationDrawer progressively enhances the server-rendered aside
 // into a viewport-bound drawer. It lives beside the popover focus controller
 // because both controls need the same defensive DOM/focus behavior, while the

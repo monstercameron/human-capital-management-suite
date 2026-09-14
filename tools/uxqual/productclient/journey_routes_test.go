@@ -41,6 +41,30 @@ func TestLiveJourneyNavigationStaysInProductRouterAndPreservesShellState(t *test
 	}
 }
 
+func TestTodo_UIPOLISH_009_FragmentFallbackRoutesToProductDetail(t *testing.T) {
+	const query = "favorites=people&nav=collapsed&credential=secret"
+	tests := []struct {
+		name, path, fragment, want string
+		ok                         bool
+	}{
+		{"detail", "/workspace/app/journeys", "#/journeys/intent-17", "/workspace/app/journeys?favorites=people&journey=intent-17&nav=collapsed", true},
+		{"proposal", "/workspace/app/journeys", "#/journeys/new?worker=jane-doe", "/workspace/app/journeys?favorites=people&mode=new&nav=collapsed&worker=jane-doe", true},
+		{"list", "/workspace/app/journeys", "#/journeys", "/workspace/app/journeys?favorites=people&nav=collapsed", true},
+		{"unrelated page", "/workspace/app/people", "#/journeys/intent-17", "", false},
+		{"skip link", "/workspace/app/journeys", "#main-content", "", false},
+		{"similar prefix", "/workspace/app/journeys", "#/journeys-other", "", false},
+		{"extra state", "/workspace/app/journeys", "#/journeys/intent-17?credential=secret", "", false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, ok := ProductJourneyHashHref(test.path, test.fragment, query)
+			if got != test.want || ok != test.ok {
+				t.Fatalf("hash route = (%q, %t), want (%q, %t)", got, ok, test.want, test.ok)
+			}
+		})
+	}
+}
+
 func TestParseStateReadsJourneyAddressState(t *testing.T) {
 	state, err := ParseState("/workspace/app/journeys", "journey=intent-17&worker=worker-1&mode=new&nav=collapsed")
 	if err != nil {

@@ -21,6 +21,12 @@ type HomePageProps struct {
 	ShowPeople        bool
 	Recent            RecentActivityProps
 	ShowRecent        bool
+	// CompactEmpty keeps a quiet workspace focused on its next authorized
+	// action. It is set by the server-backed page projection, not inferred
+	// from client state.
+	CompactEmpty bool
+	EmptyTitle   string
+	EmptyDetail  string
 }
 
 type SummaryCardProps struct {
@@ -51,6 +57,9 @@ type RecentPeopleProps struct {
 }
 
 func HomePage(props HomePageProps) ui.Node {
+	if props.CompactEmpty {
+		return homeEmptyPage(props)
+	}
 	gridClass := "home-grid"
 	primary := make([]ui.Node, 0, 6)
 	if props.ShowWork {
@@ -86,6 +95,32 @@ func HomePage(props HomePageProps) ui.Node {
 		supporting = append(supporting, ui.CreateElement(RecentPeoplePanel, props.RecentPeople))
 	}
 	return html.Div(html.Props{}, html.Div(html.Props{Class: gridClass}, primaryRail, html.Div(html.Props{Class: "home-supporting-rail side-stack"}, supporting...)))
+}
+
+func homeEmptyPage(props HomePageProps) ui.Node {
+	primary := make([]ui.Node, 0, 2)
+	if len(props.QuickStart.Actions) > 0 {
+		actions := append([]ActionLinkProps(nil), props.QuickStart.Actions...)
+		actions[0].Class = "button primary"
+		primary = append(primary, ui.CreateElement(QuickActions, QuickActionsProps{
+			Title: props.QuickStart.Title, Class: "home-quick-actions home-empty-primary", Actions: actions,
+		}))
+	}
+	continuityTitle := props.EmptyTitle
+	if continuityTitle == "" {
+		continuityTitle = props.Drafts.Title
+	}
+	continuityDetail := props.EmptyDetail
+	if continuityDetail == "" {
+		continuityDetail = props.DraftsEmptyDetail
+	}
+	primary = append(primary, ui.CreateElement(Panel, PanelProps{
+		Title: continuityTitle, Class: "home-continuity-summary",
+		Body: html.P(html.Props{Class: "muted"}, ui.Text(continuityDetail)),
+	}))
+	return html.Div(html.Props{}, html.Div(html.Props{Class: "home-grid home-grid-empty"},
+		html.Div(html.Props{Class: "home-primary-rail side-stack"}, primary...),
+	))
 }
 
 func homeCardEmpty(title, detail string) ui.Node {

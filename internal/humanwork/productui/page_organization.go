@@ -426,6 +426,11 @@ func breakOwnershipCycles(parentOf []int, placements []organizationPlacement) {
 }
 
 func ownershipPerson(view View, person Person) OwnershipNodeProps {
+	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
+	workerNumber := ""
+	if identity.WorkerNumberStatus == WorkerFactPresent {
+		workerNumber = identity.WorkerNumber
+	}
 	current := person.ID != "" && person.ID == view.Viewer.PersonID
 	selected := person.ID != "" && person.ID == view.SelectedPerson
 	href := ""
@@ -436,7 +441,7 @@ func ownershipPerson(view View, person Person) OwnershipNodeProps {
 	}
 
 	return OwnershipNodeProps{
-		I18nProps: I18nProps{Locale: view.Locale}, ID: person.ID, Name: organizationFieldLabel(view, person.ID, "name", person.Name), WorkerNumber: organizationFieldLabel(view, person.ID, "worker_number", person.WorkerNumber), Role: organizationFieldLabel(view, person.ID, "role", person.Role), Team: organizationFieldLabel(view, person.ID, "organization_unit", person.Team), Manager: organizationFieldLabel(view, person.ID, "manager", person.Manager), Location: organizationFieldLabel(view, person.ID, "work_location", person.Location),
+		I18nProps: I18nProps{Locale: view.Locale}, ID: person.ID, Name: identity.Name, WorkerNumber: workerNumber, Role: identity.Role, Team: organizationFieldLabel(view, person.ID, "organization_unit", person.Team), Manager: organizationFieldLabel(view, person.ID, "manager", person.Manager), Location: organizationFieldLabel(view, person.ID, "work_location", person.Location),
 		Initials: person.Initials, PhotoURL: person.PhotoURL, Href: href, Navigate: view.Navigate, Current: current, Selected: selected,
 	}
 }

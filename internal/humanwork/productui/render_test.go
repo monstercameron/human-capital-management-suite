@@ -378,8 +378,8 @@ func TestPeopleRowsOfferEmployeeScopedWorkflowMenus(t *testing.T) {
 	for _, want := range []string{
 		`href="/workspace/app/journeys?journey=intent-1"`,
 		`href="/workspace/app/journeys?mode=new&amp;worker=worker-avery"`,
-		`aria-label="Choose a workflow for Avery Patel"`,
-		`aria-label="Start Promotion for Avery Patel"`,
+		`aria-label="Choose a workflow for Avery Patel · NW-40118"`,
+		`aria-label="Start Promotion for Avery Patel · NW-40118"`,
 		`aria-label="Open the active promotion for Jordan Lee"`,
 		`class="button secondary people-row-action"`,
 		`class="popover-surface people-workflow-options"`,

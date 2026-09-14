@@ -17,15 +17,41 @@ const (
 // The dark values describe the effective CSS colors; they are not another set
 // of customer overrides to feed back into ResolveTheme.
 func ResolveThemeModes(overrides map[string]string) (map[ThemeMode]Theme, error) {
+	return ResolveThemeModesWithDark(overrides, nil)
+}
+
+// ResolveThemeModesWithDark admits the authored light and dark palettes as a
+// pair. Dark values are checked against the dark canvas, not light defaults.
+func ResolveThemeModesWithDark(overrides, darkOverrides map[string]string) (map[ThemeMode]Theme, error) {
 	light, err := ResolveTheme(overrides)
 	if err != nil {
 		return nil, err
 	}
-	dark := Theme{values: darkThemeValues(light.values)}
+	darkValues := darkThemeValues(light.values)
+	for name, value := range darkOverrides {
+		if err := validateCustomerColorToken(name); err != nil {
+			return nil, err
+		}
+		definition := themeTokenByName(name)
+		if err := validateThemeValue(definition, value); err != nil {
+			return nil, fmt.Errorf("dark theme token %q: %w", name, err)
+		}
+		darkValues[name] = value
+	}
+	dark := Theme{values: darkValues}
 	if failures := validateThemeContrast(dark.values); len(failures) != 0 {
 		return nil, fmt.Errorf("dark theme qualification: %w", failures[0])
 	}
 	return map[ThemeMode]Theme{ThemeModeLight: light, ThemeModeDark: dark}, nil
+}
+
+func themeTokenByName(name string) ThemeToken {
+	for _, token := range registeredThemeTokens {
+		if token.Name == name {
+			return token
+		}
+	}
+	return ThemeToken{}
 }
 
 func darkThemeValues(light map[string]string) map[string]string {

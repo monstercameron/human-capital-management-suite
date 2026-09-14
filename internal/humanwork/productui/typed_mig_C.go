@@ -48,8 +48,8 @@ func declareuxReviewRefinementsStyles() {
 		gwccss.W(gwccss.Percent(100)),
 		gwccss.MinHeight(gwccss.Px(42)),
 	)
-	// Home shortcuts are contextual links, not the primary task on a landing
-	// page. Help and other quick-action instances keep their own grid sizing.
+	// Populated Home shortcuts stay contextual. The quiet-state composition
+	// promotes just its first authorized next step.
 	declareGlobal(".home-quick-actions .quick-actions",
 		gwccss.Raw("justify-items", "start"),
 	)
@@ -57,6 +57,18 @@ func declareuxReviewRefinementsStyles() {
 		gwccss.W(gwccss.Auto),
 		gwccss.MaxWidth(gwccss.Percent(100)),
 		gwccss.MinHeight(gwccss.Px(44)),
+	)
+	declareGlobal(".home-grid-empty",
+		gwccss.GridCols(gwccss.Fr(1)), gwccss.MaxWidth(gwccss.Px(760)),
+	)
+	declareGlobal(".home-grid-empty .home-primary-rail",
+		gwccss.GridCols(gwccss.Fr(1)),
+	)
+	declareGlobal(".home-empty-primary .quick-actions .button.primary",
+		gwccss.Raw("justify-self", "start"),
+	)
+	declareGlobal(".home-continuity-summary>p",
+		gwccss.Raw("margin", "0"), gwccss.Raw("padding", "0 18px 18px"),
 	)
 	declareGlobal(".settings-overview-grid",
 		gwccss.Raw("align-items", "start"),
@@ -565,11 +577,11 @@ func navigationScrollbarStylesStylesheet() string {
 func declarenavigationScrollbarStylesStyles() {
 	declareGlobal(":root",
 		gwccss.Custom("hcm-nav-scrollbar-track", "color-mix(in srgb,var(--surface) 82%,var(--soft))"),
-		gwccss.Custom("hcm-nav-scrollbar-thumb", "color-mix(in srgb,var(--muted) 58%,var(--surface))"),
+		gwccss.Custom("hcm-nav-scrollbar-thumb", "color-mix(in srgb,var(--muted) 38%,var(--surface))"),
 		gwccss.Custom("hcm-nav-scrollbar-thumb-hover", "color-mix(in srgb,var(--accent) 82%,var(--muted))"),
 		gwccss.Custom("hcm-nav-scrollbar-thumb-active", "var(--accent-hover)"),
 		gwccss.CustomLength("hcm-nav-scrollbar-size", gwccss.Px(10)),
-		gwccss.CustomLength("hcm-nav-scrollbar-size-rail", gwccss.Px(7)),
+		gwccss.CustomLength("hcm-nav-scrollbar-size-rail", gwccss.Px(6)),
 	)
 	declareGlobal(".sidebar",
 		gwccss.Raw("scrollbar-width", "thin"),

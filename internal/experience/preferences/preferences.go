@@ -65,17 +65,19 @@ type User struct {
 // brand, while locale, navigation, table, and accessibility choices belong to
 // one authenticated principal.
 type Theme struct {
-	BrandName    string `json:"brand_name"`
-	BrandMark    string `json:"brand_mark"`
-	BrandLogoURL string `json:"brand_logo_url,omitempty"`
-	ColorMode    string `json:"color_mode"`
-	Palette      string `json:"palette"`
-	Shape        string `json:"shape"`
-	Density      string `json:"density"`
-	Glyphs       string `json:"glyphs"`
-	Typeface     string `json:"typeface"`
-	Navigation   string `json:"navigation"`
-	Motion       string `json:"motion"`
+	BrandName          string            `json:"brand_name"`
+	BrandMark          string            `json:"brand_mark"`
+	BrandLogoURL       string            `json:"brand_logo_url,omitempty"`
+	ColorMode          string            `json:"color_mode"`
+	Palette            string            `json:"palette"`
+	Shape              string            `json:"shape"`
+	Density            string            `json:"density"`
+	Glyphs             string            `json:"glyphs"`
+	Typeface           string            `json:"typeface"`
+	Navigation         string            `json:"navigation"`
+	Motion             string            `json:"motion"`
+	TokenOverrides     map[string]string `json:"token_overrides,omitempty"`
+	DarkTokenOverrides map[string]string `json:"dark_token_overrides,omitempty"`
 }
 
 type TenantTheme struct {

@@ -48,7 +48,7 @@ func adminPage(view View) ui.Node {
 			actionLabel: view.Locale.Text("admin.promotion_action"),
 		},
 		{
-			page: PageStudio, title: view.Locale.Text("admin.custom_title"), description: view.Locale.Text("admin.custom_description"), state: view.Locale.Text("admin.unavailable"), tone: "warning", availability: studioAvailability,
+			page: PageStudio, title: view.Locale.Text("admin.custom_title"), description: view.Locale.Text("admin.custom_description"), state: view.Locale.Text("admin.planned"), tone: "warning", availability: studioAvailability,
 			actionLabel: view.Locale.Text("admin.promotion_action"),
 		},
 	}

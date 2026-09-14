@@ -10,7 +10,10 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-const actionLauncherLimit = 10
+const (
+	actionLauncherLimit        = 10
+	actionLauncherInitialLimit = 5
+)
 
 type ActionLauncherItemKind string
 
@@ -54,10 +57,11 @@ func declareActionLauncherStyles() {
 	declareGlobal(".action-launcher-trigger .nav-icon", gwccss.Raw("flex", "none"))
 	declareGlobal(".action-launcher-dialog",
 		gwccss.Position.Absolute, gwccss.ZIndex(30),
+		gwccss.Display.Grid, gwccss.Raw("grid-template-rows", "auto minmax(0,1fr)"),
 		gwccss.Raw("inset-block-start", "48px"), gwccss.Raw("inset-inline-end", "0"),
 		gwccss.W(gwccss.MinLen(gwccss.Px(360), gwccss.RawLength("calc(100vw - 28px)"))),
 		gwccss.MaxHeight(gwccss.MinLen(gwccss.Vh(70), gwccss.Px(560))),
-		gwccss.Raw("overflow", "auto"),
+		gwccss.Raw("overflow", "hidden"),
 		gwccss.Padding(gwccss.Px(16)),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
@@ -67,7 +71,10 @@ func declareActionLauncherStyles() {
 	declareGlobal(".action-launcher-dialog-hidden", gwccss.Display.None)
 	declareGlobal(".action-launcher-head",
 		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(8)),
-		gwccss.Raw("margin-bottom", "12px"),
+		gwccss.Raw("margin-bottom", "12px"), gwccss.Raw("padding-bottom", "8px"),
+	)
+	declareGlobal(".action-launcher-panel,.action-launcher-results-wrap",
+		gwccss.MinHeight(gwccss.Zero), gwccss.Raw("overflow-y", "auto"),
 	)
 	declareGlobal(".action-launcher-input",
 		gwccss.MinHeight(gwccss.Px(42)),
@@ -84,7 +91,7 @@ func declareActionLauncherStyles() {
 		gwccss.Raw("border", "1px solid var(--line)"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.Raw("text-decoration", "none"),
+		gwccss.Raw("text-decoration", "none"), gwccss.Raw("text-align", "start"),
 		hoverRule(
 			gwccss.Raw("border-color", "var(--accent)"),
 			gwccss.Raw("background", "var(--surface-hover,var(--soft))"),
@@ -178,13 +185,17 @@ type ActionLauncherItem struct {
 	// Action is the capability operation that makes this start available.
 	// Navigation visibility is a separate boundary; a route alone never
 	// grants an action.
-	Action       string
-	ID           string
-	Label        string
-	Description  string
-	Href         string
-	Icon         string
-	Keywords     []string
+	Action      string
+	ID          string
+	Label       string
+	Description string
+	Href        string
+	Icon        string
+	Keywords    []string
+	// SearchOnly worker results stay out of the initial menu. WorkerLookup is
+	// the already-authorized identity needed to reveal one on a named search.
+	SearchOnly   bool
+	WorkerLookup []string
 	Priority     int64
 	Availability ActionState
 }
@@ -227,6 +238,9 @@ func actionLauncherProps(view View) ActionLauncherProps {
 		priority := projection.Priority
 		if useCount := view.WorkflowUses[definition.UsageID]; useCount > priority {
 			priority = useCount
+		}
+		if priority < 100 {
+			priority = 100
 		}
 		items = append(items, ActionLauncherItem{
 			Page: definition.Page, Kind: ActionLauncherAction, Action: definition.Action,
@@ -279,7 +293,23 @@ func personActionLauncherItems(view View) []ActionLauncherItem {
 	// control builds its own item list instead of reading page rows.
 	population := admittedPeople(view)
 	items := make([]ActionLauncherItem, 0, len(population))
+	workerVerdicts := workerIdentityVerdicts(view)
 	for _, person := range population {
+		identity := ResolveWorkerIdentity(view.Locale, person, workerVerdicts)
+		workerLookup := make([]string, 0, 2)
+		if identity.NameStatus == WorkerFactPresent {
+			workerLookup = append(workerLookup, identity.Name)
+		}
+		if identity.WorkerNumberStatus == WorkerFactPresent {
+			workerLookup = append(workerLookup, identity.WorkerNumber)
+		}
+		keywords := compactDiscoveryKeywords(
+			identity.Name,
+			discoverySearchKeyword(person.ID, person.WorkerNumber, "worker_number", workerVerdicts),
+			discoverySearchKeyword(person.ID, person.Team, "organization_unit", workerVerdicts),
+			discoverySearchKeyword(person.ID, person.Location, "work_location", workerVerdicts),
+			discoverySearchKeyword(person.ID, person.Role, "role", workerVerdicts),
+		)
 		actions, reason, reasonWorkflow := personWorkflowActions(view, person, workflows)
 		for index, action := range actions {
 			// AccessibleLabel already carries the person-specific phrasing
@@ -292,8 +322,8 @@ func personActionLauncherItems(view View) []ActionLauncherItem {
 			}
 			items = append(items, ActionLauncherItem{
 				Page: PageJourneys, Kind: ActionLauncherAction, Action: "create_promotion", Availability: ActionState{Availability: ActionAvailable}, ID: fmt.Sprintf("action:%s:%d", person.ID, index),
-				Label: label, Description: person.Role, Href: action.Href,
-				Keywords: []string{person.Name, person.Team, person.Location, person.WorkerNumber, person.Role},
+				Label: label, Description: identity.Role, Href: action.Href,
+				Keywords: keywords, SearchOnly: true, WorkerLookup: workerLookup,
 			})
 		}
 		if !authorized {
@@ -302,9 +332,9 @@ func personActionLauncherItems(view View) []ActionLauncherItem {
 		if reason != "" {
 			items = append(items, ActionLauncherItem{
 				Page: PageJourneys, Kind: ActionLauncherAction, Action: "create_promotion", Availability: ActionState{Availability: ActionUnavailable, Reason: reason}, ID: "action-unavailable:" + person.ID,
-				Label:       view.Locale.Text("people.workflow_aria", map[string]string{"workflow": reasonWorkflow, "name": person.Name}),
-				Description: reason, Reason: reason,
-				Keywords: []string{person.Name, person.Team, person.Location, person.WorkerNumber, person.Role},
+				Label:       view.Locale.Text("people.workflow_aria", map[string]string{"workflow": reasonWorkflow, "name": identity.Label}),
+				Description: identity.Role, Reason: reason,
+				Keywords: keywords, SearchOnly: true, WorkerLookup: workerLookup,
 			})
 		}
 	}
@@ -367,12 +397,29 @@ func appendActionLauncherDestinations(items []ActionLauncherItem, view View, nav
 			items = append(items, ActionLauncherItem{
 				Page: destination.Page, Kind: ActionLauncherDestination, Action: "view",
 				ID: actionLauncherDestinationID(destination.Page), Label: label, Description: description,
-				Href: href, Icon: destination.Icon, Keywords: keywords, Availability: ActionState{Availability: ActionAvailable},
+				Href: href, Icon: destination.Icon, Keywords: keywords, Priority: actionLauncherDestinationPriority(destination.Page), Availability: ActionState{Availability: ActionAvailable},
 			})
 		}
 		items = appendActionLauncherDestinations(items, view, destination.Children, seen)
 	}
 	return items
+}
+
+func actionLauncherDestinationPriority(page PageID) int64 {
+	switch page {
+	case PagePeople:
+		return 80
+	case PageWork:
+		return 70
+	case PageJourneys:
+		return 60
+	case PageMyself:
+		return 50
+	case PageHelp:
+		return 20
+	default:
+		return 0
+	}
 }
 
 func actionLauncherDestinationID(page PageID) string {
@@ -433,6 +480,9 @@ func RankActionLauncherItems(items []ActionLauncherItem, query string, limit int
 		})
 		results := make([]ActionLauncherItem, 0, minInt(limit, len(ordered)))
 		for _, item := range ordered {
+			if item.SearchOnly {
+				continue
+			}
 			results = append(results, item)
 			if len(results) == limit {
 				break
@@ -446,6 +496,9 @@ func RankActionLauncherItems(items []ActionLauncherItem, query string, limit int
 	}
 	scoredItems := make([]scored, 0, len(items))
 	for _, item := range items {
+		if item.SearchOnly && !actionLauncherWorkerQueryMatches(item.WorkerLookup, tokens) {
+			continue
+		}
 		if score := actionLauncherScore(item, tokens); score > 0 {
 			scoredItems = append(scoredItems, scored{item: item, score: score})
 		}
@@ -457,13 +510,31 @@ func RankActionLauncherItems(items []ActionLauncherItem, query string, limit int
 		return strings.ToLower(scoredItems[left].item.Label) < strings.ToLower(scoredItems[right].item.Label)
 	})
 	results := make([]ActionLauncherItem, 0, minInt(limit, len(scoredItems)))
+	cutoff := 0
+	if len(scoredItems) > 0 && scoredItems[0].score >= 130 {
+		cutoff = scoredItems[0].score - 55
+	}
 	for _, candidate := range scoredItems {
+		if candidate.score < cutoff {
+			continue
+		}
 		results = append(results, candidate.item)
 		if len(results) == limit {
 			break
 		}
 	}
 	return results
+}
+
+func actionLauncherWorkerQueryMatches(lookup, tokens []string) bool {
+	for _, token := range tokens {
+		for _, value := range lookup {
+			if fuzzyFieldScore(value, token) > 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func actionLauncherScore(item ActionLauncherItem, tokens []string) int {
@@ -511,11 +582,25 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 		}
 		return nil
 	}, open.Get())
-	results := RankActionLauncherItems(props.Items, query.Get(), actionLauncherLimit)
+	limit := actionLauncherLimit
+	if strings.TrimSpace(query.Get()) == "" {
+		limit = actionLauncherInitialLimit
+	}
+	results := RankActionLauncherItems(props.Items, query.Get(), limit)
 	activeIndex := active.Get()
 	if activeIndex >= len(results) && len(results) > 0 {
 		activeIndex = len(results) - 1
 	}
+	ui.UseEffectOf(func() func() {
+		if open.Get() && len(results) > 0 {
+			scrollPopoverElementIntoView("action-launcher-result-" + fmt.Sprint(activeIndex))
+		}
+		return nil
+	}, struct {
+		Open  bool
+		Index int
+		Query string
+	}{open.Get(), activeIndex, query.Get()})
 
 	navigate := func(item ActionLauncherItem) {
 		if item.Href == "" {
@@ -688,12 +773,22 @@ func actionLauncherResults(props ActionLauncherProps, results []ActionLauncherIt
 			class += " active"
 		}
 
-		copy := []ui.Node{
-			html.Strong(html.Props{}, ui.Text(item.Label)),
-			html.Small(html.Props{}, ui.Text(item.Description)),
+		reason := strings.TrimSpace(item.Availability.Reason)
+		if reason == "" {
+			reason = strings.TrimSpace(item.Reason)
 		}
-		if !actionLauncherItemAvailable(item) && strings.TrimSpace(item.Availability.Reason) != "" {
-			copy = append(copy, html.Small(html.Props{ID: "action-launcher-reason-" + fmt.Sprint(index), Class: "action-launcher-reason"}, ui.Text(item.Availability.Reason)))
+		visibleReason := compactActionLauncherReason(reason)
+		reasonID := "action-launcher-reason-" + fmt.Sprint(index)
+		copy := []ui.Node{html.Strong(html.Props{}, ui.Text(item.Label))}
+		if strings.TrimSpace(item.Description) != "" {
+			descriptionProps := html.Props{}
+			if !actionLauncherItemAvailable(item) && item.Description == reason {
+				descriptionProps.ID = reasonID
+			}
+			copy = append(copy, html.Small(descriptionProps, ui.Text(item.Description)))
+		}
+		if !actionLauncherItemAvailable(item) && reason != "" && item.Description != reason {
+			copy = append(copy, html.Small(html.Props{ID: reasonID, Class: "action-launcher-reason"}, ui.Text(visibleReason)))
 		}
 		content := []ui.Node{navIcon(item.Icon), html.Span(html.Props{Class: "action-launcher-copy"}, copy...)}
 		resultProps := html.Props{
@@ -704,8 +799,8 @@ func actionLauncherResults(props ActionLauncherProps, results []ActionLauncherIt
 			resultProps.Type = "button"
 			resultProps.Disabled = true
 			resultProps.Raw["aria-disabled"] = "true"
-			if strings.TrimSpace(item.Availability.Reason) != "" {
-				resultProps.Raw["aria-describedby"] = "action-launcher-reason-" + fmt.Sprint(index)
+			if reason != "" {
+				resultProps.Raw["aria-describedby"] = reasonID
 			}
 			if recovery := item.Availability.Recovery; recovery.Href != "" {
 				recoveryID := "action-launcher-recovery-" + fmt.Sprint(index)
@@ -727,6 +822,19 @@ func actionLauncherResults(props ActionLauncherProps, results []ActionLauncherIt
 		return listbox
 	}
 	return html.Div(html.Props{Class: "action-launcher-results-wrap"}, append([]ui.Node{listbox}, recoveries...)...)
+}
+
+// The full server reason remains on the item for audit and recovery. A dense
+// launcher row presents its first actionable sentence once, not a paragraph.
+func compactActionLauncherReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if len(reason) <= 100 {
+		return reason
+	}
+	if end := strings.Index(reason, ". "); end > 0 {
+		return reason[:end+1]
+	}
+	return reason
 }
 
 func actionLauncherHasAction(items []ActionLauncherItem) bool {

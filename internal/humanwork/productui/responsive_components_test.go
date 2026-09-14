@@ -22,6 +22,18 @@ func TestSharedComponentsOwnResponsiveSizingContracts(t *testing.T) {
 	}
 }
 
+func TestSharedHeaderBalancesTabletIdentityAndWideSearch(t *testing.T) {
+	css := Stylesheet()
+	for _, contract := range []string{
+		`@media (max-width:760px){.brand-cluster .brand-logo-slot[data-hcm-brand-logo-state="fallback"] .wordmark-label{display:none;}`,
+		`@media (min-width:1440px){.header-navigation-tools>.global-search{max-width:720px;}`,
+	} {
+		if !strings.Contains(css, contract) {
+			t.Errorf("responsive header contract missing %q", contract)
+		}
+	}
+}
+
 // TestMobileShellKeepsOneBoundedNavigableTree pins the UXAUDIT-001 contract:
 // at narrow widths the sidebar is a fixed, off-canvas overlay drawer hidden
 // by default (fail-closed — nothing about NavCollapsed's value changes

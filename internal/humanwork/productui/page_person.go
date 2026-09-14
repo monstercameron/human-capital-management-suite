@@ -18,24 +18,14 @@ func resolvedPersonPageLabel(view View) (string, bool) {
 		return "", false
 	}
 	person, ok := exactPerson(view)
-	if !ok || !DiscoveryAdmitted(person.ID, view.RecordVerdicts) {
+	if !ok || !DiscoveryAdmitted(person.ID, workerIdentityVerdicts(view)) {
 		return "", false
 	}
-	identity := ResolveWorkerIdentity(view.Locale, person, view.RecordVerdicts)
+	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
 	if identity.NameStatus != WorkerFactPresent || strings.TrimSpace(identity.Name) == "" {
 		return "", false
 	}
-	name := strings.TrimSpace(identity.Name)
-	// The current ListWorkers transport admits complete worker summaries, not
-	// field-level verdicts. Its silent-verdict projection is the same admitted
-	// record already shown in Employment overview. Once field verdicts arrive,
-	// only an explicit PRESENT worker_number may enter persistent page chrome.
-	for _, fact := range ResolveWorkerOverview(view.Locale, person, view.RecordVerdicts).Facts {
-		if fact.Name == "worker_number" && fact.Status == WorkerFactPresent && strings.TrimSpace(fact.Value) != "" {
-			return view.Locale.Text("person.profile_identity", map[string]string{"name": name, "worker": strings.TrimSpace(fact.Value)}), true
-		}
-	}
-	return name, true
+	return identity.Label, true
 }
 
 // personPage is the route adapter. It resolves authorized projection data and
@@ -44,7 +34,7 @@ func personPage(view View) ui.Node {
 	returnHref := peopleReturnHref(view)
 	props := PersonPageProps{I18nProps: I18nProps{Locale: view.Locale}, BackHref: returnHref, Navigate: view.Navigate}
 	person, ok := exactPerson(view)
-	if !ok || !DiscoveryAdmitted(person.ID, view.RecordVerdicts) {
+	if !ok || !DiscoveryAdmitted(person.ID, workerIdentityVerdicts(view)) {
 		props.Unavailable = PersonUnavailableProps{DirectoryHref: returnHref, Navigate: view.Navigate}
 		return ui.CreateElement(PersonPage, props)
 	}
@@ -59,7 +49,7 @@ func personPage(view View) ui.Node {
 // the same facts and composition; only their navigation state differs.
 func personProfileProps(view View, person Person, target PageID) PersonProfileProps {
 	text := view.Locale.Text
-	identity := ResolveWorkerIdentity(view.Locale, person, view.RecordVerdicts)
+	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
 	overview := ResolveWorkerOverview(view.Locale, person, view.RecordVerdicts)
 	employment := ResolveWorkerEmployment(view.Locale, person, view.RecordVerdicts)
 	pay := ResolveWorkerPay(view.Locale, person, view.RecordVerdicts)
@@ -112,7 +102,7 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 	personal = fact(personal, text("person.worker_ref"), "record_id", person.ID)
 	return PersonProfileProps{
 		Hero: PersonHeroProps{
-			Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Name, Role: identity.Role,
+			Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Label, Role: identity.Role,
 			NameStatus: identity.NameStatus, RoleStatus: identity.RoleStatus,
 		},
 		Details: EmploymentDetailsProps{
@@ -150,7 +140,7 @@ func profileFactsFromWorkerSection(section WorkerSection) []ProfileFactProps {
 }
 
 func activeWorkflowsProps(view View, person Person) ActiveWorkflowsProps {
-	identity := ResolveWorkerIdentity(view.Locale, person, view.RecordVerdicts)
+	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
 	rows := make([]WorkRowProps, 0)
 	for _, item := range OpenWorkItems(admittedWork(view)) {
 		if item.PersonRef != person.ID {
@@ -158,7 +148,7 @@ func activeWorkflowsProps(view View, person Person) ActiveWorkflowsProps {
 		}
 		rows = append(rows, WorkRowProps{
 			ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: item.Title,
-			Person: identity.Name, Summary: item.Summary, Due: item.Due, JourneyStage: item.Status,
+			Person: identity.Label, Summary: item.Summary, Due: item.Due, JourneyStage: item.Status,
 			StatusProjection: item.StatusProjection, Href: item.Href, Navigate: view.Navigate,
 		})
 	}
@@ -166,7 +156,7 @@ func activeWorkflowsProps(view View, person Person) ActiveWorkflowsProps {
 }
 
 func personWorkflowLauncherProps(view View, person Person, target PageID) WorkflowLauncherProps {
-	identity := ResolveWorkerIdentity(view.Locale, person, view.RecordVerdicts)
+	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
 	authorized := len(view.EffectivePermissions) == 0 || view.Can(PageJourneys, "create")
 	actions := []WorkerAction(nil)
 	if authorized {
@@ -182,11 +172,12 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 			if hasActiveJourney {
 				hasActivePromotion = true
 				workflows = append(workflows, WorkflowCardProps{
-					Name:        view.Locale.Text("people.open_active_promotion"),
-					ActionLabel: view.Locale.Text("people.open_active_promotion"),
-					Category:    action.Category,
-					Description: PromotionAvailabilityReason(view.Locale, PromotionActiveConflict),
-					Href:        JourneyDetailHref(view, activeItem.ID), Navigate: view.Navigate,
+					Name:            view.Locale.Text("people.open_active_promotion"),
+					ActionLabel:     view.Locale.Text("people.open_active_promotion"),
+					AccessibleLabel: view.Locale.Text("people.open_active_promotion_aria", map[string]string{"name": identity.Label}),
+					Category:        action.Category,
+					Description:     PromotionAvailabilityReason(view.Locale, PromotionActiveConflict),
+					Href:            JourneyDetailHref(view, activeItem.ID), Navigate: view.Navigate,
 				})
 			}
 			continue
@@ -196,6 +187,7 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 		}
 		workflows = append(workflows, WorkflowCardProps{
 			Name: action.Name, Category: action.Category, Description: action.Description, Href: action.Href, Navigate: view.Navigate,
+			AccessibleLabel: view.Locale.Text("people.workflow_aria", map[string]string{"workflow": action.Name, "name": identity.Label}),
 		})
 	}
 	filter := workflowFilterProps(view, person, target)
@@ -210,7 +202,7 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 	}
 	launcher := WorkflowLauncherProps{
 		UnavailableDetail: unavailableDetail,
-		PersonName:        identity.Name, TotalCount: len(workflows), Filter: filter, Workflows: workflows,
+		PersonName:        identity.Label, TotalCount: len(workflows), Filter: filter, Workflows: workflows,
 	}
 	if hasActivePromotion {
 		launcher.Heading = view.Locale.Text("workflow.continue_heading")

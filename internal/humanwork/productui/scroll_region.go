@@ -213,4 +213,50 @@ func declareScrollRegionStyles() {
 		gwccss.Raw("scrollbar-width", "thin"),
 		gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) var(--hcm-nav-scrollbar-track)"),
 	)
+
+	// UXSCAN-005: history is a page-owned scroll surface. Keep all desktop
+	// filter controls in explicit, usable tracks so native select values and
+	// the search prompt are not squeezed into an implicit overflowing column.
+	// Narrow viewports retain the one-column contract from the history styles.
+	declareGlobal(".workflow-history",
+		gwccss.Raw("overflow", "visible"),
+	)
+	declareGlobal(".history-columns",
+		gwccss.Position.Sticky,
+		gwccss.Top(gwccss.Zero),
+		gwccss.ZIndex(5),
+	)
+	declareGlobal(".history-filter-controls",
+		mediaRule(gwccss.MinW(1200), gwccss.Display.Grid, gwccss.GridCols(
+			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(300)), gwccss.Fr(1.3)),
+			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(150)), gwccss.Fr(.7)),
+			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(145)), gwccss.Fr(.7)),
+			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(180)), gwccss.Fr(.8)),
+		)),
+		mediaRule(gwccss.MinW(1400), gwccss.GridCols(
+			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(300)), gwccss.Fr(1.3)),
+			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(150)), gwccss.Fr(.7)),
+			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(145)), gwccss.Fr(.7)),
+			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(180)), gwccss.Fr(.8)),
+			gwccss.TrackLen(gwccss.RawLength("max-content")),
+		)),
+	)
+	declareGlobal(".history-filter-controls>.button",
+		mediaRule(gwccss.MinW(1200), gwccss.Raw("grid-column", "4"), gwccss.Raw("justify-self", "end")),
+		mediaRule(gwccss.MinW(1400), gwccss.Raw("grid-column", "auto")),
+	)
+	// At desktop widths the main page is the sole vertical scroll owner.
+	// This also lets table headers stick to the page scroll rather than an
+	// inner viewport that has no meaningful height of its own.
+	declareGlobal(".people-directory .data-table-scroll",
+		mediaRule(gwccss.MinW(1081),
+			gwccss.MaxHeight(gwccss.RawLength("none")),
+			gwccss.MinHeight(gwccss.Zero),
+			gwccss.Raw("overflow", "visible"),
+		),
+	)
+	declareGlobal(".history-filter-controls input,.history-filter-controls select",
+		gwccss.Raw("text-overflow", "clip"),
+		gwccss.Raw("white-space", "normal"),
+	)
 }

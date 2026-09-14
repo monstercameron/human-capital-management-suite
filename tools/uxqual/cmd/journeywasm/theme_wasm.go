@@ -3,6 +3,7 @@
 package main
 
 import (
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall/js"
@@ -47,7 +48,39 @@ func (c *browserThemeController) Saved() productui.CustomerTheme {
 
 func (c *browserThemeController) Preview(theme productui.CustomerTheme) {
 	c.Apply(theme)
-	c.setStatus("Previewing unsaved appearance changes", "preview")
+	c.syncLogoReference(theme.BrandLogoURL)
+	dirty := c.syncEditContext(theme)
+	if theme.Palette == "custom" {
+		if err := productui.ValidateCustomerTheme(theme); err != nil {
+			c.setStatus(appearanceThemeFeedback(err), "warning")
+			c.setSaveDisabled(true)
+		} else {
+			c.setStatus(appearanceThemeText("appearance.custom_valid"), "preview")
+			c.setSaveDisabled(!dirty)
+		}
+		input := js.Global().Get("document").Call("querySelector", `input[name="palette"][value="custom"]`)
+		if input.Truthy() {
+			input.Set("checked", true)
+		}
+		if err := productui.ValidateCustomerTheme(theme); err == nil {
+			c.syncColorWells(theme)
+		}
+		return
+	}
+	c.syncColorWells(theme)
+	c.setSaveDisabled(!dirty)
+	if dirty {
+		c.setStatus(appearanceThemeText("appearance.preview_unsaved"), "preview")
+	} else {
+		c.setStatus(appearanceThemeText("appearance.no_changes"), "preview")
+	}
+}
+
+func (c *browserThemeController) syncLogoReference(value string) {
+	input := js.Global().Get("document").Call("querySelector", `input[name="brand_logo_url"]`)
+	if input.Truthy() && input.Get("value").String() != value {
+		input.Set("value", value)
+	}
 }
 
 func (c *browserThemeController) Save(theme productui.CustomerTheme) {
@@ -55,28 +88,93 @@ func (c *browserThemeController) Save(theme productui.CustomerTheme) {
 		return
 	}
 	theme = productui.NormalizeCustomerTheme(theme)
-	c.saved = theme
+	if err := productui.ValidateCustomerTheme(theme); err != nil {
+		c.setStatus(appearanceThemeFeedback(err), "warning")
+		c.setSaveDisabled(true)
+		return
+	}
+	previousPalette := c.saved.Palette
 	c.Apply(theme)
-	c.setStatus("Saving appearance…", "preview")
+	c.syncEditContext(theme)
+	c.setSaveDisabled(true)
+	c.setStatus(appearanceThemeText("appearance.saving"), "preview")
 	if c.save == nil {
-		c.setStatus("Appearance service is unavailable", "warning")
+		c.setStatus(appearanceThemeText("appearance.service_unavailable"), "warning")
+		c.setSaveDisabled(false)
 		return
 	}
 	c.save(theme, func(err error) {
 		if err != nil {
-			c.setStatus("Appearance could not be saved", "warning")
+			c.setStatus(appearanceThemeText("appearance.save_failed"), "warning")
+			c.setSaveDisabled(false)
 		} else {
-			c.setStatus("Appearance saved for your organization", "success")
+			c.saved = theme
+			c.syncEditContext(theme)
+			c.setStatus(appearanceThemeText("appearance.saved"), "success")
+			c.setSaveDisabled(true)
+			if theme.Palette == "custom" || previousPalette == "custom" {
+				// The server reissues a hash-pinned stylesheet for admitted
+				// organization colors; do not inject runtime CSS in this client.
+				js.Global().Get("location").Call("reload")
+			}
 		}
 	})
+}
+
+func appearanceThemeFeedback(err error) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "contrast"):
+		return appearanceThemeText("appearance.error_contrast")
+	case strings.Contains(message, "six-digit"):
+		return appearanceThemeText("appearance.error_hex")
+	default:
+		return appearanceThemeText("appearance.error_generic")
+	}
+}
+
+func appearanceThemeText(key string) string {
+	root := js.Global().Get("document").Get("documentElement")
+	locale := "en-US"
+	if root.Truthy() {
+		locale = root.Call("getAttribute", "lang").String()
+	}
+	return productui.ResolveProductLocale(locale).Text(key)
 }
 
 func (c *browserThemeController) Reset() {
 	if c == nil {
 		return
 	}
-	c.Save(productui.DefaultCustomerTheme())
-	c.syncEditor(c.saved)
+	c.Preview(productui.DefaultCustomerTheme())
+	c.syncEditor(productui.DefaultCustomerTheme())
+}
+
+func (c *browserThemeController) syncEditContext(theme productui.CustomerTheme) bool {
+	if c == nil {
+		return false
+	}
+	dirty := !reflect.DeepEqual(productui.NormalizeCustomerTheme(theme), productui.NormalizeCustomerTheme(c.saved))
+	document := js.Global().Get("document")
+	root := document.Get("documentElement")
+	locale := productui.ResolveProductLocale(root.Call("getAttribute", "lang").String())
+	setThemeText(`[data-hcm-theme-current]`, productui.AppearanceThemeSummary(locale, c.saved))
+	setThemeText(`[data-hcm-theme-proposed]`, productui.AppearanceThemeSummary(locale, theme))
+	bar := document.Call("querySelector", `.appearance-actions-sticky`)
+	if bar.Truthy() {
+		bar.Call("setAttribute", "data-hcm-edit-dirty", strconv.FormatBool(dirty))
+	}
+	return dirty
+}
+
+func (c *browserThemeController) setSaveDisabled(disabled bool) {
+	button := js.Global().Get("document").Call("querySelector", `[data-hcm-action="save-appearance"]`)
+	if button.Truthy() {
+		button.Set("disabled", disabled || button.Call("getAttribute", "data-hcm-editable").String() != "true")
+	}
 }
 
 func (c *browserThemeController) Apply(theme productui.CustomerTheme) {
@@ -94,6 +192,8 @@ func (c *browserThemeController) Apply(theme productui.CustomerTheme) {
 	brandName, brandMark := productui.HeaderBrandIdentity(theme, c.tenant)
 	setThemeText(`[data-hcm-brand-link] [data-hcm-brand-name]`, brandName)
 	setThemeText(`[data-hcm-brand-link] [data-hcm-brand-mark]`, brandMark)
+	setThemeText(`.appearance-preview-live-header [data-hcm-brand-name]`, brandName)
+	setThemeText(`.appearance-preview-live-header [data-hcm-brand-mark]`, brandMark)
 	setThemeAttribute(`[data-hcm-brand-link]`, "title", brandName)
 	applyThemeBrandLogo(theme.BrandLogoURL, c.logoLoad, c.logoError)
 	applyThemeDocumentIdentity("", theme, c.tenant)
@@ -179,6 +279,27 @@ func (c *browserThemeController) syncEditor(theme productui.CustomerTheme) {
 		input := document.Call("querySelector", `input[name="`+name+`"]`)
 		if input.Truthy() {
 			input.Set("value", value)
+		}
+	}
+	c.syncColorWells(theme)
+}
+
+func (c *browserThemeController) syncColorWells(theme productui.CustomerTheme) {
+	modes, err := productui.ResolveCustomerThemeModes(theme)
+	if err != nil {
+		return
+	}
+	document := js.Global().Get("document")
+	for _, mode := range []productui.ThemeMode{productui.ThemeModeLight, productui.ThemeModeDark} {
+		for _, token := range productui.ThemeTokens() {
+			if token.Kind != productui.ThemeColor || !token.CustomerOverridable {
+				continue
+			}
+			value, _ := modes[mode].Value(token.Name)
+			input := document.Call("querySelector", `input[name="`+string(mode)+`-`+token.Name+`"]`)
+			if input.Truthy() {
+				input.Set("value", value)
+			}
 		}
 	}
 }

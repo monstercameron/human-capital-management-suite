@@ -148,6 +148,9 @@ func homePage(view View) ui.Node {
 	if !sections[HomeSectionQuickActions] {
 		actions = nil
 	}
+	// A visible employee count is useful context, not activity. A genuinely
+	// quiet work stream should not expand four zero-state cards around it.
+	compactEmpty := len(population) == 0 && len(queue) == 0 && len(buckets.Drafts) == 0 && len(tracked.Items) == 0 && len(recentPeople) == 0 && len(activities) == 0
 	return ui.CreateElement(HomePage, HomePageProps{
 		Work: work, ShowWork: sections[HomeSectionAttention],
 		Drafts: drafts, ShowDrafts: sections[HomeSectionRecentWork] && workVisible,
@@ -160,6 +163,8 @@ func homePage(view View) ui.Node {
 		Overview: overview, ShowOverview: sections[HomeSectionSummaries] && len(facts) > 0,
 		QuickStart: QuickActionsProps{Title: quickTitle, Class: "home-quick-actions", Actions: actions},
 		Recent:     recent, ShowRecent: sections[HomeSectionRecentWork] && historyVisible,
+		CompactEmpty: compactEmpty,
+		EmptyTitle:   view.Locale.Text("home.empty_title"), EmptyDetail: view.Locale.Text("home.empty_detail"),
 	})
 }
 

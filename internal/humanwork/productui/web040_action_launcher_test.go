@@ -184,10 +184,9 @@ func TestTodo_WEB_040(t *testing.T) {
 // UXAUDIT-003 changed the closed launcher's dialog to omit its results
 // list entirely (see the results-gate doc comment in action_launcher.go)
 // so a per-worker action never embeds into a page's markup before the
-// viewer opens the control; re-pinned to the new, smaller closed-state
-// bytes after visually confirming the trigger, dialog scaffold and input
-// still render correctly.
-const web040GoldenDigest = "dd3493fccf3776482a02429339fc924ce001a6042fd8494daf8a488ecf2a791d"
+// viewer opens the control. UXSCAN-002 also clarifies the input's employee
+// search path; this digest pins that updated closed-state scaffold.
+const web040GoldenDigest = "5d96d8a51f4460c0b8670775f3eaedcbddea613fe54163f56bd57e709b24cb47"
 
 func TestTodo_WEB_040_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

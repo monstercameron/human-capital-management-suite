@@ -11,7 +11,7 @@ func TestNavigationScrollbarUsesSemanticTokensAndNativeFallbacks(t *testing.T) {
 		`--hcm-nav-scrollbar-track:color-mix(in srgb,var(--surface)`,
 		`.sidebar{scrollbar-color:var(--hcm-nav-scrollbar-thumb) var(--hcm-nav-scrollbar-track);`,
 		`--hcm-nav-scrollbar-size:10px;`,
-		`--hcm-nav-scrollbar-size-rail:7px;`,
+		`--hcm-nav-scrollbar-size-rail:6px;`,
 		`.sidebar::-webkit-scrollbar{width:var(--hcm-nav-scrollbar-size);}`,
 		`.sidebar::-webkit-scrollbar-thumb{background-clip:padding-box;`,
 		`.sidebar::-webkit-scrollbar-thumb:hover{background-clip:padding-box;background-color:var(--hcm-nav-scrollbar-thumb-hover);}`,

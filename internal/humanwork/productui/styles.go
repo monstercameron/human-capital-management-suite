@@ -7,6 +7,7 @@ var (
 	defaultStylesheet     string
 	platformStylesOnce    sync.Once
 	platformStyles        string
+	platformDarkStyles    string
 )
 
 // Stylesheet is the fixed platform stylesheet for the first product slice.
@@ -31,12 +32,31 @@ func StylesheetForTheme(overrides map[string]string) (string, error) {
 	return stylesheetForTheme(theme), nil
 }
 
-func stylesheetForTheme(theme Theme) string {
-	platformStylesOnce.Do(func() {
+// StylesheetForCustomerTheme renders the complete, CSP-hashable customer
+// BrandPack, including independently admitted dark colors when configured.
+func StylesheetForCustomerTheme(customer CustomerTheme) (string, error) {
+	if err := ValidateCustomerTheme(customer); err != nil {
+		return "", err
+	}
+	if customer.Palette != "custom" {
+		return Stylesheet(), nil
+	}
+	modes, err := ResolveThemeModesWithDark(customer.TokenOverrides, customer.DarkTokenOverrides)
+	if err != nil {
+		return "", err
+	}
+	platformStylesOnce.Do(initPlatformStyles)
+	return modes[ThemeModeLight].CSS() + platformStyles + customAppearancePreviewStylesheetForModes(modes) + darkModeStylesStylesheetForCustomer(modes[ThemeModeLight], modes[ThemeModeDark]), nil
+}
 
-		platformStyles = baseStylesheet() + SemanticThemeStylesheet() + refinementsStylesheet() + componentRefinementsStylesheet() + responsiveGridFixStylesheet() + responsiveSafetyStylesheet() + collapsibleNavigationStylesheet() + NavigationEnhancementsStylesheet() + liveDataRefinementsStylesheet() + viewportShellStylesheet() + personProfileStylesheet() + peopleDirectoryStylesheet() + workflowHistoryStylesheet() + PhotoStylesheet() + profileDetailStylesheet() + historyTableStylesheet() + JourneyIntegrationStylesheet() + MotionStylesheet() + customerThemeStylesheet() + AppearanceStylesheet() + AppearanceSwatchStylesheet() + CustomerIdentityStylesheet() + brandLogoStylesStylesheet() + compactBrandStylesStylesheet() + AppearanceRobustnessStylesheet() + localeStylesStylesheet() + localePreferenceStylesStylesheet() + accessibilityStylesStylesheet() + accessibilityLayoutStylesStylesheet() + accessibilityReviewStylesStylesheet() + localePreferenceAccessibilityStylesStylesheet() + InteractionMotionStylesheet() + navigationPolishStylesStylesheet() + navigationScrollbarStylesStylesheet() + navigationViewportStylesStylesheet() + navigationViewportXStylesStylesheet() + colorModeControlStylesStylesheet() + surfaceTokenCoverageStylesheet() + legacySurfaceCoverageStylesheet() + loadingProxyStylesStylesheet() + loadingLayoutOffsetsStylesheet() + navigationSearchStylesStylesheet() + peopleSortFilterStylesStylesheet() + peopleQuickActionStylesStylesheet() + collectionControlStylesStylesheet() + uxReviewRefinementsStylesheet() + responsiveComponentStylesStylesheet() + peopleStickyHeaderStylesStylesheet() + dataTableStylesStylesheet() + GlobalSearchStylesheet() + historyNavigationStylesheet() + actionLauncherStylesheet() + PopoverStylesheet() + ViewerProfileStylesheet() + organizationMetadataStylesStylesheet() + organizationHierarchyStylesStylesheet() + organizationDisclosureStylesStylesheet() + organizationVisibilityStylesStylesheet() + roleAccessStylesStylesheet() + workerIDStylesStylesheet() + permissionBoundaryStylesheet() + validationStylesStylesheet() + statusPresentationStylesStylesheet() + provenancePresentationStylesStylesheet() + myselfStylesStylesheet() + networkTransitionStylesStylesheet() + navigationInteractionRefinementsStylesheet() + interactionThemeStylesStylesheet() + visualQARefinementsStylesheet() + peopleActionColumnStylesStylesheet() + BreadcrumbStylesheet() + UtilityDrawerStylesheet() + MobileShellStylesheet() + FederationEntryStylesheet() + SessionWarningStylesheet() + StepUpStylesheet() + AuthorityBannerStylesheet() + BreakGlassStylesheet() + PolicySimulationStylesheet() + SignedOutStylesheet() + DelegationSelectorStylesheet() + ContextSwitcherStylesheet() + uxaudit008TableDensityStylesheet() + scrollRegionStylesheet() + uipolish001TypographyStylesheet() + uipolish002SettingsStylesheet() + UIPolish004ScrollStylesheet() + UIPolish011MotionStylesheet() + uipolish008TableStylesheet() + darkModeStylesStylesheet()
-	})
-	return theme.CSS() + platformStyles
+func stylesheetForTheme(theme Theme) string {
+	platformStylesOnce.Do(initPlatformStyles)
+	return theme.CSS() + platformStyles + customAppearancePreviewStylesheet(theme) + platformDarkStyles
+}
+
+func initPlatformStyles() {
+	platformStyles = baseStylesheet() + SemanticThemeStylesheet() + refinementsStylesheet() + componentRefinementsStylesheet() + responsiveGridFixStylesheet() + responsiveSafetyStylesheet() + collapsibleNavigationStylesheet() + NavigationEnhancementsStylesheet() + liveDataRefinementsStylesheet() + viewportShellStylesheet() + personProfileStylesheet() + peopleDirectoryStylesheet() + workflowHistoryStylesheet() + PhotoStylesheet() + profileDetailStylesheet() + historyTableStylesheet() + JourneyIntegrationStylesheet() + MotionStylesheet() + customerThemeStylesheet() + AppearanceStylesheet() + AppearanceSwatchStylesheet() + CustomerIdentityStylesheet() + brandLogoStylesStylesheet() + compactBrandStylesStylesheet() + AppearanceRobustnessStylesheet() + localeStylesStylesheet() + localePreferenceStylesStylesheet() + accessibilityStylesStylesheet() + accessibilityLayoutStylesStylesheet() + accessibilityReviewStylesStylesheet() + localePreferenceAccessibilityStylesStylesheet() + InteractionMotionStylesheet() + navigationPolishStylesStylesheet() + navigationScrollbarStylesStylesheet() + navigationViewportStylesStylesheet() + navigationViewportXStylesStylesheet() + colorModeControlStylesStylesheet() + surfaceTokenCoverageStylesheet() + legacySurfaceCoverageStylesheet() + loadingProxyStylesStylesheet() + loadingLayoutOffsetsStylesheet() + navigationSearchStylesStylesheet() + peopleSortFilterStylesStylesheet() + peopleQuickActionStylesStylesheet() + collectionControlStylesStylesheet() + uxReviewRefinementsStylesheet() + responsiveComponentStylesStylesheet() + peopleStickyHeaderStylesStylesheet() + dataTableStylesStylesheet() + GlobalSearchStylesheet() + historyNavigationStylesheet() + actionLauncherStylesheet() + PopoverStylesheet() + ViewerProfileStylesheet() + organizationMetadataStylesStylesheet() + organizationHierarchyStylesStylesheet() + organizationDisclosureStylesStylesheet() + organizationVisibilityStylesStylesheet() + roleAccessStylesStylesheet() + workerIDStylesStylesheet() + permissionBoundaryStylesheet() + validationStylesStylesheet() + statusPresentationStylesStylesheet() + provenancePresentationStylesStylesheet() + myselfStylesStylesheet() + networkTransitionStylesStylesheet() + navigationInteractionRefinementsStylesheet() + interactionThemeStylesStylesheet() + visualQARefinementsStylesheet() + peopleActionColumnStylesStylesheet() + BreadcrumbStylesheet() + UtilityDrawerStylesheet() + MobileShellStylesheet() + FederationEntryStylesheet() + SessionWarningStylesheet() + StepUpStylesheet() + AuthorityBannerStylesheet() + BreakGlassStylesheet() + PolicySimulationStylesheet() + SignedOutStylesheet() + DelegationSelectorStylesheet() + ContextSwitcherStylesheet() + uxaudit008TableDensityStylesheet() + scrollRegionStylesheet() + uipolish001TypographyStylesheet() + uipolish002SettingsStylesheet() + UIPolish004ScrollStylesheet() + UIPolish011MotionStylesheet() + uipolish008TableStylesheet()
+	platformDarkStyles = darkModeStylesStylesheet()
 }
 
 // popoverStyles is the single visual and spatial contract for floating

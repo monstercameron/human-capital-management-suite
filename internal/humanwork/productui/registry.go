@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -102,10 +103,22 @@ func hasProductRole(roles []string, wanted string) bool {
 	return false
 }
 
+// The page inventory is fixed code, not a runtime registration surface. Keep
+// one private read-only copy so a route transition does not rebuild every
+// definition for each lookup. Public callers receive independent copies.
+var (
+	fixedRegisteredPages     []PageDefinition
+	fixedRegisteredPagesOnce sync.Once
+)
+
 func registeredPages() []PageDefinition {
-	// The catalogue and its search-term slices are freshly allocated per call.
-	// There is no retained registry or package-level mutable catalogue.
-	return buildRegisteredPages()
+	fixedRegisteredPagesOnce.Do(func() { fixedRegisteredPages = buildRegisteredPages() })
+	return fixedRegisteredPages
+}
+
+func clonePageDefinition(definition PageDefinition) PageDefinition {
+	definition.SearchTerms = append([]string(nil), definition.SearchTerms...)
+	return definition
 }
 
 func buildRegisteredPages() []PageDefinition {
@@ -245,14 +258,19 @@ func buildRegisteredPages() []PageDefinition {
 // PageDefinitions returns a copy so callers can inspect the page inventory
 // without mutating the application registry.
 func PageDefinitions() []PageDefinition {
-	return registeredPages()
+	pages := registeredPages()
+	result := make([]PageDefinition, len(pages))
+	for index, definition := range pages {
+		result[index] = clonePageDefinition(definition)
+	}
+	return result
 }
 
 // LookupPage resolves the canonical definition for a stable page identity.
 func LookupPage(id PageID) (PageDefinition, bool) {
-	for _, definition := range buildRegisteredPages() {
+	for _, definition := range registeredPages() {
 		if definition.ID == id {
-			return definition, true
+			return clonePageDefinition(definition), true
 		}
 	}
 	return PageDefinition{}, false
@@ -261,9 +279,9 @@ func LookupPage(id PageID) (PageDefinition, bool) {
 // LookupRoute keeps transport routing coupled to the canonical page registry,
 // not to assumptions about PageID spelling.
 func LookupRoute(route string) (PageDefinition, bool) {
-	for _, definition := range buildRegisteredPages() {
+	for _, definition := range registeredPages() {
 		if definition.Route == route {
-			return definition, true
+			return clonePageDefinition(definition), true
 		}
 	}
 	return PageDefinition{}, false
@@ -423,7 +441,7 @@ func validateAuthorizedNavigationProjection(projection AuthorizedNavigationProje
 	seen := make(map[PageID]bool)
 	overviews := make(map[PageID]bool)
 	definitions := make(map[PageID]PageDefinition)
-	for _, definition := range buildRegisteredPages() {
+	for _, definition := range registeredPages() {
 		definitions[definition.ID] = definition
 	}
 	count := 0

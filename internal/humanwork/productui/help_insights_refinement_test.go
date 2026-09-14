@@ -66,19 +66,19 @@ func TestHRServiceRequestDoesNotPutDetailsInTheURL(t *testing.T) {
 	}
 }
 
-func TestInsightsUsesInsufficientDataInsteadOfUnsupportedZeroes(t *testing.T) {
+func TestInsightsEmptyScopeDoesNotImplyOrganizationWideZero(t *testing.T) {
 	view := testView(PageInsights)
 	view.Work = nil
 	doc, err := Render(view)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Not reported", "Not enough visible requests to report a count", "Period", "Last updated", "Includes", "a missing count is not zero"} {
+	for _, want := range []string{"No journeys to summarize in your view", "does not establish an organization-wide count", "Period", "Last updated", "Includes"} {
 		if !strings.Contains(doc, want) {
-			t.Fatalf("insufficient-data insights missing %q", want)
+			t.Fatalf("empty-scope insights missing %q", want)
 		}
 	}
-	if strings.Contains(doc, ">0<") {
-		t.Fatal("insufficient-data insights present zero as a measured result")
+	if strings.Contains(doc, `class="metrics"`) || strings.Contains(doc, "Not reported") {
+		t.Fatal("empty-scope insights present unsupported metric cards")
 	}
 }

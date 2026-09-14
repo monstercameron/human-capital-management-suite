@@ -7,12 +7,24 @@ package productui
 // every header projects denied names identically and no
 // header invents its own rule.
 type WorkerIdentity struct {
-	Name       string
-	Role       string
-	Initials   string
-	PhotoURL   string
-	NameStatus WorkerFactStatus
-	RoleStatus WorkerFactStatus
+	Name               string
+	WorkerNumber       string
+	Label              string
+	Role               string
+	Initials           string
+	PhotoURL           string
+	NameStatus         WorkerFactStatus
+	WorkerNumberStatus WorkerFactStatus
+	RoleStatus         WorkerFactStatus
+}
+
+// workerIdentityVerdicts applies the population-scoped verdict contract.
+// Journey-only decisions do not imply that the worker directory is governed.
+func workerIdentityVerdicts(view View) map[string]AuthorizedRecord {
+	if !peopleVerdictsPresent(view) {
+		return nil
+	}
+	return view.RecordVerdicts
 }
 
 // ResolveWorkerIdentity resolves one person record to its
@@ -21,10 +33,18 @@ type WorkerIdentity struct {
 // untouched. The record is never mutated.
 func ResolveWorkerIdentity(locale LocaleContext, person Person, verdicts map[string]AuthorizedRecord) WorkerIdentity {
 	name, nameStatus := resolveIdentityField(locale, person, verdicts, "name", person.Name)
+	workerNumber, workerNumberStatus := resolveIdentityField(locale, person, verdicts, "worker_number", person.WorkerNumber)
 	role, roleStatus := resolveIdentityField(locale, person, verdicts, "role", person.Role)
+	label := name
+	if nameStatus == WorkerFactPresent && workerNumberStatus == WorkerFactPresent {
+		label = locale.Text("person.profile_identity", map[string]string{"name": name, "worker": workerNumber})
+	} else if nameStatus != WorkerFactPresent && workerNumberStatus == WorkerFactPresent {
+		label = workerNumber
+	}
 	return WorkerIdentity{
-		Name: name, Role: role, Initials: person.Initials, PhotoURL: person.PhotoURL,
-		NameStatus: nameStatus, RoleStatus: roleStatus,
+		Name: name, WorkerNumber: workerNumber, Label: label, Role: role,
+		Initials: person.Initials, PhotoURL: person.PhotoURL,
+		NameStatus: nameStatus, WorkerNumberStatus: workerNumberStatus, RoleStatus: roleStatus,
 	}
 }
 
@@ -41,6 +61,15 @@ func resolveIdentityField(locale LocaleContext, person Person, verdicts map[stri
 	}
 	if !record.Disclosable {
 		return locale.Text("provenance.value.withheld"), WorkerFactWithheld
+	}
+	// Older discovery responses authorize whole worker summaries without
+	// emitting per-field decisions. Preserve that record-level contract;
+	// once any field verdict is present, absent fields fail closed below.
+	if len(record.Fields) == 0 {
+		if raw == "" {
+			return valueOrUnavailableFor(locale, raw), WorkerFactMissing
+		}
+		return raw, WorkerFactPresent
 	}
 	field, ok := record.Fields[name]
 	if !ok {

@@ -42,7 +42,7 @@ func declareColorModeControlStylesStyles() {
 		gwccss.Raw("background", "linear-gradient(135deg,#fff 0 50%,#101820 50%)"),
 		gwccss.Raw("content", "\"\""),
 	)
-	declareGlobal(".wordmark-mark,.appearance-preview-bar",
+	declareGlobal(".wordmark-mark",
 		gwccss.TextColor(gwccss.Var("on-brand")),
 	)
 	declareGlobal(":root[data-hcm-navigation=\"brand\"] .sidebar",
@@ -614,7 +614,7 @@ func declareThemeCoverageBaseStylesStyles() {
 	declareGlobal(":where(.app-shell) :is(.work-row,.people-row,.history-row)",
 		gwccss.BorderColor(gwccss.Var("divider")),
 	)
-	declareGlobal(":where(.app-shell) :is(.button.primary,.wordmark-mark,.appearance-preview-bar)",
+	declareGlobal(":where(.app-shell) :is(.button.primary,.wordmark-mark)",
 		gwccss.TextColor(gwccss.Var("on-brand")),
 	)
 	declareGlobal(".button.secondary",
@@ -797,6 +797,14 @@ func darkHighContrastDeclarationRules() []gwccss.Rule {
 		gwccss.Custom("accent-hover", "#c4ffe8"),
 		gwccss.Custom("hcm-color-on-brand", "#000000"),
 		gwccss.Custom("hcm-color-focus", "#ffffff"),
+		gwccss.Custom("hcm-color-brand-primary", "#9af5d0"),
+		gwccss.Custom("hcm-color-brand-hover", "#c4ffe8"),
+		gwccss.Custom("hcm-color-brand-soft", "#102a21"),
+		gwccss.Custom("hcm-color-text", "#ffffff"),
+		gwccss.Custom("hcm-color-text-muted", "#e3e9ef"),
+		gwccss.Custom("hcm-color-canvas", "#000000"),
+		gwccss.Custom("hcm-color-surface", "#000000"),
+		gwccss.Custom("hcm-color-border", "#b6c4d0"),
 	)
 }
 
@@ -822,6 +830,14 @@ func darkModeForcedColorsRules() []gwccss.Rule {
 		gwccss.Custom("hcm-color-info", "CanvasText"),
 		gwccss.Custom("hcm-color-info-surface", "Canvas"),
 		gwccss.Custom("hcm-color-focus", "Highlight"),
+		gwccss.Custom("hcm-color-brand-primary", "Highlight"),
+		gwccss.Custom("hcm-color-brand-hover", "Highlight"),
+		gwccss.Custom("hcm-color-brand-soft", "Canvas"),
+		gwccss.Custom("hcm-color-text", "CanvasText"),
+		gwccss.Custom("hcm-color-text-muted", "CanvasText"),
+		gwccss.Custom("hcm-color-canvas", "Canvas"),
+		gwccss.Custom("hcm-color-surface", "Canvas"),
+		gwccss.Custom("hcm-color-border", "CanvasText"),
 	)
 }
 
@@ -830,6 +846,46 @@ func darkModeStylesStylesheet() string {
 }
 
 func declareDarkModeStylesStyles() {
+	declareDarkModeStylesStylesWithCustomerModes(Theme{}, Theme{})
+}
+
+func darkModeStylesStylesheetForCustomer(light, dark Theme) string {
+	return buildTypedSheet(func() { declareDarkModeStylesStylesWithCustomerModes(light, dark) })
+}
+
+func customerLightPrintDeclarationRules(light Theme) []gwccss.Rule {
+	rules := lightPrintDeclarationRules()
+	for _, token := range registeredThemeTokens {
+		if token.Kind == ThemeColor {
+			value, _ := light.Value(token.Name)
+			rules = append(rules, gwccss.Custom(token.CSSVariable, value))
+		}
+	}
+	return rules
+}
+
+func customerDarkModeDeclarationRules(dark Theme) []gwccss.Rule {
+	value := func(name string) string { resolved, _ := dark.Value(name); return resolved }
+	rules := gwccss.Rules(
+		gwccss.Custom("accent", value("color.brand.primary")),
+		gwccss.Custom("accent-hover", value("color.brand.hover")),
+		gwccss.Custom("soft", value("color.brand.soft")),
+		gwccss.Custom("ink", value("color.text.primary")),
+		gwccss.Custom("muted", value("color.text.muted")),
+		gwccss.Custom("canvas", value("color.canvas")),
+		gwccss.Custom("surface", value("color.surface")),
+		gwccss.Custom("line", value("color.border")),
+	)
+	for _, token := range registeredThemeTokens {
+		if token.Kind == ThemeColor {
+			rules = append(rules, gwccss.Custom(token.CSSVariable, value(token.Name)))
+		}
+	}
+	return rules
+}
+
+func declareDarkModeStylesStylesWithCustomerModes(light, dark Theme) {
+	declareAppearancePreviewThemeStyles()
 	declareGlobal(`:root[data-hcm-color-mode="light"]`,
 		gwccss.Raw("color-scheme", "light"),
 	)
@@ -842,6 +898,12 @@ func declareDarkModeStylesStyles() {
 	declareGlobal(`:root[data-hcm-color-mode="system"]`,
 		mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark)"), darkModeDeclarationRules()),
 	)
+	if len(dark.values) != 0 {
+		declareGlobal(`:root[data-hcm-color-mode="dark"]`, customerDarkModeDeclarationRules(dark))
+		declareGlobal(`:root[data-hcm-color-mode="system"]`,
+			mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark)"), customerDarkModeDeclarationRules(dark)),
+		)
+	}
 	// The in-app contrast choice is independent of the operating-system media
 	// preference. Keep its dark palette after the ordinary dark declarations.
 	declareGlobal(`:root[data-hcm-color-mode="dark"][data-hcm-contrast="more"]`,
@@ -856,8 +918,12 @@ func declareDarkModeStylesStyles() {
 	declareGlobal(`:root[data-hcm-color-mode="system"]`,
 		mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark) and (prefers-contrast:more)"), darkHighContrastDeclarationRules()),
 	)
+	printRules := lightPrintDeclarationRules()
+	if len(light.values) != 0 {
+		printRules = customerLightPrintDeclarationRules(light)
+	}
 	declareGlobal(`:root:is([data-hcm-color-mode="dark"],[data-hcm-color-mode="system"])`,
-		mediaRule(gwccss.RawMedia("(print)"), lightPrintDeclarationRules()),
+		mediaRule(gwccss.RawMedia("(print)"), printRules),
 	)
 	declareGlobal(`:root:is([data-hcm-color-mode="dark"],[data-hcm-color-mode="system"])`,
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"), darkModeForcedColorsRules()),
@@ -866,7 +932,7 @@ func declareDarkModeStylesStyles() {
 	// Keep the browser's print and forced-color palettes at the same specificity
 	// and later in source order so those accessibility modes always win.
 	declareGlobal(`:root:is([data-hcm-color-mode="dark"],[data-hcm-color-mode="system"])[data-hcm-contrast="more"]`,
-		mediaRule(gwccss.RawMedia("(print)"), lightPrintDeclarationRules()),
+		mediaRule(gwccss.RawMedia("(print)"), printRules),
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"), darkModeForcedColorsRules()),
 	)
 	// Tail of darkModeStyles is themeCoverageStyles

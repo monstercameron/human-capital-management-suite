@@ -137,8 +137,8 @@ func TestTodo_UXAUDIT_006_Golden(t *testing.T) {
 		{"en-US", "organization.empty_description", "No employees are visible to you in this organization right now. If you expect to see people here, ask your administrator to check your access."},
 		{"en-US", "admin.journeys_unavailable_reason", "Journey actions aren't available right now because the connection didn't respond. Try refreshing the page."},
 		{"en-US", "admin.studio_unavailable_reason", "Page configuration isn't available for your organization yet."},
-		{"en-US", "admin.hero_eyebrow", "Live"},
-		{"en-US", "admin.hero_description", "This page only shows the capabilities available to your organization right now."},
+		{"en-US", "admin.hero_eyebrow", "Administration"},
+		{"en-US", "admin.hero_description", "Manage available settings and see what is planned for this workspace."},
 		{"en-US", "admin.journey_card_description", "Promotion journeys and the workers you can see are loaded live from your organization's data."},
 		{"en-US", "admin.studio_card_description", "Experience configuration isn't available for your organization yet."},
 		{"en-US", "roles.assignments_help", "Assigning a role here overrides the default role used for organization visibility."},
@@ -201,8 +201,8 @@ func TestTodo_UXAUDIT_006_Browser(t *testing.T) {
 	if found := uxaudit006ScanVocabulary(journeyCardText); len(found) > 0 {
 		t.Fatalf("journey card still carries banned vocabulary: %v", found)
 	}
-	if !strings.Contains(adminDoc, "<small>Live</small>") {
-		t.Fatal("admin hero eyebrow did not resolve to the corrected \"Live\" label")
+	if !strings.Contains(adminDoc, "<small>Administration</small>") {
+		t.Fatal("admin hero eyebrow did not resolve to the administration label")
 	}
 
 	settingsDoc, err := Render(testView(PageSettings))

@@ -24,6 +24,9 @@ func declareHistoryNavigationStyles() {
 	)
 	declareGlobal(".header-navigation-tools>.global-search",
 		gwccss.Raw("flex", "1 1 0"), gwccss.MinWidth(gwccss.Zero),
+		// On broad displays the search remains useful without swallowing the
+		// entire utility bar; its suggestions keep the same bounded anchor.
+		mediaRule(gwccss.MinW(1440), gwccss.MaxWidth(gwccss.Px(720))),
 	)
 	declareGlobal(".history-navigation-button",
 		gwccss.Display.Grid, gwccss.Raw("place-items", "center"),
@@ -1367,6 +1370,49 @@ func declareBaseStyles() {
 		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))),
 		gwccss.Gap(gwccss.Px(18)),
 	)
+	declareGlobal(".insights-grid>.insights-evidence",
+		gwccss.Raw("margin-top", "0"),
+	)
+	declareGlobal(".insights-evidence-body",
+		gwccss.Display.Grid,
+		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1.15)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(240)), gwccss.Fr(.85))),
+		gwccss.Gap(gwccss.Px(28)),
+		gwccss.Raw("align-items", "start"),
+		gwccss.Raw("padding", "0 22px 22px"),
+		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))), gwccss.Gap(gwccss.Px(14)), gwccss.Raw("padding", "0 18px 18px")),
+	)
+	declareGlobal(".insights-evidence .facts",
+		gwccss.Margin(gwccss.Zero), gwccss.Padding(gwccss.Zero), gwccss.MinWidth(gwccss.Zero),
+	)
+	declareGlobal(".insights-evidence .facts>div",
+		gwccss.Display.Grid,
+		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(110)), gwccss.Fr(.45)), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))),
+		gwccss.Gap(gwccss.Px(16)),
+		gwccss.Raw("align-items", "baseline"),
+		gwccss.Raw("border-bottom", "1px solid var(--line)"),
+		gwccss.PaddingY(gwccss.Px(11)), gwccss.PaddingX(gwccss.Zero),
+		gwccss.FontSize(gwccss.Rem(.875)),
+		mediaRule(gwccss.MaxW(430), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))), gwccss.Gap(gwccss.Px(4))),
+	)
+	declareGlobal(".insights-evidence .facts>div:last-child",
+		gwccss.Raw("border-bottom", "0"),
+	)
+	declareGlobal(".insights-evidence .facts dt",
+		gwccss.TextColor(gwccss.Var("muted")),
+	)
+	declareGlobal(".insights-evidence .facts dd",
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("overflow-wrap", "anywhere"),
+	)
+	declareGlobal(".insights-evidence-note",
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Raw("padding", "16px 18px"),
+		gwccss.Raw("line-height", "1.5"),
+		gwccss.Raw("background", "var(--surface-subtle,var(--canvas))"),
+		gwccss.Raw("border", "1px solid var(--line)"),
+		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
+	)
 	declareGlobal(".bars",
 		gwccss.Display.Grid,
 		gwccss.Gap(gwccss.Px(15)),
@@ -2420,6 +2466,12 @@ func declareMobileShellStyles() {
 	)
 	declareGlobal(".topbar>.locale-menu",
 		mediaRule(gwccss.MaxW(430), gwccss.Display.None),
+	)
+	// A 120px tablet identity slot cannot fit both the mark and a long
+	// customer name. Show the mark instead of a two-letter clipped fragment;
+	// BrandLogo retains its screen-reader name and the link retains its title.
+	declareGlobal(".brand-cluster .brand-logo-slot[data-hcm-brand-logo-state=\"fallback\"] .wordmark-label",
+		mediaRule(gwccss.MaxW(760), gwccss.Display.None),
 	)
 	declareGlobal(".header-navigation-tools>.global-search",
 		mediaRule(gwccss.MaxW(430), gwccss.Raw("flex", "0 0 44px"), gwccss.W(gwccss.Px(44)), gwccss.Padding(gwccss.Zero)),

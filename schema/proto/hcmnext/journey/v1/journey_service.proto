@@ -1179,6 +1179,12 @@ message CustomerTheme {
   string typeface = 10;
   string navigation = 11;
   string motion = 12;
+  // Validated semantic token values for an authored organization theme.
+  // This is data, never a CSS declaration or selector supplied by a client.
+  map<string, string> token_overrides = 13;
+  // Optional separately admitted dark-mode colors; omitted values inherit
+  // the platform's qualified dark derivation from the light palette.
+  map<string, string> dark_token_overrides = 14;
 }
 
 message GetProductPreferencesRequest {}

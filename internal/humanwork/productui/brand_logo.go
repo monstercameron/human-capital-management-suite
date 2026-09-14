@@ -36,6 +36,13 @@ type BrandAssetPickerProps struct {
 	OnPreview  func(string)
 	OnRemove   func()
 	OnRollback func()
+	Approved   []BrandAssetOption
+}
+
+// BrandAssetOption is a server-registered, tenant-approved logo choice.
+type BrandAssetOption struct {
+	Label string
+	URL   string
 }
 
 // GovernedBrandAssetAccept is the narrow browser hint shared by the picker
@@ -53,6 +60,16 @@ func BrandAssetPicker(props BrandAssetPickerProps) ui.Node {
 	label := props.Text("appearance.company_logo")
 	help := props.Text("appearance.company_logo_help")
 	actions := make([]ui.Node, 0, 4)
+	for _, option := range props.Approved {
+		option := option
+		approvedURL := normalizedBrandLogoURL(option.URL)
+		if approvedURL == "" || props.OnChange == nil {
+			continue
+		}
+		choose := html.Props{Class: "button secondary", Type: "button", Disabled: !props.Editable, Data: map[string]string{"hcm-asset-action": "choose", "hcm-asset-ref": approvedURL}}
+		choose.OnClick = ui.UseEvent(func(ui.MouseEvent) { props.OnChange(approvedURL) })
+		actions = append(actions, html.Button(choose, ui.Text(option.Label)))
+	}
 	if props.OnUpload != nil {
 		fileProps := html.Props{ID: "appearance-brand-logo-file", Type: "file", Disabled: !props.Editable, Raw: map[string]any{"accept": GovernedBrandAssetAccept, "aria-describedby": "appearance-brand-logo-help"}}
 		fileProps.OnChange = ui.UseEvent(func(event ui.InputEvent) { props.OnUpload(event.GetValue()) })
@@ -66,7 +83,7 @@ func BrandAssetPicker(props BrandAssetPickerProps) ui.Node {
 		actions = append(actions, html.Button(preview, ui.Text(props.Text("appearance.logo_preview"))))
 	}
 	if props.OnRemove != nil {
-		remove := html.Props{Class: "button secondary", Type: "button", Disabled: !props.Editable || logoURL == "", Data: map[string]string{"hcm-asset-action": "remove"}}
+		remove := html.Props{Class: "button secondary", Type: "button", Disabled: !props.Editable, Data: map[string]string{"hcm-asset-action": "remove"}}
 		remove.OnClick = ui.UseEvent(func(ui.MouseEvent) { props.OnRemove() })
 		actions = append(actions, html.Button(remove, ui.Text(props.Text("appearance.logo_remove"))))
 	}
@@ -109,7 +126,10 @@ func brandAssetReference(props BrandAssetPickerProps, logoURL string, governed b
 }
 
 func brandAssetPathProps(props BrandAssetPickerProps, logoURL string) html.Props {
-	input := html.Props{ID: "appearance-brand-logo", Type: "url", Name: "brand_logo_url", Value: logoURL, MaxLength: 240, AutoComplete: "off", Disabled: !props.Editable, Aria: map[string]string{"describedby": "appearance-brand-logo-help"}, Raw: map[string]any{"inputmode": "url"}}
+	// The approved reference is a same-origin path, not an absolute URL. A URL
+	// input would fail native form validation before Save can reach the theme
+	// admission boundary.
+	input := html.Props{ID: "appearance-brand-logo", Type: "text", Name: "brand_logo_url", Value: logoURL, MaxLength: 240, AutoComplete: "off", Disabled: !props.Editable, Aria: map[string]string{"describedby": "appearance-brand-logo-help"}, Raw: map[string]any{"inputmode": "url", "spellcheck": "false"}}
 	if props.OnChange != nil {
 		input.OnInput = ui.UseEvent(func(event ui.InputEvent) { props.OnChange(event.GetValue()) })
 	}

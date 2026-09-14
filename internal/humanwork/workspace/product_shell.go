@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -66,12 +67,37 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	if values := query["nav"]; len(values) == 1 && values[0] == "collapsed" {
 		nav = "collapsed"
 	}
-	doc, err := productShellDocumentForRouteState(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav)
+	appearance := productui.DefaultCustomerTheme()
+	if h.preferences != nil && principal != nil {
+		snapshot, loadErr := h.preferences.Load(admitted.Context(), principal.Tenant(), principal.OrganizationScopeID(), principal.Subject())
+		if loadErr != nil {
+			h.writeProblem(w, http.StatusServiceUnavailable, "Appearance unavailable", "Organization appearance could not be loaded.")
+			return
+		}
+		appearance = productThemeFromPreference(snapshot.Theme.Theme)
+	}
+	appearance = productui.NormalizeCustomerTheme(appearance)
+	if productui.ValidateCustomerTheme(appearance) != nil {
+		appearance = productui.DefaultCustomerTheme()
+	}
+	stylesheet, err := productStylesheetForTheme(appearance)
+	if err != nil {
+		h.writeProblem(w, http.StatusServiceUnavailable, "Appearance unavailable", "Organization appearance could not be qualified.")
+		return
+	}
+	doc, err := productShellDocumentForRouteStateWithTheme(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, stylesheet)
 	if err != nil {
 		h.writeProblem(w, http.StatusInternalServerError, "Workspace unavailable", err.Error())
 		return
 	}
-	writeHTMLDocument(w, http.StatusOK, doc, ProductContentSecurityPolicy(h.policyHost(r)))
+	writeHTMLDocument(w, http.StatusOK, doc, productContentSecurityPolicyForStylesheet(h.policyHost(r), stylesheet))
+}
+
+func productThemeFromPreference(value preferences.Theme) productui.CustomerTheme {
+	return productui.CustomerTheme{BrandName: value.BrandName, BrandMark: value.BrandMark, BrandLogoURL: value.BrandLogoURL,
+		ColorMode: value.ColorMode, Palette: value.Palette, Shape: value.Shape, Density: value.Density,
+		Glyphs: value.Glyphs, Typeface: value.Typeface, Navigation: value.Navigation, Motion: value.Motion,
+		TokenOverrides: value.TokenOverrides, DarkTokenOverrides: value.DarkTokenOverrides}
 }
 
 // productAccess is the server-resolved policy the login cards and the product
@@ -127,6 +153,10 @@ func productShellDocumentForRouteQuery(config JourneyConfig, bundleBuilt bool, l
 // Explicit route state may shape the loading chrome, but never grants access
 // or claims a server-stored preference that has not yet been loaded.
 func productShellDocumentForRouteState(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string) (string, error) {
+	return productShellDocumentForRouteStateWithTheme(config, bundleBuilt, locale, page, menuQuery, nav, productui.DefaultCustomerTheme(), productStylesheet())
+}
+
+func productShellDocumentForRouteStateWithTheme(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string, theme productui.CustomerTheme, stylesheet string) (string, error) {
 	island, err := json.Marshal(config)
 	if err != nil {
 		return "", err
@@ -139,7 +169,7 @@ func productShellDocumentForRouteState(config JourneyConfig, bundleBuilt bool, l
 	if missing := len(productui.MissingProductTranslations(locale.Resolved)); missing > 0 {
 		b.WriteString(` data-hcm-message-fallback="en-US" data-hcm-message-fallback-count="` + strconv.Itoa(missing) + `"`)
 	}
-	appearance := productui.CustomerThemeAttributes(productui.DefaultCustomerTheme())
+	appearance := productui.CustomerThemeAttributes(theme)
 	for _, name := range []string{"data-hcm-color-mode", "data-hcm-palette", "data-hcm-shape", "data-hcm-density", "data-hcm-glyphs", "data-hcm-typeface", "data-hcm-navigation", "data-hcm-motion"} {
 		b.WriteString(` ` + name + `="` + html.EscapeString(appearance[name]) + `"`)
 	}
@@ -150,7 +180,7 @@ func productShellDocumentForRouteState(config JourneyConfig, bundleBuilt bool, l
 	b.WriteString(`><head><meta charset="utf-8"><meta name="color-scheme" content="light dark">`)
 	b.WriteString(`<meta name="viewport" content="width=device-width, initial-scale=1">`)
 	b.WriteString("<title>Human Capital Management Suite</title><style>")
-	b.WriteString(productStylesheet())
+	b.WriteString(stylesheet)
 	b.WriteString("</style></head><body>")
 	b.WriteString(`<div id="` + JourneyRootElementID + `">`)
 	if bundleBuilt {
@@ -169,6 +199,7 @@ func productShellDocumentForRouteState(config JourneyConfig, bundleBuilt bool, l
 		// tools/uxqual/cmd/journeywasm/product_wasm.go, untouched by this
 		// SSR loading shell.
 		view := productui.NewView(page, productui.DisplayLabel(config.Tenant), productui.DisplayLabel(config.Subject), "")
+		view.Appearance = theme
 		// Hydration preserves live input values. Seed the request's query in the
 		// loading shell so an empty SSR value cannot hide an active client filter.
 		view.MenuQuery = strings.TrimSpace(menuQuery)
@@ -249,13 +280,32 @@ func productStylesheet() string {
 	return journey.Stylesheet() + productui.Stylesheet()
 }
 
+func productStylesheetForTheme(theme productui.CustomerTheme) (string, error) {
+	if theme.Palette != "custom" {
+		return productStylesheet(), nil
+	}
+	stylesheet, err := productui.StylesheetForCustomerTheme(theme)
+	if err != nil {
+		return "", err
+	}
+	return journey.Stylesheet() + stylesheet, nil
+}
+
 var productStylesheetHash = sha256Source(productStylesheet())
 
 // ProductContentSecurityPolicy allows exactly the shared Go/WASM loader, the
 // same-origin gRPC tunnel, and the product component stylesheet.
 func ProductContentSecurityPolicy(host string) string {
+	return productContentSecurityPolicyForHash(host, productStylesheetHash)
+}
+
+func productContentSecurityPolicyForStylesheet(host, stylesheet string) string {
+	return productContentSecurityPolicyForHash(host, sha256Source(stylesheet))
+}
+
+func productContentSecurityPolicyForHash(host, stylesheetHash string) string {
 	return cspPolicy{
-		styleHashes:           []string{productStylesheetHash},
+		styleHashes:           []string{stylesheetHash},
 		scriptHash:            journeyLoaderHash,
 		formActionSelf:        true,
 		connectHost:           host,

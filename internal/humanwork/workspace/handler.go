@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
@@ -74,6 +75,9 @@ type Options struct {
 	// RoleAccess resolves durable employee roles and page/action grants for
 	// the product shell. Nil retains the signed-role compatibility policy.
 	RoleAccess roleaccess.Store
+	// Preferences supplies the organization-scoped admitted appearance for the
+	// initial CSP-pinned product document. Nil keeps the default presentation.
+	Preferences preferences.Store
 	// PublicOrigin is the canonical http(s) origin (for example
 	// "https://hcm.example.com") this cell is publicly reached at. It is a
 	// deployment fact the request cannot carry: a proxy that terminates TLS
@@ -103,6 +107,7 @@ type Handler struct {
 	devBrowserLogin bool
 	devPersonas     map[string]DevPersona
 	roleAccess      roleaccess.Store
+	preferences     preferences.Store
 	// publicScheme and publicAuthority are Options.PublicOrigin resolved:
 	// its scheme and its sanitized host[:port]. Empty means the shell
 	// derives both from each request.
@@ -185,6 +190,7 @@ func NewHandler(opts Options) (*Handler, error) {
 		devBrowserLogin:   opts.DevBrowserLogin,
 		devPersonas:       personas,
 		roleAccess:        opts.RoleAccess,
+		preferences:       opts.Preferences,
 		publicScheme:      publicScheme,
 		publicAuthority:   publicAuthority,
 	}

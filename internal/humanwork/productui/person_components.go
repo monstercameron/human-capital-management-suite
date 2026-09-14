@@ -128,12 +128,13 @@ type WorkflowFilterProps struct {
 // WorkflowCardProps is the public presentation contract of one launcher.
 type WorkflowCardProps struct {
 	I18nProps
-	Name        string
-	Category    string
-	Description string
-	ActionLabel string
-	Href        string
-	Navigate    func(string)
+	Name            string
+	Category        string
+	Description     string
+	ActionLabel     string
+	AccessibleLabel string
+	Href            string
+	Navigate        func(string)
 }
 
 // PersonPage renders a profile or a truthful unavailable state.
@@ -457,6 +458,10 @@ func WorkflowCard(props WorkflowCardProps) ui.Node {
 	if actionLabel == "" {
 		actionLabel = props.Text("workflow.start_named", map[string]string{"name": props.Name})
 	}
+	linkProps := html.Props{Class: "button primary"}
+	if props.AccessibleLabel != "" {
+		linkProps.Aria = map[string]string{"label": props.AccessibleLabel}
+	}
 	return html.Article(html.Props{Class: "workflow-card"},
 		html.Div(html.Props{Class: "workflow-icon", Aria: map[string]string{"hidden": "true"}}, productIcon("launch", "workflow-icon-glyph")),
 		html.Div(html.Props{Class: "workflow-copy"},
@@ -464,6 +469,6 @@ func WorkflowCard(props WorkflowCardProps) ui.Node {
 			html.H3(html.Props{}, ui.Text(props.Name)),
 			html.P(html.Props{Class: "muted"}, ui.Text(props.Description)),
 		),
-		softwareLink(props.Navigate, html.Props{Class: "button primary"}, props.Href, ui.Text(actionLabel)),
+		softwareLink(props.Navigate, linkProps, props.Href, ui.Text(actionLabel)),
 	)
 }

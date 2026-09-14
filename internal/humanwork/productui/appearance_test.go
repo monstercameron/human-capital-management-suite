@@ -1,6 +1,7 @@
 package productui
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -29,7 +30,7 @@ func TestCustomerThemePresetsCompileIntoTheGovernedStylesheet(t *testing.T) {
 
 func TestCustomerThemeRejectsUnknownStoredChoices(t *testing.T) {
 	got := NormalizeCustomerTheme(CustomerTheme{BrandName: "\x00", BrandMark: "<>$", ColorMode: "sepia", Palette: `red;display:none`, Shape: "unknown", Density: "0", Glyphs: "emoji", Typeface: "remote-font", Navigation: "css", Motion: "infinite"})
-	if got != DefaultCustomerTheme() {
+	if !reflect.DeepEqual(got, DefaultCustomerTheme()) {
 		t.Fatalf("unsafe stored theme normalized to %+v, want platform defaults %+v", got, DefaultCustomerTheme())
 	}
 	attributes := CustomerThemeAttributes(got)
@@ -122,7 +123,9 @@ func TestAppearancePageIsADecomposedAccessibleEditor(t *testing.T) {
 		`>Surface shape</legend>`, `name="shape"`, `>Glyph set</legend>`, `name="glyphs"`,
 		`>Brand signature</legend>`, `name="brand_name"`, `name="brand_mark"`, `name="brand_logo_url"`,
 		`>Typography character</legend>`, `name="typeface"`, `>Navigation treatment</legend>`, `name="navigation"`,
-		`>Motion</legend>`, `role="status"`, `aria-live="polite"`, `>Save appearance</button>`,
+		`>Light color system</legend>`, `>Dark color system</legend>`, `name="light-color.brand.primary"`, `name="dark-color.brand.primary"`,
+		`for="appearance-light-color-brand-primary"`, `for="appearance-dark-color-brand-primary"`,
+		`>Motion</legend>`, `role="status"`, `aria-live="polite"`, `>Save appearance</span>`,
 	} {
 		if !strings.Contains(doc, expected) {
 			t.Errorf("appearance editor missing %q", expected)

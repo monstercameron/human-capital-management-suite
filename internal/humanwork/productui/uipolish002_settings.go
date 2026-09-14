@@ -49,6 +49,27 @@ func uipolish002SettingsStylesheet() string {
 			gwccss.Raw("justify-self", "start"),
 			gwccss.MinHeight(gwccss.Px(44)),
 		)
+		declareGlobal(".settings-organization-group .settings-group-content",
+			gwccss.Display.Grid,
+			gwccss.Raw("margin-block-start", "calc(var(--hcm-space-2) * var(--hcm-density))"),
+		)
+		declareGlobal(".settings-organization-group .settings-task-card",
+			gwccss.Display.Grid,
+			gwccss.Raw("align-content", "start"),
+			gwccss.Raw("justify-items", "start"),
+			gwccss.Raw("gap", "calc(var(--hcm-space-2) * var(--hcm-density))"),
+			gwccss.Raw("margin", "0"),
+			gwccss.Raw("padding", "calc(var(--hcm-space-3) * var(--hcm-density))"),
+			gwccss.Raw("border", "1px solid var(--line)"),
+			gwccss.Raw("border-radius", "var(--panel)"),
+			gwccss.Raw("background", "var(--surface)"),
+		)
+		declareGlobal(".settings-organization-group .settings-task-card :is(h3,p)",
+			gwccss.Margin(gwccss.Zero),
+		)
+		declareGlobal(".settings-organization-group .settings-task-card .button",
+			gwccss.MinHeight(gwccss.Px(44)),
+		)
 		declareGlobal(".settings-preferences-group>.settings-group-content",
 			gwccss.Display.Grid,
 			gwccss.Raw("grid-template-columns", "minmax(0,1fr)"),
