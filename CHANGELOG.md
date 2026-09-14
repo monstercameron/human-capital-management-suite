@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-14 (Workflow engine telemetry and WF-RUN-022)
+
+- Every state-changing workflow operation (lease, timer, runtime start/advance/pause/resume, recovery, migration, approval and task steps, compensation, replay, shadow, driver entry points, scheduler claims) now emits an `hcmnext.workflow.*` span and a structured log line: DEBUG on success, WARN on a governed refusal, ERROR on a failure, with bounded ids, duration, trace id and a stable error code, never message text.
+- The timer scheduler's serve workload runs a stuck-workflow progress sweep beside it, and workflow starts are admitted against resolved workload limits with a traced verdict.
+- WF-RUN-022: a composed cell interrupted by killing every database connection and restarting resumes its parked promotion with a new queue fence, commits it exactly once, and refuses the stale replica.
+- EP-WF-002: Pause, Resume, Cancel and RetryNode are governed operator controls. Each one runs through the new operator gateway (`internal/intent/operator`) as a registered operational intent with a JIT grant, dual control or simulation where required, and an idempotency key, then applies only the runtime's own fenced transition and returns APPLIED, PENDING_SAFE_POINT, DENIED, TOO_LATE or REPAIR_REQUIRED in a new `WorkflowControlReceipt`. Repeats replay the recorded outcome; a cell without a governed controller refuses controls with FAILED_PRECONDITION.
+
 ## 2026-09-14 (Go UI component decomposition)
 
 - Extracted view-independent page headings, breadcrumbs, labeled form controls, section headings, empty states, and search inputs for reuse across the production Go UI.

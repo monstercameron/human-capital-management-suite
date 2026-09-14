@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: a630a91c050f395d005b74d195473dea1c75aa75504b3fc3a6bb7b79c5ae3428
+- Source graph: e2faaad6f9124e2250cf09d5f60f8e870b3421b3c75507665d912f3c49494abf
 - Package count: 814
-- Within-module edge count: 1952
+- Within-module edge count: 1962
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -447,7 +447,6 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/forms/drafts`
 - `github.com/monstercameron/human-capital-management-suite/internal/generated/schemaflux`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance`
-- `github.com/monstercameron/human-capital-management-suite/internal/governance/authority`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/decision`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/exit`
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/legal`
@@ -490,6 +489,8 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/model`
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/model/deferred`
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/modelbinding`
+- `github.com/monstercameron/human-capital-management-suite/internal/intent/operator`
+- `github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol`
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/protomap`
 - `github.com/monstercameron/human-capital-management-suite/internal/intent/surface`
 - `github.com/monstercameron/human-capital-management-suite/internal/kernel/values`
@@ -969,4 +970,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`d2bbe614892457ef35277b9e5ffc0687d4ae223b7ed6f0eb0be4619647f11c46`
+`cdd607b25829d5ec618467107d14e35c93b28e46c420eba2d863885f52f43954`
