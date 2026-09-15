@@ -322,7 +322,12 @@ func (s *State) Contract(now time.Time) error {
 }
 
 // Rollback creates a new append-only event and never rewrites prior evidence.
+// Replaying a completed rollback is idempotent: it reports success without
+// appending a duplicate event so retried recoveries have no duplicate effect.
 func (s *State) Rollback(now time.Time) error {
+	if s.Phase == PhaseRolledBack {
+		return nil
+	}
 	if s.Phase != PhaseCutover && s.Phase != PhaseContracted {
 		return fmt.Errorf("%w: rollback from %s", ErrInvalidTransition, s.Phase)
 	}
