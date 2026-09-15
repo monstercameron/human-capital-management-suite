@@ -112,12 +112,14 @@ func refuseSettledAttempt(latest runtime.NodeExecution) error {
 // filePoisonWork files the exhausted node's record, fails its attempt and
 // routes the instance inside tx, then commits tx.
 func (d *Driver) filePoisonWork(
-	ctx context.Context, tx dbport.Tx, run runContext, outcome frontier.NodeOutcome, attempt int, at time.Time, cause error,
+	ctx context.Context, tx dbport.Tx, run runContext, outcome frontier.NodeOutcome, attempt int, at time.Time,
+	retry *runtime.RetryRoute, cause error,
 ) error {
 	policy := d.opts.PoisonWork
 	tenantID, instanceID := run.start.TenantID, run.instanceID
 	node, _ := run.selection.Plan.Node(outcome.NodeID)
 	spec := poisonSpec(*policy, run.selection.WorkflowID, node, outcome, attempt)
+	keepRetryReason(&spec, *policy, retry)
 	spec.IdempotencyKey = "wfq:" + runtime.NodeExecutionID(tenantID, instanceID, outcome.NodeID, attempt).String()
 	work, err := runtime.Admit(spec)
 	if err != nil {
@@ -165,6 +167,25 @@ func poisonSpec(policy PoisonWorkPolicy, workflowID string, node workflow.Compil
 		spec.NextAction = "reconcile-outcome:" + outcome.NodeID
 	}
 	return spec
+}
+
+// keepRetryReason carries the retry policy's own terminal reason (WF-RUN-006)
+// into the filing instead of re-deriving it from the error class. A budget
+// exhaustion keeps its repair route; without one it is attempt exhaustion.
+func keepRetryReason(spec *runtime.QuarantineSpec, policy PoisonWorkPolicy, retry *runtime.RetryRoute) {
+	if retry == nil || retry.Reason == "" {
+		return
+	}
+	reason, repair := retry.Reason, policy.RepairRoute
+	if reason == runtime.ReasonBudgetExhausted {
+		if repair == "" {
+			repair = retry.RepairRoute
+		}
+		if repair == "" {
+			reason = runtime.ReasonAttemptsExhausted
+		}
+	}
+	spec.Terminal.Reason, spec.Terminal.RepairRoute = reason, repair
 }
 
 // failPoisonAttempt records the exhausted attempt as FAILED with its error class

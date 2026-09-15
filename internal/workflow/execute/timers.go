@@ -54,6 +54,9 @@ type TimerHandle struct {
 	// Replay reports that this promise was already on the table, which is
 	// what a replayed advancement produces.
 	Replay bool
+	// RetryBackoff marks a RETRY_BACKOFF timer a retry decision parked the
+	// node on (WF-RUN-006), as opposed to a WAIT node's promise.
+	RetryBackoff bool
 }
 
 // TimerFactory creates the durable timer for a TIMER_REQUIRED continuation,
@@ -71,6 +74,9 @@ type FiredTimer struct {
 	Key        string
 	State      string
 	FiresAt    time.Time
+	// Kind is the durable timer kind: a WAIT node's DELAY/DEADLINE promise
+	// or a retry decision's [TimerKindRetryBackoff].
+	Kind string
 	// Causal is the timer's stored correlation/causation identity plus its
 	// optional diagnostic trace link (OBS-013). It is populated from the
 	// committed row and is used only to link the resume span; it never
@@ -139,6 +145,11 @@ func (d *Driver) ResumeTimer(ctx context.Context, req ResumeTimerRequest) (ret0 
 		return Result{}, err
 	}
 	defer func() { retErr = releasing(retErr, release) }()
+	// WF-RUN-006: a RETRY_BACKOFF timer wakes a failed node's next attempt
+	// rather than a WAIT outcome (retry.go).
+	if resumed, handled, retryErr := d.resumeRetryBackoff(ctx, run, req, at); handled {
+		return resumed, retryErr
+	}
 
 	advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, req.ExpectedInstanceVersion, at, 1,
 		func(ctx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
@@ -177,7 +188,7 @@ func (d *Driver) ResumeTimer(ctx context.Context, req ResumeTimerRequest) (ret0 
 		result.Status = StatusComplete
 		return result, nil
 	}
-	ready, parked := readyAndParked(advanced.Continuations)
+	ready, parked := readyAndParked(advanced.Continuations, timers...)
 	if parked {
 		result.Status = StatusParked
 		return result, nil

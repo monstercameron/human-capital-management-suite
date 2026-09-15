@@ -125,7 +125,7 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 		result.Status = StatusComplete
 		return result, nil
 	}
-	ready, parked := readyAndParked(advanced.Continuations)
+	ready, parked := readyAndParked(advanced.Continuations, timers...)
 	if parked {
 		result.Status = StatusParked
 		return result, nil
@@ -274,12 +274,16 @@ func sameStrings(a, b []string) bool {
 	return true
 }
 
-func readyAndParked(records []runtime.ContinuationRecord) ([]string, bool) {
+func readyAndParked(records []runtime.ContinuationRecord, timers ...TimerHandle) ([]string, bool) {
 	ready := []string{}
 	parked := false
 	for _, rec := range records {
 		switch rec.Kind {
 		case frontier.IntentReady:
+			if retryParked(timers, rec.TargetNodeID) {
+				parked = true
+				continue
+			}
 			ready = append(ready, rec.TargetNodeID)
 		case frontier.IntentWorkItemRequired, frontier.IntentTimerRequired, frontier.IntentSignalSubscriptionRequired:
 			// A durable timer or signal subscription parks the instance

@@ -418,6 +418,11 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		// WF-RUN-007: an exhausted node with no failure route lands durable
 		// QuarantinedWork and routes its instance instead of rolling back.
 		PoisonWork: composedPoisonWork(),
+		// WF-RUN-006: runtime.Decide is the one retry decision for every
+		// failed node with a compiled retry policy; a backoff parks on a
+		// RETRY_BACKOFF timer that ResumeTimer reads back through the reader.
+		NodeRetry:   composedNodeRetry(),
+		TimerReader: timer.Reader{},
 	}
 	// WF-RUN-009: a durable registry that records governed quarantines also
 	// tells every advancement which disposition a live instance takes.

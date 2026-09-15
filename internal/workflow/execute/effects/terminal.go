@@ -310,13 +310,24 @@ func (w *LedgerTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req exec
 // write for a tenant that has never seen this schema needs the row to exist
 // before Append can succeed. The registration is content-addressed by
 // (tenant_id, schema_ref) and only ever inserted once per tenant.
+//
+// The ON CONFLICT clause deliberately names no arbiter. payload_schema has two
+// unique constraints -- its (tenant_id, schema_ref) key and
+// payload_schema_version_unique (tenant_id, schema_id, schema_version) -- and
+// this row sets schema_id = schema_ref, so a second registration collides on
+// both. A targeted ON CONFLICT (tenant_id, schema_ref) arbitrates only the key:
+// when two sessions (two scheduler replicas completing their first instances
+// for a tenant at once) both pass the conflict pre-check, the loser raises
+// SQLSTATE 23505 on the other constraint, aborting its terminal advance after
+// the WAIT it resumed from had already committed. Untargeted DO NOTHING
+// arbitrates every unique constraint, so the loser observes the winner's row.
 func ensurePayloadSchema(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, schemaRef string) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO payload_schema (
 			tenant_id, schema_ref, schema_id, schema_version,
 			message_full_name, wire_format, canonicalization_profile)
 		VALUES ($1, $2, $2, 1, $2, 'PROTOBUF', 'LEDGER_EVENT')
-		ON CONFLICT (tenant_id, schema_ref) DO NOTHING`,
+		ON CONFLICT DO NOTHING`,
 		tenant, schemaRef)
 	return err
 }

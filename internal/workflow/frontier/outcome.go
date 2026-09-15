@@ -71,6 +71,12 @@ type NodeOutcome struct {
 	Failed bool `json:"failed,omitempty"`
 	// ErrorClass classifies the failure for the runtime's own records.
 	ErrorClass string `json:"error_class,omitempty"`
+	// RetryTerminal reports that the immediate caller's retry policy
+	// (WF-RUN-006) already settled this failure terminal: nonretryable,
+	// DO_NOT_RETRY, deadline or budget exhaustion. The node's declared retry
+	// budget is not applied again, so the failure takes its failure_route at
+	// once. It is meaningful only with Failed.
+	RetryTerminal bool `json:"retry_terminal,omitempty"`
 
 	// Terminal is the END handler's reported terminal. It is ignored for every
 	// other step type.

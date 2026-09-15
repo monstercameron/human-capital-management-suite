@@ -42,6 +42,8 @@ func (r Reader) LoadTimer(ctx context.Context, ex runtime.Executor, tenantID, ti
 		Key:        row.Key,
 		State:      row.State,
 		FiresAt:    row.FiresAt,
+		// WF-RUN-006: the kind tells a RETRY_BACKOFF wake from a WAIT one.
+		Kind: row.Kind,
 		// OBS-013: the row's stored causal identity rides along so the
 		// resume span can link to the parked trace. Drift-checking still
 		// reads only the fields above; this one never governs.

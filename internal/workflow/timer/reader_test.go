@@ -44,7 +44,7 @@ func TestReaderLoadsTheDurableRowForTheDriver(t *testing.T) {
 	})
 	want := execute.FiredTimer{
 		TimerID: scheduled.Timer.TimerID, InstanceID: f.instance, NodeID: "wait.effective_date",
-		Key: requirement.Digest, State: "PENDING", FiresAt: loaded.FiresAt,
+		Key: requirement.Digest, State: "PENDING", FiresAt: loaded.FiresAt, Kind: "DELAY",
 	}
 	if loaded != want {
 		t.Fatalf("LoadTimer = %+v, want %+v", loaded, want)

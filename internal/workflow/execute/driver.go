@@ -123,6 +123,11 @@ type Options struct {
 	// keeps the NO_FAILURE_ROUTE refusal exactly as before. It is unrelated to
 	// workflow version quarantine.
 	PoisonWork *PoisonWorkPolicy
+	// NodeRetry makes runtime.Decide the one retry decision for every failed
+	// node with a compiled retry policy (WF-RUN-006, retry.go): RETRY_NOW,
+	// a durable RETRY_BACKOFF park, or the terminal route. Nil keeps the
+	// frontier's immediate OBSERVE retry exactly as before.
+	NodeRetry *NodeRetryPolicy
 }
 
 // StartRetryIdentity is the complete immutable identity needed to select a
@@ -168,6 +173,9 @@ func New(opts Options) (*Driver, error) {
 		return nil, invalid("StartRetry and StartRetryFor are mutually exclusive")
 	}
 	if err := opts.PoisonWork.validate(); err != nil {
+		return nil, err
+	}
+	if err := opts.NodeRetry.validate(); err != nil {
 		return nil, err
 	}
 	advance := opts.Advance
@@ -478,6 +486,10 @@ func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, 
 		for _, rec := range advanced.Continuations {
 			switch rec.Kind {
 			case frontier.IntentReady:
+				if retryParked(timers, rec.TargetNodeID) {
+					parked = true
+					continue
+				}
 				ready = append(ready, rec.TargetNodeID)
 			case frontier.IntentWorkItemRequired, frontier.IntentTimerRequired, frontier.IntentSignalSubscriptionRequired:
 				// A durable timer parks this driver exactly as human work
@@ -505,6 +517,9 @@ func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, 
 func (d *Driver) prepareReadyAttempt(
 	ctx context.Context, run runContext, result *Result, node workflow.CompiledNode,
 ) (int, error) {
+	if d.opts.NodeRetry != nil && node.Retry != nil {
+		return d.currentRetryAttempt(ctx, run, node)
+	}
 	if node.Type != workflow.StepObserve || node.Retry == nil || node.Retry.MaxAttempts <= 1 {
 		return 1, nil
 	}
@@ -721,8 +736,10 @@ func (d *Driver) advanceOnce(
 			attempt = open
 		}
 	}
-	if node, ok := run.selection.Plan.Node(outcome.NodeID); ok {
-		outcome = exhaustedObservationRoute(run.selection.Plan, node, outcome, attempt)
+	outcome, retry, err := d.decideRetry(advCtx, tx, run, outcome, attempt, at)
+	if err != nil {
+		advSpan.End(OutcomeFailure, err)
+		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}
 
 	if d.opts.Currency != nil {
@@ -801,7 +818,7 @@ func (d *Driver) advanceOnce(
 		advanced, err = d.advance(advCtx, tx, advReq)
 	}
 	if d.poisonable(err) {
-		err = d.filePoisonWork(advCtx, tx, run, outcome, attempt, at, err)
+		err = d.filePoisonWork(advCtx, tx, run, outcome, attempt, at, retry.poisonRoute(), err)
 		advSpan.End(poisonOutcome(err), err)
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}
@@ -809,6 +826,12 @@ func (d *Driver) advanceOnce(
 		advSpan.End(OutcomeFailure, err)
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}
+	retryTimers, err := d.applyRetry(advCtx, tx, run, &advanced, retry, at)
+	if err != nil {
+		advSpan.End(OutcomeFailure, err)
+		return runtime.AdvanceReceipt{}, nil, nil, nil, err
+	}
+	sink.timersCreated = append(sink.timersCreated, retryTimers...)
 	if commitErr := tx.Commit(advCtx); commitErr != nil {
 		advSpan.End(OutcomeFailure, commitErr)
 		// The commit error binds to the if scope, so publish it through
@@ -821,7 +844,7 @@ func (d *Driver) advanceOnce(
 	advOutcome := OutcomeSuccess
 	if !advanced.Complete && len(advanced.Continuations) > 0 {
 		for _, rec := range advanced.Continuations {
-			if rec.Kind == frontier.IntentWorkItemRequired || rec.Kind == frontier.IntentTimerRequired || rec.Kind == frontier.IntentSignalSubscriptionRequired {
+			if rec.Kind == frontier.IntentWorkItemRequired || rec.Kind == frontier.IntentTimerRequired || rec.Kind == frontier.IntentSignalSubscriptionRequired || retryParked(retryTimers, rec.TargetNodeID) {
 				advOutcome = OutcomeParked
 				break
 			}

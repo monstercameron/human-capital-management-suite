@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	"log/slog"
@@ -37,12 +38,22 @@ func timerDispatchDisposition(result app.ExecutionResult, err error) executionsc
 
 type firedTimerResumer func(context.Context, string, string, int) (app.ExecutionResult, error)
 
+// timerDispatcher adapts the cell's fired-timer resume to the scheduler. A
+// resume whose WAIT node is no longer on the instance frontier
+// ([app.ErrParkedResumeStale]) settles COMPLETED with no error, exactly as
+// [signalResumer] does: the timer's wake was already consumed by an earlier
+// delivery of this row, and the scheduler treats any returned error as RETRY,
+// so reporting it would put the row back to READY and redispatch it on every
+// tick forever.
 func timerDispatcher(tenantID string, tenant string, resume firedTimerResumer) executionscheduler.Dispatcher {
 	return executionscheduler.DispatcherFunc(func(ctx context.Context, work executionscheduler.Work) (executionscheduler.Disposition, error) {
 		if work.Row.TenantID.String() != tenantID {
 			return executionscheduler.DispositionAbandoned, nil
 		}
 		result, err := resume(app.WithResumeTenant(ctx, tenant), work.Row.InstanceID.String(), work.Row.NodeID, work.Row.Attempt)
+		if errors.Is(err, app.ErrParkedResumeStale) {
+			return executionscheduler.DispositionCompleted, nil
+		}
 		return timerDispatchDisposition(result, err), err
 	})
 }

@@ -187,7 +187,7 @@ func (a *advance) fail() error {
 	if a.node.Retry != nil {
 		budget = a.node.Retry.MaxAttempts
 	}
-	if attempts < budget {
+	if attempts < budget && !a.outcome.RetryTerminal {
 		a.status.State = NodeRetrying
 		a.status.Attempts = attempts
 		a.next.setNode(a.status)
