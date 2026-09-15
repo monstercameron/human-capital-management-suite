@@ -305,6 +305,26 @@ func (s Scheduler) Pending(ctx context.Context, ex Executor, tenantID, instanceI
 	return out, nil
 }
 
+// History returns every timer one instance ever scheduled -- pending, fired
+// and cancelled -- oldest first. It is the execution inspector's read
+// (WF-RUN-019): a retry backoff that already fired explains the attempt that
+// followed it, so a pending-only list would hide the retry history.
+func (s Scheduler) History(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID) (ret0 []Timer, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.timer.history",
+		observe.Attrs{observe.KeyTenant: tenantID.String(), observe.KeyInstance: instanceID.String()})
+	defer func() { observe.DoneWith(obsOp, retErr, len(ret0)) }()
+	rows, err := s.timers.ForInstance(ctx, ex, tenantID, instanceID)
+	if err != nil {
+		return nil, wrapErr(CodeStorageFailed, ErrStorage, location{instanceID: instanceID}, err,
+			"read the instance's timer history")
+	}
+	out := make([]Timer, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, fromRow(row))
+	}
+	return out, nil
+}
+
 // Due returns every pending timer across the tenant whose instant is at or
 // before asOf, soonest first, bounded by limit. It writes nothing: it is what
 // a caller reads to decide what to hand [Scheduler.Fire].

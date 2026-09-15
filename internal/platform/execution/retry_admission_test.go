@@ -50,9 +50,12 @@ func (s *unknownAfterCommitStore) Consume(ctx context.Context, attempt admission
 }
 
 func TestRetryAdmissionResolvesUnknownCommitWithSameDurableAttempt(t *testing.T) {
+	// The deadline bounds the admission behaviour, not PostgreSQL start-up:
+	// under a loaded pre-commit sweep initdb alone can take most of 15s, so
+	// the clock starts once the database is up.
+	db := pgtest.New(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	db := pgtest.New(t)
 	now := time.Date(2026, 9, 8, 12, 0, 0, 123, time.UTC)
 	budget := admissionstore.Budget{BudgetID: uuid.New(), TenantID: uuid.New(), Service: "workflow", Dependency: "postgres", LogicalOperationID: "start:key", OperationKind: "start", PeriodStart: now.Add(-time.Hour), PeriodEnd: now.Add(time.Hour), ExpiresAt: now.Add(time.Hour), Allowed: 1, Retryable: []admission.FailureClass{admission.FailureTransient}, Version: "v1", Owner: "test"}
 	store := admissionstore.New(db.Conn)

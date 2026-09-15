@@ -160,9 +160,11 @@ func (retryWorkItems) CreateAndRoute(ctx context.Context, ex workitem.Executor, 
 }
 
 func TestTodo_DB_EDGE_003_IntegrationExecuteRetriesChangedSelectionInFreshSnapshot(t *testing.T) {
+	db := pgtest.New(t)
+	// The deadline starts once PostgreSQL is up, so a loaded sweep's
+	// start-up time does not consume the budget the test bounds.
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	db := pgtest.New(t)
 	tenant, at := uuid.New(), time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
 	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-local','Retry selection','ACTIVE',$3)`, tenant, "execute-retry-"+tenant.String(), at.Add(-time.Hour))
 	db.Exec(t, `CREATE TABLE execute_start_retry_fact (chosen integer NOT NULL)`)

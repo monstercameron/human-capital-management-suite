@@ -118,6 +118,42 @@ type Approval struct {
 // idempotent on ApprovalID, and refuses an approval by the version's own
 // publisher.
 func (s Store) RecordApproval(ctx context.Context, a Approval) error {
+	return s.tx(ctx, func(b bound) error { return b.recordApproval(a) })
+}
+
+// ActivateApproved activates a published version on the evidence of its
+// latest durable approval, in one transaction. An already ACTIVE version is
+// returned unchanged, so a recomposed server activates nothing twice. With no
+// approval -- or none newer than the version's last lifecycle transition -- it
+// refuses [ErrNoApproval], and a version under a governed quarantine is
+// refused [ErrQuarantined]: only [Store.LiftQuarantine] returns it to service.
+// Every other gate (changed after review, failed tests, unresolved
+// dependencies, a competing active version unless supersede is set) is
+// [version.Activate]'s own typed refusal.
+func (s Store) ActivateApproved(ctx context.Context, planDigest string, supersede bool) (out version.CompiledVersion, err error) {
+	err = s.tx(ctx, func(b bound) error {
+		if err := b.lock(planDigest); err != nil {
+			return err
+		}
+		if _, quarantined, err := b.quarantinePolicy(planDigest); err != nil {
+			return err
+		} else if quarantined {
+			return fmt.Errorf("%w: %s", ErrQuarantined, planDigest)
+		}
+		out, err = b.activateApproved(planDigest, supersede)
+		return err
+	})
+	return out, err
+}
+
+func (b bound) lock(planDigest string) error {
+	if _, err := b.ex.Exec(b.ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 22292))`, planDigest); err != nil {
+		return fmt.Errorf("workflowversionstore: serialize version transition: %w", err)
+	}
+	return nil
+}
+
+func (b bound) recordApproval(a Approval) error {
 	switch {
 	case a.ApprovalID == uuid.Nil, a.CompiledPlanDigest == "", strings.TrimSpace(a.ApprovedBy) == "",
 		strings.TrimSpace(a.Authority) == "", a.ApprovedAt.IsZero():
@@ -127,73 +163,54 @@ func (s Store) RecordApproval(ctx context.Context, a Approval) error {
 	if err != nil {
 		return fmt.Errorf("workflowversionstore: encode fixtures: %w", err)
 	}
-	return s.tx(ctx, func(b bound) error {
-		v, found, err := b.GetByDigest(a.CompiledPlanDigest)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return fmt.Errorf("%w: no published version carries digest %s", ErrInvalid, a.CompiledPlanDigest)
-		}
-		if a.ApprovedBy == v.PublishedBy {
-			return fmt.Errorf("%w: %s published %s", ErrSelfApproval, a.ApprovedBy, a.CompiledPlanDigest)
-		}
-		if _, err := b.ex.Exec(ctx, `INSERT INTO workflow_version_approval
-			(approval_id, compiled_plan_digest, reviewed_plan_digest, approved_by, authority, reason, tests_passed, fixture_refs, approved_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (approval_id) DO NOTHING`,
-			a.ApprovalID, a.CompiledPlanDigest, a.ReviewedPlanDigest, a.ApprovedBy, a.Authority, a.Reason,
-			a.TestsPassed, fixtures, a.ApprovedAt.UTC()); err != nil {
-			return fmt.Errorf("workflowversionstore: record approval: %w", err)
-		}
-		return nil
-	})
+	v, found, err := b.GetByDigest(a.CompiledPlanDigest)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("%w: no published version carries digest %s", ErrInvalid, a.CompiledPlanDigest)
+	}
+	if a.ApprovedBy == v.PublishedBy {
+		return fmt.Errorf("%w: %s published %s", ErrSelfApproval, a.ApprovedBy, a.CompiledPlanDigest)
+	}
+	if _, err := b.ex.Exec(b.ctx, `INSERT INTO workflow_version_approval
+		(approval_id, compiled_plan_digest, reviewed_plan_digest, approved_by, authority, reason, tests_passed, fixture_refs, approved_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (approval_id) DO NOTHING`,
+		a.ApprovalID, a.CompiledPlanDigest, a.ReviewedPlanDigest, a.ApprovedBy, a.Authority, a.Reason,
+		a.TestsPassed, fixtures, a.ApprovedAt.UTC()); err != nil {
+		return fmt.Errorf("workflowversionstore: record approval: %w", err)
+	}
+	return nil
 }
 
-// ActivateApproved activates a published version on the evidence of its
-// latest durable approval, in one transaction. An already ACTIVE version is
-// returned unchanged, so a recomposed server activates nothing twice. With no
-// approval -- or none newer than the version's last lifecycle transition, so
-// a quarantine is lifted only by a fresh review -- it refuses [ErrNoApproval].
-// Every other gate (changed after review, failed tests, unresolved
-// dependencies, a competing active version unless supersede is set) is
-// [version.Activate]'s own typed refusal.
-func (s Store) ActivateApproved(ctx context.Context, planDigest string, supersede bool) (out version.CompiledVersion, err error) {
-	err = s.tx(ctx, func(b bound) error {
-		if _, err := b.ex.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 22292))`, planDigest); err != nil {
-			return fmt.Errorf("workflowversionstore: serialize activation: %w", err)
-		}
-		v, found, err := b.GetByDigest(planDigest)
-		if err != nil {
-			return err
-		}
-		if found && v.Status == version.StatusActive {
-			out = v
-			return nil
-		}
-		var ev version.ActivationEvidence
-		err = b.ex.QueryRow(ctx, `SELECT approved_by, authority, reason, approved_at, reviewed_plan_digest, tests_passed
-			FROM workflow_version_approval WHERE compiled_plan_digest = $1 ORDER BY approved_at DESC, approval_id DESC LIMIT 1`,
-			planDigest).Scan(&ev.ApprovedBy, &ev.Authority, &ev.Reason, &ev.ApprovedAt, &ev.ReviewedPlanDigest, &ev.TestsPassed)
-		if errors.Is(err, dbport.ErrNoRows) {
-			return fmt.Errorf("%w: %s", ErrNoApproval, planDigest)
-		}
-		if err != nil {
-			return fmt.Errorf("workflowversionstore: load approval: %w", err)
-		}
-		if found && len(v.Approvals) > 0 && !ev.ApprovedAt.After(v.Approvals[len(v.Approvals)-1].ApprovedAt) {
-			// A quarantined version returns to service only on a review made
-			// after its last lifecycle transition, never on the approval that
-			// first put it into service.
-			return fmt.Errorf("%w: %s has no approval newer than its last transition", ErrNoApproval, planDigest)
-		}
-		if found && ev.ApprovedBy == v.PublishedBy {
-			return fmt.Errorf("%w: %s published %s", ErrSelfApproval, ev.ApprovedBy, planDigest)
-		}
-		ev.Authorized, ev.SupersedeActive, ev.ApprovedAt = true, supersede, ev.ApprovedAt.UTC()
-		out, err = version.Activate(b, planDigest, ev)
-		return err
-	})
-	return out, err
+func (b bound) activateApproved(planDigest string, supersede bool) (version.CompiledVersion, error) {
+	v, found, err := b.GetByDigest(planDigest)
+	if err != nil {
+		return version.CompiledVersion{}, err
+	}
+	if found && v.Status == version.StatusActive {
+		return v, nil
+	}
+	var ev version.ActivationEvidence
+	err = b.ex.QueryRow(b.ctx, `SELECT approved_by, authority, reason, approved_at, reviewed_plan_digest, tests_passed
+		FROM workflow_version_approval WHERE compiled_plan_digest = $1 ORDER BY approved_at DESC, approval_id DESC LIMIT 1`,
+		planDigest).Scan(&ev.ApprovedBy, &ev.Authority, &ev.Reason, &ev.ApprovedAt, &ev.ReviewedPlanDigest, &ev.TestsPassed)
+	if errors.Is(err, dbport.ErrNoRows) {
+		return version.CompiledVersion{}, fmt.Errorf("%w: %s", ErrNoApproval, planDigest)
+	}
+	if err != nil {
+		return version.CompiledVersion{}, fmt.Errorf("workflowversionstore: load approval: %w", err)
+	}
+	if found && len(v.Approvals) > 0 && !ev.ApprovedAt.After(v.Approvals[len(v.Approvals)-1].ApprovedAt) {
+		// A version returns to service only on a review made after its last
+		// lifecycle transition, never on the approval that first put it there.
+		return version.CompiledVersion{}, fmt.Errorf("%w: %s has no approval newer than its last transition", ErrNoApproval, planDigest)
+	}
+	if found && ev.ApprovedBy == v.PublishedBy {
+		return version.CompiledVersion{}, fmt.Errorf("%w: %s published %s", ErrSelfApproval, ev.ApprovedBy, planDigest)
+	}
+	ev.Authorized, ev.SupersedeActive, ev.ApprovedAt = true, supersede, ev.ApprovedAt.UTC()
+	return version.Activate(b, planDigest, ev)
 }
 
 // bound is the registry joined to one open transaction or connection.

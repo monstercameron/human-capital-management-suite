@@ -5366,3 +5366,71 @@ tables:
       WF-COMP-006 / WF-RUN-035: append-only activation approvals granted against
       an exact compiled-plan digest by an approver who is not the publisher;
       activation requires one; forbid_mutation.
+  - table: workflow_version_quarantine
+    migration: 00293_workflow_version_quarantine.sql
+    owner_package: internal/data/workflowversionstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: null
+    isolation_package: null
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-009: append-only governed quarantine and lift declarations for a
+      compiled workflow version: reason, incident or validation evidence,
+      declarer and a distinct approver or reviewer, and the live-instance
+      disposition (PAUSE, CONTINUE, BLOCK); forbid_mutation.
+  - table: workflow_execution_fingerprint
+    migration: 00294_workflow_execution_fingerprint.sql
+    owner_package: internal/workflow/runtime
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-038: the version fingerprint of one workflow node execution attempt
+      (workflow, compiled plan, compiler, runtime, capability, policy, rule,
+      mapping, schema and reference-data versions) derived from the pinned plan,
+      with a GIN-indexed KIND=ref component array answering which instances a
+      version touched; INSERT once, forbid_mutation, never updated or deleted.
+  - table: workflow_variable_revision
+    migration: 00295_workflow_variable_revision.sql
+    owner_package: internal/workflow/runtime
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-COMP-007: append-only WorkflowVariableRevision records, one row per
+      variable write with writer, reason, schema, causation, value digest and a
+      per-instance hash chain; runtime.Store.AppendVariableRevision inserts it
+      while advancing workflow_instance.variable_revision_head and refreshing the
+      workflow_variable projection. SELECT/INSERT only; forbid_mutation.
+  - table: workflow_quarantined_work
+    migration: 00297_workflow_quarantined_work.sql
+    owner_package: internal/workflow/runtime
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-007: durable QuarantinedWork for poison node executions, one sealed
+      record per (tenant, idempotency key) retaining attempts, last error,
+      ambiguity, owner, SLA, next action, repair route and the instance route
+      (BLOCKED, REPAIR_REQUIRED or QUARANTINED); filed inside the advance
+      transaction that routes the instance. An operations projection, never a
+      terminal business state. INSERT once, never updated or deleted.

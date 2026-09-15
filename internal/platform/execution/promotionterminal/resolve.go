@@ -27,6 +27,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Approval field vocabulary, pinned to the simulations that emit it:
@@ -72,7 +73,9 @@ type DecisionReader interface {
 type WorkItemDecisions struct{}
 
 // DecisionsForInstance implements DecisionReader.
-func (WorkItemDecisions) DecisionsForInstance(ctx context.Context, ex dbport.Tx, tenant, instance uuid.UUID) (InstanceDecisions, error) {
+func (WorkItemDecisions) DecisionsForInstance(ctx context.Context, ex dbport.Tx, tenant, instance uuid.UUID) (ret0 InstanceDecisions, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.promotion_terminal.decisions_for_instance", tenant, instance)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	rows, err := ex.Query(ctx, `SELECT decision_id::text, kind FROM work_item_decision WHERE tenant_id=$1 AND workflow_instance_id=$2 ORDER BY kind`, tenant, instance)
 	if err != nil {
 		return InstanceDecisions{}, fmt.Errorf("promotion terminal: read instance decisions: %w", err)
@@ -140,7 +143,9 @@ type Resolver struct {
 }
 
 // Resolve implements CommandResolver.
-func (r Resolver) Resolve(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (domaincommit.Command, error) {
+func (r Resolver) Resolve(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (ret0 domaincommit.Command, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.promotion_terminal.resolve", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if r.Decisions == nil {
 		return domaincommit.Command{}, fmt.Errorf("promotion terminal: no decision reader is composed")
 	}

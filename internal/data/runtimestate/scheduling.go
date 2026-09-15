@@ -1527,6 +1527,16 @@ func (s TimerStore) PendingForInstance(ctx context.Context, ex Executor, tenantI
 		ORDER BY fires_at, timer_id`, tenantID, instanceID, TimerPending)
 }
 
+// ForInstance returns every timer one instance ever scheduled -- pending,
+// fired and cancelled -- oldest first. It is the execution inspector's read
+// (WF-RUN-019): a retry backoff that already fired is as much a part of the
+// instance's history as one still pending.
+func (s TimerStore) ForInstance(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID) ([]Timer, error) {
+	return s.list(ctx, ex, `
+		WHERE tenant_id = $1 AND instance_id = $2
+		ORDER BY created_at, fires_at, timer_id`, tenantID, instanceID)
+}
+
 func (s TimerStore) list(ctx context.Context, ex Executor, where string, args ...any) ([]Timer, error) {
 	rows, err := ex.Query(ctx, `
 		SELECT tenant_id, timer_id, instance_id, node_id, timer_key,

@@ -338,13 +338,11 @@ func TestTodo_OBS_002_ServeWiresOTelInterceptorsOnBothTransports(t *testing.T) {
 		t.Fatalf("grpc SimulateIntent: %v", err)
 	}
 
-	edgeCreated, err := h.edgeIntent.CreateIntent(context.Background(),
-		edgeRequest(h, promoteWorkerRequest(t, "otel-transport-edge"), spoofed))
-	if err != nil {
-		t.Fatalf("edge CreateIntent: %v", err)
-	}
+	// The edge simulates the intent the gRPC call created: PROMOUX-002 admits
+	// one active promotion per employee, so a second create for the same
+	// fixture worker is refused before any SimulateIntent span exists.
 	if _, err := h.edgeIntent.SimulateIntent(context.Background(), edgeRequest(h, &intentsv1.SimulateIntentRequest{
-		IntentId: edgeCreated.Msg.GetIntent().GetIntentId(),
+		IntentId: created.GetIntent().GetIntentId(),
 	}, spoofed)); err != nil {
 		t.Fatalf("edge SimulateIntent: %v", err)
 	}

@@ -143,6 +143,11 @@ migrationfiles:
   - 00289_operator_control_receipt.sql
   - 00291_workflow_execution_context.sql
   - 00292_workflow_version_registry.sql
+  - 00293_workflow_version_quarantine.sql
+  - 00294_workflow_execution_fingerprint.sql
+  - 00295_workflow_variable_revision.sql
+  - 00297_workflow_quarantined_work.sql
+  - 00298_workflow_execution_context_forbid_mutation.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

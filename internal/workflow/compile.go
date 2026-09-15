@@ -27,6 +27,12 @@ type Options struct {
 	// nil resolver makes every capability reference unresolvable, which is a
 	// diagnostic rather than a panic.
 	Capabilities CapabilityResolver
+	// References resolves schema, rule, resolver, timeout-policy and
+	// compensation references against published registries (WF-COMP-007).
+	// A nil resolver leaves schema and unversioned rule references as they
+	// were before it existed, and refuses every reference kind only a
+	// resolver can check with [CodeReferenceResolverRequired].
+	References ReferenceResolver
 	// CompilerVersion overrides [CompilerVersion] for tests that need to prove
 	// the compiler identity is material to the digest.
 	CompilerVersion string
@@ -94,6 +100,9 @@ type CompiledDecision struct {
 	InputDigest        string          `json:"input_digest"`
 	Routes             []DecisionRoute `json:"routes"`
 	DefaultRoute       string          `json:"default_route,omitempty"`
+	// Rule is the resolved published rule target, present when the plan was
+	// compiled with a [ReferenceResolver] and the DECISION cites a rule.
+	Rule *ResolvedReference `json:"rule,omitempty"`
 }
 
 // CompiledTransform is a resolved TRANSFORM binding with its taint lineage.
@@ -195,6 +204,12 @@ type CompiledNode struct {
 	FailureRoute string                 `json:"failure_route,omitempty"`
 	Governance   CompiledGovernance     `json:"governance"`
 	EvidenceRefs []string               `json:"evidence_refs"`
+
+	// ResolverRef, TimeoutPolicy and CompensationRef are the resolved
+	// published targets the node binds (WF-COMP-007).
+	ResolverRef     *ResolvedReference `json:"resolver_ref,omitempty"`
+	TimeoutPolicy   *ResolvedReference `json:"timeout_policy,omitempty"`
+	CompensationRef *ResolvedReference `json:"compensation_ref,omitempty"`
 }
 
 // ReachabilityProof is the compiled evidence that the graph is sound: which
@@ -277,6 +292,13 @@ type CompiledWorkflow struct {
 	MigrationPolicyRef    string `json:"migration_policy_ref"`
 	RetentionPolicyRef    string `json:"retention_policy_ref"`
 
+	// References is every published target the plan resolved -- schemas,
+	// rules, resolvers, timeout policies, compensations -- with its version,
+	// digest and status, sorted and deduplicated. Because it is part of the
+	// canonical bytes, the plan digest pins every target (WF-COMP-007). It is
+	// absent for a plan compiled without a [ReferenceResolver].
+	References []ResolvedReference `json:"references,omitempty"`
+
 	digest string
 }
 
@@ -316,6 +338,7 @@ func Compile(def Definition, opts Options) (*CompiledWorkflow, error) {
 
 	validateShape(&def, opts, c)
 	records := resolveCapabilities(&def, opts, c)
+	refs := resolveReferences(&def, opts, c)
 	g := analyzeGraph(&def, c)
 	if g.sound {
 		checkMappings(&def, g, c)
@@ -340,7 +363,7 @@ func Compile(def Definition, opts Options) (*CompiledWorkflow, error) {
 		return nil, d
 	}
 
-	return normalize(&def, opts, g, records, effects, governance, concurrency, terminals), nil
+	return normalize(&def, opts, g, records, refs, effects, governance, concurrency, terminals), nil
 }
 
 // normalize builds the immutable plan from the proved definition.
@@ -349,6 +372,7 @@ func normalize(
 	opts Options,
 	g *graph,
 	records map[string]capability.Record,
+	refs resolvedReferences,
 	effects EffectSummary,
 	governance GovernanceSummary,
 	concurrency *ConcurrencySummary,
@@ -378,6 +402,7 @@ func normalize(
 		MigrationPolicyRef:    def.MigrationPolicyRef,
 		RetentionPolicyRef:    def.RetentionPolicyRef,
 		Concurrency:           concurrency,
+		References:            refs.all,
 	}
 
 	ids := g.sortedNodeIDs()
@@ -400,6 +425,9 @@ func normalize(
 			FailureRoute:    n.FailureRoute,
 			Governance:      compileGovernance(n.Governance),
 			EvidenceRefs:    evidenceRefsFor(n),
+			ResolverRef:     refs.at(id, refFieldResolver),
+			TimeoutPolicy:   refs.at(id, refFieldTimeoutPolicy),
+			CompensationRef: refs.at(id, refFieldCompensation),
 		}
 		cn.Mappings = compileMappings(def, g, n)
 		cn.EffectKey = effectKeyOf(n, records)
@@ -436,6 +464,7 @@ func normalize(
 				InputDigest:        mappingDigest(cn.Mappings),
 				Routes:             append([]DecisionRoute(nil), n.Decision.Routes...),
 				DefaultRoute:       n.Decision.DefaultRoute,
+				Rule:               refs.at(id, refFieldRule),
 			}
 		}
 		if n.Transform != nil {

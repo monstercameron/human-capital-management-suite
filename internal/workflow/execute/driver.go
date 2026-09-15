@@ -100,6 +100,11 @@ type Options struct {
 	// so every served advancement is fenced (WF-RUN-036). It requires
 	// FenceVerifier.
 	Leases InstanceLeaser
+	// Quarantine, when set, is consulted in every advance transaction for
+	// the governed quarantine of the version the instance is pinned to, so
+	// a live instance takes the declared disposition at its next advancement
+	// (WF-RUN-009). Nil means versions are never quarantined.
+	Quarantine VersionQuarantine
 	// StartRetry opts into a bounded serializable retry of the complete start
 	// closure. Nil preserves the historical single transaction behavior.
 	StartRetry *transactioncommit.RetryOptions
@@ -107,6 +112,11 @@ type Options struct {
 	// tenant or operation state on the Driver. It is evaluated once per
 	// Execute call and its returned options are copied locally.
 	StartRetryFor func(context.Context, StartRetryIdentity) (*transactioncommit.RetryOptions, error)
+	// PoisonWork files an exhausted node with no failure route as durable
+	// QuarantinedWork and routes its instance (WF-RUN-007, poison.go). Nil
+	// keeps the NO_FAILURE_ROUTE refusal exactly as before. It is unrelated to
+	// workflow version quarantine.
+	PoisonWork *PoisonWorkPolicy
 }
 
 // StartRetryIdentity is the complete immutable identity needed to select a
@@ -150,6 +160,9 @@ func New(opts Options) (*Driver, error) {
 	}
 	if opts.StartRetry != nil && opts.StartRetryFor != nil {
 		return nil, invalid("StartRetry and StartRetryFor are mutually exclusive")
+	}
+	if err := opts.PoisonWork.validate(); err != nil {
+		return nil, err
 	}
 	advance := opts.Advance
 	if advance == nil {
@@ -510,6 +523,9 @@ func (d *Driver) prepareReadyAttempt(
 	if latest.Attempt == 0 {
 		return 0, invalid("ready node %s has no durable execution", node.ID)
 	}
+	if err := refuseSettledAttempt(latest); err != nil {
+		return 0, err
+	}
 	attempt := latest.Attempt
 	if latest.Status == runtime.NodeRetrying {
 		attempt++
@@ -642,6 +658,16 @@ func (d *Driver) advanceOnce(
 		}
 	}
 
+	if expectedVersion, err = d.applyQuarantine(advCtx, tx, run, expectedVersion, at); err != nil {
+		if errors.Is(err, errQuarantinePaused) {
+			if cerr := tx.Commit(advCtx); cerr != nil {
+				err = fmt.Errorf("workflow execute: commit quarantine pause: %w", cerr)
+			}
+		}
+		advSpan.End(OutcomeDenied, err)
+		return runtime.AdvanceReceipt{}, nil, nil, nil, err
+	}
+
 	outcome, refs, causal, err := inputs(advCtx, tx)
 	if err != nil {
 		advSpan.End(OutcomeFailure, err)
@@ -767,6 +793,11 @@ func (d *Driver) advanceOnce(
 		}
 	} else {
 		advanced, err = d.advance(advCtx, tx, advReq)
+	}
+	if d.poisonable(err) {
+		err = d.filePoisonWork(advCtx, tx, run, outcome, attempt, at, err)
+		advSpan.End(poisonOutcome(err), err)
+		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}
 	if err != nil {
 		advSpan.End(OutcomeFailure, err)

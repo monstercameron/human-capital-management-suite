@@ -168,6 +168,8 @@ func TestPromotionBackendCommitsTheWorkflowTransactionEndToEnd(t *testing.T) {
 				t.Fatalf("bind promotion transaction plan: %v", err)
 			}
 			return &promotionterminal.Writer{
+				// PROMOUX-016: only the approved END code writes successor facts.
+				ApprovedTerminalCode: demoTerminalCode,
 				Resolver: promotionterminal.ResolverFunc(func(ctx context.Context, tx dbport.Tx, req execute.TerminalWriteRequest) (domaincommit.Command, error) {
 					rows, err := tx.Query(ctx, `SELECT decision_id::text, kind FROM work_item_decision WHERE tenant_id=$1 AND workflow_instance_id=$2 ORDER BY kind`, req.TenantID, req.InstanceID)
 					if err != nil {

@@ -81,6 +81,38 @@ func (PostgresStore) loadByNaturalKey(ctx context.Context, ex Executor, tenantID
 		tenantID, uuid.Nil)
 }
 
+// ListForEffect returns every reconciliation job watching one committed
+// effect -- one per comparison policy -- ordered by policy. It is the workflow
+// execution inspector's read (WF-RUN-019): a node's recorded effect reference
+// is resolved to the observation and reconciliation state behind it. An
+// effect nothing watches is an empty list, not an error.
+func (PostgresStore) ListForEffect(ctx context.Context, ex Executor, tenantID uuid.UUID, effectRef string) ([]Job, error) {
+	rows, err := ex.Query(ctx, `
+		SELECT `+jobColumns+`
+		FROM effect_reconciliation_job
+		WHERE tenant_id = $1 AND effect_ref = $2
+		ORDER BY policy_ref, job_id`, tenantID, effectRef)
+	if err != nil {
+		return nil, wrapErr(CodeStorageFailed, ErrStorage, tenantID, uuid.Nil, err,
+			"list reconciliation jobs for effect %s", effectRef)
+	}
+	defer rows.Close()
+
+	out := []Job{}
+	for rows.Next() {
+		job, scanErr := scanJob(rows)
+		if scanErr != nil {
+			return nil, wrapErr(CodeStorageFailed, ErrStorage, tenantID, uuid.Nil, scanErr, "scan reconciliation job row")
+		}
+		out = append(out, job)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, wrapErr(CodeStorageFailed, ErrStorage, tenantID, uuid.Nil, err,
+			"list reconciliation jobs for effect %s", effectRef)
+	}
+	return out, nil
+}
+
 // Due implements [Store].
 func (PostgresStore) Due(ctx context.Context, ex Executor, tenantID uuid.UUID, asOf time.Time, limit int) ([]Job, error) {
 	if limit < 1 {

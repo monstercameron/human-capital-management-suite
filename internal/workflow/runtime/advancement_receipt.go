@@ -10,6 +10,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 const advanceRequestDigestProfile = "hcmnext.workflow.runtime.AdvanceRequest/v1"
@@ -175,4 +176,90 @@ func loadAdvancementReceipt(
 			"durable advancement receipt does not match its storage key or digest")
 	}
 	return stored, true, nil
+}
+
+// AdvancementReceiptRecord is one durable advancement receipt as the
+// execution inspector (WF-RUN-019) reads it back: the storage key, the
+// request digest the replay authority compares, and the receipt itself.
+//
+// DigestVerified is false when the stored payload no longer digests to the
+// receipt digest it carries, or no longer matches its own storage key. Such a
+// row is still returned -- an inspector that silently dropped tampered
+// evidence would hide exactly the row an operator needs to see -- but Receipt
+// then carries only what the payload claims and must not be trusted.
+type AdvancementReceiptRecord struct {
+	NodeID                   string
+	Attempt                  int
+	ExpectedInstanceVersion  int64
+	ResultingInstanceVersion int64
+	RequestDigest            string
+	// StoredReceiptDigest is the digest the payload recorded at commit.
+	StoredReceiptDigest string
+	DigestVerified      bool
+	Receipt             AdvanceReceipt
+	RecordedAt          time.Time
+}
+
+// LoadAdvancementReceipts reads every durable advancement receipt one
+// instance committed, ordered by the instance version each produced, and
+// re-verifies each payload against its recorded digest and storage key.
+//
+// A missing instance and another tenant's instance both read as an empty
+// list: this function never discloses that an instance it may not see
+// exists. Only a storage or decode failure is an error.
+func LoadAdvancementReceipts(ctx context.Context, ex Executor, tenantID, instanceID uuid.UUID) (ret0 []AdvancementReceiptRecord, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.load_advancement_receipts", tenantID, instanceID)
+	defer func() { observe.DoneWith(obsOp, retErr, len(ret0)) }()
+	rows, err := ex.Query(ctx, `
+		SELECT node_id, attempt, expected_instance_version, resulting_instance_version,
+		       request_digest, receipt, recorded_at
+		FROM workflow_advancement_receipt
+		WHERE tenant_id = $1 AND instance_id = $2
+		ORDER BY resulting_instance_version, node_id, attempt`,
+		tenantID, instanceID)
+	if err != nil {
+		return nil, wrap(CodeStorageFailed, instanceID.String(), "", err, "read advancement receipts")
+	}
+	defer rows.Close()
+
+	out := []AdvancementReceiptRecord{}
+	for rows.Next() {
+		var (
+			rec     AdvancementReceiptRecord
+			attempt int32
+			payload []byte
+		)
+		if err := rows.Scan(&rec.NodeID, &attempt, &rec.ExpectedInstanceVersion,
+			&rec.ResultingInstanceVersion, &rec.RequestDigest, &payload, &rec.RecordedAt); err != nil {
+			return nil, wrap(CodeStorageFailed, instanceID.String(), "", err, "scan advancement receipt")
+		}
+		rec.Attempt, rec.RecordedAt = int(attempt), rec.RecordedAt.UTC()
+		var durable durableAdvanceReceipt
+		if err := json.Unmarshal(payload, &durable); err != nil {
+			return nil, wrap(CodeStorageFailed, instanceID.String(), rec.NodeID, err,
+				"decode advancement receipt")
+		}
+		receiptTenant, tenantErr := uuid.Parse(durable.TenantID)
+		receiptInstance, instanceErr := uuid.Parse(durable.InstanceID)
+		rec.StoredReceiptDigest = durable.ReceiptDigest
+		rec.Receipt = AdvanceReceipt{
+			TenantID: receiptTenant, InstanceID: receiptInstance,
+			NodeID: durable.NodeID, Attempt: durable.Attempt,
+			CompletedState: durable.CompletedState, RouteKey: durable.RouteKey,
+			OutputDigest: durable.OutputDigest, NewInstanceVersion: durable.NewInstanceVersion,
+			Frontier: append([]string{}, durable.Frontier...),
+			Complete: durable.Complete, TerminalCode: durable.TerminalCode, Replay: true,
+		}
+		rec.Receipt.digest = computeAdvanceReceiptDigest(rec.Receipt)
+		rec.DigestVerified = tenantErr == nil && instanceErr == nil &&
+			durable.ReceiptDigest == rec.Receipt.Digest() &&
+			receiptTenant == tenantID && receiptInstance == instanceID &&
+			durable.NodeID == rec.NodeID && durable.Attempt == rec.Attempt &&
+			durable.NewInstanceVersion == rec.ResultingInstanceVersion
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, wrap(CodeStorageFailed, instanceID.String(), "", err, "iterate advancement receipts")
+	}
+	return out, nil
 }

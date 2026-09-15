@@ -137,6 +137,10 @@ type DecisionSpec struct {
 	// RuleRef names a published decision table or expression. RULE is not a
 	// step type: it is a DECISION carrying this reference.
 	RuleRef string `json:"rule_ref,omitempty"`
+	// RuleVersion pins the exact published version of RuleRef. When the
+	// compiler has a [ReferenceResolver], a rule reference without it is
+	// unresolved; declaring it without a resolver is refused (WF-COMP-007).
+	RuleVersion string `json:"rule_version,omitempty"`
 	// InputDigestProfile names the canonical profile under which the pinned
 	// input snapshot is digested.
 	InputDigestProfile string          `json:"input_digest_profile"`
@@ -600,6 +604,14 @@ type Node struct {
 	// profile. Where a capability manifest disagrees, the manifest wins and
 	// the disagreement is a compile error.
 	DeclaredEffect capability.EffectClass `json:"declared_effect,omitempty"`
+
+	// ResolverRef, TimeoutPolicy and CompensationRef bind published
+	// resolver, timeout-policy and compensation versions. Each resolves
+	// through the compiler's [ReferenceResolver]; a definition declaring one
+	// cannot compile without that resolver (WF-COMP-007).
+	ResolverRef     *VersionedRef `json:"resolver_ref,omitempty"`
+	TimeoutPolicy   *VersionedRef `json:"timeout_policy,omitempty"`
+	CompensationRef *VersionedRef `json:"compensation_ref,omitempty"`
 
 	Retry *RetryPolicy `json:"retry,omitempty"`
 	// FailureRoute names the node reached when the step fails outside its

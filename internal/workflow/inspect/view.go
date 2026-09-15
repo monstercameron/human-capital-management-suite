@@ -216,8 +216,9 @@ type NodeView struct {
 	// Current reports whether this attempt is on the instance's frontier.
 	Current bool `json:"current"`
 	// RetryPolicyRef is the retry policy the compiled plan declared for this
-	// node. It is a policy reference, not a scheduled retry: no timer exists
-	// in this phase, so no "next retry at" is rendered.
+	// node. It is a policy reference, not a scheduled retry: the scheduled
+	// retry is a durable RETRY_BACKOFF timer, which [Load] renders in
+	// [DurableView.Attempts] from the timer rows themselves.
 	RetryPolicyRef Ref `json:"retry_policy_ref"`
 
 	InputSnapshotRef  Ref `json:"input_snapshot_ref"`

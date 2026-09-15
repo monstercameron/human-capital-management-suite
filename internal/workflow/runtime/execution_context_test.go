@@ -142,6 +142,12 @@ func TestTodo_WF_RUN_040(t *testing.T) {
 		t.Fatalf("advance under the pinned context = %+v, %v", receipt, err)
 	}
 
+	// The table is append-only (forbid_mutation, 00298): even a privileged
+	// session is refused, and a tamper has to disable the trigger first.
+	if err := db.ExecErr(`UPDATE workflow_execution_context SET recorded_at = now() WHERE tenant_id = $1`, tenantID); err == nil {
+		t.Fatal("workflow_execution_context accepted an UPDATE")
+	}
+	db.Exec(t, `ALTER TABLE workflow_execution_context DISABLE TRIGGER workflow_execution_context_forbid_mutation`)
 	db.Exec(t, `UPDATE workflow_execution_context SET context = jsonb_set(context, '{locale}', '"de-DE"') WHERE tenant_id = $1 AND instance_id = $2`,
 		tenantID, started.InstanceID)
 	err := inTenantTxErr(conn, tenantID, func(tx dbport.Tx) error {

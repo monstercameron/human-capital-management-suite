@@ -327,6 +327,20 @@ func TestTodo_WF_RUN_019_Integration(t *testing.T) {
 		t.Errorf("view over persisted state is incomplete: redactions %v, gaps %v",
 			view.Completeness.Redactions, view.Completeness.Gaps)
 	}
+
+	// The durable reader: inspect.Load traverses every record family behind
+	// this instance from PostgreSQL itself, keeps protected payloads out,
+	// answers a foreign tenant exactly as it answers a missing instance, and
+	// renders identically for concurrent readers.
+	t.Run("durable traversal", func(t *testing.T) {
+		assertDurableTraversal(t, db, conn, tenant, instanceID)
+	})
+	t.Run("tenant isolation", func(t *testing.T) {
+		assertTenantIsolation(t, db, tenant, instanceID)
+	})
+	t.Run("concurrent durable loads", func(t *testing.T) {
+		assertConcurrentLoads(t, db, tenant, instanceID)
+	})
 }
 
 // TestTodo_WF_RUN_019_Fault is the RED case in both directions: protected
@@ -516,6 +530,41 @@ func TestTodo_WF_RUN_019_Fault(t *testing.T) {
 					t.Fatalf("error = %v, want an authorization refusal", err)
 				}
 			})
+		}
+	})
+
+	t.Run("a durable load honors a non-disclosable decision before reading anything", func(t *testing.T) {
+		auth := operatorAuth()
+		auth.InstanceDisclosable = false
+		auth.DenialReason = "NOT_IN_SCOPE"
+		// No executor at all: a Load that reached for the database would
+		// fail differently, so ErrNotDisclosable proves nothing was read.
+		_, err := inspect.Load(context.Background(), nil, inspect.LoadRequest{
+			TenantID: fixtureTenant, InstanceID: fixtureInstance, Authorization: auth,
+		})
+		if !errors.Is(err, inspect.ErrNotDisclosable) {
+			t.Fatalf("error = %v, want ErrNotDisclosable", err)
+		}
+		if strings.Contains(err.Error(), fixtureInstance.String()) {
+			t.Errorf("the refusal discloses the instance id: %v", err)
+		}
+	})
+
+	t.Run("a durable load refuses an unusable request", func(t *testing.T) {
+		if _, err := inspect.Load(context.Background(), nil, inspect.LoadRequest{
+			TenantID: fixtureTenant, InstanceID: fixtureInstance, Authorization: inspect.Authorization{},
+		}); !errors.Is(err, inspect.ErrAuthorizationInvalid) {
+			t.Fatalf("invalid authorization: error = %v, want ErrAuthorizationInvalid", err)
+		}
+		for name, req := range map[string]inspect.LoadRequest{
+			"no executor": {TenantID: fixtureTenant, InstanceID: fixtureInstance},
+			"no tenant":   {InstanceID: fixtureInstance},
+			"no instance": {TenantID: fixtureTenant},
+		} {
+			req.Authorization = operatorAuth()
+			if _, err := inspect.Load(context.Background(), nil, req); !errors.Is(err, inspect.ErrInvalidRequest) {
+				t.Errorf("%s: error = %v, want ErrInvalidRequest", name, err)
+			}
 		}
 	})
 

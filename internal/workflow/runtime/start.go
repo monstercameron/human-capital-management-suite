@@ -528,6 +528,9 @@ func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceip
 	}
 
 	nextVersion := stored.InstanceVersion
+	// WF-RUN-038: each node execution records its fingerprint from the plan
+	// and runtime version this start just pinned.
+	fingerprints := nodeFingerprinter{plan: sel.Plan, runtimeVersion: execCtx.RuntimeVersion, recordedAt: req.CreatedAt}
 	for _, ns := range seeded.Nodes {
 		node, ok := sel.Plan.Node(ns.NodeID)
 		if !ok {
@@ -537,6 +540,9 @@ func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceip
 		ne := NewNodeExecution(req.TenantID, instanceID, ns.NodeID, 1, node.Type, NodeStatus(ns.State))
 		_, bumped, err := store.RecordNodeExecution(ctx, tx, ne, nextVersion)
 		if err != nil {
+			return StartReceipt{}, err
+		}
+		if err := fingerprints.record(ctx, tx, ne); err != nil {
 			return StartReceipt{}, err
 		}
 		nextVersion = bumped

@@ -253,6 +253,13 @@ func Advance(ctx context.Context, tx Executor, req AdvanceRequest) (ret0 Advance
 	if err != nil {
 		return AdvanceReceipt{}, err
 	}
+	// WF-RUN-038: every node execution this advancement inserts records its
+	// fingerprint from the plan (digest-checked against the pin above) and the
+	// runtime version the instance's execution context pinned.
+	fingerprints, err := pinnedFingerprinter(ctx, tx, req.TenantID, req.InstanceID, req.Plan, req.RecordedAt)
+	if err != nil {
+		return AdvanceReceipt{}, err
+	}
 	activated := map[string]int{}
 	for _, succ := range tr.Successors {
 		succNode, ok := req.Plan.Node(succ.NodeID)
@@ -266,6 +273,9 @@ func Advance(ctx context.Context, tx Executor, req AdvanceRequest) (ret0 Advance
 		if err != nil {
 			return AdvanceReceipt{}, err
 		}
+		if err := fingerprints.record(ctx, tx, ne); err != nil {
+			return AdvanceReceipt{}, err
+		}
 		nextVersion = bumped
 	}
 	for _, skipped := range tr.Skipped {
@@ -276,6 +286,9 @@ func Advance(ctx context.Context, tx Executor, req AdvanceRequest) (ret0 Advance
 		ne := NewNodeExecution(req.TenantID, req.InstanceID, skipped, nextAttemptFor(existing, skipped), skipNode.Type, NodeSkipped)
 		_, bumped, err := store.RecordNodeExecution(ctx, tx, ne, nextVersion)
 		if err != nil {
+			return AdvanceReceipt{}, err
+		}
+		if err := fingerprints.record(ctx, tx, ne); err != nil {
 			return AdvanceReceipt{}, err
 		}
 		nextVersion = bumped

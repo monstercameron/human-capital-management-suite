@@ -179,6 +179,21 @@ type PromotionExecutionConfig struct {
 	VersionApprover string
 }
 
+// poisonWorkOwner is who is accountable for QuarantinedWork the served driver
+// files (WF-RUN-007), and poisonWorkSLA how long that owner has to act. They
+// name one operations queue until relationship-based ownership exists, the
+// same way defaultApproverPrincipalID names one approver.
+const (
+	poisonWorkOwner = "principal:workflow-operations"
+	poisonWorkSLA   = 4 * time.Hour
+)
+
+// composedPoisonWork is the served driver's poison-work policy: durable
+// runtime.QuarantineStore records owned by [poisonWorkOwner].
+func composedPoisonWork() *execute.PoisonWorkPolicy {
+	return &execute.PoisonWorkPolicy{Store: runtime.QuarantineStore{}, Owner: poisonWorkOwner, SLA: poisonWorkSLA}
+}
+
 const (
 	versionPublisher       = "cmd/hcmnext:execution-authority"
 	defaultVersionApprover = "cmd/hcmnext:workflow-release-approver"
@@ -400,6 +415,14 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		// in each advance transaction before any step writes.
 		Leases:        NewInstanceLeaser(leaseHolder, 0),
 		FenceVerifier: lease.Fenced{Manager: lease.Manager{}},
+		// WF-RUN-007: an exhausted node with no failure route lands durable
+		// QuarantinedWork and routes its instance instead of rolling back.
+		PoisonWork: composedPoisonWork(),
+	}
+	// WF-RUN-009: a durable registry that records governed quarantines also
+	// tells every advancement which disposition a live instance takes.
+	if quarantine, ok := cfg.Versions.(execute.VersionQuarantine); ok {
+		options.Quarantine = quarantine
 	}
 	if cfg.TimerDataset != (values.DatasetVersions{}) {
 		factory, factoryErr := NewTimerFactory(TimerFactoryConfig{Scheduler: timer.Scheduler{}, Dataset: cfg.TimerDataset, EffectiveDates: effectiveDates})

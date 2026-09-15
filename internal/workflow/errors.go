@@ -23,6 +23,14 @@ const (
 	// (WF-COMP-001 RED).
 	CodeUnresolvedRef = "UNRESOLVED_REF"
 
+	// CodeRetiredReference reports a schema, rule, resolver, timeout-policy or
+	// compensation reference whose published target is retired (WF-COMP-007).
+	CodeRetiredReference = "RETIRED_REFERENCE"
+	// CodeReferenceResolverRequired reports a definition declaring a
+	// reference kind that only a [ReferenceResolver] can check, compiled
+	// without one (WF-COMP-007). It is never silently accepted.
+	CodeReferenceResolverRequired = "REFERENCE_RESOLVER_REQUIRED"
+
 	// CodeInvalidDefinition reports a structurally malformed definition:
 	// blank identity, duplicate node id, unknown step type.
 	CodeInvalidDefinition = "INVALID_DEFINITION"

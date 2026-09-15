@@ -157,8 +157,10 @@ func main() {
 		os.Exit(bootstrap.Run(context.Background(), spec))
 	case "token":
 		os.Exit(runToken(args[1:], os.Stdout, os.Stderr, time.Now))
+	case "workflow-version":
+		os.Exit(runWorkflowVersion(args[1:], os.Stdout, os.Stderr, time.Now, openPostgresVersionRegistry))
 	default:
-		fmt.Fprintf(os.Stderr, "hcmnext: unknown command %q; usage: hcmnext [serve|token]\n", args[0])
+		fmt.Fprintf(os.Stderr, "hcmnext: unknown command %q; usage: hcmnext [serve|token|workflow-version]\n", args[0])
 		os.Exit(1)
 	}
 }

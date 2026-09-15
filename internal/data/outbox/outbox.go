@@ -401,6 +401,22 @@ func Read(ctx context.Context, q Querier, tenant uuid.UUID, outboxID uuid.UUID) 
 	return rec, nil
 }
 
+// ReadByEffectIdentity returns the outbox row one idempotent effect enqueued,
+// and whether one exists. An effect that enqueued nothing (or belongs to
+// another tenant) is found=false with no error, because the workflow
+// execution inspector (WF-RUN-019) asks for every effect reference a node
+// recorded and most of them never touch the outbox.
+func ReadByEffectIdentity(ctx context.Context, q Querier, tenant uuid.UUID, effectIdentity string) (Record, bool, error) {
+	rec, err := readByEffectIdentity(ctx, q, tenant, effectIdentity)
+	if errors.Is(err, dbport.ErrNoRows) {
+		return Record{}, false, nil
+	}
+	if err != nil {
+		return Record{}, false, err
+	}
+	return rec, true, nil
+}
+
 func readByEffectIdentity(ctx context.Context, q Querier, tenant uuid.UUID, effectIdentity string) (Record, error) {
 	row := q.QueryRow(ctx, `SELECT `+selectRecordColumns+` FROM outbox WHERE tenant_id = $1 AND effect_identity = $2`, tenant, effectIdentity)
 	rec, err := scanRecord(row)

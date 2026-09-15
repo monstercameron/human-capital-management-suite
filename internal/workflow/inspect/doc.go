@@ -15,19 +15,28 @@
 // — plus the instance's runtime status, its five lifecycle dimensions (never
 // collapsed into one) and its current frontier.
 //
-// # It projects; it does not execute and does not read
+// # Build projects; Load reads; neither executes
 //
-// This package performs no I/O. It does not open a database, does not walk a
-// plan and cannot change business state: an inspector that could act would be
-// an intervention API, which is a different todo and a different authority.
-// The caller loads state through internal/workflow/runtime and hands it here,
-// which is also why [Build] is trivially safe to call concurrently.
+// [Build] performs no I/O: it projects state a caller already loaded, which is
+// why it is trivially safe to call concurrently. [Load] is the reader: given a
+// tenant-scoped transaction, a tenant, an instance id and the authorization
+// decision, it loads the durable record itself -- the instance row and its
+// pinned compiled version from the durable registry (record digest and
+// status), node executions, every durable timer (so retry backoffs and
+// waits are rendered from the rows the timer scheduler holds, never computed
+// here), work items and their transitions, the pinned execution context and
+// its digest, advancement receipts re-verified against their digests, the
+// instance lease history, the latest checkpoint, and the outbox rows and
+// reconciliation jobs behind every recorded effect reference -- then renders
+// it through [Build] and a [DurableView]. A record family no durable store in
+// this repository can answer for a workflow instance (the business
+// transaction behind business_transaction_id; connector operations, which no
+// workflow writer links to an instance) is listed as UNAVAILABLE with its
+// reason, never rendered as an empty list.
 //
-// It is likewise not a scheduler view. There is no lease holder, no next-retry
-// instant and no timer in a [NodeView]: WF-RUN-000 gates those primitives, and
-// showing a "next retry 20:14" that nothing computes would be a screen that
-// lies. What a node does carry is its declared retry policy reference and its
-// attempt number, which are facts the runtime store actually holds.
+// Neither function writes or can change business state: an inspector that
+// could act would be an intervention API, which is a different todo and a
+// different authority.
 //
 // # Redaction is explicit, and omission is reported
 //
