@@ -16,9 +16,11 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
-// Resolver materializes the exact approved proposal and immutable plan into a
-// typed domain command while the terminal transaction is open.
-type Resolver interface {
+// CommandResolver materializes the exact approved proposal and immutable
+// plan into a typed domain command while the terminal transaction is open.
+// The production implementation is Resolver in resolve.go; ResolverFunc
+// adapts a closure for tests.
+type CommandResolver interface {
 	Resolve(context.Context, dbport.Tx, execute.TerminalWriteRequest) (domaincommit.Command, error)
 }
 
@@ -32,11 +34,21 @@ type Mutator interface {
 	Write(context.Context, dbport.Tx, domaincommit.Command) (promotioncommit.Receipt, error)
 }
 
-// Writer is an execute.TerminalWriter decorator.
+// Writer is an execute.TerminalWriter decorator. Only the approved terminal
+// code mutates: every other code records its ledger fact with no successor
+// facts behind it, and an unconfigured writer refuses outright instead of
+// silently recording outcomes with no facts behind them.
 type Writer struct {
-	Resolver Resolver
-	Mutation Mutator
-	Next     execute.TerminalWriter
+	// ApprovedTerminalCode is the promotion workflow's approved END code
+	// (PROMOTION_COMPLETE): the only terminal code that may write successor
+	// facts. An empty code keeps the pre-gate composer shape the package's
+	// own unit tests use, and it is refused the moment a real terminal code
+	// arrives, so production -- where the run always records a code -- can
+	// never run unconfigured.
+	ApprovedTerminalCode string
+	Resolver             CommandResolver
+	Mutation             Mutator
+	Next                 execute.TerminalWriter
 }
 
 var _ execute.TerminalWriter = (*Writer)(nil)
@@ -46,6 +58,13 @@ func (w *Writer) Write(ctx context.Context, tx dbport.Tx, req execute.TerminalWr
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	if w == nil || w.Resolver == nil || w.Mutation == nil || w.Next == nil {
 		return idempotency.ResultIdentity{}, fmt.Errorf("promotion terminal: resolver, mutation writer and next writer are required")
+	}
+	if w.ApprovedTerminalCode == "" {
+		if req.TerminalCode != "" {
+			return idempotency.ResultIdentity{}, fmt.Errorf("promotion terminal: no approved terminal code is configured")
+		}
+	} else if req.TerminalCode != w.ApprovedTerminalCode {
+		return w.Next.Write(ctx, tx, req)
 	}
 	cmd, err := w.Resolver.Resolve(ctx, tx, req)
 	if err != nil {
