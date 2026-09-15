@@ -2312,7 +2312,8 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Security research §2, F-04](research/security-best-practices-2026.md#2-financial-applications-and-payment-touching-systems), [Nacha 2026 fraud responsibilities](https://www.nacha.org/news/new-nacha-rules-new-fraud-compliance-responsibilities-all-organizations-sending-ach-payments). Maps to NACHA 2026 risk-management rule set.
 
-- [ ] `SECARCH-017` **[GATE_C][SOL_HIGH] Stand up a GLBA Safeguards Rule information-security program record.**
+- [x] `SECARCH-017` **[GATE_C][SOL_HIGH] Stand up a GLBA Safeguards Rule information-security program record.**
+  - **Evidence (2026-09-15):** `TestTodo_SECARCH_017`, `TestTodo_SECARCH_017_Golden`, `TestTodo_SECARCH_017_Security`, `TestTodo_SECARCH_017_Integration`, `TestTodo_SECARCH_017_Conformance`, `TestTodo_SECARCH_017_Mutation` in `internal/domains/paymethod/safeguards` (safeguards.go adds versioned NewProgram/Validate/NoticeRequired/Digest binding covered tenants to risk assessment, satisfactory provider diligence, TRUST-015/018 control evidence, incident records and a reproducible consumer count with the FTC 500-consumer notice boundary; RED captured as build-failed undefined symbols); `go test -count=1 ./internal/domains/paymethod/safeguards/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** `TRUST-015`, `PRIV-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestTodo_SECARCH_017`.
