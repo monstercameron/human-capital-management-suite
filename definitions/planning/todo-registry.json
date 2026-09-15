@@ -12379,7 +12379,7 @@
     "refactor": "endpoint maps to workflow intervention contracts; operators cannot submit arbitrary target state",
     "refs": "[workflow operations](specs/http-grpc-endpoint-contract.md#workflow-operations), [workflow runtime](specs/workflow-runtime.md), [operator intents](#6-businessintent-capabilities-governance-and-transaction-integrity)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestWorkflowControlEndpointsRespectSafePointAuthorityIdempotencyAndEffectBoundary` plus `TestTodo_EP_WF_002_Property`, `_Race`, `_Integration`, `_Fault`, `_Security`, `_Conformance`, `_Recovery` and `_Mutation` in `internal/intent/operator/workflowcontrol` over embedded PostgreSQL, and `TestTodo_EP_WF_002_TransportIntegration`/`_TransportSecurity` in `internal/transport/workflow` (`workflowcontrol.Controller` submits each control through `internal/intent/operator.Gateway` as a registered operational intent (`WORKFLOW_PAUSE`/`RESUME`/`CANCEL`/`RETRY_NODE`) under a current JIT grant, dual control for cancel, simulation for retry, and an idempotency key journaled with a digest-sealed receipt; executors hold a gateway-minted authorization and call only runtime transitions in one tenant transaction fenced by expected version/attempt and the pinned plan digest: pause returns APPLIED at a safe point or PENDING_SAFE_POINT naming the blocking node, resume revalidates required context and refuses NOT_PAUSED/stale, cancel is TOO_LATE after a committed write effect, REPAIR_REQUIRED (instance routed to REPAIR_REQUIRED) with an effect in flight and APPLIED otherwise with timers cancelled, RetryNode is DENIED for a successful, superseded or leased attempt, REPAIR_REQUIRED for a non-idempotent write and otherwise records attempt N RETRYING plus attempt N+1 READY and one ready-work row; repeats under one key replay the recorded outcome with no second transition (16 concurrent retries create exactly one attempt), a journal loss after commit returns REPAIR_REQUIRED instead of re-running, pre-commit faults leave the key retryable; `WorkflowControlReceipt`/`WorkflowControlOutcome` added to `workflow_service.proto` (buf lint clean, contracts/compatibility PASS), the four RPCs project tenant and operator from the principal only, refuse unauthorized/malformed calls before the controller and return FAILED_PRECONDITION with no transition where no governed controller is wired; HTTP edge routes all four; serve composition does not yet wire a production JIT-grant-backed `AuthorityResolver`, so live cells keep refusing controls until one exists); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main"
   },
   {
@@ -17380,7 +17380,8 @@
     "refactor": "this remains Leave-domain readiness until cross-domain conformance proves a shared engine",
     "refs": "[Leave workflow](workflows/leave/leave-return-to-work.md), [qualification engine](#39-qualification-demand-matching-and-scenario-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEAVE_012`, `TestTodo_LEAVE_012_Security`, `TestTodo_LEAVE_012_Conformance`, `TestTodo_LEAVE_012_Mutation` in `internal/domains/leave` (`readiness.go`, `readiness_test.go`); RED captured as build failure on undefined `ReturnToWorkInput`/`EvaluateReturnToWorkReadiness` before the implementation existed, GREEN after. `go test -count=1 -run TestTodo_LEAVE_012 ./internal/domains/leave/` PASS, `go test -count=1 -cover ./internal/domains/leave/` PASS at 87.5%, `go vet` clean, gofmt clean; branch main"
   },
   {
     "id": "LEAVE-013",
@@ -44755,8 +44756,31 @@
     "refactor": "active version is immutable; rollback republishes a known version through governance",
     "refs": "[Workflow runtime publication](specs/workflow-runtime.md), [environment governance](plan.md#111-environment-and-change-governance)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_COMP_006` (`Publish` refuses a plan whose digest does not match recompiling its definition, a definition that fails compilation, and missing caller-supplied publication time or semantic version; `Activate` refuses unauthorized, changed-after-review, failed-test, unresolved-dependency, retired and competing-active cases with typed codes; `Resolve` never falls back to latest or active), `TestTodo_WF_COMP_006_Golden` (`testdata/promotion_version.json` and `promotion_version_activated.json` pinned from the promotion reference), `TestTodo_WF_COMP_006_Mutation` (activation, quarantine and supersession never change the record digest, only `Status`; returned values are deep copies), `TestTodo_WF_COMP_006_Security` in `internal/workflow/version` (`CompiledVersion` with definition, plan and record digests and pinned compiler identity; `Store` port with an in-memory `Registry`, Postgres backing deferred to the runtime lane); `go test -count=1 ./internal/workflow/...` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
+  },
+  {
+    "id": "WF-COMP-007",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Complete the definition type system references",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "WF-COMP-001",
+      "RULE-001"
+    ],
+    "test": "TestTodo_WF_COMP_007",
+    "test_matrix": {
+      "MUTATION": "TestTodo_WF_COMP_007_Mutation",
+      "PRIMARY": "TestTodo_WF_COMP_007",
+      "PROPERTY": "TestTodo_WF_COMP_007_Property"
+    },
+    "red": "definitions cannot declare resolver_ref, timeout_policy or compensation_ref, rule_ref is an unresolved string, schema refs are only syntax-checked, and there is no WorkflowVariableRevision record",
+    "green": "the compiler resolves every reference against published registries, rejects unknown or retired targets, and variable writes append revisions",
+    "refactor": "reference resolution is one pass shared by all step types",
+    "refs": "[declarative definition and type system](specs/workflow-runtime.md), `internal/workflow`",
+    "retired": false,
+    "done": false
   },
   {
     "id": "WF-DISC-001",
@@ -45132,7 +45156,7 @@
     "refactor": "migration, shadow mode, replay and the intervention taxonomy are not adoption criteria",
     "refs": "[Build or adopt](specs/workflow-runtime.md#build-or-adopt), [next-steps P1B](next-steps.md#p1b--one-bounded-authority-amendment)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestDurableRuntimeAdoptionDecisionRecordIsCompleteAndEvidenced` (12 RED cases), `TestTodo_WF_RUN_000_{Golden,Integration,Conformance}` in `tools/policy/runtimedecision`; record at `definitions/runtime/durable-runtime-decision.yaml`; `go test -count=1 ./tools/policy/runtimedecision/...` PASS. Decision: BUILD on the in-house Postgres outbox/projection primitives for P1A; Temporal, Restate, DBOS Transact and river recorded as not yet evaluated against a conformance fixture (no invented benchmarks); blocking re-evaluation gate before any P1B scheduler/lease/timer code; branch plan-revision-2026-09-02; on windows/arm64 (Go 1.26.3)"
   },
   {
@@ -45211,7 +45235,7 @@
     "refactor": "deterministic crash failpoints cover every persistence boundary",
     "refs": "[Workflow recovery](specs/workflow-runtime.md), [Gate B process-death acceptance](execution-plan.md#gate-b-acceptance--limited-write-authority)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_003` in `internal/workflow/recover` (internal/workflow/recover reclaims a node whose worker died: the lease expires, the node returns to READY with its attempt counted and no duplicate effect is emitted; written by an Opus subagent and verified independently); `go test -count=1 ./internal/workflow/recover/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
@@ -45262,7 +45286,7 @@
     "refactor": "continuation consumes reference, not unrestricted raw payload",
     "refs": "[Workflow signals](specs/workflow-runtime.md), [SIGNAL step](workflows/_engine/step-types.md#6-signal)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_005`, `TestTodo_WF_RUN_005_Fault`, `TestTodo_WF_RUN_005_Mutation`, `TestTodo_WF_RUN_005_Race`, `TestTodo_WF_RUN_005_Security` in `internal/data/signals` (written in 14442de on 2026-09-06 and never ticked; the named tests prove the GREEN contract: receipt, dedupe reservation, subscription match and continuation enqueue commit atomically; all dispositions remain inspectable); `go test -count=1 ./internal/data/signals/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
@@ -45287,7 +45311,7 @@
     "refactor": "domain/provider error mapping stays separate from retry scheduling",
     "refs": "[Workflow retries](specs/workflow-runtime.md), [overload principle](plan.md#519-platform-correctness-is-business-correctness)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_006`, `_Race`, `_Fault`, `_Mutation` in `internal/workflow/runtime` (`retry.go`: `Decide` routes one failure to RETRY with capped-exponential-plus-jitter delay or TERMINAL with NONRETRYABLE/DO_NOT_RETRY/BUDGET_EXHAUSTED/DEADLINE_EXCEEDED/ATTEMPTS_EXHAUSTED; caller-mapped DO_NOT_RETRY wins, provider mapping stays out; every scheduled retry spends one propagated admission token under a replay-safe identity so nested layers share the budget instead of multiplying attempts); race schedules 16 concurrent retries to exact consumption; fault covers invalid policy/identity/budget/scope with zero spend; mutation covers jitter capping, replay identity, unknown kinds and the exact deadline boundary; `go test -count=1 ./internal/workflow/runtime/` PASS on windows/arm64 (Go 1.26.3); branch fix/unblock-main-gateclosure. (RACE gate is concurrency-determinism, not `-race`: no cgo/gcc toolchain in this environment.)"
   },
   {
@@ -45312,7 +45336,7 @@
     "refactor": "dead-letter storage is an operations projection, not a terminal business state",
     "refs": "[Workflow poison behavior](specs/workflow-runtime.md), [incident spec](specs/incident-management.md)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_007`, `_Golden`, `_Race`, `_Fault`, `_Mutation` in `internal/workflow/runtime` (`quarantine.go`: `Admit` routes only terminal retry outcomes — RETRY work is never poison; budget exhaustion with a repair route lands REPAIR_REQUIRED, permanent/do-not-retry/deadline/attempts land BLOCKED with an operator decision, ambiguity lands QUARANTINED with owner plus next action; every record seals attempts/error/ambiguity/idempotency/owner/SLA/action/route; idempotent `QuarantineLedger` retains by key and refuses ghosts); golden `testdata/wfrun007_quarantine.golden` pins the record; race files 16 concurrent records; fault covers retryable/anonymous/identity-less/zero-attempt/owner-less/ghost cases; mutation covers seal edits, do-not-retry, deadline and attempts routes; `go test -count=1 -run TestTodo_WF_RUN_007 ./internal/workflow/runtime/` PASS on windows/arm64 (Go 1.26.3); branch fix/unblock-main-gateclosure. (RACE gate is concurrency-determinism, not `-race`: no cgo/gcc toolchain in this environment.)"
   },
   {
@@ -45338,7 +45362,7 @@
     "refactor": "instance pause is distinct from version/workload quarantine",
     "refs": "[Workflow pause](specs/workflow-runtime.md), [safe points](specs/workflow-runtime.md#safe-points-and-atomic-regions)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_008`, `TestTodo_WF_RUN_008_{Golden,Race,Fault,Mutation}`, `TestPause_RequestValidationRefusesBeforeAnyRead`, `TestPause_ResumeValidationRefusesBeforeAnyRead`, `TestPause_RefusalCodesAreStable` in `internal/workflow/runtime` and `TestResumeRefusesWhileTheInstanceIsPaused` in `internal/workflow/execute` (pause/resume as governed transitions in the durable transition table, Advance gated while paused, malformed requests refused before any read, an unfenced resume refused while a replayed pause is answered from the stored row, checkpoints in `workflow_checkpoint`); `go test -count=1 ./internal/workflow/runtime/ ./internal/workflow/execute/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
@@ -45363,7 +45387,7 @@
     "refactor": "version quarantine does not disable unrelated capabilities/versions",
     "refs": "[Bad-version response](plan.md#16-strategic-decisions), [workflow runtime](specs/workflow-runtime.md)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_009` in `internal/workflow/quarantine` (a quarantine record for a workflow definition version with reason, evidence ref, declarer and distinct approver that refuses new starts on that version and flags live instances for a migration-preview decision, lifted only by a distinct reviewer through a new record, every action a digested event; written by a codex GPT-5.6 Luna lane and verified independently); `go test -count=1 ./internal/workflow/quarantine/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
@@ -45389,7 +45413,7 @@
     "refactor": "each node/capability declares cancellation semantics",
     "refs": "[Workflow cancellation](specs/workflow-runtime.md), [cancellation reference sample](workflows/samples/equipment-shipment-cancellation.md)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_010` (clean cancel with per-child reports and intact history; irreversible effects route to compensation; uncompensatable effects and uncancellable children refuse; unknown states repair; identity-free requests refused), `TestTodo_WF_RUN_010_Race` (16 concurrent decisions converge), `TestTodo_WF_RUN_010_Fault` (identity gaps refused; effect-free idle cancels clean), `TestTodo_WF_RUN_010_Mutation` (compensated/completed children cancel clean; digests bind run identity) in `internal/workflow` (cancel.go reusing subworkflow.PropagateCancellation reports; pure decision, no goroutines, no history deletion); RED shown as undefined-symbol compile failure; full `go test -count=1 ./internal/workflow/` PASS, `go vet` clean, gofmt clean, cover 88.5%; branch fix/unblock-main-gateclosure"
   },
   {
@@ -45467,7 +45491,7 @@
     "refactor": "historical evidence remains immutable",
     "refs": "[Workflow replay](specs/workflow-runtime.md), [reproducibility](plan.md#93-reproducibility-contract)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_013` in `internal/workflow/replay` (a Replayer re-executes a compiled definition from an instance's durable record taking every node input from recorded outputs, signals and timers, clock and randomness answered from the record or refused as REPLAY_ARTIFACT_UNAVAILABLE, adapters replaced by a Recorder that refuses any external effect naming the node, admitted only under the REPLAY ModeContract with all sixteen other INTENT-023 rows refused and CausalSeparation enforced, the Trace reproducing the recorded digest with a typed Divergence naming the first differing node, a paused instance stopping at PAUSED_AT_FRONTIER, causal ordering of continuations over a fixed-clock run, and a pgtest-backed replay of a real Promotion run from the durable rows alone; StoreSource returns no signals or timers until the timer lane lands; written by a codex GPT-5.6 Luna lane and verified independently); `go test -count=1 ./internal/workflow/replay/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
@@ -45519,7 +45543,7 @@
     "refactor": "ordinary operators never update workflow tables directly",
     "refs": "[Intervention model](plan.md#16-strategic-decisions), [workflow runtime](specs/workflow-runtime.md)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_015` in `internal/workflow/intervention` (closed typed interventions (PAUSE, RESUME, SKIP_STEP, RETRY_STEP, REASSIGN, CANCEL, FORCE_COMPLETE_WITH_EVIDENCE) with required fields, eligibility through the WF-COMP-004 readers so an ineligible region refuses, separation of duties where the kind demands it, and a digested intervention receipt; no free-form intervention exists; written by a codex GPT-5.6 Luna lane and verified independently); `go test -count=1 ./internal/workflow/intervention/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
@@ -45547,7 +45571,7 @@
     "refactor": "repaired business facts change through domain correction capabilities",
     "refs": "[Repair specification](specs/transaction-ledger-reconciliation-and-repair.md), [workflow repair mode](specs/workflow-runtime.md)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_016` in `internal/workflow/execute`, `test/workflow` (a RepairPlan executes under its own execution mode with the original semantic idempotency identity, redriving only the failed effect of a promotion that ended at end_repair_plan and flipping the intent's consistency through RECON-002, proven on the Promotion fixture; written by a codex GPT-5.6 Luna lane and verified independently); `go test -count=1 ./internal/workflow/execute/ ./test/workflow/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
@@ -45628,7 +45652,7 @@
     "refactor": "product screens consume operational projections, not reconstruct every view from runtime tables",
     "refs": "[Execution inspector](specs/workflow-runtime.md), [HRIS DataOps](specs/hris-admin-dataops.md)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_019` and `TestTodo_WF_RUN_019_Golden` (`testdata/wfrun019_operator_view.json` pins the full definition, instance, node, governance, transaction, connector, observation and trace traversal with current node, attempt, retry-policy, proposal, baseline, policy, effect and repair refs), `TestTodo_WF_RUN_019_Race` (eight concurrent projections byte-identical, inputs unmutated), `TestTodo_WF_RUN_019_Integration` (round trip through PostgreSQL arrays and jsonb before projecting), `TestTodo_WF_RUN_019_Fault` (non-disclosable instance returns `ErrNotDisclosable` without leaking ids, denied protected fields render as `REDACTED` refs absent from the rendered bytes, a denied stage is named not dropped, a frontier node without an execution is reported in `Completeness.Gaps`) in `internal/workflow/inspect`; `go test -count=1 ./internal/workflow/...` PASS via embedded-postgres on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
@@ -45681,7 +45705,7 @@
     "refactor": "limits resolve by tenant/capability/criticality/control snapshot",
     "refs": "[Runtime resource controls](specs/workflow-runtime.md), [quantitative contract](plan.md#113-quantitative-service-and-capacity-contract)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_RUN_021` plus `TestTodo_WF_RUN_021_Race`, `_Fault` and `_Mutation` in `internal/workflow` (`workload.go`: pure `AdmitWorkload` of branch/child/payload/concurrent/cost demand against limits resolved for the request's tenant/capability/criticality/control snapshot; structural excess returns non-retryable `OVERLOADED`, concurrency/cost pressure returns retryable `ADMISSION_DEFERRED` with the durable intent ref intact, scope drift or malformed policy/request fails closed under `ErrWorkload`; verdicts map onto the owned `admission` vocabulary); RED observed (undefined symbols); `go test -count=1` PASS 4/4, `go vet`/`gofmt` clean (`-race` unavailable locally, race test written for CI); Go 1.26.3 windows/arm64; branch main"
   },
   {
@@ -46022,6 +46046,175 @@
     "evidence": "`TestTimerIDForAttempt_QualifiesLaterActivationsOnly`, `TestReadyWorkID_IsDerivedPerNodeAttempt` in `internal/workflow/timer`; `TestNextAttemptForNumbersARevisitAfterThePriorAttempt` in `internal/workflow/runtime`; `TestHighestAttemptAddressesTheOpenActivation` in `internal/workflow/execute`; `TestWaitAttemptNamesTheContinuationActivation` in `internal/platform/execution`; `go test -count=1 ./internal/workflow/timer/ ./internal/workflow/runtime/ ./internal/workflow/execute/ ./internal/platform/execution/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
+    "id": "WF-RUN-034",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Execute real promotion steps through the capability gateway on the served path",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "WF-RUN-002",
+      "CAP-002",
+      "EP-PROMO-001"
+    ],
+    "test": "TestTodo_WF_RUN_034",
+    "test_matrix": {
+      "FAULT": "TestTodo_WF_RUN_034_Fault",
+      "INTEGRATION": "TestTodo_WF_RUN_034_Integration",
+      "MUTATION": "TestTodo_WF_RUN_034_Mutation",
+      "PRIMARY": "TestTodo_WF_RUN_034",
+      "SECURITY": "TestTodo_WF_RUN_034_Security"
+    },
+    "red": "served EXECUTE returns SUCCEEDED/VALID/PASS for CAPABILITY, DECISION and OBSERVE nodes without evaluating them (`runExecuteStep` in `internal/platform/execution/execution.go`), and no EXECUTE node passes the capability gateway",
+    "green": "the composed serve path runs `promotionsteps` for every node, each capability invocation passes the gateway with principal, purpose, deadline, idempotency key and declared effect set, a denied or failed decision routes its real outcome, and no fabricated outcome remains reachable",
+    "refactor": "delete the stub runner; one step-runner composition serves execute and simulate modes",
+    "refs": "[capability invocation contract](specs/workflow-runtime.md), `internal/platform/execution`, `internal/platform/execution/promotionsteps`, `internal/capability`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "WF-RUN-035",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Persist execution evidence, the version registry and operator control receipts",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "WF-COMP-006",
+      "EP-WF-002",
+      "OBS-024"
+    ],
+    "test": "TestTodo_WF_RUN_035",
+    "test_matrix": {
+      "INTEGRATION": "TestTodo_WF_RUN_035_Integration",
+      "PRIMARY": "TestTodo_WF_RUN_035",
+      "RECOVERY": "TestTodo_WF_RUN_035_Recovery",
+      "SECURITY": "TestTodo_WF_RUN_035_Security"
+    },
+    "red": "serve uses `version.NewRegistry()` self-activated with `Authorized: true`, `MemoryEvidenceSink` and `operator.NewMemoryJournal()`; a restart loses activation authority, quarantine, capability evidence and control receipts",
+    "green": "versions, activation approvals, execution/capability evidence and operator receipts are tenant-scoped durable rows; a recomposed server replays receipts without re-executing and refuses unapproved activation",
+    "refactor": "in-memory stores remain test doubles only; a composition test fails if serve wires one",
+    "refs": "[storage and evidence boundaries](specs/workflow-runtime.md), `internal/platform/execution`, `internal/intent/app`, `internal/workflow/version`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "WF-RUN-036",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Fence the production commit path and keep the scheduler fence through timer resume",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "WF-RUN-002",
+      "WF-RUN-004"
+    ],
+    "test": "TestTodo_WF_RUN_036",
+    "test_matrix": {
+      "FAULT": "TestTodo_WF_RUN_036_Fault",
+      "MUTATION": "TestTodo_WF_RUN_036_Mutation",
+      "PRIMARY": "TestTodo_WF_RUN_036",
+      "RACE": "TestTodo_WF_RUN_036_Race"
+    },
+    "red": "the served driver has no Fence and `Cell.ResumeFiredTimer` drops the scheduler's instance fence, so only instance-version CAS protects commits while step effects run outside the transaction",
+    "green": "every served advance and timer resume verifies the held lease fence in the commit transaction; a superseded holder is refused before any effect and after partition",
+    "refactor": "fence propagation is one context value, not per-call plumbing",
+    "refs": "[leases and fencing](specs/workflow-runtime.md), `internal/workflow/execute`, `internal/intent/app/timer_resume.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "WF-RUN-037",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Classify authoritative core, downstream effects and derived updates",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "WF-COMP-003",
+      "EFFECT-001"
+    ],
+    "test": "TestTodo_WF_RUN_037",
+    "test_matrix": {
+      "CONFORMANCE": "TestTodo_WF_RUN_037_Conformance",
+      "FAULT": "TestTodo_WF_RUN_037_Fault",
+      "PRIMARY": "TestTodo_WF_RUN_037",
+      "PROPERTY": "TestTodo_WF_RUN_037_Property"
+    },
+    "red": "no node is classified AUTHORITATIVE_CORE, DOWNSTREAM_EFFECT or DERIVED_UPDATE, so a failed downstream effect can roll back or mask the authoritative outcome",
+    "green": "the compiler requires the classification, the runtime commits the core independently, downstream failures route to reconciliation, and derived updates rebuild from the core",
+    "refactor": "reuse the effect-class vocabulary rather than a parallel enum",
+    "refs": "[authoritative core versus downstream effects](specs/workflow-runtime.md)",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "WF-RUN-038",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Record execution fingerprints and a blast-radius index",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "WF-RUN-002",
+      "WF-COMP-006"
+    ],
+    "test": "TestTodo_WF_RUN_038",
+    "test_matrix": {
+      "GOLDEN": "TestTodo_WF_RUN_038_Golden",
+      "INTEGRATION": "TestTodo_WF_RUN_038_Integration",
+      "PRIMARY": "TestTodo_WF_RUN_038"
+    },
+    "red": "only a start digest exists; policy, mapping, connector, model and runtime versions used per execution are not recorded or queryable",
+    "green": "each node execution records its version fingerprint and a tenant-scoped index answers which instances a version touched",
+    "refactor": "the fingerprint is derived from pinned plan facts, not recomputed",
+    "refs": "[execution fingerprint](specs/workflow-runtime.md)",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "WF-RUN-039",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Track bypass obligations and separate repair authority",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "WF-RUN-015",
+      "INTENT-022"
+    ],
+    "test": "TestTodo_WF_RUN_039",
+    "test_matrix": {
+      "MUTATION": "TestTodo_WF_RUN_039_Mutation",
+      "PRIMARY": "TestTodo_WF_RUN_039",
+      "RECOVERY": "TestTodo_WF_RUN_039_Recovery",
+      "SECURITY": "TestTodo_WF_RUN_039_Security"
+    },
+    "red": "no bypass obligation model, no overdue-review suspension, and no workflow.repair, override or migrate authority families; an approver can act as the repair operator",
+    "green": "every bypass or break-glass records obligations with due review, overdue obligations suspend the capability, repair/override/migrate are distinct operator kinds, and approver and repair operator must differ",
+    "refactor": "obligations reuse the operator gateway journal",
+    "refs": "[bypass obligations](specs/workflow-runtime.md), [separate repair authority](specs/workflow-runtime.md), `internal/intent/operator`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "WF-RUN-040",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Enforce execution mode per node at runtime and carry a typed execution context",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "WF-COMP-003",
+      "WF-RUN-002"
+    ],
+    "test": "TestTodo_WF_RUN_040",
+    "test_matrix": {
+      "MUTATION": "TestTodo_WF_RUN_040_Mutation",
+      "PRIMARY": "TestTodo_WF_RUN_040",
+      "SECURITY": "TestTodo_WF_RUN_040_Security"
+    },
+    "red": "the driver never checks instance mode against a node's allowed modes, ExecuteIntent hardcodes EXECUTE, and no WorkflowExecutionContext (locale, legal, entitlement, risk, runtime version) reaches steps",
+    "green": "the driver refuses a node outside its compiled modes before any effect, and every step receives an immutable typed execution context pinned at start",
+    "refactor": "simulate, replay and shadow share the same mode gate",
+    "refs": "[execution modes](specs/workflow-runtime.md), [execution context](specs/workflow-runtime.md)",
+    "retired": false,
+    "done": false
+  },
+  {
     "id": "WF-STEP-001",
     "phase": "GATE_A",
     "model": "SOL_HIGH",
@@ -46097,7 +46290,7 @@
     "refactor": "approval task is a HumanTask specialization, not a separate queue engine",
     "refs": "[APPROVAL step](workflows/_engine/step-types.md#3-approval), [workflow runtime](specs/workflow-runtime.md)",
     "retired": false,
-    "done": true,
+    "done": false,
     "evidence": "`TestTodo_WF_STEP_003` (pure `Resolve` over the APPROVAL-001 requirement: quorum and separation of duties, exactly one of APPROVED, REJECTED, INVALIDATED, EXPIRED, CANCELLED, duplicate identical vote replays the original decision, conflicting duplicate, wrong candidate, missing quorum, expired requirement and stale proposal or authority digest cannot approve; plus a store round trip `Open` to `Route`, `Claim`, `Start`, `Complete`, `Resolve` against a Postgres-backed `workitem.Store`, with a second `Complete` refused by the store's transition guard), `TestTodo_WF_STEP_003_Conformance`, `TestTodo_WF_STEP_003_Mutation` in `internal/workflow/steps/approval` (`Open` creates the ApprovalTask work item pinned to the proposal revision and control snapshot digests; ApprovalTask is a kind on the WorkItem table, not a second queue); `go test -count=1 ./internal/workflow/steps/...` PASS via embedded-postgres on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
@@ -46478,6 +46671,30 @@
     "retired": false,
     "done": true,
     "evidence": "`TestTodo_WF_STEP_017`, `_Mutation` (END over the five dimensions delegated to `lifecycle.Check`) in `internal/workflow` (`Compile`, `CompiledWorkflow` with digest and `Verify`, `CheckStepConformance`, JSON loader, promotion reference golden `testdata/promotion_plan.json`); `go test -count=1 ./internal/workflow/...` PASS; branch plan-revision-2026-09-02; on windows/arm64 (Go 1.26.3)"
+  },
+  {
+    "id": "WF-STEP-018",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Complete multi-approver quorum, invalidation and atomic decision-advance",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "WF-STEP-003",
+      "APPROVAL-007"
+    ],
+    "test": "TestTodo_WF_STEP_018",
+    "test_matrix": {
+      "FAULT": "TestTodo_WF_STEP_018_Fault",
+      "PRIMARY": "TestTodo_WF_STEP_018",
+      "RACE": "TestTodo_WF_STEP_018_Race",
+      "SECURITY": "TestTodo_WF_STEP_018_Security"
+    },
+    "red": "quorum greater than one cannot complete, requirement invalidators never fire, and the approval decision and workflow advance commit in separate transactions",
+    "green": "quorum and distinct-approver rules complete correctly, material changes fire invalidators that withdraw pending decisions, and decision plus advance commit atomically or not at all",
+    "refactor": "the promotion journey uses the generic approval kernel rather than a promotion-specific path",
+    "refs": "[approval and human work kernel](specs/workflow-runtime.md), `internal/workflow/steps/approval`, `internal/humanwork`",
+    "retired": false,
+    "done": false
   },
   {
     "id": "WORK-001",
