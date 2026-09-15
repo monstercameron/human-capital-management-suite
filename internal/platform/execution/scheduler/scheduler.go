@@ -126,6 +126,9 @@ type Config struct {
 
 	Roles      RoleConfig
 	SignalRole SignalRole
+	// RecoveryRole redelivers instances a dead driver left READY with no ready
+	// work (WF-RUN-003). Nil runs no recovery sweep.
+	RecoveryRole RecoveryRole
 }
 
 // nilTenant is the zero identifier value. It is read off a zero request
@@ -244,12 +247,14 @@ type TickResult struct {
 	Abandoned int
 	// Signals counts signal receipts evaluated by the enabled signal role.
 	Signals int
+	// Redelivered counts orphaned instances the recovery role redelivered.
+	Redelivered int
 }
 
 // Idle reports a tick that found nothing to do, which is what
 // [Scheduler.Run] sleeps on.
 func (r TickResult) Idle() bool {
-	return r.Fired == 0 && r.Skipped == 0 && r.Recovered == 0 && r.Claimed == 0 && r.Signals == 0
+	return r.Fired == 0 && r.Skipped == 0 && r.Recovered == 0 && r.Claimed == 0 && r.Signals == 0 && r.Redelivered == 0
 }
 
 func (r *TickResult) add(other TickResult) {
@@ -266,6 +271,7 @@ func (r *TickResult) add(other TickResult) {
 	r.Retried += other.Retried
 	r.Abandoned += other.Abandoned
 	r.Signals += other.Signals
+	r.Redelivered += other.Redelivered
 }
 
 // Run ticks until ctx is canceled, sleeping poll between ticks that found
@@ -368,6 +374,9 @@ func (s *Scheduler) serve(ctx context.Context, claim lease.AcquireRequest, now t
 	if err != nil {
 		return out, err
 	}
+	// A failed redelivery leaves the sweeper's own claim to lapse and is retried
+	// by a later sweep; it must not stop this tick claiming ready work.
+	out.Redelivered, _ = runRecoveryRole(ctx, s.cfg.RecoveryRole, s.cfg.Logger, claim, now)
 	if held && s.cfg.Roles.SignalEnabled && s.cfg.SignalRole != nil {
 		count, signalErr := runSignalRole(ctx, s.cfg.SignalRole, claim, grant.Fence, now, s.cfg.Roles.SignalShard)
 		out.Signals = count

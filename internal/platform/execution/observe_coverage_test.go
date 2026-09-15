@@ -33,6 +33,9 @@ var executionUninstrumentedByDesign = map[string]string{
 	"signal_resume.go executeDriverAdapter.ResumeSignal":          "delegates to the instrumented driver",
 	"scheduler/signal_dispatch.go SignalResumerFunc.ResumeSignal": "function adapter",
 
+	// WF-RUN-003: the recovery role redelivers through the instrumented driver.
+	"ready_redelivery.go executeDriverAdapter.RedeliverReady": "delegates to the instrumented driver",
+
 	// A pure step decision with no I/O, run inside the driver's own node span
 	// (execute.Instrumentation.StartNodeSpan). It does not call promotionsteps:
 	// the served EXECUTE path is still stubbed (WF-RUN-034).

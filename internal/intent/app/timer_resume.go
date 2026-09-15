@@ -6,9 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -143,48 +141,14 @@ func (c *Cell) prepareParkedResume(ctx context.Context, kind, instanceID, nodeID
 	if !foundNode {
 		return parkedResume{}, fmt.Errorf("%w: app: %s node %q is not on instance frontier", ErrParkedResumeStale, what, nodeID)
 	}
-	sourceRef, err := locate(ctx, tx, tenantID, parsedInstanceID)
-	if err != nil {
+	// locate proves the parked node's source record exists before resuming.
+	if _, err := locate(ctx, tx, tenantID, parsedInstanceID); err != nil {
 		return parkedResume{}, err
 	}
 
-	reader, ok := c.Service.store.(intentCorrelationReader)
-	if !ok {
-		return parkedResume{}, fmt.Errorf("app: intent store cannot resolve workflow correlation")
-	}
-	intentRecord, err := reader.LoadIntentByCorrelation(ctx, tenant, instance.CorrelationID)
-	if err != nil {
-		return parkedResume{}, fmt.Errorf("app: resolve %s instance intent: %w", kind, err)
-	}
-	intentInstance, err := decodeEnvelope(intentRecord.Envelope)
+	start, intentInstance, intentRecord, err := c.parkedExecutionStart(ctx, tx, tenant, tenantID, instance, what)
 	if err != nil {
 		return parkedResume{}, err
-	}
-	intentID, err := executionIntentUUID(intentInstance.IntentID)
-	if err != nil {
-		return parkedResume{}, err
-	}
-	stored, err := (intentcontrol.RevisionStore{}).Load(ctx, tx, tenantID, intentID, simulationRevision)
-	if err != nil {
-		return parkedResume{}, fmt.Errorf("app: load stored proposal revision: %w", err)
-	}
-	revision, err := intentcontrol.DecodeFullProposal(stored.Payload, fullProposalVerifier{c.Service.digester})
-	if err != nil {
-		return parkedResume{}, fmt.Errorf("app: %s legacy/tampered proposal: %w", what, err)
-	}
-	if stored.TenantID != tenantID || stored.IntentID != intentID || stored.Revision != simulationRevision ||
-		stored.SchemaRef != executionProposalSchemaRef || stored.ProposalDigest != stored.MaterialDigest ||
-		revision.Tenant != values.TenantId(tenant) || revision.IntentID != intentInstance.IntentID || revision.Revision != simulationRevision ||
-		revision.MaterialDigest.Digest != stored.MaterialDigest {
-		return parkedResume{}, fmt.Errorf("app: %s proposal identity mismatch", what)
-	}
-	artifact := &intentsv1.SimulationArtifact{
-		IntentId: intentInstance.IntentID, ProposalRevisionId: revision.ProposalRevisionID,
-		MaterialProposalDigest: revision.MaterialDigest.ToProto(),
-	}
-	start, startErr := c.Service.executionStart(intentInstance, artifact, sourceRef, revision)
-	if startErr != nil {
-		return parkedResume{}, startErr
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return parkedResume{}, fmt.Errorf("app: commit %s preparation: %w", what, err)

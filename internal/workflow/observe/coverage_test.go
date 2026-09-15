@@ -85,6 +85,8 @@ var uninstrumentedByDesign = map[string]string{
 	"execute/fence.go WithFence": "context value helper; the fence it carries is verified inside the instrumented advance",
 	"version/durable.go BindTx":  "binds a store to the caller's transaction without I/O; the resolve it serves runs inside the instrumented start",
 
+	"execute/redeliver.go FenceFromContext": "context value reader; the fence it returns is verified inside the instrumented guarded step",
+
 	"observe/observe.go Begin":        "the seam",
 	"observe/observe.go Start":        "the seam",
 	"observe/observe.go WithRecorder": "the seam",

@@ -67,6 +67,15 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 	if err != nil {
 		return bootstrap.Workload{}, err
 	}
+	// WF-RUN-003: the same replica sweeps for instances a dead driver left
+	// READY with no ready work, and redelivers each under a lease takeover.
+	recovery, err := composeRecoveryRole(pool, identity, claimTenant.String(), cfg.Tenant,
+		func(ctx context.Context, instanceID string, expectedVersion int64) (app.ExecutionResult, error) {
+			return cell.RedeliverReady(ctx, instanceID, expectedVersion)
+		})
+	if err != nil {
+		return bootstrap.Workload{}, err
+	}
 	runner, err := executionscheduler.New(executionscheduler.Config{
 		DB: pool,
 		Claims: []lease.AcquireRequest{{
@@ -78,6 +87,7 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 		Misfire:    schedule.MisfireConfig{Policy: schedule.MisfireCatchUpOnce, Grace: time.Hour, MaxCatchUp: 1},
 		Dispatcher: signals.Route(dispatcher), Logger: logger, Clock: now,
 		Recorder: schedulerRecorder(provider, logger, now), SignalRole: signals,
+		RecoveryRole: recovery,
 	})
 	if err != nil {
 		return bootstrap.Workload{}, err
