@@ -46064,7 +46064,7 @@
       "PRIMARY": "TestTodo_WF_RUN_034",
       "SECURITY": "TestTodo_WF_RUN_034_Security"
     },
-    "red": "served EXECUTE returns SUCCEEDED/VALID/PASS for CAPABILITY, DECISION and OBSERVE nodes without evaluating them (`runExecuteStep` in `internal/platform/execution/execution.go`), and no EXECUTE node passes the capability gateway",
+    "red": "served EXECUTE returns SUCCEEDED/VALID/PASS for CAPABILITY, DECISION and OBSERVE nodes without evaluating them (`runExecuteStep` in `internal/platform/execution/execution.go`), and no EXECUTE node passes the capability gateway. Serve composes only `effects.LedgerTerminalWriter`, so a served promotion records its terminal outcome event but never applies the bounded domain commit (`internal/data/promotioncommit` is reachable only from tests), and the commit cannot run at `execute_promotion` because steps run outside the advance transaction",
     "green": "the composed serve path runs `promotionsteps` for every node, each capability invocation passes the gateway with principal, purpose, deadline, idempotency key and declared effect set, a denied or failed decision routes its real outcome, and no fabricated outcome remains reachable",
     "refactor": "delete the stub runner; one step-runner composition serves execute and simulate modes",
     "refs": "[capability invocation contract](specs/workflow-runtime.md), `internal/platform/execution`, `internal/platform/execution/promotionsteps`, `internal/capability`",

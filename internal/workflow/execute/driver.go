@@ -403,36 +403,19 @@ func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, 
 			return Result{}, err
 		}
 		at := d.opts.Clock().UTC()
-		nodeCtx, nodeSpan := d.opts.Instrumentation.StartNodeSpan(ctx, SpanAttributes{
-			InstanceID: run.instanceID.String(), NodeID: nodeID, Attempt: attempt,
-		})
-		outcome, refs, err := d.opts.Steps.Run(nodeCtx, StepRequest{
+		req := StepRequest{
 			TenantID: run.start.TenantID, InstanceID: run.instanceID,
 			InstanceVersion: result.InstanceVersion, Attempt: attempt,
 			Node: node, Plan: run.selection.Plan, Proposal: run.start.Proposal,
 			CorrelationID: run.start.CorrelationID, RecordedAt: at,
 			TraceID: run.traceID,
-		})
+		}
+		inputs, err := d.stepInputs(ctx, run, req, attempt)
 		if err != nil {
-			nodeSpan.End(OutcomeFailure, err)
-			return Result{}, fmt.Errorf("workflow execute: run node %s: %w", nodeID, err)
+			return Result{}, err
 		}
-		if outcome.NodeID == "" {
-			outcome.NodeID = nodeID
-		} else if outcome.NodeID != nodeID {
-			nodeSpan.End(OutcomeFailure, nil)
-			return Result{}, invalid("StepRunner returned outcome for %s while running %s", outcome.NodeID, nodeID)
-		}
-		nodeOutcome := OutcomeSuccess
-		if outcome.Failed {
-			nodeOutcome = OutcomeFailure
-		}
-		nodeSpan.End(nodeOutcome, nil)
 
-		advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, result.InstanceVersion, at, attempt,
-			func(context.Context, runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
-				return outcome, refs, nil, nil
-			})
+		advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, result.InstanceVersion, at, attempt, inputs)
 		if err != nil {
 			return Result{}, err
 		}
@@ -516,6 +499,69 @@ func (d *Driver) prepareReadyAttempt(
 		return 0, fmt.Errorf("workflow execute: commit retry preparation for %s: %w", node.ID, err)
 	}
 	return attempt, nil
+}
+
+// stepInputs runs one READY node and returns the advancement inputs for it.
+// A node the configured runner does not claim through
+// [TransactionalStepRunner] runs here, before the advance transaction opens,
+// and its outcome is fed in as a constant. A claimed node runs inside the
+// advance transaction instead, so its domain write and the node's recorded
+// outcome commit together or not at all.
+func (d *Driver) stepInputs(ctx context.Context, run runContext, req StepRequest, attempt int) (advanceInputsFunc, error) {
+	nodeID := req.Node.ID
+	check := func(outcome frontier.NodeOutcome) (frontier.NodeOutcome, error) {
+		if outcome.NodeID == "" {
+			outcome.NodeID = nodeID
+		} else if outcome.NodeID != nodeID {
+			return frontier.NodeOutcome{}, invalid("StepRunner returned outcome for %s while running %s", outcome.NodeID, nodeID)
+		}
+		return outcome, nil
+	}
+	span := func(stepCtx context.Context) (context.Context, Span) {
+		return d.opts.Instrumentation.StartNodeSpan(stepCtx, SpanAttributes{
+			InstanceID: run.instanceID.String(), NodeID: nodeID, Attempt: attempt,
+		})
+	}
+	end := func(s Span, outcome frontier.NodeOutcome, err error) {
+		switch {
+		case err != nil:
+			s.End(OutcomeFailure, err)
+		case outcome.Failed:
+			s.End(OutcomeFailure, nil)
+		default:
+			s.End(OutcomeSuccess, nil)
+		}
+	}
+
+	if tr, ok := d.opts.Steps.(TransactionalStepRunner); ok && tr.RunsInTransaction(req.Node) {
+		return func(txCtx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
+			nodeCtx, nodeSpan := span(txCtx)
+			outcome, refs, err := tr.RunInTx(nodeCtx, ex, req)
+			if err == nil {
+				outcome, err = check(outcome)
+			}
+			end(nodeSpan, outcome, err)
+			if err != nil {
+				return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, nil, fmt.Errorf("workflow execute: run node %s in transaction: %w", nodeID, err)
+			}
+			return outcome, refs, nil, nil
+		}, nil
+	}
+
+	nodeCtx, nodeSpan := span(ctx)
+	outcome, refs, err := d.opts.Steps.Run(nodeCtx, req)
+	if err != nil {
+		end(nodeSpan, outcome, err)
+		return nil, fmt.Errorf("workflow execute: run node %s: %w", nodeID, err)
+	}
+	outcome, err = check(outcome)
+	end(nodeSpan, outcome, err)
+	if err != nil {
+		return nil, err
+	}
+	return func(context.Context, runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
+		return outcome, refs, nil, nil
+	}, nil
 }
 
 // advanceInputsFunc produces the [frontier.NodeOutcome] and

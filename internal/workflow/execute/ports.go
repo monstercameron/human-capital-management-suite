@@ -71,6 +71,18 @@ type StepRunner interface {
 	Run(ctx context.Context, req StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error)
 }
 
+// TransactionalStepRunner is an optional [StepRunner] extension for nodes
+// whose effect must commit atomically with the node's advancement. For a node
+// RunsInTransaction claims, the driver calls RunInTx inside the same tenant
+// transaction that records the outcome and derives continuations, instead of
+// calling Run before that transaction opens. An error or a failed commit
+// rolls back the step's writes together with the advancement.
+type TransactionalStepRunner interface {
+	StepRunner
+	RunsInTransaction(node workflow.CompiledNode) bool
+	RunInTx(ctx context.Context, ex runtime.Executor, req StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error)
+}
+
 // WorkItemRequest asks the human-work adapter to create and route the item a
 // WORK_ITEM_REQUIRED continuation describes. WorkItemID is deterministic and
 // must be used as supplied.
