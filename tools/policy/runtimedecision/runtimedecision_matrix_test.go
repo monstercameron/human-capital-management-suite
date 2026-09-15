@@ -1,6 +1,8 @@
 package runtimedecision_test
 
 import (
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -17,21 +19,24 @@ import (
 // order, every run, so a CI diff on this check's output is meaningful
 // rather than order-flaky.
 func TestTodo_WF_RUN_000_Golden(t *testing.T) {
-	// Strip every optional-looking signature/evidence field at once to
-	// pin down an exact, multi-finding output.
+	// Strip the signature, the selected candidate's evidence and one
+	// non-negotiable's decided result at once to pin down an exact,
+	// multi-finding output.
 	broken := strings.NewReplacer(
-		`  signed_by: "test-owner"
+		`  signed_by: "someone (owner)"
 `, "",
 		`    evidence:
       - description: "evidence file"
         path: "EVIDENCE_FILE.md"
         status: EXISTS
 `, "",
+		"result: FAIL\n", "result: UNKNOWN\n",
 	).Replace(minimalCompleteYAML)
 
 	root, path := writeRepoWithRecord(t, broken)
 
 	want := []string{
+		`candidate "Temporal": evaluation[NN3].result "UNKNOWN" is not a decision: every non-negotiable must be PASS, FAIL or PARTIAL (UNKNOWN and PENDING are refused)`,
 		`selected candidate "In-house" has no evidence entries`,
 		"selected_option.signed_by is required (an unsigned choice is not a decision)",
 	}
@@ -50,25 +55,32 @@ func TestTodo_WF_RUN_000_Golden(t *testing.T) {
 	}
 }
 
-// p1bRuntimeDirs are the durable-runtime implementation directories the
-// go-only-technology-constitution / workflow-runtime.md "Go-Only
-// Implementation Shape" section names as P1B scheduler code. WF-RUN-000's
-// RED clause is violated if any of these exist before the decision record
-// does.
+// p1bRuntimeDirs are the durable-runtime scheduler, lease, timer and
+// recovery directories the WF-RUN-000 gate governs: the ones that have
+// landed (internal/workflow/lease, internal/workflow/timer,
+// internal/workflow/recover, internal/platform/execution/scheduler) and the
+// names the go-only implementation shape reserves for future ones
+// (internal/workflow/scheduler, leases, timers). Any of them that exists must
+// be named in a PRE_CODE or RETROACTIVE reevaluation of the decision record.
 var p1bRuntimeDirs = []string{
-	filepath.Join("internal", "workflow", "scheduler"),
-	filepath.Join("internal", "workflow", "leases"),
-	filepath.Join("internal", "workflow", "timers"),
+	"internal/workflow/lease",
+	"internal/workflow/timer",
+	"internal/workflow/recover",
+	"internal/platform/execution/scheduler",
+	"internal/workflow/scheduler",
+	"internal/workflow/leases",
+	"internal/workflow/timers",
 }
 
 // TestTodo_WF_RUN_000_Integration exercises the checker against the real
 // repository tree: the decision record must validate clean against actual
-// on-disk evidence, and no P1B durable-runtime scheduler/lease/timer
-// package may exist unless the decision record backing it already
-// validates (the ordering constraint the WF-RUN-000 RED clause names).
+// on-disk evidence and fixture test declarations, and every P1B
+// scheduler/lease/timer/recovery directory that exists must be covered by a
+// re-evaluation that names it, so gated code that lands without a recorded
+// re-evaluation turns this test red.
 func TestTodo_WF_RUN_000_Integration(t *testing.T) {
 	root := repopath.RootDir()
-	path := filepath.Join(root, "definitions", "runtime", "durable-runtime-decision.yaml")
+	path := recordPath(root)
 
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("decision record must exist at %s: %v", path, err)
@@ -82,22 +94,46 @@ func TestTodo_WF_RUN_000_Integration(t *testing.T) {
 		t.Fatalf("decision record is incomplete/unevidenced against the real repository tree: %v", res.Findings)
 	}
 
-	for _, dir := range p1bRuntimeDirs {
-		if info, statErr := os.Stat(filepath.Join(root, dir)); statErr == nil && info.IsDir() {
-			// The gate this record exists to satisfy: P1B runtime
-			// code may only exist once the record it depends on
-			// validates clean, which was just proved above, so
-			// this branch is a live check, not dead code.
-			t.Logf("P1B runtime directory %s exists; decision record already validates clean, so the WF-RUN-000 ordering gate holds", dir)
+	d, err := runtimedecision.Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	covered := map[string]string{}
+	for _, r := range d.Reevaluations {
+		if r.Kind == runtimedecision.ReevaluationInitial {
 			continue
 		}
+		for _, p := range r.CodeLanded {
+			covered[p] = r.Date + " " + r.Kind
+		}
+	}
+	landed := 0
+	for _, dir := range p1bRuntimeDirs {
+		info, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(dir)))
+		if statErr != nil || !info.IsDir() {
+			continue
+		}
+		landed++
+		by, ok := covered[dir]
+		if !ok {
+			t.Errorf("P1B runtime directory %s exists but no PRE_CODE or RETROACTIVE reevaluation in the decision record names it", dir)
+			continue
+		}
+		t.Logf("P1B runtime directory %s is covered by the %s reevaluation", dir, by)
+	}
+	if landed == 0 {
+		t.Fatalf("expected the landed P1B runtime directories to exist; the gate list is stale")
 	}
 }
 
 // TestTodo_WF_RUN_000_Conformance proves the decision record's four
 // non-negotiables are the exact four criteria named in
-// planning/specs/workflow-runtime.md's "Build or adopt" section, not a
-// paraphrase that could quietly drift from the spec.
+// planning/specs/workflow-runtime.md's "Build or adopt" section, and runs the
+// structural half of the in-house NN1 fixture: no runtime-state package and no
+// runtime-state migration reaches the business ledger, so the ledger stays
+// outside the engine's own history store by construction (the only ledger
+// writer on the workflow path is the effects terminal adapter behind the
+// execute.TerminalWriter port).
 func TestTodo_WF_RUN_000_Conformance(t *testing.T) {
 	root := repopath.RootDir()
 
@@ -114,7 +150,7 @@ func TestTodo_WF_RUN_000_Conformance(t *testing.T) {
 		t.Fatalf("expected exactly 4 non-negotiables in the spec, found %d: %v", len(wantNN), wantNN)
 	}
 
-	d, err := runtimedecision.Load(filepath.Join(root, "definitions", "runtime", "durable-runtime-decision.yaml"))
+	d, err := runtimedecision.Load(recordPath(root))
 	if err != nil {
 		t.Fatalf("loading decision record: %v", err)
 	}
@@ -128,6 +164,93 @@ func TestTodo_WF_RUN_000_Conformance(t *testing.T) {
 			t.Fatalf("non_negotiables[%d] (%s) = %q, want the spec's exact wording %q", i, nn.ID, got, want)
 		}
 	}
+
+	t.Run("NN1_runtime_state_packages_do_not_import_the_ledger", func(t *testing.T) {
+		for _, pkg := range runtimeStatePackages {
+			if bad := ledgerImports(t, filepath.Join(root, filepath.FromSlash(pkg))); len(bad) != 0 {
+				t.Errorf("runtime-state package %s imports the business ledger: %v", pkg, bad)
+			}
+		}
+	})
+
+	t.Run("NN1_runtime_state_migrations_do_not_reference_the_ledger", func(t *testing.T) {
+		for _, m := range runtimeStateMigrations {
+			src, err := os.ReadFile(filepath.Join(root, "migrations", m))
+			if err != nil {
+				t.Fatalf("reading migration %s: %v", m, err)
+			}
+			if strings.Contains(strings.ToLower(string(src)), "ledger_event") {
+				t.Errorf("runtime-state migration %s references ledger_event", m)
+			}
+		}
+	})
+
+	t.Run("NN1_scanner_detects_a_planted_ledger_import", func(t *testing.T) {
+		dir := t.TempDir()
+		src := "package p\n\nimport _ \"" + modulePath + "/internal/data/ledger\"\n"
+		if err := os.WriteFile(filepath.Join(dir, "p.go"), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "p_test.go"), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if bad := ledgerImports(t, dir); len(bad) != 1 {
+			t.Fatalf("scanner must flag exactly the planted non-test ledger import, got %v", bad)
+		}
+	})
+}
+
+const modulePath = "github.com/monstercameron/human-capital-management-suite"
+
+// runtimeStatePackages hold the engine's own execution state: instances,
+// nodes, receipts, leases, timers, recovery, scheduler roles and inspection.
+var runtimeStatePackages = []string{
+	"internal/workflow/runtime",
+	"internal/workflow/lease",
+	"internal/workflow/timer",
+	"internal/workflow/recover",
+	"internal/workflow/inspect",
+	"internal/workflow/execute",
+	"internal/data/runtimestate",
+	"internal/platform/execution/scheduler",
+}
+
+// runtimeStateMigrations create the workflow runtime and scheduling tables.
+var runtimeStateMigrations = []string{
+	"00016_workflow_runtime.sql",
+	"00026_workflow_scheduling_state.sql",
+}
+
+// ledgerImports returns the non-test Go files directly in dir that import a
+// business ledger package.
+func ledgerImports(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("reading %s: %v", dir, err)
+	}
+	forbidden := map[string]struct{}{
+		modulePath + "/internal/ledger":      {},
+		modulePath + "/internal/data/ledger": {},
+	}
+	var bad []string
+	fset := token.NewFileSet()
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.ImportsOnly)
+		if err != nil {
+			t.Fatalf("parsing %s: %v", name, err)
+		}
+		for _, imp := range f.Imports {
+			if _, hit := forbidden[strings.Trim(imp.Path.Value, `"`)]; hit {
+				bad = append(bad, name+" -> "+imp.Path.Value)
+			}
+		}
+	}
+	return bad
 }
 
 var numberedItemRE = regexp.MustCompile(`(?m)^\d+\.\s+`)
