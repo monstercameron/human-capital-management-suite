@@ -3071,7 +3071,8 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** test/sandbox tools use production contracts with safe adapters, not hidden bypass APIs.
   - **Refs:** [Simulation contract](specs/workflow-runtime.md), [sandbox and testing](specs/platform-responsibility-boundaries.md).
 
-- [ ] `INTENT-024` **[DESIGN][SOL_HIGH] Generate end-to-end feature-intent conformance suites.**
+- [x] `INTENT-024` **[DESIGN][SOL_HIGH] Generate end-to-end feature-intent conformance suites.**
+  - **Evidence (2026-09-15):** `TestEveryImplementedMaterialFeatureHasIntentConformance` plus `TestTodo_INTENT_024_Golden`, `_Race`, `_Conformance`, `_Recovery` and `_Mutation` in `tools/planning/intentmanifests` (conformance_suite.go adds pure deterministic GenerateFeatureIntentConformanceSuite: every DEFINED|PARTIAL|IMPLIED row resolves all seven vectors at its declared depth, DEFERRED|MISSING rows resolve to explicitly unavailable entries, every enabled route must be exercised or it returns ErrConformanceGap; RED captured as build-failed undefined symbols); `go test -count=1 ./tools/planning/intentmanifests/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** `INTENT-010`, `INTENT-013`, `INTENT-025`, `CONF-001`, `API-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestEveryImplementedMaterialFeatureHasIntentConformance`.
