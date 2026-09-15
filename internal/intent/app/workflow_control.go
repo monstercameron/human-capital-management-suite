@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/operatorjournal"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/truststore"
-	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
@@ -26,9 +26,10 @@ type WorkflowRecorder = observe.Recorder
 // dual-control second approval a cancel needs), a retry is dry-run first so
 // its simulation evidence is sealed into the receipt, the pinned plan is
 // resolved from the promotion plans this cell runs, and every control is
-// journaled by the operator gateway and recorded on recorder. It returns nil
-// controls, never an error, when the cell has no execution database or tenant
-// mapping -- the transport then refuses controls with FAILED_PRECONDITION.
+// journaled durably (internal/data/operatorjournal) by the operator gateway
+// and recorded on recorder. It returns nil controls, never an error, when the
+// cell has no execution database or tenant mapping -- the transport then
+// refuses controls with FAILED_PRECONDITION.
 func composeWorkflowControl(db dbport.Beginner, tenantUUID func(values.TenantId) uuid.UUID, now func() time.Time, recorder WorkflowRecorder) (*workflowcontrol.Controller, workflowcontrol.TenantIDs, error) {
 	if db == nil || tenantUUID == nil {
 		return nil, nil, nil
@@ -49,7 +50,8 @@ func composeWorkflowControl(db dbport.Beginner, tenantUUID func(values.TenantId)
 		return nil, nil, fmt.Errorf("app: compile promotion simulation plan for workflow control: %w", err)
 	}
 	authority := workflowcontrol.JITAuthority{Grants: truststore.New(db), TenantIDs: ids, Clock: now}
-	ctrl, err := workflowcontrol.New(db, operator.NewMemoryJournal(), workflowcontrol.NewPlanSet(plan, simulation), authority, now,
+	journal := &operatorjournal.Journal{DB: db, TenantIDs: operatorjournal.TenantIDs(ids)}
+	ctrl, err := workflowcontrol.New(db, journal, workflowcontrol.NewPlanSet(plan, simulation), authority, now,
 		workflowcontrol.WithPreflightSimulation(), workflowcontrol.WithRecorder(recorder))
 	if err != nil {
 		return nil, nil, fmt.Errorf("app: compose workflow control: %w", err)

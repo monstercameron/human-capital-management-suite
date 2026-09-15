@@ -140,6 +140,7 @@ migrationfiles:
   - 00286_promoux002_active_promotion_guard.sql
   - 00287_promoux004_position_slot_guard.sql
   - 00288_promoux011_transition_sequence.sql
+  - 00289_operator_control_receipt.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

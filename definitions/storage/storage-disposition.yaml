@@ -5288,3 +5288,19 @@ tables:
     notes: >-
       RECORDS-HOLD-001: immutable evidence that one legal_hold_notice was
       acknowledged; capped at one per notice; forbid_mutation.
+  - table: operator_control_receipt
+    migration: 00289_operator_control_receipt.sql
+    owner_package: internal/data/operatorjournal
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      EP-WF-002 / WF-RUN-035: one governed operator control receipt per tenant
+      and idempotency key, moving PENDING to its final sealed receipt (or to
+      ABORTED when the action provably had no effect); restart-safe replay for
+      the operator gateway. UPDATE is granted, DELETE is not.

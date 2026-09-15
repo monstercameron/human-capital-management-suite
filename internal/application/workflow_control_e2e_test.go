@@ -13,6 +13,7 @@ import (
 
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/truststore"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/jit"
@@ -115,5 +116,33 @@ func TestGovernedWorkflowControlsOnComposedServer(t *testing.T) {
 	}
 	if err := h.pool.QueryRow(ctx, `SELECT runtime_status FROM workflow_instance WHERE instance_id = $1::uuid`, instanceID).Scan(&status); err != nil || status != "CANCELLED" {
 		t.Fatalf("instance after governed cancel = %s, %v", status, err)
+	}
+
+	// The control receipt is durable: it is a row in operator_control_receipt,
+	// and re-sending the same idempotency key replays it without a second
+	// transition.
+	var outcome, digest string
+	rtx, err := h.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rtx.Rollback(ctx) }()
+	if err := tenancy.WithTenant(ctx, rtx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	if err := rtx.QueryRow(ctx, `SELECT outcome, receipt->>'digest' FROM operator_control_receipt WHERE idempotency_key = 'cancel-2'`).Scan(&outcome, &digest); err != nil || outcome != "APPLIED" || digest != got.GetReceiptDigest() {
+		t.Fatalf("durable cancel receipt = %s %s, %v; want APPLIED %s", outcome, digest, err, got.GetReceiptDigest())
+	}
+	var versionBefore int64
+	if err := h.pool.QueryRow(ctx, `SELECT instance_version FROM workflow_instance WHERE instance_id = $1::uuid`, instanceID).Scan(&versionBefore); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := client.CancelWorkflow(h.rpc("admin"), &workflowv1.CancelWorkflowRequest{IdempotencyKey: "cancel-2", InstanceId: instanceID, ExpectedInstanceVersion: uint64(liveVersion), ReasonRef: "INC-1"})
+	if err != nil || replayed.GetReceipt().GetReceiptDigest() != got.GetReceiptDigest() || replayed.GetReceipt().GetOutcome() != got.GetOutcome() {
+		t.Fatalf("replayed cancel = %v, %v; want the recorded receipt", replayed, err)
+	}
+	var versionAfter int64
+	if err := h.pool.QueryRow(ctx, `SELECT instance_version FROM workflow_instance WHERE instance_id = $1::uuid`, instanceID).Scan(&versionAfter); err != nil || versionAfter != versionBefore {
+		t.Fatalf("a replayed cancel changed the instance version %d -> %d (%v)", versionBefore, versionAfter, err)
 	}
 }
