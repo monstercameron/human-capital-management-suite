@@ -294,4 +294,11 @@ type EvidenceRecord struct {
 	Decision          string
 	ReasonCode        string
 	OccurredAt        time.Time
+	// Purpose, IdempotencyKey, Deadline and EffectClass are the governed
+	// invocation envelope a workflow step presented (WF-RUN-034); empty for an
+	// interactive call.
+	Purpose        string
+	IdempotencyKey string
+	Deadline       time.Time
+	EffectClass    string
 }

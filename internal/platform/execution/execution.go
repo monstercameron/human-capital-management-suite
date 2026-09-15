@@ -173,6 +173,9 @@ type PromotionExecutionConfig struct {
 	// internal/data/workflowversionstore; nil keeps a private in-memory
 	// registry that self-activates, for unit compositions only.
 	Versions VersionRegistry
+	// CellID names the cell whose local consistency boundary the executable
+	// plan's core commit resolves against. Empty means "cell-local".
+	CellID string
 	// VersionApprover is the release approver a DRAFT shipped version is
 	// durably approved under before activation. It must differ from the
 	// publisher. Empty means [defaultVersionApprover].
@@ -218,6 +221,9 @@ type PromotionExecution struct {
 	// composition created when none was.
 	Evidence *app.MemoryEvidenceSink
 	Plan     PromotionPlan
+	// steps is the executable plan's promotionsteps adapter; see
+	// [PromotionExecution.BindStepServices].
+	steps *promotionStepPorts
 }
 
 // PromotionPlan selects which published promotion workflow the execution
@@ -350,6 +356,12 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		selectedWorkflowID = executePlan.WorkflowID
 	}
 	effectiveDates := &sync.Map{}
+	// WF-RUN-034: the executable plan's governed steps; the application binds
+	// its gateway-invoking services after composing the cell.
+	steps := &promotionStepPorts{db: cfg.DB, cellID: cfg.CellID, authorityDigest: cfg.AuthorityDigest}
+	if steps.cellID == "" {
+		steps.cellID = "cell-local"
+	}
 
 	resolver := effects.PolicyResolver{Entries: []effects.PolicyEntry{{
 		WorkflowID: selectedWorkflowID,
@@ -387,7 +399,7 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		StartRetry:    startRetry,
 		StartRetryFor: startRetryFor,
 		ConflictFence: cfg.ConflictFence,
-		Steps:         promotionStepRunner{plan: selected, effectiveDates: effectiveDates},
+		Steps:         promotionStepRunner{plan: selected, effectiveDates: effectiveDates, ports: steps},
 		WorkItems:     promotionWorkItems{approver: approver, managerApprover: managerApprover, financePartner: cfg.FinancePartnerPrincipalID, managers: managerFallback{base: cfg.Managers, fallback: managerApprover}, plan: selected},
 		Terminal:      cfg.Terminal,
 		Guard:         guard,
@@ -456,6 +468,7 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		},
 		Evidence: evidenceSink,
 		Plan:     selected,
+		steps:    steps,
 	}, nil
 }
 
@@ -541,32 +554,10 @@ func promotionPublishOptions() workflow.Options {
 	}}
 }
 
-// promotionStepRunner runs internal/workflow/prototype's two node types: it
+// runPrototypeStep runs internal/workflow/prototype's two node types: it
 // parks on APPROVAL and returns a bare outcome on END. It invokes no
 // capability and performs no business mutation itself — the driver's own
 // continuation sink is what runs the composed TerminalWriter at END.
-type promotionStepRunner struct {
-	plan           PromotionPlan
-	effectiveDates *sync.Map
-}
-
-var _ execute.StepRunner = promotionStepRunner{}
-
-func (r promotionStepRunner) Run(_ context.Context, req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
-	if r.plan == "" {
-		r.plan = PLAN_PROTOTYPE
-	}
-	if r.plan == PLAN_PROTOTYPE {
-		return runPrototypeStep(req)
-	}
-	if r.effectiveDates != nil {
-		if date, ok := req.Proposal.Revision.EffectiveTime.StartDate(); ok {
-			r.effectiveDates.Store(req.InstanceID.String(), date)
-		}
-	}
-	return runExecuteStep(req)
-}
-
 func runPrototypeStep(req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
 	switch req.Node.Type {
 	case workflow.StepApproval:
@@ -579,42 +570,6 @@ func runPrototypeStep(req execute.StepRequest) (frontier.NodeOutcome, runtime.Go
 	default:
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{},
 			fmt.Errorf("platform execution: promotion execution has no step for %s", req.Node.Type)
-	}
-}
-
-func runExecuteStep(req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
-	outputDigest := req.Proposal.Revision.MaterialDigest.Digest
-	if outputDigest == "" {
-		outputDigest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-	}
-	success := func(route string) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
-		return frontier.NodeOutcome{NodeID: req.Node.ID, Outcome: workflow.Outcome(route), OutputDigest: outputDigest}, runtime.GovernanceRefs{}, nil
-	}
-	switch req.Node.Type {
-	case workflow.StepCapability:
-		return success("SUCCEEDED")
-	case workflow.StepDecision:
-		route := "VALID"
-		if req.Node.ID == promotionexec.NodeRaiseThreshold {
-			route = "ABOVE_THRESHOLD"
-		}
-		return success(route)
-	case workflow.StepObserve:
-		return success("PASS")
-	case workflow.StepApproval:
-		ref := promotionexec.ApprovalManager
-		if req.Node.ID == promotionexec.NodeApproveFinance {
-			ref = promotionexec.ApprovalFinance
-		}
-		return frontier.NodeOutcome{NodeID: req.Node.ID, Await: frontier.AwaitWorkItem, AwaitRef: ref}, runtime.GovernanceRefs{}, nil
-	case workflow.StepTask:
-		return frontier.NodeOutcome{NodeID: req.Node.ID, Await: frontier.AwaitWorkItem, AwaitRef: "task.promotion.reapproval/v1"}, runtime.GovernanceRefs{}, nil
-	case workflow.StepWait:
-		return frontier.NodeOutcome{NodeID: req.Node.ID, Await: frontier.AwaitTimer, AwaitRef: req.Node.ID}, runtime.GovernanceRefs{}, nil
-	case workflow.StepEnd:
-		return frontier.NodeOutcome{NodeID: req.Node.ID}, runtime.GovernanceRefs{}, nil
-	default:
-		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("platform execution: promotion execute has no step for %s", req.Node.Type)
 	}
 }
 

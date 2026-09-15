@@ -36,11 +36,6 @@ var executionUninstrumentedByDesign = map[string]string{
 	// WF-RUN-003: the recovery role redelivers through the instrumented driver.
 	"ready_redelivery.go executeDriverAdapter.RedeliverReady": "delegates to the instrumented driver",
 
-	// A pure step decision with no I/O, run inside the driver's own node span
-	// (execute.Instrumentation.StartNodeSpan). It does not call promotionsteps:
-	// the served EXECUTE path is still stubbed (WF-RUN-034).
-	"execution.go promotionStepRunner.Run": "pure in-memory step decision inside the driver node span",
-
 	// Reads inside an instrumented operation.
 	"approver_routing.go JourneyWorkerManagers.CurrentManagerOf": "manager lookup inside the instrumented work-item routing",
 	"execution.go managerFallback.CurrentManagerOf":              "manager lookup inside the instrumented work-item routing",

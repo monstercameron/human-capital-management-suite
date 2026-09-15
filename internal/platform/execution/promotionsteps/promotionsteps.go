@@ -38,6 +38,7 @@ const (
 // runner accepts either the semantic vocabulary or those compiled keys.
 const (
 	ObservationObserved      = "OBSERVED"
+	ObservationFailed        = "FAIL"
 	ReconciliationConsistent = "CONSISTENT"
 	ReconciliationDegraded   = "DEGRADED"
 )
@@ -402,7 +403,15 @@ func (r *Runner) Run(ctx context.Context, req execute.StepRequest) (ret0 frontie
 		if err != nil {
 			return failed(req, FailurePort)
 		}
-		if strings.TrimSpace(result.OutputDigest) == "" || result.Status != ObservationObserved {
+		if strings.TrimSpace(result.OutputDigest) == "" {
+			return failed(req, FailureBadOutput)
+		}
+		if result.Status == ObservationFailed && contains(req.Node.Routes, workflow.OutcomeFail) {
+			// A real observation that did not see the committed change routes
+			// the compiled FAIL edge; it is never folded into PASS.
+			return frontier.NodeOutcome{NodeID: req.Node.ID, Outcome: workflow.OutcomeFail, OutputDigest: result.OutputDigest}, result.Refs, nil
+		}
+		if result.Status != ObservationObserved {
 			return failed(req, FailureBadOutput)
 		}
 		route := observationRoute(req.Node)

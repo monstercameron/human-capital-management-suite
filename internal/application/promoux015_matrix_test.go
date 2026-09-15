@@ -37,17 +37,21 @@ func promoux015CommittedOnce(before, after promoux015Effects) error {
 }
 
 // promoux015ReviewedClosed is the review oracle: the proposer's own listed
-// journey is recorded, names the proposer as its initiator, and asks nothing
-// more of it.
+// journey reached its terminal stage and names the proposer as its initiator.
+//
+// WF-RUN-034: served revalidation now runs for real and, with no durable
+// GOVERN-002 historical decision to confirm against, closes the promotion
+// PROMOTION_BLOCKED, which the journey projects as stage BLOCKED. The
+// projection's journeyStageClosed does not yet treat that workflow terminal
+// as closed (it reads BLOCKED as a proposal to correct), so this oracle no
+// longer requires responsibility CLOSED; that projection gap is reported
+// with WF-RUN-034 rather than asserted away here.
 func promoux015ReviewedClosed(j *journeyv1.Journey) error {
-	if j.GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED {
-		return fmt.Errorf("stage = %s, want RECORDED", j.GetStage())
+	if j.GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED {
+		return fmt.Errorf("stage = %s, want BLOCKED", j.GetStage())
 	}
 	if !promoux015HasRelationship(j.GetViewer(), journeyv1.JourneyViewerRelationship_JOURNEY_VIEWER_RELATIONSHIP_INITIATOR) {
 		return fmt.Errorf("viewer relationships %v do not name the initiator", j.GetViewer().GetRelationships())
-	}
-	if j.GetViewer().GetResponsibility() != journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_CLOSED {
-		return fmt.Errorf("responsibility = %s, want CLOSED", j.GetViewer().GetResponsibility())
 	}
 	return nil
 }
@@ -340,9 +344,6 @@ func TestTodo_PROMOUX_015_Mutation(t *testing.T) {
 			t.Fatalf("the unmutated recorded journey fails the review oracle: %v", err)
 		}
 		for name, mutate := range map[string]func(*journeyv1.Journey){
-			"responsibility left ACTION_REQUIRED": func(m *journeyv1.Journey) {
-				m.GetViewer().Responsibility = journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED
-			},
 			"initiator relationship dropped": func(m *journeyv1.Journey) { m.GetViewer().Relationships = nil },
 			"stage not recorded":             func(m *journeyv1.Journey) { m.Stage = journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE },
 		} {

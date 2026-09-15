@@ -45,6 +45,14 @@ type InvocationEvidence struct {
 	Decision          string // "INVOKED" or the refusal Code
 	ReasonCode        string
 	OccurredAt        time.Time
+	// Purpose, IdempotencyKey, Deadline and EffectClass are copied from a
+	// governed [Invocation] envelope; they stay empty for a P1A interactive
+	// call that presents none. EffectClass is the resolved capability's
+	// published class.
+	Purpose        string
+	IdempotencyKey string
+	Deadline       time.Time
+	EffectClass    EffectClass
 }
 
 // EvidenceSink is the port an invocation evidence record is written through.
@@ -59,6 +67,9 @@ type InvokeRequest struct {
 	Capability    Key
 	Payload       any
 	Authorization Authorization
+	// Invocation is the governed execution envelope a workflow step presents
+	// (WF-RUN-034). Nil keeps the P1A interactive contract.
+	Invocation *Invocation
 }
 
 // InvokeResult is a successful invocation's typed result.
@@ -120,6 +131,18 @@ func (g *Gateway) Invoke(ctx context.Context, req InvokeRequest) (InvokeResult, 
 		return g.refuse(ctx, req, CodeUnauthorized, "authorization does not grant "+rec.Definition.AuthZScopeRef)
 	}
 
+	if req.Invocation != nil {
+		now := g.now()
+		if code, reason := req.Invocation.check(ctx, rec.Definition, now); code != "" {
+			return g.refuse(ctx, req, code, reason)
+		}
+		// The deadline is measured on the gateway's clock, which a composition
+		// may pin; the handler receives the remaining budget as a timeout.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, req.Invocation.Deadline.Sub(now))
+		defer cancel()
+	}
+
 	if rec.Definition.EffectClass.IsWrite() {
 		return g.refuse(ctx, req, CodeWriteEffectRefusedP1A, "capability declares a write effect class; P1A invokes zero-effect capabilities only")
 	}
@@ -129,13 +152,13 @@ func (g *Gateway) Invoke(ctx context.Context, req InvokeRequest) (InvokeResult, 
 		return g.refuse(ctx, req, CodeHandlerFailed, err.Error())
 	}
 
-	evidenceID, evErr := g.evidence.RecordInvocation(ctx, InvocationEvidence{
+	evidenceID, evErr := g.evidence.RecordInvocation(ctx, req.Invocation.evidenceOf(InvocationEvidence{
 		CapabilityID:      req.Capability.ID,
 		CapabilityVersion: req.Capability.Version,
 		SubjectRef:        req.Authorization.SubjectRef,
 		Decision:          "INVOKED",
 		OccurredAt:        g.now(),
-	})
+	}, rec.Definition, true))
 	if evErr != nil {
 		return InvokeResult{}, evErr
 	}
@@ -146,14 +169,15 @@ func (g *Gateway) Invoke(ctx context.Context, req InvokeRequest) (InvokeResult, 
 // refuse records refusal evidence and returns the typed GatewayError. It
 // never calls the handler.
 func (g *Gateway) refuse(ctx context.Context, req InvokeRequest, code, reason string) (InvokeResult, error) {
-	evidenceID, evErr := g.evidence.RecordInvocation(ctx, InvocationEvidence{
+	rec, found := g.registry.Lookup(req.Capability)
+	evidenceID, evErr := g.evidence.RecordInvocation(ctx, req.Invocation.evidenceOf(InvocationEvidence{
 		CapabilityID:      req.Capability.ID,
 		CapabilityVersion: req.Capability.Version,
 		SubjectRef:        req.Authorization.SubjectRef,
 		Decision:          "REFUSED",
 		ReasonCode:        code,
 		OccurredAt:        g.now(),
-	})
+	}, rec.Definition, found))
 	if evErr != nil {
 		evidenceID = ""
 	}

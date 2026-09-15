@@ -62,6 +62,7 @@ func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 		ManagerApproverPrincipalID: cfg.ExecutionManagerApprover,
 		FinancePartnerPrincipalID:  cfg.ExecutionFinancePartner,
 		AuthorityDigest:            cfg.ExecutionAuthorityDigest,
+		CellID:                     cfg.CellID,
 		RequiredRole:               cfg.ExecutionAuthorityRole,
 		Clock:                      cellConfig.Now,
 		Telemetry:                  cellConfig.Telemetry,
@@ -77,6 +78,11 @@ func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 	}
 	cellConfig.Executor = execution.Executor
 	cellConfig.ExecutionAuthority = execution.Authority
+	// WF-RUN-034: the executable plan's steps invoke the cell's gateway, which
+	// app.NewCell builds after this call; it binds the step services then.
+	cellConfig.BindPromotionSteps = func(services *app.PromotionStepServices) error {
+		return execution.BindStepServices(services)
+	}
 	cellConfig.ExecutionResolver = execution.Resolver
 	cellConfig.ExecutionVersions = execution.Versions
 	cellConfig.ExecutionCellID = cfg.CellID

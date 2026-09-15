@@ -284,6 +284,40 @@ func TestPromotionStepsMapAllStillValidRequirements(t *testing.T) {
 	}
 }
 
+type statusObservation struct{ status string }
+
+func (f statusObservation) Observe(context.Context, execute.StepRequest) (ObservationResult, error) {
+	return ObservationResult{Artifact: Artifact{OutputDigest: "sha256:observed-" + f.status}, Status: f.status}, nil
+}
+
+// TestPromotionStepsRouteARealObservationFailure proves an observation that
+// did not see the committed change routes the compiled FAIL edge, and a status
+// outside the vocabulary is a typed failure, never PASS.
+func TestPromotionStepsRouteARealObservationFailure(t *testing.T) {
+	plan, err := promotionexec.Compile()
+	if err != nil {
+		t.Fatalf("promotionexec.Compile: %v", err)
+	}
+	node, ok := plan.Node(promotionexec.NodeObservePayroll)
+	if !ok {
+		t.Fatal("compiled plan has no observe_payroll")
+	}
+	out, _, err := New(Config{ObservePayroll: statusObservation{status: ObservationFailed}}).Run(context.Background(), stepRequest(node))
+	if err != nil || out.Failed || out.Outcome != workflow.OutcomeFail || out.OutputDigest != "sha256:observed-FAIL" {
+		t.Fatalf("FAIL observation = %+v, %v; want the FAIL route", out, err)
+	}
+	out, _, err = New(Config{ObservePayroll: statusObservation{status: "MAYBE"}}).Run(context.Background(), stepRequest(node))
+	if err != nil || !out.Failed || out.ErrorClass != FailureBadOutput {
+		t.Fatalf("unknown observation status = %+v, %v; want %s", out, err, FailureBadOutput)
+	}
+	// A node without a compiled FAIL route cannot take one.
+	bare := workflow.CompiledNode{ID: promotionexec.NodeObservePayroll, Type: workflow.StepObserve}
+	out, _, _ = New(Config{ObservePayroll: statusObservation{status: ObservationFailed}}).Run(context.Background(), stepRequest(bare))
+	if !out.Failed || out.ErrorClass != FailureBadOutput {
+		t.Fatalf("FAIL on a node without the route = %+v; want %s", out, FailureBadOutput)
+	}
+}
+
 func stepRequest(node workflow.CompiledNode) execute.StepRequest {
 	return execute.StepRequest{
 		TenantID:      uuid.MustParse("11111111-1111-1111-1111-111111111111"),

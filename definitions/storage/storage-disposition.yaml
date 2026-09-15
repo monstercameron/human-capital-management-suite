@@ -5451,3 +5451,22 @@ tables:
       against, recorded once in the advancement transaction and re-digested on
       read; deterministic REPLAY recomputes the node from this row alone.
       INSERT once, forbid_mutation on UPDATE/DELETE, never granted either.
+  - table: workflow_execution_delegation
+    migration: 00302_workflow_execution_delegation.sql
+    owner_package: internal/workflow/runtime
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-034: the verified executing principal (subject, kind, tenant,
+      organization scope, roles, purposes, authentication method, assurance,
+      session, authentication evidence) a workflow instance's later steps act
+      under, pinned once in the runtime.Start transaction and re-authorized
+      against current role assignment before every capability invocation.
+      Not part of the execution-context digest. SELECT/INSERT only;
+      forbid_mutation trigger.

@@ -149,6 +149,7 @@ migrationfiles:
   - 00296_workflow_node_input_artifact.sql
   - 00297_workflow_quarantined_work.sql
   - 00298_workflow_execution_context_forbid_mutation.sql
+  - 00302_workflow_execution_delegation.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

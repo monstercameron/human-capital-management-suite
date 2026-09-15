@@ -262,15 +262,15 @@ func TestTodo_PROMOUX_015(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InspectJourney as the proposer: %v", err)
 	}
-	if got := inspected.GetDetail().GetJourney().GetStage(); got != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED {
-		t.Fatalf("the proposer reviews stage %s, want RECORDED", got)
+	if got := inspected.GetDetail().GetJourney().GetStage(); got != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED {
+		t.Fatalf("the proposer reviews stage %s, want BLOCKED", got)
 	}
 	operatorView, err := h.client.InspectJourney(h.rpc("admin"), &journeyv1.InspectJourneyRequest{IntentId: id})
 	if err != nil {
 		t.Fatalf("InspectJourney as the operator: %v", err)
 	}
-	if operatorView.GetDetail().GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED || operatorView.GetDetail().GetLedger() == nil {
-		t.Fatalf("the operator reviews stage %s ledger %v, want RECORDED with its one ledger fact",
+	if operatorView.GetDetail().GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED || operatorView.GetDetail().GetLedger() == nil {
+		t.Fatalf("the operator reviews stage %s ledger %v, want BLOCKED with its one ledger fact",
 			operatorView.GetDetail().GetJourney().GetStage(), operatorView.GetDetail().GetLedger())
 	}
 	proposerJourney := h.journeyFor("hiring-manager", id)

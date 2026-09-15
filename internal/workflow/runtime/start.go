@@ -194,6 +194,11 @@ type StartRequest struct {
 	// its demand exceeds the resolved limits.
 	Workload *WorkloadGate
 
+	// Delegation, when non-nil, is the executing principal's authority the
+	// instance's later steps act under (WF-RUN-034), recorded once in the
+	// start transaction. It is not part of the execution-context digest.
+	Delegation *ExecutionDelegation
+
 	CreatedAt time.Time
 }
 
@@ -525,6 +530,11 @@ func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceip
 	}
 	if err := recordExecutionContext(ctx, tx, req.TenantID, instanceID, execCtx, req.CreatedAt); err != nil {
 		return StartReceipt{}, err
+	}
+	if req.Delegation != nil {
+		if err := recordExecutionDelegation(ctx, tx, req.TenantID, instanceID, *req.Delegation, req.CreatedAt); err != nil {
+			return StartReceipt{}, err
+		}
 	}
 
 	nextVersion := stored.InstanceVersion

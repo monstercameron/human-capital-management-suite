@@ -153,6 +153,9 @@ func (s *IntentService) ExecuteIntent(ctx context.Context, req *intentsv1.Execut
 	if ownedErr != nil {
 		return nil, ownedErr
 	}
+	// WF-RUN-034: the instance's later steps act as this verified principal,
+	// re-authorized against current policy at each invocation.
+	start.Delegation = executionDelegation(principal, purposeOf(principal, inv))
 
 	result, err := s.executor.Execute(ctx, start)
 	if err != nil {

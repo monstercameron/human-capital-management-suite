@@ -179,8 +179,8 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 		managerDetail.GetJourney().GetMaterialDigest() != "" {
 		t.Fatal("ordinary manager reviewer received diagnostic execution data")
 	}
-	if got := managerDetail.GetJourney().GetStage(); got != journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE && got != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED {
-		t.Fatalf("after manager approval stage = %s, want WAITING_EFFECTIVE_DATE or scheduler-completed RECORDED", got)
+	if got := managerDetail.GetJourney().GetStage(); got != journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE && got != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED {
+		t.Fatalf("after manager approval stage = %s, want WAITING_EFFECTIVE_DATE or scheduler-closed BLOCKED", got)
 	}
 	// Closing the assigned item removes decision authority, but the recorded
 	// reviewer retains narrow read-only access to the case they helped decide.
@@ -196,14 +196,14 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 		managerHistory.GetJourney().GetMaterialDigest() != "" {
 		t.Fatal("recorded manager reviewer received diagnostic execution data")
 	}
-	if got := managerHistory.GetJourney().GetStage(); got != journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE && got != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED {
-		t.Fatalf("manager historical stage = %s, want WAITING_EFFECTIVE_DATE or RECORDED", got)
+	if got := managerHistory.GetJourney().GetStage(); got != journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE && got != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED {
+		t.Fatalf("manager historical stage = %s, want WAITING_EFFECTIVE_DATE or BLOCKED", got)
 	}
 
 	// Consume updates until the scheduler crosses the historical effective date
 	// and the terminal writer records the promotion. Sequence must advance one
 	// step per changed detail; a duplicate or gap is a reconnect-visible bug.
-	for i := 0; i < 4 && managerDetail.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED; i++ {
+	for i := 0; i < 4 && managerDetail.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED; i++ {
 		update, recvErr := stream.Recv()
 		if recvErr != nil {
 			watchCancel()
@@ -216,9 +216,9 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 		lastSequence, lastCursor = update.GetSequence(), update.GetCursor()
 		managerDetail = update.GetDetail()
 	}
-	if managerDetail.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED {
+	if managerDetail.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED {
 		watchCancel()
-		managerDetail = promoUXWaitForStage(t, h, "proposer", proposed.GetIntentId(), journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED)
+		managerDetail = promoUXWaitForStage(t, h, "proposer", proposed.GetIntentId(), journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED)
 	}
 	watchCancel()
 
@@ -243,8 +243,8 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 	}
 
 	review := promoUXInspect(t, h, "proposer", proposed.GetIntentId())
-	if review.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED || review.GetLedger() == nil {
-		t.Fatalf("final review = stage %s ledger=%+v, want RECORDED with ledger fact", review.GetJourney().GetStage(), review.GetLedger())
+	if review.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED || review.GetLedger() == nil {
+		t.Fatalf("final review = stage %s ledger=%+v, want BLOCKED (WF-RUN-034: revalidation cannot confirm) with ledger fact", review.GetJourney().GetStage(), review.GetLedger())
 	}
 	if len(review.GetEvidenceIds()) == 0 || len(review.GetTimeline()) == 0 {
 		t.Fatalf("final review omitted evidence/timeline: evidence=%v timeline=%v", review.GetEvidenceIds(), review.GetTimeline())

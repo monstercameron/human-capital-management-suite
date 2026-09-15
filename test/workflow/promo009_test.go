@@ -258,8 +258,11 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Journey.Inspect: %v", err)
 	}
-	if string(completed.Summary.Stage) != "RECORDED" || completed.Ledger == nil {
-		t.Fatalf("completed journey = stage %s ledger %+v, want RECORDED with one ledger fact", completed.Summary.Stage, completed.Ledger)
+	// WF-RUN-034: revalidation runs for real and no durable GOVERN-002
+	// historical decision exists to confirm against, so the run closes
+	// PROMOTION_BLOCKED (stage BLOCKED) with its one ledger fact.
+	if string(completed.Summary.Stage) != "BLOCKED" || completed.Ledger == nil {
+		t.Fatalf("completed journey = stage %s ledger %+v, want BLOCKED with one ledger fact", completed.Summary.Stage, completed.Ledger)
 	}
 
 	stored, err := composed.Cell().Service.GetIntent(ctx, &intentsv1.GetIntentRequest{IntentId: proposed.IntentID})
@@ -267,8 +270,8 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 		t.Fatalf("internal/intent/app.GetIntent: %v", err)
 	}
 	lifecycle := stored.GetIntent().GetLifecycle()
-	if lifecycle.GetExecution() != intentsv1.ExecutionState_EXECUTION_STATE_COMMITTED || lifecycle.GetBusiness() != intentsv1.BusinessState_BUSINESS_STATE_COMPLETED {
-		t.Fatalf("intent lifecycle after terminal = execution %s business %s, want COMMITTED/COMPLETED", lifecycle.GetExecution(), lifecycle.GetBusiness())
+	if lifecycle.GetExecution() != intentsv1.ExecutionState_EXECUTION_STATE_BLOCKED || lifecycle.GetBusiness() != intentsv1.BusinessState_BUSINESS_STATE_NOT_ACHIEVED {
+		t.Fatalf("intent lifecycle after terminal = execution %s business %s, want BLOCKED/NOT_ACHIEVED", lifecycle.GetExecution(), lifecycle.GetBusiness())
 	}
 
 	var ledgerCount int

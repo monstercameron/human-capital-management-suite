@@ -141,8 +141,11 @@ func TestTodo_WF_RUN_003_ServeRedelivery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InspectJourney after redelivery: %v", err)
 	}
-	if detail.GetDetail().GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED || detail.GetDetail().GetLedger() == nil {
-		t.Fatalf("redelivered promotion = stage %s ledger %v, want RECORDED with its ledger fact",
+	// WF-RUN-034: the served promotion runs real steps, and revalidation has no
+	// durable GOVERN-002 history to confirm against yet, so a redelivered run
+	// closes BLOCKED with its one outcome fact rather than RECORDED.
+	if detail.GetDetail().GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED || detail.GetDetail().GetLedger() == nil {
+		t.Fatalf("redelivered promotion = stage %s ledger %v, want BLOCKED with its one outcome fact",
 			detail.GetDetail().GetJourney().GetStage(), detail.GetDetail().GetLedger())
 	}
 

@@ -48,6 +48,10 @@ func (s *MemoryEvidenceSink) RecordInvocation(_ context.Context, evt capability.
 		Decision:          evt.Decision,
 		ReasonCode:        evt.ReasonCode,
 		OccurredAt:        evt.OccurredAt,
+		Purpose:           evt.Purpose,
+		IdempotencyKey:    evt.IdempotencyKey,
+		Deadline:          evt.Deadline,
+		EffectClass:       string(evt.EffectClass),
 	})
 	return id, nil
 }

@@ -181,6 +181,11 @@ type CellConfig struct {
 	// before it will run Executor at all. Nil means this cell behaves
 	// byte-for-byte like the P1A cell of today.
 	ExecutionAuthority *ExecutionAuthority
+	// BindPromotionSteps, when set, receives this cell's governed
+	// [PromotionStepServices] once the gateway exists (WF-RUN-034): the
+	// composition root hands them to the execution driver it composed before
+	// the cell. It requires ExecutionAuthority.
+	BindPromotionSteps func(*PromotionStepServices) error
 	// ExecutionResolver and ExecutionVersions are Executor's own workflow
 	// resolver and version store. Required together with Executor; either
 	// missing leaves ExecuteIntent refusing as unavailable past the
@@ -559,7 +564,7 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 		return nil, err
 	}
 
-	return &Cell{
+	cell := &Cell{
 		Journey:           journey,
 		WorkflowControl:   workflowControl,
 		WorkflowTenantIDs: workflowTenantIDs,
@@ -597,7 +602,19 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 			MaxDeadline: cfg.MaxDeadline,
 			Logger:      cfg.Logger,
 		},
-	}, nil
+	}
+	// WF-RUN-034: the execution driver was composed before this cell built
+	// the gateway its promotion steps invoke, so the steps bind now.
+	if cfg.BindPromotionSteps != nil {
+		services, err := NewPromotionStepServices(cell)
+		if err != nil {
+			return nil, err
+		}
+		if err := cfg.BindPromotionSteps(services); err != nil {
+			return nil, fmt.Errorf("app: bind the promotion step services: %w", err)
+		}
+	}
+	return cell, nil
 }
 
 // idempotencyOf returns cfg's own coordinator, or a fresh one. A cell always
