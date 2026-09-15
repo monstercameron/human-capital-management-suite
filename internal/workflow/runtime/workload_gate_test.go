@@ -149,6 +149,41 @@ func TestTodo_WF_RUN_021(t *testing.T) {
 			t.Fatalf("a P0 start fell through to the capability rule and was refused: %v", err)
 		}
 	})
+
+	t.Run("a composition gate with no criticality or payload derives them from the pinned plan and bound proposal", func(t *testing.T) {
+		if pf.Plan.RiskClass == "" {
+			t.Fatal("the promotion fixture plan declares no risk class")
+		}
+		strict := func() workload.Limits { l := generousLimits(); l.MaxCostUnits = 1; return l }()
+		snap := workload.ControlSnapshot{Version: "limits/test/3", Default: generousLimits(), Rules: []workload.Rule{
+			{Criticality: pf.Plan.RiskClass, Limits: strict},
+		}}
+		var seen []workload.Verdict
+		g := &runtime.WorkloadGate{Snapshot: snap, Observe: func(_ context.Context, _, _ string, v workload.Verdict) { seen = append(seen, v) }}
+		if code := runtimeCode(start("derived-criticality", g)); code != runtime.CodeOverloaded {
+			t.Fatalf("the plan risk class did not select its criticality rule: code %q", code)
+		}
+		if len(seen) != 1 || !strings.Contains(seen[0].Source, "criticality="+pf.Plan.RiskClass) {
+			t.Fatalf("verdict source = %+v, want the derived criticality rule", seen)
+		}
+
+		tiny := generousLimits()
+		tiny.MaxPayloadBytes = 16
+		seen = nil
+		g = &runtime.WorkloadGate{Snapshot: workload.ControlSnapshot{Version: "limits/test/4", Default: tiny}, Observe: func(_ context.Context, _, _ string, v workload.Verdict) { seen = append(seen, v) }}
+		if code := runtimeCode(start("derived-payload", g)); code != runtime.CodeOverloaded {
+			t.Fatalf("the bound proposal size did not reach the payload limit: code %q", code)
+		}
+		if len(seen) != 1 || !strings.Contains(seen[0].Reason(), string(workload.DimensionPayloadBytes)) {
+			t.Fatalf("verdict = %+v, want a payload violation", seen)
+		}
+
+		seen = nil
+		g = &runtime.WorkloadGate{Snapshot: workload.ControlSnapshot{Version: "limits/test/5", Default: tiny}, PayloadBytes: 8, Criticality: "P4", Observe: func(_ context.Context, _, _ string, v workload.Verdict) { seen = append(seen, v) }}
+		if err := start("explicit-inputs-win", g); err != nil {
+			t.Fatalf("composition-supplied inputs were overridden: %v", err)
+		}
+	})
 }
 
 // TestTodo_WF_RUN_021_Race starts more workflows concurrently than the

@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -42,6 +44,27 @@ var liveInstanceStatuses = []string{
 	string(InstancePauseRequested), string(InstancePaused), string(InstanceCancelling), string(InstanceBlocked),
 }
 
+// effectiveGate fills the admission inputs a composition did not set from the
+// start itself: criticality is the pinned plan's declared risk class, and the
+// payload is the canonical size of the bound proposal revision (the start's
+// input snapshot). A composition-supplied value always wins. Without this a
+// shared gate built once at composition carries no criticality and a zero
+// payload, so criticality-scoped rules never match and payload limits are
+// inert.
+func effectiveGate(gate WorkloadGate, req StartRequest, plan *workflow.CompiledWorkflow) (WorkloadGate, error) {
+	if gate.Criticality == "" && plan != nil {
+		gate.Criticality = plan.RiskClass
+	}
+	if gate.PayloadBytes == 0 {
+		body, err := json.Marshal(req.Proposal.Revision)
+		if err != nil {
+			return WorkloadGate{}, fmt.Errorf("measure proposal payload: %w", err)
+		}
+		gate.PayloadBytes = len(body)
+	}
+	return gate, nil
+}
+
 // admitWorkload runs the gate inside the start's own transaction. It takes a
 // transaction-scoped advisory lock on (tenant, workflow) before counting, so
 // two concurrent starts cannot both observe a free slot and both insert: the
@@ -50,9 +73,12 @@ var liveInstanceStatuses = []string{
 // so an idempotent retry of an already-admitted start is never deferred by
 // its own row.
 func admitWorkload(ctx context.Context, tx Executor, req StartRequest, plan *workflow.CompiledWorkflow, workflowID string, instanceID uuid.UUID) error {
-	gate := req.Workload
-	if gate == nil {
+	if req.Workload == nil {
 		return nil
+	}
+	gate, err := effectiveGate(*req.Workload, req, plan)
+	if err != nil {
+		return wrap(CodeInvalidRecord, instanceID.String(), "", err, "derive workload admission inputs")
 	}
 	resolved, err := gate.Snapshot.Resolve(req.TenantID.String(), workflowID, gate.Criticality)
 	if err != nil {
