@@ -4808,7 +4808,8 @@ closed.
   - **REFACTOR:** receipt bytes stay quarantined/protected.
   - **Refs:** [Webhooks](specs/integration-platform.md), [system subscriptions](specs/messaging-and-notification-plane.md).
 
-- [ ] `INTG-019` **[PHASE_2][SOL_HIGH] Implement resumable SyncJob modes.**
+- [x] `INTG-019` **[PHASE_2][SOL_HIGH] Implement resumable SyncJob modes.**
+  - **Evidence (2026-09-15):** `TestTodo_INTG_019` plus `TestTodo_INTG_019_Integration`, `_Fault` and `FuzzTodo_INTG_019` in `internal/connectivity/syncjob` (syncjob.go adds pure PlanBatch kernel over a MemStore cursor port: cursor/watermark/counts preserved across resume, unchanged fingerprints suppress writes, local-origin echoes ownership-suppressed, absence without policy yields explicit candidates, per-item failures recorded, tombstones/duplicates/foreign cursors fail closed; RED captured as build-failed undefined symbols; fuzzer fixed two oracle gaps around blank/trimmed identities, then 60s/5.9M execs PASS); `go test -count=1 ./internal/connectivity/syncjob/` PASS plus `go vet`/`gofmt` clean on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** `INTG-008`, `INTG-015`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_INTG_019`.
