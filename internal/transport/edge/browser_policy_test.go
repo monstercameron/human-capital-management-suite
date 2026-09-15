@@ -99,6 +99,51 @@ func TestTodo_EDGE_004_Integration(t *testing.T) {
 	}
 }
 
+// TestTodo_EDGE_004_NullOrigin proves the opaque-origin POSTs a real browser
+// sends back from this edge's own no-referrer documents are governed by the
+// SameSite browser token, not refused outright: with the token they pass,
+// without it they still fail closed, and a cross-site report stays refused.
+func TestTodo_EDGE_004_NullOrigin(t *testing.T) {
+	policy := BrowserPolicy(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), BrowserPolicyOptions{})
+
+	cookie := &http.Cookie{Name: BrowserCSRFCookieName, Value: "browser-token"}
+
+	allowed := httptest.NewRequest(http.MethodPost, "https://trusted.example/workspace/login", nil)
+	allowed.Host = "trusted.example"
+	allowed.Header.Set("Origin", "null")
+	allowed.Header.Set("Sec-Fetch-Site", "same-origin")
+	allowed.AddCookie(cookie)
+	allowedRec := httptest.NewRecorder()
+	policy.ServeHTTP(allowedRec, allowed)
+	if allowedRec.Code != http.StatusNoContent {
+		t.Fatalf("null-origin same-site POST with the browser token = %d, want 204", allowedRec.Code)
+	}
+
+	anonymous := httptest.NewRequest(http.MethodPost, "https://trusted.example/workspace/login", nil)
+	anonymous.Host = "trusted.example"
+	anonymous.Header.Set("Origin", "null")
+	anonymousRec := httptest.NewRecorder()
+	policy.ServeHTTP(anonymousRec, anonymous)
+	if anonymousRec.Code != http.StatusForbidden || !strings.Contains(anonymousRec.Body.String(), "edge.browser_csrf_rejected") {
+		t.Fatalf("null-origin POST without the browser token = %d %q, want 403 edge.browser_csrf_rejected",
+			anonymousRec.Code, anonymousRec.Body.String())
+	}
+
+	crossSite := httptest.NewRequest(http.MethodPost, "https://trusted.example/workspace/login", nil)
+	crossSite.Host = "trusted.example"
+	crossSite.Header.Set("Origin", "null")
+	crossSite.Header.Set("Sec-Fetch-Site", "cross-site")
+	crossSite.AddCookie(cookie)
+	crossSiteRec := httptest.NewRecorder()
+	policy.ServeHTTP(crossSiteRec, crossSite)
+	if crossSiteRec.Code != http.StatusForbidden || !strings.Contains(crossSiteRec.Body.String(), "edge.browser_origin_rejected") {
+		t.Fatalf("null-origin cross-site POST = %d %q, want 403 edge.browser_origin_rejected",
+			crossSiteRec.Code, crossSiteRec.Body.String())
+	}
+}
+
 func TestTodo_EDGE_004_Security(t *testing.T) {
 	policy := BrowserPolicy(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://evil.example/steal", http.StatusSeeOther)

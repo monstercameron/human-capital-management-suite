@@ -102,8 +102,9 @@ func (p browserPolicy) check(r *http.Request) *envelope.Error {
 	// this origin's own. A cross-site report is therefore refused only when
 	// the request carries no Origin to check against; an Origin that matches
 	// this host cannot be forged by another site, and the SameSite token
-	// check below still applies.
-	if strings.EqualFold(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")), "cross-site") && origin == "" {
+	// check below still applies. An opaque ("null") Origin is equally
+	// uncheckable, so it takes the same refusal here.
+	if strings.EqualFold(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")), "cross-site") && (origin == "" || origin == "null") {
 		return browserRefusal("edge.browser_origin_rejected", "the request origin is not allowed", "origin", "browser_policy.cross_site")
 	}
 
@@ -113,8 +114,15 @@ func (p browserPolicy) check(r *http.Request) *envelope.Error {
 	if len(p.opts.AllowedHosts) > 0 && !containsExact(p.opts.AllowedHosts, r.Host) {
 		return browserRefusal("edge.browser_host_rejected", "the request host is not allowed", "host", "browser_policy.host_allowlist")
 	}
-	if origin != "" {
-		if origin == "null" || !p.originAllowed(origin, r) {
+	// An opaque ("null") Origin is not checked against the allowlist: the
+	// first-party documents this edge serves use Referrer-Policy:
+	// no-referrer, so a real browser posts them back with Origin: null. The
+	// SameSite browser token below remains the control proving the browser
+	// received a token from this edge -- an opaque origin cannot carry
+	// another site's cookies -- and routes with their own proof (the
+	// workspace HMAC CSRF token) check it again behind this edge.
+	if origin != "" && origin != "null" {
+		if !p.originAllowed(origin, r) {
 			return browserRefusal("edge.browser_origin_rejected", "the request origin is not allowed", "origin", "browser_policy.origin_allowlist")
 		}
 	}

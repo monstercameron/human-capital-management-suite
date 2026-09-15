@@ -58,6 +58,12 @@ for (const persona of personas) {
             .first()
             .click();
           await page.waitForURL(/\/workspace\/app\//);
+          // Settle the landing document before the matrix navigations: every
+          // app page starts the enhancement-bundle download on parse, and
+          // navigating away mid-download aborts it into a console error.
+          // Real readers settle; the matrix must too, or it measures its own
+          // interruption instead of the pages.
+          await page.waitForLoadState("networkidle");
 
           for (const { locale, dir } of locales) {
             for (const name of persona.pages) {

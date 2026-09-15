@@ -21,7 +21,7 @@ var registeredIcons = []IconDefinition{
 	{Name: "help", Path: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.5 9a2.5 2.5 0 1 1 3.7 2.2c-.8.5-1.2 1-1.2 2M12 17h.01"},
 	{Name: "settings", Path: "M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"},
 	{Name: "notifications", Path: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"},
-	{Name: "palette", Path: "M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a1.8 1.8 0 0 1 0-3.6 0c0 .4-.3.8-.8.8A3.6 3.6 0 0 1 4 14.2 9 9 0 0 1 12 3zM7.5 9h.01M11 6.5h.01M15.5 7.5h.01M17 12h.01"},
+	{Name: "palette", Path: "M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a1.8 1.8 0 0 1 0-3.6c0 .4-.3.8-.8.8A3.6 3.6 0 0 1 4 14.2 9 9 0 0 1 12 3zM7.5 9h.01M11 6.5h.01M15.5 7.5h.01M17 12h.01"},
 	{Name: "collapse", Path: "M15 18l-6-6 6-6"},
 	{Name: "expand", Path: "M9 18l6-6-6-6"},
 	{Name: "menu", Path: "M4 6h16M4 12h16M4 18h16"},
