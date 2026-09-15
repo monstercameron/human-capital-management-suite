@@ -40,7 +40,10 @@ func bindDrawerFocusTrap(dialogID, triggerID string) func() {
 		length := list.Get("length").Int()
 		items := make([]js.Value, 0, length)
 		for i := 0; i < length; i++ {
-			items = append(items, list.Call("item", i))
+			item := list.Call("item", i)
+			if drawerFocusableVisible(item) {
+				items = append(items, item)
+			}
 		}
 		return items
 	}
@@ -92,4 +95,19 @@ func bindDrawerFocusTrap(dialogID, triggerID string) func() {
 			trigger.Call("focus")
 		}
 	}
+}
+
+// drawerFocusableVisible keeps the trap's boundary aligned with the controls
+// a keyboard user can actually reach. querySelectorAll also returns controls
+// hidden by a responsive ancestor; focusing one of those is a no-op and used
+// to strand reverse traversal on the first visible control.
+func drawerFocusableVisible(element js.Value) bool {
+	if !element.Truthy() {
+		return false
+	}
+	if hidden := element.Call("closest", `[hidden],[inert],[aria-hidden="true"]`); hidden.Truthy() {
+		return false
+	}
+	rects := element.Call("getClientRects")
+	return rects.Truthy() && rects.Get("length").Int() > 0
 }

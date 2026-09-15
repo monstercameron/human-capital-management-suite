@@ -155,3 +155,27 @@ func TestRoleAssignmentUsesSharedAvatarFallback(t *testing.T) {
 		t.Fatal("assignment avatar printed the full name in an initials slot")
 	}
 }
+
+func TestTodo_WEB_241_Browser(t *testing.T) {
+	view := testView(PageRoles)
+	view.AccessRoles = []AccessRole{{ID: "manager", Name: "People manager", Active: true}}
+	view.RolePagePermissions = []RolePagePermission{{RoleID: "manager", Page: PagePeople, View: true, Create: true}}
+	view.RoleFeaturePermissions = []RoleFeaturePermission{{Version: 2, RoleID: "manager", Page: PagePeople, Feature: "workflow_actions", View: true, Create: true}}
+	view.EffectivePermissions = []RolePagePermission{{Page: PageRoles, View: true, Update: true}}
+	view.SaveRoleFeaturePermission = func(RoleFeaturePermission) {}
+	doc, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Feature access", `class="role-feature-page-groups"`, `data-page-id="people"`, `data-feature-id="content"`, `data-feature-id="actions"`, `data-feature-id="workflow_actions"`, "Worker workflows"} {
+		if !strings.Contains(doc, want) {
+			t.Errorf("feature access editor missing %q", want)
+		}
+	}
+	if strings.Count(doc, `data-page-id="people"`) != 1 {
+		t.Fatal("feature access must group a page's controls into one scalable disclosure")
+	}
+	if strings.Contains(doc, `role-feature-manager-insights`) {
+		t.Fatal("feature editor disclosed a page the role cannot view")
+	}
+}

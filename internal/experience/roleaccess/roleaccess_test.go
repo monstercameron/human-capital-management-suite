@@ -197,6 +197,9 @@ func (*testStore) SaveVisibility(context.Context, values.TenantId, string, strin
 func (*testStore) SavePagePermission(context.Context, values.TenantId, string, PagePermission) (PagePermission, error) {
 	return PagePermission{}, nil
 }
+func (*testStore) SaveFeaturePermission(context.Context, values.TenantId, string, FeaturePermission) (FeaturePermission, error) {
+	return FeaturePermission{}, nil
+}
 
 // TestFinancePartnerPagePermissionsAreNarrow pins PROMOUX-015's
 // finance_partner grant exactly: View on Home, Myself, My Work, Work History,

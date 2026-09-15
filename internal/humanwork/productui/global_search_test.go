@@ -103,6 +103,38 @@ func TestGlobalSearchIsDeterministicAndBounded(t *testing.T) {
 	}
 }
 
+func TestPreparedGlobalSearchReplacesAuthorizedProjection(t *testing.T) {
+	view := testView(PageHome)
+	query := "Avery"
+	if results := searchPreparedGlobalItems(prepareGlobalSearchItems(globalSearchItems(view)), query, globalSearchLimit); !hasSearchResult(results, "person:worker-avery") {
+		t.Fatalf("authorized worker missing: %v", searchResultIDs(results))
+	}
+	view.Navigation = view.Navigation[:2]
+	if results := searchPreparedGlobalItems(prepareGlobalSearchItems(globalSearchItems(view)), query, globalSearchLimit); hasSearchResult(results, "person:worker-avery") {
+		t.Fatalf("revoked worker survived a replacement projection: %v", searchResultIDs(results))
+	}
+}
+
+func TestFuzzySearchDistanceBoundsPreserveMatching(t *testing.T) {
+	for _, test := range []struct {
+		left, right string
+		distance    int
+	}{
+		{left: "employee", right: "employee", distance: 0},
+		{left: "employee", right: "emploee", distance: 1},
+		{left: "workforce", right: "workfprce", distance: 1},
+		{left: "équipe", right: "équipes", distance: 1},
+		{left: "worker", right: "task", distance: 5},
+	} {
+		if got := navigationEditDistance(test.left, test.right); got != test.distance {
+			t.Errorf("distance(%q, %q) = %d, want %d", test.left, test.right, got, test.distance)
+		}
+	}
+	if score := fuzzyWordScore("workforce", "workfprce"); score == 0 {
+		t.Fatal("one-character typo stopped matching")
+	}
+}
+
 func searchResultIDs(items []GlobalSearchItem) []string {
 	result := make([]string, len(items))
 	for index, item := range items {

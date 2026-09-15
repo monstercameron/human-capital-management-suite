@@ -15,6 +15,17 @@ import (
 // rolling-upgrade compatibility path; once policy exists, failures close the
 // mutation rather than falling back to credential roles.
 func (s *server) requirePageAction(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, pageID, action string) error {
+	featureID := "actions"
+	if action == roleaccess.ActionView {
+		featureID = "content"
+	}
+	return s.requireFeatureAction(ctx, principal, inv, pageID, featureID, action)
+}
+
+// requireFeatureAction enforces a feature grant beneath the page boundary.
+// Existing deployments with no feature rows retain page-only behavior during
+// rolling upgrade; once any feature policy exists, missing grants deny.
+func (s *server) requireFeatureAction(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, pageID, featureID, action string) error {
 	if s.deps.RoleAccess == nil {
 		return nil
 	}
@@ -27,10 +38,14 @@ func (s *server) requirePageAction(ctx context.Context, principal *trust.Princip
 	}
 	roles := roleaccess.AssignedRoles(snapshot, principal.Subject(), principal.Roles())
 	permissions := roleaccess.EffectivePagePermissions(snapshot, roles)
-	if roleaccess.CanPageAction(permissions, pageID, action) {
+	if len(snapshot.FeaturePermissions) == 0 && roleaccess.CanPageAction(permissions, pageID, action) {
 		return nil
 	}
-	return envelope.New(envelope.CodePermissionDenied, "journey.page_action.denied", "the assigned role does not permit this action on the page").
+	features := roleaccess.EffectiveFeaturePermissions(snapshot, roles)
+	if roleaccess.CanFeatureAction(permissions, features, pageID, featureID, action) {
+		return nil
+	}
+	return envelope.New(envelope.CodePermissionDenied, "journey.feature_action.denied", "the assigned role does not permit this action on the page feature").
 		WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
 }
 
@@ -47,4 +62,25 @@ func (s *server) requireAnyPageView(ctx context.Context, principal *trust.Princi
 		denied = err
 	}
 	return denied
+}
+
+type featureAccessRequest struct {
+	pageID    string
+	featureID string
+}
+
+// requireAnyFeatureView supports records legitimately reachable from more
+// than one product surface without weakening either surface's page boundary.
+func (s *server) requireAnyFeatureView(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, requests ...featureAccessRequest) error {
+	var first error
+	for _, request := range requests {
+		err := s.requireFeatureAction(ctx, principal, inv, request.pageID, request.featureID, roleaccess.ActionView)
+		if err == nil {
+			return nil
+		}
+		if first == nil {
+			first = err
+		}
+	}
+	return first
 }

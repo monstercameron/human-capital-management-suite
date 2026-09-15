@@ -1027,9 +1027,13 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 		// shared review surface as Approve and Reject, so it keeps the
 		// same compact, contained, keyboard-stable confirmation instead of
 		// submitting straight from the input fields.
+		triggerLabel := submit
+		if !strings.EqualFold(strings.TrimSpace(submit), strings.TrimSpace(copy.Text("journey.form_submit"))) {
+			triggerLabel = copy.Text("journey.action_review_generic", map[string]string{"action": strings.ToLower(submit)})
+		}
 		foot = append(foot, ui.CreateElement(reviewSurface, reviewSurfaceProps{
 			ID:           proposeReviewID,
-			TriggerLabel: copy.Text("journey.action_review_generic", map[string]string{"action": strings.ToLower(submit)}),
+			TriggerLabel: triggerLabel,
 			Heading:      copy.Text("journey.action_confirm_generic", map[string]string{"action": strings.ToLower(submit)}),
 			Facts:        f.Confirmation,
 			Note:         nonEmpty(f.ConfirmationNote, copy.Text("journey.form_submit_help")),

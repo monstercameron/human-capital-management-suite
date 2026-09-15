@@ -262,6 +262,7 @@ service JourneyService {
   rpc SaveWorkerRoleAssignment(SaveWorkerRoleAssignmentRequest) returns (SaveWorkerRoleAssignmentResponse);
   rpc SaveRoleOrganizationVisibility(SaveRoleOrganizationVisibilityRequest) returns (SaveRoleOrganizationVisibilityResponse);
   rpc SaveRolePagePermission(SaveRolePagePermissionRequest) returns (SaveRolePagePermissionResponse);
+  rpc SaveRoleFeaturePermission(SaveRoleFeaturePermissionRequest) returns (SaveRoleFeaturePermissionResponse);
 
   // RecordWorkflowUse increments the authenticated user's usage count for a
   // workflow so launchers can rank real frequent actions rather than hardcode
@@ -1234,12 +1235,23 @@ message RolePagePermission {
   bool can_update = 6;
   bool can_delete = 7;
 }
+message RoleFeaturePermission {
+  int64 version = 1;
+  string role_id = 2;
+  string page_id = 3;
+  string feature_id = 4;
+  bool can_view = 5;
+  bool can_create = 6;
+  bool can_update = 7;
+  bool can_delete = 8;
+}
 message GetRoleAccessRequest {}
 message GetRoleAccessResponse {
   repeated AccessRole roles = 1;
   repeated WorkerRoleAssignment assignments = 2;
   repeated RoleOrganizationVisibilityPolicy visibility_policies = 3;
   repeated RolePagePermission page_permissions = 4;
+  repeated RoleFeaturePermission feature_permissions = 5;
 }
 message SaveAccessRoleRequest { AccessRole role = 1; }
 message SaveAccessRoleResponse { AccessRole role = 1; }
@@ -1249,6 +1261,8 @@ message SaveRoleOrganizationVisibilityRequest { RoleOrganizationVisibilityPolicy
 message SaveRoleOrganizationVisibilityResponse { RoleOrganizationVisibilityPolicy policy = 1; }
 message SaveRolePagePermissionRequest { RolePagePermission permission = 1; }
 message SaveRolePagePermissionResponse { RolePagePermission permission = 1; }
+message SaveRoleFeaturePermissionRequest { RoleFeaturePermission permission = 1; }
+message SaveRoleFeaturePermissionResponse { RoleFeaturePermission permission = 1; }
 message RecordWorkflowUseRequest { string workflow_id = 1; }
 message RecordWorkflowUseResponse { UserPreferences user = 1; }
 

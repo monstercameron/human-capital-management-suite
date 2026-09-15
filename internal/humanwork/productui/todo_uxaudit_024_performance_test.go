@@ -69,6 +69,22 @@ func BenchmarkTodo_UXAUDIT_024_GlobalSearch(b *testing.B) {
 	}
 }
 
+func BenchmarkPreparedGlobalSearchQueries(b *testing.B) {
+	items := prepareGlobalSearchItems(uxaudit024LargeCatalog(4000))
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = searchPreparedGlobalItems(items, "avery patel promotion", globalSearchLimit)
+	}
+}
+
+func BenchmarkPrepareGlobalSearchItems(b *testing.B) {
+	items := uxaudit024LargeCatalog(4000)
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = prepareGlobalSearchItems(items)
+	}
+}
+
 // uxaudit024LargeCatalog builds a synthetic catalog spanning every
 // GlobalSearchItem kind the shell emits, at a size well beyond any real
 // tenant's people/workflow/settings count, so the performance budget above

@@ -125,6 +125,10 @@ type JourneyConfig struct {
 	// PagePermissions is the effective union of durable role grants. It is
 	// presentation metadata only; RPC handlers enforce the same policy.
 	PagePermissions []roleaccess.PagePermission `json:"page_permissions,omitempty"`
+	// FeaturePermissions is the effective union of durable page-feature grants.
+	// A missing projection is the rolling-upgrade compatibility path; a
+	// configured empty projection denies every feature.
+	FeaturePermissions []roleaccess.FeaturePermission `json:"feature_permissions"`
 	// LauncherActions is a server-resolved semantic-action projection. The
 	// browser may render these entries, but every RPC still authorizes again.
 	LauncherActions []LauncherActionConfig `json:"launcher_actions,omitempty"`

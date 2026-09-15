@@ -93,20 +93,20 @@ func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	role, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "finance_partner", Name: "Finance partner", Description: "Supports Finance", Active: true})
+	role, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "regional_auditor", Name: "Regional auditor", Description: "Supports regional reviews", Active: true})
 	if err != nil || role.Version != 1 {
 		t.Fatalf("save role = %+v, %v", role, err)
 	}
-	if _, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "finance_partner", Name: "Duplicate", Active: true}); !errors.Is(err, roleaccess.ErrVersionConflict) {
+	if _, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "regional_auditor", Name: "Duplicate", Active: true}); !errors.Is(err, roleaccess.ErrVersionConflict) {
 		t.Fatalf("duplicate role = %v", err)
 	}
 
-	assignment, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker-1", RoleIDs: []string{"worker_self", "finance_partner"}})
+	assignment, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker-1", RoleIDs: []string{"worker_self", "regional_auditor"}})
 	if err != nil || assignment.Version != 1 {
 		t.Fatalf("save assignment = %+v, %v", assignment, err)
 	}
 	updated := assignment
-	updated.RoleIDs = []string{"finance_partner"}
+	updated.RoleIDs = []string{"regional_auditor"}
 	updated, err = store.SaveAssignment(ctx, tenant, "admin", updated)
 	if err != nil || updated.Version != 2 {
 		t.Fatalf("update assignment = %+v, %v", updated, err)
@@ -115,11 +115,11 @@ func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 		t.Fatalf("stale assignment = %v", err)
 	}
 
-	policy, err := store.SaveVisibility(ctx, tenant, "org:north", "admin", roleaccess.VisibilityPolicy{RoleID: "finance_partner", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Finance", "finance"}})
+	policy, err := store.SaveVisibility(ctx, tenant, "org:north", "admin", roleaccess.VisibilityPolicy{RoleID: "regional_auditor", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Finance", "finance"}})
 	if err != nil || policy.Version != 1 || len(policy.OrganizationUnits) != 1 {
 		t.Fatalf("save visibility = %+v, %v", policy, err)
 	}
-	page, err := store.SavePagePermission(ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "finance_partner", PageID: "insights", View: true})
+	page, err := store.SavePagePermission(ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "regional_auditor", PageID: "insights", View: true})
 	if err != nil || page.Version != 1 || page.Create {
 		t.Fatalf("save page permission = %+v, %v", page, err)
 	}
@@ -135,6 +135,61 @@ func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 	other, err := store.Load(ctx, tenant, "org:south")
 	if err != nil || len(other.Policies) != 0 || len(other.Assignments) != 1 {
 		t.Fatalf("organization scoping = %+v, %v", other, err)
+	}
+}
+
+func TestTodo_WEB_241_Integration(t *testing.T) {
+	db := pgtest.New(t)
+	tenantID := uuid.New()
+	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-test','Feature Access','ACTIVE',$3)`, tenantID, "feature-access-test", time.Now().UTC())
+	features := []roleaccess.FeatureDefinition{
+		{PageID: "people", FeatureID: "content", View: true},
+		{PageID: "people", FeatureID: "actions", View: true, Create: true, Update: true, Delete: true},
+		{PageID: "people", FeatureID: "workflow_actions", View: true, Create: true},
+	}
+	store := New(db.Conn, func(values.TenantId) uuid.UUID { return tenantID }, features...)
+	ctx := context.Background()
+	tenant := values.TenantId("feature-access-test")
+	if err := store.Bootstrap(ctx, tenant, "system:test"); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := store.Load(ctx, tenant, "org:north")
+	if err != nil {
+		t.Fatal(err)
+	}
+	effectivePages := roleaccess.EffectivePagePermissions(snapshot, []string{"comp_admin"})
+	effectiveFeatures := roleaccess.EffectiveFeaturePermissions(snapshot, []string{"comp_admin"})
+	if !roleaccess.CanFeatureAction(effectivePages, effectiveFeatures, "people", "workflow_actions", roleaccess.ActionCreate) {
+		t.Fatal("bootstrap did not preserve the manager's existing people/create grant")
+	}
+	var permission roleaccess.FeaturePermission
+	for _, candidate := range snapshot.FeaturePermissions {
+		if candidate.RoleID == "comp_admin" && candidate.PageID == "people" && candidate.FeatureID == "workflow_actions" {
+			permission = candidate
+			break
+		}
+	}
+	if permission.Version != 1 {
+		t.Fatalf("bootstrap feature permission = %#v", permission)
+	}
+	permission.Create = false
+	updated, err := store.SaveFeaturePermission(ctx, tenant, "admin", permission)
+	if err != nil || updated.Version != 2 || updated.Create {
+		t.Fatalf("update feature permission = %#v, %v", updated, err)
+	}
+	if _, err := store.SaveFeaturePermission(ctx, tenant, "admin", permission); !errors.Is(err, roleaccess.ErrVersionConflict) {
+		t.Fatalf("stale feature update = %v", err)
+	}
+	unsupported := updated
+	unsupported.Delete = true
+	if _, err := store.SaveFeaturePermission(ctx, tenant, "admin", unsupported); !errors.Is(err, roleaccess.ErrInvalid) {
+		t.Fatalf("feature grant beyond its declared ceiling = %v", err)
+	}
+	if _, err := store.SaveFeaturePermission(ctx, tenant, "admin", roleaccess.FeaturePermission{RoleID: "comp_admin", PageID: "people", FeatureID: "unknown", View: true}); !errors.Is(err, roleaccess.ErrInvalid) {
+		t.Fatalf("unregistered feature = %v", err)
+	}
+	if _, err := store.SaveFeaturePermission(ctx, tenant, "admin", roleaccess.FeaturePermission{RoleID: "comp_admin", PageID: "missing-page", FeatureID: "content", View: true}); !errors.Is(err, roleaccess.ErrInvalid) {
+		t.Fatalf("feature without page grant = %v", err)
 	}
 }
 

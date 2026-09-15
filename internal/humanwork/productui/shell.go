@@ -543,75 +543,8 @@ func currentPageAddressState(view View, collapsed bool) url.Values {
 		values.Set("nav", "collapsed")
 	}
 	setMenuAddressState(values, view)
-	switch view.Page {
-	case PageJourneys:
-		if view.JourneyID != "" {
-			values.Set("journey", view.JourneyID)
-		}
-		if view.JourneyMode != "" {
-			values.Set("mode", view.JourneyMode)
-		}
-		if view.JourneyWorker != "" {
-			values.Set("worker", view.JourneyWorker)
-		}
-	case PageStudio:
-		if view.Mode != "" {
-			values.Set("mode", view.Mode)
-		}
-	case PagePeople:
-		if view.Query != "" {
-			values.Set("q", view.Query)
-		}
-		setPeopleDirectoryAddressState(values, view)
-		if view.PeoplePage > 1 {
-			values.Set("page", fmt.Sprint(view.PeoplePage))
-		}
-	case PagePerson:
-		if view.SelectedPerson != "" {
-			values.Set("person", view.SelectedPerson)
-		}
-		if view.Query != "" {
-			values.Set("q", view.Query)
-		}
-		setPeopleDirectoryAddressState(values, view)
-		if view.PeoplePage > 1 {
-			values.Set("page", fmt.Sprint(view.PeoplePage))
-		}
-		if view.WorkflowQuery != "" {
-			values.Set("workflow_q", view.WorkflowQuery)
-		}
-		setHistoryAddressState(values, view)
-	case PageMyself:
-		if view.WorkflowQuery != "" {
-			values.Set("workflow_q", view.WorkflowQuery)
-		}
-		setHistoryAddressState(values, view)
-	case PageWork:
-		if view.WorkFilter != "" {
-			values.Set("filter", view.WorkFilter)
-		}
-		if view.SelectedWork != "" {
-			values.Set("selected", view.SelectedWork)
-		}
-	case PageHistory:
-		setHistoryAddressState(values, view)
-	case PageOrganization, PageOrgExplorer, PageOrgOutline, PageOrgResponsive:
-		if view.OrganizationView != "" {
-			values.Set("org_view", view.OrganizationView)
-		}
-		if view.Query != "" {
-			values.Set("q", view.Query)
-		}
-		if view.SelectedPerson != "" {
-			values.Set("person", view.SelectedPerson)
-		}
-	case PageRoles:
-		if view.Query != "" {
-			values.Set("q", view.Query)
-		}
-		if view.RolePage > 1 {
-			values.Set("role_page", fmt.Sprint(view.RolePage))
-		}
+	if routeProfile, _, ok := PageProfiles(view.Page); ok {
+		routeProfile.AddressValues(values, view)
 	}
 	return values
 }

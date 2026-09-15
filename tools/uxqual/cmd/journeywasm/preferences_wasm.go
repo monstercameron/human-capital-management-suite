@@ -167,6 +167,24 @@ func (c *serverPreferenceController) SaveRolePagePermission(permission productui
 	})
 }
 
+func (c *serverPreferenceController) SaveRoleFeaturePermission(permission productui.RoleFeaturePermission, done func(error)) {
+	if c == nil || c.service == nil {
+		if done != nil {
+			done(errors.New("role access service unavailable"))
+		}
+		return
+	}
+	c.enqueue(func() {
+		_, err := c.service.SaveRoleFeaturePermission(c.ctx, &journeyv1.SaveRoleFeaturePermissionRequest{Permission: &journeyv1.RoleFeaturePermission{
+			Version: permission.Version, RoleId: permission.RoleID, PageId: string(permission.Page), FeatureId: string(permission.Feature),
+			CanView: permission.View, CanCreate: permission.Create, CanUpdate: permission.Update, CanDelete: permission.Delete,
+		}})
+		if done != nil {
+			done(err)
+		}
+	})
+}
+
 func (c *serverPreferenceController) SaveTheme(theme productui.CustomerTheme, done func(error)) {
 	c.enqueue(func() {
 		c.mu.Lock()

@@ -15,7 +15,7 @@ func rolesPage(view View) ui.Node {
 	}
 	pages := make([]RolePageOption, 0, len(PageDefinitions()))
 	for _, definition := range PageDefinitions() {
-		pages = append(pages, RolePageOption{ID: definition.ID, Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.SubtitleKey), Published: definition.NavigationPublished})
+		pages = append(pages, RolePageOption{ID: definition.ID, Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.SubtitleKey), Published: definition.NavigationPublished, Features: append([]FeatureDefinition(nil), definition.Features...)})
 	}
 	return ui.CreateElement(RolesPage, RolesPageProps{
 		I18nProps: I18nProps{Locale: view.Locale},
@@ -23,8 +23,8 @@ func rolesPage(view View) ui.Node {
 		Policies:   view.RoleVisibilityPolicies,
 		FilterHref: statefulHref(view, PageRoles), Navigate: view.Navigate,
 		Back:            ActionLinkProps{Label: "← " + view.Locale.Text("page.admin.title"), Href: statefulHref(view, PageAdmin), Class: "button secondary", Navigate: view.Navigate},
-		PagePermissions: view.RolePagePermissions, Pages: pages,
+		PagePermissions: view.RolePagePermissions, FeaturePermissions: view.RoleFeaturePermissions, Pages: pages,
 		CanCreate: view.Can(PageRoles, "create"), CanUpdate: view.Can(PageRoles, "update"),
-		OnSaveRole: view.SaveAccessRole, OnAssign: view.SaveWorkerRoleAssignment, OnSavePermission: view.SaveRolePagePermission,
+		OnSaveRole: view.SaveAccessRole, OnAssign: view.SaveWorkerRoleAssignment, OnSavePermission: view.SaveRolePagePermission, OnSaveFeaturePermission: view.SaveRoleFeaturePermission,
 	})
 }

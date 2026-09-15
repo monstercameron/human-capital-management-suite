@@ -493,7 +493,7 @@ func TestJourneyServicePublishesTwentyUnaryMethodsAndOneServerStream(t *testing.
 		"ListWorkers": true, "CreateWorker": true,
 		"GetProductPreferences": true, "SaveUserPreferences": true,
 		"SaveTenantAppearance": true, "SaveOrganizationVisibility": true, "RecordWorkflowUse": true,
-		"GetRoleAccess": true, "SaveAccessRole": true, "SaveWorkerRoleAssignment": true, "SaveRoleOrganizationVisibility": true, "SaveRolePagePermission": true,
+		"GetRoleAccess": true, "SaveAccessRole": true, "SaveWorkerRoleAssignment": true, "SaveRoleOrganizationVisibility": true, "SaveRolePagePermission": true, "SaveRoleFeaturePermission": true,
 		"GetWorkerIDPolicy": true, "SaveWorkerIDPolicy": true,
 	}
 	if len(desc.Methods) != len(wantUnary) {

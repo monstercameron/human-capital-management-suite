@@ -13,22 +13,24 @@ const roleDirectoryPageSize = 20
 
 type RolesPageProps struct {
 	I18nProps
-	Roles            []AccessRole
-	Assignments      []WorkerRoleAssignment
-	Policies         []OrganizationVisibilityPolicy
-	PagePermissions  []RolePagePermission
-	Pages            []RolePageOption
-	People           []Person
-	Query            string
-	Page             int
-	FilterHref       string
-	Navigate         func(string)
-	Back             ActionLinkProps
-	CanCreate        bool
-	CanUpdate        bool
-	OnSaveRole       func(AccessRole)
-	OnAssign         func(WorkerRoleAssignment)
-	OnSavePermission func(RolePagePermission)
+	Roles                   []AccessRole
+	Assignments             []WorkerRoleAssignment
+	Policies                []OrganizationVisibilityPolicy
+	PagePermissions         []RolePagePermission
+	FeaturePermissions      []RoleFeaturePermission
+	Pages                   []RolePageOption
+	People                  []Person
+	Query                   string
+	Page                    int
+	FilterHref              string
+	Navigate                func(string)
+	Back                    ActionLinkProps
+	CanCreate               bool
+	CanUpdate               bool
+	OnSaveRole              func(AccessRole)
+	OnAssign                func(WorkerRoleAssignment)
+	OnSavePermission        func(RolePagePermission)
+	OnSaveFeaturePermission func(RoleFeaturePermission)
 }
 
 // RolePageOption is registry metadata for one configurable page. It keeps
@@ -38,6 +40,7 @@ type RolePageOption struct {
 	Label       string
 	Description string
 	Published   bool
+	Features    []FeatureDefinition
 }
 
 func RolesPage(props RolesPageProps) ui.Node {
@@ -180,6 +183,7 @@ func roleAccessCard(props RolesPageProps, role AccessRole, kind string) ui.Node 
 		}
 	}
 	definition := roleDefinitionDisclosure(props, role, policy, roleGrantedPageCount(props.PagePermissions, role.ID))
+	featureAccess := roleFeaturePermissionEditor(props, role, permissions)
 	return html.Tag("details", html.Props{Class: "access-role-card"},
 		html.Tag("summary", html.Props{},
 			html.Div(html.Props{Class: "access-role-identity"}, html.Strong(html.Props{}, ui.Text(role.Name)), html.Code(html.Props{}, ui.Text(role.ID))),
@@ -200,6 +204,7 @@ func roleAccessCard(props RolesPageProps, role AccessRole, kind string) ui.Node 
 				rolePagePermissionTable(props, unpublishedRows, props.Text("roles.unpublished_pages")),
 			),
 		),
+		featureAccess,
 	)
 }
 

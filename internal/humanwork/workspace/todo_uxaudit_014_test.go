@@ -97,6 +97,13 @@ func (uxaudit014RoleAccess) SavePagePermission(context.Context, values.TenantId,
 	return roleaccess.PagePermission{}, nil
 }
 
+// SaveFeaturePermission keeps the stub implementing roleaccess.Store while
+// the feature-permission lane is in flight: same zero-value passthrough as
+// the other Save stubs here, no behavior of its own.
+func (uxaudit014RoleAccess) SaveFeaturePermission(context.Context, values.TenantId, string, roleaccess.FeaturePermission) (roleaccess.FeaturePermission, error) {
+	return roleaccess.FeaturePermission{}, nil
+}
+
 // destinationHrefRE captures the top-level slug of every /workspace/app/...
 // link rendered anywhere on a page (primary nav, quick actions, breadcrumbs).
 // Requesting only the Home page for a freshly-authenticated persona (no

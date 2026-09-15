@@ -64,7 +64,12 @@ func navigationSearchScore(item NavItem, query string) int {
 }
 
 func fuzzyFieldScore(value, token string) int {
-	value = normalizeNavigationSearch(value)
+	return fuzzyNormalizedFieldScore(normalizeNavigationSearch(value), token)
+}
+
+// fuzzyNormalizedFieldScore is the same matcher for fields normalized once
+// when a command-palette projection is prepared for repeated queries.
+func fuzzyNormalizedFieldScore(value, token string) int {
 	if value == "" || token == "" {
 		return 0
 	}
@@ -104,8 +109,10 @@ func fuzzyWordScore(word, token string) int {
 	if tokenLength >= 6 {
 		allowedDistance = 2
 	}
-	if distance := navigationEditDistance(word, token); distance <= allowedDistance {
-		return 91 - distance*14
+	if difference := wordLength - tokenLength; difference >= -allowedDistance && difference <= allowedDistance {
+		if distance := navigationEditDistance(word, token); distance <= allowedDistance {
+			return 91 - distance*14
+		}
 	}
 	if gaps, ok := navigationSubsequenceGaps(word, token); ok {
 		return 72 - minInt(gaps, 24)
@@ -152,11 +159,11 @@ func navigationSubsequenceGaps(word, token string) (int, bool) {
 func navigationEditDistance(left, right string) int {
 	leftRunes, rightRunes := []rune(left), []rune(right)
 	previous := make([]int, len(rightRunes)+1)
+	current := make([]int, len(rightRunes)+1)
 	for index := range previous {
 		previous[index] = index
 	}
 	for leftIndex := 1; leftIndex <= len(leftRunes); leftIndex++ {
-		current := make([]int, len(rightRunes)+1)
 		current[0] = leftIndex
 		for rightIndex := 1; rightIndex <= len(rightRunes); rightIndex++ {
 			cost := 0
@@ -168,7 +175,7 @@ func navigationEditDistance(left, right string) int {
 				previous[rightIndex-1]+cost,
 			)
 		}
-		previous = current
+		previous, current = current, previous
 	}
 	return previous[len(rightRunes)]
 }

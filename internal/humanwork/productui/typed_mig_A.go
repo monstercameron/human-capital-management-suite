@@ -649,6 +649,48 @@ func declareroleAccessStylesStyles() {
 		gwccss.Raw("margin", "10px 0"),
 		gwccss.FontSize(gwccss.Rem(.78)),
 	)
+	declareGlobal(".role-feature-page-groups",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(8)),
+	)
+	declareGlobal(".role-feature-page",
+		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Raw("overflow", "hidden"),
+	)
+	declareGlobal(".role-feature-page>summary",
+		gwccss.Display.Flex,
+		gwccss.Items.Center,
+		gwccss.Raw("justify-content", "space-between"),
+		gwccss.Gap(gwccss.Px(12)),
+		gwccss.Raw("padding", "11px 13px"),
+		gwccss.Raw("cursor", "pointer"),
+		gwccss.Raw("font-weight", "700"),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
+	)
+	declareGlobal(".role-feature-page>summary:hover",
+		gwccss.Bg(gwccss.Var("surface-hover")),
+	)
+	declareGlobal(".role-feature-page[open]>summary",
+		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
+	)
+	declareGlobal(".role-feature-page .role-page-table-wrap",
+		gwccss.Raw("border", "0"),
+		gwccss.Raw("border-radius", "0"),
+	)
+	declareGlobal(".role-feature-table",
+		gwccss.MinWidth(gwccss.Px(590)),
+	)
+	declareGlobal(".role-feature-table tbody th",
+		gwccss.MinWidth(gwccss.Px(260)),
+		gwccss.Raw("text-align", "left"),
+	)
+	declareGlobal(".role-feature-description",
+		gwccss.Display.Block,
+		gwccss.Raw("margin-top", "4px"),
+		gwccss.Raw("font-weight", "450"),
+		gwccss.Raw("line-height", "1.4"),
+	)
 	declareGlobal(".role-page-scroll-hint",
 		gwccss.Display.None,
 		gwccss.FontSize(gwccss.Rem(.78)),
@@ -1699,6 +1741,39 @@ func declareorganizationHierarchyStylesStyles() {
 	declareGlobal(".ownership-tree",
 		gwccss.Display.Grid,
 		gwccss.Gap(gwccss.Px(14)),
+	)
+	declareGlobal(".ownership-virtual-tree",
+		gwccss.Display.Block,
+		gwccss.H(gwccss.Px(560)),
+		gwccss.Raw("overflow-y", "auto"),
+		gwccss.Raw("overscroll-behavior", "contain"),
+		gwccss.Raw("scroll-padding-block", "144px"),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+		gwccss.Bg(gwccss.Var("surface")),
+	)
+	declareGlobal(".ownership-virtual-tree:focus-visible",
+		gwccss.Raw("outline", "2px solid var(--accent)"),
+		gwccss.Raw("outline-offset", "2px"),
+	)
+	declareGlobal(".ownership-virtual-row",
+		gwccss.Display.Flex,
+		gwccss.Items.Center,
+		gwccss.Gap(gwccss.Px(8)),
+		gwccss.H(gwccss.Px(144)),
+		gwccss.Padding(gwccss.Px(8)),
+		gwccss.Raw("box-sizing", "border-box"),
+	)
+	declareGlobal(".ownership-virtual-row .ownership-card",
+		gwccss.MinWidth(gwccss.Zero),
+		gwccss.MaxWidth(gwccss.Px(440)),
+		gwccss.Raw("flex", "1 1 auto"),
+	)
+	declareGlobal(".ownership-virtual-tree .ownership-virtual-row .row-main strong,.ownership-virtual-tree .ownership-virtual-row .row-main small",
+		gwccss.Display.Block,
+		gwccss.Raw("white-space", "nowrap"),
+		gwccss.Raw("overflow", "hidden"),
+		gwccss.Raw("text-overflow", "ellipsis"),
 	)
 	declareGlobal(".ownership-tree ul",
 		gwccss.Position.Relative,

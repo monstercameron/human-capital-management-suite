@@ -64,6 +64,16 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 			View: permission.View, Create: permission.Create, Update: permission.Update, Delete: permission.Delete,
 		})
 	}
+	var featurePermissions []productui.RoleFeaturePermission
+	if cfg.FeaturePermissions != nil {
+		featurePermissions = make([]productui.RoleFeaturePermission, 0, len(cfg.FeaturePermissions))
+		for _, permission := range cfg.FeaturePermissions {
+			featurePermissions = append(featurePermissions, productui.RoleFeaturePermission{
+				Version: permission.Version, RoleID: permission.RoleID, Page: productui.PageID(permission.PageID), Feature: productui.FeatureID(permission.FeatureID),
+				View: permission.View, Create: permission.Create, Update: permission.Update, Delete: permission.Delete,
+			})
+		}
+	}
 	launcherActions := projectLauncherActions(cfg.LauncherActions)
 	// UXAUDIT-007: cfg.Purpose is the admitted principal's authorized
 	// data-processing purpose, not the product shell's "authorized scope"
@@ -74,7 +84,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// journey experience itself (tools/uxqual/render/journey's
 	// principalChip), with a visually-hidden "Purpose: " explanation and
 	// its own sign-out exit action, mounted only on PageJourneys.
-	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, LauncherActions: launcherActions, EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath}
+	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath}
 	preferences := newServerPreferenceController(ctx, service)
 	appearance := newBrowserThemeController(productui.DisplayLabel(cfg.Tenant), preferences.SaveTheme)
 	appearance.Apply(appearance.Saved())
@@ -300,21 +310,19 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						}
 					})
 				}
+				view.SaveRoleFeaturePermission = func(permission productui.RoleFeaturePermission) {
+					preferences.SaveRoleFeaturePermission(permission, func(err error) {
+						if err == nil {
+							navigateProduct(currentPath() + "?" + currentQuery())
+						}
+					})
+				}
 				view.UpdatePeopleDirectory = func(change productui.PeopleDirectoryChange) {
-					browserReplaceURL(change.Href)
-					if lastResolvedProductView == nil || lastResolvedProductView.Page != productui.PagePeople {
-						return
-					}
-					updated := *lastResolvedProductView
-					updated.PeoplePage = 1
-					updated.PeopleSort = change.Sort
-					updated.PeopleDirection = "asc"
-					if change.Descending {
-						updated.PeopleDirection = "desc"
-					}
-					updated.UpdatePeopleDirectory = view.UpdatePeopleDirectory
-					lastResolvedProductView = &updated
-					preferences.PersistView(updated)
+					// The component applies the sort optimistically, then the normal
+					// software route verifies the authoritative projection and persists
+					// presentation state. That route drives the same table-scoped busy
+					// contract used by paging and page-size changes.
+					navigatePeopleDirectoryChange(navigateProduct, change)
 				}
 				view.Accessibility = accessibility.Saved()
 				view.PreviewAccessibility = accessibility.Preview

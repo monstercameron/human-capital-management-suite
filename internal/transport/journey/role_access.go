@@ -66,6 +66,9 @@ func (s *server) GetRoleAccess(ctx context.Context, _ *journeyv1.GetRoleAccessRe
 	for _, permission := range snapshot.PagePermissions {
 		response.PagePermissions = append(response.PagePermissions, toRolePagePermission(permission))
 	}
+	for _, permission := range snapshot.FeaturePermissions {
+		response.FeaturePermissions = append(response.FeaturePermissions, toRoleFeaturePermission(permission))
+	}
 	return response, nil
 }
 
@@ -173,6 +176,31 @@ func (s *server) SaveRolePagePermission(ctx context.Context, req *journeyv1.Save
 	return &journeyv1.SaveRolePagePermissionResponse{Permission: toRolePagePermission(permission)}, nil
 }
 
+func (s *server) SaveRoleFeaturePermission(ctx context.Context, req *journeyv1.SaveRoleFeaturePermissionRequest) (*journeyv1.SaveRoleFeaturePermissionResponse, error) {
+	principal, inv, ctxErr := trustedContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+	if err := s.requireFeatureAction(ctx, principal, inv, "roles", "feature_access", roleaccess.ActionUpdate); err != nil {
+		return nil, err
+	}
+	if err := requireRoleAdministrator(principal, inv.RequestID()); err != nil {
+		return nil, err
+	}
+	if req.GetPermission() == nil {
+		return nil, roleAccessError(roleaccess.ErrInvalid, principal, inv.RequestID(), "save_feature_permission")
+	}
+	store, err := s.roleAccessStore(principal, inv.RequestID())
+	if err != nil {
+		return nil, err
+	}
+	permission, err := store.SaveFeaturePermission(ctx, principal.Tenant(), principal.Subject(), fromRoleFeaturePermission(req.GetPermission()))
+	if err != nil {
+		return nil, roleAccessError(err, principal, inv.RequestID(), "save_feature_permission")
+	}
+	return &journeyv1.SaveRoleFeaturePermissionResponse{Permission: toRoleFeaturePermission(permission)}, nil
+}
+
 func toAccessRole(value roleaccess.Role) *journeyv1.AccessRole {
 	return &journeyv1.AccessRole{Version: value.Version, RoleId: value.ID, Name: value.Name, Description: value.Description, System: value.System, Active: value.Active}
 }
@@ -203,4 +231,12 @@ func toRolePagePermission(value roleaccess.PagePermission) *journeyv1.RolePagePe
 
 func fromRolePagePermission(value *journeyv1.RolePagePermission) roleaccess.PagePermission {
 	return roleaccess.PagePermission{Version: value.GetVersion(), RoleID: value.GetRoleId(), PageID: value.GetPageId(), View: value.GetCanView(), Create: value.GetCanCreate(), Update: value.GetCanUpdate(), Delete: value.GetCanDelete()}
+}
+
+func toRoleFeaturePermission(value roleaccess.FeaturePermission) *journeyv1.RoleFeaturePermission {
+	return &journeyv1.RoleFeaturePermission{Version: value.Version, RoleId: value.RoleID, PageId: value.PageID, FeatureId: value.FeatureID, CanView: value.View, CanCreate: value.Create, CanUpdate: value.Update, CanDelete: value.Delete}
+}
+
+func fromRoleFeaturePermission(value *journeyv1.RoleFeaturePermission) roleaccess.FeaturePermission {
+	return roleaccess.FeaturePermission{Version: value.GetVersion(), RoleID: value.GetRoleId(), PageID: value.GetPageId(), FeatureID: value.GetFeatureId(), View: value.GetCanView(), Create: value.GetCanCreate(), Update: value.GetCanUpdate(), Delete: value.GetCanDelete()}
 }

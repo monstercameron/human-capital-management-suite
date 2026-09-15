@@ -34,8 +34,13 @@ type DataTableProps struct {
 	HeaderClass    string
 	BodyClass      string
 	SortLabelClass string
-	Columns        []DataTableColumnProps
-	Rows           []DataTableRowProps
+	// Busy retains the last resolved matrix while a caller resolves a newer
+	// sort, page, filter, or page-size projection. BusyLabel is both visible
+	// and announced; callers own its locale because DataTable is domain-neutral.
+	Busy      bool
+	BusyLabel string
+	Columns   []DataTableColumnProps
+	Rows      []DataTableRowProps
 }
 
 // DataTableColumnProps configures one visible column. A non-empty Href makes
@@ -126,7 +131,18 @@ func DataTable(props DataTableProps) ui.Node {
 	if label == "" {
 		label = strings.TrimSpace(props.Caption)
 	}
-	children := make([]ui.Node, 0, 2)
+	children := make([]ui.Node, 0, 3)
+	if props.Busy {
+		children = append(children, html.Div(html.Props{Class: "data-table-loader-anchor"},
+			html.Div(html.Props{
+				Class: "data-table-loader", Role: "status",
+				Aria: map[string]string{"live": "polite", "atomic": "true"},
+			},
+				html.Span(html.Props{Class: "data-table-spinner", Raw: map[string]any{"aria-hidden": "true"}}),
+				html.Span(html.Props{Class: "data-table-loader-label"}, ui.Text(props.BusyLabel)),
+			),
+		))
+	}
 	if props.SortLabel != "" {
 		children = append(children, html.Span(html.Props{Class: strings.TrimSpace("data-table-sort-label " + props.SortLabelClass)}, ui.Text(props.SortLabel)))
 	}
@@ -139,9 +155,15 @@ func DataTable(props DataTableProps) ui.Node {
 		html.Thead(html.Props{}, html.Tr(html.Props{Class: strings.TrimSpace("data-table-head " + props.HeaderClass)}, headings...)),
 		html.Tbody(html.Props{Class: strings.TrimSpace("data-table-body " + props.BodyClass)}, rows...),
 	))
+	viewportClass := "data-table-scroll"
+	aria := map[string]string{"label": label}
+	if props.Busy {
+		viewportClass += " is-busy"
+		aria["busy"] = "true"
+	}
 	return ui.CreateElement(ScrollRegion, ScrollRegionProps{
-		ID: viewportID, Class: "data-table-scroll", Role: "region", Focusable: true,
-		RestoreScroll: true, Aria: map[string]string{"label": label}, Data: map[string]string{"preserve-scroll": "true", "preserve-focus": "true"}, Children: children,
+		ID: viewportID, Class: viewportClass, Role: "region", Focusable: true,
+		RestoreScroll: true, Aria: aria, Data: map[string]string{"preserve-scroll": "true", "preserve-focus": "true"}, Children: children,
 	})
 }
 

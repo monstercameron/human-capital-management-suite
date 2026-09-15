@@ -64,6 +64,7 @@ type PreferenceService interface {
 	SaveWorkerRoleAssignment(context.Context, *journeyv1.SaveWorkerRoleAssignmentRequest) (*journeyv1.SaveWorkerRoleAssignmentResponse, error)
 	SaveRoleOrganizationVisibility(context.Context, *journeyv1.SaveRoleOrganizationVisibilityRequest) (*journeyv1.SaveRoleOrganizationVisibilityResponse, error)
 	SaveRolePagePermission(context.Context, *journeyv1.SaveRolePagePermissionRequest) (*journeyv1.SaveRolePagePermissionResponse, error)
+	SaveRoleFeaturePermission(context.Context, *journeyv1.SaveRoleFeaturePermissionRequest) (*journeyv1.SaveRoleFeaturePermissionResponse, error)
 	RecordWorkflowUse(context.Context, *journeyv1.RecordWorkflowUseRequest) (*journeyv1.RecordWorkflowUseResponse, error)
 	GetWorkerIDPolicy(context.Context, *journeyv1.GetWorkerIDPolicyRequest) (*journeyv1.GetWorkerIDPolicyResponse, error)
 	SaveWorkerIDPolicy(context.Context, *journeyv1.SaveWorkerIDPolicyRequest) (*journeyv1.SaveWorkerIDPolicyResponse, error)
@@ -186,6 +187,10 @@ func (s *grpcService) SaveRoleOrganizationVisibility(ctx context.Context, in *jo
 
 func (s *grpcService) SaveRolePagePermission(ctx context.Context, in *journeyv1.SaveRolePagePermissionRequest) (*journeyv1.SaveRolePagePermissionResponse, error) {
 	return s.client.SaveRolePagePermission(ctx, in)
+}
+
+func (s *grpcService) SaveRoleFeaturePermission(ctx context.Context, in *journeyv1.SaveRoleFeaturePermissionRequest) (*journeyv1.SaveRoleFeaturePermissionResponse, error) {
+	return s.client.SaveRoleFeaturePermission(ctx, in)
 }
 
 func (s *grpcService) RecordWorkflowUse(ctx context.Context, in *journeyv1.RecordWorkflowUseRequest) (*journeyv1.RecordWorkflowUseResponse, error) {

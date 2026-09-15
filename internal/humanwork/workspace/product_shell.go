@@ -56,6 +56,9 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	config.Roles, config.PagePermissions = access.roles, access.permissions
+	if access.featuresConfigured {
+		config.FeaturePermissions = access.features
+	}
 	config.LauncherActions = resolveProductLauncherActions(access.configured, access.permissions)
 	if !access.can(definition.ID, roleaccess.ActionView) {
 		h.writeProblem(w, http.StatusForbidden, "Page unavailable", "Your current role does not grant access to this workspace page.")
@@ -104,9 +107,11 @@ func productThemeFromPreference(value preferences.Theme) productui.CustomerTheme
 // shell both consume. A configured but empty effective grant remains a denial;
 // it must never fall back to the credential's broader role claims.
 type productAccess struct {
-	roles       []string
-	permissions []roleaccess.PagePermission
-	configured  bool
+	roles              []string
+	permissions        []roleaccess.PagePermission
+	features           []roleaccess.FeaturePermission
+	configured         bool
+	featuresConfigured bool
 }
 
 func (h *Handler) resolveProductAccess(ctx context.Context, principal *trust.Principal) (productAccess, error) {
@@ -124,12 +129,21 @@ func (h *Handler) resolveProductAccess(ctx context.Context, principal *trust.Pri
 	access.configured = true
 	access.roles = roleaccess.AssignedRoles(snapshot, principal.Subject(), access.roles)
 	access.permissions = roleaccess.EffectivePagePermissions(snapshot, access.roles)
+	access.featuresConfigured = len(snapshot.FeaturePermissions) > 0
+	access.features = roleaccess.EffectiveFeaturePermissions(snapshot, access.roles)
 	return access, nil
 }
 
 func (access productAccess) can(page productui.PageID, action string) bool {
 	if access.configured {
-		return roleaccess.CanPageAction(access.permissions, string(page), action)
+		if !access.featuresConfigured {
+			return roleaccess.CanPageAction(access.permissions, string(page), action)
+		}
+		featureID := string(productui.FeatureActions)
+		if action == roleaccess.ActionView {
+			featureID = string(productui.FeatureContent)
+		}
+		return roleaccess.CanFeatureAction(access.permissions, access.features, string(page), featureID, action)
 	}
 	return action == roleaccess.ActionView && productui.PageVisible(page, access.roles)
 }
@@ -209,6 +223,9 @@ func productShellDocumentForRouteStateWithTheme(config JourneyConfig, bundleBuil
 		if len(config.PagePermissions) > 0 {
 			view = productui.ApplyPagePermissions(view, productPagePermissions(config.PagePermissions))
 		}
+		if config.FeaturePermissions != nil {
+			view = productui.ApplyFeaturePermissions(view, productFeaturePermissions(config.FeaturePermissions))
+		}
 		view.LauncherActions = productLauncherActions(config.LauncherActions)
 		view = productui.ApplyLocale(view, locale)
 		loading, renderErr := ui.RenderToString(productui.BuildLoading(view))
@@ -270,6 +287,17 @@ func productPagePermissions(values []roleaccess.PagePermission) []productui.Role
 	result := make([]productui.RolePagePermission, 0, len(values))
 	for _, value := range values {
 		result = append(result, productui.RolePagePermission{Version: value.Version, RoleID: value.RoleID, Page: productui.PageID(value.PageID), View: value.View, Create: value.Create, Update: value.Update, Delete: value.Delete})
+	}
+	return result
+}
+
+func productFeaturePermissions(values []roleaccess.FeaturePermission) []productui.RoleFeaturePermission {
+	result := make([]productui.RoleFeaturePermission, 0, len(values))
+	for _, value := range values {
+		result = append(result, productui.RoleFeaturePermission{
+			Version: value.Version, RoleID: value.RoleID, Page: productui.PageID(value.PageID), Feature: productui.FeatureID(value.FeatureID),
+			View: value.View, Create: value.Create, Update: value.Update, Delete: value.Delete,
+		})
 	}
 	return result
 }

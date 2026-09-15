@@ -412,6 +412,20 @@ type RolePagePermission struct {
 	Delete  bool
 }
 
+// RoleFeaturePermission is one role's CRUD boundary for a stable feature
+// within a page. Page permission remains the outer boundary: a feature grant
+// never makes an otherwise denied page action available.
+type RoleFeaturePermission struct {
+	Version int64
+	RoleID  string
+	Page    PageID
+	Feature FeatureID
+	View    bool
+	Create  bool
+	Update  bool
+	Delete  bool
+}
+
 // View is an already-authorized presentation projection. It contains no
 // credential or raw sensitive record and grants no action authority.
 type View struct {
@@ -473,6 +487,8 @@ type View struct {
 	RoleVisibilityPolicies []OrganizationVisibilityPolicy
 	RolePagePermissions    []RolePagePermission
 	EffectivePermissions   []RolePagePermission
+	RoleFeaturePermissions []RoleFeaturePermission
+	EffectiveFeatures      []RoleFeaturePermission
 	StoredPreferences      StoredUserPreferences
 	Mode                   string
 	WorkFilter             string
@@ -497,6 +513,7 @@ type View struct {
 	SaveWorkerRoleAssignment   func(WorkerRoleAssignment)
 	SaveRoleVisibility         func(OrganizationVisibilityPolicy)
 	SaveRolePagePermission     func(RolePagePermission)
+	SaveRoleFeaturePermission  func(RoleFeaturePermission)
 	PreviewAccessibility       func(AccessibilityPreferences)
 	SaveAccessibility          func(AccessibilityPreferences)
 	ResetAccessibility         func()
@@ -570,6 +587,17 @@ type View struct {
 // empty permission projection is the compatibility path for cells that have
 // not composed role access yet; only legacy view visibility is retained.
 func (view View) Can(page PageID, action string) bool {
+	if view.EffectiveFeatures != nil {
+		feature := FeatureActions
+		if action == "view" {
+			feature = FeatureContent
+		}
+		return view.CanFeature(page, feature, action)
+	}
+	return view.canPage(page, action)
+}
+
+func (view View) canPage(page PageID, action string) bool {
 	for _, permission := range view.EffectivePermissions {
 		if permission.Page != page {
 			continue
@@ -586,6 +614,35 @@ func (view View) Can(page PageID, action string) bool {
 		}
 	}
 	return len(view.EffectivePermissions) == 0 && action == "view" && PageVisible(page, view.Roles)
+}
+
+// CanFeature reports whether both the containing page and feature grant the
+// requested operation. A non-nil empty feature projection is authoritative
+// and denies all features; nil retains the page-only compatibility path for
+// isolated previews and rolling upgrades.
+func (view View) CanFeature(page PageID, feature FeatureID, action string) bool {
+	if !view.canPage(page, action) {
+		return false
+	}
+	if view.EffectiveFeatures == nil {
+		return true
+	}
+	for _, permission := range view.EffectiveFeatures {
+		if permission.Page != page || permission.Feature != feature {
+			continue
+		}
+		switch action {
+		case "view":
+			return permission.View
+		case "create":
+			return permission.Create
+		case "update":
+			return permission.Update
+		case "delete":
+			return permission.Delete
+		}
+	}
+	return false
 }
 
 // Allows keeps isolated component previews and legacy server-rendered tests
@@ -626,6 +683,14 @@ func ApplyRoleVisibility(view View, roles []string) View {
 func ApplyPagePermissions(view View, permissions []RolePagePermission) View {
 	view.EffectivePermissions = append([]RolePagePermission(nil), permissions...)
 	return ApplyNavigationProjection(view, authorizedNavigationForPermissions(view.Locale, view.EffectivePermissions))
+}
+
+// ApplyFeaturePermissions installs the server-resolved feature grants. The
+// projection is intentionally non-nil even when empty so a configured deny-all
+// policy cannot fall back to page-level authority.
+func ApplyFeaturePermissions(view View, permissions []RoleFeaturePermission) View {
+	view.EffectiveFeatures = append([]RoleFeaturePermission{}, permissions...)
+	return view
 }
 
 // ApplyLocale resolves all shell and page-registry copy from one immutable

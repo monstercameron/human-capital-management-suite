@@ -32,6 +32,8 @@ type GlobalSearchItem struct {
 // to exercise without passing the page-wide View into the component.
 type GlobalSearchProps struct {
 	I18nProps
+	// Items is an immutable, authorized projection. Replace the slice when
+	// visibility or values change; the browser memo keeps only this snapshot.
 	Items        []GlobalSearchItem
 	Navigate     func(string)
 	FallbackHref string
@@ -338,47 +340,85 @@ func globalSearchKindLabel(locale LocaleContext, kind string) string {
 }
 
 type scoredGlobalSearchItem struct {
-	item  GlobalSearchItem
+	index int
 	score int
+}
+
+type preparedGlobalSearchItem struct {
+	item         GlobalSearchItem
+	label        string
+	description  string
+	kindLabel    string
+	kind         string
+	keywords     []string
+	sortLabel    string
+	kindPriority int
+}
+
+func prepareGlobalSearchItems(items []GlobalSearchItem) []preparedGlobalSearchItem {
+	prepared := make([]preparedGlobalSearchItem, 0, len(items))
+	for _, item := range items {
+		keywords := make([]string, 0, len(item.Keywords))
+		for _, keyword := range item.Keywords {
+			keywords = append(keywords, normalizeNavigationSearch(keyword))
+		}
+		prepared = append(prepared, preparedGlobalSearchItem{
+			item: item, label: normalizeNavigationSearch(item.Label),
+			description: normalizeNavigationSearch(item.Description),
+			kindLabel:   normalizeNavigationSearch(item.KindLabel), kind: normalizeNavigationSearch(item.Kind),
+			keywords: keywords, sortLabel: strings.ToLower(item.Label), kindPriority: globalSearchKindPriority(item.Kind),
+		})
+	}
+	return prepared
 }
 
 // SearchGlobalItems performs deterministic typo-tolerant ranking over the
 // local authorized projection. It intentionally does not send keystrokes to a
 // server or reveal records outside the already-resolved View.
 func SearchGlobalItems(items []GlobalSearchItem, query string, limit int) []GlobalSearchItem {
+	if strings.TrimSpace(query) == "" || limit <= 0 {
+		return nil
+	}
+	return searchPreparedGlobalItems(prepareGlobalSearchItems(items), query, limit)
+}
+
+func searchPreparedGlobalItems(items []preparedGlobalSearchItem, query string, limit int) []GlobalSearchItem {
 	tokens := strings.Fields(normalizeNavigationSearch(query))
 	if len(tokens) == 0 || limit <= 0 {
 		return nil
 	}
 	scored := make([]scoredGlobalSearchItem, 0, len(items))
-	for _, item := range items {
-		if score := globalSearchScore(item, tokens); score > 0 {
+	for index := range items {
+		item := &items[index]
+		if score := preparedGlobalSearchScore(item, tokens); score > 0 {
 			// A semantic action is the executable entry point. Keep it ahead of
 			// individual worker shortcuts when a broad workflow term matches
 			// both, so the selection step remains discoverable in a short list.
-			if item.Kind == "action" && strings.Count(item.ID, ":") == 1 {
+			if item.item.Kind == "action" && strings.Count(item.item.ID, ":") == 1 {
 				score += 20
 			}
-			scored = append(scored, scoredGlobalSearchItem{item: item, score: score})
+			scored = append(scored, scoredGlobalSearchItem{index: index, score: score})
 		}
 	}
 	sort.SliceStable(scored, func(left, right int) bool {
 		if scored[left].score != scored[right].score {
 			return scored[left].score > scored[right].score
 		}
-		if globalSearchKindPriority(scored[left].item.Kind) != globalSearchKindPriority(scored[right].item.Kind) {
-			return globalSearchKindPriority(scored[left].item.Kind) < globalSearchKindPriority(scored[right].item.Kind)
+		leftItem, rightItem := items[scored[left].index], items[scored[right].index]
+		if leftItem.kindPriority != rightItem.kindPriority {
+			return leftItem.kindPriority < rightItem.kindPriority
 		}
-		return strings.ToLower(scored[left].item.Label) < strings.ToLower(scored[right].item.Label)
+		return leftItem.sortLabel < rightItem.sortLabel
 	})
 	results := make([]GlobalSearchItem, 0, minInt(limit, len(scored)))
 	perKind := make(map[string]int)
 	for _, candidate := range scored {
-		if perKind[candidate.item.Kind] >= 4 {
+		item := items[candidate.index].item
+		if perKind[item.Kind] >= 4 {
 			continue
 		}
-		results = append(results, candidate.item)
-		perKind[candidate.item.Kind]++
+		results = append(results, item)
+		perKind[item.Kind]++
 		if len(results) == limit {
 			break
 		}
@@ -387,24 +427,26 @@ func SearchGlobalItems(items []GlobalSearchItem, query string, limit int) []Glob
 }
 
 func globalSearchScore(item GlobalSearchItem, tokens []string) int {
-	fields := []struct {
+	prepared := prepareGlobalSearchItems([]GlobalSearchItem{item})
+	return preparedGlobalSearchScore(&prepared[0], tokens)
+}
+
+func preparedGlobalSearchScore(item *preparedGlobalSearchItem, tokens []string) int {
+	fields := [4]struct {
 		value  string
 		weight int
-	}{
-		{item.Label, 48}, {item.Description, 16}, {item.KindLabel, 8}, {item.Kind, 6},
-	}
-	for _, keyword := range item.Keywords {
-		fields = append(fields, struct {
-			value  string
-			weight int
-		}{keyword, 30})
-	}
+	}{{item.label, 48}, {item.description, 16}, {item.kindLabel, 8}, {item.kind, 6}}
 	total := 0
 	for _, token := range tokens {
 		best := 0
 		for _, field := range fields {
-			if score := fuzzyFieldScore(field.value, token); score > 0 && score+field.weight > best {
+			if score := fuzzyNormalizedFieldScore(field.value, token); score > 0 && score+field.weight > best {
 				best = score + field.weight
+			}
+		}
+		for _, keyword := range item.keywords {
+			if score := fuzzyNormalizedFieldScore(keyword, token); score > 0 && score+30 > best {
+				best = score + 30
 			}
 		}
 		if best == 0 {
@@ -435,7 +477,16 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 	query := ui.UseState(props.InitialQuery)
 	open := ui.UseState(strings.TrimSpace(props.InitialQuery) != "")
 	active := ui.UseState(0)
-	results := SearchGlobalItems(props.Items, query.Get(), globalSearchLimit)
+	hasQuery := strings.TrimSpace(query.Get()) != ""
+	prepared := ui.UseMemo(func() []preparedGlobalSearchItem {
+		if !hasQuery {
+			return nil
+		}
+		return prepareGlobalSearchItems(props.Items)
+	}, props.Items, hasQuery)
+	results := ui.UseMemo(func() []GlobalSearchItem {
+		return searchPreparedGlobalItems(prepared, query.Get(), globalSearchLimit)
+	}, prepared, query.Get())
 	activeIndex := active.Get()
 	if activeIndex >= len(results) && len(results) > 0 {
 		activeIndex = len(results) - 1

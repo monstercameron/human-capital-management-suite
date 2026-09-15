@@ -125,6 +125,21 @@ func TestTodo_PROMOUX_010(t *testing.T) {
 			}
 		}
 	})
+	t.Run("an already-reviewed proposal label is not prefixed a second time", func(t *testing.T) {
+		f := ProposalForm{
+			Action:           "/workspace/journeys/propose",
+			Submit:           "Review and submit",
+			Confirmation:     []Fact{{Label: "Employee", Value: "Peter Tan"}},
+			ConfirmationNote: "Review the request before submitting.",
+		}
+		out := mustRenderNode(t, proposalFormSection(live{}, f, "Propose a promotion for Peter Tan"))
+		if strings.Contains(strings.ToLower(out), "review and review") {
+			t.Fatalf("proposal review trigger duplicated its review prefix:\n%s", out)
+		}
+		if !strings.Contains(out, `<span class="jn-confirm-open-label">Review and submit</span>`) {
+			t.Fatalf("proposal review trigger lost its supplied label:\n%s", out)
+		}
+	})
 
 	t.Run("proposal form without confirmation still submits directly, unchanged from before PROMOUX-010", func(t *testing.T) {
 		f := ProposalForm{Action: "/workspace/journeys/propose", Submit: "Propose and simulate"}
@@ -210,6 +225,17 @@ func TestTodo_PROMOUX_010_Browser(t *testing.T) {
 	})
 
 	css := Stylesheet()
+	t.Run("the disclosure exposes exactly one state label at a time", func(t *testing.T) {
+		for selector, display := range map[string]string{
+			".jn-confirm-close-label":                             "display:none",
+			".jn-confirm[open] > summary .jn-confirm-open-label":  "display:none",
+			".jn-confirm[open] > summary .jn-confirm-close-label": "display:inline",
+		} {
+			if rule := cssRule(t, css, selector); !strings.Contains(rule, display) {
+				t.Fatalf("%s rule missing %q: %s", selector, display, rule)
+			}
+		}
+	})
 	t.Run("the live panel is viewport-fixed with a bounded, internally scrollable height", func(t *testing.T) {
 		rule := cssRule(t, css, ".jn-confirm-surface")
 		for _, want := range []string{"position:fixed", "max-height:calc(100vh - 2rem)", "overflow-y:auto"} {

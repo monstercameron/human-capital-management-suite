@@ -1,8 +1,6 @@
 package main
 
 import (
-	"strings"
-
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/productclient"
 )
@@ -29,26 +27,11 @@ func keepResolvedProductViewDuringLoad(last productui.View, requested productcli
 	if !keepResolvedPageDuringLoad(last.Page, requested.Page, activeJourney, requestedJourney) {
 		return false
 	}
-	request := requested.Request
-	trimmedEqual := func(a, b string) bool { return strings.TrimSpace(a) == strings.TrimSpace(b) }
-	switch requested.Page {
-	case productui.PagePerson:
-		return trimmedEqual(last.SelectedPerson, request.SelectedPerson)
-	case productui.PageWork:
-		return trimmedEqual(last.SelectedWork, request.SelectedWork)
-	case productui.PageHistory:
-		// A history-person filter changes the subject-scoped result set. Keep
-		// the old projection only when that filter remains the same.
-		return trimmedEqual(last.HistoryPerson, request.HistoryPerson)
-	case productui.PageOrganization, productui.PageOrgExplorer, productui.PageOrgOutline, productui.PageOrgResponsive:
-		// Organization routes use the same page projection for an optional
-		// person-focused view. An omitted person is meaningful too: it clears
-		// the previous selection, so a warm render must not carry that person's
-		// organization context into the new address.
-		return trimmedEqual(last.SelectedPerson, request.SelectedPerson)
-	default:
-		return true
+	routeProfile, _, ok := productui.PageProfiles(requested.Page)
+	if !ok {
+		return false
 	}
+	return routeProfile.IdentityMatches(last, requested.Request)
 }
 
 // productBaselineForLoad returns the previously-authorized projection only
@@ -70,4 +53,14 @@ func productBaselineForLoad(last productui.View, requested productclient.State, 
 	baseline.JourneyWorker = ""
 	baseline.JourneyMode = ""
 	return baseline
+}
+
+// navigatePeopleDirectoryChange sends optimistic directory changes through the
+// normal software router. The route loader owns the authoritative reread,
+// server-side preference persistence, cancellation, and table busy lifecycle.
+func navigatePeopleDirectoryChange(navigate func(string), change productui.PeopleDirectoryChange) {
+	if navigate == nil || change.Href == "" {
+		return
+	}
+	navigate(change.Href)
 }

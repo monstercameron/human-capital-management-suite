@@ -35,6 +35,14 @@ func (s *roleAccessSpy) SavePagePermission(_ context.Context, _ values.TenantId,
 	return value, nil
 }
 
+// SaveFeaturePermission keeps the spy implementing roleaccess.Store while the
+// feature-permission lane is in flight: same Version++ passthrough as every
+// other Save stub on this spy, no behavior of its own.
+func (s *roleAccessSpy) SaveFeaturePermission(_ context.Context, _ values.TenantId, _ string, value roleaccess.FeaturePermission) (roleaccess.FeaturePermission, error) {
+	value.Version++
+	return value, nil
+}
+
 func TestRoleAccessAdministrationRequiresAdminAndRoundTrips(t *testing.T) {
 	spy := &roleAccessSpy{snapshot: roleaccess.Snapshot{
 		Roles:       []roleaccess.Role{{Version: 1, ID: "manager", Name: "Manager", Active: true}},
@@ -44,6 +52,12 @@ func TestRoleAccessAdministrationRequiresAdminAndRoundTrips(t *testing.T) {
 			{Version: 4, RoleID: "manager", PageID: "insights", View: true},
 			{Version: 1, RoleID: "comp_admin", PageID: "roles", View: true, Create: true, Update: true, Delete: true},
 		},
+		FeaturePermissions: []roleaccess.FeaturePermission{
+			{Version: 5, RoleID: "manager", PageID: "insights", FeatureID: "content", View: true},
+			{Version: 1, RoleID: "comp_admin", PageID: "roles", FeatureID: "content", View: true},
+			{Version: 1, RoleID: "comp_admin", PageID: "roles", FeatureID: "actions", View: true, Create: true, Update: true, Delete: true},
+			{Version: 1, RoleID: "comp_admin", PageID: "roles", FeatureID: "feature_access", View: true, Create: true, Update: true, Delete: true},
+		},
 	}}
 	client := dialJourneyClient(startTestServer(t, journey.Dependencies{RoleAccess: spy}))
 	if _, err := client.GetRoleAccess(testContext(t), &journeyv1.GetRoleAccessRequest{}); status.Code(err) != codes.PermissionDenied {
@@ -51,7 +65,7 @@ func TestRoleAccessAdministrationRequiresAdminAndRoundTrips(t *testing.T) {
 	}
 	ctx := withToken(context.Background(), fixtureAppearanceAdminToken)
 	loaded, err := client.GetRoleAccess(ctx, &journeyv1.GetRoleAccessRequest{})
-	if err != nil || len(loaded.GetRoles()) != 1 || len(loaded.GetAssignments()) != 1 || len(loaded.GetVisibilityPolicies()) != 1 || len(loaded.GetPagePermissions()) != 2 {
+	if err != nil || len(loaded.GetRoles()) != 1 || len(loaded.GetAssignments()) != 1 || len(loaded.GetVisibilityPolicies()) != 1 || len(loaded.GetPagePermissions()) != 2 || len(loaded.GetFeaturePermissions()) != 4 {
 		t.Fatalf("GetRoleAccess = %+v, %v", loaded, err)
 	}
 	saved, err := client.SaveAccessRole(ctx, &journeyv1.SaveAccessRoleRequest{Role: &journeyv1.AccessRole{RoleId: "recruiter", Name: "Recruiter", Active: true}})
@@ -65,6 +79,10 @@ func TestRoleAccessAdministrationRequiresAdminAndRoundTrips(t *testing.T) {
 	permission, err := client.SaveRolePagePermission(ctx, &journeyv1.SaveRolePagePermissionRequest{Permission: &journeyv1.RolePagePermission{RoleId: "manager", PageId: "insights", CanView: true}})
 	if err != nil || permission.GetPermission().GetVersion() != 1 || !permission.GetPermission().GetCanView() {
 		t.Fatalf("SaveRolePagePermission = %+v, %v", permission, err)
+	}
+	feature, err := client.SaveRoleFeaturePermission(ctx, &journeyv1.SaveRoleFeaturePermissionRequest{Permission: &journeyv1.RoleFeaturePermission{RoleId: "manager", PageId: "insights", FeatureId: "content", CanView: true}})
+	if err != nil || feature.GetPermission().GetVersion() != 1 || feature.GetPermission().GetFeatureId() != "content" {
+		t.Fatalf("SaveRoleFeaturePermission = %+v, %v", feature, err)
 	}
 }
 
@@ -82,5 +100,26 @@ func TestPageActionPermissionDeniesMutationBeforeEngineAndAllowsReadOnlyReports(
 	_, err = client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{})
 	if status.Code(err) != codes.Unavailable {
 		t.Fatalf("create-enabled role ProposeJourney code = %v, want downstream Unavailable; err=%v", status.Code(err), err)
+	}
+}
+
+func TestTodo_WEB_241_Security_Transport(t *testing.T) {
+	spy := &roleAccessSpy{snapshot: roleaccess.Snapshot{
+		PagePermissions: []roleaccess.PagePermission{{RoleID: "intent_author", PageID: "journeys", View: true, Create: true}},
+		FeaturePermissions: []roleaccess.FeaturePermission{
+			{RoleID: "intent_author", PageID: "journeys", FeatureID: "content", View: true},
+			{RoleID: "intent_author", PageID: "journeys", FeatureID: "promotion_request", View: true},
+		},
+	}}
+	client := dialJourneyClient(startTestServer(t, journey.Dependencies{RoleAccess: spy}))
+	_, err := client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{})
+	if status.Code(err) != codes.PermissionDenied {
+		t.Fatalf("feature-denied ProposeJourney code = %v, want PermissionDenied; err=%v", status.Code(err), err)
+	}
+
+	spy.snapshot.FeaturePermissions[1].Create = true
+	_, err = client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{})
+	if status.Code(err) != codes.Unavailable {
+		t.Fatalf("feature-enabled ProposeJourney code = %v, want downstream Unavailable; err=%v", status.Code(err), err)
 	}
 }

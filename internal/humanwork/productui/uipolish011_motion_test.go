@@ -7,9 +7,23 @@ import (
 
 func TestTodo_UIPOLISH_011(t *testing.T) {
 	css := UIPolish011MotionStylesheet()
-	for _, selector := range []string{".app-shell :is(.sidebar,.sidebar.collapsed)", `data-hcm-motion-preference="limited"`} {
+	for _, selector := range []string{".app-shell :is(.sidebar,.sidebar.collapsed)", ".main>.page-head", ".network-stage-refreshing", `data-hcm-motion-preference="limited"`} {
 		if !strings.Contains(css, selector) {
 			t.Errorf("real motion selector %q is missing", selector)
+		}
+	}
+}
+
+func TestTodo_UIPOLISH_011_Browser(t *testing.T) {
+	css := UIPolish011MotionStylesheet()
+	for _, want := range []string{
+		"animation-duration:var(--hcm-motion-normal)",
+		"animation-duration:var(--hcm-motion-fast)",
+		"animation-delay:0ms!important",
+		"transition:opacity var(--hcm-motion-fast) var(--hcm-motion-easing)",
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("tight motion contract missing %q", want)
 		}
 	}
 }
@@ -22,7 +36,7 @@ func TestTodo_UIPOLISH_011_Accessibility(t *testing.T) {
 	if !strings.Contains(css, `data-hcm-motion-preference="reduce"`) || !strings.Contains(css, "prefers-reduced-motion:reduce") || !strings.Contains(css, "transition:none!important") {
 		t.Fatal("reduced motion does not win the late drawer cascade")
 	}
-	if strings.Contains(css, ".popover-root[open]>.popover-surface") || strings.Contains(css, ".network-stage-refreshing") {
+	if strings.Contains(css, ".popover-root[open]>.popover-surface") || strings.Contains(css, `:root[data-hcm-motion-preference="limited"] .network-stage-refreshing`) {
 		t.Fatal("new motion layer duplicated existing popover or async preference contracts")
 	}
 }
@@ -47,6 +61,9 @@ func TestTodo_UIPOLISH_011_Performance(t *testing.T) {
 	if strings.Contains(css, "animation-iteration-count:infinite") {
 		t.Fatal("motion layer must not add an unbounded animation")
 	}
+	if strings.Contains(css, "transition-property:width,max-width,max-height,grid-template-columns,opacity,transform,box-shadow,border-color,background-color,color") {
+		t.Fatal("interactive components still inherit the broad layout-and-paint transition bundle")
+	}
 }
 
 func TestTodo_UIPOLISH_011_Regression(t *testing.T) {
@@ -55,5 +72,12 @@ func TestTodo_UIPOLISH_011_Regression(t *testing.T) {
 	}
 	if !strings.Contains(Stylesheet(), UIPolish011MotionStylesheet()) {
 		t.Fatal("production stylesheet omitted the reviewed motion layer")
+	}
+	css := UIPolish011MotionStylesheet()
+	if !strings.Contains(css, ":where(.work-row,.people-row,.history-row):hover{transform:none;}") {
+		t.Fatal("dense rows still slide horizontally under the pointer")
+	}
+	if !strings.Contains(css, ".network-stage-refreshing{opacity:.99;transform:none;}") {
+		t.Fatal("large async regions still combine fade and spatial movement")
 	}
 }

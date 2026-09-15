@@ -59,7 +59,12 @@ func ApplyRequest(view View, request PageRequest) View {
 	view.PeopleSort = normalizePeopleSort(request.PeopleSort)
 	view.PeopleDirection = normalizePeopleDirection(request.PeopleDirection)
 	view.OrganizationView = normalizeOrganizationView(request.OrganizationView)
-	if view.Page == PageOrgOutline {
+	routeProfile, _, hasProfile := PageProfiles(view.Page)
+	stateProfile := RouteStateProfile{}
+	if hasProfile {
+		stateProfile = routeProfile.StateProfile()
+	}
+	if stateProfile.OrganizationOutline {
 		// The outline route has one intentionally fixed semantic presentation.
 		// Keep shell, search, and navigation links aligned with what it renders
 		// even when the incoming address omitted (or contradicted) org_view.
@@ -97,18 +102,17 @@ func ApplyRequest(view View, request PageRequest) View {
 		view.WorkFilter = filter
 		view.Work = filterWork(view.Work, filter)
 	}
-	if view.Page == PagePeople || view.Page == PagePerson {
+	if stateProfile.PeopleDirectory {
 		view.PeoplePage = paginatePeople(filteredPeople(view), view.PeoplePage, view.PeoplePageSize).Page
 	}
-	if view.Page == PageRoles {
+	if stateProfile.Roles {
 		view.RolePage = roleDirectoryWindowPage(view.People, view.Query, view.RolePage)
 	}
-	switch view.Page {
-	case PageHistory:
+	if stateProfile.History && !stateProfile.HistorySelectedPerson && !stateProfile.HistoryViewer {
 		view.HistoryPage = paginateHistory(filteredHistory(view, ""), view.HistoryPage, view.HistoryPageSize).Page
-	case PagePerson:
+	} else if stateProfile.HistorySelectedPerson {
 		view.HistoryPage = paginateHistory(filteredHistory(view, view.SelectedPerson), view.HistoryPage, view.HistoryPageSize).Page
-	case PageMyself:
+	} else if stateProfile.HistoryViewer {
 		personID := ""
 		if person, ok := viewerPerson(view); ok {
 			personID = person.ID
@@ -119,12 +123,8 @@ func ApplyRequest(view View, request PageRequest) View {
 }
 
 func isOrganizationRoute(page PageID) bool {
-	switch page {
-	case PageOrganization, PageOrgExplorer, PageOrgOutline, PageOrgResponsive:
-		return true
-	default:
-		return false
-	}
+	routeProfile, _, ok := PageProfiles(page)
+	return ok && routeProfile.StateProfile().Organization
 }
 
 func authorizedFavoritePages(navigation []NavItem, requested []PageID) []PageID {

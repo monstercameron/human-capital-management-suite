@@ -295,7 +295,10 @@ func (s *server) ListJourneys(ctx context.Context, _ *journeyv1.ListJourneysRequ
 	// and proposed pay. It backs the Journeys and My Work pages, so a caller
 	// who may view neither -- a self-service employee -- is refused rather
 	// than handed the tenant's promotions over the RPC the pages would hide.
-	if err := s.requireAnyPageView(ctx, principal, inv, "journeys", "work"); err != nil {
+	if err := s.requireAnyFeatureView(ctx, principal, inv,
+		featureAccessRequest{pageID: "journeys", featureID: "journey_list"},
+		featureAccessRequest{pageID: "work", featureID: "assigned_queue"},
+	); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "list")
@@ -322,7 +325,7 @@ func (s *server) ProposeJourney(ctx context.Context, req *journeyv1.ProposeJourn
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "journeys", roleaccess.ActionCreate); err != nil {
+	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "promotion_request", roleaccess.ActionCreate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "propose")
@@ -352,6 +355,12 @@ func (s *server) InspectJourney(ctx context.Context, req *journeyv1.InspectJourn
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
+	if err := s.requireAnyFeatureView(ctx, principal, inv,
+		featureAccessRequest{pageID: "journeys", featureID: "journey_detail"},
+		featureAccessRequest{pageID: "work", featureID: "assigned_queue"},
+	); err != nil {
+		return nil, err
+	}
 	eng, depErr := s.engine(principal, inv, "inspect")
 	if depErr != nil {
 		return nil, depErr
@@ -371,7 +380,7 @@ func (s *server) ExecuteJourney(ctx context.Context, req *journeyv1.ExecuteJourn
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "journeys", roleaccess.ActionUpdate); err != nil {
+	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "execute")
@@ -394,7 +403,7 @@ func (s *server) DecideJourney(ctx context.Context, req *journeyv1.DecideJourney
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "work", roleaccess.ActionUpdate); err != nil {
+	if err := s.requireFeatureAction(ctx, principal, inv, "work", "approval_decision", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "decide")
@@ -419,7 +428,7 @@ func (s *server) EditProposal(ctx context.Context, req *journeyv1.EditProposalRe
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "journeys", roleaccess.ActionUpdate); err != nil {
+	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "promotion_request", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "edit_proposal")
@@ -453,6 +462,9 @@ func (s *server) PreviewJourneyIntervention(ctx context.Context, req *journeyv1.
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
+	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "journey_detail", roleaccess.ActionView); err != nil {
+		return nil, err
+	}
 	eng, depErr := s.engine(principal, inv, "preview_intervention")
 	if depErr != nil {
 		return nil, depErr
@@ -473,7 +485,7 @@ func (s *server) RequestJourneyIntervention(ctx context.Context, req *journeyv1.
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "journeys", roleaccess.ActionUpdate); err != nil {
+	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "request_intervention")
@@ -503,6 +515,9 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
+	if err := s.requireFeatureAction(ctx, principal, inv, "people", "directory", roleaccess.ActionView); err != nil {
+		return nil, err
+	}
 	eng, depErr := s.engine(principal, inv, "list_workers")
 	if depErr != nil {
 		return nil, depErr
@@ -531,7 +546,7 @@ func (s *server) CreateWorker(ctx context.Context, req *journeyv1.CreateWorkerRe
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "people", roleaccess.ActionCreate); err != nil {
+	if err := s.requireFeatureAction(ctx, principal, inv, "people", "directory", roleaccess.ActionCreate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "create_worker")

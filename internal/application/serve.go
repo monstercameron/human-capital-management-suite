@@ -34,6 +34,8 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/preferencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/roleaccessstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workeridstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
@@ -270,7 +272,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 
 	workspaceEnabled := cfg.Workspace
 	workerIDs := workeridstore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID))
-	roleAccess := roleaccessstore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID))
+	roleAccess := roleaccessstore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), productFeatureCatalog()...)
 	if cfg.Tenant != "" && in.Pool != nil {
 		if err := roleAccess.Bootstrap(ctx, kernelvalues.TenantId(cfg.Tenant), "system:bootstrap"); err != nil {
 			return nil, fmt.Errorf("bootstrap role access: %w", err)
@@ -517,6 +519,19 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		shutdown:  shutdown,
 		listeners: []net.Listener{grpcListener, httpListener},
 	}, nil
+}
+
+func productFeatureCatalog() []roleaccess.FeatureDefinition {
+	flattened := productui.FlattenFeatureDefinitions()
+	result := make([]roleaccess.FeatureDefinition, 0, len(flattened))
+	for _, item := range flattened {
+		result = append(result, roleaccess.FeatureDefinition{
+			PageID: string(item.Page), FeatureID: string(item.Feature.ID),
+			View: item.Feature.View, Create: item.Feature.Create,
+			Update: item.Feature.Update, Delete: item.Feature.Delete,
+		})
+	}
+	return result
 }
 
 func optionsForServeConfig(cfg ServeConfig, options Options) (Options, error) {

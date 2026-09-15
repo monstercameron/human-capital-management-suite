@@ -15,12 +15,13 @@ import (
 )
 
 type Store struct {
-	db     dbport.Beginner
-	tenant func(values.TenantId) uuid.UUID
+	db       dbport.Beginner
+	tenant   func(values.TenantId) uuid.UUID
+	features []roleaccess.FeatureDefinition
 }
 
-func New(db dbport.Beginner, tenant func(values.TenantId) uuid.UUID) *Store {
-	return &Store{db: db, tenant: tenant}
+func New(db dbport.Beginner, tenant func(values.TenantId) uuid.UUID, features ...roleaccess.FeatureDefinition) *Store {
+	return &Store{db: db, tenant: tenant, features: append([]roleaccess.FeatureDefinition(nil), features...)}
 }
 
 func (s *Store) Bootstrap(ctx context.Context, tenant values.TenantId, actor string) error {
@@ -39,6 +40,12 @@ func (s *Store) Bootstrap(ctx context.Context, tenant values.TenantId, actor str
 			_, err := tx.Exec(ctx, `INSERT INTO role_page_permission (tenant_id,role_id,page_id,version,can_view,can_create,can_update,can_delete,updated_by) VALUES ($1,$2,$3,1,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING`, tenantID, permission.RoleID, permission.PageID, permission.View, permission.Create, permission.Update, permission.Delete, actor)
 			if err != nil {
 				return fmt.Errorf("roleaccessstore: bootstrap page %s for %s: %w", permission.PageID, permission.RoleID, err)
+			}
+		}
+		for _, permission := range roleaccess.DefaultFeaturePermissions(s.features, roleaccess.DefaultPagePermissions()) {
+			_, err := tx.Exec(ctx, `INSERT INTO role_page_feature_permission (tenant_id,role_id,page_id,feature_id,version,can_view,can_create,can_update,can_delete,updated_by) VALUES ($1,$2,$3,$4,1,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`, tenantID, permission.RoleID, permission.PageID, permission.FeatureID, permission.View, permission.Create, permission.Update, permission.Delete, actor)
+			if err != nil {
+				return fmt.Errorf("roleaccessstore: bootstrap feature %s/%s for %s: %w", permission.PageID, permission.FeatureID, permission.RoleID, err)
 			}
 		}
 		return nil
@@ -146,9 +153,73 @@ func (s *Store) Load(ctx context.Context, tenant values.TenantId, organization s
 			}
 			result.PagePermissions = append(result.PagePermissions, roleaccess.NormalizePagePermission(permission))
 		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		rows, err = tx.Query(ctx, `SELECT version,role_id,page_id,feature_id,can_view,can_create,can_update,can_delete FROM role_page_feature_permission WHERE tenant_id=$1 ORDER BY role_id,page_id,feature_id`, tenantID)
+		if err != nil {
+			return fmt.Errorf("roleaccessstore: load feature permissions: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var permission roleaccess.FeaturePermission
+			if err := rows.Scan(&permission.Version, &permission.RoleID, &permission.PageID, &permission.FeatureID, &permission.View, &permission.Create, &permission.Update, &permission.Delete); err != nil {
+				return err
+			}
+			result.FeaturePermissions = append(result.FeaturePermissions, roleaccess.NormalizeFeaturePermission(permission))
+		}
 		return rows.Err()
 	})
 	return result, err
+}
+
+func (s *Store) SaveFeaturePermission(ctx context.Context, tenant values.TenantId, actor string, permission roleaccess.FeaturePermission) (roleaccess.FeaturePermission, error) {
+	actor = strings.TrimSpace(actor)
+	permission = roleaccess.NormalizeFeaturePermission(permission)
+	definition, registered := s.featureDefinition(permission.PageID, permission.FeatureID)
+	if actor == "" || roleaccess.ValidateFeaturePermission(permission) != nil || !registered ||
+		permission.View && !definition.View || permission.Create && !definition.Create ||
+		permission.Update && !definition.Update || permission.Delete && !definition.Delete {
+		return roleaccess.FeaturePermission{}, roleaccess.ErrInvalid
+	}
+	err := s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
+		var active, pageExists bool
+		if err := tx.QueryRow(ctx, `SELECT r.active, p.role_id IS NOT NULL FROM access_role r LEFT JOIN role_page_permission p ON p.tenant_id=r.tenant_id AND p.role_id=r.role_id AND p.page_id=$3 WHERE r.tenant_id=$1 AND r.role_id=$2`, tenantID, permission.RoleID, permission.PageID).Scan(&active, &pageExists); err != nil || !active || !pageExists {
+			return roleaccess.ErrInvalid
+		}
+		if permission.Version == 0 {
+			affected, err := tx.Exec(ctx, `INSERT INTO role_page_feature_permission (tenant_id,role_id,page_id,feature_id,version,can_view,can_create,can_update,can_delete,updated_by) VALUES ($1,$2,$3,$4,1,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`, tenantID, permission.RoleID, permission.PageID, permission.FeatureID, permission.View, permission.Create, permission.Update, permission.Delete, actor)
+			if err != nil {
+				return err
+			}
+			if affected != 1 {
+				return roleaccess.ErrVersionConflict
+			}
+			permission.Version = 1
+			return nil
+		}
+		affected, err := tx.Exec(ctx, `UPDATE role_page_feature_permission SET version=version+1,can_view=$5,can_create=$6,can_update=$7,can_delete=$8,updated_by=$9,updated_at=clock_timestamp() WHERE tenant_id=$1 AND role_id=$2 AND page_id=$3 AND feature_id=$4 AND version=$10`, tenantID, permission.RoleID, permission.PageID, permission.FeatureID, permission.View, permission.Create, permission.Update, permission.Delete, actor, permission.Version)
+		if err != nil {
+			return err
+		}
+		if affected != 1 {
+			return roleaccess.ErrVersionConflict
+		}
+		permission.Version++
+		return nil
+	})
+	return permission, err
+}
+
+func (s *Store) featureDefinition(pageID, featureID string) (roleaccess.FeatureDefinition, bool) {
+	for _, definition := range s.features {
+		definition = roleaccess.NormalizeFeatureDefinition(definition)
+		if definition.PageID == pageID && definition.FeatureID == featureID && roleaccess.ValidateFeatureDefinition(definition) == nil {
+			return definition, true
+		}
+	}
+	return roleaccess.FeatureDefinition{}, false
 }
 
 func (s *Store) SavePagePermission(ctx context.Context, tenant values.TenantId, actor string, permission roleaccess.PagePermission) (roleaccess.PagePermission, error) {

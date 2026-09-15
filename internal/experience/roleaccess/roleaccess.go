@@ -32,8 +32,9 @@ const (
 )
 
 var (
-	roleIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,62}$`)
-	pageIDPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{1,63}$`)
+	roleIDPattern    = regexp.MustCompile(`^[a-z][a-z0-9_]{1,62}$`)
+	pageIDPattern    = regexp.MustCompile(`^[a-z][a-z0-9-]{1,63}$`)
+	featureIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,62}$`)
 )
 
 type Role struct {
@@ -71,11 +72,39 @@ type PagePermission struct {
 	Delete  bool
 }
 
+// FeaturePermission is one role's explicit authority on one feature within a
+// product page. Feature identifiers are stable contract keys, rather than
+// labels or route fragments. The four operations are deliberately independent
+// and are evaluated in addition to the containing page's permission.
+type FeaturePermission struct {
+	Version   int64
+	RoleID    string
+	PageID    string
+	FeatureID string
+	View      bool
+	Create    bool
+	Update    bool
+	Delete    bool
+}
+
+// FeatureDefinition is the stable, presentation-owned contract a composition
+// root supplies when it bootstraps feature permissions. Supported operations
+// describe what the feature can ever do; role grants may only narrow them.
+type FeatureDefinition struct {
+	PageID    string
+	FeatureID string
+	View      bool
+	Create    bool
+	Update    bool
+	Delete    bool
+}
+
 type Snapshot struct {
-	Roles           []Role
-	Assignments     []Assignment
-	Policies        []VisibilityPolicy
-	PagePermissions []PagePermission
+	Roles              []Role
+	Assignments        []Assignment
+	Policies           []VisibilityPolicy
+	PagePermissions    []PagePermission
+	FeaturePermissions []FeaturePermission
 }
 
 type Store interface {
@@ -85,6 +114,7 @@ type Store interface {
 	SaveAssignment(context.Context, values.TenantId, string, Assignment) (Assignment, error)
 	SaveVisibility(context.Context, values.TenantId, string, string, VisibilityPolicy) (VisibilityPolicy, error)
 	SavePagePermission(context.Context, values.TenantId, string, PagePermission) (PagePermission, error)
+	SaveFeaturePermission(context.Context, values.TenantId, string, FeaturePermission) (FeaturePermission, error)
 }
 
 func NormalizeRole(value Role) Role {
@@ -202,6 +232,80 @@ func (value PagePermission) Allows(action string) bool {
 	}
 }
 
+func NormalizeFeaturePermission(value FeaturePermission) FeaturePermission {
+	value.RoleID = strings.ToLower(strings.TrimSpace(value.RoleID))
+	value.PageID = strings.ToLower(strings.TrimSpace(value.PageID))
+	value.FeatureID = strings.ToLower(strings.TrimSpace(value.FeatureID))
+	return value
+}
+
+func ValidateFeaturePermission(value FeaturePermission) error {
+	value = NormalizeFeaturePermission(value)
+	if !roleIDPattern.MatchString(value.RoleID) || !pageIDPattern.MatchString(value.PageID) || !featureIDPattern.MatchString(value.FeatureID) {
+		return ErrInvalid
+	}
+	// A feature action on an undiscoverable page is incoherent and easy to
+	// misconfigure. Revocation remains expressible by saving all four false.
+	if !value.View && (value.Create || value.Update || value.Delete) {
+		return ErrInvalid
+	}
+	return nil
+}
+
+func NormalizeFeatureDefinition(value FeatureDefinition) FeatureDefinition {
+	value.PageID = strings.ToLower(strings.TrimSpace(value.PageID))
+	value.FeatureID = strings.ToLower(strings.TrimSpace(value.FeatureID))
+	return value
+}
+
+func ValidateFeatureDefinition(value FeatureDefinition) error {
+	value = NormalizeFeatureDefinition(value)
+	if !pageIDPattern.MatchString(value.PageID) || !featureIDPattern.MatchString(value.FeatureID) || !value.View {
+		return ErrInvalid
+	}
+	return nil
+}
+
+// DefaultFeaturePermissions expands the stable feature catalog through the
+// existing default page grants. The result cannot exceed either the page grant
+// or the operations the feature declares it supports.
+func DefaultFeaturePermissions(features []FeatureDefinition, pages []PagePermission) []FeaturePermission {
+	result := make([]FeaturePermission, 0, len(features)*len(pages))
+	for _, page := range pages {
+		page = NormalizePagePermission(page)
+		if ValidatePagePermission(page) != nil {
+			continue
+		}
+		for _, feature := range features {
+			feature = NormalizeFeatureDefinition(feature)
+			if ValidateFeatureDefinition(feature) != nil || feature.PageID != page.PageID {
+				continue
+			}
+			result = append(result, FeaturePermission{
+				RoleID: page.RoleID, PageID: page.PageID, FeatureID: feature.FeatureID,
+				View: page.View && feature.View, Create: page.Create && feature.Create,
+				Update: page.Update && feature.Update, Delete: page.Delete && feature.Delete,
+			})
+		}
+	}
+	return result
+}
+
+func (value FeaturePermission) Allows(action string) bool {
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case ActionView:
+		return value.View
+	case ActionCreate:
+		return value.Create
+	case ActionUpdate:
+		return value.Update
+	case ActionDelete:
+		return value.Delete
+	default:
+		return false
+	}
+}
+
 // EffectivePagePermissions merges grants from all assigned roles. Grants are
 // additive; one role can never revoke an operation another role grants.
 func EffectivePagePermissions(snapshot Snapshot, roleIDs []string) []PagePermission {
@@ -235,6 +339,63 @@ func CanPageAction(permissions []PagePermission, pageID, action string) bool {
 	pageID = strings.ToLower(strings.TrimSpace(pageID))
 	for _, permission := range permissions {
 		if strings.EqualFold(permission.PageID, pageID) && permission.Allows(action) {
+			return true
+		}
+	}
+	return false
+}
+
+// EffectiveFeaturePermissions merges grants from all assigned roles. Grants
+// are additive; one role can never revoke an operation another role grants.
+// The returned permissions intentionally omit RoleID because each row is the
+// effective grant for one page/feature pair rather than a role-specific row.
+func EffectiveFeaturePermissions(snapshot Snapshot, roleIDs []string) []FeaturePermission {
+	wanted := make(map[string]bool, len(roleIDs))
+	for _, roleID := range NormalizeRoleIDs(roleIDs) {
+		wanted[roleID] = true
+	}
+	merged := make(map[string]FeaturePermission)
+	for _, permission := range snapshot.FeaturePermissions {
+		permission = NormalizeFeaturePermission(permission)
+		if !wanted[permission.RoleID] || ValidateFeaturePermission(permission) != nil {
+			continue
+		}
+		key := permission.PageID + "\x00" + permission.FeatureID
+		current := merged[key]
+		current.PageID = permission.PageID
+		current.FeatureID = permission.FeatureID
+		current.View = current.View || permission.View
+		current.Create = current.Create || permission.Create
+		current.Update = current.Update || permission.Update
+		current.Delete = current.Delete || permission.Delete
+		merged[key] = current
+	}
+	result := make([]FeaturePermission, 0, len(merged))
+	for _, permission := range merged {
+		result = append(result, permission)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].PageID == result[j].PageID {
+			return result[i].FeatureID < result[j].FeatureID
+		}
+		return result[i].PageID < result[j].PageID
+	})
+	return result
+}
+
+// CanFeatureAction requires both the requested action on the feature and the
+// same action on its containing page. A page denial therefore always wins,
+// even when a role has a feature grant (or another role has a page grant on a
+// different action). Unknown actions and missing rows deny by default.
+func CanFeatureAction(pagePermissions []PagePermission, featurePermissions []FeaturePermission, pageID, featureID, action string) bool {
+	pageID = strings.ToLower(strings.TrimSpace(pageID))
+	featureID = strings.ToLower(strings.TrimSpace(featureID))
+	if !CanPageAction(pagePermissions, pageID, action) {
+		return false
+	}
+	for _, permission := range featurePermissions {
+		permission = NormalizeFeaturePermission(permission)
+		if permission.PageID == pageID && permission.FeatureID == featureID && permission.Allows(action) {
 			return true
 		}
 	}

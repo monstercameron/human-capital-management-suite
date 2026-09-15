@@ -4885,6 +4885,20 @@ tables:
     rebuild_source: null
     notes: >-
       Registered from 00239_role_page_permissions.sql: mutable control row for role page permission.
+  - table: role_page_feature_permission
+    migration: 00290_role_page_feature_permissions.sql
+    owner_package: internal/data/roleaccessstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WEB-241: mutable role CRUD grants for stable page-local feature IDs;
+      the containing role_page_permission remains the outer authority boundary.
   - table: operation
     migration: 00261_operation_store.sql
     owner_package: internal/data/operationstore

@@ -176,6 +176,7 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 /hcmnext.journey.v1.JourneyService/RequestJourneyIntervention|1|hcmnext.journey.v1.RequestJourneyInterventionRequest|hcmnext.journey.v1.RequestJourneyInterventionResponse
 /hcmnext.journey.v1.JourneyService/SaveAccessRole|1|hcmnext.journey.v1.SaveAccessRoleRequest|hcmnext.journey.v1.SaveAccessRoleResponse
 /hcmnext.journey.v1.JourneyService/SaveOrganizationVisibility|1|hcmnext.journey.v1.SaveOrganizationVisibilityRequest|hcmnext.journey.v1.SaveOrganizationVisibilityResponse
+/hcmnext.journey.v1.JourneyService/SaveRoleFeaturePermission|1|hcmnext.journey.v1.SaveRoleFeaturePermissionRequest|hcmnext.journey.v1.SaveRoleFeaturePermissionResponse
 /hcmnext.journey.v1.JourneyService/SaveRoleOrganizationVisibility|1|hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest|hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse
 /hcmnext.journey.v1.JourneyService/SaveRolePagePermission|1|hcmnext.journey.v1.SaveRolePagePermissionRequest|hcmnext.journey.v1.SaveRolePagePermissionResponse
 /hcmnext.journey.v1.JourneyService/SaveTenantAppearance|1|hcmnext.journey.v1.SaveTenantAppearanceRequest|hcmnext.journey.v1.SaveTenantAppearanceResponse

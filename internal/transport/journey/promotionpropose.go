@@ -64,7 +64,7 @@ func (s *server) ProposePromotion(
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "journeys", roleaccess.ActionCreate); err != nil {
+	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "promotion_request", roleaccess.ActionCreate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "propose_promotion")

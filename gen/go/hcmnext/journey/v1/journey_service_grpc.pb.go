@@ -40,6 +40,7 @@ const (
 	JourneyService_SaveWorkerRoleAssignment_FullMethodName       = "/hcmnext.journey.v1.JourneyService/SaveWorkerRoleAssignment"
 	JourneyService_SaveRoleOrganizationVisibility_FullMethodName = "/hcmnext.journey.v1.JourneyService/SaveRoleOrganizationVisibility"
 	JourneyService_SaveRolePagePermission_FullMethodName         = "/hcmnext.journey.v1.JourneyService/SaveRolePagePermission"
+	JourneyService_SaveRoleFeaturePermission_FullMethodName      = "/hcmnext.journey.v1.JourneyService/SaveRoleFeaturePermission"
 	JourneyService_RecordWorkflowUse_FullMethodName              = "/hcmnext.journey.v1.JourneyService/RecordWorkflowUse"
 	JourneyService_GetWorkerIDPolicy_FullMethodName              = "/hcmnext.journey.v1.JourneyService/GetWorkerIDPolicy"
 	JourneyService_SaveWorkerIDPolicy_FullMethodName             = "/hcmnext.journey.v1.JourneyService/SaveWorkerIDPolicy"
@@ -288,6 +289,7 @@ type JourneyServiceClient interface {
 	SaveWorkerRoleAssignment(ctx context.Context, in *SaveWorkerRoleAssignmentRequest, opts ...grpc.CallOption) (*SaveWorkerRoleAssignmentResponse, error)
 	SaveRoleOrganizationVisibility(ctx context.Context, in *SaveRoleOrganizationVisibilityRequest, opts ...grpc.CallOption) (*SaveRoleOrganizationVisibilityResponse, error)
 	SaveRolePagePermission(ctx context.Context, in *SaveRolePagePermissionRequest, opts ...grpc.CallOption) (*SaveRolePagePermissionResponse, error)
+	SaveRoleFeaturePermission(ctx context.Context, in *SaveRoleFeaturePermissionRequest, opts ...grpc.CallOption) (*SaveRoleFeaturePermissionResponse, error)
 	// RecordWorkflowUse increments the authenticated user's usage count for a
 	// workflow so launchers can rank real frequent actions rather than hardcode
 	// a single action. It grants no authority to run the named workflow.
@@ -521,6 +523,16 @@ func (c *journeyServiceClient) SaveRolePagePermission(ctx context.Context, in *S
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SaveRolePagePermissionResponse)
 	err := c.cc.Invoke(ctx, JourneyService_SaveRolePagePermission_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *journeyServiceClient) SaveRoleFeaturePermission(ctx context.Context, in *SaveRoleFeaturePermissionRequest, opts ...grpc.CallOption) (*SaveRoleFeaturePermissionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SaveRoleFeaturePermissionResponse)
+	err := c.cc.Invoke(ctx, JourneyService_SaveRoleFeaturePermission_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -800,6 +812,7 @@ type JourneyServiceServer interface {
 	SaveWorkerRoleAssignment(context.Context, *SaveWorkerRoleAssignmentRequest) (*SaveWorkerRoleAssignmentResponse, error)
 	SaveRoleOrganizationVisibility(context.Context, *SaveRoleOrganizationVisibilityRequest) (*SaveRoleOrganizationVisibilityResponse, error)
 	SaveRolePagePermission(context.Context, *SaveRolePagePermissionRequest) (*SaveRolePagePermissionResponse, error)
+	SaveRoleFeaturePermission(context.Context, *SaveRoleFeaturePermissionRequest) (*SaveRoleFeaturePermissionResponse, error)
 	// RecordWorkflowUse increments the authenticated user's usage count for a
 	// workflow so launchers can rank real frequent actions rather than hardcode
 	// a single action. It grants no authority to run the named workflow.
@@ -882,6 +895,9 @@ func (UnimplementedJourneyServiceServer) SaveRoleOrganizationVisibility(context.
 }
 func (UnimplementedJourneyServiceServer) SaveRolePagePermission(context.Context, *SaveRolePagePermissionRequest) (*SaveRolePagePermissionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SaveRolePagePermission not implemented")
+}
+func (UnimplementedJourneyServiceServer) SaveRoleFeaturePermission(context.Context, *SaveRoleFeaturePermissionRequest) (*SaveRoleFeaturePermissionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SaveRoleFeaturePermission not implemented")
 }
 func (UnimplementedJourneyServiceServer) RecordWorkflowUse(context.Context, *RecordWorkflowUseRequest) (*RecordWorkflowUseResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RecordWorkflowUse not implemented")
@@ -1284,6 +1300,24 @@ func _JourneyService_SaveRolePagePermission_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _JourneyService_SaveRoleFeaturePermission_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SaveRoleFeaturePermissionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).SaveRoleFeaturePermission(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_SaveRoleFeaturePermission_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).SaveRoleFeaturePermission(ctx, req.(*SaveRoleFeaturePermissionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _JourneyService_RecordWorkflowUse_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RecordWorkflowUseRequest)
 	if err := dec(in); err != nil {
@@ -1424,6 +1458,10 @@ var JourneyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SaveRolePagePermission",
 			Handler:    _JourneyService_SaveRolePagePermission_Handler,
+		},
+		{
+			MethodName: "SaveRoleFeaturePermission",
+			Handler:    _JourneyService_SaveRoleFeaturePermission_Handler,
 		},
 		{
 			MethodName: "RecordWorkflowUse",

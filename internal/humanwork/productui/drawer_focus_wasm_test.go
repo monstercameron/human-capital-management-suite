@@ -20,6 +20,7 @@ func TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose(t *testing.T) {
 	trigger := global.Get("Object").New()
 	first := global.Get("Object").New()
 	last := global.Get("Object").New()
+	hidden := global.Get("Object").New()
 	dialog := global.Get("Object").New()
 
 	focused := trigger
@@ -27,16 +28,30 @@ func TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose(t *testing.T) {
 		return js.FuncOf(func(js.Value, []js.Value) any { focused = target; return nil })
 	}
 	trigger.Set("focus", focusOf(trigger))
+	trigger.Set("isConnected", true)
 	first.Set("focus", focusOf(first))
 	last.Set("focus", focusOf(last))
+	hidden.Set("focus", focusOf(hidden))
+	visibleRects := global.Get("Object").New()
+	visibleRects.Set("length", 1)
+	hiddenRects := global.Get("Object").New()
+	hiddenRects.Set("length", 0)
+	for _, element := range []js.Value{first, last, hidden} {
+		element.Set("closest", js.FuncOf(func(js.Value, []js.Value) any { return js.Undefined() }))
+		element.Set("getClientRects", js.FuncOf(func(js.Value, []js.Value) any { return visibleRects }))
+	}
+	hidden.Set("getClientRects", js.FuncOf(func(js.Value, []js.Value) any { return hiddenRects }))
 
 	list := global.Get("Object").New()
-	list.Set("length", 2)
+	list.Set("length", 3)
 	itemOf := js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if args[0].Int() == 0 {
 			return first
 		}
-		return last
+		if args[0].Int() == 1 {
+			return last
+		}
+		return hidden
 	})
 	list.Set("item", itemOf)
 
@@ -51,7 +66,7 @@ func TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose(t *testing.T) {
 		return nil
 	}))
 	dialog.Set("contains", js.FuncOf(func(_ js.Value, args []js.Value) any {
-		return args[0].Equal(first) || args[0].Equal(last)
+		return args[0].Equal(first) || args[0].Equal(last) || args[0].Equal(hidden)
 	}))
 
 	doc.Set("getElementById", js.FuncOf(func(_ js.Value, args []js.Value) any {

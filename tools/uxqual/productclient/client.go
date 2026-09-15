@@ -51,6 +51,7 @@ type Session struct {
 	Scope                 string
 	Roles                 []string
 	Permissions           []productui.RolePagePermission
+	FeaturePermissions    []productui.RoleFeaturePermission
 	LauncherActions       []productui.LauncherActionProjection
 	EnforceRoleVisibility bool
 	LogoutHref            string
@@ -74,6 +75,9 @@ func LoadingView(session Session, state State) productui.View {
 	}
 	if len(session.Permissions) > 0 {
 		view = productui.ApplyPagePermissions(view, session.Permissions)
+	}
+	if session.FeaturePermissions != nil {
+		view = productui.ApplyFeaturePermissions(view, session.FeaturePermissions)
 	}
 	view.LauncherActions = append([]productui.LauncherActionProjection(nil), session.LauncherActions...)
 	view = productui.ApplyRequest(view, state.Request)
@@ -102,7 +106,7 @@ func ContentLoadingView(previous productui.View, state State) productui.View {
 
 // ParseState resolves a production product route and its presentation query.
 func ParseState(pathname, rawQuery string) (State, error) {
-	definition, ok := productui.LookupRoute(pathname)
+	page, routeProfile, _, ok := productui.RouteProfiles(pathname)
 	if !ok {
 		return State{}, fmt.Errorf("productclient: unknown product route %q", pathname)
 	}
@@ -119,7 +123,10 @@ func ParseState(pathname, rawQuery string) (State, error) {
 	if err != nil {
 		return State{}, errors.New("productclient: route state is malformed")
 	}
-	allowed := routeQueryKeys(definition.ID)
+	allowed := make(map[string]bool, len(routeProfile.QueryKeys()))
+	for _, key := range routeProfile.QueryKeys() {
+		allowed[key] = true
+	}
 	provided := make(map[string]bool, len(values))
 	for key, entries := range values {
 		// Unknown and wrong-page keys are intentionally omitted. The loader
@@ -158,11 +165,11 @@ func ParseState(pathname, rawQuery string) (State, error) {
 	if err != nil {
 		return State{}, err
 	}
-	if !validControlledRouteValues(definition.ID, values) {
+	if !routeProfile.ValidControlledValues(values) {
 		return State{}, errors.New("productclient: route state is malformed")
 	}
-	state := State{Page: definition.ID, Provided: provided, Request: productui.PageRequest{
-		Page: definition.ID, Locale: routeValue(values, "locale"), Query: routeValue(values, "q"), RolePage: rolePage, Mode: routeValue(values, "mode"),
+	state := State{Page: page, Provided: provided, Request: productui.PageRequest{
+		Page: page, Locale: routeValue(values, "locale"), Query: routeValue(values, "q"), RolePage: rolePage, Mode: routeValue(values, "mode"),
 		SelectedWork: routeValue(values, "selected"), SelectedPerson: routeValue(values, "person"),
 		PeoplePage: peoplePage, PeoplePageSize: peoplePageSize, PeopleTeam: routeValue(values, "team"), PeopleLocation: routeValue(values, "location"), PeopleEligibleOnly: routeValue(values, "eligible") == "1", PeopleSort: routeValue(values, "sort"), PeopleDirection: routeValue(values, "dir"),
 		OrganizationView: routeValue(values, "org_view"),
@@ -172,7 +179,7 @@ func ParseState(pathname, rawQuery string) (State, error) {
 		JourneyID: routeValue(values, "journey"), JourneyWorker: routeValue(values, "worker"), JourneyMode: routeValue(values, "mode"),
 		MenuQuery: routeValue(values, "menu_q"), FavoritePages: parseFavoritePages(routeValue(values, "favorites")),
 	}}
-	if state.Page == productui.PageJourneys {
+	if routeProfile.StateProfile().Journeys {
 		if state.Request.JourneyID != "" {
 			state.Request.Mode = ""
 			state.Request.JourneyMode = ""
@@ -188,38 +195,8 @@ func ParseState(pathname, rawQuery string) (State, error) {
 
 const maxRouteQueryBytes = 4096
 
-var shellRouteQueryKeys = []string{"locale", "nav", "menu_q", "favorites"}
-
-var organizationRouteQueryKeys = []string{"org_view", "q", "person"}
-
-var pageRouteQueryKeys = map[productui.PageID][]string{
-	productui.PageMyself:        {"workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"},
-	productui.PageJourneys:      {"journey", "mode", "worker"},
-	productui.PageWork:          {"filter", "selected"},
-	productui.PageHistory:       {"history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"},
-	productui.PagePeople:        {"q", "page", "page_size", "team", "location", "eligible", "sort", "dir"},
-	productui.PagePerson:        {"person", "q", "page", "page_size", "team", "location", "eligible", "sort", "dir", "workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"},
-	productui.PageOrganization:  organizationRouteQueryKeys,
-	productui.PageOrgExplorer:   organizationRouteQueryKeys,
-	productui.PageOrgOutline:    organizationRouteQueryKeys,
-	productui.PageOrgResponsive: organizationRouteQueryKeys,
-	productui.PageStudio:        {"mode"},
-	productui.PageRoles:         {"q", "role_page"},
-}
-
 func safeRouteValue(value string) bool {
 	return len(value) <= maxRouteQueryBytes && utf8.ValidString(value) && strings.IndexFunc(value, unicode.IsControl) < 0
-}
-
-func routeQueryKeys(page productui.PageID) map[string]bool {
-	keys := make(map[string]bool, len(shellRouteQueryKeys)+len(pageRouteQueryKeys[page]))
-	for _, key := range shellRouteQueryKeys {
-		keys[key] = true
-	}
-	for _, key := range pageRouteQueryKeys[page] {
-		keys[key] = true
-	}
-	return keys
 }
 
 func parsePositiveRouteInt(values url.Values, key string, absent int) (int, error) {
@@ -242,31 +219,6 @@ func parsePageSizeRouteInt(values url.Values, key string) (int, error) {
 	return value, nil
 }
 
-func validControlledRouteValues(page productui.PageID, values url.Values) bool {
-	oneOf := func(key string, allowed ...string) bool {
-		value := strings.ToLower(strings.TrimSpace(values.Get(key)))
-		return value == "" || slices.Contains(allowed, value)
-	}
-	if !oneOf("sort", "name", "role", "team", "manager", "location") ||
-		!oneOf("dir", "asc", "desc") ||
-		!oneOf("eligible", "1") ||
-		!oneOf("history_sort", "person", "change", "closed", "outcome") ||
-		!oneOf("history_dir", "asc", "desc") ||
-		!oneOf("outcome", "completed", "rejected", "failed") {
-		return false
-	}
-	switch page {
-	case productui.PageWork:
-		return oneOf("filter", "review", "blocked", "complete", "mine", "tracked")
-	case productui.PageOrganization, productui.PageOrgExplorer, productui.PageOrgOutline, productui.PageOrgResponsive:
-		return oneOf("org_view", "flat", "tree")
-	case productui.PageStudio:
-		return oneOf("mode", "preview", "validate")
-	default:
-		return true
-	}
-}
-
 func routeValue(values url.Values, key string) string {
 	return strings.TrimSpace(values.Get(key))
 }
@@ -275,67 +227,11 @@ func routeValue(values url.Values, key string) string {
 // product state. It serializes page-scoped presentation values and nothing
 // else; it can never carry a credential, action token, or service response.
 func CanonicalHref(state State) string {
-	values := url.Values{}
-	set := func(key, value string) {
-		if state.Provided[key] {
-			values.Set(key, value)
-		}
+	routeProfile, _, ok := productui.PageProfiles(state.Page)
+	if !ok {
+		return productui.Path(state.Page)
 	}
-	request := state.Request
-	set("locale", request.Locale)
-	if state.Provided["nav"] {
-		if request.NavCollapsed {
-			values.Set("nav", "collapsed")
-		} else {
-			values.Set("nav", "expanded")
-		}
-	}
-	set("menu_q", request.MenuQuery)
-	if state.Provided["favorites"] {
-		favorites := make([]string, 0, len(request.FavoritePages))
-		for _, page := range request.FavoritePages {
-			favorites = append(favorites, string(page))
-		}
-		values.Set("favorites", strings.Join(favorites, ","))
-	}
-	switch state.Page {
-	case productui.PageMyself:
-		setHistoryRouteValues(values, state)
-		set("workflow_q", request.WorkflowQuery)
-	case productui.PageJourneys:
-		set("journey", request.JourneyID)
-		set("mode", request.JourneyMode)
-		set("worker", request.JourneyWorker)
-	case productui.PageWork:
-		set("filter", request.WorkFilter)
-		set("selected", request.SelectedWork)
-	case productui.PageHistory:
-		setHistoryRouteValues(values, state)
-	case productui.PagePeople:
-		setPeopleRouteValues(values, state)
-	case productui.PagePerson:
-		set("person", request.SelectedPerson)
-		setPeopleRouteValues(values, state)
-		set("workflow_q", request.WorkflowQuery)
-		setHistoryRouteValues(values, state)
-	case productui.PageOrganization, productui.PageOrgExplorer, productui.PageOrgOutline, productui.PageOrgResponsive:
-		if state.Page == productui.PageOrgOutline {
-			// The accessible outline is intentionally a single tree
-			// presentation. Canonicalize even an omitted or contradictory
-			// query so browser history never describes a flat view while the
-			// production route renders a locked tree.
-			values.Set("org_view", "tree")
-		} else {
-			set("org_view", request.OrganizationView)
-		}
-		set("q", request.Query)
-		set("person", request.SelectedPerson)
-	case productui.PageRoles:
-		set("q", request.Query)
-		setProvidedRouteInt(values, state, "role_page", request.RolePage)
-	case productui.PageStudio:
-		set("mode", request.Mode)
-	}
+	values := routeProfile.CanonicalValues(state.Request, state.Provided)
 	href := productui.Path(state.Page)
 	if query := values.Encode(); query != "" {
 		return href + "?" + query
@@ -353,7 +249,7 @@ func ResolvedCanonicalHref(state State, view productui.View) string {
 	}
 	resolved := state
 	resolved.Request = state.Request
-	if state.Page == productui.PagePeople || state.Page == productui.PagePerson {
+	if profile := routeProfileFor(state.Page); profile.PeopleDirectory {
 		if state.Provided["page"] {
 			resolved.Request.PeoplePage = view.PeoplePage
 		}
@@ -361,10 +257,10 @@ func ResolvedCanonicalHref(state State, view productui.View) string {
 			resolved.Request.PeoplePageSize = view.PeoplePageSize
 		}
 	}
-	if state.Page == productui.PageRoles && state.Provided["role_page"] {
+	if profile := routeProfileFor(state.Page); profile.Roles && state.Provided["role_page"] {
 		resolved.Request.RolePage = view.RolePage
 	}
-	if state.Page == productui.PageHistory || state.Page == productui.PagePerson || state.Page == productui.PageMyself {
+	if profile := routeProfileFor(state.Page); profile.History {
 		if state.Provided["history_page"] {
 			resolved.Request.HistoryPage = view.HistoryPage
 		}
@@ -373,6 +269,14 @@ func ResolvedCanonicalHref(state State, view productui.View) string {
 		}
 	}
 	return CanonicalHref(resolved)
+}
+
+func routeProfileFor(page productui.PageID) productui.RouteStateProfile {
+	routeProfile, _, ok := productui.PageProfiles(page)
+	if !ok {
+		return productui.RouteStateProfile{}
+	}
+	return routeProfile.StateProfile()
 }
 
 func setPeopleRouteValues(values url.Values, state State) {
@@ -450,22 +354,12 @@ type pageDataRequirements struct {
 }
 
 func requirementsForPage(page productui.PageID) pageDataRequirements {
-	switch page {
-	case productui.PageHome, productui.PageMyself, productui.PageWork, productui.PageHistory,
-		productui.PagePerson, productui.PageInsights:
-		return pageDataRequirements{journeys: true, workers: true}
-	case productui.PagePeople:
-		// PROMOUX-001: the directory's per-worker promotion-availability
-		// verdict needs to know about a nonterminal journey already in
-		// flight for that worker (PromotionActiveConflict), so People also
-		// reads journeys now -- not just workers.
-		return pageDataRequirements{journeys: true, workers: true}
-	case productui.PageOrganization, productui.PageOrgExplorer, productui.PageOrgOutline, productui.PageOrgResponsive,
-		productui.PageRoles, productui.PageOrganizationVisibility:
-		return pageDataRequirements{workers: true}
-	default:
+	_, dataProfile, ok := productui.PageProfiles(page)
+	if !ok {
 		return pageDataRequirements{}
 	}
+	requirements := dataProfile.Requirements()
+	return pageDataRequirements{journeys: requirements.Journeys, workers: requirements.Workers}
 }
 
 func load(ctx context.Context, service Service, session Session, state State, baseline *productui.View) (productui.View, error) {
@@ -476,7 +370,7 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		seedBaselineProjection(&view, *baseline)
 		// Work filters are applied destructively to the route projection. Never
 		// mistake a filtered previous page for the complete shell dataset.
-		if baseline.Page == productui.PageWork && baseline.WorkFilter != "" {
+		if baselineRoute, _, ok := productui.PageProfiles(baseline.Page); ok && baselineRoute.StateProfile().Work && baseline.WorkFilter != "" {
 			requirements.journeys = true
 		}
 	}
@@ -727,6 +621,13 @@ func applyRoleAccess(view *productui.View, response *journeyv1.GetRoleAccessResp
 	for _, permission := range response.GetPagePermissions() {
 		view.RolePagePermissions = append(view.RolePagePermissions, productui.RolePagePermission{
 			Version: permission.GetVersion(), RoleID: permission.GetRoleId(), Page: productui.PageID(permission.GetPageId()),
+			View: permission.GetCanView(), Create: permission.GetCanCreate(), Update: permission.GetCanUpdate(), Delete: permission.GetCanDelete(),
+		})
+	}
+	view.RoleFeaturePermissions = make([]productui.RoleFeaturePermission, 0, len(response.GetFeaturePermissions()))
+	for _, permission := range response.GetFeaturePermissions() {
+		view.RoleFeaturePermissions = append(view.RoleFeaturePermissions, productui.RoleFeaturePermission{
+			Version: permission.GetVersion(), RoleID: permission.GetRoleId(), Page: productui.PageID(permission.GetPageId()), Feature: productui.FeatureID(permission.GetFeatureId()),
 			View: permission.GetCanView(), Create: permission.GetCanCreate(), Update: permission.GetCanUpdate(), Delete: permission.GetCanDelete(),
 		})
 	}

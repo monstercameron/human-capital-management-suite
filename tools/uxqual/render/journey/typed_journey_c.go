@@ -349,6 +349,15 @@ func declareJourneyMotion() {
 	declareGlobal(`.jn-confirm-trigger`,
 		gwccss.W(gwccss.Percent(100)),
 	)
+	declareGlobal(`.jn-confirm-close-label`,
+		gwccss.Display.None,
+	)
+	declareGlobal(`.jn-confirm[open] > summary .jn-confirm-open-label`,
+		gwccss.Display.None,
+	)
+	declareGlobal(`.jn-confirm[open] > summary .jn-confirm-close-label`,
+		gwccss.Display.Inline,
+	)
 	declareGlobal(`.jn-confirm-dialog`,
 		gwccss.Position.Fixed,
 		gwccss.Raw("inset", "0"),

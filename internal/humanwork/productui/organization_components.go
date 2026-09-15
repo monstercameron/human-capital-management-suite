@@ -294,15 +294,53 @@ type OrganizationOwnershipTreeProps struct {
 	Label string
 }
 
+const (
+	organizationVirtualThreshold      = 400
+	organizationVirtualRowHeight      = 144
+	organizationVirtualViewportHeight = 560
+)
+
 // OrganizationOwnershipTree is shared by the organization page's tree view
 // and the Myself subtree so reporting semantics and accessibility cannot
-// drift between them (UXAUDIT-004 REFACTOR). It renders the real WAI-ARIA
-// tree structure the live audit found missing: role="tree" on the container,
-// role="treeitem" on every node, aria-level tied to OwnershipNodeProps.Level
-// (which is itself tied to the authorized relationship projection's depth,
-// not a hardcoded number), role="group" wrapping each child set, and
-// aria-expanded present only on a node that actually has children.
+// drift between them (UXAUDIT-004 REFACTOR). Small trees and SSR retain
+// nested role="group" markup. Large desktop trees use a flat virtual window
+// with aria-level/posinset/setsize preserving the authorized hierarchy.
 func OrganizationOwnershipTree(props OrganizationOwnershipTreeProps) ui.Node {
+	total := ui.UseMemo(func() int { return countOwnershipNodes(props.Nodes) }, props.Nodes)
+	large := total >= organizationVirtualThreshold
+	virtual := useOrganizationVirtualViewport(large)
+	collapsed := ui.UseState(map[string]bool(nil))
+	scrollTop := ui.UseState(float64(0))
+	rows := ui.UseMemo(func() []virtualOwnershipRow {
+		if !virtual {
+			return nil
+		}
+		return flattenOwnershipRows(props.Nodes, collapsed.Get())
+	}, props.Nodes, collapsed.Get(), virtual)
+	ui.UseEffect(func() func() {
+		if virtual {
+			scrollTop.Set(initialOrganizationVirtualTop(rows))
+		}
+		return nil
+	}, virtual, props.Nodes)
+	if virtual {
+		return ui.CreateElement(organizationVirtualTree, organizationVirtualTreeProps{label: props.Label, rows: rows, scrollTop: scrollTop.Get(), onToggle: func(id string) {
+			next := make(map[string]bool, len(collapsed.Get())+1)
+			for key, value := range collapsed.Get() {
+				next[key] = value
+			}
+			next[id] = !next[id]
+			collapsed.Set(next)
+		}, onScroll: func(top float64) {
+			window := html.VirtualListProps{ItemCount: len(rows), ItemHeight: organizationVirtualRowHeight, ViewportHeight: organizationVirtualViewportHeight}
+			window.ScrollTop = scrollTop.Get()
+			previous := html.VisibleRange(window)
+			window.ScrollTop = top
+			if html.VisibleRange(window) != previous {
+				scrollTop.Set(top)
+			}
+		}})
+	}
 	nodes := make([]ui.Node, 0, len(props.Nodes))
 	for _, value := range props.Nodes {
 
@@ -313,6 +351,117 @@ func OrganizationOwnershipTree(props OrganizationOwnershipTreeProps) ui.Node {
 		treeProps.Aria = map[string]string{"label": props.Label}
 	}
 	return html.Ul(treeProps, nodes...)
+}
+
+func countOwnershipNodes(nodes []OwnershipNodeProps) int {
+	count := 0
+	for _, node := range nodes {
+		count++
+		count += countOwnershipNodes(node.Reports)
+	}
+	return count
+}
+
+type virtualOwnershipRow struct {
+	node       OwnershipNodeProps
+	position   int
+	setSize    int
+	expanded   bool
+	hasReports bool
+}
+
+func flattenOwnershipRows(nodes []OwnershipNodeProps, collapsed map[string]bool) []virtualOwnershipRow {
+	rows := make([]virtualOwnershipRow, 0, countOwnershipNodes(nodes))
+	var visit func([]OwnershipNodeProps)
+	visit = func(siblings []OwnershipNodeProps) {
+		for index, node := range siblings {
+			hasReports := len(node.Reports) > 0
+			expanded := hasReports && !collapsed[node.ID]
+			rows = append(rows, virtualOwnershipRow{node: node, position: index + 1, setSize: len(siblings), hasReports: hasReports, expanded: expanded})
+			if expanded {
+				visit(node.Reports)
+			}
+		}
+	}
+	visit(nodes)
+	return rows
+}
+
+func initialOrganizationVirtualTop(rows []virtualOwnershipRow) float64 {
+	selected, current := -1, -1
+	for index, row := range rows {
+		if row.node.Selected {
+			selected = index
+			break
+		}
+		if row.node.Current {
+			current = index
+		}
+	}
+	if selected >= 0 {
+		return float64(max(0, selected*organizationVirtualRowHeight-organizationVirtualViewportHeight/2))
+	}
+	if current >= 0 {
+		return float64(max(0, current*organizationVirtualRowHeight-organizationVirtualViewportHeight/2))
+	}
+	return 0
+}
+
+type organizationVirtualTreeProps struct {
+	label     string
+	rows      []virtualOwnershipRow
+	scrollTop float64
+	onToggle  func(string)
+	onScroll  func(float64)
+}
+
+func organizationVirtualTree(props organizationVirtualTreeProps) ui.Node {
+	maxTop := float64(max(0, len(props.rows)*organizationVirtualRowHeight-organizationVirtualViewportHeight))
+	scrollTop := min(props.scrollTop, maxTop)
+	useOrganizationVirtualScrollPosition(scrollTop)
+	viewProps := html.Props{ID: "organization-virtual-tree", Class: "ownership-tree ownership-virtual-tree", Raw: map[string]any{"role": "tree", "data-organization-view": "tree", "data-virtualized": "true", "tabindex": "0"}}
+	if props.label != "" {
+		viewProps.Aria = map[string]string{"label": props.label}
+	}
+	viewProps.OnScroll = ui.UseEvent(func(event ui.Event) {
+		if props.onScroll != nil {
+			props.onScroll(organizationScrollTop(event))
+		}
+	})
+	return html.VirtualList(html.VirtualListProps{
+		ItemCount: len(props.rows), ItemHeight: organizationVirtualRowHeight,
+		ViewportHeight: organizationVirtualViewportHeight, ScrollTop: scrollTop, Props: viewProps,
+		Key: func(index int) any { return props.rows[index].node.ID },
+		Render: func(index int) ui.Node {
+			return ui.CreateElement(organizationVirtualTreeItem, organizationVirtualTreeItemProps{row: props.rows[index], onToggle: props.onToggle})
+		},
+	})
+}
+
+type organizationVirtualTreeItemProps struct {
+	row      virtualOwnershipRow
+	onToggle func(string)
+}
+
+func organizationVirtualTreeItem(props organizationVirtualTreeItemProps) ui.Node {
+	row := props.row
+	aria := map[string]string{"level": strconv.Itoa(row.node.Level), "posinset": strconv.Itoa(row.position), "setsize": strconv.Itoa(row.setSize), "selected": fmt.Sprint(row.node.Selected)}
+	if row.hasReports {
+		aria["expanded"] = fmt.Sprint(row.expanded)
+	}
+	depth := min(max(row.node.Level-1, 0)*22, 132)
+	children := []ui.Node{organizationPersonCardLink(row.node)}
+	toggle := ui.UseEvent(func(ui.MouseEvent) {
+		if props.onToggle != nil {
+			props.onToggle(row.node.ID)
+		}
+	})
+	if row.hasReports {
+		children = append(children, html.Button(html.Props{Type: "button", Class: "ownership-toggle", OnClick: toggle},
+			html.Span(html.Props{Aria: map[string]string{"hidden": "true"}}, ui.Text(organizationToggleGlyph(row.expanded))), ui.Text(row.node.ReportsLabel)))
+	}
+	return html.Div(html.Props{Class: "ownership-virtual-row", Raw: map[string]any{"role": "treeitem"}, Aria: aria,
+		Style: map[string]string{"padding-inline-start": fmt.Sprintf("%dpx", depth)}}, children...)
 }
 
 // organizationTreeItem renders one treeitem. Expand/collapse is real,
@@ -370,6 +519,42 @@ func organizationToggleGlyph(expanded bool) string {
 // UXAUDIT-004's flat organization list, organization tree, and Myself
 // subtree all render every person through this one function.
 func organizationPersonCard(props OwnershipNodeProps) ui.Node {
+	card, identityLabel := organizationPersonCardLinkWithLabel(props)
+	// Keep the compact card scannable while making secondary employee facts
+	// available on demand. The disclosure is separate from the profile link,
+	// so keyboard users never encounter nested interactive controls in summary.
+	details := make([]ui.Node, 0, 2)
+	if props.WorkerNumber != "" {
+		details = append(details, html.Div(html.Props{Class: "ownership-person-detail"}, html.Small(html.Props{}, ui.Text(props.Text("person.worker_number"))), html.Span(html.Props{}, ui.Text(props.WorkerNumber))))
+	}
+	if props.Manager != "" {
+		details = append(details, html.Div(html.Props{Class: "ownership-person-detail"}, html.Small(html.Props{}, ui.Text(props.Text("person.manager"))), html.Span(html.Props{}, ui.Text(props.Manager))))
+	}
+	if props.Location != "" {
+		details = append(details, html.Div(html.Props{Class: "ownership-person-detail"}, html.Small(html.Props{}, ui.Text(props.Text("person.work_location"))), html.Span(html.Props{}, ui.Text(props.Location))))
+	}
+	nodes := []ui.Node{card}
+	if props.RelationshipExplanation != "" {
+		nodes = append(nodes, html.P(html.Props{Class: "relationship-explanation", Raw: map[string]any{"role": "note"}}, ui.Text(props.RelationshipExplanation)))
+	}
+	if len(details) == 0 && len(nodes) == 1 {
+		return card
+	}
+	if len(details) > 0 {
+		nodes = append(nodes, html.Details(html.Props{Class: "ownership-person-disclosure"},
+			html.Summary(html.Props{Aria: map[string]string{"label": props.Text("organization.employee_details_for", map[string]string{"name": identityLabel})}}, ui.Text(props.Text("organization.employee_details"))),
+			html.Div(html.Props{Class: "ownership-person-details"}, details...),
+		))
+	}
+	return html.Div(html.Props{Class: "ownership-person"}, nodes...)
+}
+
+func organizationPersonCardLink(props OwnershipNodeProps) ui.Node {
+	card, _ := organizationPersonCardLinkWithLabel(props)
+	return card
+}
+
+func organizationPersonCardLinkWithLabel(props OwnershipNodeProps) (ui.Node, string) {
 	identityLabel := ResolveWorkerIdentity(props.Locale, Person{Name: props.Name, WorkerNumber: props.WorkerNumber}, nil).Label
 	class := "ownership-card"
 	if props.Current {
@@ -424,33 +609,7 @@ func organizationPersonCard(props OwnershipNodeProps) ui.Node {
 	} else {
 		card = softwareLink(props.Navigate, linkProps, props.Href, children...)
 	}
-	// Keep the compact card scannable while making secondary employee facts
-	// available on demand. The disclosure is separate from the profile link,
-	// so keyboard users never encounter nested interactive controls in summary.
-	details := make([]ui.Node, 0, 2)
-	if props.WorkerNumber != "" {
-		details = append(details, html.Div(html.Props{Class: "ownership-person-detail"}, html.Small(html.Props{}, ui.Text(props.Text("person.worker_number"))), html.Span(html.Props{}, ui.Text(props.WorkerNumber))))
-	}
-	if props.Manager != "" {
-		details = append(details, html.Div(html.Props{Class: "ownership-person-detail"}, html.Small(html.Props{}, ui.Text(props.Text("person.manager"))), html.Span(html.Props{}, ui.Text(props.Manager))))
-	}
-	if props.Location != "" {
-		details = append(details, html.Div(html.Props{Class: "ownership-person-detail"}, html.Small(html.Props{}, ui.Text(props.Text("person.work_location"))), html.Span(html.Props{}, ui.Text(props.Location))))
-	}
-	nodes := []ui.Node{card}
-	if props.RelationshipExplanation != "" {
-		nodes = append(nodes, html.P(html.Props{Class: "relationship-explanation", Raw: map[string]any{"role": "note"}}, ui.Text(props.RelationshipExplanation)))
-	}
-	if len(details) == 0 && len(nodes) == 1 {
-		return card
-	}
-	if len(details) > 0 {
-		nodes = append(nodes, html.Details(html.Props{Class: "ownership-person-disclosure"},
-			html.Summary(html.Props{Aria: map[string]string{"label": props.Text("organization.employee_details_for", map[string]string{"name": identityLabel})}}, ui.Text(props.Text("organization.employee_details"))),
-			html.Div(html.Props{Class: "ownership-person-details"}, details...),
-		))
-	}
-	return html.Div(html.Props{Class: "ownership-person"}, nodes...)
+	return card, identityLabel
 }
 
 func BusinessMetadata(props BusinessMetadataProps) ui.Node {

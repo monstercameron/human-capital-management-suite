@@ -99,6 +99,7 @@ type PeopleTableProps struct {
 	I18nProps
 	Rows    []PeopleRowProps
 	Columns []PeopleSortColumnProps
+	Busy    bool
 }
 
 // PeopleSortColumnProps is an address-backed, accessible directory sort.
@@ -302,6 +303,7 @@ func PeopleDirectory(props PeopleDirectoryProps) ui.Node {
 			resolve, commit := current.ResolveSort, current.CommitSort
 			columns[index].Navigate = func(string) {
 				next := resolve(field, nextDescending)
+				next.Refreshing = true
 				state.Set(peopleDirectoryState{InputKey: directoryState.InputKey, Current: next})
 				if commit != nil {
 					commit(PeopleDirectoryChange{Href: href, Sort: field, Descending: nextDescending})
@@ -315,14 +317,13 @@ func PeopleDirectory(props PeopleDirectoryProps) ui.Node {
 	children := make([]ui.Node, 0, 3)
 	if current.Refreshing {
 		sectionProps.Class += " is-refreshing"
-		sectionProps.Aria = map[string]string{"busy": "true", "live": "polite"}
+		sectionProps.Aria = map[string]string{"busy": "true"}
 		children = append(children,
 			html.Div(html.Props{Class: "loading-progress people-directory-progress", Raw: map[string]any{"aria-hidden": "true"}}),
-			html.Span(html.Props{Class: "sr-only", Raw: map[string]any{"role": "status"}}, ui.Text(current.Text("shell.loading_authorized"))),
 		)
 	}
 	children = append(children,
-		ui.CreateElement(PeopleTable, PeopleTableProps{I18nProps: current.I18nProps, Rows: current.Rows, Columns: columns}),
+		ui.CreateElement(PeopleTable, PeopleTableProps{I18nProps: current.I18nProps, Rows: current.Rows, Columns: columns, Busy: current.Refreshing}),
 		ui.CreateElement(PeoplePagination, current.Pagination),
 	)
 	return html.Section(sectionProps, children...)
@@ -359,7 +360,7 @@ func PeopleTable(props PeopleTableProps) ui.Node {
 	return ui.CreateElement(DataTable, DataTableProps{
 		ID: "people-directory-table", Caption: props.Text("people.table_aria"), AriaLabel: props.Text("people.table_aria"), SortLabel: props.Text("people.sort_by"),
 		Class: "people-table", HeaderClass: "people-columns", BodyClass: "people-rows", SortLabelClass: "people-sort-label",
-		Columns: columns, Rows: rows,
+		Busy: props.Busy, BusyLabel: props.Text("table.loading"), Columns: columns, Rows: rows,
 	})
 }
 

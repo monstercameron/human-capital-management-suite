@@ -135,6 +135,7 @@ func UtilityDrawer(props UtilityDrawerProps) ui.Node {
 		return html.Fragment()
 	}
 	open := ui.UseState(false)
+	useDrawerFocusTrap("utility-drawer-dialog", "utility-drawer-trigger", open.Get())
 	trigger := html.Button(html.Props{
 		ID: "utility-drawer-trigger", Class: "utility-drawer-trigger", Type: "button",
 		Aria: map[string]string{

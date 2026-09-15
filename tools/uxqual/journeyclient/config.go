@@ -66,9 +66,10 @@ type Config struct {
 	// PagePermissions is the effective, server-derived union of the signed-in
 	// worker's durable role grants. It only controls browser discoverability
 	// and affordances; every mutation is authorized again by the service.
-	PagePermissions []PagePermission `json:"page_permissions,omitempty"`
-	LauncherActions []LauncherAction `json:"launcher_actions,omitempty"`
-	Purpose         string           `json:"purpose"`
+	PagePermissions    []PagePermission    `json:"page_permissions,omitempty"`
+	FeaturePermissions []FeaturePermission `json:"feature_permissions"`
+	LauncherActions    []LauncherAction    `json:"launcher_actions,omitempty"`
+	Purpose            string              `json:"purpose"`
 	// JourneysPath is the page's own address, used for the masthead link back
 	// to itself.
 	JourneysPath string `json:"journeys_path"`
@@ -100,11 +101,46 @@ type PagePermission struct {
 	Delete  bool   `json:"Delete"`
 }
 
+// FeaturePermission mirrors one effective page-feature CRUD grant from the
+// server-owned role policy.
+type FeaturePermission struct {
+	Version   int64  `json:"version"`
+	RoleID    string `json:"RoleID"`
+	PageID    string `json:"PageID"`
+	FeatureID string `json:"FeatureID"`
+	View      bool   `json:"View"`
+	Create    bool   `json:"Create"`
+	Update    bool   `json:"Update"`
+	Delete    bool   `json:"Delete"`
+}
+
 // CanPageAction checks one effective browser affordance. It is not an
 // authorization decision; the server repeats the check from trusted state.
 func (c Config) CanPageAction(pageID, action string) bool {
 	for _, permission := range c.PagePermissions {
 		if permission.PageID != pageID {
+			continue
+		}
+		switch action {
+		case "view":
+			return permission.View
+		case "create":
+			return permission.Create
+		case "update":
+			return permission.Update
+		case "delete":
+			return permission.Delete
+		}
+	}
+	return false
+}
+
+func (c Config) CanFeatureAction(pageID, featureID, action string) bool {
+	if !c.CanPageAction(pageID, action) {
+		return false
+	}
+	for _, permission := range c.FeaturePermissions {
+		if permission.PageID != pageID || permission.FeatureID != featureID {
 			continue
 		}
 		switch action {

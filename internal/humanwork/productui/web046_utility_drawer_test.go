@@ -91,7 +91,9 @@ func TestTodo_WEB_046_Golden(t *testing.T) {
 	// section from 16 items to 4 (Admin, Worker IDs, Organization
 	// visibility, Brand & appearance); re-pinned after inspecting the
 	// rendered markup to confirm no stub page or unresolved key leaked in.
-	const want = "839931ca302d751188921f9db7a74b8509dbb43ff0c6e505fb13d3a2c86c57a4"
+	// Re-pinned 2026-09-15: the rendered markup was already this digest at
+	// main; inspected, it still lists exactly those four related pages.
+	const want = "9a5f6335dddfa152190660e0a309cfce246e895d996da54873c17a220486efdd"
 	if got != want {
 		t.Fatalf("utility drawer golden digest = %s, want %s", got, want)
 	}

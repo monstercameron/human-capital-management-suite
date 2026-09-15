@@ -1,10 +1,12 @@
 package journeyclient
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"testing"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 )
 
@@ -137,5 +139,39 @@ func TestDialTarget(t *testing.T) {
 		if got != want {
 			t.Errorf("Config{TunnelURL:%q}.DialTarget() = %q, want %q", tunnel, got, want)
 		}
+	}
+}
+
+func TestTodo_WEB_241_ConfigPreservesAuthoritativeEmptyFeaturePolicy(t *testing.T) {
+	raw, err := json.Marshal(workspace.JourneyConfig{
+		TunnelURL: "ws://cell.example/grpc", Bearer: "tok",
+		FeaturePermissions: []roleaccess.FeaturePermission{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(raw, []byte(`"feature_permissions":[]`)) {
+		t.Fatalf("explicit empty feature policy was omitted: %s", raw)
+	}
+	cfg, err := ParseConfig(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.FeaturePermissions == nil {
+		t.Fatal("authoritative empty feature policy became rolling-upgrade nil")
+	}
+}
+
+func TestTodo_WEB_241_ClientFeatureGateRequiresPageAndFeature(t *testing.T) {
+	cfg := Config{
+		PagePermissions:    []PagePermission{{PageID: "journeys", View: true, Create: true}},
+		FeaturePermissions: []FeaturePermission{{PageID: "journeys", FeatureID: "promotion_request", View: true, Create: true}},
+	}
+	if !cfg.CanFeatureAction("journeys", "promotion_request", "create") {
+		t.Fatal("matching page and feature grant denied")
+	}
+	cfg.PagePermissions[0].Create = false
+	if cfg.CanFeatureAction("journeys", "promotion_request", "create") {
+		t.Fatal("feature grant escaped its page boundary")
 	}
 }
