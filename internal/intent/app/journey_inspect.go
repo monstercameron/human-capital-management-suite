@@ -637,7 +637,15 @@ func redactJourneyDiagnostics(detail *workspace.JourneyDetail) {
 	detail.Summary.InstanceVersion = 0
 	detail.Summary.Approver = ""
 	for i := range detail.Findings {
-		detail.Findings[i].Code = ""
+		// UXAUDIT-002: the WAIT_* codes route the wait explanation to its
+		// own section for every viewer the messages already reach. Blanking
+		// them hid nothing -- the messages still crossed -- and collapsed
+		// the explanation into the generic board for the very approvers
+		// waiting on it. Every other code still blanks: only the
+		// explanation routing keys survive redaction.
+		if !isWaitExplanationFindingCode(detail.Findings[i].Code) {
+			detail.Findings[i].Code = ""
+		}
 	}
 	detail.PlannedWrites = nil
 	detail.Instance = nil

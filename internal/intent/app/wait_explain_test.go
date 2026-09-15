@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/timer"
 )
@@ -134,6 +135,49 @@ func TestTodo_PROMOUX_014_WaitEffectiveDateNextNodeIDFindsTheCompiledRoute(t *te
 	}
 	if next != promotionexec.NodeRevalidate {
 		t.Errorf("FIRED edge target = %q, want %q (update this test if the workflow's own routing changed on purpose)", next, promotionexec.NodeRevalidate)
+	}
+}
+
+// TestTodo_UXAUDIT_002_RedactionKeepsWaitExplanationCodes pins the
+// UXAUDIT-002 GREEN fix in redactJourneyDiagnostics: the six WAIT_* codes
+// are the projector's routing keys for the wait-explanation section, not
+// execution internals, and their messages already cross the diagnostics
+// boundary -- so redaction keeps those codes while still blanking every
+// other finding code. Without this, an ordinary approver's WAITING journey
+// collapses its explanation into the generic findings board.
+func TestTodo_UXAUDIT_002_RedactionKeepsWaitExplanationCodes(t *testing.T) {
+	fireAt := time.Date(2026, 12, 1, 5, 0, 0, 0, time.UTC)
+	tm := &timer.Timer{NodeID: promotionexec.NodeWaitEffectiveDate, FiresAt: fireAt}
+	detail := &workspace.JourneyDetail{
+		Findings: append(journeyWaitFindings(tm, nil),
+			workspace.JourneyFinding{Severity: "blocking", Code: "promotion.pay_band_exceeded", Message: "Proposed base is above the band."},
+		),
+	}
+	redactJourneyDiagnostics(detail)
+
+	kept := map[string]string{}
+	for _, f := range detail.Findings {
+		kept[f.Code] = f.Message
+	}
+	for _, code := range []string{
+		FindingCodeWaitEffectiveInstant, FindingCodeWaitOwner, FindingCodeWaitScheduledAction,
+		FindingCodeWaitRemainingChecks, FindingCodeWaitNotification, FindingCodeWaitIntervention,
+	} {
+		if kept[code] == "" {
+			t.Errorf("redaction blanked wait code %s: the explanation no longer routes to its section", code)
+		}
+	}
+	if _, leaked := kept["promotion.pay_band_exceeded"]; leaked {
+		t.Errorf("redaction kept non-explanation code promotion.pay_band_exceeded: diagnostics still cross the boundary")
+	}
+	ordinary := ""
+	for _, f := range detail.Findings {
+		if f.Message == "Proposed base is above the band." {
+			ordinary = f.Code
+		}
+	}
+	if ordinary != "" {
+		t.Errorf("ordinary finding code = %q, want blank after redaction", ordinary)
 	}
 }
 

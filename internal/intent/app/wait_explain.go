@@ -165,3 +165,17 @@ func journeyWaitFindings(t *timer.Timer, items []workitem.WorkItem) []workspace.
 
 	return findings
 }
+
+// isWaitExplanationFindingCode reports whether code is one of the six
+// WAIT_* explanation codes journeyWaitFindings mints. The codes are the
+// projector's routing keys for the wait-explanation section, not execution
+// internals: their messages already cross the diagnostics boundary, so the
+// code discloses nothing the message does not already say.
+func isWaitExplanationFindingCode(code string) bool {
+	switch code {
+	case FindingCodeWaitEffectiveInstant, FindingCodeWaitOwner, FindingCodeWaitScheduledAction,
+		FindingCodeWaitRemainingChecks, FindingCodeWaitNotification, FindingCodeWaitIntervention:
+		return true
+	}
+	return false
+}
