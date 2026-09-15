@@ -127,37 +127,18 @@ type approverRoute struct {
 // enforced when the finance approval is raised, not after finance has decided.
 func (f promotionWorkItems) resolveApprovers(ctx context.Context, ex workitem.Executor, req execute.WorkItemRequest) (approverRoute, error) {
 	var route approverRoute
-	if f.financePartner != "" {
-		route.finance = routedApprover{principal: f.financePartner, termRef: termFinancePartner, directoryVersion: directoryFinancePartner}
-	} else {
-		derived, err := promotionexec.FinanceApproverFor(f.approver)
-		if err != nil {
-			return approverRoute{}, fmt.Errorf("platform execution: derive the finance approver: %w", err)
-		}
-		route.finance = routedApprover{principal: derived, termRef: termConfiguredApprover, directoryVersion: directoryConfiguredApprover}
-	}
-
-	subjectID := employmentSubject(req)
-	managers := f.managers
-	if managers == nil {
-		managers = JourneyWorkerManagers{}
-	}
-	managerOf, err := managers.CurrentManagerOf(ctx, ex, req.Continuation.TenantID, subjectID)
+	finance, err := f.financeRoute()
 	if err != nil {
 		return approverRoute{}, err
 	}
-	switch {
-	case managerOf.ManagerPrincipal != "":
-		route.manager = routedApprover{principal: managerOf.ManagerPrincipal, termRef: termCurrentManager, directoryVersion: directoryCurrentManager}
-	case managerOf.InGraph:
-		return approverRoute{}, fmt.Errorf("%w: %s", ErrUnresolvedManager, subjectID)
-	default:
-		derived, deriveErr := promotionexec.ManagerApproverFor(f.approver)
-		if deriveErr != nil {
-			return approverRoute{}, fmt.Errorf("platform execution: derive the manager approver: %w", deriveErr)
-		}
-		route.manager = routedApprover{principal: derived, termRef: termConfiguredApprover, directoryVersion: directoryConfiguredApprover}
+	route.finance = finance
+
+	subjectID := employmentSubject(req)
+	manager, managerOf, err := f.managerRoute(ctx, ex, req.Continuation.TenantID, subjectID)
+	if err != nil {
+		return approverRoute{}, err
 	}
+	route.manager = manager
 
 	requester := req.Proposal.Revision.CreatedBy.PrincipalID
 	subjects := append([]string{subjectID, managerOf.SubjectKey}, req.SubjectRefs...)
@@ -165,6 +146,51 @@ func (f promotionWorkItems) resolveApprovers(ctx context.Context, ex workitem.Ex
 		return approverRoute{}, fmt.Errorf("%w: %w", ErrApproverSeparation, err)
 	}
 	return route, nil
+}
+
+// financeRoute is the FinancePartnerFor(cost_center) answer: the configured
+// finance partner, or PROMOUX-003's class-scoped derivation of the configured
+// approver when none is configured. It reads no durable fact, so routing and
+// the decision-time authority recheck ([PromotionApprovalAuthority]) derive it
+// through this one function.
+func (f promotionWorkItems) financeRoute() (routedApprover, error) {
+	if f.financePartner != "" {
+		return routedApprover{principal: f.financePartner, termRef: termFinancePartner, directoryVersion: directoryFinancePartner}, nil
+	}
+	derived, err := promotionexec.FinanceApproverFor(f.approver)
+	if err != nil {
+		return routedApprover{}, fmt.Errorf("platform execution: derive the finance approver: %w", err)
+	}
+	return routedApprover{principal: derived, termRef: termConfiguredApprover, directoryVersion: directoryConfiguredApprover}, nil
+}
+
+// managerRoute is the CurrentManagerOf(worker) answer read on ex: the
+// subject's current manager, the class-scoped configured approver for a
+// subject outside the relationship graph, or [ErrUnresolvedManager] for a graph
+// subject whose manager does not resolve. Routing and the decision-time
+// authority recheck both call it, so the two can never disagree about which
+// relationship grants the manager approval.
+func (f promotionWorkItems) managerRoute(ctx context.Context, ex workitem.Executor, tenantID uuid.UUID, subjectID string) (routedApprover, ManagerOf, error) {
+	managers := f.managers
+	if managers == nil {
+		managers = JourneyWorkerManagers{}
+	}
+	managerOf, err := managers.CurrentManagerOf(ctx, ex, tenantID, subjectID)
+	if err != nil {
+		return routedApprover{}, ManagerOf{}, err
+	}
+	switch {
+	case managerOf.ManagerPrincipal != "":
+		return routedApprover{principal: managerOf.ManagerPrincipal, termRef: termCurrentManager, directoryVersion: directoryCurrentManager}, managerOf, nil
+	case managerOf.InGraph:
+		return routedApprover{}, managerOf, fmt.Errorf("%w: %s", ErrUnresolvedManager, subjectID)
+	default:
+		derived, deriveErr := promotionexec.ManagerApproverFor(f.approver)
+		if deriveErr != nil {
+			return routedApprover{}, managerOf, fmt.Errorf("platform execution: derive the manager approver: %w", deriveErr)
+		}
+		return routedApprover{principal: derived, termRef: termConfiguredApprover, directoryVersion: directoryConfiguredApprover}, managerOf, nil
+	}
 }
 
 // employmentSubject is the proposal's EMPLOYMENT subject id, falling back to

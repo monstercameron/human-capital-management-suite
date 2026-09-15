@@ -53,7 +53,7 @@ func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 		}
 		startRetryFor = composeExecutionRetryFor(pool, cfg, now)
 	}
-	execution, err := platformexecution.NewPromotionExecution(platformexecution.PromotionExecutionConfig{
+	executionConfig := platformexecution.PromotionExecutionConfig{
 		DB:                         pool,
 		StartRetryFor:              startRetryFor,
 		Terminal:                   terminal,
@@ -70,7 +70,8 @@ func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 		// WF-COMP-006 / WF-RUN-035: published versions, their approvals and
 		// quarantine survive restart; serve never self-approves in memory.
 		Versions: workflowversionstore.Store{DB: pool},
-	})
+	}
+	execution, err := platformexecution.NewPromotionExecution(executionConfig)
 	if err != nil {
 		return fmt.Errorf("build the promotion execution driver: %w", err)
 	}
@@ -85,6 +86,9 @@ func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 	// driver runs on, acting as the approver this composition routes to.
 	cellConfig.ExecutionDB = pool
 	cellConfig.ExecutionApprover = cfg.ExecutionApprover
+	// WF-STEP-003: decisions re-resolve the approval authority through the
+	// same routing configuration the driver's work-item factory routed with.
+	cellConfig.ApprovalAuthority = platformexecution.NewPromotionApprovalAuthority(executionConfig)
 	return nil
 }
 

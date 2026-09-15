@@ -10,10 +10,14 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/rules"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -71,12 +75,20 @@ func TestTodo_WF_RUN_013(t *testing.T) {
 		t.Fatalf("a completed replay left an open frontier: %v", res.Trace.Frontier)
 	}
 
-	// Every node input is the recorded one, in the recorded order.
+	// Every node is replayed in the recorded order. The pure DECISION is
+	// recomputed from its pinned inputs by the rule-table candidate; every
+	// other node (capability reads with no pinned inputs, the terminal) takes
+	// its recorded outcome.
 	if len(res.Trace.Entries) != len(rec.Nodes) {
 		t.Fatalf("replayed %d nodes, record holds %d: %v", len(res.Trace.Entries), len(rec.Nodes), nodeIDs(res.Trace))
 	}
+	pinned, _ := rec.NodeInput(workflow.PromotionNodeRaiseThreshold, 1)
 	for i, entry := range res.Trace.Entries {
 		want := rec.Nodes[i]
+		wantSource, wantInput := SourceRecordedOutput, ""
+		if entry.NodeID == workflow.PromotionNodeRaiseThreshold {
+			wantSource, wantInput = SourceRecomputed, pinned.Digest()
+		}
 		switch {
 		case entry.NodeID != want.NodeID:
 			t.Fatalf("entry %d node = %s, recorded %s", i, entry.NodeID, want.NodeID)
@@ -86,8 +98,10 @@ func TestTodo_WF_RUN_013(t *testing.T) {
 			t.Fatalf("entry %d route = %q, recorded %q", i, entry.RouteKey, want.RouteKey)
 		case entry.OutputDigest != want.OutputDigest:
 			t.Fatalf("entry %d output = %q, recorded %q", i, entry.OutputDigest, want.OutputDigest)
-		case entry.Source != SourceRecordedOutput:
-			t.Fatalf("entry %d source = %s, want %s", i, entry.Source, SourceRecordedOutput)
+		case entry.Source != wantSource:
+			t.Fatalf("entry %d (%s) source = %s, want %s", i, entry.NodeID, entry.Source, wantSource)
+		case entry.InputDigest != wantInput:
+			t.Fatalf("entry %d (%s) input digest = %q, want %q", i, entry.NodeID, entry.InputDigest, wantInput)
 		case !entry.ObservedAt.Equal(want.RecordedAt):
 			t.Fatalf("entry %d observed at %s, recorded %s", i, entry.ObservedAt, want.RecordedAt)
 		case entry.TransitionDigest == "":
@@ -105,6 +119,38 @@ func TestTodo_WF_RUN_013(t *testing.T) {
 	}
 	if err := res.Trace.Verify(); err != nil {
 		t.Fatalf("trace does not verify against its own digest: %v", err)
+	}
+
+	// The recomputation is real, not a copy: the same record whose DECISION
+	// carries no route key at all is refused as a divergence naming the
+	// decision, because the candidate's answer is compared with the record.
+	blank := rec.Clone()
+	blank.TraceDigest = ""
+	blank.Nodes[4].RouteKey = ""
+	res, err = newReplayer(t, plan, blank).Replay(context.Background())
+	if CodeOf(err) != CodeDivergence || res.Divergence == nil || res.Divergence.Field != FieldOutcome ||
+		res.Divergence.NodeID != workflow.PromotionNodeRaiseThreshold || res.Divergence.Replayed != "EXCEEDS_THRESHOLD" {
+		t.Fatalf("a blanked decision route: err=%v divergence=%v, want the recomputed EXCEEDS_THRESHOLD outcome divergence", err, res.Divergence)
+	}
+
+	// And the candidate evaluated the pinned inputs, not a constant: the same
+	// pinned table at a 5% in-band, funded, same-grade raise routes within the
+	// threshold, exactly as the production port decides.
+	within := rules.PromotionApprovalInput{
+		IncreasePercent: values.MustDecimal("5.0000", rules.IncreasePercentScale, values.RoundingHalfEven),
+		BandPosition:    rules.BandPositionInBand, BudgetAuthority: rules.BudgetAuthoritySufficient,
+	}
+	node, _ := plan.Node(workflow.PromotionNodeRaiseThreshold)
+	art := pinned.Clone()
+	art.Inputs = []runtime.NodeInputValue{
+		{Path: rules.ColumnIncreasePercent, Value: "5.0000"}, {Path: rules.ColumnBandPosition, Value: "IN_BAND"},
+		{Path: rules.ColumnBudgetAuthority, Value: "SUFFICIENT"}, {Path: rules.ColumnGradeChange, Value: "false"},
+	}
+	out, err := DefaultCandidates().ByStepType[workflow.StepDecision].Recompute(context.Background(),
+		CandidateRequest{Node: node, Attempt: 1, PlanDigest: plan.Digest(), Inputs: art})
+	prod := productionThreshold(t, within)
+	if err != nil || out.RouteKey != string(prod.Route) || out.OutputDigest != prod.OutputDigest {
+		t.Fatalf("recompute within threshold = %+v, %v; production port = %s %s", out, err, prod.Route, prod.OutputDigest)
 	}
 }
 
@@ -274,6 +320,67 @@ func TestTodo_WF_RUN_013_Race(t *testing.T) {
 	if !bytes.Equal(before, after) {
 		t.Fatalf("concurrent replays mutated the shared record")
 	}
+
+	// Recomputation runs once per replay, concurrently, through one shared
+	// candidate that tampers with the pinned inputs it was handed: every
+	// replay still reproduces the serial trace, so no replay can see another's
+	// (or the candidate's) mutation of historical evidence.
+	counting := &countingCandidate{inner: DefaultCandidates().ByStepType[workflow.StepDecision]}
+	withCounter, err := New(Options{
+		Plan: plan, Source: NewMemorySource(rec), Contract: replayContract(t),
+		Definition: replayDefinition(), Instance: replayInstance(),
+		Candidates: Candidates{ByNode: map[string]Candidate{workflow.PromotionNodeRaiseThreshold: counting}},
+	})
+	if err != nil {
+		t.Fatalf("New with counting candidate: %v", err)
+	}
+	wg.Add(n)
+	var mismatches atomic.Int32
+	for i := 0; i < n; i++ {
+		go func() {
+			defer wg.Done()
+			res, err := withCounter.Replay(context.Background())
+			b, _ := res.Trace.JSON()
+			if err != nil || !bytes.Equal(b, want) {
+				mismatches.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if mismatches.Load() != 0 {
+		t.Fatalf("%d concurrent recomputing replays differed from the serial trace", mismatches.Load())
+	}
+	if got := counting.calls.Load(); got != n {
+		t.Fatalf("the candidate recomputed %d times across %d replays, want once per replay", got, n)
+	}
+}
+
+// countingCandidate delegates to a real candidate, counts its calls and then
+// scribbles on the inputs it was handed, to prove a candidate holds a copy.
+type countingCandidate struct {
+	inner Candidate
+	calls atomic.Int32
+}
+
+func (c *countingCandidate) Recompute(ctx context.Context, req CandidateRequest) (CandidateOutcome, error) {
+	c.calls.Add(1)
+	out, err := c.inner.Recompute(ctx, req)
+	for i := range req.Inputs.Inputs {
+		req.Inputs.Inputs[i].Value = "tampered"
+	}
+	return out, err
+}
+
+// divergingCandidate is a candidate implementation that deliberately answers
+// differently from the historical run: the "new code" a replay must catch.
+type divergingCandidate struct {
+	route  string
+	digest string
+	err    error
+}
+
+func (d divergingCandidate) Recompute(context.Context, CandidateRequest) (CandidateOutcome, error) {
+	return CandidateOutcome{RouteKey: d.route, OutputDigest: d.digest}, d.err
 }
 
 // TestTodo_WF_RUN_013_Fault is the ticket's FAULT case: a record missing an
@@ -339,6 +446,90 @@ func TestTodo_WF_RUN_013_Fault(t *testing.T) {
 		_, err := newReplayer(t, plan, rec).Replay(context.Background())
 		if CodeOf(err) != CodePlanMismatch {
 			t.Fatalf("code = %q (%v), want %s", CodeOf(err), err, CodePlanMismatch)
+		}
+	})
+
+	t.Run("a pure node with no pinned input artifact", func(t *testing.T) {
+		rec := promotionRecord(t, plan)
+		rec.NodeInputs = nil
+		res, err := newReplayer(t, plan, rec).Replay(context.Background())
+		if CodeOf(err) != CodeArtifactUnavailable || NodeOf(err) != workflow.PromotionNodeRaiseThreshold {
+			t.Fatalf("code = %q node = %q (%v), want %s at %s", CodeOf(err), NodeOf(err), err,
+				CodeArtifactUnavailable, workflow.PromotionNodeRaiseThreshold)
+		}
+		if res.Divergence == nil || res.Divergence.Field != FieldArtifact || res.Divergence.NodeID != workflow.PromotionNodeRaiseThreshold {
+			t.Fatalf("divergence = %v, want an artifact divergence at the decision", res.Divergence)
+		}
+		// The walk up to the decision survives; nothing was taken from the
+		// recorded route key in place of the missing inputs.
+		if len(res.Trace.Entries) != 4 {
+			t.Fatalf("partial trace holds %d entries, want 4", len(res.Trace.Entries))
+		}
+	})
+
+	t.Run("a pinned input column the record does not hold", func(t *testing.T) {
+		rec := promotionRecord(t, plan)
+		rec.NodeInputs[0].Inputs = rec.NodeInputs[0].Inputs[:3] // grade_change is gone
+		res, err := newReplayer(t, plan, rec).Replay(context.Background())
+		if CodeOf(err) != CodeArtifactUnavailable || NodeOf(err) != workflow.PromotionNodeRaiseThreshold {
+			t.Fatalf("code = %q node = %q (%v)", CodeOf(err), NodeOf(err), err)
+		}
+		if res.Divergence == nil || res.Divergence.Field != FieldArtifact {
+			t.Fatalf("divergence = %v", res.Divergence)
+		}
+	})
+
+	t.Run("a pinned rule table version that is not available", func(t *testing.T) {
+		rec := promotionRecord(t, plan)
+		rec.NodeInputs[0].Versions[0].Version = "2031.9"
+		if _, err := newReplayer(t, plan, rec).Replay(context.Background()); CodeOf(err) != CodeArtifactUnavailable {
+			t.Fatalf("code = %q (%v), want %s", CodeOf(err), err, CodeArtifactUnavailable)
+		}
+		rec = promotionRecord(t, plan)
+		rec.NodeInputs[0].Versions = nil
+		if _, err := newReplayer(t, plan, rec).Replay(context.Background()); CodeOf(err) != CodeArtifactUnavailable {
+			t.Fatalf("no pinned version: code = %q (%v), want %s", CodeOf(err), err, CodeArtifactUnavailable)
+		}
+	})
+
+	t.Run("a recorded input that does not parse exactly", func(t *testing.T) {
+		rec := promotionRecord(t, plan)
+		rec.NodeInputs[0].Inputs[0].Value = "15.00005"
+		if _, err := newReplayer(t, plan, rec).Replay(context.Background()); CodeOf(err) != CodeRecordInvalid {
+			t.Fatalf("code = %q (%v), want %s", CodeOf(err), err, CodeRecordInvalid)
+		}
+	})
+
+	t.Run("pinned inputs bound to another plan or context", func(t *testing.T) {
+		rec := promotionRecord(t, plan)
+		rec.NodeInputs[0].PlanDigest = "sha256:" + strings.Repeat("7", 64)
+		if _, err := newReplayer(t, plan, rec).Replay(context.Background()); CodeOf(err) != CodeRecordInvalid {
+			t.Fatalf("plan: code = %q (%v), want %s", CodeOf(err), err, CodeRecordInvalid)
+		}
+		rec = promotionRecord(t, plan)
+		rec.ExecutionContextDigest = "sha256:context-pinned-at-start"
+		rec.NodeInputs[0].ExecutionContextDigest = "sha256:some-other-context"
+		if _, err := newReplayer(t, plan, rec).Replay(context.Background()); CodeOf(err) != CodeRecordInvalid {
+			t.Fatalf("context: code = %q (%v), want %s", CodeOf(err), err, CodeRecordInvalid)
+		}
+	})
+
+	t.Run("a candidate that fails", func(t *testing.T) {
+		boom := errors.New("candidate crashed")
+		r, err := New(Options{
+			Plan: plan, Source: NewMemorySource(promotionRecord(t, plan)),
+			Contract: replayContract(t), Definition: replayDefinition(), Instance: replayInstance(),
+			Candidates: Candidates{ByStepType: map[workflow.StepType]Candidate{workflow.StepDecision: divergingCandidate{err: boom}}},
+		})
+		if err != nil {
+			t.Fatalf("New: %v", err)
+		}
+		res, err := r.Replay(context.Background())
+		if CodeOf(err) != CodeCandidateFailed || !errors.Is(err, boom) || NodeOf(err) != workflow.PromotionNodeRaiseThreshold {
+			t.Fatalf("code = %q node = %q (%v)", CodeOf(err), NodeOf(err), err)
+		}
+		if res.Status != StatusDiverged || res.Divergence == nil {
+			t.Fatalf("status = %s divergence = %v", res.Status, res.Divergence)
 		}
 	})
 
@@ -411,6 +602,39 @@ func TestTodo_WF_RUN_013_Recovery(t *testing.T) {
 	if res.Divergence.NodeID != workflow.PromotionNodeObserveDrift {
 		t.Fatalf("divergence names %q, want %q", res.Divergence.NodeID, workflow.PromotionNodeObserveDrift)
 	}
+
+	// A replay that failed on missing pinned inputs recovers once the evidence
+	// is supplied: the same replayer holds no state from the failed attempt,
+	// and the recovered replay recomputes the decision rather than having
+	// cached a recorded route key while it was failing.
+	full := promotionRecord(t, plan)
+	missing := full.Clone()
+	missing.NodeInputs = nil
+	var calls int
+	src := sourceFunc(func(context.Context) (Record, error) {
+		calls++
+		if calls == 1 {
+			return missing.Clone(), nil
+		}
+		return full.Clone(), nil
+	})
+	r, err := New(Options{
+		Plan: plan, Source: src, Contract: replayContract(t),
+		Definition: replayDefinition(), Instance: replayInstance(),
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := r.Replay(context.Background()); CodeOf(err) != CodeArtifactUnavailable {
+		t.Fatalf("first replay code = %q (%v), want %s", CodeOf(err), err, CodeArtifactUnavailable)
+	}
+	recovered, err := r.Replay(context.Background())
+	if err != nil || recovered.Status != StatusComplete {
+		t.Fatalf("recovered replay: status=%s err=%v", recovered.Status, err)
+	}
+	if got := recovered.Trace.Entries[4]; got.Source != SourceRecomputed || got.NodeID != workflow.PromotionNodeRaiseThreshold {
+		t.Fatalf("recovered decision entry = %+v, want a recomputed raise_threshold", got)
+	}
 }
 
 // TestTodo_WF_RUN_013_Security is the ticket's RED clause read as a threat:
@@ -477,6 +701,38 @@ func TestTodo_WF_RUN_013_Security(t *testing.T) {
 		}
 	}
 
+	// A candidate can only be bound to a node whose outcome is a deterministic
+	// function of recorded inputs. An observation of live state, a terminal, or
+	// a step type that waits on people or the world keeps its recorded outcome
+	// and can never be "recomputed" into producing an effect, a task or a
+	// message.
+	bad := divergingCandidate{route: "SUCCEEDED"}
+	for name, cands := range map[string]Candidates{
+		"an OBSERVE node":           {ByNode: map[string]Candidate{workflow.PromotionNodeObserveDrift: bad}},
+		"an END node":               {ByNode: map[string]Candidate{workflow.PromotionNodeEndApproval: bad}},
+		"a node the plan lacks":     {ByNode: map[string]Candidate{"no_such_node": bad}},
+		"a nil binding":             {ByNode: map[string]Candidate{workflow.PromotionNodeRaiseThreshold: nil}},
+		"the APPROVAL step type":    {ByStepType: map[workflow.StepType]Candidate{workflow.StepApproval: bad}},
+		"the TASK step type":        {ByStepType: map[workflow.StepType]Candidate{workflow.StepTask: bad}},
+		"the SIGNAL step type":      {ByStepType: map[workflow.StepType]Candidate{workflow.StepSignal: bad}},
+		"the SUBWORKFLOW step type": {ByStepType: map[workflow.StepType]Candidate{workflow.StepSubworkflow: bad}},
+	} {
+		_, err := New(Options{
+			Plan: plan, Source: NewMemorySource(rec), Contract: replayContract(t),
+			Definition: replayDefinition(), Instance: replayInstance(), Candidates: cands,
+		})
+		if CodeOf(err) != CodeInvalidOptions {
+			t.Errorf("binding a candidate to %s: code = %q (%v), want %s", name, CodeOf(err), err, CodeInvalidOptions)
+		}
+	}
+	mutating := workflow.CompiledNode{ID: "pay", Type: workflow.StepCapability, EffectClass: capability.EffectExternalMutation}
+	if Recomputable(mutating) {
+		t.Fatalf("a mutating capability was reported recomputable")
+	}
+	if _, ok := DefaultCandidates().merged().lookup(mutating); ok {
+		t.Fatalf("a mutating capability found a candidate by step type")
+	}
+
 	// A recorder records what it turned away, so a refusal is evidence rather
 	// than only a returned error.
 	recorder := NewRecorder(rec)
@@ -517,19 +773,94 @@ func TestTodo_WF_RUN_013_Mutation(t *testing.T) {
 		}
 	})
 
-	t.Run("a rerouted decision no longer reaches the recorded terminal", func(t *testing.T) {
+	t.Run("a rerouted decision is caught at the decision by recomputation", func(t *testing.T) {
+		// The record claims the decision went WITHIN_THRESHOLD; recomputing it
+		// from its pinned inputs says EXCEEDS_THRESHOLD. The divergence names
+		// the decision itself, not the terminal the reroute later reaches.
 		rec := base.Clone()
 		rec.Nodes[4].RouteKey = "WITHIN_THRESHOLD"
-		rec.Nodes[5].NodeID = workflow.PromotionNodeEndApproval
 		res, err := newReplayer(t, plan, rec).Replay(context.Background())
 		if CodeOf(err) != CodeDivergence {
 			t.Fatalf("code = %q (%v), want %s", CodeOf(err), err, CodeDivergence)
 		}
-		if res.Divergence == nil || res.Divergence.Field != FieldFrontier {
-			t.Fatalf("divergence = %v, want a frontier divergence", res.Divergence)
+		if res.Divergence == nil || res.Divergence.Field != FieldOutcome ||
+			res.Divergence.NodeID != workflow.PromotionNodeRaiseThreshold ||
+			res.Divergence.Recorded != "WITHIN_THRESHOLD" || res.Divergence.Replayed != "EXCEEDS_THRESHOLD" {
+			t.Fatalf("divergence = %v, want an outcome divergence at raise_threshold", res.Divergence)
 		}
-		if res.Divergence.NodeID != workflow.PromotionNodeEndApproval {
-			t.Fatalf("divergence names %q", res.Divergence.NodeID)
+	})
+
+	t.Run("an edited pinned input changes the recomputed outcome", func(t *testing.T) {
+		rec := base.Clone()
+		rec.NodeInputs[0].Inputs[0].Value = "5.0000" // a 5% raise
+		rec.NodeInputs[0].Inputs[3].Value = "false"  // no grade change
+		res, err := newReplayer(t, plan, rec).Replay(context.Background())
+		if CodeOf(err) != CodeDivergence || res.Divergence == nil || res.Divergence.Field != FieldOutcome ||
+			res.Divergence.NodeID != workflow.PromotionNodeRaiseThreshold || res.Divergence.Replayed != "WITHIN_THRESHOLD" {
+			t.Fatalf("err = %v divergence = %v", err, res.Divergence)
+		}
+	})
+
+	t.Run("a tampered decision output digest is caught at the decision", func(t *testing.T) {
+		rec := base.Clone()
+		rec.Nodes[4].OutputDigest = "sha256:" + strings.Repeat("e", 64)
+		res, err := newReplayer(t, plan, rec).Replay(context.Background())
+		if CodeOf(err) != CodeDivergence || res.Divergence == nil || res.Divergence.Field != FieldOutputDigest ||
+			res.Divergence.NodeID != workflow.PromotionNodeRaiseThreshold {
+			t.Fatalf("err = %v divergence = %v, want an output-digest divergence at raise_threshold", err, res.Divergence)
+		}
+	})
+
+	t.Run("a diverging candidate implementation is detected", func(t *testing.T) {
+		for name, cand := range map[string]divergingCandidate{
+			"different route":  {route: "WITHIN_THRESHOLD", digest: base.Nodes[4].OutputDigest},
+			"different output": {route: "EXCEEDS_THRESHOLD", digest: "sha256:" + strings.Repeat("d", 64)},
+		} {
+			r, err := New(Options{
+				Plan: plan, Source: NewMemorySource(base), Contract: replayContract(t),
+				Definition: replayDefinition(), Instance: replayInstance(),
+				Candidates: Candidates{ByNode: map[string]Candidate{workflow.PromotionNodeRaiseThreshold: cand}},
+			})
+			if err != nil {
+				t.Fatalf("%s: New: %v", name, err)
+			}
+			res, err := r.Replay(context.Background())
+			if CodeOf(err) != CodeDivergence || res.Divergence == nil ||
+				res.Divergence.NodeID != workflow.PromotionNodeRaiseThreshold || res.Divergence.Sequence != 5 {
+				t.Fatalf("%s: err = %v divergence = %v, want the first divergence at raise_threshold", name, err, res.Divergence)
+			}
+			if len(res.Trace.Entries) != 4 {
+				t.Fatalf("%s: trace kept %d entries, want the 4 before the divergence", name, len(res.Trace.Entries))
+			}
+		}
+	})
+
+	t.Run("a pinned table digest that is not the available table's", func(t *testing.T) {
+		rec := base.Clone()
+		rec.NodeInputs[0].Versions[0].Digest = "sha256:" + strings.Repeat("c", 64)
+		if _, err := newReplayer(t, plan, rec).Replay(context.Background()); CodeOf(err) != CodeArtifactUnavailable {
+			t.Fatalf("code = %q (%v), want %s", CodeOf(err), err, CodeArtifactUnavailable)
+		}
+	})
+
+	t.Run("a plan that is not the registry's published canonical plan", func(t *testing.T) {
+		rec := base.Clone()
+		canonical, err := json.MarshalIndent(plan, "", "  ")
+		if err != nil {
+			t.Fatalf("render plan: %v", err)
+		}
+		rec.PinnedVersion = &PinnedVersion{CompiledPlanDigest: plan.Digest(), SemanticVersion: "1.0.0",
+			CanonicalPlanBytes: append(canonical, '\n')}
+		if _, err := newReplayer(t, plan, rec).Replay(context.Background()); err != nil {
+			t.Fatalf("the published plan was refused: %v", err)
+		}
+		rec.PinnedVersion.CanonicalPlanBytes = append([]byte(nil), rec.PinnedVersion.CanonicalPlanBytes[1:]...)
+		if _, err := newReplayer(t, plan, rec).Replay(context.Background()); CodeOf(err) != CodePlanMismatch {
+			t.Fatalf("edited canonical bytes: code = %q (%v), want %s", CodeOf(err), err, CodePlanMismatch)
+		}
+		rec.PinnedVersion.CompiledPlanDigest = "sha256:other"
+		if _, err := newReplayer(t, plan, rec).Replay(context.Background()); CodeOf(err) != CodePlanMismatch {
+			t.Fatalf("other digest: code = %q (%v), want %s", CodeOf(err), err, CodePlanMismatch)
 		}
 	})
 

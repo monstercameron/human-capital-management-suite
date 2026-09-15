@@ -324,6 +324,22 @@ func Advance(ctx context.Context, tx Executor, req AdvanceRequest) (ret0 Advance
 		at := req.RecordedAt
 		startedAt = &at
 	}
+	// WF-STEP-003: a plan terminal declaring CANCELLED (an APPROVAL's EXPIRED
+	// or CANCELLED route) ends a live instance, which the instance state
+	// machine only allows through CANCELLING. The routed terminal takes that
+	// hop in the same transaction rather than being refused as illegal.
+	if hop, needed := cancellingHop(inst.RuntimeStatus, newStatus); needed {
+		stepped, hopErr := store.RecordInstanceState(ctx, tx, InstanceTransition{
+			TenantID: req.TenantID, InstanceID: req.InstanceID, ExpectedVersion: nextVersion,
+			Status: hop, CurrentNodeIDs: inst.CurrentNodeIDs, VariableRevisionHead: inst.VariableRevisionHead,
+			EffectiveContextRef: inst.EffectiveContextRef, LastCheckpointRef: inst.LastCheckpointRef,
+			CompletionDimensions: inst.CompletionDimensions, StartedAt: startedAt,
+		})
+		if hopErr != nil {
+			return AdvanceReceipt{}, hopErr
+		}
+		nextVersion = stepped.InstanceVersion
+	}
 
 	updated, err := store.RecordInstanceState(ctx, tx, InstanceTransition{
 		TenantID:             req.TenantID,

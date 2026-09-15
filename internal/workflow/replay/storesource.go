@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
 // Executor is the minimal database capability [StoreSource] needs. A
@@ -72,6 +73,12 @@ type StoreSource struct {
 	// JoinDeclarations are the declarations the historical start passed to
 	// [frontier.Seed].
 	JoinDeclarations []frontier.JoinDeclaration
+	// Versions, when set, is the durable compiled-version registry
+	// (internal/data/workflowversionstore.Store). Load joins it to Executor
+	// and reads the version the instance's plan digest pins, so a replay
+	// checks its plan against the published canonical bytes; a registry that
+	// holds no such version is [CodeArtifactUnavailable].
+	Versions version.Store
 }
 
 var _ Source = StoreSource{}
@@ -114,6 +121,33 @@ func (s StoreSource) Load(ctx context.Context) (ret0 Record, retErr error) {
 		JoinDeclarations: append([]frontier.JoinDeclaration(nil), s.JoinDeclarations...),
 	}
 	rec.Nodes, rec.TerminalCode = nodeRecords(execs, conts)
+
+	// Pinned inputs, the pinned execution context and the pinned version are
+	// all read from durable evidence; nothing here reads domain tables.
+	if rec.NodeInputs, err = runtime.LoadNodeInputs(ctx, s.Executor, s.TenantID, s.InstanceID); err != nil {
+		return Record{}, wrap(CodeSourceFailed, "", err, "read pinned node inputs of %s", s.InstanceID)
+	}
+	execCtx, found, err := runtime.LoadExecutionContext(ctx, s.Executor, s.TenantID, s.InstanceID)
+	if err != nil {
+		return Record{}, wrap(CodeSourceFailed, "", err, "read pinned execution context of %s", s.InstanceID)
+	}
+	if found {
+		rec.ExecutionContextDigest = execCtx.Digest()
+	}
+	if s.Versions != nil {
+		v, ok, err := version.BindTx(ctx, s.Executor, s.Versions).GetByDigest(inst.CompiledPlanHash)
+		if err != nil {
+			return Record{}, wrap(CodeSourceFailed, "", err, "read pinned version %s", inst.CompiledPlanHash)
+		}
+		if !ok {
+			return Record{}, refuse(CodeArtifactUnavailable, "",
+				"the durable version registry holds no version for pinned plan %s", inst.CompiledPlanHash)
+		}
+		rec.PinnedVersion = &PinnedVersion{
+			CompiledPlanDigest: v.CompiledPlanDigest, SemanticVersion: v.SemanticVersion,
+			RecordDigest: v.Digest(), CanonicalPlanBytes: append([]byte(nil), v.CanonicalPlanBytes...),
+		}
+	}
 
 	if !inst.RuntimeStatus.Terminal() {
 		entries, err := (runtimestate.FrontierStore{}).Open(ctx, s.Executor, s.TenantID, s.InstanceID)

@@ -62,6 +62,10 @@ const (
 	// CodeStepBudgetExceeded reports a walk that exceeded its bounded step
 	// budget, which is how a declared cycle stays bounded without a timer.
 	CodeStepBudgetExceeded = "REPLAY_STEP_BUDGET_EXCEEDED"
+
+	// CodeCandidateFailed reports a [Candidate] that could not recompute a pure
+	// node from its pinned inputs for a reason other than a missing artifact.
+	CodeCandidateFailed = "REPLAY_CANDIDATE_FAILED"
 )
 
 // Error is one typed refusal, naming the code, the node it happened at (when a

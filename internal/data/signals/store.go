@@ -192,7 +192,7 @@ func (s Store) Receive(ctx context.Context, ex Executor, req ReceiveRequest, ver
 	rowsSub, err := ex.Query(ctx, `
 		SELECT subscription_id, instance_id, node_id, node_attempt, event_type,
 		       correlation_key, correlation_value, expected_schema_ref,
-		       accepted_sources, ordering_expectation, expires_at, subscription_version,
+		       accepted_sources, ordering_expectation, expires_at, subscription_version, subscription_state,
 		       correlation_id, causation_id, logical_operation_id, attempt_id, trace_id, trace_span_id, trace_flags, trace_state, trace_link_expires_at
 		FROM workflow_signal_subscription
 		WHERE tenant_id = $1 AND subscription_state <> 'CANCELLED'
@@ -211,7 +211,7 @@ func (s Store) Receive(ctx context.Context, ex Executor, req ReceiveRequest, ver
 		var traceExpires *time.Time
 		if err := rowsSub.Scan(&sub.ID, &sub.InstanceID, &sub.NodeID, &sub.NodeAttempt,
 			&sub.EventType, &sub.CorrelationKey, &sub.CorrelationValue, &sub.ExpectedSchemaRef,
-			&sub.AcceptedSources, &sub.Ordering, &sub.ClosesAt, &sub.Version,
+			&sub.AcceptedSources, &sub.Ordering, &sub.ClosesAt, &sub.Version, &sub.State,
 			&correlation, &causation, &logical, &attempt, &traceID, &spanID, &traceFlags, &traceState, &traceExpires); err != nil {
 			return Receipt{}, fmt.Errorf("signals: scan subscription: %w", err)
 		}
@@ -237,6 +237,7 @@ func (s Store) Receive(ctx context.Context, ex Executor, req ReceiveRequest, ver
 			if err != nil {
 				return Receipt{}, fmt.Errorf("signals: evaluate subscription %s: %w", sub.ID, err)
 			}
+			decision = refuseClosedSubscription(sub, decision)
 		}
 		disposition := Disposition{DispositionID: uuid.New(), AttemptID: req.AttemptID, SignalID: canonical.ID, Causal: receipt.Causal,
 			SubscriptionID: sub.ID, Status: decision.Status, Reason: decision.Reason, RecordedAt: received}
@@ -281,6 +282,23 @@ func (s canonicalSignal) step(tenant values.TenantId) (stepSignal.Signal, error)
 		ReceivedAt: at, IdempotencyKey: s.DedupToken}, nil
 }
 
+// refuseClosedSubscription keeps a subscription to exactly one wakeup. The
+// pure acceptance decision knows nothing about durable subscription state, so
+// a second, differently keyed signal that clears every check against a
+// subscription an earlier signal already satisfied would otherwise be
+// ACCEPTED again: it would carry a continuation reference and write a second
+// receipt although no second continuation can exist. That signal arrived
+// after the wait it addresses was settled, which is what REFUSED_LATE
+// records. A replayed duplicate (DUPLICATE_SAME_BYTES) and every refusal pass
+// through unchanged.
+func refuseClosedSubscription(sub durableSubscription, decision stepSignal.Result) stepSignal.Result {
+	if decision.Status != stepSignal.StatusAccepted || sub.State == "" || sub.State == subscriptionOpen {
+		return decision
+	}
+	return stepSignal.Result{Status: stepSignal.StatusRefusedLate,
+		Reason: "subscription is already " + sub.State + "; an earlier signal settled the wait it addresses"}
+}
+
 type durableSubscription struct {
 	ID, InstanceID                                                 uuid.UUID
 	NodeID                                                         string
@@ -290,6 +308,7 @@ type durableSubscription struct {
 	Ordering                                                       string
 	ClosesAt                                                       *time.Time
 	Version                                                        uint64
+	State                                                          string
 	Causal                                                         *runtimestate.CausalMetadata
 }
 

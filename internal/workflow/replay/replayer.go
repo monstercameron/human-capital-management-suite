@@ -1,7 +1,9 @@
 package replay
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"sort"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -37,6 +39,13 @@ type Options struct {
 	// keeps a record that declares a cycle from replaying forever without a
 	// timer anyone has to own.
 	MaxSteps int
+
+	// Candidates are the implementations pure nodes are recomputed with. They
+	// are overlaid on [DefaultCandidates], so DECISION nodes are always
+	// recomputed from their pinned inputs unless a caller supplies its own
+	// DECISION candidate. A binding to a node that is not [Recomputable] is
+	// refused by [New].
+	Candidates Candidates
 }
 
 // Result is everything one [Replayer.Replay] call produced.
@@ -78,13 +87,14 @@ type Result struct {
 // state across calls beyond the ports it was constructed with, which is what
 // makes "replaying twice is byte-identical" a property rather than a hope.
 type Replayer struct {
-	plan     *workflow.CompiledWorkflow
-	source   Source
-	contract intent.ModeContract
-	def      intent.Definition
-	inst     intent.Instance
-	adapter  NodeAdapter
-	maxSteps int
+	plan       *workflow.CompiledWorkflow
+	source     Source
+	contract   intent.ModeContract
+	def        intent.Definition
+	inst       intent.Instance
+	adapter    NodeAdapter
+	maxSteps   int
+	candidates Candidates
 	// gate is the one [Recorder] every [Replayer.EffectGate] attempt goes
 	// through, so a refusal a composed handler provoked is still visible in
 	// the next [Result] rather than lost with the gate that produced it.
@@ -105,6 +115,10 @@ func New(opts Options) (*Replayer, error) {
 	if err := Admit(opts.Contract, opts.Definition, opts.Instance); err != nil {
 		return nil, err
 	}
+	candidates := opts.Candidates.merged()
+	if err := candidates.validate(opts.Plan); err != nil {
+		return nil, err
+	}
 	max := opts.MaxSteps
 	if max <= 0 {
 		max = 4*len(opts.Plan.Nodes) + 8
@@ -112,7 +126,8 @@ func New(opts Options) (*Replayer, error) {
 	return &Replayer{
 		plan: opts.Plan, source: opts.Source, contract: opts.Contract,
 		def: opts.Definition, inst: opts.Instance, adapter: opts.Adapter, maxSteps: max,
-		gate: NewRecorder(Record{}),
+		candidates: candidates,
+		gate:       NewRecorder(Record{}),
 	}, nil
 }
 
@@ -167,26 +182,57 @@ func (r *Replayer) Replay(ctx context.Context) (ret0 Result, retErr error) {
 		return Result{Record: rec}, refuse(CodePlanMismatch, "",
 			"the record is of workflow %s; replay was called with %s", rec.WorkflowID, r.plan.WorkflowID)
 	}
+	if err := checkPinnedVersion(rec, r.plan); err != nil {
+		return Result{Record: rec}, err
+	}
 
 	run := &walk{
-		plan:     r.plan,
-		rec:      rec,
-		recorder: NewRecorder(rec),
-		gate:     r.gate,
-		maxSteps: r.maxSteps,
+		ctx:        ctx,
+		plan:       r.plan,
+		rec:        rec,
+		recorder:   NewRecorder(rec),
+		gate:       r.gate,
+		maxSteps:   r.maxSteps,
+		candidates: r.candidates,
 	}
 	return run.execute()
+}
+
+// checkPinnedVersion refuses a plan that is not, byte for byte, the plan the
+// durable version registry published under the record's digest. A record
+// whose source read no registry row carries no PinnedVersion and is checked
+// by digest alone.
+func checkPinnedVersion(rec Record, plan *workflow.CompiledWorkflow) error {
+	pv := rec.PinnedVersion
+	if pv == nil {
+		return nil
+	}
+	if pv.CompiledPlanDigest != plan.Digest() {
+		return refuse(CodePlanMismatch, "",
+			"the registry version pins plan %s; replay was called with %s", pv.CompiledPlanDigest, plan.Digest())
+	}
+	want, err := json.MarshalIndent(plan, "", "  ")
+	if err != nil {
+		return wrap(CodePlanMismatch, "", err, "render the supplied plan")
+	}
+	if !bytes.Equal(append(want, '\n'), pv.CanonicalPlanBytes) {
+		return refuse(CodePlanMismatch, "",
+			"the supplied plan is not the canonical plan registry version %s published", pv.SemanticVersion)
+	}
+	return nil
 }
 
 // walk is one replay in flight. It is a struct rather than a long function so
 // that each phase of WF-RUN-013's contract -- seed, step, settle, compare --
 // reads as its own method.
 type walk struct {
-	plan     *workflow.CompiledWorkflow
-	rec      Record
-	recorder *Recorder
-	gate     *Recorder
-	maxSteps int
+	ctx        context.Context
+	plan       *workflow.CompiledWorkflow
+	rec        Record
+	recorder   *Recorder
+	gate       *Recorder
+	maxSteps   int
+	candidates Candidates
 
 	state   frontier.InstanceState
 	entries []TraceEntry
@@ -259,7 +305,17 @@ func (w *walk) step(nr NodeRecord) (*Divergence, error) {
 		return div, err
 	}
 
-	tr, aerr := frontier.Advance(w.plan, w.state, outcomeOf(nr))
+	outcome := outcomeOf(nr)
+	inputDigest := ""
+	if cand, ok := w.candidates.lookup(node); ok && source == SourceRecordedOutput && nr.Await == frontier.AwaitNone {
+		recomputed, digest, div, err := w.recompute(node, nr, cand)
+		if div != nil {
+			return div, err
+		}
+		outcome, inputDigest, source = recomputed, digest, SourceRecomputed
+	}
+
+	tr, aerr := frontier.Advance(w.plan, w.state, outcome)
 	if aerr != nil {
 		d := &Divergence{
 			Sequence: nr.Sequence, NodeID: nr.NodeID, Attempt: nr.Attempt, Field: FieldRoute,
@@ -271,12 +327,82 @@ func (w *walk) step(nr NodeRecord) (*Divergence, error) {
 
 	w.entries = append(w.entries, TraceEntry{
 		Sequence: nr.Sequence, NodeID: nr.NodeID, Attempt: nr.Attempt, StepType: nr.StepType,
-		Source: source, RouteKey: tr.RouteKey, OutputDigest: tr.OutputDigest,
+		Source: source, RouteKey: tr.RouteKey, OutputDigest: tr.OutputDigest, InputDigest: inputDigest,
 		CompletedState: string(tr.CompletedState), Frontier: append([]string(nil), tr.Frontier...),
 		TransitionDigest: tr.Digest(), ObservedAt: nr.RecordedAt.UTC(),
 	})
 	w.state = tr.Next
 	return nil, nil
+}
+
+// recompute re-evaluates one pure node attempt with its candidate against the
+// node's pinned inputs and compares the answer with the record. It returns the
+// recomputed outcome to advance on and the digest of the inputs it used, or
+// the first divergence: a missing pinned artifact, an artifact pinned to a
+// different plan or context, a candidate failure, a different outcome, or a
+// different output digest.
+func (w *walk) recompute(node workflow.CompiledNode, nr NodeRecord, cand Candidate) (frontier.NodeOutcome, string, *Divergence, error) {
+	diverge := func(field DivergenceField, recorded, replayed, detail string) *Divergence {
+		return &Divergence{
+			Sequence: nr.Sequence, NodeID: nr.NodeID, Attempt: nr.Attempt, Field: field,
+			Recorded: recorded, Replayed: replayed, Detail: detail,
+		}
+	}
+	art, ok := w.rec.NodeInput(nr.NodeID, nr.Attempt)
+	if !ok {
+		return frontier.NodeOutcome{}, "", diverge(FieldArtifact, "", "",
+				"a pure node is recomputed from its pinned inputs, and the record holds none for this attempt"),
+			refuse(CodeArtifactUnavailable, nr.NodeID,
+				"the record holds no pinned input artifact for attempt %d; replay never reads current data in its place", nr.Attempt)
+	}
+	if art.PlanDigest != w.rec.CompiledPlanDigest ||
+		(w.rec.ExecutionContextDigest != "" && art.ExecutionContextDigest != w.rec.ExecutionContextDigest) {
+		return frontier.NodeOutcome{}, "", diverge(FieldArtifact, w.rec.CompiledPlanDigest+" "+w.rec.ExecutionContextDigest,
+				art.PlanDigest+" "+art.ExecutionContextDigest, "the pinned inputs were not evaluated under this run's plan and context"),
+			refuse(CodeRecordInvalid, nr.NodeID, "pinned input artifact for attempt %d is bound to a different plan or execution context", nr.Attempt)
+	}
+
+	// The digest is taken before the candidate runs, and the candidate gets
+	// its own copy: nothing it does to the inputs can change the evidence the
+	// trace cites.
+	inputDigest := art.Digest()
+	out, err := cand.Recompute(w.ctx, CandidateRequest{
+		Node: node, Attempt: nr.Attempt, PlanDigest: w.rec.CompiledPlanDigest,
+		ExecutionContextDigest: w.rec.ExecutionContextDigest, Inputs: art.Clone(),
+	})
+	if err != nil {
+		code := CodeOf(err)
+		if code == "" {
+			code = CodeCandidateFailed
+		}
+		field := FieldOutcome
+		if code == CodeArtifactUnavailable {
+			field = FieldArtifact
+		}
+		return frontier.NodeOutcome{}, "", diverge(field, nr.RouteKey, "", "the candidate could not recompute this node from its pinned inputs"),
+			wrap(code, nr.NodeID, err, "recompute attempt %d", nr.Attempt)
+	}
+	if out.Failed != nr.Failed || out.RouteKey != nr.RouteKey {
+		return frontier.NodeOutcome{}, "", diverge(FieldOutcome, describeOutcome(nr.RouteKey, nr.Failed), describeOutcome(out.RouteKey, out.Failed),
+				"recomputing this node from its pinned inputs does not reproduce the recorded outcome"),
+			refuse(CodeDivergence, nr.NodeID, "recomputed outcome is not the recorded one")
+	}
+	if out.OutputDigest != nr.OutputDigest {
+		return frontier.NodeOutcome{}, "", diverge(FieldOutputDigest, nr.OutputDigest, out.OutputDigest,
+				"recomputing this node from its pinned inputs does not reproduce the recorded output"),
+			refuse(CodeDivergence, nr.NodeID, "recomputed output digest is not the recorded one")
+	}
+	outcome := outcomeOf(nr)
+	outcome.Outcome, outcome.OutputDigest = workflow.Outcome(out.RouteKey), out.OutputDigest
+	outcome.Failed, outcome.ErrorClass = out.Failed, out.ErrorClass
+	return outcome, inputDigest, nil, nil
+}
+
+func describeOutcome(route string, failed bool) string {
+	if failed {
+		return "FAILED"
+	}
+	return route
 }
 
 // resolveSource says where this attempt's inputs came from, refusing when the
@@ -410,9 +536,10 @@ func (w *walk) result(status Status, terminalCode string, div *Divergence) Resul
 	}
 }
 
-// outcomeOf builds the advancement input from the record, verbatim. Every
-// field is copied; none is derived, defaulted or recomputed, which is the
-// whole of "take every node input from the recorded outputs".
+// outcomeOf builds the advancement input from the record, verbatim. It is the
+// outcome a node that is not recomputed advances on -- an approval, a task, a
+// wait, an observation of live state, a terminal -- and the base a recomputed
+// pure node overwrites with what its candidate produced (see [walk.recompute]).
 func outcomeOf(nr NodeRecord) frontier.NodeOutcome {
 	return frontier.NodeOutcome{
 		NodeID:       nr.NodeID,

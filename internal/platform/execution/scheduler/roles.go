@@ -51,8 +51,8 @@ func (r RoleConfig) Validate() error {
 
 // SignalRole is the semantic signal receiver hosted by the scheduler role.
 // It is intentionally a port: durable matching and continuation creation live
-// in internal/platform/execution/signals, while this package owns leases and
-// role scheduling.
+// in internal/data/signals, while this package owns leases and role
+// scheduling. [SignalDispatcher] is the production implementation.
 type SignalRole interface {
 	RunSignalRole(ctx context.Context, claim lease.AcquireRequest, now time.Time, shard string) (int, error)
 }

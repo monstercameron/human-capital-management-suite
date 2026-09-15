@@ -228,6 +228,13 @@ type CellConfig struct {
 	// what authorizes the decision, so a disagreement here is refused by
 	// internal/workflow/steps/approval.Complete rather than silently accepted.
 	ExecutionApprover string
+	// ApprovalAuthority re-resolves a promotion approval's authority from
+	// current durable facts when it is decided (WF-STEP-003). It must be
+	// built from the same routing configuration as Executor's work-item
+	// factory (internal/platform/execution.NewPromotionApprovalAuthority over
+	// the same PromotionExecutionConfig). Nil refuses every promotion-class
+	// approval decision rather than approving on routed facts alone.
+	ApprovalAuthority ApprovalAuthoritySource
 }
 
 // Cell is one composed P1A application cell: the registries, the governed
@@ -544,6 +551,7 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if cfg.Executor != nil && cfg.ExecutionDB != nil {
 		engine := newJourneyEngine(svc, cfg.ExecutionDB, cfg.ExecutionApprover, cfg.Now, locateWorker, cfg.WorkerIDs)
 		engine.recorder = cfg.WorkflowRecorder
+		engine.authority = cfg.ApprovalAuthority
 		journey = engine
 	}
 	workflowControl, workflowTenantIDs, err := composeWorkflowControl(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now, cfg.WorkflowRecorder)

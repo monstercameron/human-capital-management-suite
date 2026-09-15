@@ -53,6 +53,11 @@ func TestComposeExecutionAuthorityFillsOnlyTheExecutionShapedFields(t *testing.T
 		t.Errorf("ExecutionApprover = %q, want %q; a disagreement here is refused by the approval step",
 			cellConfig.ExecutionApprover, cfg.ExecutionApprover)
 	}
+	// WF-STEP-003: decisions need the decision-time authority source, or
+	// every promotion approval is refused.
+	if cellConfig.ApprovalAuthority == nil {
+		t.Error("ApprovalAuthority is nil; the composed cell cannot recheck an approver's authority")
+	}
 }
 
 // TestComposeExecutionAuthorityRefusesWithNoCellConfiguration guards the one

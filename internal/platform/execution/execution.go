@@ -432,6 +432,9 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		options.Timers = factory
 		options.TimerReader = timer.Reader{}
 	}
+	// WF-RUN-005: a SIGNAL node parks on a durable subscription and resumes
+	// from its matched receipt (see signals.go).
+	options.Signals, options.SignalReader = SignalSubscriptions{}, SignalSubscriptions{}
 	driver, err := execute.New(options)
 	if err != nil {
 		return nil, fmt.Errorf("platform execution: build the promotion execution driver: %w", err)

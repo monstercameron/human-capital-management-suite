@@ -76,6 +76,12 @@ type Options struct {
 	// TimerReader loads the durable timer a [Driver.ResumeTimer] advances
 	// from. Required only once a caller actually calls ResumeTimer.
 	TimerReader TimerReader
+	// Signals opens the durable subscription a SIGNAL_SUBSCRIPTION_REQUIRED
+	// continuation describes, and SignalReader loads the matched receipt a
+	// [Driver.ResumeSignal] advances from (WF-RUN-005). Nil Signals leaves
+	// the continuation unsupported, exactly as it was before that ticket.
+	Signals      SignalSubscriber
+	SignalReader SignalReader
 	// ConflictFence is the application-composed durable conflict adapter used
 	// only when a prepared transaction plan carries a registered intent. It is
 	// intentionally a port: workflow execution must not construct a data
@@ -473,7 +479,7 @@ func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, 
 			switch rec.Kind {
 			case frontier.IntentReady:
 				ready = append(ready, rec.TargetNodeID)
-			case frontier.IntentWorkItemRequired, frontier.IntentTimerRequired:
+			case frontier.IntentWorkItemRequired, frontier.IntentTimerRequired, frontier.IntentSignalSubscriptionRequired:
 				// A durable timer parks this driver exactly as human work
 				// does: it has nothing left to run, and a caller with its own
 				// clock reading decides when the instance moves again.
@@ -746,7 +752,7 @@ func (d *Driver) advanceOnce(
 
 	sink := &continuationSink{
 		tx: tx, durable: runtime.ContinuationStore{},
-		factory: d.opts.WorkItems, timers: d.opts.Timers, terminal: d.opts.Terminal,
+		factory: d.opts.WorkItems, timers: d.opts.Timers, signals: d.opts.Signals, terminal: d.opts.Terminal,
 		repair: d.opts.Repair,
 		plan:   run.selection.Plan,
 		guard:  d.opts.Guard, policy: d.opts.Retention,
@@ -815,7 +821,7 @@ func (d *Driver) advanceOnce(
 	advOutcome := OutcomeSuccess
 	if !advanced.Complete && len(advanced.Continuations) > 0 {
 		for _, rec := range advanced.Continuations {
-			if rec.Kind == frontier.IntentWorkItemRequired || rec.Kind == frontier.IntentTimerRequired {
+			if rec.Kind == frontier.IntentWorkItemRequired || rec.Kind == frontier.IntentTimerRequired || rec.Kind == frontier.IntentSignalSubscriptionRequired {
 				advOutcome = OutcomeParked
 				break
 			}

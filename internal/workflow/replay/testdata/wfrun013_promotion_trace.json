@@ -71,14 +71,15 @@
       "node_id": "raise_threshold",
       "attempt": 1,
       "step_type": "DECISION",
-      "source": "RECORDED_OUTPUT",
+      "source": "RECOMPUTED_FROM_PINNED_INPUTS",
       "route_key": "EXCEEDS_THRESHOLD",
-      "output_digest": "sha256:0000000000000000000000000000000000000000000000000raise_threshold",
+      "output_digest": "sha256:9762d7d675d366e58959a0f6893f34e41adf6eccdf7266dcc8fa0fd540cc11b9",
+      "input_digest": "sha256:a6d1c4ef5d9e5c03b289e6f8c05265c54c03a701e72fbd77386aa69382614710",
       "completed_state": "SUCCEEDED",
       "frontier": [
         "end_requires_finance_approval"
       ],
-      "transition_digest": "ada8371b39d746888d8003a1e854cc84cf81ca2ffbda3677d73869fdb7262cf4",
+      "transition_digest": "5972ae69880270f48474b48aafecd2cea8cb48a842dd6c35e3edd7a832c70d38",
       "observed_at": "2026-09-03T15:04:00Z"
     },
     {
@@ -90,12 +91,12 @@
       "output_digest": "sha256:00000000000000000000000000000000000end_requires_finance_approval",
       "completed_state": "SUCCEEDED",
       "frontier": null,
-      "transition_digest": "84163aac0175fc0f9052a64f3754c174d59cbae9adf6abc95993f79c3d7fd061",
+      "transition_digest": "dea5c8d3234a132f83bc682fc90197ed40d79cda5f107ed05eb02cb631452323",
       "observed_at": "2026-09-03T15:05:00Z"
     }
   ],
   "status": "COMPLETE",
   "terminal_code": "SIMULATION_APPROVAL_REQUIRED",
   "frontier": [],
-  "digest": "c2bd9785b1c4e267550aa1a48b7552f4cc89624e4abb5e52be497b89feffe0d8"
+  "digest": "80cc13c866b3b05685573deb84c38b45f475457f55a179728acb3805061f494a"
 }

@@ -130,5 +130,8 @@ func journeyDecisionError(err error) error {
 	if errors.Is(err, ErrProposalDecisionRoute) || errors.Is(err, ErrProposalDecisionSeparation) {
 		return fmt.Errorf("%w: %w", workspace.ErrDenied, err)
 	}
+	if errors.Is(err, ErrProposalDecisionUnavailable) {
+		return fmt.Errorf("%w: %w", workspace.ErrJourneyUnavailable, err)
+	}
 	return err
 }

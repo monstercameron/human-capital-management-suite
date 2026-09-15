@@ -167,6 +167,39 @@ type Record struct {
 	// JoinDeclarations is passed to [frontier.Seed] unchanged, exactly as the
 	// historical start passed it.
 	JoinDeclarations []frontier.JoinDeclaration `json:"join_declarations,omitempty"`
+
+	// ExecutionContextDigest is the execution context the instance pinned at
+	// start (runtime.LoadExecutionContext). When set, every pinned input
+	// artifact must have been evaluated under it.
+	ExecutionContextDigest string `json:"execution_context_digest,omitempty"`
+	// NodeInputs are the pinned inputs pure node attempts were evaluated
+	// against (runtime.LoadNodeInputs). A pure node a [Candidate] recomputes
+	// reads its inputs from here and nowhere else; a node with no artifact
+	// here is [CodeArtifactUnavailable], never a read of current data.
+	NodeInputs []runtime.NodeInputArtifact `json:"node_inputs,omitempty"`
+	// PinnedVersion is the compiled version the durable version registry
+	// holds for [Record.CompiledPlanDigest], when the source read it. A
+	// replay refuses a plan whose canonical bytes are not the published ones.
+	PinnedVersion *PinnedVersion `json:"pinned_version,omitempty"`
+}
+
+// PinnedVersion is the part of a durable compiled-version record a replay
+// checks its plan against.
+type PinnedVersion struct {
+	CompiledPlanDigest string `json:"compiled_plan_digest"`
+	SemanticVersion    string `json:"semantic_version"`
+	RecordDigest       string `json:"record_digest"`
+	CanonicalPlanBytes []byte `json:"canonical_plan_bytes"`
+}
+
+// NodeInput returns the pinned input artifact of one node attempt.
+func (r Record) NodeInput(nodeID string, attempt int) (runtime.NodeInputArtifact, bool) {
+	for _, a := range r.NodeInputs {
+		if a.NodeID == nodeID && a.Attempt == attempt {
+			return a.Clone(), true
+		}
+	}
+	return runtime.NodeInputArtifact{}, false
 }
 
 // Validate reports whether the record is replayable on its own terms.
@@ -274,5 +307,17 @@ func (r Record) Clone() Record {
 	r.Timers = append([]TimerSettlement(nil), r.Timers...)
 	r.Checkpoints = append([]Checkpoint(nil), r.Checkpoints...)
 	r.JoinDeclarations = append([]frontier.JoinDeclaration(nil), r.JoinDeclarations...)
+	if r.NodeInputs != nil {
+		inputs := make([]runtime.NodeInputArtifact, len(r.NodeInputs))
+		for i, a := range r.NodeInputs {
+			inputs[i] = a.Clone()
+		}
+		r.NodeInputs = inputs
+	}
+	if r.PinnedVersion != nil {
+		pv := *r.PinnedVersion
+		pv.CanonicalPlanBytes = append([]byte(nil), pv.CanonicalPlanBytes...)
+		r.PinnedVersion = &pv
+	}
 	return r
 }

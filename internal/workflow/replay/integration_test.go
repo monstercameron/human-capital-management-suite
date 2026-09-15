@@ -13,8 +13,11 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/rules"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/wire/digest"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
@@ -50,11 +53,25 @@ func TestTodo_WF_RUN_013_Integration(t *testing.T) {
 	source := StoreSource{
 		Executor: f.conn, TenantID: f.tenantID, InstanceID: f.instanceID,
 		HistoricalIntentID: f.intentID,
+		Versions:           workflowversionstore.Store{},
 	}
 	rec := f.load(t, source)
 
 	if rec.CompiledPlanDigest != f.plan.Digest() {
 		t.Fatalf("record pins plan %s, want %s", rec.CompiledPlanDigest, f.plan.Digest())
+	}
+	// Every pin the replay consumes came out of durable evidence: the
+	// execution context row, the registry's published version, and the
+	// decision's input artifact recorded in its advancement transaction.
+	if rec.ExecutionContextDigest == "" || rec.ExecutionContextDigest != f.result.Start.ExecutionContext.Digest() {
+		t.Fatalf("record context %q, execution pinned %q", rec.ExecutionContextDigest, f.result.Start.ExecutionContext.Digest())
+	}
+	if rec.PinnedVersion == nil || rec.PinnedVersion.CompiledPlanDigest != f.plan.Digest() || rec.PinnedVersion.SemanticVersion != "1.0.0" {
+		t.Fatalf("record pinned version = %+v", rec.PinnedVersion)
+	}
+	decisionInputs, ok := rec.NodeInput(workflow.PromotionNodeRaiseThreshold, 1)
+	if !ok || len(rec.NodeInputs) != 1 || decisionInputs.ExecutionContextDigest != rec.ExecutionContextDigest {
+		t.Fatalf("record node inputs = %+v", rec.NodeInputs)
 	}
 	if rec.FinalStatus != runtime.InstanceCompleted {
 		t.Fatalf("record status = %s, want %s", rec.FinalStatus, runtime.InstanceCompleted)
@@ -94,12 +111,34 @@ func TestTodo_WF_RUN_013_Integration(t *testing.T) {
 	}
 
 	// The route keys the replay used are the ones the execution's own step
-	// handler produced, read back out of the continuation ledger rather than
-	// recomputed.
+	// handler produced. The DECISION's was recomputed by evaluating the pinned
+	// rule table against its pinned inputs and matched the production port's
+	// recorded route and output digest; the others were read back out of the
+	// continuation ledger.
 	for _, entry := range res.Trace.Entries {
 		if want, ok := f.runner.routes[entry.NodeID]; ok && string(want) != entry.RouteKey {
 			t.Fatalf("%s replayed route %q, executed %q", entry.NodeID, entry.RouteKey, want)
 		}
+		wantSource := SourceRecordedOutput
+		if entry.NodeID == workflow.PromotionNodeRaiseThreshold {
+			wantSource = SourceRecomputed
+			if entry.InputDigest != decisionInputs.Digest() || entry.OutputDigest != f.runner.decisionDigest {
+				t.Fatalf("decision entry = %+v, want inputs %s and production output %s",
+					entry, decisionInputs.Digest(), f.runner.decisionDigest)
+			}
+		}
+		if entry.Source != wantSource {
+			t.Fatalf("%s source = %s, want %s", entry.NodeID, entry.Source, wantSource)
+		}
+	}
+
+	// A candidate that disagrees with the production implementation is caught
+	// at the decision on the real rows too.
+	divergent, err := f.replayWith(t, source, Candidates{ByNode: map[string]Candidate{
+		workflow.PromotionNodeRaiseThreshold: divergingCandidate{route: "WITHIN_THRESHOLD", digest: f.runner.decisionDigest},
+	}})
+	if CodeOf(err) != CodeDivergence || divergent.Divergence == nil || divergent.Divergence.NodeID != workflow.PromotionNodeRaiseThreshold {
+		t.Fatalf("diverging candidate on durable rows: err=%v divergence=%v", err, divergent.Divergence)
 	}
 
 	// Pinning the trace digest and replaying again reproduces it exactly: the
@@ -119,6 +158,31 @@ func TestTodo_WF_RUN_013_Integration(t *testing.T) {
 	// refused rather than quietly re-derived under a migration.
 	if _, err := f.replay(t, source, promotionPlanWithoutDrift(t), nil); CodeOf(err) != CodePlanMismatch {
 		t.Fatalf("code = %q (%v), want %s", CodeOf(err), err, CodePlanMismatch)
+	}
+
+	// A registry that never published the pinned plan cannot vouch for it.
+	unpublished := f.load(t, StoreSource{Executor: f.conn, TenantID: f.tenantID, InstanceID: f.instanceID, HistoricalIntentID: f.intentID})
+	if unpublished.PinnedVersion != nil {
+		t.Fatalf("a source with no registry produced a pinned version")
+	}
+	err = inTenantTxErr(f.conn, f.tenantID, func(tx dbport.Tx) error {
+		_, err := StoreSource{Executor: tx, TenantID: f.tenantID, InstanceID: f.instanceID,
+			Versions: version.NewRegistry()}.Load(context.Background())
+		return err
+	})
+	if CodeOf(err) != CodeArtifactUnavailable {
+		t.Fatalf("empty registry: code = %q (%v), want %s", CodeOf(err), err, CodeArtifactUnavailable)
+	}
+
+	// Replay wrote nothing: the historical evidence it read is unchanged.
+	var inputRows int
+	var inputDigest string
+	if err := f.db.QueryRow(context.Background(), `SELECT count(*), max(input_digest) FROM workflow_node_input_artifact WHERE tenant_id = $1`,
+		f.tenantID).Scan(&inputRows, &inputDigest); err != nil {
+		t.Fatalf("read input artifacts: %v", err)
+	}
+	if inputRows != 1 || inputDigest != decisionInputs.Digest() {
+		t.Fatalf("input artifacts after replay: %d rows, digest %s", inputRows, inputDigest)
 	}
 }
 
@@ -214,10 +278,64 @@ func newExecutedRun(t *testing.T) *executedRun {
 		t.Fatalf("execute the Promotion run: %v", err)
 	}
 
+	// Publish the plan to the durable version registry, as a real deployment
+	// would have before starting an instance on it.
+	withTenantTx(t, conn, tenantID, func(tx dbport.Tx) error {
+		registry, err := newBootstrapRegistry()
+		if err != nil {
+			return err
+		}
+		_, err = version.Publish(workflowversionstore.Store{}.BindTx(context.Background(), tx),
+			workflow.PromotionReferenceDefinition(), plan,
+			workflow.Options{Phase: workflow.PhaseP1A, Capabilities: registry},
+			version.PublishMeta{SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: "principal:wfrun013-publisher"})
+		return err
+	})
+
 	return &executedRun{
 		db: db, conn: conn, tenantID: tenantID, instanceID: result.Start.InstanceID,
 		intentID: intentID, plan: plan, runner: runner, result: result,
 	}
+}
+
+func inTenantTxErr(conn *pgxadapter.Conn, tenantID uuid.UUID, fn func(dbport.Tx) error) error {
+	ctx := context.Background()
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+		return err
+	}
+	return fn(tx)
+}
+
+// replayWith runs one replay with caller-supplied candidates inside a
+// tenant-scoped transaction.
+func (f *executedRun) replayWith(t *testing.T, source StoreSource, candidates Candidates) (Result, error) {
+	t.Helper()
+	var (
+		res  Result
+		rerr error
+	)
+	err := inTenantTxErr(f.conn, f.tenantID, func(tx dbport.Tx) error {
+		scoped := source
+		scoped.Executor = tx
+		r, err := New(Options{
+			Plan: f.plan, Source: scoped, Contract: replayContract(t),
+			Definition: replayDefinition(), Instance: f.replayIdentity(), Candidates: candidates,
+		})
+		if err != nil {
+			return err
+		}
+		res, rerr = r.Replay(context.Background())
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("replay with candidates: %v", err)
+	}
+	return res, rerr
 }
 
 // executedNodes is the node order the execution actually advanced, taken from
@@ -314,9 +432,60 @@ func withTenantTx(t *testing.T, conn *pgxadapter.Conn, tenantID uuid.UUID, fn fu
 type promotionRunner struct {
 	routes map[string]workflow.Outcome
 	calls  int
+	// decisionDigest is the output digest the production threshold port
+	// produced for the DECISION, recorded when it ran.
+	decisionDigest string
 }
 
-var _ execute.StepRunner = (*promotionRunner)(nil)
+var _ execute.TransactionalStepRunner = (*promotionRunner)(nil)
+
+// RunsInTransaction runs the DECISION inside the advancement transaction, so
+// the pinned inputs it records commit atomically with its outcome.
+func (p *promotionRunner) RunsInTransaction(node workflow.CompiledNode) bool {
+	return node.Type == workflow.StepDecision
+}
+
+// RunInTx evaluates the raise threshold through the production RULE-003 port
+// and records the exact inputs and table version it evaluated as the node's
+// pinned input artifact.
+func (p *promotionRunner) RunInTx(ctx context.Context, ex runtime.Executor, req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
+	p.calls++
+	in := fixtureDecisionInput()
+	port := promotionsteps.RulesThresholdPort{
+		Inputs: func(context.Context, execute.StepRequest) (rules.PromotionApprovalInput, error) { return in, nil },
+	}
+	res, err := port.RaiseThreshold(ctx, req)
+	if err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	route := workflow.Outcome("WITHIN_THRESHOLD")
+	if res.Tier == rules.ApprovalTierFinanceRequired || res.Tier == rules.ApprovalTierExecutiveRequired {
+		route = "EXCEEDS_THRESHOLD"
+	}
+	table := rules.PromotionApprovalThresholdTable()
+	tableDigest, err := table.Digest()
+	if err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	if _, err := runtime.RecordNodeInputs(ctx, ex, runtime.NodeInputArtifact{
+		TenantID: req.TenantID, InstanceID: req.InstanceID, NodeID: req.Node.ID, Attempt: req.Attempt,
+		StepType: req.Node.Type, PlanDigest: req.Plan.Digest(),
+		Inputs: []runtime.NodeInputValue{
+			{Path: rules.ColumnIncreasePercent, Value: in.IncreasePercent.String()},
+			{Path: rules.ColumnBandPosition, Value: string(in.BandPosition)},
+			{Path: rules.ColumnBudgetAuthority, Value: string(in.BudgetAuthority)},
+			{Path: rules.ColumnGradeChange, Value: "true"},
+		},
+		Versions: []runtime.PinnedArtifactVersion{{
+			Kind: runtime.PinnedVersionRuleTable, Ref: table.ID, Version: table.Version, Digest: tableDigest,
+		}},
+		RecordedAt: req.RecordedAt,
+	}); err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	p.decisionDigest = res.OutputDigest
+	return frontier.NodeOutcome{NodeID: req.Node.ID, Outcome: route, OutputDigest: res.OutputDigest}, res.Refs, nil
+}
 
 func newPromotionRunner() *promotionRunner {
 	return &promotionRunner{routes: map[string]workflow.Outcome{

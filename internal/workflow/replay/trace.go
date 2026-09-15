@@ -38,6 +38,9 @@ const (
 	// SourceRecordedTimer is a waiting node woken by a recorded timer
 	// settlement.
 	SourceRecordedTimer InputSource = "RECORDED_TIMER"
+	// SourceRecomputed is a pure node whose outcome a [Candidate] recomputed
+	// from the node's pinned historical inputs, and which matched the record.
+	SourceRecomputed InputSource = "RECOMPUTED_FROM_PINNED_INPUTS"
 )
 
 // TraceEntry is one replayed node attempt.
@@ -53,6 +56,9 @@ type TraceEntry struct {
 
 	RouteKey     string `json:"route_key,omitempty"`
 	OutputDigest string `json:"output_digest,omitempty"`
+	// InputDigest is the digest of the pinned input artifact a recomputed node
+	// was evaluated against. Empty for a node that took its recorded outcome.
+	InputDigest string `json:"input_digest,omitempty"`
 	// CompletedState is the state the node holds after the advancement,
 	// spelled as [frontier.NodeState].
 	CompletedState string `json:"completed_state"`

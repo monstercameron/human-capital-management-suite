@@ -61,6 +61,7 @@ const (
 	proposalDecisionVersion           = 1
 	reasonProposalDecisionRejected    = "work.proposal.request_rejected"
 	reasonProposalDecisionExpired     = "work.proposal.sla_expired"
+	reasonProposalDecisionInvalidated = "work.proposal.authority_invalidated"
 	reasonProposalDecisionSeparation  = "work.proposal.separation_of_duties"
 	reasonProposalDecisionRoute       = "work.proposal.assignment"
 	reasonProposalDecisionConflict    = "work.proposal.already_decided"
@@ -176,6 +177,13 @@ func (s *IntentService) decideProposal(ctx context.Context, req ProposalDecision
 		}
 		decision.execution = result
 	}
+	if decision.refusal != nil {
+		// WF-STEP-003: the approval was closed (EXPIRED or INVALIDATED) and
+		// that route taken; the caller's decision was not recorded.
+		err := proposalDecisionError(decision.refusal)
+		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
+		return nil, err
+	}
 	s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceInvoked, "")
 	return &ProposalDecisionResponse{Decision: decision.decision, Execution: decision.execution}, nil
 }
@@ -226,6 +234,11 @@ func proposalDecisionEnvelope(reason string, cause error) *envelope.Error {
 
 func proposalDecisionError(err error) *envelope.Error {
 	switch {
+	case errors.Is(err, ErrProposalDecisionInvalidated):
+		return proposalDecisionEnvelope(reasonProposalDecisionInvalidated, err)
+	case errors.Is(err, ErrProposalDecisionUnavailable):
+		return envelope.New(envelope.CodeFailedPrecondition, reasonExecutionUnavailable,
+			"workflow execution is not configured for this service").WithDiagnostic(err)
 	case errors.Is(err, ErrProposalDecisionExpired):
 		return proposalDecisionEnvelope(reasonProposalDecisionExpired, err)
 	case errors.Is(err, ErrProposalDecisionStale):

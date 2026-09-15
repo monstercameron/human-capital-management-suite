@@ -12,10 +12,12 @@
 //
 // Human work is created through WorkItemFactory. The driver supplies a stable
 // work-item identity derived from the runtime continuation, so a factory never
-// needs process-local deduplication. Timer and signal continuations are refused
-// until their durable stores exist. Their runtime audit insert is attempted
-// first, but the refusal makes the driver's transaction roll back, so neither
-// that insert nor any partial node/instance transition becomes durable.
+// needs process-local deduplication. Timer and signal continuations park the
+// instance through the optional TimerFactory and SignalSubscriber ports; a
+// driver composed without the matching port refuses them. The runtime audit
+// insert is attempted first, but the refusal makes the driver's transaction
+// roll back, so neither that insert nor any partial node/instance transition
+// becomes durable.
 //
 // At END, the continuation sink runs TerminalWriter inside TX-006's semantic
 // idempotency guard. The writer must keep its ledger, projection and outbox

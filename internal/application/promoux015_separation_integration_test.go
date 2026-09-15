@@ -79,6 +79,13 @@ type promoux015Harness struct {
 // partner default.
 func promoux015Compose(t *testing.T) *promoux015Harness {
 	t.Helper()
+	return promoux015ComposeWith(t, Options{})
+}
+
+// promoux015ComposeWith is [promoux015Compose] with the composition's options
+// (WF-STEP-003's served tests supply a movable cell clock).
+func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
+	t.Helper()
 	db := pgtest.New(t)
 	pool, err := pgxadapter.NewPool(context.Background(), db.URL, map[string]string{"search_path": db.Schema})
 	if err != nil {
@@ -99,7 +106,7 @@ func promoux015Compose(t *testing.T) *promoux015Harness {
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("configuration: %v", err)
 	}
-	composed, err := ComposeServe(context.Background(), ServeInput{Config: cfg, Pool: pool, Identity: "promoux015-separation"})
+	composed, err := ComposeServe(context.Background(), ServeInput{Config: cfg, Pool: pool, Identity: "promoux015-separation", Options: options})
 	if err != nil {
 		t.Fatalf("ComposeServe: %v", err)
 	}

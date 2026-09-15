@@ -146,6 +146,7 @@ migrationfiles:
   - 00293_workflow_version_quarantine.sql
   - 00294_workflow_execution_fingerprint.sql
   - 00295_workflow_variable_revision.sql
+  - 00296_workflow_node_input_artifact.sql
   - 00297_workflow_quarantined_work.sql
   - 00298_workflow_execution_context_forbid_mutation.sql
 entities:

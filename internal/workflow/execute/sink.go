@@ -22,6 +22,7 @@ type continuationSink struct {
 	durable  runtime.ContinuationSink
 	factory  WorkItemFactory
 	timers   TimerFactory
+	signals  SignalSubscriber
 	terminal TerminalWriter
 	repair   RepairRequester
 	guard    idempotency.Store
@@ -97,7 +98,7 @@ func (s *continuationSink) RequireSignalSubscription(ctx context.Context, ex run
 	if err := s.durable.RequireSignalSubscription(ctx, ex, rec); err != nil {
 		return err
 	}
-	return unsupported("SIGNAL_SUBSCRIPTION_REQUIRED", rec.TargetNodeID)
+	return s.requireSignalSubscription(ctx, ex, rec)
 }
 
 func (s *continuationSink) RequireTimer(ctx context.Context, ex runtime.Executor, rec runtime.ContinuationRecord) (retErr error) {

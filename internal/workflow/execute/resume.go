@@ -198,9 +198,9 @@ func checkWorkItemDrift(
 	if err := item.Validate(); err != nil {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, drift("stored work item %s fails its own invariants: %v", item.WorkItemID, err)
 	}
-	if item.Status != workitem.StatusCompleted {
+	if !closedItemCarries(item.Status, req.Outcome.Outcome) {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, drift(
-			"work item %s is %s, not COMPLETED", item.WorkItemID, item.Status)
+			"work item %s is %s, which cannot carry outcome %q", item.WorkItemID, item.Status, req.Outcome.Outcome)
 	}
 	if item.ItemVersion != req.ExpectedWorkItemVersion {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, drift(
@@ -240,6 +240,25 @@ func checkWorkItemDrift(
 	return outcome, refs, nil
 }
 
+// closedItemCarries reports whether a WorkItem in status may be the evidence
+// for outcome. A COMPLETED item carries whatever its resolution names. An item
+// closed without a completion carries only the routes that closure means
+// (WF-STEP-003): EXPIRED for an expired item; INVALIDATED (an authority
+// recheck closed it) or CANCELLED for a cancelled one. Any other status is
+// still open and carries nothing.
+func closedItemCarries(status workitem.Status, outcome workflow.Outcome) bool {
+	switch status {
+	case workitem.StatusCompleted:
+		return true
+	case workitem.StatusExpired:
+		return outcome == workflow.Outcome("EXPIRED")
+	case workitem.StatusCancelled:
+		return outcome == workflow.Outcome("INVALIDATED") || outcome == workflow.Outcome("CANCELLED")
+	default:
+		return false
+	}
+}
+
 func sameStrings(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -262,11 +281,12 @@ func readyAndParked(records []runtime.ContinuationRecord) ([]string, bool) {
 		switch rec.Kind {
 		case frontier.IntentReady:
 			ready = append(ready, rec.TargetNodeID)
-		case frontier.IntentWorkItemRequired, frontier.IntentTimerRequired:
-			// A durable timer parks the instance exactly as human work does:
-			// the driver has nothing left to run, and something outside it --
-			// a caller with its own clock reading, or a person -- decides when
-			// the instance moves again.
+		case frontier.IntentWorkItemRequired, frontier.IntentTimerRequired, frontier.IntentSignalSubscriptionRequired:
+			// A durable timer or signal subscription parks the instance
+			// exactly as human work does: the driver has nothing left to run,
+			// and something outside it -- a caller with its own clock
+			// reading, a matched signal, or a person -- decides when the
+			// instance moves again.
 			parked = true
 		}
 	}

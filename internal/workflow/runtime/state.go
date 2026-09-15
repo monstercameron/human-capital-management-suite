@@ -115,6 +115,16 @@ func LegalInstanceTransition(from, to InstanceStatus) bool {
 	return false
 }
 
+// cancellingHop reports whether an advancement from -> to must first record
+// CANCELLING: to is CANCELLED, from may not reach it directly, and from may
+// begin cancelling. It returns the hop status when one is needed.
+func cancellingHop(from, to InstanceStatus) (InstanceStatus, bool) {
+	if to != InstanceCancelled || LegalInstanceTransition(from, to) || !LegalInstanceTransition(from, InstanceCancelling) {
+		return "", false
+	}
+	return InstanceCancelling, true
+}
+
 // InstanceStatuses returns every declared instance status, sorted, so a
 // migration CHECK constraint and a test can be compared against one list.
 func InstanceStatuses() []InstanceStatus {

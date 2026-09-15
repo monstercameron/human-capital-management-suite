@@ -33,7 +33,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -134,24 +133,15 @@ func build(_ context.Context, deps bootstrap.Deps) (bootstrap.Runtime, error) {
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-	return scheduler.BuildRuntimeWithSignalRoleAndRoles(deps, nil, signalRole{logger: deps.Logger}, roles, claim)
-}
-
-// signalRole is the scheduler-hosted signal role. Inbound integrations write
-// durable signal receipts through the shared signal runtime; this role is the
-// lease-owned sweep boundary for follow-up signal work and remains provider-
-// neutral at the process edge.
-type signalRole struct{ logger bootstrap.Logger }
-
-func (r signalRole) RunSignalRole(_ context.Context, claim lease.AcquireRequest, now time.Time, shard string) (int, error) {
-	r.logger.Info("scheduler.signal_role_tick", "tenant", claim.TenantID.String(), "shard", shard, "at", now.Format(time.RFC3339Nano))
-	return 0, nil
-}
-
-func (r signalRole) RunFencedSignalRole(_ context.Context, claim lease.AcquireRequest, fence lease.Fence, now time.Time, shard string) (int, error) {
-	r.logger.Info("scheduler.signal_role_tick", "tenant", claim.TenantID.String(), "shard", shard,
-		"fence_token", fence.Token, "at", now.Format(time.RFC3339Nano))
-	return 0, nil
+	// No signal role: resuming a matched signal continuation needs the
+	// execution driver and the approved start it re-presents, which this
+	// publish-only command does not compose. The served composition
+	// (internal/application's scheduler workload) runs
+	// scheduler.SignalDispatcher over the cell that owns both (WF-RUN-005); a
+	// role here that claimed signal work it could not resume would hold
+	// instance leases for nothing, and one that only logged would claim a
+	// capability it does not have.
+	return scheduler.BuildRuntimeWithSignalRoleAndRoles(deps, nil, nil, roles, claim)
 }
 
 // pgxDBPoolFactory opens a pgx pool against url and pings it once, so a bad

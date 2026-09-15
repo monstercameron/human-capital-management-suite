@@ -27,6 +27,13 @@ const (
 	// FieldTraceDigest reports a replay whose trace does not reproduce
 	// [Record.TraceDigest].
 	FieldTraceDigest DivergenceField = "trace_digest"
+	// FieldOutcome reports a pure node whose outcome, recomputed by a
+	// [Candidate] from its pinned inputs, is not the outcome the record holds:
+	// a different route key, or a failure on one side only.
+	FieldOutcome DivergenceField = "outcome"
+	// FieldOutputDigest reports a pure node whose recomputed output digest is
+	// not the recorded one, even though the route agrees.
+	FieldOutputDigest DivergenceField = "output_digest"
 )
 
 // Divergence is the first place a replay and its record disagree.

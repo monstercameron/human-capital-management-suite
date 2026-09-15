@@ -1,6 +1,7 @@
 package replay
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -9,8 +10,12 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/rules"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
@@ -90,6 +95,11 @@ func promotionRecord(t *testing.T, plan *workflow.CompiledWorkflow) Record {
 			RecordedAt: fixtureStart.Add(time.Duration(i) * time.Minute),
 		})
 	}
+	// The DECISION's recorded output is what the production threshold port
+	// produced for the pinned inputs, so the replay's recomputation is checked
+	// against an independent implementation rather than against itself.
+	decisionInputs := promotionDecisionInputs(t, plan, nodes[4].RecordedAt)
+	nodes[4].OutputDigest = productionThreshold(t, fixtureDecisionInput()).OutputDigest
 	return Record{
 		TenantID: fixtureTenant, InstanceID: fixtureInstance,
 		WorkflowID: plan.WorkflowID, WorkflowVersion: plan.Version,
@@ -101,6 +111,7 @@ func promotionRecord(t *testing.T, plan *workflow.CompiledWorkflow) Record {
 		TerminalCode:       fixtureTerminal,
 		InputRef:           "sha256:" + strings.Repeat("1", 64),
 		Nodes:              nodes,
+		NodeInputs:         []runtime.NodeInputArtifact{decisionInputs},
 		Checkpoints: []Checkpoint{{
 			Sequence: 1, Kind: "SAFE_POINT",
 			StateDigest:     "sha256:" + strings.Repeat("2", 64),
@@ -109,6 +120,62 @@ func promotionRecord(t *testing.T, plan *workflow.CompiledWorkflow) Record {
 			InstanceVersion: 6, TakenAt: fixtureStart.Add(5 * time.Minute),
 		}},
 	}
+}
+
+// fixtureDecisionInput is the promotion the recorded threshold decision was
+// evaluated for: a 15% raise, in band, funded, with a grade change. The
+// reference table escalates it to FINANCE_REQUIRED, which the plan routes as
+// EXCEEDS_THRESHOLD.
+func fixtureDecisionInput() rules.PromotionApprovalInput {
+	return rules.PromotionApprovalInput{
+		IncreasePercent: values.MustDecimal("15.0000", rules.IncreasePercentScale, values.RoundingHalfEven),
+		BandPosition:    rules.BandPositionInBand,
+		BudgetAuthority: rules.BudgetAuthoritySufficient,
+		GradeChange:     true,
+	}
+}
+
+// promotionDecisionInputs is the pinned input artifact the historical run
+// recorded for raise_threshold: the table inputs as canonical text, and the
+// exact rule table version (id, version, digest) it was evaluated against.
+func promotionDecisionInputs(t *testing.T, plan *workflow.CompiledWorkflow, at time.Time) runtime.NodeInputArtifact {
+	t.Helper()
+	table := rules.PromotionApprovalThresholdTable()
+	tableDigest, err := table.Digest()
+	if err != nil {
+		t.Fatalf("digest the threshold table: %v", err)
+	}
+	in := fixtureDecisionInput()
+	return runtime.NodeInputArtifact{
+		TenantID: fixtureTenant, InstanceID: fixtureInstance,
+		NodeID: workflow.PromotionNodeRaiseThreshold, Attempt: 1, StepType: workflow.StepDecision,
+		PlanDigest: plan.Digest(),
+		Inputs: []runtime.NodeInputValue{
+			{Path: rules.ColumnIncreasePercent, Value: in.IncreasePercent.String()},
+			{Path: rules.ColumnBandPosition, Value: string(in.BandPosition)},
+			{Path: rules.ColumnBudgetAuthority, Value: string(in.BudgetAuthority)},
+			{Path: rules.ColumnGradeChange, Value: "true"},
+		},
+		Versions: []runtime.PinnedArtifactVersion{{
+			Kind: runtime.PinnedVersionRuleTable, Ref: table.ID, Version: table.Version, Digest: tableDigest,
+		}},
+		RecordedAt: at,
+	}
+}
+
+// productionThreshold runs the production RULE-003 threshold port for one
+// input, which is the implementation whose recorded output a replay must
+// reproduce.
+func productionThreshold(t *testing.T, in rules.PromotionApprovalInput) promotionsteps.ThresholdResult {
+	t.Helper()
+	port := promotionsteps.RulesThresholdPort{
+		Inputs: func(context.Context, execute.StepRequest) (rules.PromotionApprovalInput, error) { return in, nil },
+	}
+	res, err := port.RaiseThreshold(context.Background(), execute.StepRequest{})
+	if err != nil {
+		t.Fatalf("production threshold port: %v", err)
+	}
+	return res
 }
 
 // pausedPromotionRecord is the same run stopped after the band evaluation,

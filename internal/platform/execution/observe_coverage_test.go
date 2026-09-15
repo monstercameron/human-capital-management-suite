@@ -29,6 +29,10 @@ var executionUninstrumentedByDesign = map[string]string{
 	"promotionterminal/writer.go ResolverFunc.Resolve": "function adapter",
 	"scheduler/dispatch.go DispatcherFunc.Dispatch":    "function adapter",
 
+	// WF-RUN-005: the signal driver adapter and the resumer function adapter.
+	"signal_resume.go executeDriverAdapter.ResumeSignal":          "delegates to the instrumented driver",
+	"scheduler/signal_dispatch.go SignalResumerFunc.ResumeSignal": "function adapter",
+
 	// A pure step decision with no I/O, run inside the driver's own node span
 	// (execute.Instrumentation.StartNodeSpan). It does not call promotionsteps:
 	// the served EXECUTE path is still stubbed (WF-RUN-034).

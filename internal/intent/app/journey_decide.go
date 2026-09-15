@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -287,9 +288,15 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 	switch inst.Lifecycle.Request {
 	case lifecycle.RequestCancelled, lifecycle.RequestSuperseded, lifecycle.RequestRejected,
 		lifecycle.RequestWithdrawn, lifecycle.RequestClosed:
-		return workspace.JourneyDetail{}, fmt.Errorf(
+		refusal := fmt.Errorf(
 			"%w: this journey's proposal has been %s and can no longer be decided",
 			workspace.ErrJourneyStage, strings.ToLower(string(inst.Lifecycle.Request)))
+		// WF-STEP-003: the approval left open on the abandoned proposal
+		// takes its CANCELLED route rather than parking the run forever.
+		if routeErr := e.routeAbandonedApproval(ctx, principal, intentID, inst, def, rec); routeErr != nil {
+			return workspace.JourneyDetail{}, errors.Join(refusal, routeErr)
+		}
+		return workspace.JourneyDetail{}, refusal
 	}
 	if gateErr := e.svc.authorizeDecision(def); gateErr != nil {
 		return workspace.JourneyDetail{}, journeyError(gateErr)
@@ -344,6 +351,11 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 			return workspace.JourneyDetail{}, outcomeErr
 		}
 	}
+	if done.refusal != nil {
+		// WF-STEP-003: the approval was closed, and its route taken, instead
+		// of the decision the caller asked for.
+		return workspace.JourneyDetail{}, fmt.Errorf("%w: %w", workspace.ErrJourneyStage, done.refusal)
+	}
 	return e.inspectWithRelationships(ctx, intentID, reviewRelationships)
 }
 
@@ -382,6 +394,10 @@ type decidedApproval struct {
 	outcome   frontier.NodeOutcome
 	replayed  bool
 	execution ExecutionResult
+	// refusal is set when the approval was closed without the caller's
+	// decision (WF-STEP-003: EXPIRED or INVALIDATED). The route is still
+	// resumed; the caller then reports refusal instead of success.
+	refusal error
 }
 
 // needsResume distinguishes a completed decision from a completed workflow
@@ -492,6 +508,10 @@ func (e *journeyEngine) completeApproval(
 			}
 			return decidedApproval{item: completed, instance: instance, decision: existing, outcome: outcome, replayed: true}, nil
 		}
+		recovered, found, recoverErr := e.recoverClosedApproval(ctx, tx, tenantID, instance, items, revision, principal.Subject())
+		if recoverErr != nil || found {
+			return recovered, recoverErr
+		}
 		return decidedApproval{}, fmt.Errorf("%w: this promotion has no open approval to decide", ErrProposalDecisionStage)
 	}
 	if expectedRequirementID != "" && item.ApprovalRequirementRef != expectedRequirementID {
@@ -518,12 +538,27 @@ func (e *journeyEngine) completeApproval(
 	if err := ValidatePromotionApprovalHistory(items, item, actor); err != nil {
 		return decidedApproval{}, err
 	}
-	// A decision after the routed deadline would complete the item and then
-	// resolve to EXPIRED, cancelling the run on the approver's own click.
-	// Refusing before the claim leaves the item open for the deadline
-	// handling a later phase owns, and tells the approver why.
+	// WF-STEP-003: a decision at or after the routed deadline cannot approve.
+	// The requirement has expired, which is a fact about the item, not about
+	// the click: the item is durably EXPIRED and the step resolves to its
+	// EXPIRED route in this transaction, and the approver is told why after
+	// the driver has taken that route.
 	if !decidedAt.Before(item.DeadlineAt) {
-		return decidedApproval{}, fmt.Errorf("%w: the approval deadline %s has passed", ErrProposalDecisionExpired, item.DeadlineAt.UTC().Format(time.RFC3339))
+		return e.closeApproval(ctx, tx, instance, revision, item, actor, decidedAt, approvalClosureExpired,
+			fmt.Sprintf("the approval deadline %s has passed", item.DeadlineAt.UTC().Format(time.RFC3339)))
+	}
+	// WF-STEP-003: the authority the item was routed under is re-resolved
+	// from current durable facts. An approver who no longer holds it (the
+	// subject's manager changed, the finance authority moved, the role was
+	// revoked) cannot approve: the item is durably closed and the step takes
+	// its INVALIDATED route, which the compiled plan sends to reapproval by a
+	// fresh proposal.
+	stale, err := e.recheckApprovalAuthority(ctx, tx, principal, inst, item, candidate, revision, decidedAt)
+	if err != nil {
+		return decidedApproval{}, err
+	}
+	if stale != nil {
+		return e.closeApproval(ctx, tx, instance, revision, item, actor, decidedAt, approvalClosureInvalidated, stale.Error())
 	}
 
 	claimed, err := store.ClaimCurrent(ctx, tx, workitem.ClaimCurrentInput{
@@ -706,6 +741,24 @@ func journeyApprovalOutcome(
 	decision intentapproval.ApprovalDecision,
 	now time.Time,
 ) (frontier.NodeOutcome, error) {
+	return resolveJourneyApproval(item, revision, []intentapproval.ApprovalDecision{decision}, now, stepsapproval.Event{})
+}
+
+// resolveJourneyApproval is [journeyApprovalOutcome] over any durable item
+// state. decisions is the one decision a completed item records, or none for
+// an item closed without a completion (EXPIRED, or CANCELLED by an authority
+// recheck); event is the zero value except for the INVALIDATED event, with its
+// reason, an authority recheck raised.
+func resolveJourneyApproval(
+	item workitem.WorkItem,
+	revision intent.ProposalRevision,
+	decisions []intentapproval.ApprovalDecision,
+	now time.Time,
+	event stepsapproval.Event,
+) (frontier.NodeOutcome, error) {
+	if event.Kind == "" {
+		event.Kind = stepsapproval.EventDecisionsChanged
+	}
 	requirement, err := routedApprovalRequirement(item)
 	if err != nil {
 		return frontier.NodeOutcome{}, fmt.Errorf("app: journey: rebuild the approval requirement: %w", err)
@@ -716,9 +769,7 @@ func journeyApprovalOutcome(
 	if err != nil {
 		return frontier.NodeOutcome{}, fmt.Errorf("app: journey: rebuild the approval continuation: %w", err)
 	}
-	resolution, err := stepsapproval.Resolve(continuation, items,
-		[]intentapproval.ApprovalDecision{decision}, values.NewInstant(now),
-		stepsapproval.Event{Kind: stepsapproval.EventDecisionsChanged})
+	resolution, err := stepsapproval.Resolve(continuation, items, decisions, values.NewInstant(now), event)
 	if err != nil {
 		return frontier.NodeOutcome{}, fmt.Errorf("app: journey: resolve the approval: %w", err)
 	}

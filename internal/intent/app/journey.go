@@ -75,6 +75,9 @@ type journeyEngine struct {
 	// recorder receives the workflow-engine operations the journey runs
 	// outside the execution driver (the approval step completion).
 	recorder WorkflowRecorder
+	// authority re-resolves a promotion approval's authority at decision
+	// time (WF-STEP-003). Nil refuses every promotion-class decision.
+	authority ApprovalAuthoritySource
 }
 
 var _ workspace.JourneyEngine = (*journeyEngine)(nil)
@@ -130,7 +133,7 @@ func journeyError(err error) error {
 		return fmt.Errorf("%w: %s", workspace.ErrJourneyUnknown, owned.Error())
 	}
 	switch owned.ReasonRef() {
-	case reasonNoExecutablePlan, reasonProposalDecisionRejected, reasonProposalDecisionExpired,
+	case reasonNoExecutablePlan, reasonProposalDecisionRejected, reasonProposalDecisionExpired, reasonProposalDecisionInvalidated,
 		reasonProposalDecisionConflict, reasonProposalDecisionStage, reasonStaleRevision, reasonPromotionActive:
 		return fmt.Errorf("%w: %s", workspace.ErrJourneyStage, owned.Error())
 	case reasonExecutionUnavailable, reasonNoGovernedWrite, reasonProposalDecisionRoute:

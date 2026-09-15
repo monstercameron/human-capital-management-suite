@@ -58,6 +58,15 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 		func(ctx context.Context, instanceID, nodeID string, attempt int) (app.ExecutionResult, error) {
 			return cell.ResumeFiredTimer(ctx, instanceID, nodeID, attempt)
 		})
+	// WF-RUN-005: the signal role claims matched signal continuations under
+	// the queue fence, and the generic dispatcher routes any it reaches first.
+	signals, err := executionscheduler.NewSignalDispatcher(executionscheduler.SignalDispatcherConfig{
+		DB: pool, Resumer: signalResumer(claimTenant.String(), cfg.Tenant, cell.ResumeMatchedSignal),
+		Clock: now, Logger: logger,
+	})
+	if err != nil {
+		return bootstrap.Workload{}, err
+	}
 	runner, err := executionscheduler.New(executionscheduler.Config{
 		DB: pool,
 		Claims: []lease.AcquireRequest{{
@@ -67,8 +76,8 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 		}},
 		Leases: lease.Manager{}, Timers: timer.Scheduler{Attempts: runtime.Store{}},
 		Misfire:    schedule.MisfireConfig{Policy: schedule.MisfireCatchUpOnce, Grace: time.Hour, MaxCatchUp: 1},
-		Dispatcher: dispatcher, Logger: logger, Clock: now,
-		Recorder: schedulerRecorder(provider, logger, now),
+		Dispatcher: signals.Route(dispatcher), Logger: logger, Clock: now,
+		Recorder: schedulerRecorder(provider, logger, now), SignalRole: signals,
 	})
 	if err != nil {
 		return bootstrap.Workload{}, err
