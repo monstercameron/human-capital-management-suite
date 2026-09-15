@@ -45,10 +45,10 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/jit"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/cancellation"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
-	"github.com/monstercameron/human-capital-management-suite/internal/workflow/timer"
 )
 
 // Outcome is the governed result of one workflow control.
@@ -73,6 +73,12 @@ const (
 	CodeEffectInFlight     = "EFFECT_IN_FLIGHT"
 	CodeInstanceTerminal   = "INSTANCE_TERMINAL"
 	CodeInvalidCommand     = "INVALID_COMMAND"
+	// CodeCompensationRequired marks an APPLIED cancel that left the
+	// instance CANCELLING with a recorded compensation obligation.
+	CodeCompensationRequired = "COMPENSATION_REQUIRED"
+	// CodeChildNotCancellable marks a TOO_LATE cancel refused by a child
+	// workflow instance that cannot stop.
+	CodeChildNotCancellable = "CHILD_NOT_CANCELLABLE"
 )
 
 // ErrInvalidCommand reports a command missing a required field.
@@ -125,6 +131,9 @@ type Result struct {
 	IntentInstanceID string
 	ReceiptDigest    string
 	Replayed         bool
+	// durable marks a result whose writes must commit even though it is not
+	// a state change (a recorded CANNOT_CANCEL decision).
+	durable bool
 }
 
 // Controller runs governed workflow controls.
@@ -397,12 +406,13 @@ func (c *Controller) run(ctx context.Context, cmd Command, fn stepFunc, commit b
 	if !commit {
 		return res, nil
 	}
-	switch res.Outcome {
-	case OutcomeApplied, OutcomePendingSafePoint, OutcomeRepairRequired:
+	switch {
+	case res.durable, res.Outcome == OutcomeApplied, res.Outcome == OutcomePendingSafePoint, res.Outcome == OutcomeRepairRequired:
 		if err := tx.Commit(ctx); err != nil {
 			return Result{}, fmt.Errorf("workflowcontrol: commit: %w", err)
 		}
 	}
+	res.durable = false
 	return res, nil
 }
 
@@ -562,69 +572,58 @@ func (c *Controller) cancelStep(ctx context.Context) stepFunc {
 		if inst.InstanceVersion != cmd.ExpectedVersion {
 			return denied(inst, runtime.CodeStaleInstance), nil
 		}
-		store := runtime.Store{}
-		nodes, err := store.LoadNodeExecutions(ctx, tx, cmd.TenantID, cmd.InstanceID)
-		if err != nil {
-			return Result{}, err
-		}
-		inFlight := ""
-		for _, n := range nodes {
-			node, ok := plan.Node(n.NodeID)
-			if !ok || !node.EffectClass.IsWrite() {
-				continue
-			}
-			switch n.Status {
-			case runtime.NodeSucceeded:
-				// The effect is done; cancelling now would claim a reversal
-				// nothing performed.
-				r := current(inst)
-				r.Outcome, r.Code, r.NodeID, r.Attempt = OutcomeTooLate, CodeEffectCommitted, n.NodeID, n.Attempt
-				return r, nil
-			case runtime.NodeRunning, runtime.NodeWaiting:
-				if inFlight == "" {
-					inFlight = n.NodeID
-				}
-			}
-		}
-		cancelling, err := store.RecordInstanceState(ctx, tx, transitionOf(inst, runtime.InstanceCancelling))
-		if err != nil {
+		// WF-RUN-010: the governed decision over the instance's durable
+		// facts (node executions against the plan's cancellation semantics,
+		// recorded effects, child instances), acted on and recorded in this
+		// transaction.
+		out, err := cancellation.Decide(ctx, tx, cancellation.Request{
+			TenantID: cmd.TenantID, InstanceID: cmd.InstanceID, ExpectedInstanceVersion: cmd.ExpectedVersion,
+			Plan: plan, Plans: c.plans, Reason: cmd.ReasonRef, RequestedBy: cmd.Operator, RecordedAt: now,
+		})
+		switch {
+		case errors.Is(err, cancellation.ErrStale):
+			return denied(inst, runtime.CodeStaleInstance), nil
+		case errors.Is(err, cancellation.ErrPlanMismatch):
+			return denied(inst, runtime.CodeAdvancePlanMismatch), nil
+		case errors.Is(err, cancellation.ErrTerminal):
+			r := current(inst)
+			r.Outcome, r.Code = OutcomeTooLate, CodeInstanceTerminal
+			return r, nil
+		case err != nil:
 			return runtimeRefusal(inst, err)
 		}
-		if inFlight != "" {
-			repair := transitionOf(cancelling, runtime.InstanceRepairRequired)
-			repair.CompletionDimensions = runtime.Dimensions{RequestState: "CANCELLED", ExecutionState: "UNKNOWN",
-				BusinessState: "UNKNOWN", ConsistencyState: "REPAIR_REQUIRED", ObligationState: "NOT_APPLICABLE"}
-			repair.CompletedAt = &now
-			routed, err := store.RecordInstanceState(ctx, tx, repair)
-			if err != nil {
-				return runtimeRefusal(inst, err)
-			}
-			return Result{Outcome: OutcomeRepairRequired, Code: CodeEffectInFlight, InstanceStatus: routed.RuntimeStatus,
-				InstanceVersion: routed.InstanceVersion, NodeID: inFlight}, nil
-		}
-		if _, err := (timer.Scheduler{}).CancelInstance(ctx, tx, cmd.TenantID, cmd.InstanceID, now, "workflow cancelled: "+cmd.ReasonRef); err != nil {
-			return Result{}, err
-		}
-		done := transitionOf(cancelling, runtime.InstanceCancelled)
-		done.CurrentNodeIDs = nil
-		done.CompletionDimensions = runtime.Dimensions{RequestState: "CANCELLED", ExecutionState: "NOT_PLANNED",
-			BusinessState: "NOT_ACHIEVED", ConsistencyState: "NOT_APPLICABLE", ObligationState: "NOT_APPLICABLE"}
-		done.CompletedAt = &now
-		cancelled, err := store.RecordInstanceState(ctx, tx, done)
-		if err != nil {
-			return runtimeRefusal(inst, err)
-		}
-		return Result{Outcome: OutcomeApplied, InstanceStatus: cancelled.RuntimeStatus, InstanceVersion: cancelled.InstanceVersion}, nil
+		return cancelResult(out), nil
 	}
 }
 
-func transitionOf(inst runtime.Instance, status runtime.InstanceStatus) runtime.InstanceTransition {
-	return runtime.InstanceTransition{
-		TenantID: inst.TenantID, InstanceID: inst.InstanceID, ExpectedVersion: inst.InstanceVersion,
-		Status: status, CurrentNodeIDs: append([]string(nil), inst.CurrentNodeIDs...),
-		VariableRevisionHead: inst.VariableRevisionHead, EffectiveContextRef: inst.EffectiveContextRef,
-		LastCheckpointRef: inst.LastCheckpointRef, CompletionDimensions: inst.CompletionDimensions,
+// cancelResult projects a governed cancellation decision onto a control
+// result. Every decision is durable (its evidence row is committed), so a
+// CANNOT_CANCEL refusal is kept as well.
+func cancelResult(out cancellation.Outcome) Result {
+	reason, _ := out.Blocking()
+	r := Result{InstanceStatus: out.Instance.RuntimeStatus, InstanceVersion: out.Instance.InstanceVersion,
+		NodeID: reason.NodeID, durable: true}
+	switch out.Decision {
+	case workflow.Cancelled:
+		r.Outcome = OutcomeApplied
+	case workflow.CompensationRequired:
+		// The instance is CANCELLING with the compensation obligation
+		// recorded; it is not reported cancelled.
+		r.Outcome, r.Code = OutcomeApplied, CodeCompensationRequired
+	case workflow.CannotCancel:
+		// A produced effect cannot be released, or a child cannot stop;
+		// nothing is claimed reversed.
+		r.Outcome, r.Code = OutcomeTooLate, CodeEffectCommitted
+		if reason.Code == cancellation.ReasonChildNotCancellable {
+			r.Code = CodeChildNotCancellable
+		}
+	default:
+		r.Outcome, r.Code = OutcomeRepairRequired, CodeEffectInFlight
+		if reason.Code != cancellation.ReasonEffectAmbiguous && reason.Code != "" {
+			r.Code = reason.Code
+		}
 	}
+	return r
 }
 
 // retrySafe reports whether a node may be re-run without duplicating an

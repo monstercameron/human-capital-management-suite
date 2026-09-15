@@ -92,7 +92,8 @@ func (s *IntentService) bindProposalDecisioner(d proposalDecisioner) {
 
 // ApproveProposal records an approval through the same execution-authority
 // gate and current simulation used by ExecuteIntent, then completes exactly
-// one routed approval WorkItem and resumes the caller-driven workflow.
+// one routed approval WorkItem and advances the caller-driven workflow in the
+// same transaction through the approval kernel (WF-STEP-018).
 func (s *IntentService) ApproveProposal(ctx context.Context, req ProposalDecisionRequest) (*ProposalDecisionResponse, error) {
 	return s.decideProposal(ctx, req, true)
 }
@@ -233,6 +234,12 @@ func proposalDecisionEnvelope(reason string, cause error) *envelope.Error {
 }
 
 func proposalDecisionError(err error) *envelope.Error {
+	// WF-STEP-018: a workflow failure raised by the approval kernel is
+	// already projected by executionError.
+	var owned *envelope.Error
+	if errors.As(err, &owned) {
+		return owned
+	}
 	switch {
 	case errors.Is(err, ErrProposalDecisionInvalidated):
 		return proposalDecisionEnvelope(reasonProposalDecisionInvalidated, err)

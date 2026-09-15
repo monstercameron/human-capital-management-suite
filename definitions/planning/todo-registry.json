@@ -9308,7 +9308,8 @@
     "refactor": "source history is never rewritten during migration",
     "refs": "[Phase 2 shadow rebuild](plan.md#phase-2-hcm-workflow-operating-layer), [configuration promotion](specs/hris-admin-dataops.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_DATA_011` plus `TestTodo_DATA_011_Golden`, `_Security`, `_Recovery` and `_Fault` in `internal/data/shadow` (shadow.go adds pure Compare/Promote/Rollback kernel: exact row/digest/authz/watermark differences refuse with a digest-pinned report, tenant mismatch/incomplete replay/lag bound are typed gates, only explicit non-self approval promotes with the previous active retained as rollback; RED captured as build-failed undefined symbols); `go test -count=1 ./internal/data/shadow/` PASS plus `go vet`/`gofmt` clean on windows/arm64 (Go 1.26.3); branch main"
   },
   {
     "id": "DATA-012",
@@ -15607,7 +15608,8 @@
     "refactor": "use family/channel templates for mechanics while retaining domain-specific fixtures for legal, financial, privacy and correction semantics",
     "refs": "[Reference workflow suite](reference-workflows/reference-suite.md), [coverage matrix](specs/platform-capability-coverage-matrix.md), [intent catalog](specs/business-intent-catalog.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestEveryImplementedMaterialFeatureHasIntentConformance` plus `TestTodo_INTENT_024_Golden`, `_Race`, `_Conformance`, `_Recovery` and `_Mutation` in `tools/planning/intentmanifests` (conformance_suite.go adds pure deterministic GenerateFeatureIntentConformanceSuite: every DEFINED|PARTIAL|IMPLIED row resolves all seven vectors at its declared depth, DEFERRED|MISSING rows resolve to explicitly unavailable entries, every enabled route must be exercised or it returns ErrConformanceGap; RED captured as build-failed undefined symbols); `go test -count=1 ./tools/planning/intentmanifests/` PASS on windows/arm64 (Go 1.26.3); branch main"
   },
   {
     "id": "INTENT-025",
@@ -16350,7 +16352,8 @@
     "refactor": "unchanged fingerprint suppresses unnecessary writes",
     "refs": "[Sync engine](specs/integration-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_INTG_019` plus `TestTodo_INTG_019_Integration`, `_Fault` and `FuzzTodo_INTG_019` in `internal/connectivity/syncjob` (syncjob.go adds pure PlanBatch kernel over a MemStore cursor port: cursor/watermark/counts preserved across resume, unchanged fingerprints suppress writes, local-origin echoes ownership-suppressed, absence without policy yields explicit candidates, per-item failures recorded, tombstones/duplicates/foreign cursors fail closed; RED captured as build-failed undefined symbols; fuzzer fixed two oracle gaps around blank/trimmed identities, then 60s/5.9M execs PASS); `go test -count=1 ./internal/connectivity/syncjob/` PASS plus `go vet`/`gofmt` clean on windows/arm64 (Go 1.26.3); branch main"
   },
   {
     "id": "INTG-020",
@@ -31699,7 +31702,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Security research §1, E-14](research/security-best-practices-2026.md#1-enterprise-applications-in-general), [NIST SP 800-53 Rev. 5](https://csrc.nist.gov/Projects/risk-management/sp800-53-controls/downloads). Maps to NIST 800-53 SC-4/AC-4; CIS Control 3",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SECARCH_010`, `TestTodo_SECARCH_010_Golden`, `TestTodo_SECARCH_010_Security`, `TestTodo_SECARCH_010_Integration`, `TestTodo_SECARCH_010_Race`, `TestTodo_SECARCH_010_Mutation` in `internal/trust/adversarial` (isolation_paths.go adds tenant-namespaced CacheKey/ObjectKey, owner-bound JobEnvelope/ExecuteJob, ForeignBytes-scoped LogLine, BackupPlacement/AllowRestore, plus retained PresetIsolationJourneys ISO-CACHE/QUEUE/OBJECT/LOG/BACKUP-01; RED captured as build-failed undefined symbols, GREEN denies cross-tenant use with zero foreign bytes); `go test -count=1 ./internal/trust/adversarial/` PASS on windows/arm64 (Go 1.26.3); branch main"
   },
   {
     "id": "SECARCH-011",
@@ -31881,7 +31885,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Security research §2, F-11](research/security-best-practices-2026.md#2-financial-applications-and-payment-touching-systems), [FTC Safeguards Rule](https://www.ftc.gov/legal-library/browse/rules/safeguards-rule), [FTC 2023 amendment](https://www.ftc.gov/news-events/news/press-releases/2023/10/ftc-amends-safeguards-rule-require-non-banking-financial-institutions-report-data-security-breaches). Maps to 16 CFR 314 (GLBA Safeguards Rule)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SECARCH_017`, `TestTodo_SECARCH_017_Golden`, `TestTodo_SECARCH_017_Security`, `TestTodo_SECARCH_017_Integration`, `TestTodo_SECARCH_017_Conformance`, `TestTodo_SECARCH_017_Mutation` in `internal/domains/paymethod/safeguards` (safeguards.go adds versioned NewProgram/Validate/NoticeRequired/Digest binding covered tenants to risk assessment, satisfactory provider diligence, TRUST-015/018 control evidence, incident records and a reproducible consumer count with the FTC 500-consumer notice boundary; RED captured as build-failed undefined symbols); `go test -count=1 ./internal/domains/paymethod/safeguards/` PASS on windows/arm64 (Go 1.26.3); branch main"
   },
   {
     "id": "SECARCH-018",
@@ -35024,7 +35029,8 @@
     "refactor": "encode expand/migrate/contract phases and removal gates",
     "refs": "[Gate B acceptance](execution-plan.md#gate-b-acceptance--limited-write-authority), [data migration framework](specs/platform-foundation-gap-closure.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_TOOL_020`, `TestTodo_TOOL_020_Golden`, `TestTodo_TOOL_020_Conformance`, `TestTodo_TOOL_020_Recovery` (new), `TestTodo_TOOL_020_Fault` in `internal/platform/schemaupgrade` — RED captured (`replayed Rollback error=... invalid transition: rollback from ROLLED_BACK, want nil idempotent`), GREEN via idempotent `Rollback` replay from `ROLLED_BACK` (nil, no duplicate event) plus journal-resume (Snapshot rehydrate continues backfill/shadow/cutover to the same completed upgrade) and backfill-replay (same checkpoint, no history growth) coverage; `go test -count=1 ./internal/platform/schemaupgrade/ -v` PASS (12/12), `go vet` clean, `gofmt` clean, `go test -race` unavailable in this env (no cgo); `go test -count=1 ./tools/planning/todoregistry/` PASS; branch main. Scope: protocol-level proof in the side-effect-free package (version-matrix interop window, append-only history, idempotent recovery); adapters persist the journal and multi-binary deployment interop remains an adapter-conformance concern"
   },
   {
     "id": "TOOL-021",
@@ -45327,8 +45333,8 @@
     "refactor": "migration, shadow mode, replay and the intervention taxonomy are not adoption criteria",
     "refs": "[Build or adopt](specs/workflow-runtime.md#build-or-adopt), [next-steps P1B](next-steps.md#p1b--one-bounded-authority-amendment)",
     "retired": false,
-    "done": false,
-    "evidence": "`TestDurableRuntimeAdoptionDecisionRecordIsCompleteAndEvidenced` (12 RED cases), `TestTodo_WF_RUN_000_{Golden,Integration,Conformance}` in `tools/policy/runtimedecision`; record at `definitions/runtime/durable-runtime-decision.yaml`; `go test -count=1 ./tools/policy/runtimedecision/...` PASS. Decision: BUILD on the in-house Postgres outbox/projection primitives for P1A; Temporal, Restate, DBOS Transact and river recorded as not yet evaluated against a conformance fixture (no invented benchmarks); blocking re-evaluation gate before any P1B scheduler/lease/timer code; branch plan-revision-2026-09-02; on windows/arm64 (Go 1.26.3)"
+    "done": true,
+    "evidence": "`definitions/runtime/durable-runtime-decision.yaml` (`schema_version` 2) records every non-negotiable as PASS, FAIL or PARTIAL with an evidence kind; nothing is UNKNOWN or PENDING. Choice `BUILD`, signed `workflow-runtime (domain owner)` 2026-09-15. The in-house runtime passes NN1–NN4 on FIXTURE evidence (NN1 ledger outside engine history: `TestTodo_WF_RUN_000_Conformance` structural scan, `TestTodo_WF_RUN_003_Redelivery`, `TestTodo_LEDGER_002`, `TestTodo_TX_004_PromotionTerminalAdapter`, `TestTodo_WF_RUN_025`; NN2 tenant isolation, fencing and effect idempotency: `TestTodo_DB_017`, `TestTodo_WF_RUN_001_Security`, `TestTodo_WF_RUN_002*`, `TestScheduling_LeasesAreExclusiveAndFenced`, `TestTodo_WF_RUN_036`, `TestFencedRunsVerifyBeforeStepsAndLeaseAroundTheRun`, `TestTodo_WF_RUN_003_RedeliveryFence`, `TestTodo_TX_006*`, `TestTodo_WF_RUN_003_GuardedStep`; NN3 inspectable projections: `TestTodo_WF_RUN_019_DurableInspection`, `_Integration`, `_Fault`, `TestScheduler_HistoryKeepsSettledTimers`, `TestTodo_WF_RUN_038`; NN4 safe-point pause and version pinning: `TestTodo_WF_RUN_008*`, `TestResumeAppliesAPendingPauseAtItsSafePoint`, `TestTodo_WF_RUN_009_LiveInstancePause`, `TestTodo_WF_RUN_023*`, `TestTodo_WF_RUN_040`, `TestTodo_WF_COMP_006*`), all run with `go test -count=1` over the 13 owning packages. Temporal (PASS/PARTIAL/FAIL/PARTIAL), Restate (PASS/PARTIAL/FAIL/PARTIAL), DBOS Transact Go (PASS/PARTIAL/PARTIAL/PARTIAL) and river (PASS/PARTIAL/FAIL/FAIL) are scored DOCUMENTED from cited public documentation, not fixture runs. A RETROACTIVE re-evaluation dated 2026-09-15 states it was recorded after the P1B lease, timer, recover and scheduler code and migration 00026 landed. `tools/policy/runtimedecision` now enforces evidence kinds, verifies each named test is declared in its file, the choice grammar, an owner signature and a truthful re-evaluation history, and parses strictly; `TestTodo_WF_RUN_000_Integration` fails if a P1B runtime directory exists without a re-evaluation naming it. `TestDurableRuntimeAdoptionDecisionRecordIsCompleteAndEvidenced` (46 subtests) and `TestTodo_WF_RUN_000_{Golden,Integration,Conformance}` pass at 84.9% coverage on windows/arm64 (Go 1.26.3). Limits: external candidates are documentation-assessed only, so any future ADOPT must first produce FIXTURE results; the signature is the recorded owner identity without a separate human countersignature | `TestDurableRuntimeAdoptionDecisionRecordIsCompleteAndEvidenced` (12 RED cases), `TestTodo_WF_RUN_000_{Golden,Integration,Conformance}` in `tools/policy/runtimedecision`; record at `definitions/runtime/durable-runtime-decision.yaml`; `go test -count=1 ./tools/policy/runtimedecision/...` PASS. Decision: BUILD on the in-house Postgres outbox/projection primitives for P1A; Temporal, Restate, DBOS Transact and river recorded as not yet evaluated against a conformance fixture (no invented benchmarks); blocking re-evaluation gate before any P1B scheduler/lease/timer code; branch plan-revision-2026-09-02; on windows/arm64 (Go 1.26.3)"
   },
   {
     "id": "WF-RUN-001",
@@ -45584,8 +45590,8 @@
     "refactor": "each node/capability declares cancellation semantics",
     "refs": "[Workflow cancellation](specs/workflow-runtime.md), [cancellation reference sample](workflows/samples/equipment-shipment-cancellation.md)",
     "retired": false,
-    "done": false,
-    "evidence": "`TestTodo_WF_RUN_010` (clean cancel with per-child reports and intact history; irreversible effects route to compensation; uncompensatable effects and uncancellable children refuse; unknown states repair; identity-free requests refused), `TestTodo_WF_RUN_010_Race` (16 concurrent decisions converge), `TestTodo_WF_RUN_010_Fault` (identity gaps refused; effect-free idle cancels clean), `TestTodo_WF_RUN_010_Mutation` (compensated/completed children cancel clean; digests bind run identity) in `internal/workflow` (cancel.go reusing subworkflow.PropagateCancellation reports; pure decision, no goroutines, no history deletion); RED shown as undefined-symbol compile failure; full `go test -count=1 ./internal/workflow/` PASS, `go vet` clean, gofmt clean, cover 88.5%; branch fix/unblock-main-gateclosure"
+    "done": true,
+    "evidence": "every served cancel path now decides from durable facts. `internal/workflow/cancellation.Decide` locks the instance row, reads node executions against each node's declared cancellation semantics (`workflow.CancellationSemanticsOf`: CANCEL_FREE, COMPENSABLE or IRREVERSIBLE; unknown effect classes refused), recorded effect references and `workflow_child_link` children (judged recursively), calls `workflow.DecideCancellation` and acts on the verdict in one transaction that writes an append-only `workflow_cancellation_decision` row (migration 00304) with phase, effect dispositions, child reports and reasons: CANCELLED cancels cancellable children and pending timers and moves the instance CANCELLING→CANCELLED; COMPENSATION_REQUIRED leaves it CANCELLING with the obligation recorded; CANNOT_CANCEL records the refusal and changes nothing; ambiguous or in-flight effects route REPAIR_REQUIRED. No history is deleted, and a replay at the same version returns the recorded decision. `execute.Driver.Cancel`, the operator `workflowcontrol.Controller.Cancel` and `IntentService.CancelIntent` (and so journey withdraw/cancel/edit) all go through it, and CancelIntent releases the promotion admission window on CANCELLED. `TestTodo_WF_RUN_010_Integration`, `_IntegrationRace` (six connections, one decision), `_IntegrationFault`, `_Semantics`, `_SemanticsFault`, `_DriverCancel`, `_OperatorCancel`, `_OperatorCancelRace`, `_OperatorCancelMapping`, `_CancelIntentGoverned`, `_GovernedDisposition`, `_CancelBoundIntegration`, `TestTodo_WF_RUN_010_Served` and the existing `TestTodo_WF_RUN_010*` pass (cancellation 77.4%, workflow 89.8%, execute 81.0%, workflowcontrol 91.5%) on windows/arm64 (Go 1.26.3). Limits: no compensation runner discharges a COMPENSATION_REQUIRED obligation yet and the served promotion plan declares no compensation, so a served promotion reaches CANCELLED, CANNOT_CANCEL or REPAIR_REQUIRED; CancelIntent commits the workflow decision before the intent lifecycle write (a retry replays the decision) | `TestTodo_WF_RUN_010` (clean cancel with per-child reports and intact history; irreversible effects route to compensation; uncompensatable effects and uncancellable children refuse; unknown states repair; identity-free requests refused), `TestTodo_WF_RUN_010_Race` (16 concurrent decisions converge), `TestTodo_WF_RUN_010_Fault` (identity gaps refused; effect-free idle cancels clean), `TestTodo_WF_RUN_010_Mutation` (compensated/completed children cancel clean; digests bind run identity) in `internal/workflow` (cancel.go reusing subworkflow.PropagateCancellation reports; pure decision, no goroutines, no history deletion); RED shown as undefined-symbol compile failure; full `go test -count=1 ./internal/workflow/` PASS, `go vet` clean, gofmt clean, cover 88.5%; branch fix/unblock-main-gateclosure"
   },
   {
     "id": "WF-RUN-011",

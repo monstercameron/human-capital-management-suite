@@ -32,11 +32,15 @@ type CancellableNode struct {
 
 // EffectRecord declares one produced effect: whether it reverses and,
 // when not, which compensation releases it. An empty Compensation on an
-// irreversible effect means no release exists.
+// irreversible effect means no release exists. Ambiguous marks an effect
+// whose outcome is not durably known (in flight, or a failed attempt that
+// recorded an effect reference): nothing can be decided about it, so the run
+// needs repair.
 type EffectRecord struct {
 	ID           string `json:"id"`
 	Reversible   bool   `json:"reversible"`
 	Compensation string `json:"compensation"`
+	Ambiguous    bool   `json:"ambiguous,omitempty"`
 }
 
 // CancellationRequest asks for one governed cancellation decision. The
@@ -96,6 +100,9 @@ func DecideCancellation(req CancellationRequest) (CancellationOutcome, error) {
 	refused := false
 	for _, effect := range req.Effects {
 		switch {
+		case effect.Ambiguous:
+			repair = true
+			outcome.Effects = append(outcome.Effects, EffectDisposition{ID: effect.ID, Disposition: "AMBIGUOUS"})
 		case effect.Reversible:
 			outcome.Effects = append(outcome.Effects, EffectDisposition{ID: effect.ID, Disposition: "REVERTED"})
 		case strings.TrimSpace(effect.Compensation) != "":

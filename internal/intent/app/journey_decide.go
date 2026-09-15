@@ -332,11 +332,17 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 		return workspace.JourneyDetail{}, journeyError(startErr)
 	}
 
-	done, decideErr := e.completeApproval(ctx, principal, inst, start.Proposal.Revision, d, e.now().UTC(), "", "")
+	done, decideErr := e.completeApproval(ctx, principal, inst, start, d, e.now().UTC(), "", "")
 	if decideErr != nil {
-		return workspace.JourneyDetail{}, journeyDecisionError(decideErr)
+		return workspace.JourneyDetail{}, journeyError(journeyDecisionError(decideErr))
 	}
-	if done.needsResume() {
+	if done.executed {
+		// WF-STEP-018: the approval kernel already advanced the workflow in
+		// the decision's own transaction.
+		if outcomeErr := e.svc.consumeExecutionResult(ctx, inst, def, rec, done.execution); outcomeErr != nil {
+			return workspace.JourneyDetail{}, outcomeErr
+		}
+	} else if done.needsResume() {
 		result, resumeErr := e.svc.executor.Resume(ctx, ExecutionResumeRequest{
 			Start:                   start,
 			InstanceID:              done.instance.InstanceID,
@@ -398,13 +404,24 @@ type decidedApproval struct {
 	// decision (WF-STEP-003: EXPIRED or INVALIDATED). The route is still
 	// resumed; the caller then reports refusal instead of success.
 	refusal error
+	// settled reports that the approval kernel (WF-STEP-018) recorded the
+	// decision and took any advancement in one transaction: nothing is left
+	// to resume. executed reports that execution holds that advancement's
+	// result; a settled vote short of quorum has none.
+	settled  bool
+	executed bool
 }
 
 // needsResume distinguishes a completed decision from a completed workflow
-// step. The WorkItem decision commits before the driver advances the instance;
-// a crash in that interval must not make a replay strand the frontier. Once
-// the instance has moved past this node, the same decision is a pure replay.
+// step for the paths that still commit before the driver advances (a TASK
+// completion and the EXPIRED and CANCELLED closures): a crash in that interval
+// must not make a replay strand the frontier. Once the instance has moved past
+// this node, the same decision is a pure replay. A kernel-settled decision
+// never needs a resume.
 func (d decidedApproval) needsResume() bool {
+	if d.settled {
+		return false
+	}
 	if !d.replayed {
 		return true
 	}
@@ -440,25 +457,31 @@ func (e *journeyEngine) completeProposalDecision(
 		return decidedApproval{}, ErrProposalDecisionStale
 	}
 	decision := workspace.Decision{Approve: approve, Reason: req.Reason}
-	return e.completeApproval(ctx, principal, inst, start.Proposal.Revision, decision, e.now().UTC(), req.RequirementID, req.RenderedProjectionDigest)
+	return e.completeApproval(ctx, principal, inst, start, decision, e.now().UTC(), req.RequirementID, req.RenderedProjectionDigest)
 }
 
-// completeApproval claims, starts and completes the journey's routed approval
-// WorkItem in one tenant-scoped transaction, resolves the completed item
-// through internal/workflow/steps/approval.Resolve inside that same
-// transaction, and commits only when the resolution produced a routable
-// outcome. A binding the resolver refuses rolls the completion back, so the
-// durable record never holds a decided item the driver could not resume from.
+// completeApproval decides the journey's routed WorkItem as the caller.
+//
+// It reads the durable record in one tenant-scoped transaction and applies
+// the journey's own admission (membership, initiator and sibling separation,
+// the routed deadline, the WF-STEP-003 authority recheck). An approval
+// decision is then made through the generic approval kernel
+// ([journeyEngine.voteThroughKernel], WF-STEP-018): the claim, the
+// completion, both decision rows and the workflow advancement commit in one
+// transaction or not at all. A stale authority is routed INVALIDATED through
+// the same kernel. The reapproval TASK and the EXPIRED closure still commit
+// here and are resumed by the caller.
 func (e *journeyEngine) completeApproval(
 	ctx context.Context,
 	principal *trust.Principal,
 	inst intent.Instance,
-	revision intent.ProposalRevision,
+	start runtime.StartRequest,
 	d workspace.Decision,
 	decidedAt time.Time,
 	expectedRequirementID string,
 	expectedProjectionDigest string,
 ) (decidedApproval, error) {
+	revision := start.Proposal.Revision
 	tx, err := e.beginTenant(ctx, principal)
 	if err != nil {
 		return decidedApproval{}, err
@@ -502,11 +525,19 @@ func (e *journeyEngine) completeApproval(
 			if expectedProjectionDigest != "" && existing.Binding.RenderedProjectionDigest != expectedProjectionDigest {
 				return decidedApproval{}, ErrProposalDecisionStale
 			}
-			outcome, outcomeErr := journeyApprovalOutcome(completed, revision, existing, existing.DecidedAt.Time())
-			if outcomeErr != nil {
-				return decidedApproval{}, outcomeErr
+			replayed := decidedApproval{item: completed, instance: instance, decision: existing, replayed: true}
+			if !replayed.needsResume() {
+				return replayed, nil
 			}
-			return decidedApproval{item: completed, instance: instance, decision: existing, outcome: outcome, replayed: true}, nil
+			// The vote committed but its node never advanced (a decision
+			// recorded before the atomic kernel, or a vote still short of
+			// quorum): the kernel resolves it again from the durable record
+			// and writes no second vote.
+			_ = tx.Rollback(ctx)
+			return e.voteThroughKernel(ctx, journeyVote{
+				principal: principal, inst: inst, start: start, instance: instance, item: completed,
+				decision: existing, at: existing.DecidedAt.Time(), replay: true,
+			})
 		}
 		recovered, found, recoverErr := e.recoverClosedApproval(ctx, tx, tenantID, instance, items, revision, principal.Subject())
 		if recoverErr != nil || found {
@@ -558,7 +589,20 @@ func (e *journeyEngine) completeApproval(
 		return decidedApproval{}, err
 	}
 	if stale != nil {
-		return e.closeApproval(ctx, tx, instance, revision, item, actor, decidedAt, approvalClosureInvalidated, stale.Error())
+		// WF-STEP-018: AUTHORITY_REVOKED is a declared invalidator of the
+		// promotion requirements; the kernel closes the item and routes
+		// INVALIDATED in one transaction.
+		_ = tx.Rollback(ctx)
+		return e.invalidateThroughKernel(ctx, start, instance, item, actor, decidedAt, stale.Error())
+	}
+	if item.Kind == workitem.KindApproval {
+		decision := e.approvalDecision(item, inst, revision.ProposalRevisionID, revision.MaterialDigest, d, decidedAt, actor)
+		decision.Approver.Via, decision.Approver.DelegationID = candidate.Via, candidate.DelegationID
+		_ = tx.Rollback(ctx)
+		return e.voteThroughKernel(ctx, journeyVote{
+			principal: principal, inst: inst, start: start, instance: instance, item: item,
+			candidate: candidate, decision: decision, at: decidedAt,
+		})
 	}
 
 	claimed, err := store.ClaimCurrent(ctx, tx, workitem.ClaimCurrentInput{
@@ -576,58 +620,35 @@ func (e *journeyEngine) completeApproval(
 		return decidedApproval{}, proposalWorkItemError(err)
 	}
 
-	var completed workitem.WorkItem
-	var decision intentapproval.ApprovalDecision
-	var outcome frontier.NodeOutcome
-	if started.Kind == workitem.KindTask {
-		completed, err = store.Complete(ctx, tx, workitem.CompleteInput{
-			TenantID: started.TenantID, WorkItemID: started.WorkItemID, ExpectedVersion: started.ItemVersion,
-			CompletedBy: actor, CompletedOutputDigest: "sha256:" + strings.Repeat("0", 64), Now: decidedAt,
-			Meta: workitem.TransitionMeta{ActorPrincipalID: actor, Reason: journeyReasonDecided, At: decidedAt},
-		})
-		if err != nil {
-			return decidedApproval{}, proposalWorkItemError(err)
-		}
-		result := workflow.OutcomeRejected
-		if d.Approve {
-			result = workflow.OutcomeSucceeded
-		}
-		outcome = frontier.NodeOutcome{NodeID: completed.NodeID, Outcome: result, OutputDigest: completed.CompletedOutputDigest}
-	} else {
-		decision = e.approvalDecision(started, inst, revision.ProposalRevisionID, revision.MaterialDigest, d, decidedAt, actor)
-		decision.Approver.Via, decision.Approver.DelegationID = candidate.Via, candidate.DelegationID
-		completed, err = stepsapproval.Complete(e.observed(ctx), tx, store, started, decision, decidedAt,
-			workitem.TransitionMeta{ActorPrincipalID: actor, Reason: journeyReasonDecided, At: decidedAt})
-		if err != nil {
-			return decidedApproval{}, journeyWorkItemError(err)
-		}
-		outcome, err = journeyApprovalOutcome(completed, revision, decision, decidedAt)
-		if err != nil {
-			return decidedApproval{}, err
-		}
+	// The reapproval TASK is not an approval requirement: it completes here
+	// and the caller resumes the driver from it.
+	completed, err := store.Complete(ctx, tx, workitem.CompleteInput{
+		TenantID: started.TenantID, WorkItemID: started.WorkItemID, ExpectedVersion: started.ItemVersion,
+		CompletedBy: actor, CompletedOutputDigest: "sha256:" + strings.Repeat("0", 64), Now: decidedAt,
+		Meta: workitem.TransitionMeta{ActorPrincipalID: actor, Reason: journeyReasonDecided, At: decidedAt},
+	})
+	if err != nil {
+		return decidedApproval{}, proposalWorkItemError(err)
 	}
-	// WF-RUN-027: the approver's own decision is recorded in intent_decision,
-	// bound to the exact revision and material digest it was made against, in
-	// the same transaction that completes the WorkItem. Before this, the
-	// decision existed only as work_item_decision evidence hanging off the
-	// human-work row, which the workflow runtime has no way to read: a
-	// governance question about whether this revision was approved could only
-	// be answered by trusting whoever asked. It is now a fact
-	// [DurableProposalFacts] reads back.
-	if started.Kind == workitem.KindApproval {
-		if err := e.recordApprovalDecision(ctx, tx, principal, inst, revision, decision, decidedAt); err != nil {
-			return decidedApproval{}, err
-		}
+	result := workflow.OutcomeRejected
+	if d.Approve {
+		result = workflow.OutcomeSucceeded
 	}
+	outcome := frontier.NodeOutcome{NodeID: completed.NodeID, Outcome: result, OutputDigest: completed.CompletedOutputDigest}
 	if err := tx.Commit(ctx); err != nil {
 		return decidedApproval{}, fmt.Errorf("app: journey: commit the decision: %w", err)
 	}
-	return decidedApproval{item: completed, instance: instance, decision: decision, outcome: outcome}, nil
+	return decidedApproval{item: completed, instance: instance, outcome: outcome}, nil
 }
 
 // recordApprovalDecision writes the approver's decision into intent_decision
 // on the caller's own transaction, so it commits with the WorkItem completion
 // or not at all.
+//
+// WF-RUN-027: the decision is bound to the exact revision and material digest
+// it was made against, so whether this revision was approved is a fact
+// [DurableProposalFacts] reads back rather than evidence only the human-work
+// row holds.
 //
 // The recorded row names the routed requirement, the deciding caller the
 // assignment admitted (PROMOUX-015), the approver's own reason, and the
@@ -635,7 +656,7 @@ func (e *journeyEngine) completeApproval(
 // records nothing: it has no reader for these rows.
 func (e *journeyEngine) recordApprovalDecision(
 	ctx context.Context,
-	tx dbport.Tx,
+	tx intentcontrol.Executor,
 	principal *trust.Principal,
 	inst intent.Instance,
 	revision intent.ProposalRevision,
@@ -759,17 +780,11 @@ func resolveJourneyApproval(
 	if event.Kind == "" {
 		event.Kind = stepsapproval.EventDecisionsChanged
 	}
-	requirement, err := routedApprovalRequirement(item)
+	continuation, _, err := journeyContinuation(item, revision)
 	if err != nil {
-		return frontier.NodeOutcome{}, fmt.Errorf("app: journey: rebuild the approval requirement: %w", err)
+		return frontier.NodeOutcome{}, err
 	}
-	items := []workitem.WorkItem{item}
-	continuation, err := stepsapproval.NewContinuation(item.WorkflowInstanceID, item.NodeID, revision,
-		humanwork.RequirementSet{Requirements: []humanwork.ApprovalRequirement{requirement}}, items)
-	if err != nil {
-		return frontier.NodeOutcome{}, fmt.Errorf("app: journey: rebuild the approval continuation: %w", err)
-	}
-	resolution, err := stepsapproval.Resolve(continuation, items, decisions, values.NewInstant(now), event)
+	resolution, err := stepsapproval.Resolve(continuation, []workitem.WorkItem{item}, decisions, values.NewInstant(now), event)
 	if err != nil {
 		return frontier.NodeOutcome{}, fmt.Errorf("app: journey: resolve the approval: %w", err)
 	}

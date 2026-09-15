@@ -377,6 +377,35 @@ func (s *IntentService) CancelIntent(ctx context.Context, req *intentsv1.CancelI
 	}
 	outcome, doErr := s.idempotency.Do(ctx, idemReq, func(ctx context.Context) (endpoint.Outcome, error) {
 		working := inst
+		point, repairRef := point, repairRef
+		if s.workflowCancel != nil {
+			// WF-RUN-010: when the kernel would cancel this intent, a bound
+			// workflow instance is cancelled through the governed decision
+			// first and the disposition follows the recorded verdict (see
+			// workflow_cancellation.go). The probe runs on a copy, so a
+			// refused or terminal intent never reaches the workflow.
+			probe := inst
+			probed, probeErr := intent.CancelInstance(&probe, def, intent.CancelRequest{
+				ReasonRef: reasonRef, Point: intent.CancellationPointClean, RecordedAt: s.clock().Time(),
+			})
+			if probeErr == nil && probed == intent.DispositionCancelled {
+				verdict, wfErr := s.workflowCancel.CancelBound(ctx, BoundCancellation{
+					Tenant: principal.Tenant(), IntentID: intentID, CorrelationID: inst.CorrelationID,
+					Reason: reasonRef, RequestedBy: principal.Subject(), RecordedAt: s.clock().Time(),
+				})
+				if wfErr != nil {
+					return endpoint.Outcome{}, wfErr
+				}
+				if verdict.Bound {
+					var decided intent.CancellationDisposition
+					point, repairRef, decided = verdict.governedDisposition(inst.Lifecycle.Execution == lifecycle.ExecutionExecuting)
+					if decided != "" {
+						s.recordCancellationEvidence(ctx, intentID, string(decided), reasonRef)
+						return endpoint.Outcome{Status: string(decided), ResultDigest: intentID}, nil
+					}
+				}
+			}
+		}
 		d, cancelErr := intent.CancelInstance(&working, def, intent.CancelRequest{
 			ReasonRef: reasonRef, Point: point, RepairRef: repairRef, RecordedAt: s.clock().Time(),
 		})
@@ -408,6 +437,13 @@ func (s *IntentService) CancelIntent(ctx context.Context, req *intentsv1.CancelI
 		return nil, idempotencyError(doErr)
 	}
 	disposition := intent.CancellationDisposition(outcome.Status)
+	if disposition == intent.DispositionCancelled && s.releaseAdmission != nil {
+		// A cleanly cancelled intent no longer holds its admission window
+		// (PROMOUX-002). Best-effort like the journey's own release: the
+		// cancellation already landed, and a missed release costs
+		// availability of the window, never correctness; a replay retries it.
+		_ = s.releaseAdmission(ctx, principal.Tenant(), intentID, s.clock().Time())
+	}
 
 	final, _, ownedErr := s.loadInstance(ctx, tenant, intentID)
 	if ownedErr != nil {

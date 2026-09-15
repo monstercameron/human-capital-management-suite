@@ -501,6 +501,10 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 		clock = NewTrustedClock(monitor)
 	}
 
+	workflowCancel, releaseAdmission, err := composeWorkflowCancellation(cfg.ExecutionDB, cfg.TenantUUID)
+	if err != nil {
+		return nil, err
+	}
 	svc, err := NewIntentService(Options{
 		Definitions:  defs,
 		Capabilities: caps,
@@ -532,6 +536,11 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 
 		Idempotency: idempotencyOf(cfg),
 		SafePoints:  cfg.SafePoints,
+		// WF-RUN-010: a cell with the execution database cancels an
+		// executing intent through the governed workflow decision and frees
+		// a cleanly cancelled intent's promotion admission window.
+		WorkflowCancellation: workflowCancel,
+		AdmissionRelease:     releaseAdmission,
 	})
 	if err != nil {
 		return nil, err

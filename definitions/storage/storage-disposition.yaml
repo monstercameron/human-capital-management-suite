@@ -5484,3 +5484,42 @@ tables:
       against current role assignment before every capability invocation.
       Not part of the execution-context digest. SELECT/INSERT only;
       forbid_mutation trigger.
+  - table: workflow_cancellation_decision
+    migration: 00304_workflow_cancellation_decision.sql
+    owner_package: internal/workflow/cancellation
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-010: one governed cancellation decision per observed workflow
+      instance state (unique tenant, instance, instance_version_before):
+      CANCELLED, COMPENSATION_REQUIRED (with compensation_refs obligation),
+      CANNOT_CANCEL (status unchanged, reasons) or REPAIR_REQUIRED, with the
+      phase/effect evidence and the parent decision that propagated a child
+      cancel. Written in the same transaction that acts on the verdict.
+      SELECT/INSERT only; forbid_mutation trigger.
+  - table: workflow_approval_withdrawal
+    migration: 00305_workflow_approval_withdrawal.sql
+    owner_package: internal/workflow/steps/approval
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-STEP-018: one append-only withdrawal per approval decision retired
+      before its multi-approver requirement reached quorum (unique tenant,
+      work item), naming the withdrawn decision digest, the declared
+      invalidator that fired, why, the evidence of the change and the
+      continuation the vote was pending against. Written in the same
+      transaction that cancels the requirement's still-open slots and routes
+      the APPROVAL node INVALIDATED. SELECT/INSERT only; forbid_mutation
+      trigger.

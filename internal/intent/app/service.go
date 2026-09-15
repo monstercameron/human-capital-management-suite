@@ -166,6 +166,14 @@ type Options struct {
 	// [intent.CancellationPointUnknown] (CANCELLATION_PENDING): a missing
 	// port never allows a clean cancel it cannot prove.
 	SafePoints SafePoints
+	// WorkflowCancellation makes CancelIntent on an EXECUTING intent the
+	// governed workflow cancellation (WF-RUN-010): the bound workflow
+	// instance is decided and acted on durably before the intent's own
+	// disposition is derived. Nil keeps the SafePoints answer.
+	WorkflowCancellation WorkflowCancellation
+	// AdmissionRelease frees a cleanly cancelled intent's admission
+	// reservation. Nil releases nothing.
+	AdmissionRelease AdmissionRelease
 }
 
 // IntentService is the application service behind both transports.
@@ -214,6 +222,12 @@ type IntentService struct {
 	// safePoints is CancelIntent's safe-point resolver. Nil means "unknown"
 	// for every EXECUTING intent.
 	safePoints SafePoints
+	// workflowCancel is CancelIntent's governed workflow cancellation; nil
+	// keeps the safePoints answer.
+	workflowCancel WorkflowCancellation
+	// releaseAdmission frees a cleanly cancelled intent's admission
+	// reservation; nil releases nothing.
+	releaseAdmission AdmissionRelease
 }
 
 var (
@@ -259,6 +273,8 @@ func NewIntentService(opts Options) (*IntentService, error) {
 		legalEvidence:      opts.LegalEvidence,
 		idempotency:        opts.Idempotency,
 		safePoints:         opts.SafePoints,
+		workflowCancel:     opts.WorkflowCancellation,
+		releaseAdmission:   opts.AdmissionRelease,
 	}
 	if svc.ids == nil {
 		svc.ids = intent.UUIDv7Source

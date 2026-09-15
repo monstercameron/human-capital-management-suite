@@ -8,30 +8,64 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/wire/digest"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	intentapproval "github.com/monstercameron/human-capital-management-suite/internal/intent/approval"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	stepapproval "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/approval"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
+// WF-STEP-018: the generic approval kernel.
+//
+// [Driver.CompleteApproval] records one vote and, when that vote resolves the
+// APPROVAL node, advances the node in the same transaction:
+//
+//   - every approval work item of the proposal is locked first
+//     ([workitem.Store.LockApprovalSiblings]), so concurrent votes serialize and
+//     a second final vote observes the first one's resolution;
+//   - the vote is refused, with nothing written, for a stale item or node, a
+//     duplicate approver on a distinct-approver requirement, a separation of
+//     duties conflict, or a denied current-authority recheck;
+//   - the WorkItem completion, its work_item_decision row and the caller's own
+//     Record evidence are written, then [stepapproval.Resolve] evaluates the
+//     continuation over the durable decisions of every completed slot;
+//   - a vote short of quorum commits alone and the node keeps WAITING; a vote
+//     that resolves the node cancels the slots it no longer needs and runs
+//     runtime.Advance and the continuation sink before the one commit, so a
+//     failure anywhere after the decision leaves neither the decision nor the
+//     advancement.
+//
+// The advancement runs through the driver's ordinary advanceOnce, so a served
+// driver's lease fence, version quarantine, currency guard and retry policy
+// apply to an approval exactly as they do to any other node.
+
 var (
 	// ErrApprovalAuthorityDenied reports that the mandatory decision-time
 	// authority check did not authorize the exact decision and durable item.
 	ErrApprovalAuthorityDenied = errors.New("workflow execute: current approval authority denied")
-	// ErrApprovalCompletionConflict reports a completed WorkItem whose stored
-	// decision or workflow result differs from the submitted immutable decision.
+	// ErrApprovalCompletionConflict reports a vote that cannot be applied to the
+	// durable record as it stands: a stale WorkItem or instance, a closed slot,
+	// an approval node that is no longer waiting, or a completed WorkItem whose
+	// stored decision differs from the submitted one.
 	ErrApprovalCompletionConflict = errors.New("workflow execute: approval completion conflict")
-	// ErrApprovalResolutionPending protects the bounded one-item prototype from
-	// committing a partial quorum without the matching workflow advancement.
-	ErrApprovalResolutionPending = errors.New("workflow execute: approval resolution still awaits work")
 )
+
+// errApprovalAlreadyAdvanced marks a replayed vote whose node has already been
+// advanced; the vote transaction wrote nothing and is rolled back.
+var errApprovalAlreadyAdvanced = errors.New("workflow execute: approval already advanced")
+
+// errCommitWithoutAdvance asks advanceOnce to commit the inputs' own writes
+// without an advancement: a durable vote that has not reached quorum.
+var errCommitWithoutAdvance = errors.New("workflow execute: commit without advance")
+
+// Transition reason the kernel records on a slot it cancels because the node
+// it belongs to resolved without it.
+const reasonApprovalResolved = "workflow.approval.resolved"
 
 // CurrentApprovalAuthorityRequest is the complete server-held context checked
 // immediately before an approval completion. Implementations may read current
@@ -60,9 +94,8 @@ type CurrentApprovalAuthority interface {
 	Recheck(context.Context, workitem.Executor, CurrentApprovalAuthorityRequest) (CurrentApprovalAuthorityDecision, error)
 }
 
-// ApprovalCompletionRequest carries immutable approval evidence, never a
-// caller-selected NodeOutcome. PriorDecisions are needed only by a multi-item
-// continuation; every one must match a durable completed WorkItem in Resolve.
+// ApprovalCompletionRequest carries one immutable vote, never a caller-selected
+// NodeOutcome. The decisions of other slots are read from durable storage.
 type ApprovalCompletionRequest struct {
 	Start                   runtime.StartRequest
 	InstanceID              uuid.UUID
@@ -71,26 +104,51 @@ type ApprovalCompletionRequest struct {
 	ExpectedWorkItemVersion int64
 	Continuation            stepapproval.Continuation
 	Decision                intentapproval.ApprovalDecision
-	PriorDecisions          []intentapproval.ApprovalDecision
 	RecordedAt              time.Time
 	Meta                    workitem.TransitionMeta
 	Authority               CurrentApprovalAuthority
+	// Prepare, when set, moves the loaded open WorkItem into the state
+	// completion accepts (a surface that decides on the approver's behalf
+	// claims and starts it) inside the vote transaction, after the authority
+	// recheck. It must return the item it wrote.
+	Prepare func(context.Context, workitem.Executor, workitem.WorkItem) (workitem.WorkItem, error)
+	// Record, when set, appends the caller's own evidence of the vote (for
+	// example the intent decision row) inside the vote transaction, after the
+	// WorkItem completion and before the resolution.
+	Record func(context.Context, workitem.Executor, workitem.WorkItem) error
 }
 
 // ApprovalCompletionResult returns the server-derived resolution and the
-// ordinary driver result. Replay means no WorkItem or runtime write was issued.
+// ordinary driver result.
 type ApprovalCompletionResult struct {
 	Result
 	CompletedItem workitem.WorkItem
 	Resolution    stepapproval.Resolution
 	AuthorityRef  string
-	Replay        bool
+	// Pending reports a durable vote that did not resolve the node: its
+	// requirement has not reached quorum and the node is still WAITING.
+	Pending bool
+	// Replay reports that the WorkItem already recorded this exact decision and
+	// no vote was written by this call.
+	Replay bool
+	// Closed are the open slots the resolution cancelled.
+	Closed []workitem.WorkItem
 }
 
-// CompleteApproval performs the WORK-006 prototype boundary. The durable item
-// is loaded, authority is rechecked, the item is completed, Resolve derives the
-// only NodeOutcome runtime sees, and Advance persists its signal in one tenant
-// transaction. READY successors are drained only after that transaction commits.
+// approvalVote is what the vote transaction learned, read by CompleteApproval
+// after advanceOnce returns.
+type approvalVote struct {
+	item         workitem.WorkItem
+	completed    workitem.WorkItem
+	resolution   stepapproval.Resolution
+	authorityRef string
+	replay       bool
+	closed       []workitem.WorkItem
+}
+
+// CompleteApproval records one vote and advances the APPROVAL node when the
+// vote resolves it, in one tenant transaction. READY successors are drained
+// only after that transaction commits.
 func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionRequest) (ret0 ApprovalCompletionResult, retErr error) {
 	ctx, obsOp := observe.Begin(d.observed(ctx), "workflow.execute.complete_approval", req)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
@@ -103,129 +161,212 @@ func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionReq
 		return ApprovalCompletionResult{}, err
 	}
 	defer func() { retErr = releasing(retErr, release) }()
-	tx, err := d.opts.DB.Begin(ctx)
-	if err != nil {
-		return ApprovalCompletionResult{}, fmt.Errorf("workflow execute: begin approval completion: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	if err := tenancy.WithTenant(ctx, tx, req.Start.TenantID); err != nil {
-		return ApprovalCompletionResult{}, err
-	}
 
-	store := workitem.Store{}
-	item, err := store.Load(ctx, tx, req.Start.TenantID, req.WorkItemID)
-	if err != nil {
-		return ApprovalCompletionResult{}, err
+	run := runContext{
+		start: req.Start, selection: selection, instanceID: req.InstanceID,
+		traceID: d.opts.Instrumentation.TraceID(ctx),
 	}
-	if err := validateApprovalBindings(req, selection, item); err != nil {
-		return ApprovalCompletionResult{}, err
-	}
-
-	if item.Status == workitem.StatusCompleted {
-		return d.replayApprovalCompletion(ctx, tx, req, selection, item, at)
-	}
-	if item.ItemVersion != req.ExpectedWorkItemVersion {
-		return ApprovalCompletionResult{}, fmt.Errorf("%w: expected WorkItem version %d, stored %d",
-			ErrApprovalCompletionConflict, req.ExpectedWorkItemVersion, item.ItemVersion)
-	}
-
-	authority, err := req.Authority.Recheck(ctx, tx, CurrentApprovalAuthorityRequest{
-		TenantID: req.Start.TenantID, Item: item, Decision: req.Decision,
-		Proposal: req.Start.Proposal, Continuation: req.Continuation, CheckedAt: at,
-	})
-	if err != nil {
-		return ApprovalCompletionResult{}, fmt.Errorf("workflow execute: recheck approval authority: %w", err)
-	}
-	if !authority.Allowed || authority.DecisionRef == "" {
-		return ApprovalCompletionResult{}, fmt.Errorf("%w: %s", ErrApprovalAuthorityDenied, authority.Reason)
-	}
-	if authority.DecisionRef != req.Decision.AuthorityDecisionRef {
-		return ApprovalCompletionResult{}, fmt.Errorf("%w: current authority evidence does not match the decision binding", ErrApprovalAuthorityDenied)
-	}
-
-	completed, err := stepapproval.Complete(ctx, tx, store, item, req.Decision, at, req.Meta)
-	if err != nil {
-		return ApprovalCompletionResult{}, err
-	}
-	items, err := store.ListForInstance(ctx, tx, req.Start.TenantID, req.InstanceID)
-	if err != nil {
-		return ApprovalCompletionResult{}, err
-	}
-	resolution, err := resolveCompletedApproval(req, items, at)
-	if err != nil {
-		return ApprovalCompletionResult{}, err
-	}
-	if resolution.Outcome == "" {
-		return ApprovalCompletionResult{}, ErrApprovalResolutionPending
-	}
-
-	outcome := resolution.ToNodeOutcome(item.NodeID)
-	refs := runtime.GovernanceRefs{
-		AuthorizationDecisionID: authority.DecisionRef,
-		DecisionID:              req.Decision.DecisionID,
-		HumanTaskID:             item.WorkItemID.String(),
-		ProposalRef:             req.Start.Proposal.Revision.MaterialDigest.Digest,
-	}
-	run := runContext{start: req.Start, selection: selection, instanceID: req.InstanceID}
-	sink := d.newContinuationSink(tx, run)
-	// The approval node may be on its second or later activation (a
-	// re-approval routed back to the same gate); the advancement must name
-	// the attempt that is actually open, never the first one. Only a plan
-	// that declares a cycle can re-enter a node, so only such a plan pays
-	// the lookup.
-	attempt := 1
-	if len(selection.Plan.Limits.DeclaredCycles) > 0 {
-		executions, err := (runtime.Store{}).LoadNodeExecutions(ctx, tx, req.Start.TenantID, req.InstanceID)
-		if err != nil {
-			return ApprovalCompletionResult{}, fmt.Errorf("workflow execute: load node executions for approval completion: %w", err)
-		}
-		attempt = highestAttempt(executions, item.NodeID)
-	}
-	advCtx, advSpan := d.opts.Instrumentation.StartAdvanceSpan(ctx, SpanAttributes{
-		InstanceID: req.InstanceID.String(), NodeID: item.NodeID, Attempt: attempt,
-	})
-	advReq := runtime.AdvanceRequest{
-		TenantID: req.Start.TenantID, InstanceID: req.InstanceID,
-		ExpectedInstanceVersion: req.ExpectedInstanceVersion, Attempt: attempt,
-		Plan: selection.Plan, Outcome: outcome, Refs: refs,
-		RecordedAt: at, Sink: sink, TraceID: d.opts.Instrumentation.TraceID(advCtx),
-		ExecutionContextDigest: runtime.DeriveExecutionContext(req.Start, selection).Digest(),
-	}
-	if causalSpan, ok := advSpan.(CausalSpan); ok {
-		nodeExecutionID := runtime.NodeExecutionID(req.Start.TenantID, req.InstanceID, item.NodeID, attempt).String()
-		advReq.Causal = causalSpan.CausalMetadata(CausalIdentity{
-			CorrelationID: req.Start.CorrelationID, CausationID: nodeExecutionID,
-			LogicalOperationID: req.InstanceID.String(), AttemptID: nodeExecutionID,
-			ExpiresAt: at.Add(24 * time.Hour),
+	var vote approvalVote
+	advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, req.ExpectedInstanceVersion, at, 1,
+		func(ctx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
+			outcome, refs, voteErr := d.voteApproval(ctx, ex, req, selection, at, &vote)
+			return outcome, refs, nil, voteErr
 		})
+	switch {
+	case errors.Is(err, errApprovalAlreadyAdvanced):
+		return d.replayApprovalCompletion(ctx, run, vote.item)
+	case errors.Is(err, errCommitWithoutAdvance):
+		return ApprovalCompletionResult{
+			Result:        Result{Status: StatusParked, InstanceVersion: req.ExpectedInstanceVersion},
+			CompletedItem: vote.completed, Resolution: vote.resolution, AuthorityRef: vote.authorityRef,
+			Pending: true, Replay: vote.replay,
+		}, nil
+	case err != nil:
+		settled := d.settlePause(ctx, run, at, err)
+		if paused, ok := pausedResult(settled, Result{}); ok {
+			return ApprovalCompletionResult{Result: paused}, nil
+		}
+		return ApprovalCompletionResult{}, settled
 	}
-	advanced, err := d.advance(advCtx, tx, advReq)
-	if err != nil {
-		advSpan.End(OutcomeFailure, err)
-		return ApprovalCompletionResult{}, err
-	}
-	if err := tx.Commit(advCtx); err != nil {
-		advSpan.End(OutcomeFailure, err)
-		return ApprovalCompletionResult{}, fmt.Errorf("workflow execute: commit approval completion: %w", err)
-	}
-	advOutcome := OutcomeSuccess
-	if !advanced.Complete && len(advanced.Continuations) > 0 {
-		advOutcome = OutcomeParked
-	}
-	advSpan.End(advOutcome, nil)
 
+	// OBS-024: the same APPROVAL_COMPLETED evidence Resume records.
+	evidenceID, err := d.opts.Evidence.RecordExecutionEvidence(ctx, EvidenceKindApprovalCompleted,
+		req.InstanceID.String(), advanced.NodeID, vote.completed.WorkItemID.String(), advanced.OutputDigest, at)
+	if err != nil {
+		return ApprovalCompletionResult{}, fmt.Errorf("workflow execute: record %s evidence: %w", EvidenceKindApprovalCompleted, err)
+	}
+	if evidenceID != "" {
+		evidenceIDs = append(evidenceIDs, evidenceID)
+	}
 	base := Result{
-		Advances: []runtime.AdvanceReceipt{advanced}, WorkItems: append([]workitem.WorkItem(nil), sink.created...),
+		Advances: []runtime.AdvanceReceipt{advanced}, WorkItems: created, Timers: timers,
 		InstanceVersion: advanced.NewInstanceVersion, Frontier: append([]string(nil), advanced.Frontier...),
+		EvidenceIDs: evidenceIDs,
 	}
 	result, err := d.finishApprovalDrain(ctx, run, base, advanced)
 	if err != nil {
 		return ApprovalCompletionResult{}, err
 	}
 	return ApprovalCompletionResult{
-		Result: result, CompletedItem: completed, Resolution: resolution,
-		AuthorityRef: authority.DecisionRef,
+		Result: result, CompletedItem: vote.completed, Resolution: vote.resolution,
+		AuthorityRef: vote.authorityRef, Replay: vote.replay, Closed: vote.closed,
 	}, nil
+}
+
+// voteApproval is the body of the vote transaction. It returns the node
+// outcome to advance, errCommitWithoutAdvance for a durable vote short of
+// quorum, or errApprovalAlreadyAdvanced for a replay of a settled vote.
+func (d *Driver) voteApproval(
+	ctx context.Context, ex runtime.Executor, req ApprovalCompletionRequest, selection runtime.WorkflowSelection,
+	at time.Time, vote *approvalVote,
+) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
+	tenantID := req.Start.TenantID
+	store := workitem.Store{}
+	if _, err := store.LockApprovalSiblings(ctx, ex, tenantID, req.Start.Proposal.Revision.MaterialDigest.Digest); err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	item, err := store.Load(ctx, ex, tenantID, req.WorkItemID)
+	if err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	vote.item = item
+	if err := validateApprovalBindings(req, selection, item); err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	node, err := openApprovalNode(ctx, ex, tenantID, req.InstanceID, item.NodeID)
+	if err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+
+	authorityRef := req.Decision.AuthorityDecisionRef
+	if item.Status == workitem.StatusCompleted {
+		if item.CompletedOutputDigest != req.Decision.Digest() {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("%w: WorkItem stores another decision", ErrApprovalCompletionConflict)
+		}
+		vote.replay, vote.completed = true, item
+		if node.Status != runtime.NodeWaiting {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, errApprovalAlreadyAdvanced
+		}
+		// The vote committed but its node did not advance (it was short of
+		// quorum, or it predates the atomic kernel): resolve again from the
+		// durable record without writing a second vote.
+	} else {
+		if node.Status != runtime.NodeWaiting {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("%w: approval node %s is %s, not WAITING", ErrApprovalCompletionConflict, item.NodeID, node.Status)
+		}
+		if item.Status.Terminal() {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("%w: WorkItem %s is %s", ErrApprovalCompletionConflict, item.WorkItemID, item.Status)
+		}
+		if item.ItemVersion != req.ExpectedWorkItemVersion {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("%w: expected WorkItem version %d, stored %d",
+				ErrApprovalCompletionConflict, req.ExpectedWorkItemVersion, item.ItemVersion)
+		}
+		items, err := store.ListForInstance(ctx, ex, tenantID, req.InstanceID)
+		if err != nil {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+		}
+		if prior, dup := stepapproval.DuplicateApprover(req.Continuation, items, item, req.Decision.Approver.PrincipalID); dup {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("%w: %q already decided WorkItem %s of requirement %q",
+				stepapproval.ErrDuplicateApprover, req.Decision.Approver.PrincipalID, prior.WorkItemID, item.ApprovalRequirementRef)
+		}
+		authority, err := req.Authority.Recheck(ctx, ex, CurrentApprovalAuthorityRequest{
+			TenantID: tenantID, Item: item, Decision: req.Decision,
+			Proposal: req.Start.Proposal, Continuation: req.Continuation, CheckedAt: at,
+		})
+		if err != nil {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("workflow execute: recheck approval authority: %w", err)
+		}
+		if !authority.Allowed || authority.DecisionRef == "" {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("%w: %s", ErrApprovalAuthorityDenied, authority.Reason)
+		}
+		if authority.DecisionRef != req.Decision.AuthorityDecisionRef {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("%w: current authority evidence does not match the decision binding", ErrApprovalAuthorityDenied)
+		}
+		authorityRef = authority.DecisionRef
+		ready := item
+		if req.Prepare != nil {
+			if ready, err = req.Prepare(ctx, ex, item); err != nil {
+				return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+			}
+		}
+		completed, err := stepapproval.Complete(ctx, ex, store, ready, req.Decision, at, req.Meta)
+		if err != nil {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+		}
+		if req.Record != nil {
+			if err := req.Record(ctx, ex, completed); err != nil {
+				return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+			}
+		}
+		vote.completed = completed
+	}
+	vote.authorityRef = authorityRef
+
+	items, err := store.ListForInstance(ctx, ex, tenantID, req.InstanceID)
+	if err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	decisions, err := stepapproval.LoadDecisions(ctx, ex, req.Continuation, items)
+	if err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	resolution, err := stepapproval.Resolve(req.Continuation, items, decisions, values.NewInstant(at),
+		stepapproval.Event{Kind: stepapproval.EventDecisionsChanged})
+	if err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	vote.resolution = resolution
+	if resolution.Outcome == "" {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, errCommitWithoutAdvance
+	}
+	closed, err := cancelOpenSlots(ctx, ex, req.Continuation, items, workitem.TransitionMeta{
+		ActorPrincipalID: req.Meta.ActorPrincipalID, Reason: reasonApprovalResolved,
+		Detail: "approval node " + item.NodeID + " resolved " + string(resolution.Outcome), EvidenceRef: resolution.Digest, At: at,
+	})
+	if err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	vote.closed = closed
+	return resolution.ToNodeOutcome(item.NodeID), runtime.GovernanceRefs{
+		AuthorizationDecisionID: authorityRef,
+		DecisionID:              req.Decision.DecisionID,
+		HumanTaskID:             item.WorkItemID.String(),
+		ProposalRef:             req.Start.Proposal.Revision.MaterialDigest.Digest,
+	}, nil
+}
+
+// openApprovalNode loads the activation of nodeID the approval addresses: its
+// highest recorded attempt.
+func openApprovalNode(ctx context.Context, ex runtime.Executor, tenantID, instanceID uuid.UUID, nodeID string) (runtime.NodeExecution, error) {
+	executions, err := (runtime.Store{}).LoadNodeExecutions(ctx, ex, tenantID, instanceID)
+	if err != nil {
+		return runtime.NodeExecution{}, fmt.Errorf("workflow execute: load node executions for approval: %w", err)
+	}
+	attempt := highestAttempt(executions, nodeID)
+	for _, row := range executions {
+		if row.NodeID == nodeID && row.Attempt == attempt {
+			return row, nil
+		}
+	}
+	return runtime.NodeExecution{}, fmt.Errorf("%w: approval node %s has no recorded activation", ErrApprovalCompletionConflict, nodeID)
+}
+
+// cancelOpenSlots closes every continuation slot still open once its node has
+// resolved, so no approver is left holding work the workflow no longer reads.
+func cancelOpenSlots(ctx context.Context, ex runtime.Executor, c stepapproval.Continuation, items []workitem.WorkItem, meta workitem.TransitionMeta) ([]workitem.WorkItem, error) {
+	open, err := stepapproval.OpenSlots(c, items)
+	if err != nil {
+		return nil, err
+	}
+	var closed []workitem.WorkItem
+	for _, slot := range open {
+		cancelled, err := (workitem.Store{}).Cancel(ctx, ex, slot.TenantID, slot.WorkItemID, slot.ItemVersion, meta)
+		if err != nil {
+			return nil, err
+		}
+		closed = append(closed, cancelled)
+	}
+	return closed, nil
 }
 
 func validateApprovalCompletionRequest(ctx context.Context, req ApprovalCompletionRequest) (runtime.WorkflowSelection, time.Time, error) {
@@ -264,13 +405,10 @@ func validateApprovalBindings(req ApprovalCompletionRequest, selection runtime.W
 	if item.Kind != workitem.KindApproval || item.NodeID != req.Continuation.NodeID || req.Continuation.WorkflowInstanceID != req.InstanceID {
 		return fmt.Errorf("%w: WorkItem and continuation do not name the same approval node", ErrApprovalCompletionConflict)
 	}
-	node, ok := selection.Plan.Node(item.NodeID)
-	if !ok || node.Type != workflow.StepApproval {
-		return fmt.Errorf("%w: node %s is not APPROVAL in the pinned plan", ErrApprovalCompletionConflict, item.NodeID)
+	if err := validateApprovalContinuation(req.Start, req.InstanceID, req.Continuation, selection); err != nil {
+		return err
 	}
-	proposal := req.Start.Proposal.Revision
-	if proposal.ProposalRevisionID == "" || proposal.ProposalRevisionID != req.Continuation.ProposalRevisionID ||
-		!sameDigestReference(proposal.MaterialDigest, req.Continuation.ProposalDigest) || item.ProposalRef != proposal.MaterialDigest.Digest {
+	if item.ProposalRef != req.Start.Proposal.Revision.MaterialDigest.Digest {
 		return fmt.Errorf("%w: stale or mismatched proposal revision", ErrApprovalCompletionConflict)
 	}
 	if item.CorrelationID != req.Start.CorrelationID || !sameStrings(item.SubjectRefs, req.Start.BusinessSubjectRefs) {
@@ -288,83 +426,76 @@ func validateApprovalBindings(req ApprovalCompletionRequest, selection runtime.W
 	return nil
 }
 
-func resolveCompletedApproval(req ApprovalCompletionRequest, items []workitem.WorkItem, at time.Time) (stepapproval.Resolution, error) {
-	decisions := append([]intentapproval.ApprovalDecision(nil), req.PriorDecisions...)
-	decisions = append(decisions, req.Decision)
-	return stepapproval.Resolve(req.Continuation, items, decisions, values.NewInstant(at), stepapproval.Event{Kind: stepapproval.EventDecisionsChanged})
+// validateApprovalContinuation checks that the continuation names an APPROVAL
+// node of the pinned plan on this instance, bound to the workflow's own
+// proposal revision.
+func validateApprovalContinuation(start runtime.StartRequest, instanceID uuid.UUID, c stepapproval.Continuation, selection runtime.WorkflowSelection) error {
+	if c.WorkflowInstanceID != instanceID {
+		return fmt.Errorf("%w: continuation belongs to another instance", ErrApprovalCompletionConflict)
+	}
+	node, ok := selection.Plan.Node(c.NodeID)
+	if !ok || node.Type != workflow.StepApproval {
+		return fmt.Errorf("%w: node %s is not APPROVAL in the pinned plan", ErrApprovalCompletionConflict, c.NodeID)
+	}
+	proposal := start.Proposal.Revision
+	if proposal.ProposalRevisionID == "" || proposal.ProposalRevisionID != c.ProposalRevisionID ||
+		!sameDigestReference(proposal.MaterialDigest, c.ProposalDigest) {
+		return fmt.Errorf("%w: stale or mismatched proposal revision", ErrApprovalCompletionConflict)
+	}
+	return nil
 }
 
-func (d *Driver) replayApprovalCompletion(
-	ctx context.Context, tx dbport.Tx, req ApprovalCompletionRequest, selection runtime.WorkflowSelection,
-	item workitem.WorkItem, at time.Time,
-) (ApprovalCompletionResult, error) {
-	if item.CompletedOutputDigest != req.Decision.Digest() {
-		return ApprovalCompletionResult{}, fmt.Errorf("%w: WorkItem stores another decision", ErrApprovalCompletionConflict)
-	}
-	items, err := workitem.Store{}.ListForInstance(ctx, tx, req.Start.TenantID, req.InstanceID)
-	if err != nil {
-		return ApprovalCompletionResult{}, err
-	}
-	resolution, err := resolveCompletedApproval(req, items, at)
-	if err != nil {
-		return ApprovalCompletionResult{}, err
-	}
-	if resolution.Outcome == "" {
-		return ApprovalCompletionResult{}, ErrApprovalResolutionPending
-	}
-	node, err := runtime.Store{}.LoadNodeExecution(ctx, tx, req.Start.TenantID, req.InstanceID, item.NodeID, 1)
-	if err != nil || node.Status != runtime.NodeSucceeded || node.OutputArtifactRef != resolution.Digest {
-		return ApprovalCompletionResult{}, fmt.Errorf("%w: completed WorkItem has no matching workflow advancement", ErrApprovalCompletionConflict)
-	}
-	inst, err := runtime.Store{}.LoadInstance(ctx, tx, req.Start.TenantID, req.InstanceID)
-	if err != nil {
-		return ApprovalCompletionResult{}, err
-	}
-	ready := make([]string, 0, len(inst.CurrentNodeIDs))
-	for _, id := range inst.CurrentNodeIDs {
-		n, loadErr := runtime.Store{}.LoadNodeExecution(ctx, tx, req.Start.TenantID, req.InstanceID, id, 1)
-		if loadErr != nil {
-			return ApprovalCompletionResult{}, loadErr
+// replayApprovalCompletion answers a vote the durable record already holds on
+// a node that has already been advanced. It writes nothing; READY successors a
+// crash left undrained are drained.
+func (d *Driver) replayApprovalCompletion(ctx context.Context, run runContext, item workitem.WorkItem) (ApprovalCompletionResult, error) {
+	tenantID := run.start.TenantID
+	var node runtime.NodeExecution
+	var inst runtime.Instance
+	ready := []string{}
+	if err := d.inTenantTx(ctx, tenantID, func(tx runtime.Executor) error {
+		var err error
+		if node, err = openApprovalNode(ctx, tx, tenantID, run.instanceID, item.NodeID); err != nil {
+			return err
 		}
-		if n.Status == runtime.NodeReady {
-			ready = append(ready, id)
+		if node.Status != runtime.NodeSucceeded {
+			return fmt.Errorf("%w: completed WorkItem has no matching workflow advancement", ErrApprovalCompletionConflict)
 		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return ApprovalCompletionResult{}, fmt.Errorf("workflow execute: commit approval replay read: %w", err)
+		if inst, err = (runtime.Store{}).LoadInstance(ctx, tx, tenantID, run.instanceID); err != nil {
+			return err
+		}
+		executions, err := (runtime.Store{}).LoadNodeExecutions(ctx, tx, tenantID, run.instanceID)
+		if err != nil {
+			return err
+		}
+		for _, id := range inst.CurrentNodeIDs {
+			for _, row := range executions {
+				if row.NodeID == id && row.Attempt == highestAttempt(executions, id) && row.Status == runtime.NodeReady {
+					ready = append(ready, id)
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		return ApprovalCompletionResult{}, err
 	}
 	base := Result{InstanceVersion: inst.InstanceVersion, Frontier: append([]string(nil), inst.CurrentNodeIDs...)}
-	if inst.RuntimeStatus.Terminal() {
+	switch {
+	case inst.RuntimeStatus.Terminal():
 		base.Status = StatusComplete
-	} else if len(ready) > 0 {
-		base, err = d.drainReady(ctx, runContext{start: req.Start, selection: selection, instanceID: req.InstanceID}, base, ready)
-		if err != nil {
+	case len(ready) > 0:
+		var err error
+		if base, err = d.drainReady(ctx, run, base, ready); err != nil {
 			return ApprovalCompletionResult{}, err
 		}
-	} else {
+	default:
 		base.Status = StatusParked
 	}
 	return ApprovalCompletionResult{
-		Result: base, CompletedItem: item, Resolution: resolution,
+		Result: base, CompletedItem: item,
+		Resolution:   stepapproval.Resolution{Digest: node.OutputArtifactRef},
 		AuthorityRef: node.Refs.AuthorizationDecisionID, Replay: true,
 	}, nil
-}
-
-func (d *Driver) newContinuationSink(tx dbport.Tx, run runContext) *continuationSink {
-	return &continuationSink{
-		tx:      tx,
-		durable: runtime.ContinuationStore{}, factory: d.opts.WorkItems, terminal: d.opts.Terminal,
-		repair: d.opts.Repair,
-		guard:  d.opts.Guard, policy: d.opts.Retention, workflowID: run.selection.WorkflowID,
-		planDigest: run.selection.Plan.Digest(), proposal: run.start.Proposal, cellID: run.start.CellID,
-		correlationID: run.start.CorrelationID, startKey: run.start.StartIdempotencyKey,
-		subjectRefs: append([]string(nil), run.start.BusinessSubjectRefs...),
-		// OBS-023/OBS-024: same ports the ordinary advanceOnce path wires;
-		// a nil Instrumentation/Evidence here (a Driver not built through
-		// New) is tolerated by continuationSink.Complete's own defensive
-		// nil check.
-		instrumentation: d.opts.Instrumentation, evidence: d.opts.Evidence,
-	}
 }
 
 func (d *Driver) finishApprovalDrain(ctx context.Context, run runContext, result Result, advanced runtime.AdvanceReceipt) (Result, error) {
@@ -372,7 +503,7 @@ func (d *Driver) finishApprovalDrain(ctx context.Context, run runContext, result
 		result.Status = StatusComplete
 		return result, nil
 	}
-	ready, parked := readyAndParked(advanced.Continuations)
+	ready, parked := readyAndParked(advanced.Continuations, result.Timers...)
 	if parked {
 		result.Status = StatusParked
 		return result, nil

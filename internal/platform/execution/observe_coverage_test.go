@@ -33,6 +33,11 @@ var executionUninstrumentedByDesign = map[string]string{
 	"signal_resume.go executeDriverAdapter.ResumeSignal":          "delegates to the instrumented driver",
 	"scheduler/signal_dispatch.go SignalResumerFunc.ResumeSignal": "function adapter",
 
+	// WF-STEP-018: the approval kernel adapter and its authority port adapter.
+	"approval_kernel.go executeDriverAdapter.CompleteApproval":   "delegates to the instrumented driver",
+	"approval_kernel.go executeDriverAdapter.InvalidateApproval": "delegates to the instrumented driver",
+	"approval_kernel.go recheckAuthority.Recheck":                "function adapter inside the instrumented approval completion",
+
 	// WF-RUN-003: the recovery role redelivers through the instrumented driver.
 	"ready_redelivery.go executeDriverAdapter.RedeliverReady": "delegates to the instrumented driver",
 

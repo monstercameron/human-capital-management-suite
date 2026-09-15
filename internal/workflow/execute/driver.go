@@ -690,6 +690,17 @@ func (d *Driver) advanceOnce(
 	}
 
 	outcome, refs, causal, err := inputs(advCtx, tx)
+	if errors.Is(err, errCommitWithoutAdvance) {
+		// WF-STEP-018: the inputs' own writes (a vote short of quorum) are
+		// durable progress with nothing to advance yet.
+		if cerr := tx.Commit(advCtx); cerr != nil {
+			err = fmt.Errorf("workflow execute: commit without advance: %w", cerr)
+			advSpan.End(OutcomeFailure, err)
+			return runtime.AdvanceReceipt{}, nil, nil, nil, err
+		}
+		advSpan.End(OutcomeParked, nil)
+		return runtime.AdvanceReceipt{}, nil, nil, nil, err
+	}
 	if err != nil {
 		advSpan.End(OutcomeFailure, err)
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err

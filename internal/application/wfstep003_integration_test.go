@@ -20,6 +20,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/cancellation"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
@@ -235,9 +236,11 @@ func TestTodo_WF_STEP_003_ServedExpiry(t *testing.T) {
 }
 
 // TestTodo_WF_STEP_003_ServedCancellation proves an approval left open on a
-// proposal that has been cancelled (here: edited away by its proposer) takes
-// the CANCELLED route when its approver acts on it, instead of approving or
-// parking the run forever.
+// proposal that has been cancelled (here: edited away by its proposer) can
+// never approve it. Since WF-RUN-010 the proposer's cancel is a governed
+// workflow cancellation: it cancels the bound instance and closes its open
+// approval in the same transaction, so the approver's later decision is a
+// stage refusal that records nothing.
 func TestTodo_WF_STEP_003_ServedCancellation(t *testing.T) {
 	h := wfstep003Compose(t)
 	id := h.proposeAndExecute()
@@ -261,15 +264,19 @@ func TestTodo_WF_STEP_003_ServedCancellation(t *testing.T) {
 	if strings.Contains(err.Error(), "\n") {
 		t.Fatalf("Decide(finance) on the cancelled proposal reported a routing failure beside its refusal: %v", err)
 	}
-	status, reason, actor, _ := h.closure(promotionexec.NodeApproveFinance)
-	if status != string(workitem.StatusCancelled) || reason != "journey.approval.cancelled" || actor != promoux015Finance {
-		t.Fatalf("finance approval closure = %s/%s by %s, want CANCELLED/journey.approval.cancelled by %s", status, reason, actor, promoux015Finance)
+	status, reason, _, _ := h.closure(promotionexec.NodeApproveFinance)
+	if status != string(workitem.StatusCancelled) || reason != cancellation.WorkItemCancelledReason {
+		t.Fatalf("finance approval closure = %s/%s, want CANCELLED/%s", status, reason, cancellation.WorkItemCancelledReason)
 	}
 	if wid, iid := h.decisionRows(promotionexec.NodeApproveFinance, promotionexec.ApprovalFinance); wid != 0 || iid != 0 {
 		t.Fatalf("a cancelled approval recorded decisions: work_item_decision=%d intent_decision=%d", wid, iid)
 	}
-	if runtimeStatus, cancelled := h.terminal(promotionexec.NodeEndCancelled); !cancelled || runtimeStatus != string(runtime.InstanceCancelled) {
-		t.Fatalf("the workflow did not take the CANCELLED route: end_cancelled reached=%v, runtime status %s", cancelled, runtimeStatus)
+	if runtimeStatus, _ := h.terminal(promotionexec.NodeEndCancelled); runtimeStatus != string(runtime.InstanceCancelled) {
+		t.Fatalf("the governed cancellation left the workflow %s, want CANCELLED", runtimeStatus)
+	}
+	var decisions int
+	if err := h.pool.QueryRow(context.Background(), `SELECT count(*) FROM workflow_cancellation_decision WHERE decision = 'CANCELLED'`).Scan(&decisions); err != nil || decisions != 1 {
+		t.Fatalf("governed cancellation decisions = %d (%v), want one CANCELLED decision", decisions, err)
 	}
 }
 

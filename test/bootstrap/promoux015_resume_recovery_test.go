@@ -11,25 +11,44 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 )
 
-type failFirstApprovalResume struct {
+// failFirstApprovalVote wraps the composed executor's approval kernel and
+// fails the first vote after its decision rows are written and before the
+// workflow advances, inside the kernel's own transaction.
+type failFirstApprovalVote struct {
 	app.ProposalExecutor
+	kernel app.ApprovalKernel
 	failed atomic.Bool
 }
 
-func (f *failFirstApprovalResume) Resume(ctx context.Context, req app.ExecutionResumeRequest) (app.ExecutionResult, error) {
-	if f.failed.CompareAndSwap(false, true) {
-		return app.ExecutionResult{}, errors.New("injected failure after approval commit")
+func (f *failFirstApprovalVote) CompleteApproval(ctx context.Context, req app.ApprovalVoteRequest) (app.ApprovalVoteResult, error) {
+	if record := req.Record; record != nil && !f.failed.Load() {
+		req.Record = func(ctx context.Context, ex workitem.Executor, completed workitem.WorkItem) error {
+			if err := record(ctx, ex, completed); err != nil {
+				return err
+			}
+			f.failed.Store(true)
+			return errors.New("injected failure after the approval decision was written")
+		}
 	}
-	return f.ProposalExecutor.Resume(ctx, req)
+	return f.kernel.CompleteApproval(ctx, req)
 }
 
-// The WorkItem decision and driver advancement are separate durable steps.
-// A failed first resume must be recoverable through the same authorized
-// decision, without a second decision or a second terminal fact.
+func (f *failFirstApprovalVote) InvalidateApproval(ctx context.Context, req app.ApprovalInvalidationRequest) (app.ExecutionResult, error) {
+	return f.kernel.InvalidateApproval(ctx, req)
+}
+
+// WF-STEP-018 (formerly PROMOUX-015's two-step recovery): the WorkItem
+// decision and the driver advancement are one transaction. A failure between
+// them leaves no decision behind, and the same authorized decision then
+// completes the promotion with exactly one terminal fact.
 func TestTodo_PROMOUX_015_Recovery_ApprovalResumeAfterCommittedDecision(t *testing.T) {
-	var failing *failFirstApprovalResume
+	var failing *failFirstApprovalVote
 	h := newJourneyHarness(t, func(cfg *app.CellConfig) {
-		failing = &failFirstApprovalResume{ProposalExecutor: cfg.Executor}
+		kernel, ok := cfg.Executor.(app.ApprovalKernel)
+		if !ok {
+			t.Fatal("the composed executor provides no approval kernel")
+		}
+		failing = &failFirstApprovalVote{ProposalExecutor: cfg.Executor, kernel: kernel}
 		cfg.Executor = failing
 	})
 	proposer := h.operatorCtx(t)
@@ -42,21 +61,21 @@ func TestTodo_PROMOUX_015_Recovery_ApprovalResumeAfterCommittedDecision(t *testi
 	}
 	decision := workspace.Decision{Approve: true, Reason: "approved for recovery test"}
 	if _, err := h.engine.Decide(h.approverCtx(t), proposal.IntentID, decision); err == nil {
-		t.Fatal("first Decide succeeded despite the injected resume failure")
+		t.Fatal("first Decide succeeded despite the injected failure")
 	}
 	if failing == nil || !failing.failed.Load() {
-		t.Fatal("the first resume failure was not exercised")
+		t.Fatal("the injected failure was not exercised")
 	}
 	parked, err := h.engine.Inspect(proposer, proposal.IntentID)
 	if err != nil {
-		t.Fatalf("Inspect after failed resume: %v", err)
+		t.Fatalf("Inspect after the failed decision: %v", err)
 	}
-	if parked.Summary.Stage != workspace.JourneyStageAwaitingApproval || len(parked.WorkItems) != 1 || parked.WorkItems[0].Status != workitem.StatusCompleted {
-		t.Fatalf("approval did not commit separately from resume: stage=%s items=%+v", parked.Summary.Stage, parked.WorkItems)
+	if parked.Summary.Stage != workspace.JourneyStageAwaitingApproval || len(parked.WorkItems) != 1 || parked.WorkItems[0].Status == workitem.StatusCompleted {
+		t.Fatalf("the failed decision committed apart from the advancement: stage=%s items=%+v", parked.Summary.Stage, parked.WorkItems)
 	}
 	completed, err := h.engine.Decide(h.approverCtx(t), proposal.IntentID, decision)
 	if err != nil {
-		t.Fatalf("authorized replay failed to resume committed approval: %v", err)
+		t.Fatalf("authorized retry failed: %v", err)
 	}
 	if completed.Summary.Stage != workspace.JourneyStageCompleted || completed.Instance == nil || completed.Ledger == nil {
 		t.Fatalf("recovered promotion did not complete: %+v", completed.Summary)
