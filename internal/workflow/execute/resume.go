@@ -82,7 +82,11 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 			return outcome, refs, nil, driftErr
 		})
 	if err != nil {
-		return Result{}, err
+		settled := d.settlePause(ctx, run, at, err)
+		if paused, ok := pausedResult(settled, Result{}); ok {
+			return paused, nil
+		}
+		return Result{}, settled
 	}
 
 	// OBS-024: a Resume that just advanced from a completed work item is

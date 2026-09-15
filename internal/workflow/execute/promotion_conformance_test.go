@@ -139,6 +139,7 @@ func newPromotionFixtureBase(t *testing.T, key string) promotionFixture {
 	intentID, revisionID := "intent:promotion:"+key, "proposal:promotion:"+key+":1"
 	proposal := intent.ProposalRevision{
 		IntentID: intentID, ProposalRevisionID: revisionID, Revision: 1,
+		CreatedBy:      intent.PrincipalReference{PrincipalID: "principal:test-initiator", Kind: intent.InitiatorHuman},
 		MaterialDigest: digestReference(revisionID, intentID),
 		Subjects:       []intent.SubjectReference{{Kind: "EMPLOYMENT", SubjectID: "employment:jane", AuthorityDomain: "PEOPLE"}},
 	}

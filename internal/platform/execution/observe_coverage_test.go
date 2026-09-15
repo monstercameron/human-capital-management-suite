@@ -25,10 +25,14 @@ var executionUninstrumentedByDesign = map[string]string{
 	"execution.go executeDriverAdapter.Execute":        "delegates to the instrumented driver",
 	"execution.go executeDriverAdapter.Resume":         "delegates to the instrumented driver",
 	"timer_resume.go executeDriverAdapter.ResumeTimer": "delegates to the instrumented driver",
-	"execution.go promotionStepRunner.Run":             "delegates to the instrumented promotionsteps.Runner.Run",
 	"retry_admission.go RetryAdmission.OnRetry":        "delegates to the instrumented ConsumeRetry",
 	"promotionterminal/writer.go ResolverFunc.Resolve": "function adapter",
 	"scheduler/dispatch.go DispatcherFunc.Dispatch":    "function adapter",
+
+	// A pure step decision with no I/O, run inside the driver's own node span
+	// (execute.Instrumentation.StartNodeSpan). It does not call promotionsteps:
+	// the served EXECUTE path is still stubbed (WF-RUN-034).
+	"execution.go promotionStepRunner.Run": "pure in-memory step decision inside the driver node span",
 
 	// Reads inside an instrumented operation.
 	"approver_routing.go JourneyWorkerManagers.CurrentManagerOf": "manager lookup inside the instrumented work-item routing",

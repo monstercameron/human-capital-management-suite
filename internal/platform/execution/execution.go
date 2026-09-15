@@ -167,7 +167,22 @@ type PromotionExecutionConfig struct {
 	// continuation exactly as before. It is supplied, never read from the
 	// environment: a dataset revision is a deployment decision.
 	TimerDataset values.DatasetVersions
+	// Versions is the durable compiled-version registry the shipped
+	// workflows are published into and activated through (WF-COMP-006,
+	// WF-RUN-035). A composition root serving traffic supplies
+	// internal/data/workflowversionstore; nil keeps a private in-memory
+	// registry that self-activates, for unit compositions only.
+	Versions VersionRegistry
+	// VersionApprover is the release approver a DRAFT shipped version is
+	// durably approved under before activation. It must differ from the
+	// publisher. Empty means [defaultVersionApprover].
+	VersionApprover string
 }
+
+const (
+	versionPublisher       = "cmd/hcmnext:execution-authority"
+	defaultVersionApprover = "cmd/hcmnext:workflow-release-approver"
+)
 
 // PromotionExecution is the composed EXECUTE-mode wiring for
 // internal/workflow/prototype's bounded, executable promote_worker approval
@@ -289,34 +304,27 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	if err != nil {
 		return nil, fmt.Errorf("platform execution: compile the promotion execute workflow: %w", err)
 	}
-	versions := version.NewRegistry()
 	at := clock()
+	versions, activate := composeVersions(cfg, at)
 	published, err := version.Publish(versions, prototype.ApprovalDefinition(), prototypePlan,
 		workflow.Options{Phase: workflow.PhaseP1B}, version.PublishMeta{
-			SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: "cmd/hcmnext:execution-authority",
+			SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: versionPublisher,
 		})
 	if err != nil {
 		return nil, fmt.Errorf("platform execution: publish the promotion approval workflow: %w", err)
 	}
-	if _, err := version.Activate(versions, published.CompiledPlanDigest, version.ActivationEvidence{
-		Authorized: true, ApprovedBy: "cmd/hcmnext:execution-authority",
-		Authority: "authority:execution-authority-flag", ApprovedAt: at,
-		ReviewedPlanDigest: published.CompiledPlanDigest, TestsPassed: true,
-	}); err != nil {
+	if err := activate(published); err != nil {
 		return nil, fmt.Errorf("platform execution: activate the promotion approval workflow: %w", err)
 	}
 	publishDefinition := promotionPublishDefinition()
 	executePublished, err := version.Publish(versions, publishDefinition, executePlan,
 		promotionPublishOptions(), version.PublishMeta{
-			SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: "cmd/hcmnext:execution-authority",
+			SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: versionPublisher,
 		})
 	if err != nil {
 		return nil, fmt.Errorf("platform execution: publish the promotion execute workflow: %w", err)
 	}
-	if _, err := version.Activate(versions, executePublished.CompiledPlanDigest, version.ActivationEvidence{
-		Authorized: true, ApprovedBy: "cmd/hcmnext:execution-authority", Authority: "authority:execution-authority-flag", ApprovedAt: at,
-		ReviewedPlanDigest: executePublished.CompiledPlanDigest, TestsPassed: true,
-	}); err != nil {
+	if err := activate(executePublished); err != nil {
 		return nil, fmt.Errorf("platform execution: activate the promotion execute workflow: %w", err)
 	}
 

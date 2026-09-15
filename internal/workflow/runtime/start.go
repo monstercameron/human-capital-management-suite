@@ -173,6 +173,12 @@ type StartRequest struct {
 	ExecutionMode workflow.ExecutionMode
 	CorrelationID string
 
+	// Locale and BillingRef complete the execution context the instance pins
+	// (WF-RUN-040). An empty Locale pins [DefaultLocale]; an empty BillingRef
+	// pins the tenant's own billing reference.
+	Locale     string
+	BillingRef string
+
 	// ResolvedContext supplies, keyed by [workflow.ContextRequirement.Kind],
 	// the reference proving one required-context read the start node
 	// declares was actually resolved before this call. A declared kind with
@@ -391,6 +397,11 @@ type StartReceipt struct {
 	// approval store's own decision ids. There is no caller-asserted fallback.
 	ApprovalDecisionIDs []string
 
+	// ExecutionContext is the immutable context the instance pinned at start
+	// (WF-RUN-040). It is zero for a replayed start of an instance created
+	// before execution contexts were recorded.
+	ExecutionContext ExecutionContext
+
 	digest string
 }
 
@@ -457,7 +468,7 @@ func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceip
 			"workflow resolver returned no workflow id or compiled plan")
 	}
 
-	cv, err := resolveActiveVersion(req.Versions, sel.WorkflowID, sel.Pin, sel.Plan)
+	cv, err := resolveActiveVersion(version.BindTx(ctx, tx, req.Versions), sel.WorkflowID, sel.Pin, sel.Plan)
 	if err != nil {
 		return StartReceipt{}, err
 	}
@@ -484,6 +495,11 @@ func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceip
 	if err != nil {
 		return StartReceipt{}, err
 	}
+	execCtx := DeriveExecutionContext(req, sel)
+	if err := execCtx.Validate(); err != nil {
+		return StartReceipt{}, err
+	}
+	inst.EffectiveContextRef = execCtx.Digest()
 	if !equalStringSets(inst.CurrentNodeIDs, seeded.Frontier) {
 		return StartReceipt{}, refuse(CodeInvalidRecord, instanceID.String(), "",
 			"seeded frontier %v does not match the new instance's own start frontier %v",
@@ -507,6 +523,9 @@ func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceip
 		// the SQL level -- see [insertInstanceIfAbsent].
 		return replayStart(ctx, tx, req, instanceID, fingerprint, approvalDecisionIDs)
 	}
+	if err := recordExecutionContext(ctx, tx, req.TenantID, instanceID, execCtx, req.CreatedAt); err != nil {
+		return StartReceipt{}, err
+	}
 
 	nextVersion := stored.InstanceVersion
 	for _, ns := range seeded.Nodes {
@@ -527,7 +546,9 @@ func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceip
 	if err != nil {
 		return StartReceipt{}, err
 	}
-	return newStartReceipt(final, cv, false, approvalDecisionIDs), nil
+	receipt := newStartReceipt(final, cv, false, approvalDecisionIDs)
+	receipt.ExecutionContext = execCtx
+	return receipt, nil
 }
 
 // replayStart handles a derived instance id that already exists: the
@@ -544,12 +565,18 @@ func replayStart(
 		return StartReceipt{}, refuse(CodeStartConflict, instanceID.String(), "",
 			"start idempotency key %q is already bound to a request with different digests", req.StartIdempotencyKey)
 	}
-	cv, err := version.Resolve(req.Versions, existing.WorkflowID, version.Pin{CompiledPlanDigest: existing.CompiledPlanHash})
+	cv, err := version.Resolve(version.BindTx(ctx, tx, req.Versions), existing.WorkflowID, version.Pin{CompiledPlanDigest: existing.CompiledPlanHash})
 	if err != nil {
 		return StartReceipt{}, wrap(CodeVersionResolutionFailed, instanceID.String(), "", err,
 			"resolve compiled version for replay")
 	}
-	return newStartReceipt(existing, cv, true, approvalDecisionIDs), nil
+	receipt := newStartReceipt(existing, cv, true, approvalDecisionIDs)
+	if execCtx, found, err := LoadExecutionContext(ctx, tx, req.TenantID, instanceID); err != nil {
+		return StartReceipt{}, err
+	} else if found {
+		receipt.ExecutionContext = execCtx
+	}
+	return receipt, nil
 }
 
 // insertInstanceIfAbsent inserts inst unless its (tenant_id, instance_id)

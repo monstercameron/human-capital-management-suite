@@ -158,7 +158,11 @@ func (d *Driver) ResumeTimer(ctx context.Context, req ResumeTimerRequest) (ret0 
 			return outcome, refs, row.Causal, nil
 		})
 	if err != nil {
-		return Result{}, err
+		settled := d.settlePause(ctx, run, at, err)
+		if paused, ok := pausedResult(settled, Result{}); ok {
+			return paused, nil
+		}
+		return Result{}, settled
 	}
 
 	result := Result{

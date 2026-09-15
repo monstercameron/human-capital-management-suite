@@ -1,0 +1,162 @@
+package runtime_test
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/google/uuid"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
+)
+
+func TestDeriveExecutionContextPinsEveryField(t *testing.T) {
+	pf := newPromotionFixture(t, values.TenantId("ctx-derive-tenant"), "intent:ctx-derive")
+	tenantID := uuid.New()
+	req := pf.baseStartRequest(tenantID, "ctx-derive")
+	sel := runtime.WorkflowSelection{WorkflowID: pf.Plan.WorkflowID, Plan: pf.Plan}
+
+	c := runtime.DeriveExecutionContext(req, sel)
+	if err := c.Validate(); err != nil {
+		t.Fatalf("derived context is invalid: %v", err)
+	}
+	if c.Locale != runtime.DefaultLocale || c.BillingRef != "billing:tenant:"+tenantID.String() {
+		t.Fatalf("defaults = locale %q billing %q", c.Locale, c.BillingRef)
+	}
+	if c.Principal != "principal:hr-partner-7" || c.Tenant != tenantID.String() || c.Organization != "org:acme-test:eng" {
+		t.Fatalf("identity fields = %+v", c)
+	}
+	if c.CompiledPlanDigest != pf.Plan.Digest() || c.WorkflowVersion != pf.Plan.Version || c.RiskClass != pf.Plan.RiskClass ||
+		c.RuntimeVersion != runtime.RuntimeVersion || c.ExecutionMode != workflow.ModeSimulate {
+		t.Fatalf("plan and runtime fields = %+v", c)
+	}
+	if again := runtime.DeriveExecutionContext(req, sel); again.Digest() != c.Digest() {
+		t.Fatal("deriving the same start twice produced different digests")
+	}
+
+	req.Locale, req.BillingRef = "fr-CA", "billing:cost-center:42"
+	other := runtime.DeriveExecutionContext(req, sel)
+	if other.Locale != "fr-CA" || other.BillingRef != "billing:cost-center:42" || other.Digest() == c.Digest() {
+		t.Fatalf("explicit locale and billing were not pinned into a distinct digest: %+v", other)
+	}
+	if !strings.HasPrefix(c.Digest(), "sha256:") {
+		t.Fatalf("digest %q is not a sha256 reference", c.Digest())
+	}
+	if noPlan := runtime.DeriveExecutionContext(req, runtime.WorkflowSelection{WorkflowID: "wf"}); noPlan.CompiledPlanDigest != "" {
+		t.Fatalf("a selection without a plan pinned digest %q", noPlan.CompiledPlanDigest)
+	}
+}
+
+func TestExecutionContextValidateRefusesMissingFields(t *testing.T) {
+	valid := runtime.ExecutionContext{
+		Principal: "p", Tenant: "t", Locale: "und", BillingRef: "b", ExecutionMode: workflow.ModeExecute,
+		WorkflowID: "wf", CompiledPlanDigest: "sha256:x", RuntimeVersion: runtime.RuntimeVersion,
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid context refused: %v", err)
+	}
+	for name, mutate := range map[string]func(*runtime.ExecutionContext){
+		"principal": func(c *runtime.ExecutionContext) { c.Principal = " " },
+		"tenant":    func(c *runtime.ExecutionContext) { c.Tenant = "" },
+		"locale":    func(c *runtime.ExecutionContext) { c.Locale = "" },
+		"billing":   func(c *runtime.ExecutionContext) { c.BillingRef = "" },
+		"mode":      func(c *runtime.ExecutionContext) { c.ExecutionMode = "WHENEVER" },
+		"workflow":  func(c *runtime.ExecutionContext) { c.WorkflowID = "" },
+		"digest":    func(c *runtime.ExecutionContext) { c.CompiledPlanDigest = "" },
+		"runtime":   func(c *runtime.ExecutionContext) { c.RuntimeVersion = "" },
+	} {
+		c := valid
+		mutate(&c)
+		if code := runtimeCode(c.Validate()); code != runtime.CodeInvalidRecord {
+			t.Errorf("missing %s: code %q, want %s", name, code, runtime.CodeInvalidRecord)
+		}
+	}
+}
+
+func TestNodeAllowsModeFailsClosed(t *testing.T) {
+	node := workflow.CompiledNode{AllowedModes: []workflow.ExecutionMode{workflow.ModeExecute, workflow.ModeRepair}}
+	if !runtime.NodeAllowsMode(node, workflow.ModeExecute) {
+		t.Fatal("a declared mode was refused")
+	}
+	if runtime.NodeAllowsMode(node, workflow.ModeSimulate) || runtime.NodeAllowsMode(node, "") {
+		t.Fatal("an undeclared or empty mode was admitted")
+	}
+	if runtime.NodeAllowsMode(workflow.CompiledNode{}, workflow.ModeExecute) {
+		t.Fatal("a node with no compiled modes admitted a mode")
+	}
+}
+
+// TestTodo_WF_RUN_040 proves the execution context is pinned durably at
+// start, replayed unchanged, proven on every advancement and detected when
+// its stored row is tampered with.
+func TestTodo_WF_RUN_040(t *testing.T) {
+	ctx := context.Background()
+	db := pgtest.New(t)
+	conn := appConn(t, db)
+	tenantID := insertTenant(t, db, "wfrun040")
+	pf := newPromotionFixture(t, values.TenantId("wfrun040-tenant"), "intent:wf-run-040")
+	req := pf.baseStartRequest(tenantID, "wfrun040")
+	req.Locale = "en-US"
+
+	started := startPromotionInstance(t, conn, tenantID, req)
+	pinned := started.ExecutionContext
+	if pinned.Locale != "en-US" || pinned.Tenant != tenantID.String() || pinned.CompiledPlanDigest != pf.Plan.Digest() {
+		t.Fatalf("start receipt context = %+v", pinned)
+	}
+	var loaded runtime.ExecutionContext
+	var found bool
+	inTenantTx(t, conn, tenantID, func(tx dbport.Tx) error {
+		var err error
+		loaded, found, err = runtime.LoadExecutionContext(ctx, tx, tenantID, started.InstanceID)
+		return err
+	})
+	if !found || loaded.Digest() != pinned.Digest() {
+		t.Fatalf("loaded context = %+v (found %v), want the pinned one", loaded, found)
+	}
+
+	replayed := startPromotionInstance(t, conn, tenantID, req)
+	if !replayed.Replay || replayed.ExecutionContext.Digest() != pinned.Digest() {
+		t.Fatalf("replayed start context = %+v (replay %v), want the originally pinned one", replayed.ExecutionContext, replayed.Replay)
+	}
+
+	step := promotionExceedsThresholdWalk[0]
+	advance := func(digest string) (runtime.AdvanceReceipt, error) {
+		return advanceOnce(t, conn, tenantID, runtime.AdvanceRequest{
+			TenantID: tenantID, InstanceID: started.InstanceID, ExpectedInstanceVersion: started.InstanceVersion, Attempt: 1,
+			Plan:       pf.Plan,
+			Outcome:    frontier.NodeOutcome{NodeID: step.NodeID, Outcome: step.Outcome, OutputDigest: step.Digest},
+			RecordedAt: fixedInstant, Sink: runtime.NewMemorySink(), ExecutionContextDigest: digest,
+		})
+	}
+	req.Locale = "de-DE"
+	drifted := runtime.DeriveExecutionContext(req, runtime.WorkflowSelection{WorkflowID: pf.Plan.WorkflowID, Plan: pf.Plan})
+	if _, err := advance(drifted.Digest()); runtimeCode(err) != runtime.CodeContextDrift {
+		t.Fatalf("advance under a different context = %v, want %s", err, runtime.CodeContextDrift)
+	}
+	if receipt, err := advance(pinned.Digest()); err != nil || receipt.NewInstanceVersion <= started.InstanceVersion {
+		t.Fatalf("advance under the pinned context = %+v, %v", receipt, err)
+	}
+
+	db.Exec(t, `UPDATE workflow_execution_context SET context = jsonb_set(context, '{locale}', '"de-DE"') WHERE tenant_id = $1 AND instance_id = $2`,
+		tenantID, started.InstanceID)
+	err := inTenantTxErr(conn, tenantID, func(tx dbport.Tx) error {
+		_, _, err := runtime.LoadExecutionContext(ctx, tx, tenantID, started.InstanceID)
+		return err
+	})
+	if runtimeCode(err) != runtime.CodeContextDrift {
+		t.Fatalf("load of a tampered context = %v, want %s", err, runtime.CodeContextDrift)
+	}
+	db.Exec(t, `DELETE FROM workflow_execution_context WHERE tenant_id = $1 AND instance_id = $2`, tenantID, started.InstanceID)
+	err = inTenantTxErr(conn, tenantID, func(tx dbport.Tx) error {
+		_, _, err := runtime.LoadExecutionContext(ctx, tx, tenantID, started.InstanceID)
+		return err
+	})
+	if runtimeCode(err) != runtime.CodeContextDrift {
+		t.Fatalf("load with the context row missing = %v, want %s", err, runtime.CodeContextDrift)
+	}
+}

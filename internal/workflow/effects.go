@@ -41,6 +41,14 @@ func allowedModesFor(class capability.EffectClass) []ExecutionMode {
 	}
 }
 
+// AdmitsMode reports whether the node's compiled effect class admits mode. A
+// node with no compiled modes admits nothing, so every caller's gate -- the
+// execute driver, runtime advancement and the simulator -- fails closed on the
+// same rule (WF-RUN-040).
+func (n CompiledNode) AdmitsMode(mode ExecutionMode) bool {
+	return mode != "" && modeAllowed(n.AllowedModes, mode)
+}
+
 func modeAllowed(modes []ExecutionMode, want ExecutionMode) bool {
 	for _, m := range modes {
 		if m == want {

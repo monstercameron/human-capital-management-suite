@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	kernelvalues "github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -66,6 +67,9 @@ func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 		Telemetry:                  cellConfig.Telemetry,
 		Evidence:                   evidence,
 		TimerDataset:               cfg.TimerDataset(),
+		// WF-COMP-006 / WF-RUN-035: published versions, their approvals and
+		// quarantine survive restart; serve never self-approves in memory.
+		Versions: workflowversionstore.Store{DB: pool},
 	})
 	if err != nil {
 		return fmt.Errorf("build the promotion execution driver: %w", err)

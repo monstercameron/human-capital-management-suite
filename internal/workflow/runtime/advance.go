@@ -54,6 +54,11 @@ type AdvanceRequest struct {
 
 	Refs    GovernanceRefs
 	TraceID string
+	// ExecutionContextDigest, when set, is the digest of the execution
+	// context the caller delivered to the step (WF-RUN-040). Advance refuses
+	// with [CodeContextDrift] when the instance pinned a different one, so a
+	// step never commits under a context the instance did not start with.
+	ExecutionContextDigest string
 	// Causal is optional metadata copied to derived durable continuations.
 	// It never participates in replay identity or authorization.
 	Causal *CausalMetadata
@@ -178,6 +183,15 @@ func Advance(ctx context.Context, tx Executor, req AdvanceRequest) (ret0 Advance
 		return AdvanceReceipt{}, refuse(CodeAdvancePlanMismatch, req.InstanceID.String(), req.Outcome.NodeID,
 			"instance pins compiled plan %s; Advance was called with a plan digesting to %s",
 			inst.CompiledPlanHash, req.Plan.Digest())
+	}
+	if node, ok := req.Plan.Node(req.Outcome.NodeID); ok && !NodeAllowsMode(node, inst.ExecutionMode) {
+		// WF-RUN-040: the durable instance mode, not the caller, decides.
+		return AdvanceReceipt{}, refuse(CodeModeNotAllowed, req.InstanceID.String(), req.Outcome.NodeID,
+			"node admits modes %v; the instance runs in %s", node.AllowedModes, inst.ExecutionMode)
+	}
+	if req.ExecutionContextDigest != "" && inst.EffectiveContextRef != "" && req.ExecutionContextDigest != inst.EffectiveContextRef {
+		return AdvanceReceipt{}, refuse(CodeContextDrift, req.InstanceID.String(), req.Outcome.NodeID,
+			"step ran under execution context %s; the instance pinned %s", req.ExecutionContextDigest, inst.EffectiveContextRef)
 	}
 
 	requestDigest := computeAdvanceRequestDigest(req)

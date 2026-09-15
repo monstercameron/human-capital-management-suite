@@ -474,6 +474,7 @@ func retryStart(execution *PromotionExecution, tenant uuid.UUID, key string, at 
 		ProposalRevisionID:  revisionID,
 		IntentID:            intentID,
 		Revision:            1,
+		CreatedBy:           intent.PrincipalReference{PrincipalID: "principal:test-initiator", Kind: intent.InitiatorHuman},
 		Tenant:              values.TenantId("retry-tenant"),
 		OrganizationScopeID: "organization:retry",
 		Subjects:            []intent.SubjectReference{{Kind: "EMPLOYMENT", SubjectID: "employment:retry", AuthorityDomain: "PEOPLE"}},

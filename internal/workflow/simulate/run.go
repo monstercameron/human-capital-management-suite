@@ -222,7 +222,7 @@ func admitNode(node workflow.CompiledNode) error {
 			"%s declares %s; a write effect cannot be simulated, only refused",
 			node.Type, node.EffectClass)
 	}
-	if !admitsSimulate(node.AllowedModes) {
+	if !node.AdmitsMode(workflow.ModeSimulate) {
 		return refuse(CodeModeNotAdmitted, node.ID,
 			"%s admits modes %v, which does not include %s",
 			node.Type, node.AllowedModes, workflow.ModeSimulate)
@@ -249,15 +249,6 @@ func executable(t workflow.StepType) bool {
 	default:
 		return false
 	}
-}
-
-func admitsSimulate(modes []workflow.ExecutionMode) bool {
-	for _, m := range modes {
-		if m == workflow.ModeSimulate {
-			return true
-		}
-	}
-	return false
 }
 
 func sortedClasses(byClass map[string][]string) []string {

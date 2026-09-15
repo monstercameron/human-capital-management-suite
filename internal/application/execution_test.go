@@ -31,7 +31,7 @@ func TestComposeExecutionAuthorityFillsOnlyTheExecutionShapedFields(t *testing.T
 	cellConfig := app.CellConfig{Audience: "aud", ExecutionCellID: "", Evidence: evidence}
 	cfg := executionServeConfig()
 
-	if err := ComposeExecutionAuthority(&cellConfig, nil, evidence, cfg); err != nil {
+	if err := ComposeExecutionAuthority(&cellConfig, versionTestPool(t), evidence, cfg); err != nil {
 		t.Fatalf("ComposeExecutionAuthority: %v", err)
 	}
 	if cellConfig.Audience != "aud" {
@@ -120,10 +120,11 @@ func TestComposeServeOffByDefaultAndGatedOnRequest(t *testing.T) {
 	}
 
 	composedCalls := 0
+	pool := versionTestPool(t)
 	gated, logger, _ := composeStub(t, executionServeConfig(),
 		WithExecutionComposer(func(cellConfig *app.CellConfig, _ *pgxadapter.Pool, evidence *app.MemoryEvidenceSink, cfg ServeConfig) error {
 			composedCalls++
-			return ComposeExecutionAuthority(cellConfig, nil, evidence, cfg)
+			return ComposeExecutionAuthority(cellConfig, pool, evidence, cfg)
 		}))
 	if composedCalls != 1 {
 		t.Fatalf("the execution composer ran %d times, want exactly once", composedCalls)

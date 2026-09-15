@@ -5304,3 +5304,65 @@ tables:
       and idempotency key, moving PENDING to its final sealed receipt (or to
       ABORTED when the action provably had no effect); restart-safe replay for
       the operator gateway. UPDATE is granted, DELETE is not.
+  - table: workflow_execution_context
+    migration: 00291_workflow_execution_context.sql
+    owner_package: internal/workflow/runtime
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-040: the immutable WorkflowExecutionContext one workflow instance
+      pinned at start (principal, tenant, locale, legal, entitlement, risk,
+      billing, mode, workflow and runtime versions), keyed to the instance's
+      effective_context_ref digest; INSERT once, never updated or deleted.
+  - table: workflow_compiled_version
+    migration: 00292_workflow_version_registry.sql
+    owner_package: internal/data/workflowversionstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: null
+    isolation_package: null
+    append_only: false
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-COMP-006 / WF-RUN-035: platform catalog of compiled workflow versions,
+      one immutable record per compiled-plan digest (content digest re-verified
+      on read); only status and approval history change, at most one ACTIVE per
+      workflow, RETIRED is terminal, DELETE is forbidden.
+  - table: workflow_version_transition
+    migration: 00292_workflow_version_registry.sql
+    owner_package: internal/data/workflowversionstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: null
+    isolation_package: null
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-COMP-006 / WF-RUN-035: append-only lifecycle history of compiled
+      workflow versions (ACTIVE, QUARANTINED, RETIRED) with approver, authority
+      and reason; forbid_mutation.
+  - table: workflow_version_approval
+    migration: 00292_workflow_version_registry.sql
+    owner_package: internal/data/workflowversionstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: null
+    isolation_package: null
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-COMP-006 / WF-RUN-035: append-only activation approvals granted against
+      an exact compiled-plan digest by an approver who is not the publisher;
+      activation requires one; forbid_mutation.

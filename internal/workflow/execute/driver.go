@@ -394,6 +394,14 @@ type runContext struct {
 	timerID uuid.UUID
 }
 
+// executionContext is the context every step of this run receives. It is a
+// pure derivation from the start request and pinned plan, so Execute and every
+// resume path deliver the same value, and [runtime.Advance] proves it against
+// the digest the instance pinned at start (WF-RUN-040).
+func (run runContext) executionContext() runtime.ExecutionContext {
+	return runtime.DeriveExecutionContext(run.start, run.selection)
+}
+
 func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, ready []string) (Result, error) {
 	sort.Strings(ready)
 	max := d.opts.MaxSteps
@@ -421,7 +429,7 @@ func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, 
 			InstanceVersion: result.InstanceVersion, Attempt: attempt,
 			Node: node, Plan: run.selection.Plan, Proposal: run.start.Proposal,
 			CorrelationID: run.start.CorrelationID, RecordedAt: at,
-			TraceID: run.traceID,
+			TraceID: run.traceID, Context: run.executionContext(),
 		}
 		inputs, err := d.stepInputs(ctx, run, req, attempt)
 		if err != nil {
@@ -430,7 +438,11 @@ func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, 
 
 		advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, result.InstanceVersion, at, attempt, inputs)
 		if err != nil {
-			return Result{}, err
+			settled := d.settlePause(ctx, run, at, err)
+			if paused, ok := pausedResult(settled, result); ok {
+				return paused, nil
+			}
+			return Result{}, settled
 		}
 		result.Advances = append(result.Advances, advanced)
 		result.WorkItems = append(result.WorkItems, created...)
@@ -522,6 +534,9 @@ func (d *Driver) prepareReadyAttempt(
 // outcome commit together or not at all.
 func (d *Driver) stepInputs(ctx context.Context, run runContext, req StepRequest, attempt int) (advanceInputsFunc, error) {
 	nodeID := req.Node.ID
+	if !runtime.NodeAllowsMode(req.Node, run.start.ExecutionMode) {
+		return nil, fmt.Errorf("%w: node %s admits %v, the run is in %q", ErrModeNotAllowed, nodeID, req.Node.AllowedModes, run.start.ExecutionMode)
+	}
 	check := func(outcome frontier.NodeOutcome) (frontier.NodeOutcome, error) {
 		if outcome.NodeID == "" {
 			outcome.NodeID = nodeID
@@ -726,6 +741,7 @@ func (d *Driver) advanceOnce(
 		ExpectedInstanceVersion: expectedVersion, Attempt: attempt,
 		Plan: run.selection.Plan, Outcome: outcome, Refs: refs,
 		RecordedAt: at, Sink: sink, TraceID: run.traceID,
+		ExecutionContextDigest: run.executionContext().Digest(),
 	}
 	if causalSpan, ok := advSpan.(CausalSpan); ok {
 		nodeExecutionID := runtime.NodeExecutionID(run.start.TenantID, run.instanceID, outcome.NodeID, attempt).String()

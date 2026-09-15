@@ -32,6 +32,10 @@ var (
 	// verifier rejected (WF-RUN-002). The verifier's own typed refusal is
 	// wrapped, so LEASE_LOST and FENCE_STALE remain readable off it.
 	ErrFenceRefused = errors.New("workflow execute: lease fence refused")
+	// ErrModeNotAllowed reports a READY node whose compiled effect class does
+	// not admit the run's execution mode (WF-RUN-040). The driver refuses
+	// before the step handler runs, so no effect is attempted.
+	ErrModeNotAllowed = errors.New("workflow execute: node does not admit the execution mode")
 	// ErrCurrencyBlocked reports that [CurrencyGuard] found a material change
 	// to the pinned proposal, its approval or its control snapshots while an
 	// instance was parked, and moved it to BLOCKED instead of advancing

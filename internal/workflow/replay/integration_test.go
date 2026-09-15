@@ -163,6 +163,7 @@ func newExecutedRun(t *testing.T) *executedRun {
 	)
 	proposal := intent.ProposalRevision{
 		IntentID: intentID, ProposalRevisionID: revisionID, Revision: 1,
+		CreatedBy: intent.PrincipalReference{PrincipalID: "principal:test-initiator", Kind: intent.InitiatorHuman},
 		Subjects: []intent.SubjectReference{{
 			Kind: "WORKER", SubjectID: subject, AuthorityDomain: "people",
 		}},

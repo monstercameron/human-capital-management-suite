@@ -141,6 +141,8 @@ migrationfiles:
   - 00287_promoux004_position_slot_guard.sql
   - 00288_promoux011_transition_sequence.sql
   - 00289_operator_control_receipt.sql
+  - 00291_workflow_execution_context.sql
+  - 00292_workflow_version_registry.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

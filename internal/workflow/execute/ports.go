@@ -62,6 +62,12 @@ type StepRequest struct {
 	// TraceID is the ambient trace id the driver read off the incoming span
 	// context (OBS-023). Empty when the caller carried no trace context.
 	TraceID string
+	// Context is the immutable execution context the instance pinned at
+	// start (WF-RUN-040): principal, tenant, locale, legal, entitlement,
+	// risk, billing, mode and workflow/runtime versions. Every step of one
+	// instance receives the same value, and the advancement refuses when it
+	// no longer digests to what the instance pinned.
+	Context runtime.ExecutionContext
 }
 
 // StepRunner executes one READY node and returns only its typed outcome and

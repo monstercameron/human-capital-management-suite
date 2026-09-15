@@ -39,7 +39,7 @@ func ResolveStartOutcome(ctx context.Context, tx dbport.Tx, req StartRequest, se
 	if selection.Pin.CompiledPlanDigest == "" && selection.Pin.SemanticVersion == "" {
 		return StartResolution{}, fmt.Errorf("%w: exact workflow pin is required", ErrStartOutcomeUnresolved)
 	}
-	pinned, err := version.Resolve(req.Versions, selection.WorkflowID, selection.Pin)
+	pinned, err := version.Resolve(version.BindTx(ctx, tx, req.Versions), selection.WorkflowID, selection.Pin)
 	if err != nil || pinned.CompiledPlanDigest != selection.Plan.Digest() ||
 		(selection.Pin.CompiledPlanDigest != "" && pinned.CompiledPlanDigest != selection.Pin.CompiledPlanDigest) ||
 		(selection.Pin.SemanticVersion != "" && pinned.SemanticVersion != selection.Pin.SemanticVersion) {
@@ -60,7 +60,7 @@ func ResolveStartOutcome(ctx context.Context, tx dbport.Tx, req StartRequest, se
 		return StartResolution{}, refuse(CodeStartConflict, instanceID.String(), "",
 			"durable start does not match the exact workflow pin and proposal binding")
 	}
-	cv, err := version.Resolve(req.Versions, existing.WorkflowID, version.Pin{CompiledPlanDigest: existing.CompiledPlanHash})
+	cv, err := version.Resolve(version.BindTx(ctx, tx, req.Versions), existing.WorkflowID, version.Pin{CompiledPlanDigest: existing.CompiledPlanHash})
 	if err != nil {
 		return StartResolution{}, wrap(CodeVersionResolutionFailed, instanceID.String(), "", err,
 			"resolve compiled version for start outcome")

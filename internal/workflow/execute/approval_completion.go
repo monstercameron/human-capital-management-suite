@@ -189,6 +189,7 @@ func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionReq
 		ExpectedInstanceVersion: req.ExpectedInstanceVersion, Attempt: attempt,
 		Plan: selection.Plan, Outcome: outcome, Refs: refs,
 		RecordedAt: at, Sink: sink, TraceID: d.opts.Instrumentation.TraceID(advCtx),
+		ExecutionContextDigest: runtime.DeriveExecutionContext(req.Start, selection).Digest(),
 	}
 	if causalSpan, ok := advSpan.(CausalSpan); ok {
 		nodeExecutionID := runtime.NodeExecutionID(req.Start.TenantID, req.InstanceID, item.NodeID, attempt).String()

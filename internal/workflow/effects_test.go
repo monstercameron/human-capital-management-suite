@@ -15,3 +15,16 @@ func TestEffects_NoPanic(t *testing.T) {
 		}
 	}()
 }
+
+func TestCompiledNodeAdmitsModeFailsClosed(t *testing.T) {
+	node := CompiledNode{AllowedModes: allowedModesFor("INTERNAL_MUTATION")}
+	if len(node.AllowedModes) == 0 {
+		t.Fatal("INTERNAL_MUTATION compiled no modes")
+	}
+	if !node.AdmitsMode(ModeExecute) || node.AdmitsMode(ModeSimulate) || node.AdmitsMode("") {
+		t.Fatalf("modes %v: EXECUTE must be admitted, SIMULATE and empty refused", node.AllowedModes)
+	}
+	if (CompiledNode{}).AdmitsMode(ModeExecute) {
+		t.Fatal("a node with no compiled modes admitted EXECUTE")
+	}
+}

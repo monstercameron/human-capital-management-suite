@@ -241,8 +241,8 @@ func newOBSScenario(t *testing.T, traceID string) *obsScenario {
 	plan := &workflow.CompiledWorkflow{
 		WorkflowID: "obs.demo", Version: 1,
 		Nodes: []workflow.CompiledNode{
-			{ID: "approve", Type: workflow.StepApproval},
-			{ID: "end", Type: workflow.StepEnd},
+			{ID: "approve", Type: workflow.StepApproval, AllowedModes: []workflow.ExecutionMode{workflow.ModeExecute}},
+			{ID: "end", Type: workflow.StepEnd, AllowedModes: []workflow.ExecutionMode{workflow.ModeExecute}},
 		},
 	}
 	selection := runtime.WorkflowSelection{
@@ -262,6 +262,7 @@ func newOBSScenario(t *testing.T, traceID string) *obsScenario {
 			ProposalFacts: runtime.MemoryProposalFacts{}, ApprovalFacts: approvedApprovalFacts(proposalRevisionFor(item)),
 			CorrelationID:       "corr-obs",
 			BusinessSubjectRefs: []string{"employment:obs"},
+			ExecutionMode:       workflow.ModeExecute,
 		},
 		InstanceID: instanceID, ExpectedInstanceVersion: 3, RecordedAt: at,
 		WorkItemID: workItemID, ExpectedWorkItemVersion: item.ItemVersion,

@@ -198,7 +198,7 @@ func TestTodo_DB_EDGE_003_IntegrationExecuteRetriesChangedSelectionInFreshSnapsh
 		t.Fatal(err)
 	}
 	intentID, revisionID := "intent:retry-selection", "proposal:retry-selection:1"
-	rev := intent.ProposalRevision{IntentID: intentID, ProposalRevisionID: revisionID, Revision: 1, Tenant: values.TenantId("retry-selection"), OrganizationScopeID: "organization:retry", Subjects: []intent.SubjectReference{{Kind: "EMPLOYMENT", SubjectID: "employment:retry", AuthorityDomain: "PEOPLE"}}, MaterialDigest: digestReference(revisionID, intentID)}
+	rev := intent.ProposalRevision{IntentID: intentID, ProposalRevisionID: revisionID, Revision: 1, Tenant: values.TenantId("retry-selection"), OrganizationScopeID: "organization:retry", Subjects: []intent.SubjectReference{{Kind: "EMPLOYMENT", SubjectID: "employment:retry", AuthorityDomain: "PEOPLE"}}, CreatedBy: intent.PrincipalReference{PrincipalID: "principal:test-initiator", Kind: intent.InitiatorHuman}, MaterialDigest: digestReference(revisionID, intentID)}
 	result, err := driver.Execute(ctx, execute.ExecuteRequest{Start: runtime.StartRequest{TenantID: tenant, CellID: "cell-local", StartIdempotencyKey: "start:retry-selection", Resolver: resolver, Versions: versions, Proposal: runtime.ProposalBinding{Revision: rev}, ProposalFacts: runtime.MemoryProposalFacts{}, ApprovalFacts: approvedStartFacts(rev), ExpectedIntentID: intentID, ExpectedTenant: rev.Tenant, BusinessSubjectRefs: []string{"employment:retry"}, ExecutionMode: workflow.ModeExecute, CorrelationID: "correlation:retry-selection", CreatedAt: at}})
 	if err != nil {
 		t.Fatal(err)
