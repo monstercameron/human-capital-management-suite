@@ -2235,7 +2235,8 @@ or an explicit rejection and replacement decision.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Security research §1, E-13](research/security-best-practices-2026.md#1-enterprise-applications-in-general), [ISO/IEC 27018:2025](https://www.iso.org/standard/27018?browse=tc). Maps to NIST 800-53 SC-28/MP-6; ASVS V8.
 
-- [ ] `SECARCH-010` **[GATE_C][SOL_HIGH] Extend cross-tenant isolation conformance to cache, queue, object-store and backup paths.**
+- [x] `SECARCH-010` **[GATE_C][SOL_HIGH] Extend cross-tenant isolation conformance to cache, queue, object-store and backup paths.**
+  - **Evidence (2026-09-15):** `TestTodo_SECARCH_010`, `TestTodo_SECARCH_010_Golden`, `TestTodo_SECARCH_010_Security`, `TestTodo_SECARCH_010_Integration`, `TestTodo_SECARCH_010_Race`, `TestTodo_SECARCH_010_Mutation` in `internal/trust/adversarial` (isolation_paths.go adds tenant-namespaced CacheKey/ObjectKey, owner-bound JobEnvelope/ExecuteJob, ForeignBytes-scoped LogLine, BackupPlacement/AllowRestore, plus retained PresetIsolationJourneys ISO-CACHE/QUEUE/OBJECT/LOG/BACKUP-01; RED captured as build-failed undefined symbols, GREEN denies cross-tenant use with zero foreign bytes); `go test -count=1 ./internal/trust/adversarial/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** `TRUST-025`, `DB-017`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestTodo_SECARCH_010`.
