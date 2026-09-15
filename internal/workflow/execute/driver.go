@@ -95,6 +95,11 @@ type Options struct {
 	// the fence unset.
 	Fence         *runtime.Fence
 	FenceVerifier runtime.FenceVerifier
+	// Leases, when set, acquires the WORKFLOW_INSTANCE lease for every
+	// caller-driven run that does not already carry a fence ([WithFence]),
+	// so every served advancement is fenced (WF-RUN-036). It requires
+	// FenceVerifier.
+	Leases InstanceLeaser
 	// StartRetry opts into a bounded serializable retry of the complete start
 	// closure. Nil preserves the historical single transaction behavior.
 	StartRetry *transactioncommit.RetryOptions
@@ -137,7 +142,10 @@ func New(opts Options) (*Driver, error) {
 	if opts.Evidence == nil {
 		opts.Evidence = NoopExecutionEvidence{}
 	}
-	if (opts.Fence == nil) != (opts.FenceVerifier == nil) {
+	if opts.Leases != nil && opts.FenceVerifier == nil {
+		return nil, invalid("Leases requires FenceVerifier")
+	}
+	if opts.Fence != nil && opts.FenceVerifier == nil || opts.Fence == nil && opts.FenceVerifier != nil && opts.Leases == nil {
 		return nil, invalid("a lease fence and its verifier are configured together or not at all")
 	}
 	if opts.StartRetry != nil && opts.StartRetryFor != nil {
@@ -264,6 +272,11 @@ func (d *Driver) Execute(ctx context.Context, req ExecuteRequest) (ret0 Result, 
 		}
 	}
 
+	ctx, release, err := d.acquireInstanceLease(ctx, startReq.TenantID, started.InstanceID)
+	if err != nil {
+		return Result{}, err
+	}
+	defer func() { retErr = releasing(retErr, release) }()
 	result := Result{
 		Start: started, InstanceVersion: started.InstanceVersion,
 		Frontier: append([]string(nil), started.Frontier...),
@@ -603,6 +616,16 @@ func (d *Driver) advanceOnce(
 		advSpan.End(OutcomeFailure, err)
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}
+	fence := d.currentFence(advCtx)
+	if fence != nil {
+		fence.At = at
+		// WF-RUN-036: verify before any in-transaction step runs, so a
+		// superseded holder writes no domain effect.
+		if err := d.verifyFence(advCtx, tx, run.start.TenantID, *fence); err != nil {
+			advSpan.End(OutcomeFailure, err)
+			return runtime.AdvanceReceipt{}, nil, nil, nil, err
+		}
+	}
 
 	outcome, refs, causal, err := inputs(advCtx, tx)
 	if err != nil {
@@ -713,14 +736,12 @@ func (d *Driver) advanceOnce(
 		})
 	}
 	var advanced runtime.AdvanceReceipt
-	if d.opts.Fence != nil {
+	if fence != nil {
 		// WF-RUN-002: the fence is checked against the durable lease before
 		// the advancement reads any workflow state, so a superseded holder
 		// never reaches the sink and therefore never dispatches an effect.
-		fence := *d.opts.Fence
-		fence.At = at
 		advanced, err = runtime.AdvanceFenced(advCtx, tx, runtime.FencedAdvanceRequest{
-			Fence: fence, Verifier: d.opts.FenceVerifier, Request: advReq,
+			Fence: *fence, Verifier: d.opts.FenceVerifier, Request: advReq,
 		})
 		if err != nil && runtime.CodeOf(err) == runtime.CodeFenceRefused {
 			// Both %w: the caller classifies this as ErrFenceRefused and can

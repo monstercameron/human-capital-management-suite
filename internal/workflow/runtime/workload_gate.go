@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/google/uuid"
 
@@ -51,18 +50,21 @@ var liveInstanceStatuses = []string{
 // shared gate built once at composition carries no criticality and a zero
 // payload, so criticality-scoped rules never match and payload limits are
 // inert.
-func effectiveGate(gate WorkloadGate, req StartRequest, plan *workflow.CompiledWorkflow) (WorkloadGate, error) {
+func effectiveGate(gate WorkloadGate, req StartRequest, plan *workflow.CompiledWorkflow) WorkloadGate {
 	if gate.Criticality == "" && plan != nil {
 		gate.Criticality = plan.RiskClass
 	}
 	if gate.PayloadBytes == 0 {
-		body, err := json.Marshal(req.Proposal.Revision)
-		if err != nil {
-			return WorkloadGate{}, fmt.Errorf("measure proposal payload: %w", err)
+		// A revision that cannot be canonically encoded (an unset instant, for
+		// example) is not measurable; it is refused by Start's own proposal
+		// and approval checks, so admission must not pre-empt that typed
+		// refusal with an encoding error. It is admitted on its other
+		// dimensions and never reaches a step.
+		if body, err := json.Marshal(req.Proposal.Revision); err == nil {
+			gate.PayloadBytes = len(body)
 		}
-		gate.PayloadBytes = len(body)
 	}
-	return gate, nil
+	return gate
 }
 
 // admitWorkload runs the gate inside the start's own transaction. It takes a
@@ -76,10 +78,7 @@ func admitWorkload(ctx context.Context, tx Executor, req StartRequest, plan *wor
 	if req.Workload == nil {
 		return nil
 	}
-	gate, err := effectiveGate(*req.Workload, req, plan)
-	if err != nil {
-		return wrap(CodeInvalidRecord, instanceID.String(), "", err, "derive workload admission inputs")
-	}
+	gate := effectiveGate(*req.Workload, req, plan)
 	resolved, err := gate.Snapshot.Resolve(req.TenantID.String(), workflowID, gate.Criticality)
 	if err != nil {
 		return wrap(CodeInvalidRecord, instanceID.String(), "", err, "resolve workload limits")

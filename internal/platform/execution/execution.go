@@ -46,6 +46,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/effects"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
@@ -94,6 +95,10 @@ type PromotionExecutionConfig struct {
 	// StartRetryFor builds a request-scoped retry policy from the immutable
 	// START request and trusted persisted budget metadata.
 	StartRetryFor func(context.Context, execute.StartRetryIdentity) (*transactioncommit.RetryOptions, error)
+	// LeaseHolder names this process in WORKFLOW_INSTANCE leases the driver
+	// takes around every caller-driven run (WF-RUN-036). Zero derives a
+	// host-and-pid identity.
+	LeaseHolder lease.Identity
 	// ConflictFence is the application-composed durable conflict adapter for
 	// governed transaction plans. Nil preserves legacy unfenced workflows.
 	ConflictFence transactioncommit.ConflictFence
@@ -230,6 +235,10 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		startRetry = &copy
 	}
 	startRetryFor := cfg.StartRetryFor
+	leaseHolder := cfg.LeaseHolder
+	if leaseHolder == (lease.Identity{}) {
+		leaseHolder = defaultInstanceHolder()
+	}
 	guard := cfg.Guard
 	if guard == nil {
 		guard = idempotency.PostgresStore{}
@@ -378,6 +387,11 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 			Snapshot: workload.DefaultSnapshot(),
 			Observe:  NewWorkloadObserver(cfg.Telemetry, cfg.Logger).Observe,
 		},
+		// WF-RUN-036: every served run advances under a WORKFLOW_INSTANCE lease
+		// fence -- its own, or the one a dispatcher already holds -- verified
+		// in each advance transaction before any step writes.
+		Leases:        NewInstanceLeaser(leaseHolder, 0),
+		FenceVerifier: lease.Fenced{Manager: lease.Manager{}},
 	}
 	if cfg.TimerDataset != (values.DatasetVersions{}) {
 		factory, factoryErr := NewTimerFactory(TimerFactoryConfig{Scheduler: timer.Scheduler{}, Dataset: cfg.TimerDataset, EffectiveDates: effectiveDates})

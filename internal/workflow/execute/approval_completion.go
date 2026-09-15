@@ -98,6 +98,11 @@ func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionReq
 	if err != nil {
 		return ApprovalCompletionResult{}, err
 	}
+	ctx, release, err := d.acquireInstanceLease(ctx, req.Start.TenantID, req.InstanceID)
+	if err != nil {
+		return ApprovalCompletionResult{}, err
+	}
+	defer func() { retErr = releasing(retErr, release) }()
 	tx, err := d.opts.DB.Begin(ctx)
 	if err != nil {
 		return ApprovalCompletionResult{}, fmt.Errorf("workflow execute: begin approval completion: %w", err)

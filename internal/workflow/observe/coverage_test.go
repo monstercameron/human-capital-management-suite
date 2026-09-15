@@ -82,6 +82,8 @@ var uninstrumentedByDesign = map[string]string{
 	"simulate/reads.go ProjectionReads.Observe":           "pure simulation port inside instrumented simulate.Run",
 
 	// The seam itself.
+	"execute/fence.go WithFence": "context value helper; the fence it carries is verified inside the instrumented advance",
+
 	"observe/observe.go Begin":        "the seam",
 	"observe/observe.go Start":        "the seam",
 	"observe/observe.go WithRecorder": "the seam",

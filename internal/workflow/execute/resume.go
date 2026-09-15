@@ -63,6 +63,11 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 	if req.RecordedAt.IsZero() {
 		at = d.opts.Clock().UTC()
 	}
+	ctx, release, err := d.acquireInstanceLease(ctx, req.Start.TenantID, req.InstanceID)
+	if err != nil {
+		return Result{}, err
+	}
+	defer func() { retErr = releasing(retErr, release) }()
 
 	advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, req.ExpectedInstanceVersion, at, 1,
 		func(ctx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {

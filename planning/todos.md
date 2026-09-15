@@ -14546,8 +14546,9 @@ path regardless of transport.
   - **REFACTOR:** inspector projection remains rebuildable and non-authoritative; endpoint never reads mutable tables into a fabricated snapshot.
   - **Refs:** [workflow endpoints](specs/http-grpc-endpoint-contract.md#workflow-operations), [runtime inspector](specs/workflow-runtime.md), [operator surface](#36-operator-surfaces-ownership-and-measurable-production-limits).
 
-- [ ] `EP-WF-002` **[GATE_B][SOL_HIGH] Implement governed Pause, Resume, Cancel and RetryNode workflow endpoints.**
+- [x] `EP-WF-002` **[GATE_B][SOL_HIGH] Implement governed Pause, Resume, Cancel and RetryNode workflow endpoints.**
   - **Reopened (2026-09-14, plan-vs-implementation review):** the control intervention/evidence trail is `operator.NewMemoryJournal()` in production, so receipts do not survive restart; Cancel/Resume do not carry revalidation context.
+  - **Evidence (2026-09-14, reopen closed):** control receipts are durable. Migration 00289 adds tenant-isolated `operator_control_receipt` (RLS, SELECT/INSERT/UPDATE only, no DELETE per DB-017) and `internal/data/operatorjournal.Journal` implements `operator.Journal` over it -- Begin under a per-key advisory lock records one PENDING receipt and replays an existing one, Complete and Abort are fenced on PENDING plus request digest, Abort marks ABORTED so the key is reusable -- and `internal/intent/app.composeWorkflowControl` composes it in place of the in-memory journal. `TestDurableJournalReplaysAcrossRecomposition` and `TestDurableJournalBeginIsExactUnderConcurrency` (eight independent sessions, exactly one fresh receipt) pass at 84.7% coverage, and `TestGovernedWorkflowControlsOnComposedServer` now proves the served cancel receipt is an APPLIED row carrying the sealed digest and that re-sending the same idempotency key replays it without a second transition. Resume revalidation fails closed: `runtime.ResumeFromPause` refuses UNRESOLVED_CONTEXT for any frontier node declaring a required context with no resolution, and the promotion plan declares none, so an empty context is correct for it. `go test -count=1 ./internal/data/operatorjournal/` and `-run TestGovernedWorkflowControlsOnComposedServer ./internal/application/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** `EP-WF-001`, `WF-RUN-008`, `WF-RUN-010`, `WF-RUN-015`, `INTENT-022`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.OPERATIONS; DIRECT=none; WHY=turn operator workflow interventions into governed capabilities/intents rather than direct runtime-row edits`.
   - **TEST:** `TestWorkflowControlEndpointsRespectSafePointAuthorityIdempotencyAndEffectBoundary`.
@@ -18224,6 +18225,17 @@ This program implements [the production frontend and governed page-composition p
   - **REFACTOR:** keep presentation mechanics behind registered floorplan/widget contracts and keep domain, workflow, authorization, and transaction truth in their owning packages.
   - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), [execution plan](execution-plan.md).
 
+- [x] `WEB-241` **[GATE_C][SOL_HIGH] Give every page feature a stable identity and role-scoped CRUD boundary.**
+  - **Depends:** `WEB-061`, `WEB-073`, `WEB-077`, `WEB-078`, `UXAUDIT-014`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=let customers add and compose pages while administrators restrict discovery and CRUD actions at a stable feature boundary`.
+  - **TEST:** `TestTodo_WEB_241`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WEB_241`; `PROPERTY=TestTodo_WEB_241_Property`; `INTEGRATION=TestTodo_WEB_241_Integration`; `SECURITY=TestTodo_WEB_241_Security`; `BROWSER=TestTodo_WEB_241_Browser`; `CONFORMANCE=TestTodo_WEB_241_Conformance`; `REGRESSION=TestTodo_WEB_241_Regression`.
+  - **Evidence (2026-09-14):** `internal/humanwork/productui/feature_registry.go` assigns stable page-local feature identities and CRUD ceilings, with automatic `content` and `actions` boundaries for every page; `internal/experience/roleaccess` intersects page and feature grants fail-closed; migration `00290_role_page_feature_permissions.sql` supplies tenant RLS and optimistic versioning; the canonical Journey RPC, Go/WASM client and server handlers carry and enforce the projection. The role editor was manually verified in the Codex browser against the real local server: 65 administrator features are grouped into page disclosures, supported CRUD controls are available, and unsupported controls are disabled. Named product UI, workspace, transport, client and embedded-Postgres integration tests pass; `buf lint schema/proto` and the `GOOS=js GOARCH=wasm` build pass. Windows intermittently reports `unlinkat ... test.exe: Access is denied` after successful package test output.
+  - **RED:** page features are identified by labels or component placement, authorization stops at the page, a feature grant can outgrow its page or declared CRUD ceiling, and adding a page requires bespoke persistence and UI wiring.
+  - **GREEN:** the page registry owns stable page-local feature IDs and supported operations; every registered page receives content and action boundaries; tenant/role/page/feature grants are RLS-isolated, CAS-versioned and served through the canonical RPC; the server and Go/WASM projection require matching page and feature grants and deny unknown or missing policy once configured; role administrators can configure supported CRUD actions without exposing ungranted pages.
+  - **REFACTOR:** one registry drives composition, persistence bootstrap and the role editor; routes, labels, translations and component types never become authorization identity.
+  - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), [authorization plan](specs/organization-scope-and-authz.md), `internal/experience/roleaccess`, `internal/humanwork/productui`.
+
 ---
 
 ## 67. Default product slice alignment
@@ -19723,6 +19735,7 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **Refs:** [capability invocation contract](specs/workflow-runtime.md), `internal/platform/execution`, `internal/platform/execution/promotionsteps`, `internal/capability`.
 
 - [ ] `WF-RUN-035` **[GATE_B][SOL_HIGH] Persist execution evidence, the version registry and operator control receipts.**
+  - **Partial evidence (2026-09-14):** operator control receipts are durable (migration 00289, `internal/data/operatorjournal`, composed into serve; see EP-WF-002). The version registry and execution/capability evidence are still in-memory in serve, so this todo stays open.
   - **Depends:** `WF-COMP-006`, `EP-WF-002`, `OBS-024`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=keep publication, quarantine, evidence and intervention audit truthful across restart`.
   - **TEST:** `TestTodo_WF_RUN_035`.
@@ -19732,7 +19745,8 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **REFACTOR:** in-memory stores remain test doubles only; a composition test fails if serve wires one.
   - **Refs:** [storage and evidence boundaries](specs/workflow-runtime.md), `internal/platform/execution`, `internal/intent/app`, `internal/workflow/version`.
 
-- [ ] `WF-RUN-036` **[GATE_B][SOL_HIGH] Fence the production commit path and keep the scheduler fence through timer resume.**
+- [x] `WF-RUN-036` **[GATE_B][SOL_HIGH] Fence the production commit path and keep the scheduler fence through timer resume.**
+  - **Evidence (2026-09-14):** every served run is fenced. `execute.Options.Leases` (production `internal/platform/execution.InstanceLeaser` over `lease.Manager`) acquires the WORKFLOW_INSTANCE lease around each caller-driven Execute, Resume, ResumeTimer and CompleteApproval that carries no fence and releases it afterwards (a release failure is joined, never masked); a caller that already holds the instance presents its fence with `execute.WithFence`, and the timer scheduler now attaches its claim fence in `scheduler.dispatch` for every dispatcher. `advanceOnce` verifies the fence in the advance transaction before any in-transaction step writes, then `runtime.AdvanceFenced` re-checks it. `NewPromotionExecution` wires `Leases` and `lease.Fenced` into serve. `TestFencedRunsVerifyBeforeStepsAndLeaseAroundTheRun` (in memory) and `TestTodo_WF_RUN_036` (PostgreSQL: a served-style driver acquires and releases the instance lease, is refused ErrFenceRefused carrying LEASE_HELD while another replica holds the instance, and is refused under a stale caller fence with the instance version unchanged) pass, together with the execute, platform/execution (incl. scheduler), test/workflow and internal/application suites (PROMOUX-015, WF-RUN-022, PROMO-009, DB-EDGE-003) on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** `WF-RUN-002`, `WF-RUN-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=prevent a superseded replica from committing or emitting effects`.
   - **TEST:** `TestTodo_WF_RUN_036`.

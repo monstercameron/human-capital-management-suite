@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/runtimestate"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/schedule"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/timer"
@@ -627,6 +628,11 @@ func minInt(a, b int) int {
 // package's. A dispatcher that fails or panics-free-returns an error is a
 // retry: the row goes back to READY rather than being lost or double-run.
 func (s *Scheduler) dispatch(ctx context.Context, work Work) Disposition {
+	// WF-RUN-036: the claim holds the WORKFLOW_INSTANCE lease. Every
+	// dispatcher receives that exact fence on its context, so a driver it
+	// calls advances under the claim (verified per advancement) instead of
+	// contending for a lease this replica already holds.
+	ctx = execute.WithFence(ctx, work.Fence.RuntimeFence(time.Time{}))
 	disposition, err := s.cfg.Dispatcher.Dispatch(ctx, work)
 	if err != nil {
 		s.cfg.Logger.Error("scheduler.dispatch_failed",
