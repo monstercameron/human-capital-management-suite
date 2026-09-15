@@ -77,22 +77,25 @@ func TestAdmitPromotionWindowGrantsThenRefusesAConflict(t *testing.T) {
 	ctx := trust.WithPrincipal(context.Background(), principal)
 	const worker = "EMPLOYMENT:wire-test-worker"
 
-	guardID, err := e.admitPromotionWindow(ctx, principal, worker, "2027-04-01", "journey:propose:key-one")
+	guardID, replayed, err := e.admitPromotionWindow(ctx, principal, worker, "2027-04-01", "journey:propose:key-one")
 	if err != nil {
 		t.Fatalf("admitPromotionWindow(first) = %v, want nil", err)
 	}
 	if guardID == uuid.Nil {
 		t.Fatal("admitPromotionWindow returned a nil guard id on success")
 	}
+	if replayed {
+		t.Fatal("admitPromotionWindow(first) reported a replay for a new window")
+	}
 
-	if _, err := e.admitPromotionWindow(ctx, principal, worker, "2027-04-01", "journey:propose:key-two"); !errors.Is(err, workspace.ErrJourneyActiveConflict) {
+	if _, _, err := e.admitPromotionWindow(ctx, principal, worker, "2027-04-01", "journey:propose:key-two"); !errors.Is(err, workspace.ErrJourneyActiveConflict) {
 		t.Fatalf("admitPromotionWindow(conflicting) = %v, want workspace.ErrJourneyActiveConflict", err)
 	}
 
 	// A different, non-overlapping window for the same worker is still
 	// admitted -- the same GREEN carve-out internal/data/promotionguard's own
 	// suite proves, now proven through this engine's own wiring.
-	if _, err := e.admitPromotionWindow(ctx, principal, worker, "2028-01-01", "journey:propose:key-three"); err != nil {
+	if _, _, err := e.admitPromotionWindow(ctx, principal, worker, "2028-01-01", "journey:propose:key-three"); err != nil {
 		t.Fatalf("admitPromotionWindow(non-overlapping) = %v, want nil", err)
 	}
 
@@ -130,7 +133,7 @@ func TestAdmitPromotionWindowFailsClosedWithNoExecutionDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("trust.NewPrincipal: %v", err)
 	}
-	if _, err := engine.admitPromotionWindow(context.Background(), principal, "EMPLOYMENT:x", "2027-01-01", "key"); !errors.Is(err, workspace.ErrJourneyUnavailable) {
+	if _, _, err := engine.admitPromotionWindow(context.Background(), principal, "EMPLOYMENT:x", "2027-01-01", "key"); !errors.Is(err, workspace.ErrJourneyUnavailable) {
 		t.Fatalf("admitPromotionWindow(no db) = %v, want workspace.ErrJourneyUnavailable", err)
 	}
 }

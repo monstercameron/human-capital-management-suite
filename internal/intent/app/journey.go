@@ -527,46 +527,48 @@ func (e *journeyEngine) Propose(ctx context.Context, in workspace.ProposalInput)
 	// PROMOUX-002: admitted before CreateIntent is ever reached, so a
 	// conflicting caller's refusal leaves no intent, proposal revision, work
 	// item or ledger row behind. See admitPromotionWindow's own doc for the
-	// guarantee this relies on.
-	guardID, guardErr := e.admitPromotionWindow(ctx, principal, worker.String(), baseline.effectiveText, proposeIdempotencyKey)
-	if guardErr != nil {
-		return workspace.JourneySummary{}, guardErr
-	}
-
-	created, createErr := e.svc.CreateIntent(ctx, &intentsv1.CreateIntentRequest{
-		IdempotencyKey: proposeIdempotencyKey,
-		Definition:     &intentsv1.DefinitionReference{IntentTypeId: def.Ref.TypeID, Version: def.Ref.Version},
-		// The initiator is server-derived. On the RPC surfaces the transport's
-		// own trusted-field pass fills it from the verified credential
-		// (internal/transport.ApplyTrustedContext); an in-process caller has
-		// no such pass, so this fills it from the same principal rather than
-		// leaving CreateIntent to refuse a request with no initiator at all.
-		Initiator: &intentsv1.PrincipalReference{
-			PrincipalId:          principal.Subject(),
-			Kind:                 journeyInitiatorKind(principal.SubjectKind()),
-			IdentityAssuranceRef: principal.EvidenceID(),
-		},
-		// The POSITION subject is declared only when the form actually named
-		// one: an empty SubjectId is a structurally invalid reference, not
-		// an unnamed position (PROMOUX-004 made target_position_id
-		// optional; see validateProposalInput and
-		// internal/intent/definitions.definitions.go's target_position_ref).
-		Subjects: journeySubjects(worker.Id, in.TargetPositionID),
-		Request: &intentsv1.TypedPayload{
-			Schema: &intentsv1.SchemaReference{
-				SchemaId:         def.InputSchema.SchemaID,
-				Version:          def.InputSchema.Version,
-				ProtobufFullName: def.InputSchema.ProtobufFullName,
-			},
-			ProtobufWireBytes: payload,
-		},
-		ExecutionMode: intentsv1.ExecutionMode_EXECUTION_MODE_SIMULATE,
-	})
-	if createErr != nil {
-		return workspace.JourneySummary{}, journeyError(createErr)
-	}
-	if confirmErr := e.confirmPromotionWindow(ctx, principal, guardID, proposeIdempotencyKey, created.GetIntent().GetIntentId()); confirmErr != nil {
-		trace.SpanFromContext(ctx).AddEvent("promotion.guard.confirm_failed")
+	// guarantee this relies on. PROMOUX-017: the same helper abandons the
+	// reservation this call opened when CreateIntent refuses it, so a
+	// refused proposal leaves no orphan window either.
+	var created *intentsv1.CreateIntentResponse
+	if _, err := e.createGuardedIntent(ctx, principal, worker.String(), baseline.effectiveText, proposeIdempotencyKey,
+		func() (string, error) {
+			res, err := e.svc.CreateIntent(ctx, &intentsv1.CreateIntentRequest{
+				IdempotencyKey: proposeIdempotencyKey,
+				Definition:     &intentsv1.DefinitionReference{IntentTypeId: def.Ref.TypeID, Version: def.Ref.Version},
+				// The initiator is server-derived. On the RPC surfaces the transport's
+				// own trusted-field pass fills it from the verified credential
+				// (internal/transport.ApplyTrustedContext); an in-process caller has
+				// no such pass, so this fills it from the same principal rather than
+				// leaving CreateIntent to refuse a request with no initiator at all.
+				Initiator: &intentsv1.PrincipalReference{
+					PrincipalId:          principal.Subject(),
+					Kind:                 journeyInitiatorKind(principal.SubjectKind()),
+					IdentityAssuranceRef: principal.EvidenceID(),
+				},
+				// The POSITION subject is declared only when the form actually named
+				// one: an empty SubjectId is a structurally invalid reference, not
+				// an unnamed position (PROMOUX-004 made target_position_id
+				// optional; see validateProposalInput and
+				// internal/intent/definitions.definitions.go's target_position_ref).
+				Subjects: journeySubjects(worker.Id, in.TargetPositionID),
+				Request: &intentsv1.TypedPayload{
+					Schema: &intentsv1.SchemaReference{
+						SchemaId:         def.InputSchema.SchemaID,
+						Version:          def.InputSchema.Version,
+						ProtobufFullName: def.InputSchema.ProtobufFullName,
+					},
+					ProtobufWireBytes: payload,
+				},
+				ExecutionMode: intentsv1.ExecutionMode_EXECUTION_MODE_SIMULATE,
+			})
+			if err != nil {
+				return "", err
+			}
+			created = res
+			return res.GetIntent().GetIntentId(), nil
+		}); err != nil {
+		return workspace.JourneySummary{}, err
 	}
 
 	summary, sumErr := journeySummaryFromProto(created.GetIntent())

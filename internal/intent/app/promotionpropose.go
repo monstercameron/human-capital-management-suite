@@ -10,8 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"go.opentelemetry.io/otel/trace"
-
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
@@ -420,40 +418,44 @@ func (e *journeyEngine) ProposePromotion(
 	// PROMOUX-002: the same admission boundary [journeyEngine.Propose] runs,
 	// so the intent-only contract cannot be used to route around the guard
 	// the page's own form is subject to. See admitPromotionWindow's doc.
-	guardID, guardErr := e.admitPromotionWindow(ctx, principal, subject.Ref.String(), fields["effective_date"], proposeIdempotencyKey)
-	if guardErr != nil {
-		return nil, guardErr
-	}
-
-	created, createErr := e.svc.CreateIntent(ctx, &intentsv1.CreateIntentRequest{
-		IdempotencyKey: proposeIdempotencyKey,
-		Definition:     &intentsv1.DefinitionReference{IntentTypeId: def.Ref.TypeID, Version: def.Ref.Version},
-		// Server-derived, exactly as [journeyEngine.Propose]'s is. There is no
-		// initiator field on the wire contract for a caller to fill.
-		Initiator: &intentsv1.PrincipalReference{
-			PrincipalId:          principal.Subject(),
-			Kind:                 journeyInitiatorKind(principal.SubjectKind()),
-			IdentityAssuranceRef: principal.EvidenceID(),
-		},
-		Subjects: journeySubjects(subject.Ref.Id, fields["desired_position_id"]),
-		Request: &intentsv1.TypedPayload{
-			Schema: &intentsv1.SchemaReference{
-				SchemaId:         def.InputSchema.SchemaID,
-				Version:          def.InputSchema.Version,
-				ProtobufFullName: def.InputSchema.ProtobufFullName,
-			},
-			ProtobufWireBytes: payload,
-		},
-		ExecutionMode: intentsv1.ExecutionMode_EXECUTION_MODE_SIMULATE,
-	})
-	if createErr != nil {
-		return nil, journeyError(createErr)
+	// PROMOUX-017: the shared helper abandons the reservation this call
+	// opened when CreateIntent refuses it (a changed request reusing a
+	// client request id on a different day must not leave a second ACTIVE
+	// reservation behind).
+	var created *intentsv1.CreateIntentResponse
+	if _, err := e.createGuardedIntent(ctx, principal, subject.Ref.String(), fields["effective_date"], proposeIdempotencyKey,
+		func() (string, error) {
+			res, err := e.svc.CreateIntent(ctx, &intentsv1.CreateIntentRequest{
+				IdempotencyKey: proposeIdempotencyKey,
+				Definition:     &intentsv1.DefinitionReference{IntentTypeId: def.Ref.TypeID, Version: def.Ref.Version},
+				// Server-derived, exactly as [journeyEngine.Propose]'s is. There is no
+				// initiator field on the wire contract for a caller to fill.
+				Initiator: &intentsv1.PrincipalReference{
+					PrincipalId:          principal.Subject(),
+					Kind:                 journeyInitiatorKind(principal.SubjectKind()),
+					IdentityAssuranceRef: principal.EvidenceID(),
+				},
+				Subjects: journeySubjects(subject.Ref.Id, fields["desired_position_id"]),
+				Request: &intentsv1.TypedPayload{
+					Schema: &intentsv1.SchemaReference{
+						SchemaId:         def.InputSchema.SchemaID,
+						Version:          def.InputSchema.Version,
+						ProtobufFullName: def.InputSchema.ProtobufFullName,
+					},
+					ProtobufWireBytes: payload,
+				},
+				ExecutionMode: intentsv1.ExecutionMode_EXECUTION_MODE_SIMULATE,
+			})
+			if err != nil {
+				return "", err
+			}
+			created = res
+			return res.GetIntent().GetIntentId(), nil
+		}); err != nil {
+		return nil, err
 	}
 
 	instance := created.GetIntent()
-	if confirmErr := e.confirmPromotionWindow(ctx, principal, guardID, proposeIdempotencyKey, instance.GetIntentId()); confirmErr != nil {
-		trace.SpanFromContext(ctx).AddEvent("promotion.guard.confirm_failed")
-	}
 	simulated, simErr := e.resimulateDetailed(ctx, instance.GetIntentId())
 	if simErr != nil {
 		return nil, simErr

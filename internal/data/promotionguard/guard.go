@@ -140,7 +140,11 @@ func Admit(
 // Confirm records the real intent id a reservation protects, once
 // CreateIntent has minted it. It is idempotent for the same intent and refuses
 // a missing guard or a conflicting binding rather than silently changing no
-// row and pretending confirmation succeeded.
+// row and pretending confirmation succeeded. It confirms ACTIVE reservations
+// only: attaching an intent to a reservation [Abandon] or [Reclaim] already
+// closed would silently leave a committed promotion with no guard, so that
+// interleave fails here with ErrNoRows instead, loudly, where the caller
+// logs it.
 func Confirm(ctx context.Context, ex Executor, tenantID, guardID uuid.UUID, idempotencyKey string, intentID uuid.UUID) error {
 	if err := requireTenant(tenantID); err != nil {
 		return err
@@ -162,6 +166,7 @@ func Confirm(ctx context.Context, ex Executor, tenantID, guardID uuid.UUID, idem
 		UPDATE promotion_active_intent_guard
 		SET intent_id = $4
 		WHERE tenant_id = $1 AND guard_id = $2 AND idempotency_key = $3
+		  AND status = 'ACTIVE'
 		  AND (intent_id IS NULL OR intent_id = $4)
 		RETURNING intent_id`,
 		tenantID, guardID, strings.TrimSpace(idempotencyKey), intentID,
