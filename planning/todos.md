@@ -10633,7 +10633,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** each external effect has independent freshness, deadline, criticality and repair ownership.
   - **Refs:** [Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [integration observations](specs/integration-platform.md).
 
-- [ ] `LEAVE-012` **[CONFORMANCE][SOL_HIGH] Evaluate domain-specific Return-to-Work readiness and restrictions.**
+- [x] `LEAVE-012` **[CONFORMANCE][SOL_HIGH] Evaluate domain-specific Return-to-Work readiness and restrictions.**
   - **Depends:** `LEAVE-010`, `WORK-009`, `QUAL-004`, `LEGAL-004`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORKFORCE; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
   - **TEST:** `TestTodo_LEAVE_012`.
@@ -10642,6 +10642,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **GREEN:** result is exactly `READY|READY_WITH_RESTRICTIONS|NOT_READY|UNKNOWN`, binding leave/evidence/job/schedule/access revisions; structured restriction produces governed `EstablishWorkRestriction` and accommodation/reassignment follow-up intents when qualification is conditional.
   - **REFACTOR:** this remains Leave-domain readiness until cross-domain conformance proves a shared engine.
   - **Refs:** [Leave workflow](workflows/leave/leave-return-to-work.md), [qualification engine](#39-qualification-demand-matching-and-scenario-engines).
+  - **Evidence (2026-09-14):** `TestTodo_LEAVE_012`, `TestTodo_LEAVE_012_Security`, `TestTodo_LEAVE_012_Conformance`, `TestTodo_LEAVE_012_Mutation` in `internal/domains/leave` (`readiness.go`, `readiness_test.go`); RED captured as build failure on undefined `ReturnToWorkInput`/`EvaluateReturnToWorkReadiness` before the implementation existed, GREEN after. `go test -count=1 -run TestTodo_LEAVE_012 ./internal/domains/leave/` PASS, `go test -count=1 -cover ./internal/domains/leave/` PASS at 87.5%, `go vet` clean, gofmt clean; branch main.
 
 - [ ] `LEAVE-013` **[PHASE_2][SOL_HIGH] Commit ReturnFromLeave and reconcile restored effects.**
   - **Depends:** `LEAVE-012`, `AVAIL-003`, `TX-004`, `EFFECT-001`, `RECON-002`.
