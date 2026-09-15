@@ -36601,7 +36601,8 @@
     "refactor": "shared components own motion states and tokens; business renderers do not schedule animations",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/tokens`, `tools/uxqual/latencygate`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`go test -count=1 ./internal/humanwork/productui -run 'TestTodo_UIPOLISH_011'` passes the named primary/browser/accessibility/performance/regression matrix; `go test -count=1 ./tools/uxqual/tokens ./tools/uxqual/latencygate` and `go vet ./internal/humanwork/productui ./tools/uxqual/tokens ./tools/uxqual/latencygate` pass. The final shared layer removes dense-row hover travel, replaces large async-region translation with a fast opacity cue, removes repeated-row stagger, shortens entrance timing and restricts layout transitions to navigation geometry. The production Go/WASM bundle was rebuilt and manually exercised in the Codex browser at desktop, 390x844 and 320x740 across navigation, submenu, popover, Escape/focus restoration, limited-motion preview and a real People sort; no console warnings or errors appeared. The full Product UI package has one unrelated concurrent-work failure, `TestTodo_WEB_046_Golden`, whose Utility Drawer digest does not involve this CSS layer"
   },
   {
     "id": "UIPOLISH-012",
@@ -44284,6 +44285,141 @@
     "retired": false,
     "done": true,
     "evidence": "`internal/humanwork/productui/feature_registry.go` assigns stable page-local feature identities and CRUD ceilings, with automatic `content` and `actions` boundaries for every page; `internal/experience/roleaccess` intersects page and feature grants fail-closed; migration `00290_role_page_feature_permissions.sql` supplies tenant RLS and optimistic versioning; the canonical Journey RPC, Go/WASM client and server handlers carry and enforce the projection. The role editor was manually verified in the Codex browser against the real local server: 65 administrator features are grouped into page disclosures, supported CRUD controls are available, and unsupported controls are disabled. Named product UI, workspace, transport, client and embedded-Postgres integration tests pass; `buf lint schema/proto` and the `GOOS=js GOARCH=wasm` build pass. Windows intermittently reports `unlinkat ... test.exe: Access is denied` after successful package test output"
+  },
+  {
+    "id": "WEB-242",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Make one immutable page-module registry own rendering, visibility and feature identity",
+    "section": "66. Production frontend and governed page composition",
+    "depends": [
+      "WEB-241"
+    ],
+    "test": "TestTodo_WEB_242",
+    "test_matrix": {
+      "ARCHITECTURE": "TestTodo_WEB_242_Architecture",
+      "PRIMARY": "TestTodo_WEB_242",
+      "PROPERTY": "TestTodo_WEB_242_Property",
+      "REGRESSION": "TestTodo_WEB_242_Regression",
+      "SECURITY": "TestTodo_WEB_242_Security"
+    },
+    "red": "page identity, render dispatch, role visibility and features live in separate switches or maps, so adding a page can compile while remaining invisible, unrenderable or incorrectly authorized",
+    "green": "each immutable page module owns its definition, renderer, declarative access audience and feature catalogue; lookups, rendering and legacy role visibility consume that module; duplicate IDs/routes and incomplete modules fail deterministic registry validation; callers receive copies and cannot mutate the registry",
+    "refactor": "page-specific components remain props-driven and renderers remain functions; the module is registration metadata, not a mutable service locator or runtime authority",
+    "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), [authorization plan](specs/organization-scope-and-authz.md), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "`internal/humanwork/productui/web242_page_modules.go` builds one immutable, deterministically validated module registry whose entries own page definition, stateless renderer adapter, declarative access audience, snapshotted feature catalogue, route profile and data profile. Binary ID/route indexes, clone-returning public APIs, fail-closed unknown-page behavior and registry-wide render/security regressions are covered by the complete named test matrix; `go test -work -count=1 -run \"TestTodo_WEB_24[1-4]|TestPageRegistryOwnsCanonicalIdentityRouteAndRenderer|TestAddressState|TestPageVisibilityRoleMatrix\" ./internal/humanwork/productui` PASS"
+  },
+  {
+    "id": "WEB-243",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Declare reusable route-state and data-requirement profiles on page modules",
+    "section": "66. Production frontend and governed page composition",
+    "depends": [
+      "WEB-242"
+    ],
+    "test": "TestTodo_WEB_243",
+    "test_matrix": {
+      "CONFORMANCE": "TestTodo_WEB_243_Conformance",
+      "PERFORMANCE": "TestTodo_WEB_243_Performance",
+      "PRIMARY": "TestTodo_WEB_243",
+      "PROPERTY": "TestTodo_WEB_243_Property",
+      "REGRESSION": "TestTodo_WEB_243_Regression"
+    },
+    "red": "browser address serialization, request normalization and client dataset selection switch directly on page IDs, making each new page an integration scavenger hunt and allowing redundant network reads",
+    "green": "page modules select reusable typed route-state and dataset profiles; shell and Go/WASM client resolve those profiles from the canonical registry; unknown pages fail closed; existing canonical URLs, warm refresh behavior and parallel reads remain byte-for-byte compatible while pages with no data profile issue no page-specific reads",
+    "refactor": "profiles describe presentation address state and authorized read needs only; they never carry credentials, records or business decisions",
+    "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `internal/humanwork/productui`, `tools/uxqual/productclient`",
+    "retired": false,
+    "done": true,
+    "evidence": "reusable typed route-state and authorized dataset profiles now drive server request normalization, shell address persistence, Go client canonicalization and read planning, plus WASM warm-route identity. Profile lookup is allocation-free, pages with no dataset declare no page-specific reads, and regression coverage preserves person, paging, eligibility and history address state. The named matrix passes in `internal/humanwork/productui`; `go test -work -count=1 ./tools/uxqual/productclient ./tools/uxqual/cmd/journeywasm` and `go vet ./internal/humanwork/productui ./tools/uxqual/productclient ./tools/uxqual/cmd/journeywasm` PASS"
+  },
+  {
+    "id": "WEB-244",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Gate page-module extensions with an end-to-end contributor contract",
+    "section": "66. Production frontend and governed page composition",
+    "depends": [
+      "WEB-242",
+      "WEB-243"
+    ],
+    "test": "TestTodo_WEB_244",
+    "test_matrix": {
+      "ACCESSIBILITY": "TestTodo_WEB_244_Accessibility",
+      "BROWSER": "TestTodo_WEB_244_Browser",
+      "GOLDEN": "TestTodo_WEB_244_Golden",
+      "PERFORMANCE": "TestTodo_WEB_244_Performance",
+      "PRIMARY": "TestTodo_WEB_244",
+      "REGRESSION": "TestTodo_WEB_244_Regression",
+      "SECURITY": "TestTodo_WEB_244_Security"
+    },
+    "red": "extension safety depends on a pinned page count and reviewer memory, with no proof that all registered modules render through the persistent shell, inherit semantic theme tokens, expose accessible identity, and remain absent from navigation and search when denied",
+    "green": "registry-wide tests validate every module rather than a hard-coded count, render every admitted page through SSR and the shared component outlet, verify authorization-filtered navigation/search, bound lookup cost, and exercise a representative module in the real Go/WASM browser at desktop, 390 px and 320 px in light and dark themes",
+    "refactor": "the gate tests public module behavior and invariants, not a second fixture registry or page-by-page assertion list",
+    "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `internal/humanwork/productui`, `internal/humanwork/workspace`, `tools/uxqual/productclient`",
+    "retired": false,
+    "done": true,
+    "evidence": "`internal/humanwork/productui/web244_extension_gate_test.go` gates every registered module for identity, profile validity, renderer/output integration, authorization-filtered discovery, semantic main/heading/skip-link structure, zero-allocation lookup, responsive/theme contracts and rejection of reintroduced page-ID switches. The production Go/WASM bundle was rebuilt and exercised against the real local server in the Codex browser: Journeys and People loaded live data at desktop, 390 px and 320 px; both light and dark organization themes rendered without horizontal overflow; the saved theme was restored to `Plum · Dark`; and the browser console contained no warnings or errors"
+  },
+  {
+    "id": "WEB-245",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Enforce a keyboard interaction contract across every registered product page",
+    "section": "66. Production frontend and governed page composition",
+    "depends": [
+      "WEB-019",
+      "WEB-048",
+      "WEB-244"
+    ],
+    "test": "TestTodo_WEB_245",
+    "test_matrix": {
+      "ACCESSIBILITY": "TestTodo_WEB_245_Accessibility",
+      "BROWSER": "TestTodo_WEB_245_Browser",
+      "I18N": "TestTodo_WEB_245_I18N",
+      "PERFORMANCE": "TestTodo_WEB_245_Performance",
+      "PRIMARY": "TestTodo_WEB_245",
+      "PROPERTY": "TestTodo_WEB_245_Property",
+      "REGRESSION": "TestTodo_WEB_245_Regression"
+    },
+    "red": "keyboard safety is inferred from a few representative pages, so a newly registered page can introduce positive tab order, unnamed focus targets, broken disclosure wiring, pointer-only actions or overlays that do not dismiss and restore focus",
+    "green": "a registry-wide parsed-DOM gate renders every page in left-to-right and right-to-left locales and proves a first-position skip link, native named controls, valid tab order, labelled keyboard-scroll regions, coherent disclosure/composite-widget ARIA, and no hidden focus targets; shared overlay, global-search, navigation-drawer and promotion-review controllers retain Enter/arrow/Escape behavior and focus restoration; the real Go/WASM product is manually exercised at desktop and mobile widths",
+    "refactor": "keyboard behavior remains in shared controls and focus controllers; the gate consumes the page-module registry and semantic DOM instead of maintaining a page-name fixture or adding page-local key handlers",
+    "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`",
+    "retired": false,
+    "done": true,
+    "evidence": "`internal/humanwork/productui/web245_keyboard_contract_test.go` renders every page module in English, German and Arabic and parses the result to enforce skip-link order, native named controls, non-positive tab order, safe button/link behavior, native disclosures, resolved composite-widget references, named tree semantics and keyboard-reachable scroll regions. Page utilities now use the shared modal focus trap; that trap filters hidden, inert and non-rendered responsive descendants before wrapping focus, with its JS/WASM regression passing under Go's Node harness. The named WEB-245 matrix, journey-WASM tests, native and JS/WASM vet/build checks pass. The rebuilt product was exercised in the Codex browser: global-search and Promotion keyboard behavior remained intact; utilities opened with Enter, wrapped both directions and restored the trigger on Escape; at 390x844 the mobile drawer opened with Space, reverse-wrapped from Close to the last visible Admin link and restored its trigger on Escape. The full product UI run had no functional/keyboard failures; the unrelated pre-existing interaction-latency gate still exceeded its 10,000-worker query and 1000x12 table budgets when rerun alone"
+  },
+  {
+    "id": "WEB-246",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Keep remote table transitions legible without replacing the page",
+    "section": "66. Production frontend and governed page composition",
+    "depends": [
+      "UIPOLISH-009",
+      "UXAUDIT-008",
+      "WEB-245"
+    ],
+    "test": "TestTodo_WEB_246",
+    "test_matrix": {
+      "ACCESSIBILITY": "TestTodo_WEB_246_Accessibility",
+      "BROWSER": "TestTodo_WEB_246_Browser",
+      "I18N": "TestTodo_WEB_246_I18N",
+      "PERFORMANCE": "TestTodo_WEB_246_Performance",
+      "PRIMARY": "TestTodo_WEB_246",
+      "REGRESSION": "TestTodo_WEB_246_Regression"
+    },
+    "red": "table sort can resolve entirely through optimistic local state without ever entering the route loader, and the existing directory-only progress line does not present a visible table-level loading affordance; paging feedback depends on a fast warm refresh that is easy to miss",
+    "green": "the reusable data-table contract can retain its resolved rows while exposing a themed in-place spinner/status and `aria-busy`; People sort, previous/next and page-size changes all enter the same directory-scoped refresh path, preserve shell/page/table geometry and focus, and clear the state when the authoritative projection resolves; reduced-motion and forced-colors modes remain legible",
+    "refactor": "loading presentation belongs to the reusable table and async-region contracts; People supplies localized state and routing only, with no page-wide loader or table-specific browser mutation",
+    "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`",
+    "retired": false,
+    "done": true,
+    "evidence": "`DataTable` owns an in-place spinner/status, retained-row busy state and `aria-busy`; People sort, paging and page-size transitions use the cancellable authoritative router and preserve the last resolved projection. The named primary/browser/accessibility/i18n/performance/regression matrix, route regressions, native vet and JavaScript/WASM build pass. Codex-browser checks exercised delayed and resolved sort, paging, page size, and a 390x844 responsive view against the local server"
   },
   {
     "id": "WEDGE-001",
