@@ -4461,7 +4461,8 @@ closed.
   - **REFACTOR:** rebuild runs in isolated shadow namespace.
   - **Refs:** [Projection rebuild](specs/transaction-ledger-reconciliation-and-repair.md), [Recovery matrix](plan.md#114-recovery-matrix).
 
-- [ ] `DATA-011` **[PHASE_2][SOL_HIGH] Compare and promote a shadow projection version.**
+- [x] `DATA-011` **[PHASE_2][SOL_HIGH] Compare and promote a shadow projection version.**
+  - **Evidence (2026-09-15):** `TestTodo_DATA_011` plus `TestTodo_DATA_011_Golden`, `_Security`, `_Recovery` and `_Fault` in `internal/data/shadow` (shadow.go adds pure Compare/Promote/Rollback kernel: exact row/digest/authz/watermark differences refuse with a digest-pinned report, tenant mismatch/incomplete replay/lag bound are typed gates, only explicit non-self approval promotes with the previous active retained as rollback; RED captured as build-failed undefined symbols); `go test -count=1 ./internal/data/shadow/` PASS plus `go vet`/`gofmt` clean on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** `DATA-010`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=provide reusable execution mechanics required by the declared intent set`.
   - **TEST:** `TestTodo_DATA_011`.
