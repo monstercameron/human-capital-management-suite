@@ -5560,3 +5560,24 @@ tables:
       digest re-checked on read. One decision per instance version, so
       concurrent interventions converge. SELECT/INSERT only; forbid_mutation
       trigger.
+  - table: operator_bypass_obligation
+    migration: 00310_operator_bypass_obligation.sql
+    owner_package: internal/data/operatorjournal
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-039: one bypass obligation per tenant and obligation id (derived
+      from the same idempotency key as its operator_control_receipt, which it
+      references), naming the authority family, the operator who bypassed, the
+      approver of record the repair-separation rule reads, what was bypassed
+      and why, and the instant a distinct reviewer's review is due. An overdue
+      undischarged row suspends its authority family at the operator gateway
+      and at the capability gateway. UPDATE is granted only so a still-open row
+      can record its review (operator_bypass_obligation_review_only trigger);
+      DELETE is not granted and forbid_mutation refuses it.

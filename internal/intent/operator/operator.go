@@ -17,6 +17,18 @@
 // bypass dual control and simulation, but it records its declared bypass
 // reason and demands a post-use review, and it cannot rewrite business truth
 // the executor does not itself own.
+//
+// # Bypass obligations and separated repair authority
+//
+// A bypass is not free (WF-RUN-039). Every bypassing action records a durable
+// [Obligation] naming what it skipped, who acted, who approved it and by when
+// a distinct person must review it; a gateway with nowhere to record that
+// refuses the bypass outright. Each kind belongs to one authority [Family],
+// and an obligation past its due review suspends its whole family at this
+// gateway and at the capability gateway ([CapabilitySuspensions]) until a
+// reviewer who is neither the operator nor the approver discharges it. The
+// repair families carry one more rule: an approver of record over a scope may
+// not come back as its repair operator.
 package operator
 
 import (
@@ -72,13 +84,13 @@ const (
 
 // Kinds lists every kind in a stable order.
 func Kinds() []Kind {
-	return []Kind{
+	return append([]Kind{
 		KindDatabaseRepair, KindWorkflowNodeIntervention, KindConnectorRedrive, KindProjectionRebuild,
 		KindFailover, KindQuarantine, KindTenantSuspension, KindKeyRotation,
 		KindWorkflowPause, KindWorkflowResume, KindWorkflowCancel, KindWorkflowRetryNode,
 		KindWorkflowSkip, KindWorkflowSatisfy, KindWorkflowOverride, KindWorkflowRewind,
 		KindWorkflowCompensate, KindWorkflowSupersede, KindWorkflowReconcile, KindDiagnosticRead,
-	}
+	}, authorityKinds()...)
 }
 
 // Policy is what one kind demands before its effect may run.
@@ -98,6 +110,11 @@ type Policy struct {
 
 // PolicyFor returns the policy of a kind.
 func PolicyFor(k Kind) (Policy, bool) {
+	// The repair, override and migrate families keep their policies with
+	// their definitions in authority.go (WF-RUN-039).
+	if p, ok := authorityPolicyFor(k); ok {
+		return p, true
+	}
 	p := Policy{IntentType: "hcmnext.operations." + strings.ToLower(string(k)) + ".v1", Material: true}
 	switch k {
 	case KindDatabaseRepair, KindProjectionRebuild:
@@ -345,12 +362,16 @@ type Receipt struct {
 	SecondApprover   string          `json:"second_approver,omitempty"`
 	SimulationDigest string          `json:"simulation_digest,omitempty"`
 	BypassReason     string          `json:"bypass_reason,omitempty"`
-	ReviewRequired   bool            `json:"review_required"`
-	Outcome          Outcome         `json:"outcome"`
-	EffectRef        string          `json:"effect_ref,omitempty"`
-	FailureCode      string          `json:"failure_code,omitempty"`
-	RecordedAt       time.Time       `json:"recorded_at"`
-	Digest           string          `json:"digest"`
+	// Bypassed names every requirement the authority path skipped
+	// (WF-RUN-039). A non-empty list is what obliges a due review, so a
+	// receipt can never record a bypass without also owing one.
+	Bypassed       []string  `json:"bypassed,omitempty"`
+	ReviewRequired bool      `json:"review_required"`
+	Outcome        Outcome   `json:"outcome"`
+	EffectRef      string    `json:"effect_ref,omitempty"`
+	FailureCode    string    `json:"failure_code,omitempty"`
+	RecordedAt     time.Time `json:"recorded_at"`
+	Digest         string    `json:"digest"`
 }
 
 func (r Receipt) sealed() Receipt {
@@ -433,11 +454,26 @@ type Gateway struct {
 	executors map[Kind]Executor
 	clock     func() time.Time
 	policy    func(Kind) (Policy, bool)
+	// obligations records and reads the bypass obligations of this gateway's
+	// actions (WF-RUN-039). It defaults to the journal when the journal is
+	// also an [ObligationStore], so one wiring covers receipts and the debts
+	// they leave behind.
+	obligations ObligationStore
+}
+
+// GatewayOption configures a [Gateway].
+type GatewayOption func(*Gateway)
+
+// WithObligations replaces the gateway's bypass-obligation store. Without it
+// the gateway uses the journal when the journal implements [ObligationStore],
+// and refuses every bypass when it does not.
+func WithObligations(store ObligationStore) GatewayOption {
+	return func(g *Gateway) { g.obligations = store }
 }
 
 // NewGateway builds a gateway. Every executor must be registered for a known
 // kind; clock defaults to time.Now.
-func NewGateway(journal Journal, executors map[Kind]Executor, clock func() time.Time) (*Gateway, error) {
+func NewGateway(journal Journal, executors map[Kind]Executor, clock func() time.Time, opts ...GatewayOption) (*Gateway, error) {
 	if journal == nil {
 		return nil, refuse(CodeInvalidRequest, "", "a journal is required")
 	}
@@ -451,7 +487,54 @@ func NewGateway(journal Journal, executors map[Kind]Executor, clock func() time.
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
-	return &Gateway{journal: journal, executors: registered, clock: clock, policy: PolicyFor}, nil
+	g := &Gateway{journal: journal, executors: registered, clock: clock, policy: PolicyFor}
+	if store, ok := journal.(ObligationStore); ok {
+		g.obligations = store
+	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(g)
+		}
+	}
+	return g, nil
+}
+
+// ReviewObligation discharges one outstanding bypass obligation. The reviewer
+// must differ from both the operator who incurred it and the approver who
+// authorized the bypass, and the review lifts the suspension its family is
+// under.
+func (g *Gateway) ReviewObligation(ctx context.Context, tenant values.TenantId, id string, review ObligationReview) (ret0 Obligation, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "operator.review_obligation", tenant, id)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
+	if g.obligations == nil {
+		return Obligation{}, refuse(CodeObligationRequired, "", "this gateway has no obligation store to review against")
+	}
+	if tenant.Validate() != nil || strings.TrimSpace(id) == "" {
+		return Obligation{}, refuse(CodeInvalidRequest, "", "a review names a tenant and an obligation id")
+	}
+	o, err := g.obligations.DischargeObligation(ctx, tenant, id, review)
+	if err != nil {
+		if CodeOf(err) != "" {
+			return Obligation{}, err
+		}
+		return Obligation{}, &Error{Code: CodeObligationFailed, Detail: "discharge", Err: err}
+	}
+	return o, nil
+}
+
+// OutstandingObligations returns every undischarged bypass obligation of
+// tenant, oldest due date first.
+func (g *Gateway) OutstandingObligations(ctx context.Context, tenant values.TenantId) (ret0 []Obligation, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "operator.outstanding_obligations", tenant)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
+	if g.obligations == nil {
+		return nil, nil
+	}
+	out, err := g.obligations.OutstandingObligations(ctx, tenant)
+	if err != nil {
+		return nil, &Error{Code: CodeObligationFailed, Detail: "load outstanding obligations", Err: err}
+	}
+	return out, nil
 }
 
 // Submit evaluates and, when every requirement holds, performs one operator
@@ -477,9 +560,22 @@ func (g *Gateway) Submit(ctx context.Context, req Request) (ret0 Receipt, retErr
 		return Receipt{}, refuse(CodeNoExecutor, req.Kind, "no executor is registered for this kind")
 	}
 	now := g.clock().UTC()
-	receipt, err := g.authorize(req, policy, now)
+	// Outstanding obligations gate the action before any authority is spent:
+	// an overdue review suspends its whole family, and a repair-family action
+	// is refused to an approver of record over the same scope.
+	outstanding, err := g.outstanding(ctx, req.Tenant)
 	if err != nil {
 		return Receipt{}, err
+	}
+	if err := gateObligations(req, outstanding, now); err != nil {
+		return Receipt{}, err
+	}
+	receipt, approver, err := g.authorize(req, policy, now)
+	if err != nil {
+		return Receipt{}, err
+	}
+	if len(receipt.Bypassed) > 0 && g.obligations == nil {
+		return Receipt{}, refuse(CodeObligationRequired, req.Kind, "a bypass needs an obligation store to stay accountable; this gateway has none")
 	}
 	receipt.RequestDigest, receipt.Outcome, receipt.RecordedAt = digest, OutcomePending, now
 	receipt = receipt.sealed()
@@ -487,6 +583,14 @@ func (g *Gateway) Submit(ctx context.Context, req Request) (ret0 Receipt, retErr
 		return Receipt{}, &Error{Code: CodeJournal, Kind: req.Kind, Detail: "begin", Err: err}
 	} else if found {
 		return replay(existing, digest, req.Kind)
+	}
+	// The obligation is recorded before the effect runs: a bypass whose debt
+	// cannot be written down does not happen at all.
+	if len(receipt.Bypassed) > 0 {
+		if err := g.obligations.RecordObligation(ctx, ObligationFor(receipt, approver, now)); err != nil {
+			abortErr := g.journal.Abort(ctx, receipt)
+			return Receipt{}, &Error{Code: CodeObligationFailed, Kind: req.Kind, Detail: "record bypass obligation", Err: errors.Join(err, abortErr)}
+		}
 	}
 
 	auth := Authorization{kind: req.Kind, tenant: req.Tenant, scope: req.Scope.normalized(), instance: receipt.IntentInstanceID}
@@ -536,9 +640,43 @@ func replay(prior Receipt, digest string, k Kind) (Receipt, error) {
 	return dup, nil
 }
 
+// outstanding loads the tenant's undischarged obligations. A store that
+// cannot answer fails the submission closed: the gateway cannot tell whether
+// the family is suspended, so it does not act.
+func (g *Gateway) outstanding(ctx context.Context, tenant values.TenantId) ([]Obligation, error) {
+	if g.obligations == nil {
+		return nil, nil
+	}
+	out, err := g.obligations.OutstandingObligations(ctx, tenant)
+	if err != nil {
+		return nil, &Error{Code: CodeObligationFailed, Detail: "load outstanding obligations", Err: err}
+	}
+	return out, nil
+}
+
+// gateObligations refuses a request its tenant's outstanding obligations do
+// not admit: an overdue review suspends the whole authority family, and a
+// repair-family action is refused to an approver of record over the same
+// scope.
+func gateObligations(req Request, outstanding []Obligation, now time.Time) error {
+	if o, suspended := SuspendedFamilies(outstanding, now)[req.Kind.Family()]; suspended {
+		return refuse(CodeObligationOverdue, req.Kind,
+			"authority family %s is suspended: obligation %s from %s was due for review at %s",
+			req.Kind.Family(), o.ID, o.Operator, o.DueAt.UTC().Format(time.RFC3339))
+	}
+	if req.Kind.SeparatesRepairFromApproval() {
+		if o, conflict := ApproverOverScope(outstanding, req.Operator, req.Scope); conflict {
+			return refuse(CodeRepairSeparation, req.Kind,
+				"%s approved obligation %s over this scope and may not also be its repair operator", req.Operator, o.ID)
+		}
+	}
+	return nil
+}
+
 // authorize checks authority, dual control and simulation, records the use
-// on the grant, and returns the receipt skeleton.
-func (g *Gateway) authorize(req Request, p Policy, now time.Time) (Receipt, error) {
+// on the grant, and returns the receipt skeleton together with the approver of
+// record on the authority that admitted the action.
+func (g *Gateway) authorize(req Request, p Policy, now time.Time) (Receipt, string, error) {
 	r := Receipt{
 		IntentInstanceID: IntentInstanceID(req.Tenant, req.IdempotencyKey), IntentType: p.IntentType,
 		Kind: req.Kind, Tenant: req.Tenant, Operator: req.Operator, Scope: req.Scope.normalized(),
@@ -549,48 +687,59 @@ func (g *Gateway) authorize(req Request, p Policy, now time.Time) (Receipt, erro
 
 	if req.Emergency != nil {
 		if !p.Material {
-			return Receipt{}, refuse(CodeAuthorityMismatch, req.Kind, "break-glass authority is for material emergencies, not diagnostic reads")
+			return Receipt{}, "", refuse(CodeAuthorityMismatch, req.Kind, "break-glass authority is for material emergencies, not diagnostic reads")
 		}
 		grant := req.Emergency.Grant
 		if grant == nil {
-			return Receipt{}, refuse(CodeAuthorityRequired, req.Kind, "emergency action names no break-glass grant")
+			return Receipt{}, "", refuse(CodeAuthorityRequired, req.Kind, "emergency action names no break-glass grant")
 		}
 		if strings.TrimSpace(req.Emergency.BypassReason) == "" {
-			return Receipt{}, refuse(CodeBypassReason, req.Kind, "emergency execution must declare why dual control and simulation are bypassed")
+			return Receipt{}, "", refuse(CodeBypassReason, req.Kind, "emergency execution must declare why dual control and simulation are bypassed")
 		}
 		if !strings.EqualFold(grant.User, req.Operator) {
-			return Receipt{}, refuse(CodeAuthorityMismatch, req.Kind, "break-glass grant belongs to another user")
+			return Receipt{}, "", refuse(CodeAuthorityMismatch, req.Kind, "break-glass grant belongs to another user")
 		}
 		if err := grant.Use(string(req.Kind), action, now); err != nil {
 			code := CodeAuthorityInactive
 			if errors.Is(err, breakglass.ErrCapabilityNotGranted) {
 				code = CodeAuthorityMismatch
 			}
-			return Receipt{}, &Error{Code: code, Kind: req.Kind, Detail: "break-glass grant refused the use", Err: err}
+			return Receipt{}, "", &Error{Code: code, Kind: req.Kind, Detail: "break-glass grant refused the use", Err: err}
 		}
 		r.AuthorityKind, r.AuthorityRef = AuthorityBreakGlass, grant.ID
 		r.BypassReason, r.ReviewRequired = req.Emergency.BypassReason, true
-		return r, nil
+		// Break-glass always replaces the JIT authority path, and additionally
+		// skips whatever this kind's policy demanded of it.
+		r.Bypassed = []string{BypassJITAuthority}
+		if p.DualControl {
+			r.Bypassed = append(r.Bypassed, BypassDualControl)
+		}
+		if p.SimulationRequired {
+			r.Bypassed = append(r.Bypassed, BypassSimulation)
+		}
+		// The break-glass approver is the approver of record: the grant store
+		// already requires them to differ from the user who broke the glass.
+		return r, grant.Approver, nil
 	}
 
 	grant := req.JIT
 	if grant == nil {
-		return Receipt{}, refuse(CodeAuthorityRequired, req.Kind, "operator actions require a JIT grant; there is no standing operator authority")
+		return Receipt{}, "", refuse(CodeAuthorityRequired, req.Kind, "operator actions require a JIT grant; there is no standing operator authority")
 	}
 	switch {
 	case !strings.EqualFold(grant.Principal, req.Operator):
-		return Receipt{}, refuse(CodeAuthorityMismatch, req.Kind, "JIT grant belongs to another principal")
+		return Receipt{}, "", refuse(CodeAuthorityMismatch, req.Kind, "JIT grant belongs to another principal")
 	case grant.Tenant != req.Tenant:
-		return Receipt{}, refuse(CodeAuthorityMismatch, req.Kind, "JIT grant is scoped to another tenant")
+		return Receipt{}, "", refuse(CodeAuthorityMismatch, req.Kind, "JIT grant is scoped to another tenant")
 	case !slices.Contains(p.Roles, grant.Role):
-		return Receipt{}, refuse(CodeAuthorityMismatch, req.Kind, "JIT role %s does not authorize this kind", grant.Role)
+		return Receipt{}, "", refuse(CodeAuthorityMismatch, req.Kind, "JIT role %s does not authorize this kind", grant.Role)
 	case !slices.Contains(grant.Capabilities, string(req.Kind)):
-		return Receipt{}, refuse(CodeAuthorityMismatch, req.Kind, "JIT grant does not name this capability")
+		return Receipt{}, "", refuse(CodeAuthorityMismatch, req.Kind, "JIT grant does not name this capability")
 	}
 	if p.DualControl {
 		second := strings.TrimSpace(req.SecondApprover)
 		if second == "" || strings.EqualFold(second, req.Operator) || strings.EqualFold(second, grant.Principal) {
-			return Receipt{}, refuse(CodeDualControlRequired, req.Kind, "a second approver distinct from the operator is required")
+			return Receipt{}, "", refuse(CodeDualControlRequired, req.Kind, "a second approver distinct from the operator is required")
 		}
 		r.SecondApprover = second
 	}
@@ -598,17 +747,23 @@ func (g *Gateway) authorize(req Request, p Policy, now time.Time) (Receipt, erro
 		sim := req.Simulation
 		switch {
 		case sim == nil || strings.TrimSpace(sim.Digest) == "":
-			return Receipt{}, refuse(CodeSimulationRequired, req.Kind, "a simulation of this action is required first")
+			return Receipt{}, "", refuse(CodeSimulationRequired, req.Kind, "a simulation of this action is required first")
 		case !sim.Scope.equal(req.Scope):
-			return Receipt{}, refuse(CodeSimulationRequired, req.Kind, "the simulation covered a different scope")
+			return Receipt{}, "", refuse(CodeSimulationRequired, req.Kind, "the simulation covered a different scope")
 		case sim.At.IsZero() || sim.At.After(now) || now.Sub(sim.At) > maxSimulationAge:
-			return Receipt{}, refuse(CodeSimulationRequired, req.Kind, "the simulation is missing its instant, from the future or stale")
+			return Receipt{}, "", refuse(CodeSimulationRequired, req.Kind, "the simulation is missing its instant, from the future or stale")
 		}
 		r.SimulationDigest = sim.Digest
 	}
 	if err := grant.Use(action, now); err != nil {
-		return Receipt{}, &Error{Code: CodeAuthorityInactive, Kind: req.Kind, Detail: "JIT grant refused the use", Err: err}
+		return Receipt{}, "", &Error{Code: CodeAuthorityInactive, Kind: req.Kind, Detail: "JIT grant refused the use", Err: err}
 	}
 	r.AuthorityKind, r.AuthorityRef = AuthorityJIT, grant.ID
-	return r, nil
+	// The approver of record is the second approver when the policy demanded
+	// one, and otherwise the approver who granted the JIT authority.
+	approver := r.SecondApprover
+	if approver == "" {
+		approver = grant.Approver
+	}
+	return r, approver, nil
 }

@@ -7,13 +7,19 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
-// MemoryJournal is an in-process [Journal]. A gateway recomposed over the
-// same journal sees every receipt the previous one recorded, which is what a
-// restart over durable storage looks like.
+// MemoryJournal is an in-process [Journal] and [ObligationStore]. A gateway
+// recomposed over the same journal sees every receipt and every outstanding
+// bypass obligation the previous one recorded, which is what a restart over
+// durable storage looks like.
 type MemoryJournal struct {
 	mu       sync.Mutex
 	receipts map[string]Receipt
+	// obligations holds the bypass obligations of the same actions
+	// (WF-RUN-039); its methods live in obligation.go.
+	obligations memoryObligations
 }
+
+var _ ObligationStore = (*MemoryJournal)(nil)
 
 // NewMemoryJournal returns an empty journal.
 func NewMemoryJournal() *MemoryJournal { return &MemoryJournal{receipts: map[string]Receipt{}} }

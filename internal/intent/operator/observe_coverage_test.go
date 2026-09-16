@@ -19,6 +19,10 @@ var operatorUninstrumentedByDesign = map[string]string{
 	"workflowcontrol/intervention.go readySink.RequireSignalSubscription": "refuses without I/O inside the instrumented runtime.Advance",
 	"workflowcontrol/intervention.go readySink.RequireTimer":              "refuses without I/O inside the instrumented runtime.Advance",
 	"workflowcontrol/intervention.go readySink.Complete":                  "refuses without I/O inside the instrumented runtime.Advance",
+	"obligation.go MemoryJournal.RecordObligation":                        "in-memory journal inside the instrumented Gateway.Submit",
+	"obligation.go MemoryJournal.OutstandingObligations":                  "in-memory journal inside the instrumented Gateway.Submit",
+	"obligation.go MemoryJournal.DischargeObligation":                     "in-memory journal inside the instrumented Gateway.ReviewObligation",
+	"capabilitysuspension.go CapabilitySuspensions.SuspendedCapability":   "port answer read inside the capability gateway's own instrumented invocation; opening a span per capability call would trace every invocation twice",
 }
 
 // TestOperatorOperationsAreInstrumented holds the operator gateway and the

@@ -20,7 +20,8 @@
 // # Governed gateway
 //
 // [Gateway.Invoke] is the single path every transport must share (CAP-002).
-// It resolves the exact capability version, requires an already-made
+// It resolves the exact capability version, refuses a capability a
+// [SuspensionSource] reports suspended (WF-RUN-039), requires an already-made
 // [Authorization] decision (this package never authenticates or authorizes;
 // it only enforces the decision it is handed), refuses any capability that
 // declares a write effect class — P1A ships zero-effect capabilities only —

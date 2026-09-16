@@ -462,7 +462,7 @@ func TestTodo_INTENT_022_Recovery(t *testing.T) {
 	// A crash after authorization and before the outcome was recorded.
 	crashed := baseRequest(t, KindKeyRotation, "key-crashed")
 	crashed.JIT = grantFor(t, "operator:ana", jit.RoleIncidentResponder, KindKeyRotation)
-	pending, err := first.authorize(crashed, mustPolicy(t, KindKeyRotation), testNow)
+	pending, _, err := first.authorize(crashed, mustPolicy(t, KindKeyRotation), testNow)
 	if err != nil {
 		t.Fatal(err)
 	}

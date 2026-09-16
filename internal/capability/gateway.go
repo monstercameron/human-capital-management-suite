@@ -96,6 +96,9 @@ type Gateway struct {
 	registry *Registry
 	evidence EvidenceSink
 	now      func() time.Time
+	// suspensions reports capabilities whose governing authority is suspended
+	// (WF-RUN-039); nil enforces no suspension. See suspension.go.
+	suspensions SuspensionSource
 }
 
 // GatewayOption configures a Gateway.
@@ -127,6 +130,13 @@ func (g *Gateway) Invoke(ctx context.Context, req InvokeRequest) (InvokeResult, 
 	handler, status, _ := g.registry.handlerFor(req.Capability)
 	if status == StatusRetired {
 		return g.refuse(ctx, req, CodeCapabilityDisabled, "capability version is retired")
+	}
+
+	// A suspended capability is refused before authorization is even read: the
+	// suspension is a property of the capability, so no scope, envelope or
+	// effect class can talk past it.
+	if reason, suspended := g.suspended(ctx, req.Capability.ID); suspended {
+		return g.refuse(ctx, req, CodeCapabilitySuspended, reason)
 	}
 
 	if req.Authorization.Decision != Allow {
