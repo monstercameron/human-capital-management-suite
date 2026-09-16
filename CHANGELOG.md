@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-16 (Leave return commit)
+
+- Completed `LEAVE-013`: ReturnFromLeave now commits atomically in `internal/domains/leave` — verified readiness gates the return, active restrictions are preserved exactly, payroll/benefit/schedule/access effects are queued and reconciled without trusting providers, and closing requires a versioned obligation policy. Failed providers keep local LEAVE_ENDED truth with a targeted repair path.
+
 ## 2026-09-15 (Restrained product motion)
 
 - Completed `UIPOLISH-011`: cold page entry settles on the normal duration, repeated rows use one fast non-staggered entrance, retained async regions fade without shifting, dense rows no longer slide under the pointer, and the final cascade gives controls, surfaces and the collapsible shell narrowly scoped transition properties. Customer motion tokens, popover origin, RTL logical drawer travel, limited motion and system/user reduced-motion behavior remain intact.

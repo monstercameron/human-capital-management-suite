@@ -11,6 +11,7 @@ import (
 // Business states: the closed leave lifecycle vocabulary.
 const (
 	BusinessLeaveActive = "LEAVE_ACTIVE"
+	BusinessLeaveEnded  = "LEAVE_ENDED"
 )
 
 // Commit steps: every one of them commits once, or none do.
