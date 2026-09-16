@@ -25,6 +25,9 @@ type advanceRequestIdentity struct {
 	Refs                    GovernanceRefs
 	TraceID                 string
 	RecordedAt              string
+	// SettleAs is omitted when empty so every advancement recorded before
+	// WF-RUN-015 keeps its request digest.
+	SettleAs string `json:",omitempty"`
 }
 
 func computeAdvanceRequestDigest(req AdvanceRequest) string {
@@ -38,6 +41,7 @@ func computeAdvanceRequestDigest(req AdvanceRequest) string {
 		Refs:                    req.Refs,
 		TraceID:                 req.TraceID,
 		RecordedAt:              req.RecordedAt.UTC().Format(time.RFC3339Nano),
+		SettleAs:                string(req.SettleAs),
 	})
 }
 

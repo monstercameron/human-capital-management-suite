@@ -9,12 +9,16 @@ import (
 // operatorUninstrumentedByDesign lists the operator gateway's exported,
 // context-taking functions that open no observe operation, with the reason.
 var operatorUninstrumentedByDesign = map[string]string{
-	"journal.go MemoryJournal.Lookup":                   "in-memory journal inside the instrumented Gateway.Submit",
-	"journal.go MemoryJournal.Begin":                    "in-memory journal inside the instrumented Gateway.Submit",
-	"journal.go MemoryJournal.Complete":                 "in-memory journal inside the instrumented Gateway.Submit",
-	"journal.go MemoryJournal.Abort":                    "in-memory journal inside the instrumented Gateway.Submit",
-	"operator.go ExecutorFunc.Apply":                    "function adapter; its executor is instrumented",
-	"workflowcontrol/production.go PlanSet.ResolvePlan": "in-memory digest lookup inside an instrumented control",
+	"journal.go MemoryJournal.Lookup":                                     "in-memory journal inside the instrumented Gateway.Submit",
+	"journal.go MemoryJournal.Begin":                                      "in-memory journal inside the instrumented Gateway.Submit",
+	"journal.go MemoryJournal.Complete":                                   "in-memory journal inside the instrumented Gateway.Submit",
+	"journal.go MemoryJournal.Abort":                                      "in-memory journal inside the instrumented Gateway.Submit",
+	"operator.go ExecutorFunc.Apply":                                      "function adapter; its executor is instrumented",
+	"workflowcontrol/production.go PlanSet.ResolvePlan":                   "in-memory digest lookup inside an instrumented control",
+	"workflowcontrol/intervention.go readySink.RequireWorkItem":           "refuses without I/O inside the instrumented runtime.Advance",
+	"workflowcontrol/intervention.go readySink.RequireSignalSubscription": "refuses without I/O inside the instrumented runtime.Advance",
+	"workflowcontrol/intervention.go readySink.RequireTimer":              "refuses without I/O inside the instrumented runtime.Advance",
+	"workflowcontrol/intervention.go readySink.Complete":                  "refuses without I/O inside the instrumented runtime.Advance",
 }
 
 // TestOperatorOperationsAreInstrumented holds the operator gateway and the

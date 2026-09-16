@@ -531,3 +531,48 @@ func TestTodo_INTENT_022_Mutation(t *testing.T) {
 		t.Error("an unknown kind has a policy")
 	}
 }
+
+// TestTodo_WF_RUN_015_InterventionPolicies pins the authority each typed
+// workflow intervention demands at the gateway: repair kinds need an
+// integrity-repair grant, override an incident responder's, and every one of
+// them dual control and a simulation; an override grant never authorizes a
+// repair and a repair grant never authorizes an override.
+func TestTodo_WF_RUN_015_InterventionPolicies(t *testing.T) {
+	ctx := context.Background()
+	repair := []Kind{KindWorkflowSkip, KindWorkflowSatisfy, KindWorkflowRewind, KindWorkflowCompensate, KindWorkflowSupersede, KindWorkflowReconcile}
+	for _, k := range append(repair, KindWorkflowOverride) {
+		p, ok := PolicyFor(k)
+		if !ok || !p.Material || !p.DualControl || !p.SimulationRequired || len(p.Roles) != 1 {
+			t.Fatalf("%s policy = %+v, %v; want a material dual-control simulated kind with one role", k, p, ok)
+		}
+		wantRole := jit.RoleIntegrityRepair
+		if k == KindWorkflowOverride {
+			wantRole = jit.RoleIncidentResponder
+		}
+		if p.Roles[0] != wantRole {
+			t.Fatalf("%s role = %s, want %s", k, p.Roles[0], wantRole)
+		}
+	}
+	exec := &counting{}
+	gw := newGateway(t, NewMemoryJournal(), map[Kind]Executor{KindWorkflowOverride: exec, KindWorkflowSkip: exec})
+
+	override := baseRequest(t, KindWorkflowOverride, "override-with-repair-grant")
+	if _, err := gw.Submit(ctx, override); CodeOf(err) != CodeAuthorityMismatch {
+		t.Fatalf("override under an integrity-repair grant = %v, want %s", err, CodeAuthorityMismatch)
+	}
+	skip := baseRequest(t, KindWorkflowSkip, "skip-with-override-grant")
+	skip.JIT = grantFor(t, "operator:ana", jit.RoleIncidentResponder, KindWorkflowSkip)
+	if _, err := gw.Submit(ctx, skip); CodeOf(err) != CodeAuthorityMismatch {
+		t.Fatalf("skip under an incident-responder grant = %v, want %s", err, CodeAuthorityMismatch)
+	}
+	skip = baseRequest(t, KindWorkflowSkip, "skip-without-second")
+	skip.SecondApprover = ""
+	if _, err := gw.Submit(ctx, skip); CodeOf(err) != CodeDualControlRequired {
+		t.Fatalf("skip without dual control = %v", err)
+	}
+	override = baseRequest(t, KindWorkflowOverride, "override-governed")
+	override.JIT = grantFor(t, "operator:ana", jit.RoleIncidentResponder, KindWorkflowOverride)
+	if r, err := gw.Submit(ctx, override); err != nil || r.Outcome != OutcomeApplied || exec.applied.Load() != 1 {
+		t.Fatalf("governed override = %+v, %v (applied %d)", r, err, exec.applied.Load())
+	}
+}

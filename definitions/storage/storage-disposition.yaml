@@ -5539,3 +5539,24 @@ tables:
       authority gate decision and OBS-024 driver evidence entry, keyed by an
       evidence id derived from the canonical record digest so a replay is
       idempotent. SELECT/INSERT only; forbid_mutation trigger.
+  - table: workflow_intervention_decision
+    migration: 00307_workflow_intervention_decision.sql
+    owner_package: internal/workflow/intervention
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-015: the immutable decision of one accepted typed workflow
+      intervention (retry, resume, skip, satisfy, override, rewind, supersede,
+      reconcile, cancel): its capability family, the operator kind and
+      operational intent whose receipt operator_control_receipt journals, the
+      idempotency key, requester, reason and evidence references, the evaluated
+      plan and the transition read back from the runtime afterwards, sealed by a
+      digest re-checked on read. One decision per instance version, so
+      concurrent interventions converge. SELECT/INSERT only; forbid_mutation
+      trigger.

@@ -23,6 +23,13 @@
 //
 // A repeated command under the same idempotency key returns the recorded
 // outcome and never executes twice. Operators cannot name a target state.
+//
+// The same door carries WF-RUN-015's typed interventions
+// ([Controller.Intervene]): a command with an [InterventionSpec] is evaluated
+// by internal/workflow/intervention against the durable instance, performed
+// only through the runtime's own transitions, and -- when accepted -- recorded
+// as an immutable decision in the same transaction. There is no generic force
+// operation, and an action with no executable path is a typed denial.
 package workflowcontrol
 
 import (
@@ -31,6 +38,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -117,6 +125,9 @@ type Command struct {
 	Operator        string
 	// ResolvedContext is the resume-time revalidation evidence.
 	ResolvedContext map[string]string
+	// Intervention, when set, makes the command a typed workflow intervention
+	// (WF-RUN-015); see [Controller.Intervene].
+	Intervention *InterventionSpec
 }
 
 // Result is what a control produced.
@@ -131,6 +142,12 @@ type Result struct {
 	IntentInstanceID string
 	ReceiptDigest    string
 	Replayed         bool
+	// DecisionID and DecisionDigest identify the immutable decision an
+	// accepted intervention recorded; Cause is the gateway refusal code an
+	// INTERVENTION_UNAUTHORIZED denial carries.
+	DecisionID     string
+	DecisionDigest string
+	Cause          string
 	// durable marks a result whose writes must commit even though it is not
 	// a state change (a recorded CANNOT_CANCEL decision).
 	durable bool
@@ -178,12 +195,18 @@ func New(db dbport.Beginner, journal operator.Journal, plans PlanResolver, autho
 			opt(c)
 		}
 	}
-	gw, err := operator.NewGateway(journal, map[operator.Kind]operator.Executor{
+	executors := map[operator.Kind]operator.Executor{
 		operator.KindWorkflowPause:     operator.ExecutorFunc(c.applyPause),
 		operator.KindWorkflowResume:    operator.ExecutorFunc(c.applyResume),
 		operator.KindWorkflowCancel:    operator.ExecutorFunc(c.applyCancel),
 		operator.KindWorkflowRetryNode: operator.ExecutorFunc(c.applyRetry),
-	}, clock)
+	}
+	// WORKFLOW_COMPENSATE has no executor: Intervene denies it before the
+	// gateway because no compensation runner is composed.
+	for _, k := range interventionKinds {
+		executors[k] = c.applyIntervention(k)
+	}
+	gw, err := operator.NewGateway(journal, executors, clock)
 	if err != nil {
 		return nil, err
 	}
@@ -310,6 +333,7 @@ func payloadDigest(cmd Command) string {
 	for _, k := range keys {
 		b.WriteString("|" + k + "=" + cmd.ResolvedContext[k])
 	}
+	b.WriteString(interventionPayload(cmd.Intervention))
 	return b.String()
 }
 
@@ -329,14 +353,23 @@ func commandFrom(ctx context.Context) (Command, bool) {
 const effectPrefix = "workflowcontrol/v1"
 
 func encodeEffect(r Result) string {
-	return strings.Join([]string{effectPrefix, string(r.Outcome), r.Code, r.InstanceID.String(),
-		string(r.InstanceStatus), strconv.FormatInt(r.InstanceVersion, 10), r.NodeID, strconv.Itoa(r.Attempt)}, "|")
+	parts := []string{effectPrefix, string(r.Outcome), r.Code, r.InstanceID.String(),
+		string(r.InstanceStatus), strconv.FormatInt(r.InstanceVersion, 10), r.NodeID, strconv.Itoa(r.Attempt)}
+	if r.DecisionID != "" {
+		// An accepted intervention also journals the decision it recorded.
+		parts = append(parts, r.DecisionID, r.DecisionDigest)
+	}
+	return strings.Join(parts, "|")
 }
 
 func decodeEffect(ref string) (Result, error) {
 	parts := strings.Split(ref, "|")
-	if len(parts) != 8 || parts[0] != effectPrefix {
+	if (len(parts) != 8 && len(parts) != 10) || parts[0] != effectPrefix {
 		return Result{}, fmt.Errorf("workflowcontrol: unreadable recorded effect %q", ref)
+	}
+	decisionID, decisionDigest := "", ""
+	if len(parts) == 10 {
+		decisionID, decisionDigest = parts[8], parts[9]
 	}
 	id, err := uuid.Parse(parts[3])
 	if err != nil {
@@ -345,7 +378,7 @@ func decodeEffect(ref string) (Result, error) {
 	version, _ := strconv.ParseInt(parts[5], 10, 64)
 	attempt, _ := strconv.Atoi(parts[7])
 	return Result{Outcome: Outcome(parts[1]), Code: parts[2], InstanceID: id, InstanceStatus: runtime.InstanceStatus(parts[4]),
-		InstanceVersion: version, NodeID: parts[6], Attempt: attempt}, nil
+		InstanceVersion: version, NodeID: parts[6], Attempt: attempt, DecisionID: decisionID, DecisionDigest: decisionDigest}, nil
 }
 
 // stepFunc is one control's decision and writes inside the tenant
@@ -361,6 +394,10 @@ func (c *Controller) transact(ctx context.Context, auth operator.Authorization, 
 	}
 	if err := auth.Require(kind, cmd.Tenant); err != nil {
 		return "", err
+	}
+	fn, err := c.decorate(ctx, kind, cmd, auth.IntentInstanceID(), fn)
+	if err != nil {
+		return "", noEffect("intervention", err)
 	}
 	res, err := c.run(ctx, cmd, fn, true)
 	if err != nil {
@@ -428,6 +465,10 @@ func (c *Controller) step(ctx context.Context, kind operator.Kind) (stepFunc, bo
 	case operator.KindWorkflowRetryNode:
 		return c.retryStep(ctx), true
 	}
+	if slices.Contains(interventionKinds, kind) {
+		// An intervention-only kind has no plain step; decorate supplies it.
+		return nil, true
+	}
 	return nil, false
 }
 
@@ -445,6 +486,10 @@ func (c *Controller) Simulate(ctx context.Context, kind operator.Kind, cmd Comma
 	fn, ok := c.step(ctx, kind)
 	if !ok {
 		return nil, Result{}, fmt.Errorf("%w: kind %s is not a workflow control", ErrInvalidCommand, kind)
+	}
+	fn, err := c.decorate(ctx, kind, cmd, "simulation:"+cmd.IdempotencyKey, fn)
+	if err != nil {
+		return nil, Result{}, err
 	}
 	at := c.clock().UTC()
 	res, err := c.run(ctx, cmd, fn, false)

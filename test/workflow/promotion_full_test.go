@@ -853,19 +853,22 @@ func TestPromotionWorkflowCancelledBeforeApprovalWritesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt, err := intervention.Evaluate(intervention.Request{
-		WorkflowID: f.plan.WorkflowID, WorkflowVersion: f.plan.Version, CompiledPlanDigest: f.plan.Digest(),
-		InstanceID: first.Start.InstanceID.String(), ExpectedVersion: first.InstanceVersion, Kind: intervention.Cancel,
-		Frontier: []string{promotionexec.NodeApproveFinance}, Plan: f.plan, Reason: "promotion withdrawn before approval",
-		EvidenceRef: "evidence.promotion.withdrawal/v1", RequestedBy: "principal:promotion-requester", ApprovedBy: "principal:promotion-approver",
-		IdempotencyKey: "cancel:" + f.key, RequestedAt: f.at, CurrentStatus: string(runtime.InstanceRunning),
-	})
+	request := intervention.Request{
+		InstanceID: first.Start.InstanceID, ExpectedVersion: first.InstanceVersion, Kind: intervention.Cancel,
+		Reason: "promotion withdrawn before approval", EvidenceRefs: []string{"evidence.promotion.withdrawal/v1"},
+		RequestedBy: "principal:promotion-requester", RequestedAt: f.at,
+	}
+	instance := loadPromotionInstance(t, f, first.Start.InstanceID)
+	plan, err := intervention.Evaluate(request, intervention.Facts{Plan: f.plan, Instance: instance})
 	if err != nil {
 		t.Fatalf("intervention.Evaluate(cancel): %v", err)
 	}
+	if plan.InstanceTo != runtime.InstanceCancelling {
+		t.Fatalf("cancel plan = %+v, want the cancellation boundary", plan)
+	}
 	result, err := f.driver(t, f.at.Add(2*time.Minute), nil).Cancel(context.Background(), execute.CancellationRequest{
 		TenantID: f.tenantID, InstanceID: first.Start.InstanceID, ExpectedInstanceVersion: first.InstanceVersion,
-		Plan: f.plan, Reason: receipt.Reason, RequestedBy: receipt.RequestedBy, RecordedAt: f.at.Add(2 * time.Minute),
+		Plan: f.plan, Reason: request.Reason, RequestedBy: request.RequestedBy, RecordedAt: f.at.Add(2 * time.Minute),
 	})
 	if err != nil || result.Instance.RuntimeStatus != runtime.InstanceCancelled {
 		t.Fatalf("cancel result = %+v, err=%v", result, err)

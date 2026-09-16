@@ -55,6 +55,16 @@ const (
 	KindWorkflowResume    Kind = "WORKFLOW_RESUME"
 	KindWorkflowCancel    Kind = "WORKFLOW_CANCEL"
 	KindWorkflowRetryNode Kind = "WORKFLOW_RETRY_NODE"
+	// The typed workflow interventions WF-RUN-015 adds beyond retry and
+	// resume, each its own capability so a grant for one never authorizes
+	// another.
+	KindWorkflowSkip       Kind = "WORKFLOW_SKIP"
+	KindWorkflowSatisfy    Kind = "WORKFLOW_SATISFY"
+	KindWorkflowOverride   Kind = "WORKFLOW_OVERRIDE"
+	KindWorkflowRewind     Kind = "WORKFLOW_REWIND"
+	KindWorkflowCompensate Kind = "WORKFLOW_COMPENSATE"
+	KindWorkflowSupersede  Kind = "WORKFLOW_SUPERSEDE"
+	KindWorkflowReconcile  Kind = "WORKFLOW_RECONCILE"
 	// KindDiagnosticRead is the one non-material kind: it still needs a JIT
 	// grant and still leaves a receipt, but no dual control or simulation.
 	KindDiagnosticRead Kind = "DIAGNOSTIC_READ"
@@ -65,7 +75,9 @@ func Kinds() []Kind {
 	return []Kind{
 		KindDatabaseRepair, KindWorkflowNodeIntervention, KindConnectorRedrive, KindProjectionRebuild,
 		KindFailover, KindQuarantine, KindTenantSuspension, KindKeyRotation,
-		KindWorkflowPause, KindWorkflowResume, KindWorkflowCancel, KindWorkflowRetryNode, KindDiagnosticRead,
+		KindWorkflowPause, KindWorkflowResume, KindWorkflowCancel, KindWorkflowRetryNode,
+		KindWorkflowSkip, KindWorkflowSatisfy, KindWorkflowOverride, KindWorkflowRewind,
+		KindWorkflowCompensate, KindWorkflowSupersede, KindWorkflowReconcile, KindDiagnosticRead,
 	}
 }
 
@@ -110,6 +122,15 @@ func PolicyFor(k Kind) (Policy, bool) {
 		p.Roles, p.DualControl = []jit.Role{jit.RoleIncidentResponder, jit.RoleIntegrityRepair}, true
 	case KindWorkflowRetryNode:
 		p.Roles, p.SimulationRequired = []jit.Role{jit.RoleIntegrityRepair, jit.RoleIncidentResponder}, true
+	case KindWorkflowSkip, KindWorkflowSatisfy, KindWorkflowRewind, KindWorkflowCompensate,
+		KindWorkflowSupersede, KindWorkflowReconcile:
+		// Repair authority is its own family: an integrity-repair grant, a
+		// second person and a dry run of exactly this instance.
+		p.Roles, p.DualControl, p.SimulationRequired = []jit.Role{jit.RoleIntegrityRepair}, true, true
+	case KindWorkflowOverride:
+		// Override is exceptional authority, distinct from repair: an
+		// incident responder's grant, never an integrity-repair one.
+		p.Roles, p.DualControl, p.SimulationRequired = []jit.Role{jit.RoleIncidentResponder}, true, true
 	case KindDiagnosticRead:
 		p.Roles, p.Material = []jit.Role{jit.RoleSupportReadOnly, jit.RoleIncidentResponder}, false
 	default:

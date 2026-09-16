@@ -68,6 +68,15 @@ type AdvanceRequest struct {
 	// typed refusal that cannot reach the node write path.
 	Revalidation *PromotionRevalidation
 
+	// SettleAs, when set, is the durable status a routed completion settles
+	// the node in instead of SUCCEEDED: SKIPPED or OVERRIDDEN. The route is
+	// still the one the plan declares for Outcome; only the recorded status
+	// says the node did not run to that outcome on its own. It is how a
+	// governed intervention (WF-RUN-015) skips or overrides a node through
+	// this function rather than editing node rows. Any other value, or a
+	// SettleAs on an outcome that does not route to success, is refused.
+	SettleAs NodeStatus
+
 	// RecordedAt is the instant this call is happening. This package never
 	// reads a wall clock: it stamps the instance's started_at on the first
 	// advancement, the completed_at of a finished node execution, and the
@@ -103,6 +112,12 @@ func (r AdvanceRequest) validate() error {
 	case r.RecordedAt.IsZero():
 		return refuse(CodeInvalidRecord, instance, r.Outcome.NodeID,
 			"recorded_at must be supplied; this package never reads a wall clock")
+	case r.SettleAs != "" && r.SettleAs != NodeSkipped && r.SettleAs != NodeOverridden:
+		return refuse(CodeInvalidRecord, instance, r.Outcome.NodeID,
+			"settle_as %q is not SKIPPED or OVERRIDDEN", string(r.SettleAs))
+	case r.SettleAs != "" && (r.Outcome.Failed || r.Outcome.Await != frontier.AwaitNone):
+		return refuse(CodeInvalidRecord, instance, r.Outcome.NodeID,
+			"settle_as applies only to a routed completion, not a failure or an await")
 	}
 	return nil
 }
@@ -229,6 +244,13 @@ func Advance(ctx context.Context, tx Executor, req AdvanceRequest) (ret0 Advance
 	tr, err := frontier.Advance(req.Plan, state, req.Outcome)
 	if err != nil {
 		return AdvanceReceipt{}, err
+	}
+	if req.SettleAs != "" {
+		if tr.CompletedState != frontier.NodeSucceeded || tr.Complete {
+			return AdvanceReceipt{}, refuse(CodeInvalidRecord, req.InstanceID.String(), req.Outcome.NodeID,
+				"settle_as %s needs a routed completion; the outcome settled %s", string(req.SettleAs), string(tr.CompletedState))
+		}
+		tr.CompletedState = frontier.NodeState(req.SettleAs)
 	}
 
 	final := NodeTransition{

@@ -154,6 +154,7 @@ migrationfiles:
   - 00303_capability_invocation_evidence.sql
   - 00304_workflow_cancellation_decision.sql
   - 00305_workflow_approval_withdrawal.sql
+  - 00307_workflow_intervention_decision.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

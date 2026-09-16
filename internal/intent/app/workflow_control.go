@@ -30,6 +30,13 @@ type WorkflowRecorder = observe.Recorder
 // and recorded on recorder. It returns nil controls, never an error, when the
 // cell has no execution database or tenant mapping -- the transport then
 // refuses controls with FAILED_PRECONDITION.
+//
+// The same controller carries WF-RUN-015's typed interventions
+// ([workflowcontrol.Controller.Intervene]): retry, resume, skip, satisfy,
+// override, rewind, supersede, reconcile and cancel reach the runtime only
+// through this gateway, under the JIT authority, dual control and simulation
+// each kind's policy demands, and every accepted one records an immutable
+// decision beside the journaled operator receipt.
 func composeWorkflowControl(db dbport.Beginner, tenantUUID func(values.TenantId) uuid.UUID, now func() time.Time, recorder WorkflowRecorder) (*workflowcontrol.Controller, workflowcontrol.TenantIDs, error) {
 	if db == nil || tenantUUID == nil {
 		return nil, nil, nil
