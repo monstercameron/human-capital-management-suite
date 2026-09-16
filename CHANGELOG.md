@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-16 (Leave semantics)
+
+- Completed `CONF-004`: the leave-and-return reference workflow walks the SIMULATE interpreter with sealed restricted review, independent benefits observation and bounded repair, and a readiness-gated return. Four obligations stay outstanding instead of collapsing into false success.
+
 ## 2026-09-16 (Medical leave trace)
 
 - Completed `LEAVE-015`: the canonical Medical Leave trace seals all 15 lifecycle stages from intake through the execution receipt, proving logical inserts/transitions, degraded-effect recovery, extension lineage and atomic return with every seal re-verifiable from the trace alone.

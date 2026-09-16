@@ -5839,7 +5839,8 @@ closed.
   - **REFACTOR:** source and destination companies remain separate authority scopes.
   - **Refs:** [Transfer workflow](workflows/workforce/org-transfer-compensation.md), [employment model](data/models/people-workforce.md).
 
-- [ ] `CONF-004` **[CONFORMANCE][SOL_HIGH] Prove leave and return-to-work semantics.**
+- [x] `CONF-004` **[CONFORMANCE][SOL_HIGH] Prove leave and return-to-work semantics.**
+  - **Evidence (2026-09-16):** `TestTodo_CONF_004` plus `PROPERTY/GOLDEN/FAULT/SECURITY/CONFORMANCE/MUTATION/RACE` matrix in `internal/workflow/conformance/leavereturn` (P1A reference definition walks the real SIMULATE interpreter: sealed restricted review, immutable proposal, independent benefits observation with bounded repair, readiness-gated return; degraded benefits repair without rollback, manager-eligibility and compartment breaches blocked, not-ready returns blocked; JOIN REQUIRED_SET over restoration branches; reference bounded within declared limits); `go test -count=1 ./internal/workflow/conformance/leavereturn/` PASS (79.9% statements), `go vet` and `gofmt` clean (`-race` needs cgo, runs in CI); branch conf/CONF-004-leave-semantics.
   - **Depends:** `CONF-001`, `LEAVE-015`, `WF-STEP-008`, `WF-STEP-009`, `WF-STEP-014`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
   - **TEST:** `TestTodo_CONF_004`.
