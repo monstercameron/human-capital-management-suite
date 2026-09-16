@@ -2,79 +2,97 @@ package execution
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
+// recordingRegistry is a durable-shaped registry over the in-memory store
+// that records every approval and activation composition asks for.
 type recordingRegistry struct {
 	*version.Registry
-	approvals  []workflowversionstore.Approval
-	activated  []string
-	supersede  []bool
-	approveErr error
+	approvals []workflowversionstore.Approval
+	activated []string
 }
 
 func (r *recordingRegistry) RecordApproval(_ context.Context, a workflowversionstore.Approval) error {
 	r.approvals = append(r.approvals, a)
-	return r.approveErr
+	return nil
 }
 
-func (r *recordingRegistry) ActivateApproved(_ context.Context, digest string, supersede bool) (version.CompiledVersion, error) {
+func (r *recordingRegistry) ActivateApproved(_ context.Context, digest string, _ bool) (version.CompiledVersion, error) {
 	r.activated = append(r.activated, digest)
-	r.supersede = append(r.supersede, supersede)
-	return version.CompiledVersion{}, nil
+	v, _, err := r.GetByDigest(digest)
+	return v, err
 }
 
-func TestComposeVersionsActivatesOnlyDraftsOnARecordedReleaseApproval(t *testing.T) {
-	at := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
-	draft := version.CompiledVersion{WorkflowID: "wf", SemanticVersion: "1.0.0", CompiledPlanDigest: "sha256:draft", Status: version.StatusDraft}
-
+// TestTodo_WF_COMP_006_ServeBootNeverApproves proves composition over a
+// durable registry publishes both shipped workflows as DRAFT with their
+// declared fixtures and tool versions, records no approval and activates
+// nothing, and is idempotent across recomposition.
+func TestTodo_WF_COMP_006_ServeBootNeverApproves(t *testing.T) {
+	at := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
 	registry := &recordingRegistry{Registry: version.NewRegistry()}
-	store, activate := composeVersions(PromotionExecutionConfig{Versions: registry}, at)
-	if store != VersionRegistry(registry) {
-		t.Fatal("a durable registry was not used as the composition's version store")
-	}
-	if err := activate(draft); err != nil {
-		t.Fatalf("activate(draft): %v", err)
-	}
-	if len(registry.approvals) != 1 || registry.approvals[0].ApprovedBy != defaultVersionApprover ||
-		registry.approvals[0].ApprovedBy == versionPublisher || registry.approvals[0].ReviewedPlanDigest != draft.CompiledPlanDigest {
-		t.Fatalf("recorded approvals = %+v", registry.approvals)
-	}
-	if len(registry.activated) != 1 || !registry.supersede[0] {
-		t.Fatalf("activations = %v supersede %v, want one superseding activation", registry.activated, registry.supersede)
-	}
-	first := registry.approvals[0].ApprovalID
-	if err := activate(draft); err != nil || registry.approvals[1].ApprovalID != first {
-		t.Fatalf("a second composition derived a different approval id (%v)", err)
-	}
-
-	for _, status := range []version.ActivationStatus{version.StatusActive, version.StatusQuarantined, version.StatusRetired} {
-		v := draft
-		v.Status = status
-		before := len(registry.activated)
-		if err := activate(v); err != nil || len(registry.activated) != before {
-			t.Fatalf("activate(%s) = %v, activations %d -> %d; want it left alone", status, err, before, len(registry.activated))
+	for range 2 {
+		store, err := composeVersions(PromotionExecutionConfig{Versions: registry}, at)
+		if err != nil {
+			t.Fatalf("composeVersions: %v", err)
+		}
+		if store != version.Store(registry) {
+			t.Fatal("a durable registry was not used as the composition's version store")
 		}
 	}
-
-	named := &recordingRegistry{Registry: version.NewRegistry(), approveErr: errors.New("refused")}
-	_, activateNamed := composeVersions(PromotionExecutionConfig{Versions: named, VersionApprover: " principal:release-board "}, at)
-	if err := activateNamed(draft); err == nil || len(named.activated) != 0 || named.approvals[0].ApprovedBy != "principal:release-board" {
-		t.Fatalf("a refused approval = %v, activations %v, approvals %+v", err, named.activated, named.approvals)
+	if len(registry.approvals) != 0 || len(registry.activated) != 0 {
+		t.Fatalf("composition recorded approvals %+v and activations %v, want none", registry.approvals, registry.activated)
+	}
+	for _, workflowID := range []string{prototype.ApprovalWorkflowID, promotionexec.WorkflowID} {
+		versions, err := registry.List(workflowID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(versions) != 1 {
+			t.Fatalf("%s: %d published versions after two compositions, want 1", workflowID, len(versions))
+		}
+		v := versions[0]
+		if v.Status != version.StatusDraft || len(v.Approvals) != 0 || len(v.FixtureRefs) == 0 || v.ToolVersions["go"] == "" || v.PublishedBy != versionPublisher {
+			t.Fatalf("%s published as %+v, want an unapproved DRAFT declaring fixtures and tool versions", workflowID, v)
+		}
+		if _, found, err := registry.GetActiveForWorkflow(workflowID); err != nil || found {
+			t.Fatalf("%s has an ACTIVE version after composition (%v)", workflowID, err)
+		}
 	}
 }
 
-func TestComposeVersionsWithoutARegistryKeepsThePrivateInMemoryStore(t *testing.T) {
-	store, activate := composeVersions(PromotionExecutionConfig{}, time.Now())
+// TestComposeVersionsWithoutARegistryActivatesOnFixtureRuns proves the
+// unit-only in-memory registry activates each version on its own in-process
+// fixture run, under an approver that is not the publisher.
+func TestComposeVersionsWithoutARegistryActivatesOnFixtureRuns(t *testing.T) {
+	at := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
+	store, err := composeVersions(PromotionExecutionConfig{}, at)
+	if err != nil {
+		t.Fatalf("composeVersions: %v", err)
+	}
 	if _, ok := store.(*version.Registry); !ok {
 		t.Fatalf("store = %T, want the in-memory registry", store)
 	}
-	if err := activate(version.CompiledVersion{CompiledPlanDigest: "sha256:absent"}); version.CodeOf(err) != version.CodeUnknownRecord {
-		t.Fatalf("activating an unpublished digest = %v, want %s", err, version.CodeUnknownRecord)
+	for _, workflowID := range []string{prototype.ApprovalWorkflowID, promotionexec.WorkflowID} {
+		active, found, err := store.GetActiveForWorkflow(workflowID)
+		if err != nil || !found || len(active.Approvals) != 1 || active.Approvals[0].ApprovedBy != unitCompositionApprover {
+			t.Fatalf("%s = %+v (found %v, %v), want ACTIVE on the unit-composition fixture run", workflowID, active, found, err)
+		}
+	}
+	registry := version.NewRegistry()
+	published, err := PublishShippedVersions(registry, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stripped := published[0]
+	stripped.FixtureRefs = nil
+	if err := activateInMemory(registry, stripped, at); err == nil {
+		t.Fatal("a version whose record no longer verifies was activated in memory")
 	}
 }

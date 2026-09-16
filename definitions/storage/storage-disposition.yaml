@@ -5379,7 +5379,9 @@ tables:
     notes: >-
       WF-COMP-006 / WF-RUN-035: append-only activation approvals granted against
       an exact compiled-plan digest by an approver who is not the publisher;
-      activation requires one; forbid_mutation.
+      activation requires one, and a DRAFT's first activation requires the sealed
+      fixture report the approval carries (fixture_report_digest, fixture_report
+      from migration 00308, re-verified on read); forbid_mutation.
   - table: workflow_version_quarantine
     migration: 00293_workflow_version_quarantine.sql
     owner_package: internal/data/workflowversionstore

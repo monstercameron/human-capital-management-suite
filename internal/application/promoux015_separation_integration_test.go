@@ -110,6 +110,11 @@ func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 	if err != nil {
 		t.Fatalf("ComposeServe: %v", err)
 	}
+	releasedAt := time.Now().UTC()
+	if options.Now != nil {
+		releasedAt = options.Now()
+	}
+	activateShippedWorkflowVersions(t, pool, releasedAt)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() {
 		cancel()

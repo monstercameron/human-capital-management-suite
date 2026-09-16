@@ -787,6 +787,14 @@ go run ./cmd/hcmnext serve -tenant=harborcare-demo -migrate=false -dev-browser-l
 
 The digest is carried as evidence and is not verified by the process (cmd/hcmnext/main.go documents this).
 
+Serve publishes the shipped promotion workflow versions as DRAFT and never approves or activates them itself (WF-COMP-006); until a version is activated, ExecuteIntent is refused with a precondition failure naming the release commands. On a local development database, activate them once with the explicit bootstrap, which runs each version's conformance fixtures in-process, approves under the distinct `cmd/hcmnext:dev-release-approver` and activates:
+
+```powershell
+go run ./cmd/hcmnext workflow-version bootstrap-dev
+```
+
+Outside local development a release is three governed steps: `workflow-version fixtures -digest <d> -out report.json` runs the fixtures and writes the sealed report, `workflow-version approve -digest <d> -approved-by <principal> -authority <ref> -reason <text> -fixture-report report.json` re-runs every declared fixture and records the approval (refused on a failed, missing, digest-mismatched or unreproduced report, and for the publisher itself), and `workflow-version activate -digest <d>` activates on that approval (add `-supersede` to replace a version that is already active). `workflow-version list -workflow <id>` shows the digests and statuses. All of them take `-database-url` or `HCMNEXT_DATABASE_URL`.
+
 It listens on gRPC `127.0.0.1:8443` and HTTP `127.0.0.1:8080` by default. The
 Promotion workspace is at <http://127.0.0.1:8080/workspace/promotion>; the
 explicit development-login flag enables its local pasted-token form and must

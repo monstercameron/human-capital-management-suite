@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/releasefixture"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -111,12 +112,23 @@ type Approval struct {
 	Reason             string
 	TestsPassed        bool
 	FixtureRefs        []string
-	ApprovedAt         time.Time
+	// FixtureReport is the sealed fixture evidence the approval rests on
+	// (migration 00308). When present it must verify against the version
+	// ([releasefixture.Verify]); TestsPassed and FixtureRefs are then taken
+	// from the report, never from the caller. A DRAFT version activates only
+	// on an approval that carries one.
+	FixtureReport *releasefixture.Report
+	ApprovedAt    time.Time
 }
 
+// ErrNoFixtureEvidence reports a first activation of a DRAFT version whose
+// latest approval carries no verifiable fixture report.
+var ErrNoFixtureEvidence = errors.New("workflowversionstore: the approval carries no verified fixture report")
+
 // RecordApproval appends a durable approval for a published version. It is
-// idempotent on ApprovalID, and refuses an approval by the version's own
-// publisher.
+// idempotent on ApprovalID, refuses an approval by the version's own
+// publisher, and refuses a fixture report that does not verify against the
+// version (wrapping the [releasefixture] sentinel).
 func (s Store) RecordApproval(ctx context.Context, a Approval) error {
 	return s.tx(ctx, func(b bound) error { return b.recordApproval(a) })
 }
@@ -127,6 +139,8 @@ func (s Store) RecordApproval(ctx context.Context, a Approval) error {
 // approval -- or none newer than the version's last lifecycle transition -- it
 // refuses [ErrNoApproval], and a version under a governed quarantine is
 // refused [ErrQuarantined]: only [Store.LiftQuarantine] returns it to service.
+// A DRAFT version additionally needs its approval's stored fixture report to
+// re-verify against the record, or it is refused [ErrNoFixtureEvidence].
 // Every other gate (changed after review, failed tests, unresolved
 // dependencies, a competing active version unless supersede is set) is
 // [version.Activate]'s own typed refusal.
@@ -159,10 +173,6 @@ func (b bound) recordApproval(a Approval) error {
 		strings.TrimSpace(a.Authority) == "", a.ApprovedAt.IsZero():
 		return fmt.Errorf("%w: approval needs an id, digest, approver, authority and instant", ErrInvalid)
 	}
-	fixtures, err := json.Marshal(append([]string{}, a.FixtureRefs...))
-	if err != nil {
-		return fmt.Errorf("workflowversionstore: encode fixtures: %w", err)
-	}
 	v, found, err := b.GetByDigest(a.CompiledPlanDigest)
 	if err != nil {
 		return err
@@ -173,11 +183,28 @@ func (b bound) recordApproval(a Approval) error {
 	if a.ApprovedBy == v.PublishedBy {
 		return fmt.Errorf("%w: %s published %s", ErrSelfApproval, a.ApprovedBy, a.CompiledPlanDigest)
 	}
+	var reportDigest, report any
+	if a.FixtureReport != nil {
+		if err := releasefixture.Verify(*a.FixtureReport, v); err != nil {
+			return fmt.Errorf("workflowversionstore: fixture report for %s: %w", a.CompiledPlanDigest, err)
+		}
+		encoded, err := json.Marshal(a.FixtureReport)
+		if err != nil {
+			return fmt.Errorf("workflowversionstore: encode fixture report: %w", err)
+		}
+		a.TestsPassed, a.FixtureRefs = true, a.FixtureReport.FixtureRefs()
+		reportDigest, report = a.FixtureReport.ReportDigest, encoded
+	}
+	fixtures, err := json.Marshal(append([]string{}, a.FixtureRefs...))
+	if err != nil {
+		return fmt.Errorf("workflowversionstore: encode fixtures: %w", err)
+	}
 	if _, err := b.ex.Exec(b.ctx, `INSERT INTO workflow_version_approval
-		(approval_id, compiled_plan_digest, reviewed_plan_digest, approved_by, authority, reason, tests_passed, fixture_refs, approved_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (approval_id) DO NOTHING`,
+		(approval_id, compiled_plan_digest, reviewed_plan_digest, approved_by, authority, reason, tests_passed, fixture_refs, approved_at,
+		 fixture_report_digest, fixture_report)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (approval_id) DO NOTHING`,
 		a.ApprovalID, a.CompiledPlanDigest, a.ReviewedPlanDigest, a.ApprovedBy, a.Authority, a.Reason,
-		a.TestsPassed, fixtures, a.ApprovedAt.UTC()); err != nil {
+		a.TestsPassed, fixtures, a.ApprovedAt.UTC(), reportDigest, report); err != nil {
 		return fmt.Errorf("workflowversionstore: record approval: %w", err)
 	}
 	return nil
@@ -192,9 +219,13 @@ func (b bound) activateApproved(planDigest string, supersede bool) (version.Comp
 		return v, nil
 	}
 	var ev version.ActivationEvidence
-	err = b.ex.QueryRow(b.ctx, `SELECT approved_by, authority, reason, approved_at, reviewed_plan_digest, tests_passed
+	var reportDigest *string
+	var report []byte
+	err = b.ex.QueryRow(b.ctx, `SELECT approved_by, authority, reason, approved_at, reviewed_plan_digest, tests_passed,
+		fixture_report_digest, fixture_report
 		FROM workflow_version_approval WHERE compiled_plan_digest = $1 ORDER BY approved_at DESC, approval_id DESC LIMIT 1`,
-		planDigest).Scan(&ev.ApprovedBy, &ev.Authority, &ev.Reason, &ev.ApprovedAt, &ev.ReviewedPlanDigest, &ev.TestsPassed)
+		planDigest).Scan(&ev.ApprovedBy, &ev.Authority, &ev.Reason, &ev.ApprovedAt, &ev.ReviewedPlanDigest, &ev.TestsPassed,
+		&reportDigest, &report)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return version.CompiledVersion{}, fmt.Errorf("%w: %s", ErrNoApproval, planDigest)
 	}
@@ -209,8 +240,33 @@ func (b bound) activateApproved(planDigest string, supersede bool) (version.Comp
 	if found && ev.ApprovedBy == v.PublishedBy {
 		return version.CompiledVersion{}, fmt.Errorf("%w: %s published %s", ErrSelfApproval, ev.ApprovedBy, planDigest)
 	}
+	if found && v.Status == version.StatusDraft {
+		if err := verifyStoredReport(v, reportDigest, report); err != nil {
+			return version.CompiledVersion{}, err
+		}
+	}
 	ev.Authorized, ev.SupersedeActive, ev.ApprovedAt = true, supersede, ev.ApprovedAt.UTC()
 	return version.Activate(b, planDigest, ev)
+}
+
+// verifyStoredReport re-verifies the fixture report an approval row stored
+// against the version it would activate: the row must hold one, its digest
+// column must name the report, and the report must still verify.
+func verifyStoredReport(v version.CompiledVersion, digest *string, stored []byte) error {
+	if digest == nil || len(stored) == 0 {
+		return fmt.Errorf("%w: %s", ErrNoFixtureEvidence, v.CompiledPlanDigest)
+	}
+	report, err := releasefixture.Decode(stored)
+	if err != nil {
+		return fmt.Errorf("%w: %s: %w", ErrNoFixtureEvidence, v.CompiledPlanDigest, err)
+	}
+	if report.ReportDigest != *digest {
+		return fmt.Errorf("%w: %s: stored digest %s does not name the stored report", ErrNoFixtureEvidence, v.CompiledPlanDigest, *digest)
+	}
+	if err := releasefixture.Verify(report, v); err != nil {
+		return fmt.Errorf("%w: %s: %w", ErrNoFixtureEvidence, v.CompiledPlanDigest, err)
+	}
+	return nil
 }
 
 // bound is the registry joined to one open transaction or connection.

@@ -219,6 +219,7 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ComposeServe(execute plan): %v", err)
 	}
+	activateShippedWorkflowVersions(t, pool, now)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()

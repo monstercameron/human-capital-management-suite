@@ -324,28 +324,9 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	if err != nil {
 		return nil, fmt.Errorf("platform execution: compile the promotion execute workflow: %w", err)
 	}
-	at := clock()
-	versions, activate := composeVersions(cfg, at)
-	published, err := version.Publish(versions, prototype.ApprovalDefinition(), prototypePlan,
-		workflow.Options{Phase: workflow.PhaseP1B}, version.PublishMeta{
-			SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: versionPublisher,
-		})
+	versions, err := composeVersions(cfg, clock())
 	if err != nil {
-		return nil, fmt.Errorf("platform execution: publish the promotion approval workflow: %w", err)
-	}
-	if err := activate(published); err != nil {
-		return nil, fmt.Errorf("platform execution: activate the promotion approval workflow: %w", err)
-	}
-	publishDefinition := promotionPublishDefinition()
-	executePublished, err := version.Publish(versions, publishDefinition, executePlan,
-		promotionPublishOptions(), version.PublishMeta{
-			SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: versionPublisher,
-		})
-	if err != nil {
-		return nil, fmt.Errorf("platform execution: publish the promotion execute workflow: %w", err)
-	}
-	if err := activate(executePublished); err != nil {
-		return nil, fmt.Errorf("platform execution: activate the promotion execute workflow: %w", err)
+		return nil, err
 	}
 
 	selectedPlan := prototypePlan
@@ -753,7 +734,7 @@ var _ app.ProposalExecutor = executeDriverAdapter{}
 func (a executeDriverAdapter) Execute(ctx context.Context, start runtime.StartRequest) (app.ExecutionResult, error) {
 	result, err := a.driver.Execute(ctx, execute.ExecuteRequest{Start: start})
 	if err != nil {
-		return app.ExecutionResult{}, err
+		return app.ExecutionResult{}, noActiveVersion(err)
 	}
 	instanceID, err := executionResultInstanceID(result, result.Start.InstanceID.String())
 	if err != nil {

@@ -15,6 +15,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -94,6 +95,9 @@ func TestTodo_WF_RUN_035(t *testing.T) {
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("configuration: %v", err)
 	}
+	// WF-COMP-006: boot publishes DRAFTs and activates nothing, so the
+	// shipped versions this test runs against are released the governed way.
+	activateShippedWorkflowVersions(t, pool, time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC))
 	compose := func(identity string) *App {
 		t.Helper()
 		composed, err := ComposeServe(ctx, ServeInput{Config: cfg, Pool: pool, Identity: identity})
@@ -224,12 +228,24 @@ func versionTestPool(t *testing.T) *pgxadapter.Pool {
 	return pool
 }
 
+// activateShippedWorkflowVersions performs the governed development release
+// serve no longer performs at boot (WF-COMP-006): the shipped versions'
+// fixtures are run, approved under the development release approver and
+// activated -- exactly `hcmnext workflow-version bootstrap-dev`.
+func activateShippedWorkflowVersions(t *testing.T, pool *pgxadapter.Pool, at time.Time) {
+	t.Helper()
+	if _, err := platformexecution.BootstrapDevVersions(context.Background(), workflowversionstore.Store{DB: pool}, at); err != nil {
+		t.Fatalf("activate the shipped workflow versions: %v", err)
+	}
+}
+
 // TestTodo_WF_RUN_035_Recovery proves the served execution authority keeps
-// its workflow version registry durably: the composed version store is the
-// PostgreSQL registry, never the in-memory one; the shipped versions are
-// ACTIVE on a recorded release approval that is not the publisher's; a
-// recomposition (a restart) records no second approval or activation; and a
-// version an operator quarantined stays quarantined across the restart.
+// its workflow version registry durably and never governs it itself: the
+// composed version store is the PostgreSQL registry, never the in-memory one;
+// composition publishes the shipped versions as DRAFT and writes no approval
+// or transition; a governed release activates them on approvals that are not
+// the publisher's; a recomposition (a restart) writes nothing; and a version
+// an operator quarantined stays quarantined across the restart.
 func TestTodo_WF_RUN_035_Recovery(t *testing.T) {
 	ctx := context.Background()
 	pool := versionTestPool(t)
@@ -243,12 +259,13 @@ func TestTodo_WF_RUN_035_Recovery(t *testing.T) {
 		}
 		return cellConfig
 	}
-	counts := func() (approvals, transitions int) {
+	counts := func() (approvals, transitions, drafts int) {
 		t.Helper()
-		if err := pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM workflow_version_approval), (SELECT count(*) FROM workflow_version_transition)`).Scan(&approvals, &transitions); err != nil {
+		if err := pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM workflow_version_approval), (SELECT count(*) FROM workflow_version_transition),
+			(SELECT count(*) FROM workflow_compiled_version WHERE status = 'DRAFT')`).Scan(&approvals, &transitions, &drafts); err != nil {
 			t.Fatalf("count registry rows: %v", err)
 		}
-		return approvals, transitions
+		return approvals, transitions, drafts
 	}
 
 	first := compose()
@@ -256,45 +273,33 @@ func TestTodo_WF_RUN_035_Recovery(t *testing.T) {
 	if !ok {
 		t.Fatalf("serve composed %T as the workflow version store, want the durable registry", first.ExecutionVersions)
 	}
-	var active []version.CompiledVersion
-	rows, err := pool.Query(ctx, `SELECT compiled_plan_digest FROM workflow_compiled_version WHERE status = 'ACTIVE' ORDER BY workflow_id`)
+	if a, tr, d := counts(); a != 0 || tr != 0 || d != 2 {
+		t.Fatalf("boot wrote %d approvals and %d transitions with %d drafts; want no governance writes and both shipped versions DRAFT", a, tr, d)
+	}
+	compose()
+	if a, tr, d := counts(); a != 0 || tr != 0 || d != 2 {
+		t.Fatalf("a second boot wrote %d approvals, %d transitions, %d drafts", a, tr, d)
+	}
+
+	active, err := platformexecution.BootstrapDevVersions(ctx, store, time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC))
 	if err != nil {
-		t.Fatalf("list active versions: %v", err)
-	}
-	var digests []string
-	for rows.Next() {
-		var d string
-		if err := rows.Scan(&d); err != nil {
-			t.Fatalf("scan: %v", err)
-		}
-		digests = append(digests, d)
-	}
-	rows.Close()
-	for _, d := range digests {
-		v, found, err := store.GetByDigest(d)
-		if err != nil || !found {
-			t.Fatalf("GetByDigest(%s) = %v, %v", d, found, err)
-		}
-		active = append(active, v)
-	}
-	if len(active) != 2 {
-		t.Fatalf("ACTIVE shipped versions = %d, want the approval and execute promotion workflows", len(active))
+		t.Fatalf("BootstrapDevVersions: %v", err)
 	}
 	for _, v := range active {
-		if len(v.Approvals) != 1 || v.Approvals[0].ApprovedBy == v.PublishedBy {
-			t.Fatalf("%s activation history = %+v, want one approval by someone other than %s", v.WorkflowID, v.Approvals, v.PublishedBy)
+		if v.Status != version.StatusActive || len(v.Approvals) != 1 || v.Approvals[0].ApprovedBy == v.PublishedBy {
+			t.Fatalf("%s = %s with history %+v, want ACTIVE on one approval by someone other than %s", v.WorkflowID, v.Status, v.Approvals, v.PublishedBy)
 		}
 	}
-	approvals, transitions := counts()
+	approvals, transitions, _ := counts()
 
 	compose()
-	if a, tr := counts(); a != approvals || tr != transitions {
+	if a, tr, _ := counts(); a != approvals || tr != transitions {
 		t.Fatalf("a restart recorded %d approvals and %d transitions, want %d and %d", a, tr, approvals, transitions)
 	}
 
 	quarantined := active[0]
 	if _, err := version.Quarantine(store, quarantined.CompiledPlanDigest, "incident", "principal:incident-commander", "authority:incident",
-		version.ActivationEvidence{ApprovedAt: quarantined.PublishedAt}); err != nil {
+		version.ActivationEvidence{ApprovedAt: quarantined.PublishedAt.Add(time.Hour)}); err != nil {
 		t.Fatalf("Quarantine: %v", err)
 	}
 	restarted := compose()

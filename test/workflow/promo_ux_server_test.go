@@ -13,10 +13,12 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/positionfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
@@ -27,6 +29,17 @@ import (
 )
 
 const promoUXAt = "2026-09-03T12:00:00Z"
+
+// activateShippedWorkflowVersions performs the governed development release
+// serve no longer performs at boot (WF-COMP-006): each shipped version's
+// fixtures run, it is approved under the development release approver and
+// activated -- exactly `hcmnext workflow-version bootstrap-dev`.
+func activateShippedWorkflowVersions(t *testing.T, pool *pgxadapter.Pool, at time.Time) {
+	t.Helper()
+	if _, err := platformexecution.BootstrapDevVersions(context.Background(), workflowversionstore.Store{DB: pool}, at); err != nil {
+		t.Fatalf("activate the shipped workflow versions: %v", err)
+	}
+}
 
 type promoUXPersona struct {
 	Name    string
@@ -93,6 +106,7 @@ func newPromoUXServer(t *testing.T) *promoUXServer {
 	if err != nil {
 		t.Fatalf("compose promo UX serve cell: %v", err)
 	}
+	activateShippedWorkflowVersions(t, pool, at)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
@@ -302,7 +316,11 @@ func promoUXWaitForStage(t *testing.T, h *promoUXServer, persona, intentID strin
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		detail := promoUXInspect(t, h, persona, intentID)
-		if detail.GetJourney().GetStage() == want {
+		// A terminal stage flips as soon as the run settles, while the
+		// governed fact it is explained by is written by the terminal effect
+		// just after. Waiting for the stage alone reads the journey in the
+		// gap between the two, which is what made these assertions flaky.
+		if detail.GetJourney().GetStage() == want && (!promoUXTerminalStage(want) || detail.GetLedger() != nil) {
 			return detail
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -310,6 +328,13 @@ func promoUXWaitForStage(t *testing.T, h *promoUXServer, persona, intentID strin
 	detail := promoUXInspect(t, h, persona, intentID)
 	t.Fatalf("journey %s stayed at %s, want %s", intentID, detail.GetJourney().GetStage(), want)
 	return nil
+}
+
+// promoUXTerminalStage reports whether a journey that reached stage has
+// finished, and so must carry the ledger fact that explains its outcome.
+func promoUXTerminalStage(stage journeyv1.JourneyStage) bool {
+	return stage == journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED ||
+		stage == journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED
 }
 
 func promoUXCount(t *testing.T, h *promoUXServer, query string, args ...any) int {

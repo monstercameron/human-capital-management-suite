@@ -14,6 +14,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/releasefixture"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -30,18 +31,30 @@ func publishPrototype(t *testing.T, store version.Store) (version.CompiledVersio
 		t.Fatalf("CompileApproval: %v", err)
 	}
 	v, err := version.Publish(store, prototype.ApprovalDefinition(), plan, workflow.Options{Phase: workflow.PhaseP1B},
-		version.PublishMeta{SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: publisher})
+		version.PublishMeta{SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: publisher, FixtureRefs: []string{fixtureRef}})
 	if err != nil {
 		t.Fatalf("Publish: %v", err)
 	}
 	return v, plan
 }
 
-func approval(digest, by string) workflowversionstore.Approval {
+const fixtureRef = "conformance:prototype/v1"
+
+// passingSuite reproduces the one fixture publishPrototype declares.
+var passingSuite = releasefixture.Suite{fixtureRef: func(version.CompiledVersion) error { return nil }}
+
+// approval is a governed approval of the version store holds at digest,
+// carrying a sealed passing fixture report bound to that exact record. A
+// digest with no published (or no readable) version gets a report bound to
+// nothing, which the store refuses before it would verify it.
+func approval(t *testing.T, store version.Store, digest, by string) workflowversionstore.Approval {
+	t.Helper()
+	v, _, _ := store.GetByDigest(digest)
+	report := releasefixture.Run(passingSuite, v, "runner:test", at)
 	return workflowversionstore.Approval{
 		ApprovalID: uuid.New(), CompiledPlanDigest: digest, ReviewedPlanDigest: digest,
 		ApprovedBy: by, Authority: "authority:workflow-release-board", Reason: "reviewed",
-		TestsPassed: true, FixtureRefs: []string{"conformance:prototype/v1"}, ApprovedAt: at.Add(time.Minute),
+		FixtureReport: &report, ApprovedAt: at.Add(time.Minute),
 	}
 }
 
@@ -68,18 +81,18 @@ func TestTodo_WF_COMP_006_Durable(t *testing.T) {
 	if _, err := store.ActivateApproved(ctx, digest, false); !errors.Is(err, workflowversionstore.ErrNoApproval) {
 		t.Fatalf("activation with no approval = %v, want ErrNoApproval", err)
 	}
-	if err := store.RecordApproval(ctx, approval(digest, publisher)); !errors.Is(err, workflowversionstore.ErrSelfApproval) {
+	if err := store.RecordApproval(ctx, approval(t, store, digest, publisher)); !errors.Is(err, workflowversionstore.ErrSelfApproval) {
 		t.Fatalf("self-approval = %v, want ErrSelfApproval", err)
 	}
 	if err := store.RecordApproval(ctx, workflowversionstore.Approval{CompiledPlanDigest: digest}); !errors.Is(err, workflowversionstore.ErrInvalid) {
 		t.Fatalf("incomplete approval = %v, want ErrInvalid", err)
 	}
-	unknown := approval("sha256:unknown", "principal:release-manager")
+	unknown := approval(t, store, "sha256:unknown", "principal:release-manager")
 	if err := store.RecordApproval(ctx, unknown); !errors.Is(err, workflowversionstore.ErrInvalid) {
 		t.Fatalf("approval of an unpublished digest = %v, want ErrInvalid", err)
 	}
 
-	stale := approval(digest, "principal:release-manager")
+	stale := approval(t, store, digest, "principal:release-manager")
 	stale.ReviewedPlanDigest = "sha256:reviewed-something-else"
 	if err := store.RecordApproval(ctx, stale); err != nil {
 		t.Fatalf("RecordApproval: %v", err)
@@ -88,7 +101,7 @@ func TestTodo_WF_COMP_006_Durable(t *testing.T) {
 		t.Fatalf("activation on an approval of another digest = %v, want %s", err, version.CodeChangedAfterReview)
 	}
 
-	good := approval(digest, "principal:release-manager")
+	good := approval(t, store, digest, "principal:release-manager")
 	good.ApprovedAt = at.Add(2 * time.Minute)
 	if err := store.RecordApproval(ctx, good); err != nil {
 		t.Fatalf("RecordApproval: %v", err)
@@ -131,7 +144,7 @@ func TestTodo_WF_COMP_006_Durable(t *testing.T) {
 	if _, err := store.ActivateApproved(ctx, digest, false); !errors.Is(err, workflowversionstore.ErrNoApproval) {
 		t.Fatalf("lifting a quarantine on the original approval = %v, want ErrNoApproval", err)
 	}
-	review := approval(digest, "principal:incident-reviewer")
+	review := approval(t, store, digest, "principal:incident-reviewer")
 	review.ApprovedAt = at.Add(90 * time.Minute)
 	if err := store.RecordApproval(ctx, review); err != nil {
 		t.Fatalf("RecordApproval(review): %v", err)
@@ -175,8 +188,87 @@ func TestTodo_WF_COMP_006_DurableSecurity(t *testing.T) {
 	if err := store.Put(version.CompiledVersion{}); !errors.Is(err, workflowversionstore.ErrInvalid) {
 		t.Fatalf("Put of an empty record = %v, want ErrInvalid", err)
 	}
-	if err := (workflowversionstore.Store{}).RecordApproval(ctx, approval(published.CompiledPlanDigest, "principal:x")); !errors.Is(err, workflowversionstore.ErrInvalid) {
+	if err := (workflowversionstore.Store{}).RecordApproval(ctx, approval(t, store, published.CompiledPlanDigest, "principal:x")); !errors.Is(err, workflowversionstore.ErrInvalid) {
 		t.Fatalf("a store with no database = %v, want ErrInvalid", err)
+	}
+}
+
+// TestTodo_WF_COMP_006_FixtureEvidence proves a DRAFT reaches ACTIVE only on
+// an approval whose stored fixture report verifies against the exact record:
+// an approval with no report is refused at activation, a failed, missing or
+// another version's report is refused when recorded, a row written around the
+// store whose digest column does not name its report is refused at
+// activation, and the database refuses a report on an approval that did not
+// pass. The verified report is kept with the approval.
+func TestTodo_WF_COMP_006_FixtureEvidence(t *testing.T) {
+	ctx := context.Background()
+	db := pgtest.New(t)
+	store := workflowversionstore.Store{DB: db.Conn}
+	published, _ := publishPrototype(t, store)
+	digest := published.CompiledPlanDigest
+
+	bare := approval(t, store, digest, "principal:release-manager")
+	bare.FixtureReport, bare.TestsPassed = nil, true
+	if err := store.RecordApproval(ctx, bare); err != nil {
+		t.Fatalf("RecordApproval(no report): %v", err)
+	}
+	if _, err := store.ActivateApproved(ctx, digest, false); !errors.Is(err, workflowversionstore.ErrNoFixtureEvidence) {
+		t.Fatalf("activating a DRAFT on a caller-asserted pass = %v, want ErrNoFixtureEvidence", err)
+	}
+
+	failed := releasefixture.Run(releasefixture.Suite{fixtureRef: func(version.CompiledVersion) error { return errors.New("red") }}, published, "runner:test", at)
+	missing := releasefixture.Run(releasefixture.Suite{}, published, "runner:test", at)
+	missing.Results = nil
+	missing = missing.Seal()
+	other := releasefixture.Run(passingSuite, published, "runner:test", at)
+	other.CompiledPlanDigest = "sha256:reviewed-something-else"
+	other = other.Seal()
+	for name, tc := range map[string]struct {
+		report releasefixture.Report
+		want   error
+	}{
+		"failed fixture":  {failed, releasefixture.ErrFixtureFailed},
+		"missing fixture": {missing, releasefixture.ErrFixtureMissing},
+		"digest mismatch": {other, releasefixture.ErrVersionMismatch},
+	} {
+		a := approval(t, store, digest, "principal:release-manager")
+		a.FixtureReport = &tc.report
+		if err := store.RecordApproval(ctx, a); !errors.Is(err, tc.want) {
+			t.Errorf("%s: RecordApproval = %v, want %v", name, err, tc.want)
+		}
+	}
+
+	forged := approval(t, store, digest, "principal:release-manager")
+	forged.ApprovedAt = at.Add(2 * time.Minute)
+	encoded, err := forged.FixtureReport.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Exec(t, `INSERT INTO workflow_version_approval (approval_id, compiled_plan_digest, reviewed_plan_digest, approved_by, authority, reason,
+		tests_passed, fixture_refs, approved_at, fixture_report_digest, fixture_report) VALUES ($1, $2, $2, 'principal:forger', 'authority:x', 'forged', true, '[]', $3, 'sha256:not-this-report', $4)`,
+		uuid.New(), digest, forged.ApprovedAt, encoded)
+	if _, err := store.ActivateApproved(ctx, digest, false); !errors.Is(err, workflowversionstore.ErrNoFixtureEvidence) {
+		t.Fatalf("activation on a row whose digest does not name its report = %v, want ErrNoFixtureEvidence", err)
+	}
+	if err := db.ExecErr(`INSERT INTO workflow_version_approval (approval_id, compiled_plan_digest, reviewed_plan_digest, approved_by, authority, reason,
+		tests_passed, fixture_refs, approved_at, fixture_report_digest, fixture_report) VALUES ($1, $2, $2, 'principal:x', 'authority:x', 'x', false, '[]', $3, $4, $5)`,
+		uuid.New(), digest, at, forged.FixtureReport.ReportDigest, encoded); err == nil {
+		t.Fatal("the database kept a fixture report on an approval that did not pass")
+	}
+
+	good := approval(t, store, digest, "principal:release-manager")
+	good.ApprovedAt, good.TestsPassed = at.Add(3*time.Minute), false
+	if err := store.RecordApproval(ctx, good); err != nil {
+		t.Fatalf("RecordApproval(verified report): %v", err)
+	}
+	if active, err := store.ActivateApproved(ctx, digest, false); err != nil || active.Status != version.StatusActive {
+		t.Fatalf("ActivateApproved(verified report) = %s, %v", active.Status, err)
+	}
+	var storedDigest string
+	var passed bool
+	if err := db.QueryRow(ctx, `SELECT fixture_report_digest, tests_passed FROM workflow_version_approval WHERE approval_id = $1`, good.ApprovalID).Scan(&storedDigest, &passed); err != nil ||
+		storedDigest != good.FixtureReport.ReportDigest || !passed {
+		t.Fatalf("stored approval evidence = %q, passed %v (%v); want the report digest and a pass taken from the report", storedDigest, passed, err)
 	}
 }
 
@@ -188,7 +280,7 @@ func TestTodo_WF_COMP_006_DurableRace(t *testing.T) {
 	db := pgtest.New(t)
 	store := workflowversionstore.Store{DB: db.Conn}
 	published, _ := publishPrototype(t, store)
-	if err := store.RecordApproval(ctx, approval(published.CompiledPlanDigest, "principal:release-manager")); err != nil {
+	if err := store.RecordApproval(ctx, approval(t, store, published.CompiledPlanDigest, "principal:release-manager")); err != nil {
 		t.Fatalf("RecordApproval: %v", err)
 	}
 

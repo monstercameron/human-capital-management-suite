@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 375998f4127b31d26dda13ff0d6549b6d5aeeb1a68ed4f8987e1afe4b14c25d1
-- Package count: 830
-- Within-module edge count: 2067
+- Source graph: 0ad174a3f1d8c27360d41f84d1b32d84d70e6622ff6194420fde55696b5cb01f
+- Package count: 831
+- Within-module edge count: 2072
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -680,6 +680,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/quarantine`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/recover`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/releasefixture`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/replay`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/shadow`
@@ -986,4 +987,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`b74e71c3507ea37b7b79e0e513d5604d9f2abaf920993199c09cb2f9794bfd9c`
+`ca98ab55ad464ca4d6737be433f3f9d2a2caa881d71f84431cc35e14ec5f225d`

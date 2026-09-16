@@ -170,6 +170,7 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ComposeServe(promotion reference): %v", err)
 	}
+	activateShippedWorkflowVersions(t, pool, clockAt)
 	positionRef := promoUXSeedTargetPosition(t, db)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)

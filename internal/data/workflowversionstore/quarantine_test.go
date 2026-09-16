@@ -16,7 +16,7 @@ import (
 func activePrototype(t *testing.T, db *pgtest.DB, store workflowversionstore.Store) version.CompiledVersion {
 	t.Helper()
 	published, _ := publishPrototype(t, store)
-	if err := store.RecordApproval(context.Background(), approval(published.CompiledPlanDigest, "principal:release-manager")); err != nil {
+	if err := store.RecordApproval(context.Background(), approval(t, store, published.CompiledPlanDigest, "principal:release-manager")); err != nil {
 		t.Fatalf("RecordApproval: %v", err)
 	}
 	active, err := store.ActivateApproved(context.Background(), published.CompiledPlanDigest, false)
@@ -85,7 +85,7 @@ func TestTodo_WF_RUN_009(t *testing.T) {
 		t.Fatalf("a quarantined version still resolves as active (found %v, %v); new starts would run", found, err)
 	}
 
-	late := approval(digest, "principal:release-manager")
+	late := approval(t, store, digest, "principal:release-manager")
 	late.ApprovedAt = at.Add(2 * time.Hour)
 	if err := store.RecordApproval(ctx, late); err != nil {
 		t.Fatalf("RecordApproval: %v", err)
