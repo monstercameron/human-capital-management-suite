@@ -400,7 +400,7 @@ func (s *IntentService) CancelIntent(ctx context.Context, req *intentsv1.CancelI
 					var decided intent.CancellationDisposition
 					point, repairRef, decided = verdict.governedDisposition(inst.Lifecycle.Execution == lifecycle.ExecutionExecuting)
 					if decided != "" {
-						s.recordCancellationEvidence(ctx, intentID, string(decided), reasonRef)
+						s.recordCancellationEvidence(ctx, tenant, intentID, string(decided), reasonRef)
 						return endpoint.Outcome{Status: string(decided), ResultDigest: intentID}, nil
 					}
 				}
@@ -429,7 +429,7 @@ func (s *IntentService) CancelIntent(ctx context.Context, req *intentsv1.CancelI
 			// Nothing durable to compare-and-swap: the record is that a
 			// cancellation was requested and evaluated, kept as evidence
 			// rather than a store mutation neither dimension needs.
-			s.recordCancellationEvidence(ctx, intentID, string(d), reasonRef)
+			s.recordCancellationEvidence(ctx, tenant, intentID, string(d), reasonRef)
 		}
 		return endpoint.Outcome{Status: string(d), ResultDigest: intentID}, nil
 	})
@@ -464,11 +464,12 @@ func (s *IntentService) CancelIntent(ctx context.Context, req *intentsv1.CancelI
 // GATE_REFUSED/GATE_ADMITTED entries already use, for the two dispositions
 // ([intent.DispositionCancellationPending], [intent.DispositionTooLate]) that
 // make no durable store mutation of their own.
-func (s *IntentService) recordCancellationEvidence(ctx context.Context, intentID, disposition, reasonRef string) {
+func (s *IntentService) recordCancellationEvidence(ctx context.Context, tenant, intentID, disposition, reasonRef string) {
 	_, _ = s.evidence.RecordInvocation(ctx, capability.InvocationEvidence{
 		CapabilityID:      "intent.cancellation_disposition",
 		CapabilityVersion: 1,
 		SubjectRef:        intentID,
+		Tenant:            tenant,
 		Decision:          disposition,
 		ReasonCode:        reasonRef,
 		OccurredAt:        s.clock().Time(),

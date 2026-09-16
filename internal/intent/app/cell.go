@@ -128,8 +128,10 @@ type CellConfig struct {
 	// internal/platform/execution's PromotionExecutionConfig.Evidence, so
 	// the driver's own APPROVAL_COMPLETED/TASK_SUBMITTED/TERMINAL_WRITTEN
 	// evidence is on the one list [Cell.Evidence] exposes and the journey's
-	// Inspect reads.
-	Evidence *MemoryEvidenceSink
+	// Inspect reads. A served composition supplies the durable store
+	// (internal/data/evidencestore, WF-RUN-035); the memory sink is a test
+	// double.
+	Evidence EvidenceStore
 	// Telemetry is the OTel provider every request is instrumented through.
 	// Nil means off: a cell composed with no Telemetry publishes no spans or
 	// metrics at all, rather than falling back to some default exporter a
@@ -265,7 +267,7 @@ type Cell struct {
 	Workers      people.WorkerFacts
 	Transactions intelligence.TransactionHistory
 	Gateway      *capability.Gateway
-	Evidence     *MemoryEvidenceSink
+	Evidence     EvidenceStore
 	Controls     Controls
 	Config       transport.Config
 	Inputs       DomainInputs
@@ -477,9 +479,9 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if err != nil {
 		return nil, err
 	}
-	sink := cfg.Evidence
-	if sink == nil {
-		sink = NewMemoryEvidenceSink()
+	var sink EvidenceStore = NewMemoryEvidenceSink()
+	if cfg.Evidence != nil {
+		sink = cfg.Evidence
 	}
 	var gatewayOptions []capability.GatewayOption
 	if cfg.Now != nil {

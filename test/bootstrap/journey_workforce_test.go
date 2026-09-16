@@ -386,15 +386,16 @@ func TestJourneyCreateWorkerRecordsEvidence(t *testing.T) {
 		t.Fatalf("CreateWorker: %v", err)
 	}
 	if !hasWorkforceEvidence(h, app.EvidenceKindWorkerCreated) {
-		t.Fatalf("an admitted creation recorded no evidence: %+v", h.cell.app.Evidence.Records())
+		t.Fatalf("an admitted creation recorded no evidence: %+v", memoryEvidence(t, h.cell.app).Records())
 	}
 }
 
 // hasWorkforceEvidence reports whether the cell's evidence sink carries a
-// workforce decision of the given kind.
+// workforce decision of the given kind, recorded in the caller's tenant
+// (WF-RUN-035).
 func hasWorkforceEvidence(h *journeyHarness, kind string) bool {
-	for _, record := range h.cell.app.Evidence.Records() {
-		if record.Decision == kind {
+	for _, record := range memoryEvidence(h.cell.t, h.cell.app).Records() {
+		if record.Decision == kind && record.Tenant == testTenant {
 			return true
 		}
 	}

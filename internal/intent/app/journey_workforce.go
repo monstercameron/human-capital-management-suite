@@ -455,11 +455,11 @@ func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInp
 			"%w: this cell publishes no promotion definition to create workers for", workspace.ErrJourneyUnavailable)
 	}
 	if gateErr := e.svc.authorizeExecution(principal, def); gateErr != nil {
-		e.recordWorkforceEvidence(ctx, EvidenceKindWorkerRefused, workforceSubject(in), reasonWorkforceRoleRequired)
+		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workforceSubject(in), reasonWorkforceRoleRequired)
 		return workspace.WorkerSummary{}, journeyError(gateErr)
 	}
 	if e.db == nil || e.svc.tenantUUID == nil {
-		e.recordWorkforceEvidence(ctx, EvidenceKindWorkerRefused, workforceSubject(in), reasonWorkforceUnavailable)
+		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workforceSubject(in), reasonWorkforceUnavailable)
 		return workspace.WorkerSummary{}, fmt.Errorf(
 			"%w: this cell was composed with no execution database", workspace.ErrJourneyUnavailable)
 	}
@@ -485,19 +485,19 @@ func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInp
 
 	row, err := e.newWorkerRowContext(ctx, tx, principal, in, options)
 	if err != nil {
-		e.recordWorkforceEvidence(ctx, EvidenceKindWorkerRefused, workforceSubject(in), reasonWorkforceInput)
+		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workforceSubject(in), reasonWorkforceInput)
 		return workspace.WorkerSummary{}, err
 	}
 
 	stored, err := e.insertWorker(ctx, tx, row)
 	if err != nil {
-		e.recordWorkforceEvidence(ctx, EvidenceKindWorkerRefused, row.WorkerKey, reasonWorkforceInput)
+		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, row.WorkerKey, reasonWorkforceInput)
 		return workspace.WorkerSummary{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return workspace.WorkerSummary{}, fmt.Errorf("app: journey: commit the worker: %w", err)
 	}
-	e.recordWorkforceEvidence(ctx, EvidenceKindWorkerCreated, stored.WorkerKey, "")
+	e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerCreated, stored.WorkerKey, "")
 	return createdWorkerSummary(stored), nil
 }
 
@@ -797,14 +797,15 @@ func workforceSubject(in workspace.WorkerInput) string {
 // action it audits. [IntentService.ExecuteIntent] treats its own gate evidence
 // as load-bearing precisely because it is written before the decision; this
 // one is written after.
-func (e *journeyEngine) recordWorkforceEvidence(ctx context.Context, kind, subject, reason string) {
-	if e.svc.evidence == nil {
+func (e *journeyEngine) recordWorkforceEvidence(ctx context.Context, principal *trust.Principal, kind, subject, reason string) {
+	if e.svc.evidence == nil || principal == nil {
 		return
 	}
 	_, _ = e.svc.evidence.RecordInvocation(ctx, capability.InvocationEvidence{
 		CapabilityID:      workforceCapabilityID,
 		CapabilityVersion: 1,
 		SubjectRef:        subject,
+		Tenant:            principal.Tenant().String(),
 		Decision:          kind,
 		ReasonCode:        reason,
 		OccurredAt:        e.workforceInstant(),

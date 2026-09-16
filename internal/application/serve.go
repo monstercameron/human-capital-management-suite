@@ -27,7 +27,9 @@ import (
 
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/evidencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/legalevidencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/operationstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
@@ -263,10 +265,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// One evidence sink for the whole process: the cell's gateway and gate
 	// decisions and, when the execution authority is composed, the driver's
 	// own execution evidence all land on it, so the journey's Inspect reads
-	// one chronology.
+	// one chronology. It is durable (WF-RUN-035): the evidence a restart
+	// must still show is a tenant-scoped row, never process memory.
 	evidence := options.Evidence
 	if evidence == nil {
-		evidence = app.NewMemoryEvidenceSink()
+		evidence = composeEvidenceStore(in.Pool)
 	}
 	graph.add(ComponentEvidenceSink, KindRegistry, evidence)
 
@@ -547,6 +550,20 @@ func optionsForServeConfig(cfg ServeConfig, options Options) (Options, error) {
 		options.Now = func() time.Time { return pinned }
 	}
 	return options, nil
+}
+
+// composeEvidenceStore builds the durable evidence store over pool, scoping a
+// capability decision's tenant key to the same storage tenant the composed
+// intent store derives. A nil pool yields a store that refuses every record
+// with evidencestore.ErrInvalid rather than one holding a typed-nil pool: a
+// composition that has no database and still records evidence must supply
+// its own sink explicitly (WithEvidence), never fall back to memory.
+func composeEvidenceStore(pool *pgxadapter.Pool) *evidencestore.Store {
+	var db dbport.Beginner
+	if pool != nil {
+		db = pool
+	}
+	return evidencestore.New(db, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID))
 }
 
 // composeStore builds the persistence adapter, or takes the supplied one.

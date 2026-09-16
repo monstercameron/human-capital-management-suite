@@ -97,7 +97,7 @@ func newStepHarness(t *testing.T, access roleaccess.Store) *stepHarness {
 func TestPromotionStepServicesInvokeTheGatewayAsTheDelegation(t *testing.T) {
 	h := newStepHarness(t, nil)
 	ctx := context.Background()
-	before := h.cell.Evidence.Len()
+	before := memoryEvidence(t, h.cell).Len()
 
 	for name, run := range map[string]func(context.Context, PromotionStepCall) (PromotionStepAnswer, error){
 		"snapshot": h.services.SnapshotWorker, "simulate": h.services.SimulateCompensation,
@@ -120,12 +120,12 @@ func TestPromotionStepServicesInvokeTheGatewayAsTheDelegation(t *testing.T) {
 		t.Fatalf("decision over the governed inputs = %+v, %v; want FINANCE_REQUIRED", decision, err)
 	}
 
-	records := h.cell.Evidence.Records()[before:]
+	records := memoryEvidence(t, h.cell).Records()[before:]
 	if len(records) == 0 {
 		t.Fatal("no gateway evidence was recorded")
 	}
 	for _, rec := range records {
-		if rec.Decision != "INVOKED" || rec.SubjectRef != h.call.Delegation.Subject || rec.Purpose != authz.PurposeCompensationReview ||
+		if rec.Decision != "INVOKED" || rec.SubjectRef != h.call.Delegation.Subject || rec.Tenant != h.call.Delegation.TenantKey || rec.Purpose != authz.PurposeCompensationReview ||
 			!strings.HasPrefix(rec.IdempotencyKey, h.call.IdempotencyKey+"/") || !rec.Deadline.Equal(h.call.Deadline) || rec.EffectClass != string(capability.EffectReadOnly) {
 			t.Fatalf("evidence record = %+v, want the delegated governed invocation", rec)
 		}
@@ -135,7 +135,7 @@ func TestPromotionStepServicesInvokeTheGatewayAsTheDelegation(t *testing.T) {
 	if err != nil || got != "observed" || len(readAnswer.EvidenceIDs) != 1 {
 		t.Fatalf("GovernedRead = %v, %+v, %v", got, readAnswer, err)
 	}
-	last := h.cell.Evidence.Records()[h.cell.Evidence.Len()-1]
+	last := memoryEvidence(t, h.cell).Records()[memoryEvidence(t, h.cell).Len()-1]
 	if last.CapabilityID != promotionexec.CapabilityObservePayroll || last.Decision != "INVOKED" || last.SubjectRef != h.call.Delegation.Subject {
 		t.Fatalf("governed read evidence = %+v", last)
 	}
@@ -154,7 +154,7 @@ func TestPromotionStepServicesFailClosed(t *testing.T) {
 	ctx := context.Background()
 	subject := submitPrincipal(t).Subject()
 	revoked := newStepHarness(t, stepRoleAccess{snapshot: roleaccess.Snapshot{Assignments: []roleaccess.Assignment{{WorkerRef: subject, RoleIDs: []string{"intent_author", "comp_admin"}}}}})
-	before := revoked.cell.Evidence.Len()
+	before := memoryEvidence(t, revoked.cell).Len()
 	if _, err := revoked.services.SnapshotWorker(ctx, revoked.call); !errors.Is(err, ErrDelegationRevoked) {
 		t.Fatalf("SnapshotWorker after revocation = %v, want ErrDelegationRevoked", err)
 	}
@@ -164,8 +164,9 @@ func TestPromotionStepServicesFailClosed(t *testing.T) {
 	}); !errors.Is(err, ErrDelegationRevoked) {
 		t.Fatalf("GovernedRead after revocation = %v, want ErrDelegationRevoked", err)
 	}
-	refusals := revoked.cell.Evidence.Records()[before:]
-	if len(refusals) != 2 || refusals[0].Decision != "REFUSED" || refusals[0].ReasonCode != capability.CodeUnauthorized || refusals[1].Decision != "REFUSED" {
+	refusals := memoryEvidence(t, revoked.cell).Records()[before:]
+	if len(refusals) != 2 || refusals[0].Decision != "REFUSED" || refusals[0].ReasonCode != capability.CodeUnauthorized || refusals[1].Decision != "REFUSED" ||
+		refusals[0].Tenant != revoked.call.Delegation.TenantKey || refusals[0].Tenant == "" {
 		t.Fatalf("revocation evidence = %+v, want two REFUSED records", refusals)
 	}
 

@@ -98,6 +98,7 @@ var _ Span = (*fakeSpan)(nil)
 // fakeEvidenceEntry is one RecordExecutionEvidence call a fakeEvidence
 // captured.
 type fakeEvidenceEntry struct {
+	tenantID   uuid.UUID
 	kind       string
 	instanceID string
 	nodeID     string
@@ -118,13 +119,13 @@ type fakeEvidence struct {
 
 var _ ExecutionEvidence = (*fakeEvidence)(nil)
 
-func (f *fakeEvidence) RecordExecutionEvidence(_ context.Context, kind, instanceID, nodeID, refID, digest string, _ time.Time) (string, error) {
+func (f *fakeEvidence) RecordExecutionEvidence(_ context.Context, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, _ time.Time) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.failKind != "" && kind == f.failKind {
 		return "", errors.New("fakeEvidence: injected failure for " + kind)
 	}
-	f.entries = append(f.entries, fakeEvidenceEntry{kind: kind, instanceID: instanceID, nodeID: nodeID, refID: refID, digest: digest})
+	f.entries = append(f.entries, fakeEvidenceEntry{tenantID: tenantID, kind: kind, instanceID: instanceID, nodeID: nodeID, refID: refID, digest: digest})
 	return "ev:" + kind + ":" + uuid.NewSHA1(uuid.NameSpaceOID, []byte(kind+instanceID+nodeID+refID+digest)).String()[:8], nil
 }
 
@@ -462,6 +463,11 @@ func TestTodo_OBS_024(t *testing.T) {
 		t.Fatalf("evidence entries = %d, want 2 (APPROVAL_COMPLETED, TERMINAL_WRITTEN): %+v", len(entries), entries)
 	}
 	approval, terminal := entries[0], entries[1]
+	// WF-RUN-035: both entries name the storage tenant the run committed
+	// under, never a guessed or empty one.
+	if approval.tenantID != scn.tenantID || terminal.tenantID != scn.tenantID {
+		t.Fatalf("evidence tenants = %s, %s; want %s", approval.tenantID, terminal.tenantID, scn.tenantID)
+	}
 
 	if approval.kind != EvidenceKindApprovalCompleted {
 		t.Fatalf("entries[0].kind = %s, want %s", approval.kind, EvidenceKindApprovalCompleted)

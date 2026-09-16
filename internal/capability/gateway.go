@@ -24,6 +24,11 @@ type Authorization struct {
 	Scopes     []string
 	Reason     string
 	SubjectRef string
+	// Tenant is the tenant key the verified principal (or the pinned
+	// workflow delegation) acts in. The gateway copies it onto every
+	// evidence record so a durable sink scopes the row to that tenant; it
+	// is never inferred here (WF-RUN-035).
+	Tenant string
 }
 
 func (a Authorization) hasScope(scope string) bool {
@@ -42,9 +47,13 @@ type InvocationEvidence struct {
 	CapabilityID      string
 	CapabilityVersion uint32
 	SubjectRef        string
-	Decision          string // "INVOKED" or the refusal Code
-	ReasonCode        string
-	OccurredAt        time.Time
+	// Tenant is the tenant key the decision was made in, as the caller's
+	// verified principal names it. A durable sink refuses a record without
+	// one rather than guess (WF-RUN-035).
+	Tenant     string
+	Decision   string // "INVOKED" or the refusal Code
+	ReasonCode string
+	OccurredAt time.Time
 	// Purpose, IdempotencyKey, Deadline and EffectClass are copied from a
 	// governed [Invocation] envelope; they stay empty for a P1A interactive
 	// call that presents none. EffectClass is the resolved capability's
@@ -156,6 +165,7 @@ func (g *Gateway) Invoke(ctx context.Context, req InvokeRequest) (InvokeResult, 
 		CapabilityID:      req.Capability.ID,
 		CapabilityVersion: req.Capability.Version,
 		SubjectRef:        req.Authorization.SubjectRef,
+		Tenant:            req.Authorization.Tenant,
 		Decision:          "INVOKED",
 		OccurredAt:        g.now(),
 	}, rec.Definition, true))
@@ -174,6 +184,7 @@ func (g *Gateway) refuse(ctx context.Context, req InvokeRequest, code, reason st
 		CapabilityID:      req.Capability.ID,
 		CapabilityVersion: req.Capability.Version,
 		SubjectRef:        req.Authorization.SubjectRef,
+		Tenant:            req.Authorization.Tenant,
 		Decision:          "REFUSED",
 		ReasonCode:        code,
 		OccurredAt:        g.now(),

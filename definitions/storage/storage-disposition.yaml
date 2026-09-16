@@ -5523,3 +5523,19 @@ tables:
       transaction that cancels the requirement's still-open slots and routes
       the APPROVAL node INVALIDATED. SELECT/INSERT only; forbid_mutation
       trigger.
+  - table: capability_invocation_evidence
+    migration: 00303_capability_invocation_evidence.sql
+    owner_package: internal/data/evidencestore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-035: one sealed row per capability-gateway decision, execution
+      authority gate decision and OBS-024 driver evidence entry, keyed by an
+      evidence id derived from the canonical record digest so a replay is
+      idempotent. SELECT/INSERT only; forbid_mutation trigger.

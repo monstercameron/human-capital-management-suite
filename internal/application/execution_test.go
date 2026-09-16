@@ -127,7 +127,7 @@ func TestComposeServeOffByDefaultAndGatedOnRequest(t *testing.T) {
 	composedCalls := 0
 	pool := versionTestPool(t)
 	gated, logger, _ := composeStub(t, executionServeConfig(),
-		WithExecutionComposer(func(cellConfig *app.CellConfig, _ *pgxadapter.Pool, evidence *app.MemoryEvidenceSink, cfg ServeConfig) error {
+		WithExecutionComposer(func(cellConfig *app.CellConfig, _ *pgxadapter.Pool, evidence app.EvidenceStore, cfg ServeConfig) error {
 			composedCalls++
 			return ComposeExecutionAuthority(cellConfig, pool, evidence, cfg)
 		}))
@@ -158,7 +158,7 @@ func TestComposeServeReportsAFailingExecutionComposer(t *testing.T) {
 	_, err := ComposeServe(context.Background(), ServeInput{
 		Config: executionServeConfig(),
 		Options: Options{}.Apply(WithStore(&stubStore{}), WithVerifier(stubVerifier{}),
-			WithExecutionComposer(func(*app.CellConfig, *pgxadapter.Pool, *app.MemoryEvidenceSink, ServeConfig) error {
+			WithExecutionComposer(func(*app.CellConfig, *pgxadapter.Pool, app.EvidenceStore, ServeConfig) error {
 				return errNoAuthority
 			})),
 	})

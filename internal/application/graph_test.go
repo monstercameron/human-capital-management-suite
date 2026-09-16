@@ -127,7 +127,7 @@ credential-verifier|adapter|application.stubVerifier|config
 database-pool|adapter|<nil>|
 discovery-document|registry|*manifest.DiscoveryDocument|cell
 domain-inputs|port|*app.FixtureInputs|
-evidence-sink|registry|*app.MemoryEvidenceSink|
+evidence-sink|registry|*evidencestore.Store|
 execution-authority|governance|<nil>|config,database-pool,evidence-sink
 grpc-surface|transport|*grpc.Server|cell,workflow-instance-reader
 http-edge|transport|http.HandlerFunc|cell,grpc-surface

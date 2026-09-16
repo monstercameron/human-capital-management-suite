@@ -237,7 +237,7 @@ func refuse(ctx context.Context, gateway *capability.Gateway, def capability.Def
 	}
 	_, _ = gatewayRequest(ctx, gateway, capability.InvokeRequest{
 		Capability:    def.Key(),
-		Authorization: capability.Authorization{Decision: capability.Deny, SubjectRef: call.Delegation.Subject, Reason: cause.Error()},
+		Authorization: capability.Authorization{Decision: capability.Deny, SubjectRef: call.Delegation.Subject, Tenant: call.Delegation.TenantKey, Reason: cause.Error()},
 		Invocation:    envelopeFor(call, def, purpose),
 	}, answer)
 	return cause

@@ -3,6 +3,8 @@ package execute
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // OBS-024's execution-evidence vocabulary: an enumerated, closed set of
@@ -39,6 +41,10 @@ const (
 // recorded through it per authority-gate decision, approval completion,
 // task submission and terminal write.
 //
+//   - tenantID is the storage tenant the run committed under - the same
+//     identity every advance transaction set as its RLS tenant - so a
+//     durable sink scopes the row to the tenant that actually ran it rather
+//     than guessing one (WF-RUN-035).
 //   - kind is one of the EvidenceKind* constants above.
 //   - instanceID and nodeID name what ran; nodeID is empty for a
 //     GATE_REFUSED/GATE_ADMITTED entry, recorded before any workflow
@@ -61,7 +67,7 @@ const (
 // capability.EvidenceSink it is adapted from) directly, with no change to
 // any caller here.
 type ExecutionEvidence interface {
-	RecordExecutionEvidence(ctx context.Context, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (evidenceID string, err error)
+	RecordExecutionEvidence(ctx context.Context, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (evidenceID string, err error)
 }
 
 // NoopExecutionEvidence is the default [ExecutionEvidence] a [Driver] uses
@@ -72,6 +78,6 @@ type NoopExecutionEvidence struct{}
 var _ ExecutionEvidence = NoopExecutionEvidence{}
 
 // RecordExecutionEvidence implements ExecutionEvidence.
-func (NoopExecutionEvidence) RecordExecutionEvidence(context.Context, string, string, string, string, string, time.Time) (string, error) {
+func (NoopExecutionEvidence) RecordExecutionEvidence(context.Context, uuid.UUID, string, string, string, string, string, time.Time) (string, error) {
 	return "", nil
 }

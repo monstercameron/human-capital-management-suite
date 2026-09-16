@@ -155,9 +155,11 @@ type PromotionExecutionConfig struct {
 	// so the cell's evidence chronology - the gateway's capability decisions,
 	// ExecuteIntent's gate decisions and the driver's own execution evidence
 	// - is one list read back from one place, and the journey's Inspect can
-	// show all of it. Nil means a private sink, exposed only as
-	// [PromotionExecution.Evidence].
-	Evidence *app.MemoryEvidenceSink
+	// show all of it. A composition serving traffic supplies the durable
+	// internal/data/evidencestore (WF-RUN-035). Nil means a private in-memory
+	// sink, exposed only as [PromotionExecution.Evidence], for unit
+	// compositions.
+	Evidence app.EvidenceStore
 	// TimerDataset is the tzdb and calendar release a WAIT node's wake
 	// requirement is resolved against (WF-RUN-004). When both versions are
 	// set the driver is composed with this package's [TimerFactory] and
@@ -213,13 +215,10 @@ type PromotionExecution struct {
 	Authority *app.ExecutionAuthority
 	// Evidence is OBS-024's execution-evidence sink for this driver's own
 	// three kinds (APPROVAL_COMPLETED, TASK_SUBMITTED, TERMINAL_WRITTEN):
-	// the same in-memory [app.MemoryEvidenceSink] CAP-002's gateway uses,
-	// so a test reads TERMINAL_WRITTEN etc. back exactly the way it already
-	// reads a Cell's own capability evidence
-	// (app.Cell.Evidence.Records()/.Len()). It is the sink
-	// [PromotionExecutionConfig.Evidence] supplied, or the private one this
-	// composition created when none was.
-	Evidence *app.MemoryEvidenceSink
+	// the same store CAP-002's gateway uses. It is the store
+	// [PromotionExecutionConfig.Evidence] supplied, or the private in-memory
+	// one this composition created when none was.
+	Evidence app.EvidenceStore
 	Plan     PromotionPlan
 	// steps is the executable plan's promotionsteps adapter; see
 	// [PromotionExecution.BindStepServices].
@@ -388,9 +387,9 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	// through the same capability evidence sink mechanism CAP-002's gateway
 	// already uses - on the cell's own sink when the composition root passed
 	// one, otherwise on a sink dedicated to this execution wiring.
-	evidenceSink := cfg.Evidence
-	if evidenceSink == nil {
-		evidenceSink = app.NewMemoryEvidenceSink()
+	var evidenceSink app.EvidenceStore = app.NewMemoryEvidenceSink()
+	if cfg.Evidence != nil {
+		evidenceSink = cfg.Evidence
 	}
 	evidence := capabilityEvidenceAdapter{sink: evidenceSink, now: clock}
 

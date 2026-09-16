@@ -633,7 +633,7 @@ func TestJourneyDecideApproveCompletesWithOneGovernedWrite(t *testing.T) {
 func assertJourneyEvidence(t *testing.T, h *journeyHarness, detail workspace.JourneyDetail, kinds ...string) {
 	t.Helper()
 	byID := map[string]app.EvidenceRecord{}
-	for _, rec := range h.cell.app.Evidence.Records() {
+	for _, rec := range memoryEvidence(t, h.cell.app).Records() {
 		byID[rec.EvidenceID] = rec
 	}
 	var seen []string

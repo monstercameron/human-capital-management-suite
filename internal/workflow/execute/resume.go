@@ -102,7 +102,7 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 			kind = EvidenceKindTaskSubmitted
 		}
 		if kind != "" {
-			evidenceID, evErr := d.opts.Evidence.RecordExecutionEvidence(ctx, kind,
+			evidenceID, evErr := d.opts.Evidence.RecordExecutionEvidence(ctx, req.Start.TenantID, kind,
 				req.InstanceID.String(), advanced.NodeID, req.WorkItemID.String(), advanced.OutputDigest, at)
 			if evErr != nil {
 				return Result{}, fmt.Errorf("workflow execute: record %s evidence: %w", kind, evErr)

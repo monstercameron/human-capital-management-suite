@@ -12,6 +12,7 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/evidencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
@@ -69,8 +70,10 @@ func (h *promoux015Harness) wfrun034Count(sql string, args ...any) int64 {
 // VALID -> commit -> PASS -> COMPLETE it used to report.
 func TestTodo_WF_RUN_034_Integration(t *testing.T) {
 	h := promoux015Compose(t)
-	evidence := h.composed.Cell().Evidence
-	before := evidence.Len()
+	evidence := func() []evidencestore.Record {
+		return servedEvidence(t, h.composed.Cell(), values.TenantId(demoworkforce.CompanyKey))
+	}
+	before := len(evidence())
 
 	id := h.runSeparatedPromotion()
 	if n := h.wfrun034Count(`SELECT count(*) FROM workflow_execution_delegation WHERE subject = $1 AND 'promotion_operator' = ANY(roles)`, promoux015Manager); n != 1 {
@@ -96,7 +99,7 @@ func TestTodo_WF_RUN_034_Integration(t *testing.T) {
 	}
 
 	invoked := map[string]int{}
-	for _, rec := range evidence.Records()[before:] {
+	for _, rec := range evidence()[before:] {
 		if rec.IdempotencyKey == "" {
 			continue // interactive calls (proposal simulation) carry no envelope
 		}
@@ -166,8 +169,10 @@ func TestTodo_WF_RUN_034_Security(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("revoke promotion_operator: %v", err)
 	}
-	evidence := h.composed.Cell().Evidence
-	before := evidence.Len()
+	evidence := func() []evidencestore.Record {
+		return servedEvidence(t, h.composed.Cell(), values.TenantId(demoworkforce.CompanyKey))
+	}
+	before := len(evidence())
 
 	req, _ := h.discoverPromotion("hiring-manager")
 	proposed, err := h.client.ProposeJourney(h.rpc("hiring-manager"), req)
@@ -178,7 +183,7 @@ func TestTodo_WF_RUN_034_Security(t *testing.T) {
 	t.Logf("ExecuteJourney after revocation: %v", execErr)
 
 	refused := false
-	for _, rec := range evidence.Records()[before:] {
+	for _, rec := range evidence()[before:] {
 		if rec.IdempotencyKey == "" {
 			continue
 		}

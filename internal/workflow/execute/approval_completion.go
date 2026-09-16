@@ -190,7 +190,7 @@ func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionReq
 	}
 
 	// OBS-024: the same APPROVAL_COMPLETED evidence Resume records.
-	evidenceID, err := d.opts.Evidence.RecordExecutionEvidence(ctx, EvidenceKindApprovalCompleted,
+	evidenceID, err := d.opts.Evidence.RecordExecutionEvidence(ctx, req.Start.TenantID, EvidenceKindApprovalCompleted,
 		req.InstanceID.String(), advanced.NodeID, vote.completed.WorkItemID.String(), advanced.OutputDigest, at)
 	if err != nil {
 		return ApprovalCompletionResult{}, fmt.Errorf("workflow execute: record %s evidence: %w", EvidenceKindApprovalCompleted, err)

@@ -6,32 +6,84 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sync"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
-// MemoryEvidenceSink records every capability-gateway decision this process
-// made, in order.
+// EvidenceStore is the one evidence port a cell and its execution driver
+// record on, and the journey reads back from (WF-RUN-035).
 //
-// P1A has no evidence table (the migration tree stops at ledger, projection
-// and outbox), so the shipped sink keeps the records in memory and hands each
-// one a deterministic identifier derived from its content and its ordinal. It
-// is a real sink, not a stub: the gateway refuses to complete an invocation
-// whose evidence cannot be recorded, and this one can be read back and
-// asserted on. A durable sink replaces it by satisfying the same
-// capability.EvidenceSink port.
+// It is the capability gateway's [capability.EvidenceSink], the execution
+// driver's OBS-024 port (internal/workflow/execute.ExecutionEvidence, which
+// this interface satisfies structurally because this package must not import
+// the driver), and a tenant-scoped read of the evidence one journey produced.
+// A served composition wires the durable PostgreSQL store
+// (internal/data/evidencestore); [MemoryEvidenceSink] is the test double.
+type EvidenceStore interface {
+	capability.EvidenceSink
+	// RecordExecutionEvidence records one OBS-024 execution-evidence entry
+	// for the storage tenant the run committed under.
+	RecordExecutionEvidence(ctx context.Context, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (string, error)
+	// JourneyEvidenceIDs returns, in recording order, the ids of the evidence
+	// recorded in tenant (whose storage identity is tenantID, or uuid.Nil
+	// when the composition maps none) whose subject is intentID, instanceID
+	// or a node of instanceID ("<instanceID>|<nodeID>").
+	JourneyEvidenceIDs(ctx context.Context, tenant values.TenantId, tenantID uuid.UUID, intentID, instanceID string) ([]string, error)
+}
+
+// ExecutionEvidenceCapabilityID is the capability id an OBS-024 execution
+// evidence entry is recorded under. Every [EvidenceStore] packs the richer
+// execution vocabulary into the capability evidence fields the same way:
+// Decision carries the kind, SubjectRef "<instanceID>|<nodeID>" and ReasonCode
+// "<refID>|<digest>" (see [ExecutionEvidenceOf]).
+const ExecutionEvidenceCapabilityID = "workflow.execution.evidence"
+
+// ExecutionEvidenceOf packs one OBS-024 execution-evidence entry into the
+// capability evidence shape every store records.
+func ExecutionEvidenceOf(kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) capability.InvocationEvidence {
+	return capability.InvocationEvidence{
+		CapabilityID:      ExecutionEvidenceCapabilityID,
+		CapabilityVersion: 1,
+		SubjectRef:        instanceID + "|" + nodeID,
+		Decision:          kind,
+		ReasonCode:        refID + "|" + digest,
+		OccurredAt:        occurredAt,
+	}
+}
+
+// MemoryEvidenceSink records every evidence decision this process made, in
+// order, in memory.
+//
+// It is the test double of [EvidenceStore]: it hands each record a
+// deterministic identifier derived from its content and its ordinal, can be
+// read back and asserted on, and loses everything on restart. A served
+// composition never wires it (internal/application's composition test fails
+// if it does); the durable store is internal/data/evidencestore.
 type MemoryEvidenceSink struct {
 	mu      sync.Mutex
 	records []EvidenceRecord
 }
 
-var _ capability.EvidenceSink = (*MemoryEvidenceSink)(nil)
+var _ EvidenceStore = (*MemoryEvidenceSink)(nil)
 
 // NewMemoryEvidenceSink returns an empty sink.
 func NewMemoryEvidenceSink() *MemoryEvidenceSink { return &MemoryEvidenceSink{} }
 
 // RecordInvocation implements capability.EvidenceSink.
 func (s *MemoryEvidenceSink) RecordInvocation(_ context.Context, evt capability.InvocationEvidence) (string, error) {
+	return s.record(evt, uuid.Nil), nil
+}
+
+// RecordExecutionEvidence implements [EvidenceStore].
+func (s *MemoryEvidenceSink) RecordExecutionEvidence(_ context.Context, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (string, error) {
+	return s.record(ExecutionEvidenceOf(kind, instanceID, nodeID, refID, digest, occurredAt), tenantID), nil
+}
+
+func (s *MemoryEvidenceSink) record(evt capability.InvocationEvidence, tenantID uuid.UUID) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -45,6 +97,8 @@ func (s *MemoryEvidenceSink) RecordInvocation(_ context.Context, evt capability.
 		CapabilityID:      evt.CapabilityID,
 		CapabilityVersion: evt.CapabilityVersion,
 		SubjectRef:        evt.SubjectRef,
+		Tenant:            evt.Tenant,
+		TenantID:          tenantID,
 		Decision:          evt.Decision,
 		ReasonCode:        evt.ReasonCode,
 		OccurredAt:        evt.OccurredAt,
@@ -53,7 +107,22 @@ func (s *MemoryEvidenceSink) RecordInvocation(_ context.Context, evt capability.
 		Deadline:          evt.Deadline,
 		EffectClass:       string(evt.EffectClass),
 	})
-	return id, nil
+	return id
+}
+
+// JourneyEvidenceIDs implements [EvidenceStore]. A record belongs to the
+// tenant when its recorded tenant key equals tenant or its recorded storage
+// tenant equals tenantID; a record that names neither belongs to no tenant.
+func (s *MemoryEvidenceSink) JourneyEvidenceIDs(_ context.Context, tenant values.TenantId, tenantID uuid.UUID, intentID, instanceID string) ([]string, error) {
+	var out []string
+	for _, rec := range s.Records() {
+		inTenant := (rec.Tenant != "" && rec.Tenant == string(tenant)) ||
+			(rec.TenantID != uuid.Nil && rec.TenantID == tenantID)
+		if inTenant && journeyEvidenceMatches(rec.SubjectRef, intentID, instanceID) {
+			out = append(out, rec.EvidenceID)
+		}
+	}
+	return out, nil
 }
 
 // Records returns a copy of everything recorded so far.

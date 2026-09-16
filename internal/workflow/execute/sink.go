@@ -195,7 +195,7 @@ func (s *continuationSink) Complete(ctx context.Context, ex runtime.Executor, re
 	if evidence == nil {
 		evidence = NoopExecutionEvidence{}
 	}
-	evidenceID, evErr := evidence.RecordExecutionEvidence(ctx, EvidenceKindTerminalWritten,
+	evidenceID, evErr := evidence.RecordExecutionEvidence(ctx, rec.TenantID, EvidenceKindTerminalWritten,
 		rec.InstanceID.String(), rec.TargetNodeID, identity.Identity.EventRef, digest, rec.RecordedAt)
 	if evErr != nil {
 		return fmt.Errorf("workflow execute: record TERMINAL_WRITTEN evidence: %w", evErr)

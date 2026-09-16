@@ -181,7 +181,7 @@ func TestOptionsSeamsCoverEveryConstructedAdapter(t *testing.T) {
 		WithIntentClock(nil),
 		WithIDs(nil),
 		WithDomainInputs(nil, nil, nil),
-		WithExecutionComposer(func(*app.CellConfig, *pgxadapter.Pool, *app.MemoryEvidenceSink, ServeConfig) error {
+		WithExecutionComposer(func(*app.CellConfig, *pgxadapter.Pool, app.EvidenceStore, ServeConfig) error {
 			return sentinel
 		}),
 	)

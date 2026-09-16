@@ -112,6 +112,7 @@ var ImplicitAllowlist = []ImplicitEntry{
 	{Package: "internal/platform/telemetry/diagnostic", Owner: "observability platform", Reason: "telemetry mechanics remain below the telemetry owner (Gate A wave 2026-09-06)"},
 	{Package: "internal/platform/telemetry/lifecycle", Owner: "observability platform", Reason: "telemetry mechanics remain below the telemetry owner (Gate A wave 2026-09-06)"},
 	{Package: "internal/platform/telemetry/correlation", Owner: "observability platform", Reason: "signal-correlation helpers and join scoping (OBS-016) remain below the telemetry owner"},
+	{Package: "internal/connectivity/syncjob", Owner: "integration platform", Reason: "the resumable SyncJob kernel (INTG-019) is pure: it plans batches and returns a cursor, and the scheduling and persistence of that cursor stay with its callers"},
 }
 
 // Options allows focused tests and future reviewed table revisions without

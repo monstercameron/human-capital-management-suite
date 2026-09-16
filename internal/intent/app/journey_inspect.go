@@ -559,7 +559,11 @@ func (e *journeyEngine) inspectWithRelationships(
 			CompletedAt:     utcPtr(inst.CompletedAt),
 		}
 	}
-	detail.EvidenceIDs = e.evidenceIDsFor(intentID, detail.Summary.InstanceID)
+	evidenceIDs, evErr := e.evidenceIDsFor(ctx, principal, intentID, detail.Summary.InstanceID)
+	if evErr != nil {
+		return workspace.JourneyDetail{}, evErr
+	}
+	detail.EvidenceIDs = evidenceIDs
 	applyJourneyChronology(&detail, record)
 
 	// PROMOUX-014: a journey parked on the effective-date wait explains
@@ -706,9 +710,11 @@ func journeyNodes(nodes []runtime.NodeExecution) []workspace.JourneyNode {
 }
 
 // evidenceIDsFor returns the evidence this cell recorded for the journey, in
-// recording order.
+// recording order, scoped to the caller's tenant.
 //
-// It reads the cell-wide sink [NewCell] wires - the one CAP-002's gateway
+// It reads the cell-wide [EvidenceStore] [NewCell] wires (the durable store in
+// a served composition, so the chronology survives restart; WF-RUN-035) - the
+// one CAP-002's gateway
 // writes capability invocation/refusal evidence to, OBS-024's
 // GATE_ADMITTED/GATE_REFUSED entries land on, and (when the composition root
 // handed the same sink to internal/platform/execution's
@@ -716,22 +722,23 @@ func journeyNodes(nodes []runtime.NodeExecution) []workspace.JourneyNode {
 // APPROVAL_COMPLETED/TASK_SUBMITTED/TERMINAL_WRITTEN entries land on too.
 // Records are matched on the subject the recorder named: the intent id for
 // the authority gate, and the instance id for the driver's execution
-// evidence, which its adapter packs as "<instanceID>|<nodeID>" (the
-// documented convention of internal/platform/execution's
-// capabilityEvidenceAdapter). A cell whose driver was composed with a
-// private sink simply has none of the latter to show.
-func (e *journeyEngine) evidenceIDsFor(intentID, instanceID string) []string {
-	sink, ok := e.svc.evidence.(*MemoryEvidenceSink)
-	if !ok || sink == nil {
-		return nil
+// evidence, which [ExecutionEvidenceOf] packs as "<instanceID>|<nodeID>". A
+// cell whose driver was composed with a private sink simply has none of the
+// latter to show.
+func (e *journeyEngine) evidenceIDsFor(ctx context.Context, principal *trust.Principal, intentID, instanceID string) ([]string, error) {
+	store, ok := e.svc.evidence.(EvidenceStore)
+	if !ok || principal == nil {
+		return nil, nil
 	}
-	var out []string
-	for _, rec := range sink.Records() {
-		if journeyEvidenceMatches(rec.SubjectRef, intentID, instanceID) {
-			out = append(out, rec.EvidenceID)
-		}
+	tenantID := uuid.Nil
+	if e.svc.tenantUUID != nil {
+		tenantID = e.svc.tenantUUID(principal.Tenant())
 	}
-	return out
+	ids, err := store.JourneyEvidenceIDs(ctx, principal.Tenant(), tenantID, intentID, instanceID)
+	if err != nil {
+		return nil, fmt.Errorf("app: journey: read evidence: %w", err)
+	}
+	return ids, nil
 }
 
 // journeyEvidenceMatches reports whether one recorded subject names the

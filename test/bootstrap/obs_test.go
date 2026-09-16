@@ -51,7 +51,7 @@ func TestTodo_OBS_024_Integration(t *testing.T) {
 		}
 
 		found := false
-		for _, rec := range c.app.Evidence.Records() {
+		for _, rec := range memoryEvidence(t, c.app).Records() {
 			if rec.Decision == app.EvidenceKindGateRefused && rec.SubjectRef == intentID {
 				found = true
 				if rec.CapabilityID != "workflow.execution_authority_gate" {
@@ -101,7 +101,7 @@ func TestTodo_OBS_024_Integration(t *testing.T) {
 		}
 
 		found := false
-		for _, rec := range c.app.Evidence.Records() {
+		for _, rec := range memoryEvidence(t, c.app).Records() {
 			if rec.Decision == app.EvidenceKindGateAdmitted && rec.SubjectRef == intentID {
 				found = true
 				if rec.EvidenceID == "" {

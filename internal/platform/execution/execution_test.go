@@ -141,7 +141,7 @@ func TestNewPromotionExecutionDefaults(t *testing.T) {
 		if ex.Evidence == nil {
 			t.Fatalf("%s: Evidence is nil", name)
 		}
-		if n := ex.Evidence.Len(); n != 0 {
+		if n := len(ex.Evidence.(*app.MemoryEvidenceSink).Records()); n != 0 {
 			t.Errorf("%s: Evidence.Len() = %d at construction, want 0", name, n)
 		}
 	}

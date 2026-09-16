@@ -59,7 +59,7 @@ type TelemetryFactory func(ctx context.Context, instanceID string, cfg ServeConf
 // ExecutionComposer fills the execution-shaped fields of a CellConfig when
 // the P1B execution authority gate is on. Nil means
 // ComposeExecutionAuthority.
-type ExecutionComposer func(cellConfig *app.CellConfig, pool *pgxadapter.Pool, evidence *app.MemoryEvidenceSink, cfg ServeConfig) error
+type ExecutionComposer func(cellConfig *app.CellConfig, pool *pgxadapter.Pool, evidence app.EvidenceStore, cfg ServeConfig) error
 
 // Options are the explicit composition seams. The zero value is the
 // production composition; a test fills only the fields it means to replace.
@@ -89,8 +89,10 @@ type Options struct {
 	IDs   intent.IDSource
 
 	// Evidence is the one sink the gateway, the gate and (when composed) the
-	// execution driver all record on. Nil means a fresh sink.
-	Evidence *app.MemoryEvidenceSink
+	// execution driver all record on. Nil means the durable PostgreSQL store
+	// over the composed pool (internal/data/evidencestore, WF-RUN-035); a
+	// test that supplies the in-memory double does so explicitly here.
+	Evidence app.EvidenceStore
 
 	// Inputs, Workers and Bands are the governed read ports the capability
 	// handlers answer from. Nil means the cell's own fixture corpus, which is
@@ -179,7 +181,7 @@ func WithIDs(ids intent.IDSource) Option {
 }
 
 // WithEvidence supplies the shared evidence sink.
-func WithEvidence(sink *app.MemoryEvidenceSink) Option {
+func WithEvidence(sink app.EvidenceStore) Option {
 	return func(o *Options) { o.Evidence = sink }
 }
 

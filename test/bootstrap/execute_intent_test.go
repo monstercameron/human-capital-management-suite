@@ -288,11 +288,15 @@ func TestExecuteIntentIsRefusedWithoutExecutionAuthority(t *testing.T) {
 	// transports, before ExecuteIntent looked at the presented approval or
 	// touched a single node.
 	gateRefusals := 0
-	for _, rec := range c.app.Evidence.Records() {
+	for _, rec := range memoryEvidence(t, c.app).Records() {
 		if rec.Decision == app.EvidenceKindGateRefused {
 			gateRefusals++
 			if rec.SubjectRef != intentID {
 				t.Errorf("GATE_REFUSED evidence names intent %q, want %q", rec.SubjectRef, intentID)
+			}
+			// WF-RUN-035: the gate records the verified caller's tenant.
+			if rec.Tenant != testTenant {
+				t.Errorf("GATE_REFUSED evidence names tenant %q, want %q", rec.Tenant, testTenant)
 			}
 		}
 	}
@@ -449,7 +453,7 @@ func TestExecuteIntentRunsThePromotionDriverUnderAuthority(t *testing.T) {
 		// OBS-024: the edge call's own authority-gate admission is recorded
 		// too, on the same cell-wide evidence sink as the grpc call's.
 		admitted := false
-		for _, rec := range edgeCell.app.Evidence.Records() {
+		for _, rec := range memoryEvidence(t, edgeCell.app).Records() {
 			if rec.Decision == app.EvidenceKindGateAdmitted && rec.SubjectRef == intentID {
 				admitted = true
 			}
@@ -468,7 +472,7 @@ func TestExecuteIntentRunsThePromotionDriverUnderAuthority(t *testing.T) {
 	// own test/workflow suite, since ExecuteIntentResponse's wire receipt
 	// carries no evidence_ids field yet).
 	grpcAdmitted := false
-	for _, rec := range c.app.Evidence.Records() {
+	for _, rec := range memoryEvidence(t, c.app).Records() {
 		if rec.Decision == app.EvidenceKindGateAdmitted && rec.SubjectRef == intentID {
 			grpcAdmitted = true
 		}

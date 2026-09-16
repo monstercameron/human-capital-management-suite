@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 )
@@ -21,9 +24,10 @@ import (
 func TestTodo_OBS_024_Golden(t *testing.T) {
 	sink := app.NewMemoryEvidenceSink()
 	at := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+	tenantID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
 	adapter := NewCapabilityEvidenceAdapter(sink, func() time.Time { return at })
 
-	evidenceID, err := adapter.RecordExecutionEvidence(context.Background(),
+	evidenceID, err := adapter.RecordExecutionEvidence(context.Background(), tenantID,
 		execute.EvidenceKindTerminalWritten, "instance-1", "end", "event:instance-1@1", "sha256:deadbeef", at)
 	if err != nil {
 		t.Fatalf("RecordExecutionEvidence: %v", err)
@@ -40,6 +44,9 @@ func TestTodo_OBS_024_Golden(t *testing.T) {
 
 	if rec.EvidenceID != evidenceID {
 		t.Errorf("recorded EvidenceID = %q, want the returned id %q", rec.EvidenceID, evidenceID)
+	}
+	if rec.TenantID != tenantID {
+		t.Errorf("TenantID = %s, want the storage tenant the run committed under %s", rec.TenantID, tenantID)
 	}
 	if rec.CapabilityID != "workflow.execution.evidence" {
 		t.Errorf("CapabilityID = %q, want %q", rec.CapabilityID, "workflow.execution.evidence")
@@ -80,13 +87,14 @@ func TestTodo_OBS_024_Golden(t *testing.T) {
 func TestTodo_OBS_024_Security(t *testing.T) {
 	sink := app.NewMemoryEvidenceSink()
 	adapter := NewCapabilityEvidenceAdapter(sink, nil)
+	tenantID := uuid.New()
 
 	for i, kind := range []string{
 		execute.EvidenceKindGateRefused, execute.EvidenceKindGateAdmitted,
 		execute.EvidenceKindApprovalCompleted, execute.EvidenceKindTaskSubmitted,
 		execute.EvidenceKindTerminalWritten,
 	} {
-		id, err := adapter.RecordExecutionEvidence(context.Background(), kind, "inst", "node", "ref", "digest", time.Time{})
+		id, err := adapter.RecordExecutionEvidence(context.Background(), tenantID, kind, "inst", "node", "ref", "digest", time.Time{})
 		if err != nil {
 			t.Fatalf("RecordExecutionEvidence(%s): %v", kind, err)
 		}
@@ -99,5 +107,33 @@ func TestTodo_OBS_024_Security(t *testing.T) {
 	}
 	if sink.Len() != 5 {
 		t.Fatalf("sink.Len() = %d, want 5 (one per enumerated kind)", sink.Len())
+	}
+}
+
+// plainCapabilitySink is a capability.EvidenceSink with no storage-tenant
+// method, the shape the adapter packs onto.
+type plainCapabilitySink struct {
+	records []capability.InvocationEvidence
+}
+
+func (s *plainCapabilitySink) RecordInvocation(_ context.Context, evt capability.InvocationEvidence) (string, error) {
+	s.records = append(s.records, evt)
+	return "ev:plain", nil
+}
+
+// TestCapabilityEvidenceAdapterPacksOntoAPlainCapabilitySink proves the
+// adapter's fallback path: a sink that cannot record a storage tenant
+// receives the OBS-024 packing with the clock filling a zero instant, and
+// names no tenant it was never given.
+func TestCapabilityEvidenceAdapterPacksOntoAPlainCapabilitySink(t *testing.T) {
+	at := time.Date(2026, 9, 15, 8, 0, 0, 0, time.UTC)
+	sink := &plainCapabilitySink{}
+	adapter := NewCapabilityEvidenceAdapter(sink, func() time.Time { return at })
+	id, err := adapter.RecordExecutionEvidence(context.Background(), uuid.New(), execute.EvidenceKindTaskSubmitted, "i", "n", "r", "d", time.Time{})
+	if err != nil || id != "ev:plain" || len(sink.records) != 1 {
+		t.Fatalf("RecordExecutionEvidence = %q, %v, records %d", id, err, len(sink.records))
+	}
+	if want := app.ExecutionEvidenceOf(execute.EvidenceKindTaskSubmitted, "i", "n", "r", "d", at); sink.records[0] != want {
+		t.Fatalf("packed evidence = %+v, want %+v", sink.records[0], want)
 	}
 }

@@ -220,6 +220,18 @@ func newCell(t *testing.T) *cell {
 	return c
 }
 
+// memoryEvidence returns the in-memory evidence test double an in-process
+// cell was composed with (WF-RUN-035: only a served composition records on
+// the durable store), failing the test when the cell holds anything else.
+func memoryEvidence(t testing.TB, composed *app.Cell) *app.MemoryEvidenceSink {
+	t.Helper()
+	sink, ok := composed.Evidence.(*app.MemoryEvidenceSink)
+	if !ok {
+		t.Fatalf("cell evidence is %T, want the in-memory test double", composed.Evidence)
+	}
+	return sink
+}
+
 func (c *cell) appendRecord(record transport.LogRecord) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

@@ -123,30 +123,30 @@ func (s *IntentService) decideProposal(ctx context.Context, req ProposalDecision
 			"the resource does not exist or is not visible").WithDiagnostic(err)
 	}
 	if gateErr := s.authorizeDecision(def); gateErr != nil {
-		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, gateErr.ReasonRef())
+		s.recordProposalDecisionEvidence(ctx, principal.Tenant().String(), req.IntentID, approve, proposalDecisionEvidenceRefused, gateErr.ReasonRef())
 		return nil, gateErr
 	}
 	if s.proposalDecisioner == nil || s.executor == nil || s.executionResolver == nil || s.executionVersions == nil || s.tenantUUID == nil {
 		err := envelope.New(envelope.CodeFailedPrecondition, reasonExecutionUnavailable,
 			"workflow execution is not configured for this service")
-		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
+		s.recordProposalDecisionEvidence(ctx, principal.Tenant().String(), req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
 		return nil, err
 	}
 
 	simulated, ownedErr := s.simulateDetailed(ctx, principal, purposeOf(principal, inv), inst, def)
 	artifact := simulated.Artifact
 	if ownedErr != nil {
-		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, ownedErr.ReasonRef())
+		s.recordProposalDecisionEvidence(ctx, principal.Tenant().String(), req.IntentID, approve, proposalDecisionEvidenceRefused, ownedErr.ReasonRef())
 		return nil, ownedErr
 	}
 	if artifact.GetProposalRevisionId() == "" {
 		err := proposalDecisionEnvelope(reasonNoExecutablePlan, ErrProposalDecisionStage)
-		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
+		s.recordProposalDecisionEvidence(ctx, principal.Tenant().String(), req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
 		return nil, err
 	}
 	if req.ProposalRevisionID != artifact.GetProposalRevisionId() || req.MaterialProposalDigest != artifact.GetMaterialProposalDigest().GetDigest() {
 		err := proposalDecisionEnvelope(reasonStaleRevision, ErrProposalDecisionStale)
-		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
+		s.recordProposalDecisionEvidence(ctx, principal.Tenant().String(), req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
 		return nil, err
 	}
 	if simulated.Revision == nil {
@@ -160,7 +160,7 @@ func (s *IntentService) decideProposal(ctx context.Context, req ProposalDecision
 	decision, decisionErr := s.proposalDecisioner.completeProposalDecision(ctx, principal, inst, start, req, approve)
 	if decisionErr != nil {
 		err := proposalDecisionError(decisionErr)
-		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
+		s.recordProposalDecisionEvidence(ctx, principal.Tenant().String(), req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
 		return nil, err
 	}
 	if decision.needsResume() {
@@ -173,7 +173,7 @@ func (s *IntentService) decideProposal(ctx context.Context, req ProposalDecision
 		})
 		if resumeErr != nil {
 			err := executionError(resumeErr)
-			s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
+			s.recordProposalDecisionEvidence(ctx, principal.Tenant().String(), req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
 			return nil, err
 		}
 		decision.execution = result
@@ -182,10 +182,10 @@ func (s *IntentService) decideProposal(ctx context.Context, req ProposalDecision
 		// WF-STEP-003: the approval was closed (EXPIRED or INVALIDATED) and
 		// that route taken; the caller's decision was not recorded.
 		err := proposalDecisionError(decision.refusal)
-		s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
+		s.recordProposalDecisionEvidence(ctx, principal.Tenant().String(), req.IntentID, approve, proposalDecisionEvidenceRefused, err.ReasonRef())
 		return nil, err
 	}
-	s.recordProposalDecisionEvidence(ctx, req.IntentID, approve, proposalDecisionEvidenceInvoked, "")
+	s.recordProposalDecisionEvidence(ctx, principal.Tenant().String(), req.IntentID, approve, proposalDecisionEvidenceInvoked, "")
 	return &ProposalDecisionResponse{Decision: decision.decision, Execution: decision.execution}, nil
 }
 
@@ -207,7 +207,7 @@ func validateProposalDecisionRequest(req ProposalDecisionRequest, approve bool) 
 	return nil
 }
 
-func (s *IntentService) recordProposalDecisionEvidence(ctx context.Context, intentID string, approve bool, decision, reason string) {
+func (s *IntentService) recordProposalDecisionEvidence(ctx context.Context, tenant, intentID string, approve bool, decision, reason string) {
 	if s.evidence == nil {
 		return
 	}
@@ -220,7 +220,7 @@ func (s *IntentService) recordProposalDecisionEvidence(ctx context.Context, inte
 		id = proposalDecisionCapabilityApprove
 	}
 	_, _ = s.evidence.RecordInvocation(ctx, capability.InvocationEvidence{
-		CapabilityID: id, CapabilityVersion: proposalDecisionVersion, SubjectRef: intentID,
+		CapabilityID: id, CapabilityVersion: proposalDecisionVersion, SubjectRef: intentID, Tenant: tenant,
 		Decision: decision, ReasonCode: reason, OccurredAt: at,
 	})
 }

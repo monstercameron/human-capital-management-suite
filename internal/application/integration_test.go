@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/evidencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
@@ -127,7 +128,19 @@ func TestTodo_ARCH_GO_020_Integration(t *testing.T) {
 	//    answers from the composed read port, and the composed evidence sink
 	//    records it.
 	cell := composed.Cell()
-	before := cell.Evidence.Len()
+	durable, ok := cell.Evidence.(*evidencestore.Store)
+	if !ok {
+		t.Fatalf("the composed evidence sink is %T, want the durable store", cell.Evidence)
+	}
+	chronology := func() int {
+		t.Helper()
+		records, err := durable.List(context.Background(), fixtures.Tenant)
+		if err != nil {
+			t.Fatalf("read the durable evidence chronology: %v", err)
+		}
+		return len(records)
+	}
+	before := chronology()
 	result, err := cell.Gateway.Invoke(context.Background(), governedWorkerRead(t, cell))
 	if err != nil {
 		t.Fatalf("governed read through the composed gateway: %v", err)
@@ -142,9 +155,9 @@ func TestTodo_ARCH_GO_020_Integration(t *testing.T) {
 	if explanation.Worker.Id == "" {
 		t.Error("the explanation names no worker; the composed read port answered nothing")
 	}
-	if cell.Evidence.Len() <= before {
-		t.Errorf("the evidence sink holds %d records, was %d: the governed read left no chronology",
-			cell.Evidence.Len(), before)
+	if after := chronology(); after <= before {
+		t.Errorf("the evidence store holds %d records, was %d: the governed read left no chronology",
+			after, before)
 	}
 
 	// 3. The HTTP edge this same composition published is the one serving.
@@ -382,6 +395,7 @@ func governedWorkerRead(t *testing.T, cell *app.Cell) capability.InvokeRequest {
 			Decision:   capability.Allow,
 			Scopes:     []string{record.Definition.AuthZScopeRef},
 			SubjectRef: "principal:application-integration",
+			Tenant:     string(fixtures.Tenant),
 		},
 	}
 }

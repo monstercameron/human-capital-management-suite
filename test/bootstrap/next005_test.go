@@ -151,7 +151,7 @@ func TestP1APromotionProducesExactEvidenceAndZeroAuthoritativeOrProviderEffect(t
 	})
 
 	t.Run("every domain answer went through the governed gateway", func(t *testing.T) {
-		records := c.app.Evidence.Records()
+		records := memoryEvidence(t, c.app).Records()
 		if len(records) == 0 {
 			t.Fatal("the promotion path recorded no capability evidence")
 		}

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/dataops"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
@@ -291,9 +293,15 @@ type EvidenceRecord struct {
 	CapabilityID      string
 	CapabilityVersion uint32
 	SubjectRef        string
-	Decision          string
-	ReasonCode        string
-	OccurredAt        time.Time
+	// Tenant is the tenant key a capability decision was recorded in;
+	// TenantID the storage tenant an execution-evidence entry committed
+	// under. Each record carries whichever identity its recorder held
+	// (WF-RUN-035).
+	Tenant     string
+	TenantID   uuid.UUID
+	Decision   string
+	ReasonCode string
+	OccurredAt time.Time
 	// Purpose, IdempotencyKey, Deadline and EffectClass are the governed
 	// invocation envelope a workflow step presented (WF-RUN-034); empty for an
 	// interactive call.

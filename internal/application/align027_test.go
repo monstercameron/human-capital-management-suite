@@ -40,6 +40,15 @@ func (h *promoux015Harness) align027Fingerprint() map[string]string {
 		var count int64
 		var digest string
 		q := fmt.Sprintf(`SELECT count(*), coalesce(md5(string_agg(md5(t::text), '' ORDER BY md5(t::text))), '') FROM %q t`, table)
+		if table == "capability_invocation_evidence" {
+			// WF-RUN-035: the gateway durably audits every capability
+			// decision, including the zero-effect reads a simulation makes.
+			// That audit row is retained evidence, not an effect; what a
+			// simulation must never record is execution evidence, a gate
+			// decision or a decision on a capability with a write effect.
+			q += ` WHERE capability_id IN ('workflow.execution.evidence', 'workflow.execution_authority_gate')
+				OR effect_class NOT IN ('', 'READ_ONLY')`
+		}
 		if err := h.pool.QueryRow(ctx, q).Scan(&count, &digest); err != nil {
 			h.t.Fatalf("fingerprint %s: %v", table, err)
 		}

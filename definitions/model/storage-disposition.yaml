@@ -151,6 +151,7 @@ migrationfiles:
   - 00297_workflow_quarantined_work.sql
   - 00298_workflow_execution_context_forbid_mutation.sql
   - 00302_workflow_execution_delegation.sql
+  - 00303_capability_invocation_evidence.sql
   - 00304_workflow_cancellation_decision.sql
   - 00305_workflow_approval_withdrawal.sql
 entities:

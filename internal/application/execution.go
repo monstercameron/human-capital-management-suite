@@ -32,7 +32,7 @@ import (
 // cellConfig already carries is untouched. evidence is the cell's own sink,
 // handed to the driver so its APPROVAL_COMPLETED/TASK_SUBMITTED/
 // TERMINAL_WRITTEN entries land beside the cell's gateway and gate evidence.
-func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool, evidence *app.MemoryEvidenceSink, cfg ServeConfig) error {
+func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool, evidence app.EvidenceStore, cfg ServeConfig) error {
 	if cellConfig == nil {
 		return fmt.Errorf("application: the execution authority needs a cell configuration")
 	}

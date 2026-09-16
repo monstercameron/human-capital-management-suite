@@ -185,6 +185,7 @@ func authorize(principal *trust.Principal, purpose string, def capability.Defini
 		return decision
 	}
 	decision.SubjectRef = principal.Subject()
+	decision.Tenant = principal.Tenant().String()
 	if purpose != "" && !principal.AuthorizesPurpose(purpose) {
 		decision.Reason = "the principal is not authorized for the resolved purpose of processing"
 		return decision

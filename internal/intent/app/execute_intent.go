@@ -109,10 +109,10 @@ func (s *IntentService) ExecuteIntent(ctx context.Context, req *intentsv1.Execut
 	// gate refusals, approvals, submissions or the terminal write") — before
 	// this cell has looked at the presented approval or run a single node.
 	if ownedErr := s.authorizeExecution(principal, def); ownedErr != nil {
-		s.recordGateEvidence(ctx, EvidenceKindGateRefused, inst.IntentID, ownedErr.ReasonRef())
+		s.recordGateEvidence(ctx, principal.Tenant().String(), EvidenceKindGateRefused, inst.IntentID, ownedErr.ReasonRef())
 		return nil, ownedErr
 	}
-	gateEvidenceID, evErr := s.recordGateEvidence(ctx, EvidenceKindGateAdmitted, inst.IntentID, "")
+	gateEvidenceID, evErr := s.recordGateEvidence(ctx, principal.Tenant().String(), EvidenceKindGateAdmitted, inst.IntentID, "")
 	if evErr != nil {
 		return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
 			"the operation could not be completed").WithDiagnostic(evErr)
@@ -255,11 +255,12 @@ func (s *IntentService) executionStart(
 // when no cell-wide sink was configured; [NewCell] wires the cell's own
 // gateway sink instead, so [Cell.Evidence] reads both back from one place).
 // No workflow instance exists yet at this call: nodeID is always empty.
-func (s *IntentService) recordGateEvidence(ctx context.Context, kind, intentID, reason string) (string, error) {
+func (s *IntentService) recordGateEvidence(ctx context.Context, tenant, kind, intentID, reason string) (string, error) {
 	return s.evidence.RecordInvocation(ctx, capability.InvocationEvidence{
 		CapabilityID:      "workflow.execution_authority_gate",
 		CapabilityVersion: 1,
 		SubjectRef:        intentID,
+		Tenant:            tenant,
 		Decision:          kind,
 		ReasonCode:        reason,
 		OccurredAt:        s.clock().Time(),
