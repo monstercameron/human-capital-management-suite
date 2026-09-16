@@ -218,6 +218,11 @@ type DomainCall struct {
 
 	// Baseline is the exact input state the kernel preflight evaluates.
 	Baseline intent.BaselineSnapshot
+
+	// ManagerWorkerID is the promotion subject's durable manager worker id
+	// (WF-RUN-034), resolved from the created worker's own recorded manager
+	// reference; empty when the subject has no recorded manager worker.
+	ManagerWorkerID string
 }
 
 // RepairInputs is everything the repair capabilities need to read both sides,

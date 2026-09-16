@@ -37,6 +37,7 @@ func proposalFor(
 	baseline intent.BaselineSnapshot,
 	controls intent.ControlSnapshots,
 	revision uint64,
+	managerWorkerID string,
 ) (intent.ProposalSpec, error) {
 	if inst.RequestedEffectiveAt == nil {
 		return intent.ProposalSpec{}, fmt.Errorf("app: %s carries no requested effective time", inst.IntentID)
@@ -114,6 +115,10 @@ func proposalFor(
 			Operation:               intent.WriteOperationUpdate,
 			EffectiveInterval:       effective,
 		})
+	}
+
+	if err := appendCommitMaterial(&spec, inst.Tenant, primary, subject, watermark, effective, result, managerWorkerID); err != nil {
+		return intent.ProposalSpec{}, err
 	}
 
 	if def.ApprovalRequired {

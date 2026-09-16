@@ -259,9 +259,13 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Journey.Inspect: %v", err)
 	}
-	// WF-RUN-034: revalidation runs for real and no durable GOVERN-002
-	// historical decision exists to confirm against, so the run closes
-	// PROMOTION_BLOCKED (stage BLOCKED) with its one ledger fact.
+	// WF-RUN-034: revalidation runs for real against the GOVERN-002 record
+	// this run's approvals wrote. The subject is a fixed corpus worker, whose
+	// population has no aggregate projection, no target position and no
+	// compensation pool in this tenant, so the recorded decision denies on
+	// the budget and position facts and the run closes PROMOTION_BLOCKED
+	// (stage BLOCKED) with its one ledger fact. A projected, funded worker
+	// commits instead (internal/application TestTodo_WF_RUN_034_Integration).
 	if string(completed.Summary.Stage) != "BLOCKED" || completed.Ledger == nil {
 		t.Fatalf("completed journey = stage %s ledger %+v, want BLOCKED with one ledger fact", completed.Summary.Stage, completed.Ledger)
 	}

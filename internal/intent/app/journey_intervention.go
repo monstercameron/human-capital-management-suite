@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
@@ -128,6 +129,14 @@ func (e *journeyEngine) releasePromotionWindow(ctx context.Context, principal *t
 	defer func() { _ = tx.Rollback(ctx) }()
 	tenantID := e.svc.tenantUUID(principal.Tenant())
 	if err := promotionguard.Release(ctx, tx, tenantID, intentID, e.now().UTC()); err != nil {
+		return
+	}
+	// WF-RUN-034: a cancelled promotion also stops holding its organization's
+	// compensation pool. The hold belongs to the proposal revision the
+	// cancelled intent minted, so a cancellation before any proposal releases
+	// nothing. It is best-effort with the guard release it shares this
+	// transaction with.
+	if _, releaseErr := promotionbudget.ReleaseForIntent(ctx, tx, tenantID, intentID, e.now().UTC()); releaseErr != nil {
 		return
 	}
 	_ = tx.Commit(ctx)

@@ -213,6 +213,43 @@ type HistoricalApproval struct {
 	PlanDigest string
 }
 
+// NewHistoricalApproval composes the record a caller must keep for a decision
+// it is about to authorize: base carries every input GOVERN-002 composed that
+// this package does not revalidate, facts carry the seven it does, and
+// planDigest pins the prepared plan the decision authorizes. The five
+// revalidated subdecisions are built here, by exactly the same construction
+// [Revalidate] uses for current facts, so an unchanged world recomposes this
+// record's own digest byte for byte instead of a near-miss a caller assembled
+// by hand.
+func NewHistoricalApproval(base decision.Inputs, facts Facts, planDigest string) (HistoricalApproval, error) {
+	if err := facts.validate(); err != nil {
+		return HistoricalApproval{}, err
+	}
+	if strings.TrimSpace(planDigest) == "" {
+		return HistoricalApproval{}, fmt.Errorf("%w: no prepared transaction plan digest supplied", ErrInvalidInput)
+	}
+	inputs := buildCurrentInputs(base, facts)
+	composed, err := decision.Compose(inputs)
+	if err != nil && !errors.Is(err, decision.ErrUnresolvedConflict) {
+		return HistoricalApproval{}, fmt.Errorf("%w: approval inputs do not compose: %v", ErrInvalidInput, err)
+	}
+	out := HistoricalApproval{Inputs: inputs, Decision: composed, Facts: facts, PlanDigest: planDigest}
+	if err := out.validate(); err != nil {
+		return HistoricalApproval{}, err
+	}
+	return out, nil
+}
+
+// Validate reports whether a stored record is usable: complete, composing
+// from its own inputs, and reproducing its own recorded digest.
+func (h HistoricalApproval) Validate() error { return h.validate() }
+
+// Allows reports whether the recorded decision authorizes the effect at all.
+// A record that reproduces exactly but denies is confirmed and still blocking.
+func (h HistoricalApproval) Allows() bool {
+	return h.Decision.State == decision.Allow || h.Decision.State == decision.AllowWithObligations
+}
+
 func (h HistoricalApproval) validate() error {
 	if h.Decision.Digest == "" {
 		return fmt.Errorf("%w: historical decision carries no digest", ErrInvalidInput)

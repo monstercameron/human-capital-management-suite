@@ -13,6 +13,7 @@ package promotionterminal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -41,6 +42,11 @@ const (
 	resolveManagerIDFieldPath    = "org.manager_relationship.manager_id"
 	resolveRelationshipFieldPath = "org.manager_relationship.relationship_id"
 	resolveReservationFieldPath  = "position.occupancy.reservation"
+	// resolvePlacementJobCodePath and resolvePlacementGradePath are the
+	// placement writes the promotion simulation's projection records
+	// (internal/intent/app proposalFor prefixes people's assignment fields).
+	resolvePlacementJobCodePath = "assignment.assignment.job_code"
+	resolvePlacementGradePath   = "assignment.assignment.grade"
 )
 
 // Approved effect vocabulary, pinned to the same simulations: the payroll
@@ -65,7 +71,7 @@ var _ CommandResolver = Resolver{}
 // reads the work_item_decision rows the served run recorded; tests substitute
 // recorded fixtures through this seam.
 type DecisionReader interface {
-	DecisionsForInstance(ctx context.Context, ex dbport.Tx, tenant, instance uuid.UUID) (InstanceDecisions, error)
+	DecisionsForInstance(ctx context.Context, ex dbport.Querier, tenant, instance uuid.UUID) (InstanceDecisions, error)
 }
 
 // WorkItemDecisions is the production DecisionReader: approvals and task
@@ -73,7 +79,7 @@ type DecisionReader interface {
 type WorkItemDecisions struct{}
 
 // DecisionsForInstance implements DecisionReader.
-func (WorkItemDecisions) DecisionsForInstance(ctx context.Context, ex dbport.Tx, tenant, instance uuid.UUID) (ret0 InstanceDecisions, retErr error) {
+func (WorkItemDecisions) DecisionsForInstance(ctx context.Context, ex dbport.Querier, tenant, instance uuid.UUID) (ret0 InstanceDecisions, retErr error) {
 	ctx, obsOp := observe.Begin(ctx, "workflow.promotion_terminal.decisions_for_instance", tenant, instance)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
 	rows, err := ex.Query(ctx, `SELECT decision_id::text, kind FROM work_item_decision WHERE tenant_id=$1 AND workflow_instance_id=$2 ORDER BY kind`, tenant, instance)
@@ -97,7 +103,31 @@ func (WorkItemDecisions) DecisionsForInstance(ctx context.Context, ex dbport.Tx,
 	if err := rows.Err(); err != nil {
 		return InstanceDecisions{}, fmt.Errorf("promotion terminal: iterate instance decisions: %w", err)
 	}
+	rows.Close()
+	if len(out.TaskIDs) == 0 {
+		// WF-RUN-034: the served promotion plan routes no human task before
+		// its commit on the normal path (its only TASK node is reapproval).
+		// The submission the commit attests is then the governed execution
+		// submission itself: the verified principal's ExecuteIntent that
+		// runtime.Start pinned durably for this instance (migration 00302).
+		// No pinned submission means no submission, and the command's own
+		// validation refuses it.
+		var evidence string
+		err := ex.QueryRow(ctx, `SELECT evidence_ref FROM workflow_execution_delegation WHERE tenant_id=$1 AND instance_id=$2`, tenant, instance).Scan(&evidence)
+		switch {
+		case err == nil && strings.TrimSpace(evidence) != "":
+			out.TaskIDs = append(out.TaskIDs, ExecutionSubmissionID(instance))
+		case err != nil && !errors.Is(err, dbport.ErrNoRows):
+			return InstanceDecisions{}, fmt.Errorf("promotion terminal: read the execution submission: %w", err)
+		}
+	}
 	return out, nil
+}
+
+// ExecutionSubmissionID names an instance's pinned execution submission as a
+// task submission identity.
+func ExecutionSubmissionID(instance uuid.UUID) string {
+	return "execution-submission:" + instance.String()
 }
 
 // Resolver materializes the approved proposal's validated, plan-bound commit
@@ -116,12 +146,12 @@ func (WorkItemDecisions) DecisionsForInstance(ctx context.Context, ex dbport.Tx,
 // Three boundaries are named rather than glossed. Position-less promotions
 // (PROMOUX-004 made the target position optional) cannot form a command --
 // the commit model requires a target position and occupancy -- so the
-// resolver refuses them fail-closed. Same-manager promotions carry no
-// manager worker identity in their frozen material (the simulation omits
-// unchanged writes, and the relationship reference is not a worker), so the
-// resolver refuses those too instead of inventing the manager from live
-// state and attesting a cycle check approval never saw; pinning the manager
-// even when unchanged belongs to the propose path. And the coordinator epoch
+// resolver refuses them fail-closed. A same-manager promotion's proposal
+// pins the unchanged manager as an identical current/proposed state
+// assertion pair (the kernel refuses an unchanged write), and the resolver
+// accepts exactly that pair (WF-RUN-034); a revision that pins no manager at
+// all is still refused instead of inventing the manager from live state and
+// attesting a cycle check approval never saw. And the coordinator epoch
 // is the composed boundary's own (see Boundary), so a coordinator failover
 // requires cell recomposition, the same carried-evidence model the execution
 // authority digest uses.
@@ -164,8 +194,22 @@ func (r Resolver) Resolve(ctx context.Context, tx dbport.Tx, req execute.Termina
 	if err != nil {
 		return domaincommit.Command{}, fmt.Errorf("promotion terminal: decode approved revision: %w", err)
 	}
-	if dto.Revision != revisionNo || dto.ProposalRevisionID != proposalID.String() || string(dto.Tenant) != tenant.String() {
+	if dto.Revision != revisionNo || dto.ProposalRevisionID != proposalID.String() {
 		return domaincommit.Command{}, fmt.Errorf("%w: decoded revision does not match the terminal request", ErrPlanBinding)
+	}
+	// The revision's own tenant is the kernel tenant key the cell minted it
+	// under, which equals the physical tenant uuid only in a composition that
+	// names them the same way (WF-RUN-034: the served cell's key is
+	// "harborcare-demo", not its uuid). Tenant confinement itself comes from
+	// the row lookup, which is scoped to the physical tenant, and from the
+	// material digest the payload is verified against; this check adds the
+	// two comparisons that are meaningful for the spelling at hand.
+	if id, parseErr := uuid.Parse(string(dto.Tenant)); parseErr == nil && id != tenant {
+		return domaincommit.Command{}, fmt.Errorf("%w: decoded revision names tenant %s, the terminal request names %s",
+			ErrPlanBinding, dto.Tenant, tenant)
+	} else if parseErr != nil && req.Proposal.Revision.Tenant != "" && dto.Tenant != req.Proposal.Revision.Tenant {
+		return domaincommit.Command{}, fmt.Errorf("%w: decoded revision names tenant %q, the running proposal names %q",
+			ErrPlanBinding, dto.Tenant, req.Proposal.Revision.Tenant)
 	}
 	return r.materialize(ctx, tx, tenant, instance, proposalID, req, dto, row.ProducedAt)
 }
@@ -303,14 +347,12 @@ func (r Resolver) materialize(ctx context.Context, tx dbport.Tx, tenant, instanc
 		PlanID: "promotion.transaction/" + proposalID.String(),
 		Tenant: values.TenantId(tenant.String()),
 	}
-	for _, p := range []intent.PlanParticipant{
+	plan.Participants = append(plan.Participants, []intent.PlanParticipant{
 		{ParticipantID: domaincommit.ParticipantAssignment, StreamID: "people.assignment/" + assignment.EntityID.String(), StorageClass: "LOCAL_POSTGRES", Local: true},
 		{ParticipantID: domaincommit.ParticipantOccupancy, StreamID: "position.occupancy/" + positionID.String(), StorageClass: "LOCAL_POSTGRES", Local: true},
 		{ParticipantID: domaincommit.ParticipantCompensation, StreamID: "rewards.compensation/" + pkg.EntityID.String(), StorageClass: "LOCAL_POSTGRES", Local: true},
 		{ParticipantID: domaincommit.ParticipantBudget, StreamID: "rewards.budget/" + reservation.EntityID.String(), StorageClass: "LOCAL_POSTGRES", Local: true},
-	} {
-		plan.Participants = append(plan.Participants, p)
-	}
+	}...)
 	// Remote legs are named by their outbox effect identity: BindResolution
 	// admits only locals and matches each remote leg to exactly one declared
 	// effect, so the commit cannot drop an outbox leg or invoke an
@@ -345,11 +387,25 @@ func deterministicOccupancyID(proposalID uuid.UUID) string {
 // approved effective interval, UTC midnight. Resolver and writer read history
 // at exactly this instant, so identity and baselines observe the same rows.
 func effectiveStart(dto intent.ProposalRevision) (time.Time, error) {
-	start, ok := dto.EffectiveTime.StartDate()
-	if !ok {
-		return time.Time{}, fmt.Errorf("%w: approved revision names no effective start", ErrPlanBinding)
+	return EffectiveStart(dto.EffectiveTime)
+}
+
+// EffectiveStart is the promotion's effective business instant for either
+// kind of approved interval: the start date's UTC midnight for a LOCAL_DATE
+// interval, and the start instant's own UTC day for an INSTANT one (the
+// served proposal path mints instant intervals). Both resolve to the same
+// day-aligned coordinate every effective-dated read and write in the commit
+// uses, so an approval and its commit never observe different rows for the
+// same promotion.
+func EffectiveStart(interval values.EffectiveInterval) (time.Time, error) {
+	if start, ok := interval.StartDate(); ok {
+		return time.Date(int(start.Year()), start.Month(), int(start.Day()), 0, 0, 0, 0, time.UTC), nil
 	}
-	return time.Date(int(start.Year()), start.Month(), int(start.Day()), 0, 0, 0, 0, time.UTC), nil
+	if start, ok := interval.StartInstant(); ok {
+		at := start.Time().UTC()
+		return time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC), nil
+	}
+	return time.Time{}, fmt.Errorf("%w: approved revision names no effective start", ErrPlanBinding)
 }
 
 // resolveSubjects extracts the promotion subject (EMPLOYMENT names the worker
@@ -398,6 +454,19 @@ func (r Resolver) resolveManager(ctx context.Context, tx dbport.Tx, tenant uuid.
 			relationship = w.ProposedCanonicalText
 		}
 	}
+	// WF-RUN-034: a promotion that keeps the worker's manager cannot carry a
+	// manager write (the kernel refuses a write whose proposed text equals
+	// its current text), so its proposal pins the unchanged manager as a
+	// current/proposed state assertion pair. That pair is approval-frozen
+	// material, bound by the revision digest exactly as a write is, so the
+	// resolver accepts it -- but only when both sides name the same manager:
+	// a one-sided or disagreeing pair is not an approved unchanged manager.
+	if strings.TrimSpace(managerText) == "" {
+		managerText = unchangedAssertion(dto, resolveManagerIDFieldPath)
+	}
+	if strings.TrimSpace(relationship) == "" {
+		relationship = unchangedAssertion(dto, resolveRelationshipFieldPath)
+	}
 	if strings.TrimSpace(managerText) == "" {
 		return uuid.Nil, "", fmt.Errorf("%w: approved revision names no manager", ErrPlanBinding)
 	}
@@ -415,6 +484,34 @@ func (r Resolver) resolveManager(ctx context.Context, tx dbport.Tx, tenant uuid.
 		return uuid.Nil, "", fmt.Errorf("promotion terminal: resolve manager: %w", err)
 	}
 	return manager.EntityID, relationship, nil
+}
+
+// unchangedAssertion returns the text an approved revision pins for field
+// when its current and proposed state both assert it identically, and "" for
+// an absent, one-sided or changed assertion.
+func unchangedAssertion(dto intent.ProposalRevision, field string) string {
+	current, proposed := assertionText(dto.CurrentState, field), assertionText(dto.ProposedState, field)
+	if current == nil || proposed == nil || *current != *proposed {
+		return ""
+	}
+	return *current
+}
+
+// assertionText returns the single assertion text for field, or nil when the
+// field is not asserted exactly once.
+func assertionText(assertions []intent.StateAssertion, field string) *string {
+	var found *string
+	for i := range assertions {
+		if assertions[i].FieldPath != field {
+			continue
+		}
+		if found != nil {
+			return nil
+		}
+		text := assertions[i].CanonicalText
+		found = &text
+	}
+	return found
 }
 
 // walkAncestors records the manager chain above managerID for the commit's
@@ -551,19 +648,47 @@ func positionReservationRef(dto intent.ProposalRevision, proposalID uuid.UUID) s
 // duplicating downstream consequences.
 func renderEffects(proposalID uuid.UUID) []domaincommit.ExternalEffect {
 	return []domaincommit.ExternalEffect{
-		{EffectID: "payroll:" + proposalID.String(), DestinationRef: "payroll", SchemaRef: "hcmnext.promotion.payroll/v1", Payload: []byte(`{"kind":"PAYROLL_SYNC"}`)},
-		{EffectID: "iam:" + proposalID.String(), DestinationRef: "iam", SchemaRef: "hcmnext.promotion.iam/v1", Payload: []byte(`{"kind":"IAM_SYNC"}`)},
+		{EffectID: "payroll:" + proposalID.String(), DestinationRef: "payroll", SchemaRef: PayrollEffectSchemaRef, Payload: []byte(`{"kind":"PAYROLL_SYNC"}`)},
+		{EffectID: "iam:" + proposalID.String(), DestinationRef: "iam", SchemaRef: IAMEffectSchemaRef, Payload: []byte(`{"kind":"IAM_SYNC"}`)},
 	}
 }
+
+// The payload schemas the two rendered outbox legs are published under. A
+// composition that commits promotions registers exactly these for its tenant
+// (internal/data/promotioncommit.RegisterEffectSchemas); the outbox's foreign
+// key then refuses any other schema a command might name.
+const (
+	PayrollEffectSchemaRef = "hcmnext.promotion.payroll/v1"
+	IAMEffectSchemaRef     = "hcmnext.promotion.iam/v1"
+)
+
+// EffectSchemaRefs are the payload schemas this resolver renders.
+func EffectSchemaRefs() []string { return []string{PayrollEffectSchemaRef, IAMEffectSchemaRef} }
 
 // matchApprovedEffects requires the approved revision to carry the local
 // effects whose consequences the two syncs report: the terminal may only emit
 // what approval authorized. A revision with no compensation change authorizes
 // no payroll sync; one with no placement change authorizes no IAM sync.
+//
+// WF-RUN-034: a revision whose definition is ZERO_EFFECT in its scheduled
+// release may not declare effects at all (the kernel refuses it), so for such
+// a revision the approved local writes themselves are the authorization: an
+// approved annualized base pay write authorizes the payroll sync, and an
+// approved placement write (job code or grade) authorizes the IAM sync. A
+// revision that approved neither the effect kind nor the write it reports is
+// still refused.
 func matchApprovedEffects(dto intent.ProposalRevision, rendered []domaincommit.ExternalEffect) error {
 	kinds := map[string]bool{}
 	for _, e := range dto.Effects {
 		kinds[e.Kind] = true
+	}
+	for _, w := range dto.Writes {
+		switch w.FieldPath {
+		case resolvePayFieldPath:
+			kinds[resolveCompensationRevisionKind] = true
+		case resolvePlacementJobCodePath, resolvePlacementGradePath:
+			kinds[resolveAssignmentRevisionKind] = true
+		}
 	}
 	if !kinds[resolveCompensationRevisionKind] {
 		return fmt.Errorf("%w: approved revision carries no compensation revision for the payroll sync", ErrPlanBinding)

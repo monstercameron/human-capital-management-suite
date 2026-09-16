@@ -157,6 +157,7 @@ migrationfiles:
   - 00306_workflow_effect_role_settlement.sql
   - 00307_workflow_intervention_decision.sql
   - 00308_workflow_version_approval_fixture_report.sql
+  - 00309_promotion_approval_governance.sql
   - 00310_operator_bypass_obligation.sql
   - 00311_wfrun016_repair_execution_record.sql
 entities:

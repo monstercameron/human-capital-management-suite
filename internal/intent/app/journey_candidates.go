@@ -13,6 +13,7 @@ import (
 
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
@@ -282,6 +283,17 @@ func (e *journeyEngine) recordProposalCandidates(
 		ProducedAt:     rev.CreatedAt.Time(),
 	}); err != nil {
 		return fmt.Errorf("app: materialize the proposal revision: %w", err)
+	}
+
+	// WF-RUN-034: the proposal holds its raise against its organization
+	// unit's compensation pool in the same transaction its revision is
+	// materialized in, recorded no later than the revision's ProducedAt.
+	if hold, ok, holdErr := proposalReservationFor(*rev); holdErr != nil {
+		return holdErr
+	} else if ok {
+		if _, err := promotionbudget.ReserveProposalBudget(ctx, tx, tenantID, hold); err != nil {
+			return fmt.Errorf("app: hold the proposal's budget: %w", err)
+		}
 	}
 
 	sets, err := proposalCandidateSets(*rev)

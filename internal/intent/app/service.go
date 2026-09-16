@@ -1093,7 +1093,7 @@ func (s *IntentService) simulatePromotion(
 	// produces an artifact an approval could bind.
 	if kernelResult.Ready() && simulated.Simulation.Executable {
 		ledger := intent.NewProposalLedger(inst.IntentID)
-		spec, specErr := proposalFor(inst, def, request, simulated.Simulation, call.Baseline, s.controls.Snapshots, simulationRevision)
+		spec, specErr := proposalFor(inst, def, request, simulated.Simulation, call.Baseline, s.controls.Snapshots, simulationRevision, call.ManagerWorkerID)
 		if specErr != nil {
 			return simulationResult{}, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
 				"the operation could not be completed").WithDiagnostic(specErr)

@@ -34,7 +34,7 @@ func TestTodo_CONFLICT_003_ProposalForBindsTypedWriteSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSequenceRevision: %v", err)
 	}
-	spec, err := proposalFor(intent.Instance{IntentID: "intent-1", Tenant: values.TenantId("acme"), OrganizationScopeID: "org-1", Subjects: []intent.SubjectReference{primary}, RequestedEffectiveAt: &at}, intent.Definition{}, promotion.PreflightRequest{Subject: subject}, promotion.SimulationResult{Projected: promotion.ProjectedWorkerState{Changes: []promotion.PlacementChange{{Field: "job_code", Before: "ENG-1", After: "ENG-2", Changed: true}, {Field: "grade", Before: "P2", After: "P2", Changed: false}}}}, intent.BaselineSnapshot{Revisions: map[string]values.RevisionToken{subject.String(): watermark}}, intent.ControlSnapshots{}, 1)
+	spec, err := proposalFor(intent.Instance{IntentID: "intent-1", Tenant: values.TenantId("acme"), OrganizationScopeID: "org-1", Subjects: []intent.SubjectReference{primary}, RequestedEffectiveAt: &at}, intent.Definition{}, promotion.PreflightRequest{Subject: subject}, promotion.SimulationResult{Projected: promotion.ProjectedWorkerState{Changes: []promotion.PlacementChange{{Field: "job_code", Before: "ENG-1", After: "ENG-2", Changed: true}, {Field: "grade", Before: "P2", After: "P2", Changed: false}}}}, intent.BaselineSnapshot{Revisions: map[string]values.RevisionToken{subject.String(): watermark}}, intent.ControlSnapshots{}, 1, "")
 	if err != nil {
 		t.Fatalf("proposalFor: %v", err)
 	}

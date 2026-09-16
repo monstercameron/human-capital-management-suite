@@ -49,6 +49,34 @@ type Writer struct {
 	Failpoint    Failpoint
 }
 
+// RegisterEffectSchemas registers the payload schemas a tenant's promotion
+// effects are published under, so the outbox rows a commit enqueues satisfy
+// their foreign key into the payload schema registry (WF-RUN-034).
+//
+// It is deliberately a composition-root act and not something [Writer.Write]
+// does for whatever schema a command happens to name: a promotion that
+// declares an effect under a schema nobody published is refused by that
+// foreign key, and that refusal is the point. The composition registers the
+// exact schemas its own terminal resolver renders
+// (internal/platform/execution/promotionterminal.EffectSchemaRefs).
+// Registration is idempotent and never overwrites an existing descriptor.
+func RegisterEffectSchemas(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, schemaRefs ...string) error {
+	if tx == nil || tenant == uuid.Nil {
+		return fmt.Errorf("promotion commit: register effect schemas: a transaction and tenant are required")
+	}
+	for _, schemaRef := range schemaRefs {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO payload_schema (
+				tenant_id, schema_ref, schema_id, schema_version,
+				message_full_name, wire_format, canonicalization_profile)
+			VALUES ($1, $2, $2, 1, $2, 'PROTOBUF', 'LEDGER_EVENT')
+			ON CONFLICT DO NOTHING`, tenant, schemaRef); err != nil {
+			return fmt.Errorf("promotion commit: register the effect payload schema %s: %w", schemaRef, err)
+		}
+	}
+	return nil
+}
+
 func parseID(name, text string) (uuid.UUID, error) {
 	id, err := uuid.Parse(text)
 	if err != nil {

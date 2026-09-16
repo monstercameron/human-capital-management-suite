@@ -66,6 +66,7 @@ type PromotionStepServices interface {
 	EvaluateBand(context.Context, app.PromotionStepCall) (app.PromotionStepAnswer, error)
 	ThresholdInputs(context.Context, app.PromotionStepCall) (rules.PromotionApprovalInput, app.PromotionStepAnswer, error)
 	AuthorizeCommit(context.Context, app.PromotionStepCall) (app.PromotionStepAnswer, error)
+	GovernanceStanding(context.Context, app.PromotionStepCall) (app.GovernanceStanding, error)
 	GovernedRead(ctx context.Context, call app.PromotionStepCall, capabilityID string, read func(context.Context) (any, error)) (any, app.PromotionStepAnswer, error)
 }
 
@@ -89,6 +90,12 @@ type promotionStepPorts struct {
 	db              execute.Beginner
 	cellID          string
 	authorityDigest string
+	// planDigest is the compiled promotion plan this composition runs. The
+	// approval record and its revalidation are bound to it, so a plan
+	// recompiled after approval refuses revalidation on that binding alone.
+	planDigest string
+	// clock stamps the governance records and revalidation results.
+	clock func() time.Time
 
 	mu       sync.RWMutex
 	services PromotionStepServices
@@ -189,6 +196,12 @@ func (p *promotionStepPorts) inTenantRead(ctx context.Context, tenantID uuid.UUI
 	}
 	return fn(tx)
 }
+
+// WF-RUN-034: there is deliberately no committing helper beside inTenantRead.
+// The GOVERN-002 record an approval produces is appended through the approval
+// kernel's Record hook, inside the vote's own transaction, so a recorded
+// approval and the governance its revalidation recomposes commit or roll back
+// together.
 
 // call loads the instance's delegation and builds the governed call for req.
 // ex, when non-nil, is the advance transaction to read it through.
@@ -295,66 +308,68 @@ type revalidation struct {
 	requirement revalidate.RequirementKind
 	confirmed   bool
 	sourced     []string
-	missing     []string
 	digest      string
 }
 
-// revalidationMissingInputs names the GOVERN-003 inputs no durable fact
-// supplies today. revalidate.Revalidate requires the historical GOVERN-002
-// decision (its composed inputs, digest and the seven facts as they stood at
-// approval) and current budget, position-capacity and conflict observations;
-// nothing records the historical decision, so revalidation can never confirm
-// and fails closed with REPLAN_REQUIRED.
-var revalidationMissingInputs = []string{
-	"governance.decision.historical_record (GOVERN-002 composed inputs and digest at approval)",
-	"governance.conflict.classification",
-	"position.capacity.observation",
-}
-
-// evaluateRevalidation reads the durable facts revalidation can source for
-// the instance: the recorded approval decisions, the approved proposal
-// revision's stored digest and the budget reservation the proposal holds.
-func (p *promotionStepPorts) evaluateRevalidation(ctx context.Context, req execute.StepRequest) (revalidation, error) {
-	out := revalidation{}
+// evaluateRevalidation recomposes the promotion's governance from current
+// facts and compares it with the decision its approval recorded
+// (migration 00309). An instance with no durable record, a record that does
+// not reproduce from its own inputs, a record that never allowed, or a plan
+// recompiled since it was taken all block: none of them is a confirmation.
+func (p *promotionStepPorts) evaluateRevalidation(ctx context.Context, req execute.StepRequest, standing app.GovernanceStanding) (revalidation, error) {
+	out := revalidation{requirement: revalidate.RequirementBlock}
 	err := p.inTenantRead(ctx, req.TenantID, func(tx dbport.Tx) error {
-		decisions, err := (promotionterminal.WorkItemDecisions{}).DecisionsForInstance(ctx, tx, req.TenantID, req.InstanceID)
+		record, err := loadApprovalGovernance(ctx, tx, req.TenantID, req.InstanceID)
+		if errors.Is(err, ErrNoApprovalGovernance) {
+			out.sourced = append(out.sourced, "governance.record=absent")
+			return nil
+		}
 		if err != nil {
 			return err
 		}
-		approvals := len(decisions.ApprovalIDs) > 0
-		out.sourced = append(out.sourced, fmt.Sprintf("approval.decisions=%d", len(decisions.ApprovalIDs)))
-
-		digestCurrent := false
-		if intentID, parseErr := uuid.Parse(req.Proposal.Revision.IntentID); parseErr == nil {
-			row, loadErr := (intentcontrol.RevisionStore{}).Load(ctx, tx, req.TenantID, intentID, req.Proposal.Revision.Revision)
-			digestCurrent = loadErr == nil && row.MaterialDigest == req.Proposal.Revision.MaterialDigest.Digest
+		out.sourced = append(out.sourced, "governance.record="+record.Historical.Decision.Digest, "governance.state="+string(record.Historical.Decision.State))
+		facts, err := p.governanceFacts(ctx, tx, governanceInputs{
+			tenantID: req.TenantID, instanceID: req.InstanceID, proposal: req.Proposal,
+			planDigest: p.planDigest, standing: standing,
+		})
+		if err != nil {
+			return err
 		}
-		out.sourced = append(out.sourced, fmt.Sprintf("proposal.revision.digest_current=%t", digestCurrent))
-
-		reserved := false
-		if proposalID, parseErr := uuid.Parse(req.Proposal.Revision.ProposalRevisionID); parseErr == nil {
-			_, reservationErr := (aggregates.CompensationStore{}).ReservationForProposal(ctx, tx, req.TenantID, proposalID, req.RecordedAt)
-			reserved = reservationErr == nil
+		result, err := revalidate.Revalidate(p.instant, record.Historical, facts, p.planDigest)
+		if err != nil {
+			out.sourced = append(out.sourced, "revalidation.refused="+err.Error())
+			return nil
 		}
-		out.sourced = append(out.sourced, fmt.Sprintf("budget.reservation.held=%t", reserved))
-
-		out.missing = append([]string(nil), revalidationMissingInputs...)
-		if !reserved {
-			out.missing = append(out.missing, "budget.reservation.observation")
+		out.sourced = append(out.sourced, "revalidation.recomposed="+result.RecomposedDigest, "revalidation.state="+string(result.RecomposedState))
+		for _, changed := range result.ChangedInputs {
+			out.sourced = append(out.sourced, "revalidation.changed="+string(changed))
 		}
 		switch {
-		case !approvals || !digestCurrent:
+		case result.Confirmed && record.Historical.Allows():
+			out.confirmed, out.requirement = true, revalidate.RequirementNone
+		case result.Confirmed:
+			// The world is unchanged and the recorded decision never allowed.
+			out.sourced = append(out.sourced, "revalidation.confirmed_but_blocking=true")
 			out.requirement = revalidate.RequirementBlock
 		default:
-			out.requirement = revalidate.RequirementReplanRequired
+			out.requirement = result.Requirement
 		}
 		return nil
 	})
 	if err != nil {
 		return revalidation{}, err
 	}
-	out.digest = digestOf(append(append([]string{"govern-003.revalidation/v1", string(out.requirement)}, out.sourced...), out.missing...)...)
+	out.digest = digestOf(append([]string{"govern-003.revalidation/v1", string(out.requirement), fmt.Sprintf("confirmed=%t", out.confirmed)}, out.sourced...)...)
 	return out, nil
+}
+
+// instant is the clock revalidation stamps its result with.
+func (p *promotionStepPorts) instant() values.Instant {
+	now := time.Now().UTC()
+	if p.clock != nil {
+		now = p.clock().UTC()
+	}
+	return values.NewInstant(now)
 }
 
 func (p *promotionStepPorts) revalidationRead(ctx context.Context, req execute.StepRequest) (revalidation, app.PromotionStepAnswer, error) {
@@ -362,8 +377,12 @@ func (p *promotionStepPorts) revalidationRead(ctx context.Context, req execute.S
 	if err != nil {
 		return revalidation{}, app.PromotionStepAnswer{}, err
 	}
+	standing, err := services.GovernanceStanding(ctx, call)
+	if err != nil {
+		return revalidation{}, app.PromotionStepAnswer{}, err
+	}
 	got, answer, err := services.GovernedRead(ctx, call, promotionexec.CapabilityRevalidate, func(ctx context.Context) (any, error) {
-		return p.evaluateRevalidation(ctx, req)
+		return p.evaluateRevalidation(ctx, req, standing)
 	})
 	if err != nil {
 		return revalidation{}, answer, err

@@ -38,7 +38,12 @@ func (a executeDriverAdapter) CompleteApproval(ctx context.Context, req app.Appr
 		Start: req.Start, InstanceID: req.InstanceID, ExpectedInstanceVersion: req.ExpectedInstanceVersion,
 		WorkItemID: req.WorkItemID, ExpectedWorkItemVersion: req.ExpectedWorkItemVersion,
 		Continuation: req.Continuation, Decision: req.Decision, RecordedAt: req.RecordedAt, Meta: req.Meta,
-		Authority: recheckAuthority(req.Recheck), Prepare: req.Prepare, Record: req.Record,
+		Authority: recheckAuthority(req.Recheck), Prepare: req.Prepare,
+		// WF-RUN-034: the promotion's GOVERN-002 record is appended in this
+		// same vote transaction, after the caller's own decision evidence, so
+		// an approval and the governance its revalidation will recompose can
+		// never disagree about whether they happened.
+		Record: a.withApprovalGovernance(req),
 	})
 	if err != nil {
 		return app.ApprovalVoteResult{}, approvalKernelError(err)

@@ -14,6 +14,7 @@ import (
 	datalogger "github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -294,6 +295,16 @@ func (w *LedgerTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req exec
 	if intentID, parseErr := uuid.Parse(req.Proposal.Revision.IntentID); parseErr == nil {
 		if releaseErr := promotionguard.Release(ctx, tx, req.TenantID, intentID, req.RecordedAt); releaseErr != nil {
 			return idempotency.ResultIdentity{}, fmt.Errorf("effects: release terminal promotion admission guard: %w", releaseErr)
+		}
+	}
+	// WF-RUN-034: the budget the proposal held is released in the same
+	// transaction as the terminal fact, so a promotion that ends without
+	// committing stops occupying its organization's compensation pool. A
+	// promotion that did commit already transitioned its reservation to
+	// COMMITTED, and a committed reservation is never released here.
+	if proposalID, parseErr := uuid.Parse(req.Proposal.Revision.ProposalRevisionID); parseErr == nil {
+		if _, releaseErr := promotionbudget.ReleaseProposalBudget(ctx, tx, req.TenantID, proposalID, req.RecordedAt); releaseErr != nil {
+			return idempotency.ResultIdentity{}, fmt.Errorf("effects: release the terminal promotion budget hold: %w", releaseErr)
 		}
 	}
 

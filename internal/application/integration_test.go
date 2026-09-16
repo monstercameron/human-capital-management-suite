@@ -331,10 +331,15 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 		}
 		t.Fatalf("Journey.Inspect(completed): %v", err)
 	}
-	// WF-RUN-034: revalidation now runs for real. No durable GOVERN-002
-	// historical decision exists to confirm against, so still_valid routes
-	// BLOCKED and the run closes PROMOTION_BLOCKED with its one ledger fact,
-	// rather than the fabricated VALID -> COMPLETE it used to record.
+	// WF-RUN-034: revalidation runs for real over the durable GOVERN-002
+	// record this promotion's approvals wrote. This journey promotes a fixed
+	// corpus worker (omar-reyes), whose population has no aggregate
+	// projection, no target position and no compensation pool in this tenant,
+	// so the recorded decision denies on the budget and position facts and
+	// the run closes PROMOTION_BLOCKED with its one ledger fact -- the real
+	// answer for an unprojected population, rather than the fabricated
+	// VALID -> COMPLETE this path used to record. The demo workforce, which
+	// is projected and funded, commits instead (TestTodo_WF_RUN_034_Integration).
 	if completed.Summary.Stage != workspace.JourneyStageBlocked || completed.Ledger == nil {
 		t.Fatalf("completed detail = stage %s ledger %+v, want BLOCKED with a ledger fact", completed.Summary.Stage, completed.Ledger)
 	}

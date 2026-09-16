@@ -504,12 +504,32 @@ func (e *journeyEngine) Propose(ctx context.Context, in workspace.ProposalInput)
 	} else {
 		trace.SpanFromContext(ctx).AddEvent("promotion.baseline.declared_reference")
 	}
+	// WF-RUN-034: a worker whose earlier promotion has committed is proposed
+	// from the pay the aggregates now record, not the pay journey_worker
+	// froze when they were created. The placement half of the same fact
+	// reaches currentPlacement through the governed read's own overlay.
+	if subject.Created != nil {
+		committed, found, committedErr := e.committedPay(ctx, principal, subject.Created.WorkerID.String())
+		if committedErr != nil {
+			return workspace.JourneySummary{}, committedErr
+		}
+		if found {
+			baseline.currentBase, baseline.currency = committed.BasePay, committed.Currency
+		}
+	}
 	current, err := e.currentPlacement(ctx, principal, worker, baseline.effective)
 	if err != nil {
 		return workspace.JourneySummary{}, err
 	}
 	if err := validatePublishedPromotionPath(current, in, baseline); err != nil {
 		return workspace.JourneySummary{}, err
+	}
+	if strings.TrimSpace(in.TargetPositionID) == "" && subject.Created != nil {
+		selected, selectErr := e.selectTargetPosition(ctx, principal, current.orgUnit, strings.TrimSpace(in.TargetJobCode), strings.TrimSpace(in.TargetGrade), baseline.effective)
+		if selectErr != nil {
+			return workspace.JourneySummary{}, selectErr
+		}
+		in.TargetPositionID = selected
 	}
 
 	def, ownedErr := e.svc.defs.Resolve(intent.Ref{TypeID: promotion.IntentType, Version: 1})

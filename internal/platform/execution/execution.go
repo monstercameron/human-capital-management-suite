@@ -338,7 +338,10 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	effectiveDates := &sync.Map{}
 	// WF-RUN-034: the executable plan's governed steps; the application binds
 	// its gateway-invoking services after composing the cell.
-	steps := &promotionStepPorts{db: cfg.DB, cellID: cfg.CellID, authorityDigest: cfg.AuthorityDigest}
+	steps := &promotionStepPorts{
+		db: cfg.DB, cellID: cfg.CellID, authorityDigest: cfg.AuthorityDigest,
+		planDigest: selectedPlan.Digest(), clock: clock,
+	}
 	if steps.cellID == "" {
 		steps.cellID = "cell-local"
 	}
@@ -442,7 +445,7 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	}
 
 	return &PromotionExecution{
-		Executor: executeDriverAdapter{driver: driver},
+		Executor: executeDriverAdapter{driver: driver, steps: steps, plan: selected},
 		Resolver: resolver,
 		Versions: versions,
 		Authority: &app.ExecutionAuthority{
@@ -731,7 +734,13 @@ func (f promotionWorkItems) createExecuteTask(ctx context.Context, ex workitem.E
 // internal/intent/app's port-owned shapes convert into one another, so
 // internal/intent/app never needs to import internal/workflow/execute
 // itself.
-type executeDriverAdapter struct{ driver *execute.Driver }
+type executeDriverAdapter struct {
+	driver *execute.Driver
+	// steps and plan let an approval resume record its governance decision
+	// (WF-RUN-034) before the workflow advances past the approval.
+	steps *promotionStepPorts
+	plan  PromotionPlan
+}
 
 var _ app.ProposalExecutor = executeDriverAdapter{}
 

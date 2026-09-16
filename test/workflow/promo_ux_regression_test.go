@@ -244,7 +244,7 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 
 	review := promoUXInspect(t, h, "proposer", proposed.GetIntentId())
 	if review.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED || review.GetLedger() == nil {
-		t.Fatalf("final review = stage %s ledger=%+v, want BLOCKED (WF-RUN-034: revalidation cannot confirm) with ledger fact", review.GetJourney().GetStage(), review.GetLedger())
+		t.Fatalf("final review = stage %s ledger=%+v, want BLOCKED (WF-RUN-034: a corpus worker has no projected aggregates, position or pool, so the recorded approval denies) with ledger fact", review.GetJourney().GetStage(), review.GetLedger())
 	}
 	if len(review.GetEvidenceIds()) == 0 || len(review.GetTimeline()) == 0 {
 		t.Fatalf("final review omitted evidence/timeline: evidence=%v timeline=%v", review.GetEvidenceIds(), review.GetTimeline())

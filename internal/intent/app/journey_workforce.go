@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/committedfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workforce"
@@ -142,11 +143,42 @@ func (e *journeyEngine) listCreated(ctx context.Context, principal *trust.Princi
 	if err != nil {
 		return nil, fmt.Errorf("app: journey: list created workers: %w", err)
 	}
+	tenantID := e.svc.tenantUUID(principal.Tenant())
+	at := e.now().UTC()
 	out := make([]workspace.WorkerSummary, 0, len(rows))
 	for _, row := range rows {
+		// WF-RUN-034: a worker whose promotion has committed is listed with
+		// the placement and pay the aggregates now record, not the one
+		// journey_worker froze when they were created.
+		committed, found, committedErr := committedfacts.CurrentPlacement(ctx, tx, tenantID, row.WorkerID, at)
+		if committedErr != nil {
+			return nil, fmt.Errorf("app: journey: read the committed placement: %w", committedErr)
+		}
+		if found {
+			row = withCommittedPlacement(row, committed)
+		}
 		out = append(out, createdWorkerSummary(row))
 	}
 	return out, nil
+}
+
+// withCommittedPlacement replaces a recorded row's placement and pay with the
+// committed ones. A field the aggregates do not record keeps its recorded
+// value rather than being blanked.
+func withCommittedPlacement(row workforce.WorkerRow, committed committedfacts.Placement) workforce.WorkerRow {
+	for _, field := range []struct {
+		target *string
+		value  string
+	}{
+		{&row.JobCode, committed.JobCode}, {&row.Grade, committed.Grade}, {&row.OrgUnit, committed.OrgUnit},
+		{&row.PositionID, committed.PositionCode}, {&row.Location, committed.Location}, {&row.PayZone, committed.PayZone},
+		{&row.FTE, committed.FTE}, {&row.BasePay, committed.BasePay}, {&row.Currency, committed.Currency},
+	} {
+		if strings.TrimSpace(field.value) != "" {
+			*field.target = field.value
+		}
+	}
+	return row
 }
 
 // createdWorkerSummary projects one durable row onto the port's listing row.
@@ -493,6 +525,12 @@ func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInp
 	if err != nil {
 		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, row.WorkerKey, reasonWorkforceInput)
 		return workspace.WorkerSummary{}, err
+	}
+	// WF-RUN-034: the created worker is projected into the bitemporal
+	// aggregates a promotion commits against in the same transaction, so a
+	// worker exists in both or neither.
+	if _, err := demoworkforce.ProjectWorker(ctx, tx, stored, principal.OrganizationScopeID()); err != nil {
+		return workspace.WorkerSummary{}, fmt.Errorf("app: journey: project the worker: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return workspace.WorkerSummary{}, fmt.Errorf("app: journey: commit the worker: %w", err)

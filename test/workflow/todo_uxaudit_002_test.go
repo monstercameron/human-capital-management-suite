@@ -132,9 +132,12 @@ func TestTodo_UXAUDIT_002(t *testing.T) {
 // explanation while it waits, and the recorded ledger fact once terminal.
 // A journey that moves silently between stages is exactly the RED the todo
 // names: authority that cannot be followed to completion.
-// Served promotions close BLOCKED since WF-RUN-034 replaced the fabricated
-// steps (revalidation cannot yet confirm), so BLOCKED is the terminal stage the
-// journey must explain; it carries the same ledger card and timeline.
+// This harness promotes a fixed corpus worker, whose population has no
+// aggregate projection, target position or compensation pool in this tenant,
+// so WF-RUN-034's recorded GOVERN-002 approval denies on the budget and
+// position facts and the run closes BLOCKED. BLOCKED is therefore the terminal
+// stage this journey must explain; it carries the same ledger card and
+// timeline a committed promotion does.
 func assertUXAudit002Explains(t *testing.T, detail *journeyv1.JourneyDetail, stage string) {
 	t.Helper()
 	page := journeyclient.DetailPage(uxaudit002Config(), detail, nil, nil)

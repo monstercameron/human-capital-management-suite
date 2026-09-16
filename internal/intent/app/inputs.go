@@ -82,6 +82,9 @@ type FixtureInputs struct {
 	// and a diagnostic resolved without one refuses rather than comparing
 	// against nothing.
 	externalSource string
+	// pinnedManager answers the manager an intent's recorded proposal
+	// revision already pinned (WF-RUN-034). Nil until the cell binds it.
+	pinnedManager PinnedManagerReader
 }
 
 var _ DomainInputs = (*FixtureInputs)(nil)
@@ -152,6 +155,24 @@ func (f *FixtureInputs) BindPositionReader(reader position.PositionFacts) {
 		f.positionReader = reader
 	}
 }
+
+// BindPinnedManager gives this resolver the approval-frozen manager read
+// (WF-RUN-034). A promotion's manager is material: it is pinned in the
+// proposal revision an approval binds, so every later re-simulation of that
+// intent must reuse the pinned value rather than re-read the live reporting
+// line. Without this, a manager change between proposal and decision would
+// silently mint a different proposal digest and the decision would fail to
+// find its own started run instead of taking the approval's INVALIDATED
+// route. A nil reader is ignored, and a nil answer means nothing is pinned.
+func (f *FixtureInputs) BindPinnedManager(read PinnedManagerReader) {
+	if read != nil {
+		f.pinnedManager = read
+	}
+}
+
+// PinnedManagerReader answers the manager an intent's recorded proposal
+// revision pinned, reporting false when the intent has recorded none.
+type PinnedManagerReader func(ctx context.Context, tenant values.TenantId, intentID string) (string, bool, error)
 
 // Bands exposes the pay-band catalog the domain handlers evaluate against.
 func (f *FixtureInputs) Bands() rewards.PayBandCatalog { return f.bands }
@@ -358,8 +379,37 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 			Annualization:  rewards.DefaultAnnualization(),
 			PositionReader: f.positionReader,
 		},
-		Baseline: baseline,
+		Baseline:        baseline,
+		ManagerWorkerID: f.managerWorkerID(ctx, inst, workerRef),
 	}, nil
+}
+
+// managerWorkerID resolves a created worker's recorded manager reference to
+// the manager's own worker id. A corpus worker, or a manager reference no
+// recorded worker answers to, has no manager worker and yields "".
+func (f *FixtureInputs) managerWorkerID(ctx context.Context, inst intent.Instance, workerRef string) string {
+	tenant := inst.Tenant
+	// The manager an approved revision already pinned is approval-frozen
+	// material: a re-simulation reuses it rather than re-reading the live
+	// reporting line, so a manager change never silently re-mints the
+	// proposal's digest under a running approval.
+	if f.pinnedManager != nil {
+		if pinned, ok, err := f.pinnedManager(ctx, tenant, inst.IntentID); err == nil && ok {
+			return pinned
+		}
+	}
+	if f.locate == nil {
+		return ""
+	}
+	subject, ok, err := f.locate(ctx, tenant, workerRef)
+	if err != nil || !ok || subject.Created == nil || strings.TrimSpace(subject.Created.ManagerRelationshipRef) == "" {
+		return ""
+	}
+	manager, ok, err := f.locate(ctx, tenant, subject.Created.ManagerRelationshipRef)
+	if err != nil || !ok || manager.Created == nil {
+		return ""
+	}
+	return manager.Created.WorkerID.String()
 }
 
 // resolveExplain decodes an explain_worker_state payload.

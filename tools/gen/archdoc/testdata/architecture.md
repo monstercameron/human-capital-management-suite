@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 3b7f7fc24119aefc84669a1cd243dcfbd33b06cff608324efded29889cbd6e9b
-- Package count: 832
-- Within-module edge count: 2081
+- Source graph: d646484e19612be44adec43929a633b593769c50ca0d594e1c6820b564d75463
+- Package count: 834
+- Within-module edge count: 2101
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -206,6 +206,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/data/careerstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/cbastore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/commercialstore`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/committedfacts`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/configregistry`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/conflictstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/connectivityopstore`
@@ -269,6 +270,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/data/privacymeta`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/projection`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/projection/critical`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/promotioncommit`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/promotioninvalidation`
@@ -988,4 +990,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`6dbc1329e6e51955ffc13b79a61694a1dca0c56b05df9e341d79a868875ac470`
+`5ead6856fbada22b2fe0de7a7bfefd13c2666fc222f2f2dd5fdeed4c54d777fb`

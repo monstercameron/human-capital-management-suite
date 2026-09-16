@@ -9,6 +9,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/fakeincumbent"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/committedfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/orgfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/positionfacts"
@@ -425,6 +426,14 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	// behaves exactly as it did.
 	if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
 		workers = workforce.NewLayeredWorkerFacts(workers, cfg.ExecutionDB, cfg.TenantUUID)
+		// WF-RUN-034: a committed promotion writes its successor assignment to
+		// the bitemporal aggregates, and journey_worker is never revised, so
+		// the governed read reports the committed placement over the recorded
+		// one whenever the aggregates hold one.
+		workers = committedfacts.Overlay{
+			Base:   workers,
+			Reader: committedfacts.Reader{DB: cfg.ExecutionDB, TenantUUID: cfg.TenantUUID},
+		}
 	}
 	// The domain-input resolver pins a promotion's baseline through its own
 	// worker read, and a corpus-backed one loaded a private corpus reader in
@@ -455,6 +464,11 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	}
 	if fixtureBacked != nil {
 		fixtureBacked.BindPositionReader(positionReader)
+		// WF-RUN-034: the manager a recorded proposal revision pinned is
+		// approval-frozen material every later re-simulation reuses.
+		if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
+			fixtureBacked.BindPinnedManager(PinnedManagerFromRevisions(cfg.ExecutionDB, cfg.TenantUUID))
+		}
 	}
 
 	// PROMOUX-005: the same condition as positionReader above. Without an

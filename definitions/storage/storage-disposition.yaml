@@ -5622,3 +5622,22 @@ tables:
       already hold the mutation. Identities and digests only, with no business
       payload or provider response body. SELECT/INSERT only; forbid_mutation
       trigger.
+  - table: promotion_approval_governance
+    migration: 00309_promotion_approval_governance.sql
+    owner_package: internal/platform/execution
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-034: the historical GOVERN-002 decision one promotion approval
+      recorded -- the composed decision.Inputs, the decision and its digest,
+      the seven GOVERN-003 facts as the durable stores reported them, and the
+      plan digest the decision authorized -- written per approval work item
+      before the workflow resumes. GOVERN-003 revalidation recomposes the
+      stored inputs at the effective date and refuses a record that does not
+      reproduce its own digest. SELECT/INSERT only; forbid_mutation trigger.

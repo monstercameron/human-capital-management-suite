@@ -217,8 +217,8 @@ func TestTodo_WF_RUN_022(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InspectJourney after recovery: %v", err)
 	}
-	if detail.GetDetail().GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED || detail.GetDetail().GetLedger() == nil {
-		t.Fatalf("recovered promotion = stage %s ledger %v, want BLOCKED (WF-RUN-034: revalidation cannot confirm) with its ledger fact",
+	if detail.GetDetail().GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED || detail.GetDetail().GetLedger() == nil {
+		t.Fatalf("recovered promotion = stage %s ledger %v, want RECORDED with its ledger fact",
 			detail.GetDetail().GetJourney().GetStage(), detail.GetDetail().GetLedger())
 	}
 }

@@ -102,10 +102,11 @@ func delegationRow() []any {
 
 // fakeStepServices records every governed call and answers from its script.
 type fakeStepServices struct {
-	calls     []app.PromotionStepCall
-	reads     []string
-	err       error
-	threshold rules.PromotionApprovalInput
+	calls         []app.PromotionStepCall
+	reads         []string
+	err           error
+	threshold     rules.PromotionApprovalInput
+	standingCalls int
 }
 
 func (f *fakeStepServices) answer(call app.PromotionStepCall, name string) (app.PromotionStepAnswer, error) {
@@ -128,6 +129,20 @@ func (f *fakeStepServices) ThresholdInputs(_ context.Context, c app.PromotionSte
 func (f *fakeStepServices) AuthorizeCommit(_ context.Context, c app.PromotionStepCall) (app.PromotionStepAnswer, error) {
 	return f.answer(c, "commit")
 }
+func (f *fakeStepServices) GovernanceStanding(_ context.Context, c app.PromotionStepCall) (app.GovernanceStanding, error) {
+	f.standingCalls++
+	if f.err != nil {
+		return app.GovernanceStanding{}, f.err
+	}
+	return app.GovernanceStanding{
+		Authorized: true, Subject: c.Delegation.Subject, SessionRef: c.Delegation.SessionRef,
+		Assurance: c.Delegation.Assurance, RequiredRole: "promotion_operator", Purpose: "compensation_review",
+		PolicyBundleDigest: "sha256:policy", LegalContextDigest: "sha256:legal", ClassificationDigest: "sha256:classification",
+		CapabilityDigest: "sha256:capability", ControlDigest: "sha256:control", SourceAuthorityDigest: "sha256:source",
+		RiskClass: "R3",
+	}, nil
+}
+
 func (f *fakeStepServices) GovernedRead(ctx context.Context, c app.PromotionStepCall, id string, read func(context.Context) (any, error)) (any, app.PromotionStepAnswer, error) {
 	f.reads = append(f.reads, id)
 	a, err := f.answer(c, id)
@@ -282,25 +297,23 @@ func TestTodo_WF_RUN_034_Fault(t *testing.T) {
 		t.Fatalf("observe_reconciliation with no committed promotion = %+v, %v; want the DEGRADED (PARTIAL) route", out, err)
 	}
 
-	// No approval decisions and no stored revision: BLOCK.
-	if out, _, err := runner.Run(ctx, wfrun034Request(t, promotionexec.NodeStillValid)); err != nil || out.Outcome != "BLOCKED" {
-		t.Fatalf("still_valid without approvals = %+v, %v; want BLOCKED", out, err)
+	// An instance with no durable GOVERN-002 record has nothing to confirm
+	// against and blocks, naming the absence rather than guessing.
+	services = &fakeStepServices{}
+	blocked := composedRunner(delegated(), services)
+	result, err := blocked.ports.evaluateRevalidation(ctx, wfrun034Request(t, promotionexec.NodeRevalidate),
+		app.GovernanceStanding{Authorized: true})
+	if err != nil || result.confirmed || result.requirement != "BLOCK" || !slices.Contains(result.sourced, "governance.record=absent") {
+		t.Fatalf("revalidation with no approval record = %+v, %v; want BLOCK naming the absent record", result, err)
 	}
-	// Approvals recorded and the revision digest current: the historical
-	// governance record is still missing, so REPLAN_REQUIRED, never CONFIRMED.
-	approved := delegated()
-	approved.queries = map[string][][]any{"FROM work_item_decision": {{"d-1", "APPROVAL"}, {"d-2", "APPROVAL"}}}
-	approved.rows["FROM proposal_revision"] = []any{wfrun034Tenant, wfrun034Intent, int64(1), "sha256:proposal", "sha256:material", "schema", []byte("{}"), "system", time.Now().UTC()}
-	approvedRunner := composedRunner(approved, &fakeStepServices{})
-	result, err := approvedRunner.ports.evaluateRevalidation(ctx, wfrun034Request(t, promotionexec.NodeRevalidate))
-	if err != nil || result.requirement != "REPLAN_REQUIRED" || result.confirmed || !slices.Contains(result.missing, "budget.reservation.observation") {
-		t.Fatalf("revalidation = %+v, %v; want REPLAN_REQUIRED naming the missing inputs", result, err)
-	}
-	if out, _, err := approvedRunner.Run(ctx, wfrun034Request(t, promotionexec.NodeRevalidate)); err != nil || out.Outcome != workflow.OutcomeSucceeded {
+	if out, _, err := blocked.Run(ctx, wfrun034Request(t, promotionexec.NodeRevalidate)); err != nil || out.Outcome != workflow.OutcomeSucceeded {
 		t.Fatalf("revalidate = %+v, %v", out, err)
 	}
-	if out, _, err := approvedRunner.Run(ctx, wfrun034Request(t, promotionexec.NodeStillValid)); err != nil || out.Outcome != "BLOCKED" {
-		t.Fatalf("still_valid on REPLAN_REQUIRED = %+v, %v; want BLOCKED", out, err)
+	if out, _, err := blocked.Run(ctx, wfrun034Request(t, promotionexec.NodeStillValid)); err != nil || out.Outcome != "BLOCKED" {
+		t.Fatalf("still_valid with no approval record = %+v, %v; want BLOCKED", out, err)
+	}
+	if services.standingCalls == 0 {
+		t.Fatal("revalidation never asked the cell for the delegation's current standing")
 	}
 }
 
