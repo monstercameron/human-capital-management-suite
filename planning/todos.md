@@ -10703,7 +10703,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** legal engine defines required content/delivery semantics, document renders it, messaging transports it and workflow coordinates the obligation.
   - **Refs:** [Messaging plane](specs/messaging-and-notification-plane.md), [document templates](data/models/connectivity-access-content.md), [Leave workflow](workflows/leave/leave-return-to-work.md).
 
-- [ ] `LEAVE-015` **[CONFORMANCE][SOL_HIGH] Prove the canonical Medical Leave logical-persistence trace.**
+- [x] `LEAVE-015` **[CONFORMANCE][SOL_HIGH] Prove the canonical Medical Leave logical-persistence trace.**
+  - **Evidence (2026-09-16):** `TestTodo_LEAVE_015` plus `PROPERTY/GOLDEN/RACE/FAULT/SECURITY/CONFORMANCE` matrix in `internal/domains/leave` (`medical_trace.go` `TraceMedicalLeave` seals the 15-stage canonical order anchor through receipt using only the real domain functions plus hypothetical rules, with degraded-benefits recovery, extension successor, atomic return and a 15-dimension execution receipt; every stage seal re-verifies from the trace alone); `go test -count=1 ./internal/domains/leave/` PASS (85.5% statements), `go vet` and `gofmt` clean (`-race` needs cgo, runs in CI); branch leave/LEAVE-015-medical-leave-trace.
   - **Depends:** `LEAVE-001`–`LEAVE-014`, `LEAVE-016`, `LEAVE-017`, `WF-RUN-023`–`WF-RUN-025`, `EVIDENCE-001`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORKFORCE; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
   - **TEST:** `TestTodo_LEAVE_015`.

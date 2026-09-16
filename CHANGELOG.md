@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-16 (Medical leave trace)
+
+- Completed `LEAVE-015`: the canonical Medical Leave trace seals all 15 lifecycle stages from intake through the execution receipt, proving logical inserts/transitions, degraded-effect recovery, extension lineage and atomic return with every seal re-verifiable from the trace alone.
+
 ## 2026-09-16 (Leave return commit)
 
 - Completed `LEAVE-013`: ReturnFromLeave now commits atomically in `internal/domains/leave` — verified readiness gates the return, active restrictions are preserved exactly, payroll/benefit/schedule/access effects are queued and reconciled without trusting providers, and closing requires a versioned obligation policy. Failed providers keep local LEAVE_ENDED truth with a targeted repair path.
