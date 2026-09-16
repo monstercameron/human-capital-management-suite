@@ -30,6 +30,8 @@ var uninstrumentedByDesign = map[string]string{
 	"recover/failpoint.go NoFailpoint.Check":                            "no-op",
 	"recover/failpoint.go CrashAt.Check":                                "test failpoint",
 	"replay/source.go MemorySource.Load":                                "in-memory",
+	"execute/repair_record.go MemoryRepairRecords.LoadRepairRecords":    "in-memory",
+	"execute/repair_record.go MemoryRepairRecords.AppendRepairRecord":   "in-memory",
 	"replay/source.go sourceFunc.Load":                                  "function adapter",
 	"runtime/continuation.go MemorySink.RequireWorkItem":                "in-memory",
 	"runtime/continuation.go MemorySink.RequireSignalSubscription":      "in-memory",

@@ -300,15 +300,21 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		Evidence:         evidence,
 		Telemetry:        telemetryProvider,
 		WorkflowRecorder: schedulerRecorder(telemetryProvider, logger, options.Now),
-		Inputs:           options.Inputs,
-		Workers:          options.Workers,
-		Bands:            options.Bands,
-		Now:              options.Now,
-		Clock:            options.Clock,
-		IDs:              options.IDs,
-		Preferences:      preferencestore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)),
-		RoleAccess:       roleAccess,
-		WorkerIDs:        workerIDs,
+		// WF-RUN-016: the governed repair door is composed from the same pool
+		// and tenant mapping as the controls; only its external-system
+		// adapters are a seam, because none exists in this repository yet.
+		RepairEffect:         options.RepairEffect,
+		RepairObservation:    options.RepairObservation,
+		RepairReconciliation: options.RepairReconciliation,
+		Inputs:               options.Inputs,
+		Workers:              options.Workers,
+		Bands:                options.Bands,
+		Now:                  options.Now,
+		Clock:                options.Clock,
+		IDs:                  options.IDs,
+		Preferences:          preferencestore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)),
+		RoleAccess:           roleAccess,
+		WorkerIDs:            workerIDs,
 	}
 	graph.add(ComponentPresentationPrefs, KindAdapter, cellConfig.Preferences, ComponentDatabasePool)
 	graph.add(ComponentRoleAccess, KindAdapter, cellConfig.RoleAccess, ComponentDatabasePool)

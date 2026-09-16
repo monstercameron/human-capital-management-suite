@@ -144,6 +144,17 @@ type CellConfig struct {
 	// (spans and structured logs). Nil records nothing unless a caller
 	// context carries its own recorder.
 	WorkflowRecorder WorkflowRecorder
+	// RepairEffect, RepairObservation and RepairReconciliation are WF-RUN-016's
+	// external-system seams: the adapter that redrives one failed effect, the
+	// one that reads the result back, and the comparer that decides whether
+	// external consistency was restored. No production adapter exists for any
+	// of them yet -- the connectivity plane is read-only -- so a cell that
+	// leaves them nil composes the refusing defaults in workflow_repair.go and
+	// denies a repair with a reason, instead of reporting a redrive it never
+	// performed.
+	RepairEffect         RepairEffectPort
+	RepairObservation    RepairObservationPort
+	RepairReconciliation RepairReconciliationPort
 	// Preferences persists authenticated presentation state. It is optional
 	// for non-workspace compositions; the product RPC reports UNAVAILABLE
 	// when omitted rather than silently falling back to browser storage.
@@ -306,6 +317,12 @@ type Cell struct {
 	// and tenant mapping; the workflow transport then refuses every control.
 	WorkflowControl   *workflowcontrol.Controller
 	WorkflowTenantIDs workflowcontrol.TenantIDs
+
+	// WorkflowRepair is WF-RUN-016's governed RepairPlan execution: the same
+	// operator gateway, JIT authority, dual control, simulation and journaled
+	// receipt the controls above use, over a durable repair idempotency record.
+	// Nil on a cell composed without an execution database and tenant mapping.
+	WorkflowRepair *workflowcontrol.RepairController
 
 	// locateWorker is the one worker-reference resolver this cell composed.
 	// Every surface that accepts a reference somebody typed -- the
@@ -574,11 +591,19 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The repair door takes its own receipt journal seam; nil is the same
+	// in-process journal composeWorkflowControl uses today.
+	workflowRepair, err := composeWorkflowRepair(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now, cfg.WorkflowRecorder,
+		nil, cfg.RepairEffect, cfg.RepairObservation, cfg.RepairReconciliation)
+	if err != nil {
+		return nil, err
+	}
 
 	cell := &Cell{
 		Journey:           journey,
 		WorkflowControl:   workflowControl,
 		WorkflowTenantIDs: workflowTenantIDs,
+		WorkflowRepair:    workflowRepair,
 		WorkerIDs:         cfg.WorkerIDs,
 		locateWorker:      locateWorker,
 		positionReader:    positionReader,

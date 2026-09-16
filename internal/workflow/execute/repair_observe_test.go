@@ -25,8 +25,7 @@ func TestRepairEvidenceWriteFailuresAreObservable(t *testing.T) {
 	sink := &failingRepairEvidence{}
 	executor := newRepairExecutor(t, &repairEffectDouble{}, nil, passingRepairDecision())
 	executor.opts.Evidence = sink
-	result, err := executor.Execute(rec.Context(context.Background()), RepairExecutionRequest{Plan: executeRepairPlan(), Current: executeRepairEvidence(),
-		Now: time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC), Actor: "operator:repair"})
+	result, err := executor.Execute(rec.Context(context.Background()), executeRepairRequest(time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)))
 	if err != nil || result.Status != RepairCompleted || len(result.Evidence) != 6 {
 		t.Fatalf("repair = %+v, %v", result, err)
 	}

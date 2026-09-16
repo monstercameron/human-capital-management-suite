@@ -158,6 +158,7 @@ migrationfiles:
   - 00307_workflow_intervention_decision.sql
   - 00308_workflow_version_approval_fixture_report.sql
   - 00310_operator_bypass_obligation.sql
+  - 00311_wfrun016_repair_execution_record.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

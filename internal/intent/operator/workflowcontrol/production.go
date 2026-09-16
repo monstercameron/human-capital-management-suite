@@ -38,8 +38,9 @@ func InstanceApprovalField(instanceID string) string { return "workflow_instance
 // JITAuthority resolves an operator's authority from the durable grant store.
 // It presents the operator's current, unrevoked JIT grant naming the control.
 // For a dual-control kind it presents the grant approver as the second
-// approver only when the grant is narrowed to the addressed instance
-// ([InstanceApprovalField]); a broad grant carries no per-action second
+// approver only when the grant is narrowed to the addressed target
+// ([InstanceApprovalField] for a workflow control, [RepairApprovalField] for a
+// RepairPlan execution); a broad grant carries no per-action second
 // approval, so a cancel under one is DENIED by the gateway rather than
 // silently authorized. Simulation evidence is never invented here: the
 // controller's preflight supplies it ([WithPreflightSimulation]).
@@ -74,7 +75,7 @@ func (a JITAuthority) ResolveAuthority(ctx context.Context, tenant values.Tenant
 		if !slices.Contains(policy.Roles, g.Role) {
 			continue
 		}
-		if policy.DualControl && instanceID != "" && slices.Contains(g.Fields, InstanceApprovalField(instanceID)) {
+		if policy.DualControl && instanceID != "" && slices.Contains(g.Fields, approvalField(kind, instanceID)) {
 			return Authority{JIT: g, SecondApprover: g.Approver}, nil
 		}
 		if broad == nil {

@@ -100,6 +100,17 @@ type Options struct {
 	Inputs  app.DomainInputs
 	Workers people.WorkerFacts
 	Bands   rewards.PayBandCatalog
+
+	// RepairEffect, RepairObservation and RepairReconciliation are
+	// WF-RUN-016's external-system seams for a RepairPlan execution: the
+	// adapter that redrives one failed effect, the one that reads the result
+	// back, and the comparer that decides whether external consistency was
+	// restored. Nil means the cell's refusing defaults -- no production
+	// adapter exists yet, because the connectivity plane is read-only -- and a
+	// repair submitted to such a cell is denied rather than reported as done.
+	RepairEffect         app.RepairEffectPort
+	RepairObservation    app.RepairObservationPort
+	RepairReconciliation app.RepairReconciliationPort
 }
 
 // Option is the functional form of one Options field. Options are values
@@ -198,6 +209,19 @@ func WithDomainInputs(inputs app.DomainInputs, workers people.WorkerFacts, bands
 // WithExecutionComposer supplies the P1B execution-authority composer.
 func WithExecutionComposer(compose ExecutionComposer) Option {
 	return func(o *Options) { o.ComposeExecution = compose }
+}
+
+// WithRepairAdapters supplies the three external-system adapters a RepairPlan
+// execution needs. Everything else about the governed repair -- the JIT
+// authority, the dual control, the sealed simulation, the journaled receipt
+// and the durable idempotency record -- is composed the same way with or
+// without them.
+func WithRepairAdapters(effect app.RepairEffectPort, observation app.RepairObservationPort, reconciliation app.RepairReconciliationPort) Option {
+	return func(o *Options) {
+		o.RepairEffect = effect
+		o.RepairObservation = observation
+		o.RepairReconciliation = reconciliation
+	}
 }
 
 // listen resolves the listener factory, defaulting to net.Listen.

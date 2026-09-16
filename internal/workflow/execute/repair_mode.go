@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/reconcile"
 	operationrepair "github.com/monstercameron/human-capital-management-suite/internal/operations/repair"
@@ -29,14 +30,34 @@ const (
 	RepairUnknown            RepairStatus = "UNKNOWN"
 	RepairFailed             RepairStatus = "FAILED"
 	RepairReconciliationWait RepairStatus = "RECONCILIATION_REQUIRED"
+	// RepairSeparationRequired is what a plan's own author gets when they
+	// submit it for execution and separation of duties applies. It is not a
+	// failure of the repair; it is a statement that a different person has to
+	// run it.
+	RepairSeparationRequired RepairStatus = "SEPARATION_OF_DUTIES_REQUIRED"
+	// RepairIndeterminate reports that a previous attempt under this fence
+	// reached the corrective effect and never recorded what came of it -- the
+	// shape a crash between the effect and its acknowledgement leaves behind.
+	// The effect is never repeated on that evidence: the finding is diagnosed
+	// again and a new plan issued.
+	RepairIndeterminate RepairStatus = "INDETERMINATE"
 )
 
 // RepairExecutionRequest is the immutable input to one repair-mode run.
 type RepairExecutionRequest struct {
-	Plan    operationrepair.RepairPlan
-	Current operationrepair.CurrentEvidence
-	Now     time.Time
-	Actor   string
+	// TenantID scopes the durable idempotency record. A repair without one is
+	// refused: an unscoped record is either invisible under row-level security
+	// or, worse, shared.
+	TenantID uuid.UUID
+	Plan     operationrepair.RepairPlan
+	Current  operationrepair.CurrentEvidence
+	Now      time.Time
+	// Actor is the operator executing the repair.
+	Actor string
+	// Author is who authored or approved the plan. Where the plan requires
+	// approval, an Author equal to Actor -- or an unrecorded Author, which
+	// cannot be proven distinct -- refuses the execution.
+	Author string
 }
 
 type RepairApprovalRequest struct {
@@ -120,6 +141,10 @@ type RepairExecutionOptions struct {
 	Observation    RepairObservationPort
 	Reconciliation RepairReconciliationPort
 	Evidence       RepairEvidencePort
+	// Records is the durable idempotency record. It is required: without it a
+	// restart between the corrective effect and its reconciliation would
+	// redrive an external mutation the provider already accepted.
+	Records RepairIdempotencyStore
 }
 
 // RepairExecutionResult is returned for every typed revalidation outcome.
@@ -143,10 +168,14 @@ type RepairExecutionResult struct {
 // -> observe -> verify sequence. Diagnose is represented by the immutable
 // plan supplied by the operations owner; this executor never reruns or
 // mutates the parent business transaction.
+//
+// It also never writes runtime instance state. REPAIR_REQUIRED has no outgoing
+// edge in internal/workflow/runtime's instance state machine -- "a repair is a
+// new instance, not a resurrected one" -- so neither a failed repair nor a
+// completed one clears it here. What a repair produces is evidence, a
+// consistency verdict and the durable record below.
 type RepairExecutor struct {
-	opts      RepairExecutionOptions
-	mu        sync.Mutex
-	completed map[string]RepairExecutionResult
+	opts RepairExecutionOptions
 }
 
 func NewRepairExecutor(opts RepairExecutionOptions) (*RepairExecutor, error) {
@@ -156,7 +185,10 @@ func NewRepairExecutor(opts RepairExecutionOptions) (*RepairExecutor, error) {
 	if opts.Effect == nil || opts.Observation == nil || opts.Reconciliation == nil {
 		return nil, fmt.Errorf("workflow execute: repair effect, observation and reconciliation ports are required")
 	}
-	return &RepairExecutor{opts: opts, completed: make(map[string]RepairExecutionResult)}, nil
+	if opts.Records == nil {
+		return nil, fmt.Errorf("workflow execute: a durable repair idempotency record is required")
+	}
+	return &RepairExecutor{opts: opts}, nil
 }
 
 func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest) (ret0 RepairExecutionResult, retErr error) {
@@ -167,6 +199,9 @@ func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest
 	}
 	if req.Now.IsZero() {
 		return RepairExecutionResult{}, fmt.Errorf("workflow execute: repair evaluation time is required")
+	}
+	if req.TenantID == uuid.Nil {
+		return RepairExecutionResult{}, fmt.Errorf("workflow execute: repair tenant is required")
 	}
 	result := RepairExecutionResult{
 		Mode: RepairExecutionMode, PlanDigest: req.Plan.Digest,
@@ -189,6 +224,15 @@ func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest
 	}
 
 	if req.Plan.RequiresApproval {
+		// Separation of duties: a plan that needs approval is not one its own
+		// author may execute. An unrecorded author is refused too -- it cannot
+		// be proven distinct, and failing open here would make the rule
+		// optional for anyone who omits a field.
+		if strings.TrimSpace(req.Author) == "" || strings.EqualFold(strings.TrimSpace(req.Author), strings.TrimSpace(req.Actor)) {
+			result.Status = RepairSeparationRequired
+			addEvidence(&result, e.opts.Evidence, ctx, RepairEvidence{Stage: "SEPARATION_REFUSED", PlanDigest: req.Plan.Digest, EffectKey: req.Plan.FailedEffectKey, Detail: "the repair author may not execute their own approved plan", RecordedAt: req.Now})
+			return result, nil
+		}
 		if e.opts.Approval == nil {
 			result.Status = RepairReapprovalRequired
 			return result, nil
@@ -215,11 +259,28 @@ func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest
 		return result, nil
 	}
 	result.Fence = admission.Fence
-	e.mu.Lock()
-	prior, replay := e.completed[admission.Fence.FenceKey]
-	e.mu.Unlock()
-	if replay {
-		return prior, nil
+
+	// The durable record, not this process's memory, decides whether the
+	// corrective effect has already run. Everything below reads it before the
+	// effect port is reachable.
+	records, err := e.opts.Records.LoadRepairRecords(ctx, req.TenantID, admission.Fence.FenceKey)
+	if err != nil {
+		return result, fmt.Errorf("workflow execute: load repair record: %w", err)
+	}
+	if settled, ok := findRepairStage(records, RepairStageSettled); ok {
+		replayed := result
+		applyRepairRecord(&replayed, settled)
+		addEvidence(&replayed, e.opts.Evidence, ctx, RepairEvidence{Stage: "REPLAYED", PlanDigest: req.Plan.Digest, FenceID: settled.FenceID, EffectKey: settled.FailedEffectKey, Detail: "this repair fence is already settled durably", RecordedAt: req.Now})
+		return replayed, nil
+	}
+	executedRecord, resuming := findRepairStage(records, RepairStageExecuted)
+	if _, claimed := findRepairStage(records, RepairStageClaimed); claimed && !resuming {
+		// An earlier attempt reached the effect boundary and never recorded
+		// what came of it. Re-running is the one thing that must not happen:
+		// the provider may already hold the mutation.
+		result.Status, result.ConsistencyState = RepairIndeterminate, "UNKNOWN"
+		addEvidence(&result, e.opts.Evidence, ctx, RepairEvidence{Stage: "INDETERMINATE", PlanDigest: req.Plan.Digest, FenceID: admission.Fence.FenceID, EffectKey: req.Plan.FailedEffectKey, Detail: "a prior attempt claimed this fence and recorded no outcome; diagnose again rather than redrive", RecordedAt: req.Now})
+		return result, nil
 	}
 	addEvidence(&result, e.opts.Evidence, ctx, RepairEvidence{Stage: "REVALIDATED", PlanDigest: req.Plan.Digest, FenceID: admission.Fence.FenceID, EffectKey: req.Plan.FailedEffectKey, Detail: admission.Reason, RecordedAt: req.Now})
 
@@ -227,17 +288,43 @@ func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest
 	if !ok {
 		return result, fmt.Errorf("workflow execute: failed effect %q is not in repair plan", req.Plan.FailedEffectKey)
 	}
-	effect, err := e.opts.Effect.ExecuteRepairEffect(ctx, RepairEffectRequest{Plan: req.Plan, Step: step, Fence: admission.Fence, OriginalSemanticKey: req.Plan.OriginalSemanticKey, Mode: RepairExecutionMode, Actor: req.Actor})
-	if err != nil {
-		result.Status = RepairFailed
-		return result, err
+
+	var effect RepairEffectResult
+	if resuming {
+		// The effect was accepted before; only observe and verify are left.
+		effect = executedRecord.effectOf()
+		result.Executed = true
+		addEvidence(&result, e.opts.Evidence, ctx, RepairEvidence{Stage: "EXECUTED", PlanDigest: req.Plan.Digest, FenceID: admission.Fence.FenceID, EffectKey: effect.EffectKey, Detail: "durably recorded redrive resumed without calling the provider again", RecordedAt: req.Now})
+	} else {
+		claimed, claimErr := e.opts.Records.AppendRepairRecord(ctx, repairRecordOf(req, admission.Fence, RepairStageClaimed, RepairUnknown, "UNKNOWN", false, RepairEffectResult{}, RepairObservation{}, reconcile.CompletionDecision{}))
+		if claimErr != nil {
+			return result, fmt.Errorf("workflow execute: claim repair fence: %w", claimErr)
+		}
+		if !claimed {
+			// Another attempt won the claim between the read above and this
+			// write. Nothing was redriven here, and nothing may be.
+			result.Status, result.ConsistencyState = RepairBlocked, "UNKNOWN"
+			addEvidence(&result, e.opts.Evidence, ctx, RepairEvidence{Stage: "CLAIM_REFUSED", PlanDigest: req.Plan.Digest, FenceID: admission.Fence.FenceID, EffectKey: req.Plan.FailedEffectKey, Detail: "a concurrent attempt holds this repair fence", RecordedAt: req.Now})
+			return result, nil
+		}
+		effect, err = e.opts.Effect.ExecuteRepairEffect(ctx, RepairEffectRequest{Plan: req.Plan, Step: step, Fence: admission.Fence, OriginalSemanticKey: req.Plan.OriginalSemanticKey, Mode: RepairExecutionMode, Actor: req.Actor})
+		if err != nil {
+			// The claim stands deliberately. Whether the provider accepted the
+			// mutation before failing is unknown, so the next attempt is told
+			// INDETERMINATE rather than allowed to repeat it.
+			result.Status = RepairFailed
+			return result, err
+		}
+		if effect.EffectKey != req.Plan.FailedEffectKey || !effect.Accepted {
+			result.Status = RepairFailed
+			return result, fmt.Errorf("workflow execute: repair effect was not accepted")
+		}
+		result.Executed = true
+		if _, err := e.opts.Records.AppendRepairRecord(ctx, repairRecordOf(req, admission.Fence, RepairStageExecuted, RepairReconciliationWait, "DEGRADED", true, effect, RepairObservation{}, reconcile.CompletionDecision{})); err != nil {
+			return result, fmt.Errorf("workflow execute: record repair redrive: %w", err)
+		}
+		addEvidence(&result, e.opts.Evidence, ctx, RepairEvidence{Stage: "EXECUTED", PlanDigest: req.Plan.Digest, FenceID: admission.Fence.FenceID, EffectKey: effect.EffectKey, Detail: "only the failed effect was redriven", RecordedAt: req.Now})
 	}
-	if effect.EffectKey != req.Plan.FailedEffectKey || !effect.Accepted {
-		result.Status = RepairFailed
-		return result, fmt.Errorf("workflow execute: repair effect was not accepted")
-	}
-	result.Executed = true
-	addEvidence(&result, e.opts.Evidence, ctx, RepairEvidence{Stage: "EXECUTED", PlanDigest: req.Plan.Digest, FenceID: admission.Fence.FenceID, EffectKey: effect.EffectKey, Detail: "only the failed effect was redriven", RecordedAt: req.Now})
 
 	observation, err := e.opts.Observation.ObserveRepair(ctx, req.Plan, effect)
 	if err != nil {
@@ -259,11 +346,45 @@ func (e *RepairExecutor) Execute(ctx context.Context, req RepairExecutionRequest
 	}
 	result.Status = RepairCompleted
 	result.ConsistencyState = "CONSISTENT"
+	if _, err := e.opts.Records.AppendRepairRecord(ctx, repairRecordOf(req, admission.Fence, RepairStageSettled, RepairCompleted, "CONSISTENT", true, effect, observation, decision)); err != nil {
+		return result, fmt.Errorf("workflow execute: settle repair record: %w", err)
+	}
 	addEvidence(&result, e.opts.Evidence, ctx, RepairEvidence{Stage: "VERIFIED", PlanDigest: req.Plan.Digest, FenceID: admission.Fence.FenceID, EffectKey: effect.EffectKey, Detail: "RECON-002 passed with CONSISTENT", RecordedAt: req.Now})
-	e.mu.Lock()
-	e.completed[admission.Fence.FenceKey] = result
-	e.mu.Unlock()
 	return result, nil
+}
+
+// repairRecordOf builds one durable record from the request, the repair fence
+// and whatever of the effect, observation and reconciliation exists at that
+// stage. Only identities, states and digests travel; no business payload does.
+func repairRecordOf(
+	req RepairExecutionRequest, fence operationrepair.Fence, stage RepairRecordStage,
+	status RepairStatus, consistency string, executed bool,
+	effect RepairEffectResult, observation RepairObservation, decision reconcile.CompletionDecision,
+) RepairRecord {
+	return RepairRecord{
+		TenantID: req.TenantID, FenceKey: fence.FenceKey, Stage: stage, FenceID: fence.FenceID,
+		PlanDigest: req.Plan.Digest, OriginalSemanticKey: req.Plan.OriginalSemanticKey,
+		FailedEffectKey: req.Plan.FailedEffectKey, Status: status, Executed: executed,
+		ConsistencyState: consistency, EffectRef: effect.EffectRef, EffectResultRef: effect.ResultRef,
+		ObservationState: observation.State, ObservationDigest: observation.Digest,
+		ObservationComplete: observation.Complete, ReconciliationStatus: string(decision.Status),
+		ReconciliationRoute: string(decision.Route), RecordedAt: req.Now.UTC(),
+	}
+}
+
+// applyRepairRecord restores onto result exactly what a settled record pinned,
+// so a replay answers with the original decision rather than re-deriving one.
+func applyRepairRecord(result *RepairExecutionResult, record RepairRecord) {
+	result.Status = record.Status
+	result.Executed = record.Executed
+	result.ConsistencyState = record.ConsistencyState
+	result.Observation = record.observationOf()
+	result.Reconciliation = reconcile.CompletionDecision{
+		Status:   reconcile.CompletionStatus(record.ReconciliationStatus),
+		Terminal: record.ReconciliationStatus != "",
+		Route:    reconcile.Route(record.ReconciliationRoute),
+		Reason:   "replayed from the durable repair execution record",
+	}
 }
 
 func failedStep(plan operationrepair.RepairPlan) (operationrepair.Step, bool) {

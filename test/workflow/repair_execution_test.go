@@ -54,14 +54,20 @@ func TestTodo_WF_RUN_016_Integration(t *testing.T) {
 		TargetVersion: plan.TargetVersion,
 	}
 	effect := &promotionRepairEffect{}
+	records := execute.NewMemoryRepairRecords()
 	runner, err := execute.NewRepairExecutor(execute.RepairExecutionOptions{
 		Admission: operationrepair.NewMemoryStore(), Effect: effect,
 		Observation: promotionRepairObserver{}, Reconciliation: promotionRepairVerifier{},
+		Records: records,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := runner.Execute(context.Background(), execute.RepairExecutionRequest{Plan: plan, Current: current, Now: f.fireAt.Add(time.Hour), Actor: "operator:repair"})
+	repairRequest := execute.RepairExecutionRequest{
+		TenantID: f.tenantID, Plan: plan, Current: current,
+		Now: f.fireAt.Add(time.Hour), Actor: "operator:repair", Author: "analyst:reconciliation",
+	}
+	result, err := runner.Execute(context.Background(), repairRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,5 +76,29 @@ func TestTodo_WF_RUN_016_Integration(t *testing.T) {
 	}
 	if len(effect.calls) != 1 || effect.calls[0].OriginalSemanticKey != plan.OriginalSemanticKey || effect.calls[0].Step.EffectKey != plan.FailedEffectKey {
 		t.Fatalf("redrive calls = %+v, want only failed effect with original semantic key", effect.calls)
+	}
+
+	// The durable record, not this executor's memory, is what stops a second
+	// redrive: a freshly composed executor sharing only the record replays the
+	// settled decision and never reaches the connector again.
+	restarted, err := execute.NewRepairExecutor(execute.RepairExecutionOptions{
+		Admission: operationrepair.NewMemoryStore(), Effect: effect,
+		Observation: promotionRepairObserver{}, Reconciliation: promotionRepairVerifier{},
+		Records: records,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	replayRequest := repairRequest
+	replayRequest.Now = f.fireAt.Add(2 * time.Hour)
+	replayed, err := restarted.Execute(context.Background(), replayRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replayed.Status != execute.RepairCompleted || !replayed.Executed || replayed.ConsistencyState != "CONSISTENT" {
+		t.Fatalf("replayed repair = %+v, want the recorded COMPLETED decision", replayed)
+	}
+	if len(effect.calls) != 1 {
+		t.Fatalf("redrive calls after a restart = %d, want the one original redrive", len(effect.calls))
 	}
 }

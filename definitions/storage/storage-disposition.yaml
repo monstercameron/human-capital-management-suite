@@ -5603,3 +5603,22 @@ tables:
       committed. Written in the same advance transaction that records the
       attempt FAILED, so the settlement and the route commit together.
       SELECT/INSERT only; forbid_mutation trigger.
+  - table: workflow_repair_execution_record
+    migration: 00311_wfrun016_repair_execution_record.sql
+    owner_package: internal/data/repairrecord
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-016: one row per repair fence and stage (CLAIMED, EXECUTED,
+      SETTLED), committed in its own transaction so a crash between stages is
+      readable afterwards: a fence claimed and never settled answers
+      INDETERMINATE and is never redriven, because the external provider may
+      already hold the mutation. Identities and digests only, with no business
+      payload or provider response body. SELECT/INSERT only; forbid_mutation
+      trigger.
