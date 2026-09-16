@@ -202,6 +202,7 @@ func effectsDefinition() workflow.Definition {
 				},
 				Retry:        &workflow.RetryPolicy{MaxAttempts: 3, BackoffRef: "policy.retry.effect.bounded/v1"},
 				FailureRoute: fxEndRepair,
+				EffectRole:   workflow.RoleDownstreamEffect,
 				Governance:   governedNode(workflow.RevalidatePreEffect),
 			},
 			{

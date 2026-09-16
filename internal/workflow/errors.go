@@ -81,6 +81,21 @@ const (
 	// under the zero-effect P1A requirement.
 	CodeWriteEffectRefusedP1A = "WRITE_EFFECT_REFUSED_P1A"
 
+	// CodeEffectRoleMissing reports a write-effect node that declares no
+	// AUTHORITATIVE_CORE, DOWNSTREAM_EFFECT or DERIVED_UPDATE role (WF-RUN-037
+	// RED).
+	CodeEffectRoleMissing = "EFFECT_ROLE_MISSING"
+	// CodeEffectRoleConflict reports an effect role its node's effect class
+	// does not admit, an unknown role, or a role on a node that mutates
+	// nothing.
+	CodeEffectRoleConflict = "EFFECT_ROLE_CONFLICT"
+	// CodeEffectRoleUnrouted reports a downstream effect or derived update
+	// with no failure route to take its reconciliation or rebuild.
+	CodeEffectRoleUnrouted = "EFFECT_ROLE_UNROUTED"
+	// CodeEffectRoleOrder reports a downstream effect or derived update that
+	// gates an authoritative core, or that has no core to follow.
+	CodeEffectRoleOrder = "EFFECT_ROLE_ORDER"
+
 	// CodeConflictingWriteSet reports two concurrent branches of one PARALLEL
 	// whose declared write sets intersect, by logical effect key or by data
 	// domain (WF-COMP-004 RED).

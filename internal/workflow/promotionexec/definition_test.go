@@ -9,7 +9,10 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 )
 
-const promotionExecutePlanDigest = "186dcb387bc3f6576b88935be0435839fb96afd055e1e69a1da0c6fa74d60674"
+// The digest moved with WF-RUN-037: it now pins execute_promotion as the
+// AUTHORITATIVE_CORE (the only change; with the role cleared the plan still
+// digests to 186dcb387bc3f6576b88935be0435839fb96afd055e1e69a1da0c6fa74d60674).
+const promotionExecutePlanDigest = "f368f53c962603e0546a888d2a965b2b0568e08d925e352af00ded2898eb5864"
 
 func TestPromotionExecuteDefinitionCompiles(t *testing.T) {
 	plan, err := Compile()
@@ -25,6 +28,9 @@ func TestPromotionExecuteDefinitionCompiles(t *testing.T) {
 	execute, ok := plan.Node(NodeExecutePromotion)
 	if !ok || execute.EffectClass != capability.EffectInternalMutation || execute.Capability == nil || execute.Capability.OperationMode != workflow.ModeExecute {
 		t.Fatalf("execute node = %+v, want governed EXECUTE internal mutation", execute)
+	}
+	if execute.EffectRole != workflow.RoleAuthoritativeCore || len(plan.NodesWithRole(workflow.RoleAuthoritativeCore)) != 1 {
+		t.Fatalf("execute node role = %q, cores %v; want the one AUTHORITATIVE_CORE", execute.EffectRole, plan.NodesWithRole(workflow.RoleAuthoritativeCore))
 	}
 	waitNode, ok := plan.Node(NodeWaitEffectiveDate)
 	if !ok || !waitNode.SafePoint {

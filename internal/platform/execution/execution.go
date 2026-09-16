@@ -415,6 +415,10 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		// RETRY_BACKOFF timer that ResumeTimer reads back through the reader.
 		NodeRetry:   composedNodeRetry(),
 		TimerReader: timer.Reader{},
+		// WF-RUN-037: a failed DOWNSTREAM_EFFECT or DERIVED_UPDATE settles
+		// durably against the committed core and takes its compiled failure
+		// route instead of aborting the run.
+		EffectRoles: composedEffectRoles(),
 	}
 	// WF-RUN-009: a durable registry that records governed quarantines also
 	// tells every advancement which disposition a live instance takes.

@@ -310,7 +310,10 @@ func promotionNodes() []workflow.Node {
 			Governance:    nonCapabilityGovernance(nil, workflow.RevalidatePreExecution),
 		},
 		{
-			ID: NodeExecutePromotion, Type: workflow.StepCapability, SafePointRequested: true, DeclaredEffect: capability.EffectInternalMutation,
+			// WF-RUN-037: the promotion commit is the authoritative core. Its
+			// payroll and access consequences leave through the outbox in the
+			// same commit and are observed and reconciled downstream.
+			ID: NodeExecutePromotion, Type: workflow.StepCapability, SafePointRequested: true, DeclaredEffect: capability.EffectInternalMutation, EffectRole: workflow.RoleAuthoritativeCore,
 			InputSchema: capabilitySchema(capExecute, "request"), OutputSchema: capabilitySchema(capExecute, "response"),
 			Inputs:        []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "target_job_id", Type: brandedString("JobID")}, {Path: "proposed_base_pay", Type: money()}, {Path: "effective_date", Type: localDate()}, {Path: "proposal_digest", Type: plainString()}},
 			Outputs:       []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "commit_receipt", Type: plainString()}, {Path: "promotion_state", Type: plainString()}},
@@ -442,6 +445,9 @@ func compilerDefinition(def workflow.Definition, mode workflow.ExecutionMode) wo
 				continue
 			}
 			def.Nodes[i].DeclaredEffect = capability.EffectReadOnly
+			// A read-only projection mutates nothing, so it has no core to
+			// classify (WF-RUN-037).
+			def.Nodes[i].EffectRole = ""
 			if def.Nodes[i].Capability != nil {
 				ref := *def.Nodes[i].Capability
 				ref.OperationMode = workflow.ModeSimulate

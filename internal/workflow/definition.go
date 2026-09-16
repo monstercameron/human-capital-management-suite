@@ -604,6 +604,11 @@ type Node struct {
 	// profile. Where a capability manifest disagrees, the manifest wins and
 	// the disagreement is a compile error.
 	DeclaredEffect capability.EffectClass `json:"declared_effect,omitempty"`
+	// EffectRole classifies a write-effect node as the authoritative core, a
+	// downstream effect or a derived update (WF-RUN-037). Every node whose
+	// effect class writes must declare one its class admits
+	// ([AdmittedEffectRoles]); a node that mutates nothing declares none.
+	EffectRole EffectRole `json:"effect_role,omitempty"`
 
 	// ResolverRef, TimeoutPolicy and CompensationRef bind published
 	// resolver, timeout-policy and compensation versions. Each resolves

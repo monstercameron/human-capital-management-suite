@@ -5583,3 +5583,23 @@ tables:
       and at the capability gateway. UPDATE is granted only so a still-open row
       can record its review (operator_bypass_obligation_review_only trigger);
       DELETE is not granted and forbid_mutation refuses it.
+  - table: workflow_effect_role_settlement
+    migration: 00306_workflow_effect_role_settlement.sql
+    owner_package: internal/workflow/runtime
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-RUN-037: one sealed row per failed dependent node attempt, naming its
+      effect role and class, the effect key, the route it took (RECONCILIATION
+      for a downstream effect, REBUILD_FROM_CORE for a derived update), the
+      compiled failure route the instance followed, the error class, the pinned
+      plan digest and the authoritative core executions that had already
+      committed. Written in the same advance transaction that records the
+      attempt FAILED, so the settlement and the route commit together.
+      SELECT/INSERT only; forbid_mutation trigger.

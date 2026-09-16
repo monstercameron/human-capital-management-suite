@@ -391,6 +391,7 @@ func hiddenEffectDefinition() workflow.Definition {
 				Capability:   &workflow.CapabilityRef{ID: hiddenCapWrite, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:iam.write"}, IdempotencyKeyMapping: "worker_id", EffectBinding: "iam.hidden_effect"},
 				Retry:        &workflow.RetryPolicy{MaxAttempts: 3, BackoffRef: "policy.retry.effect.bounded/v1"},
 				FailureRoute: hiddenNodeRepair,
+				EffectRole:   workflow.RoleDownstreamEffect,
 				Governance: workflow.NodeGovernance{
 					Purpose: purpose, Classification: classification,
 					RequiredDecisions:     []workflow.GovernanceKind{workflow.GovernanceAuthZ, workflow.GovernanceLegal, workflow.GovernancePurpose, workflow.GovernanceRisk},

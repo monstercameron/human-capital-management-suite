@@ -249,6 +249,7 @@ func mutatingDefinition() workflow.Definition {
 				},
 				Retry:        &workflow.RetryPolicy{MaxAttempts: 3, BackoffRef: "policy.retry.effect.bounded/v1"},
 				FailureRoute: fxEndRepair,
+				EffectRole:   workflow.RoleDownstreamEffect,
 				Governance:   fixtureGovernance(workflow.RevalidatePreEffect),
 			},
 			{

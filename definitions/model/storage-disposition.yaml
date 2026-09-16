@@ -154,6 +154,7 @@ migrationfiles:
   - 00303_capability_invocation_evidence.sql
   - 00304_workflow_cancellation_decision.sql
   - 00305_workflow_approval_withdrawal.sql
+  - 00306_workflow_effect_role_settlement.sql
   - 00307_workflow_intervention_decision.sql
   - 00308_workflow_version_approval_fixture_report.sql
   - 00310_operator_bypass_obligation.sql

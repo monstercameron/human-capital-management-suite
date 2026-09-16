@@ -76,6 +76,9 @@ func parallelBranchNode(id, capID, domain, effectBinding string) workflow.Node {
 			EffectBinding:   effectBinding,
 		},
 		Governance: governedNode(workflow.RevalidatePreEffect),
+		// Each branch writes its own data domain inside that domain's own
+		// commit boundary (WF-RUN-037).
+		EffectRole: workflow.RoleAuthoritativeCore,
 	}
 }
 

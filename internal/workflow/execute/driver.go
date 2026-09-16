@@ -128,6 +128,11 @@ type Options struct {
 	// a durable RETRY_BACKOFF park, or the terminal route. Nil keeps the
 	// frontier's immediate OBSERVE retry exactly as before.
 	NodeRetry *NodeRetryPolicy
+	// EffectRoles settles a failed DOWNSTREAM_EFFECT or DERIVED_UPDATE node
+	// against the committed core instead of aborting the run (WF-RUN-037,
+	// effect_roles.go). Nil keeps a dependent node's StepRunner error fatal
+	// exactly as before.
+	EffectRoles *EffectRolePolicy
 }
 
 // StartRetryIdentity is the complete immutable identity needed to select a
@@ -176,6 +181,9 @@ func New(opts Options) (*Driver, error) {
 		return nil, err
 	}
 	if err := opts.NodeRetry.validate(); err != nil {
+		return nil, err
+	}
+	if err := opts.EffectRoles.validate(); err != nil {
 		return nil, err
 	}
 	advance := opts.Advance
@@ -601,7 +609,16 @@ func (d *Driver) stepInputs(ctx context.Context, run runContext, req StepRequest
 	if tr, ok := d.opts.Steps.(TransactionalStepRunner); ok && tr.RunsInTransaction(req.Node) {
 		return func(txCtx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
 			nodeCtx, nodeSpan := span(txCtx)
-			outcome, refs, err := tr.RunInTx(nodeCtx, ex, req)
+			var outcome frontier.NodeOutcome
+			var refs runtime.GovernanceRefs
+			var err error
+			if d.dependentRole(req.Node) {
+				outcome, refs, err = runDependentInTx(nodeCtx, ex, req.Node, func(c context.Context, e runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
+					return tr.RunInTx(c, e, req)
+				})
+			} else {
+				outcome, refs, err = tr.RunInTx(nodeCtx, ex, req)
+			}
 			if err == nil {
 				outcome, err = check(outcome)
 			}
@@ -615,6 +632,13 @@ func (d *Driver) stepInputs(ctx context.Context, run runContext, req StepRequest
 
 	nodeCtx, nodeSpan := span(ctx)
 	outcome, refs, err := d.opts.Steps.Run(nodeCtx, req)
+	if err != nil && d.dependentRole(req.Node) {
+		end(nodeSpan, outcome, err)
+		failed := dependentFailure(req.Node)
+		return func(context.Context, runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
+			return failed, runtime.GovernanceRefs{}, nil, nil
+		}, nil
+	}
 	if err != nil {
 		end(nodeSpan, outcome, err)
 		return nil, fmt.Errorf("workflow execute: run node %s: %w", nodeID, err)
@@ -834,6 +858,10 @@ func (d *Driver) advanceOnce(
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}
 	if err != nil {
+		advSpan.End(OutcomeFailure, err)
+		return runtime.AdvanceReceipt{}, nil, nil, nil, err
+	}
+	if err = d.settleEffectRole(advCtx, tx, run, outcome, attempt, at); err != nil {
 		advSpan.End(OutcomeFailure, err)
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}

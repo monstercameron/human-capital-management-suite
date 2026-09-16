@@ -199,6 +199,7 @@ type CompiledNode struct {
 
 	EffectClass  capability.EffectClass `json:"effect_class"`
 	EffectKey    string                 `json:"effect_key,omitempty"`
+	EffectRole   EffectRole             `json:"effect_role,omitempty"` // WF-RUN-037; empty when nothing is mutated
 	AllowedModes []ExecutionMode        `json:"allowed_modes"`
 	Retry        *RetryPolicy           `json:"retry,omitempty"`
 	FailureRoute string                 `json:"failure_route,omitempty"`
@@ -235,6 +236,9 @@ type EffectSummary struct {
 	IrreversibleNodes []string `json:"irreversible_nodes,omitempty"`
 	// AllowedModes are the execution modes every node in the plan supports.
 	AllowedModes []ExecutionMode `json:"allowed_modes"`
+	// NodesByRole lists write-effect node ids per WF-RUN-037 effect role. It
+	// is absent for a plan with no write effect.
+	NodesByRole map[string][]string `json:"nodes_by_role,omitempty"`
 }
 
 // GovernanceSummary is the compiled governance and obligation surface.
@@ -345,6 +349,7 @@ func Compile(def Definition, opts Options) (*CompiledWorkflow, error) {
 	}
 	checkSteps(&def, g, records, c)
 	effects := analyzeEffects(&def, g, records, opts, c)
+	effects.NodesByRole = analyzeEffectRoles(g, records, c)
 	governance := analyzeGovernance(&def, g, records, c)
 	concurrency := analyzeConcurrency(&def, g, records, c)
 
@@ -431,6 +436,7 @@ func normalize(
 		}
 		cn.Mappings = compileMappings(def, g, n)
 		cn.EffectKey = effectKeyOf(n, records)
+		cn.EffectRole = n.EffectRole
 		if n.Retry != nil {
 			retry := *n.Retry
 			cn.Retry = &retry

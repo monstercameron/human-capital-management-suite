@@ -46321,7 +46321,8 @@
     "refactor": "reuse the effect-class vocabulary rather than a parallel enum",
     "refs": "[authoritative core versus downstream effects](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "every write-effect node now carries a compiled effect role (`AUTHORITATIVE_CORE`, `DOWNSTREAM_EFFECT`, `DERIVED_UPDATE`) drawn from the existing effect-class vocabulary rather than a parallel enum, and the compiler refuses a write-effect node that declares none, so the classification cannot be skipped. The runtime commits the authoritative core independently: when a dependent node fails, the advance transaction that records the attempt FAILED and moves the instance along its compiled failure route also inserts one sealed `workflow_effect_role_settlement` row (migration 00306, append-only, SELECT/INSERT, `forbid_mutation`) naming the failed node's role, effect class and effect key, the route it took (`RECONCILIATION` for a downstream effect, `REBUILD_FROM_CORE` for a derived update), the error class, the pinned plan digest and the core node executions that had already committed. The core's earlier commit is never touched or rolled back, and a failed downstream leg no longer either aborts the advance (leaving a RUNNING instance with nothing to run and the committed outcome masked behind an error) or refuses `NO_FAILURE_ROUTE`. `TestTodo_WF_RUN_037`, `_Property`, `_Fault` and `_Conformance` pass with the workflow, execute, runtime, platform/execution, promotionexec, simulate and conformance suites on windows/arm64 (Go 1.26.3). The promotion plan's digest changes with the added roles, so the pinned plan digest moves with this change"
   },
   {
     "id": "WF-RUN-038",
