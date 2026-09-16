@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-16 (Eligibility parity)
+
+- Completed `ELIG-008`: Benefits, Leave, Learning and Rewards now prove shared eligibility semantics through one parity gate — divergence blocks shared engine publication while domain-specific rules are retained.
+
 ## 2026-09-16 (Leave semantics)
 
 - Completed `CONF-004`: the leave-and-return reference workflow walks the SIMULATE interpreter with sealed restricted review, independent benefits observation and bounded repair, and a readiness-gated return. Four obligations stay outstanding instead of collapsing into false success.

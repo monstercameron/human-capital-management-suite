@@ -10255,7 +10255,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **Refs:** [Wire time](data/models/wire-contract-primitives.md), [ledger](specs/transaction-ledger-reconciliation-and-repair.md).
   - **Evidence (2026-09-03):** `TestTodo_ELIG_007`, Declared `ELIG-007` test matrix and acceptance behavior in `internal/engines/eligibility`; PASS; `go test -p 1 ./internal/engines/eligibility` and `go vet ./internal/engines/eligibility` on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
 
-- [ ] `ELIG-008` **[CONFORMANCE][SOL_HIGH] Prove eligibility semantics across four domains.**
+- [x] `ELIG-008` **[CONFORMANCE][SOL_HIGH] Prove eligibility semantics across four domains.**
+  - **Evidence (2026-09-16):** `TestTodo_ELIG_008` plus `PROPERTY/CONFORMANCE` matrix in `internal/engines/eligibility` (`parity.go` `CheckDomainParity` evaluates Benefits/Leave/Learning/Rewards fixtures through the shared engine and seals the verdict; exactly-four domains, valid requests, bound results, shared time semantics, distinct subject matters and non-mono rules enforced; fifth/missing/cloned/invalid fixtures refuse; fact failures resolve UNKNOWN through the shared vocabulary); `go test -count=1 ./internal/engines/eligibility/` PASS (77.3% statements), `go vet` and `gofmt` clean (`-race` needs cgo, runs in CI); branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `ELIG-001`–`ELIG-007`, `CONF-004`, `CONF-009`, `CONF-010`, `CONF-013`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.REWARDS,BI.WORKFORCE,BI.TALENT; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
   - **TEST:** `TestTodo_ELIG_008`.
