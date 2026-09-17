@@ -139,6 +139,19 @@ func (j *Journal) Record(r Release) (Release, error) {
 	return sealed, nil
 }
 
+// Get returns the recorded release for one slice version.
+func (j *Journal) Get(slice, version string) (Release, error) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	r, ok := j.releases[slice+"\x1f"+version]
+	if !ok {
+		return Release{}, fmt.Errorf("%w: %s %s", ErrNotFound, slice, version)
+	}
+	c := r.canonical()
+	c.Digest = r.Digest
+	return c, nil
+}
+
 // Latest returns the most recently recorded release of a slice.
 func (j *Journal) Latest(slice string) (Release, error) {
 	j.mu.Lock()

@@ -1,0 +1,9 @@
+# FULFILL-001 golden: vetted instruction and outcome digests for the fixed
+# fulfill-1 fixture (tenant-a, artifact-1, address revision 7, windowed
+# sealed print-and-mail via vendor:postal-1, fixed 2026-04-01 timestamps).
+# Regeneration must be re-vetted against the fixture, never blind.
+instruction: sha256:84b9c42e7497659a6acbdae29438497e9456271f593f6225f51ff2e65e869359
+outcome: sha256:443a914e89f9274bc79cfc18968ca8901f8393d93d437d67e96fc03870fb62a3
+outcome: sha256:aae164eb95642e066e09658a005cc592c53b74f12e882d5aa2bf16e243373ba2
+outcome: sha256:cbab7ff8634386d0990adf2f154c04620f25a020c2486b2f680631b7fd3383c2
+outcome: sha256:1b6a65328a5253ec3db763329925e853b659cc22940005cb386b7324432f7cf8

@@ -1,0 +1,13 @@
+# NEXT-007 firewall golden: the vetted CONF-004 closure shape.
+# If the reference workflow changes, this file must be re-vetted by hand,
+# never regenerated blindly.
+workflow_id: hcmnext.workflows.leave_and_return
+version: 1
+node_count: 14
+verdict_count: 2
+capabilities:
+  - hcmnext.conformance.leavereturn.observe_benefits_continuation
+  - hcmnext.conformance.leavereturn.read_employment_and_authority
+  - hcmnext.conformance.leavereturn.resolve_leave_programs
+  - hcmnext.conformance.leavereturn.resolve_return_readiness
+digest: sha256:792d902a3a0e92bea3c2f648b27bcead66e263c2b138ba2d5220b8d5c0b10bdf
