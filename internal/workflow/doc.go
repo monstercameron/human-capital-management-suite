@@ -28,8 +28,10 @@
 // # Kernel vocabulary
 //
 // The runtime has ten core primitives and three structural ones. P1A compiles
-// five of them — CAPABILITY, DECISION, TRANSFORM, OBSERVE and END — and
-// [Options.Phase] refuses the rest rather than pretending to support them.
+// five of them — CAPABILITY, DECISION, TRANSFORM, OBSERVE and END — and binds
+// WAIT and SIGNAL structurally (`WaitSpec`/`SignalSpec` with explicit routes;
+// durable suspension stays P1B, see WF-STEP-005). [Options.Phase] refuses the
+// rest rather than pretending to support them.
 // CHECKPOINT, RULE, AGENT and DOCUMENT are not step types: a safe point is a
 // node attribute the compiler places, a rule is a DECISION with a rule
 // reference, an agent is a CAPABILITY whose manifest declares agent

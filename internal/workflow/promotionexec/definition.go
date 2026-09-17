@@ -1,9 +1,3 @@
-// Package promotionexec defines the bounded P1B executable promotion workflow.
-//
-// Definition keeps the runtime vocabulary used by the promotion contract. The
-// package's compile wrappers project the two aliases that the current kernel
-// compiler does not yet admit (FIRED and REAPPROVED/WITHDRAWN) onto the fixed
-// WAIT and TASK route vocabulary before calling workflow.Compile.
 package promotionexec
 
 import (

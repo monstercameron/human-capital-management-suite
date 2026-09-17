@@ -1,9 +1,3 @@
-// Package parallel executes bounded PARALLEL branches (WF-STEP-007).
-// Admitted branches run with independent identity and idempotency behind
-// a fixed branch bound, a cost budget and an explicit failure policy;
-// unbounded counts, conflicting writes, exceeded budgets and undefined
-// failure or cancel propagation are refused before any branch runs.
-// Phase 1 callers pass only fixed compiled branches required by Promotion.
 package parallel
 
 import (
