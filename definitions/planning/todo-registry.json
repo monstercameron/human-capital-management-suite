@@ -26,7 +26,8 @@
     "refactor": "generate common flow assertions from UserFlowRecord and keep environment-specific drivers separate",
     "refs": "[accessibility assurance](specs/platform-foundation-gap-closure.md), [experience](specs/experience-ui-and-branding.md), [user flows](user-flows/README.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_A11Y_001_*` BROWSER/CONFORMANCE/GOLDEN/MUTATION/PROPERTY/SECURITY matrix in `internal/a11y`/`internal/humanwork/productui`; `go test -count=1 ./internal/a11y/ ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ABUSE-001",
@@ -222,7 +223,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Adversarial audit](specs/adversarial-audit-32-reviewers-2026-08-14.md), [security models](data/models/security-trust.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ABUSE_008` PRIMARY/CONFORMANCE/MUTATION/SECURITY matrix in `internal/engines/abuse`; `go test -count=1 ./internal/engines/abuse/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ACCESS-001",
@@ -861,7 +863,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_005` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/planning/productslice`; `go test -count=1 ./tools/planning/productslice/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-006",
@@ -885,7 +888,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_006` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/planning/productslice`; `go test -count=1 ./tools/planning/productslice/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-007",
@@ -909,7 +913,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_007` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/planning/productslice`; `go test -count=1 ./tools/planning/productslice/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-008",
@@ -1212,7 +1217,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_019` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `internal/transport/productquery`; `go test -count=1 ./internal/transport/productquery/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-020",
@@ -1236,7 +1242,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_020` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `internal/transport/productquery`; `go test -count=1 ./internal/transport/productquery/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-021",
@@ -1260,7 +1267,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_021` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `internal/transport/productquery`; `go test -count=1 ./internal/transport/productquery/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-022",
@@ -1523,7 +1531,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_031` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/intent/app`; `go test -count=1 ./internal/intent/app/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-032",
@@ -1549,7 +1558,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_032` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/intent/app`; `go test -count=1 ./internal/intent/app/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-033",
@@ -1573,7 +1583,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_033` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `internal/data/productdurability`; `go test -count=1 ./internal/data/productdurability/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-034",
@@ -1597,7 +1608,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_034` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `internal/data/productdurability`; `go test -count=1 ./internal/data/productdurability/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-035",
@@ -1621,7 +1633,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_035` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `internal/data/productdurability`; `go test -count=1 ./internal/data/productdurability/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-036",
@@ -1647,7 +1660,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_036` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/data/productdurability`; `go test -count=1 ./internal/data/productdurability/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-037",
@@ -1673,7 +1687,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_037` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/data/productdurability`; `go test -count=1 ./internal/data/productdurability/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-038",
@@ -1699,7 +1714,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_038` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/data/productdurability`; `go test -count=1 ./internal/data/productdurability/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-039",
@@ -1725,7 +1741,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_039` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/data/productdurability`; `go test -count=1 ./internal/data/productdurability/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-040",
@@ -1751,7 +1768,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_040` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/data/productdurability`; `go test -count=1 ./internal/data/productdurability/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-041",
@@ -1775,7 +1793,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_041` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/policy/defaultproduct`; `go test -count=1 ./tools/policy/defaultproduct/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-042",
@@ -1799,7 +1818,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_042` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/policy/defaultproduct`; `go test -count=1 ./tools/policy/defaultproduct/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-043",
@@ -1823,7 +1843,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_043` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/policy/defaultproduct`/`tools/uxqual/pagedef`/`tools/uxqual/render/page`; `go test -count=1 ./tools/policy/defaultproduct/ ./tools/uxqual/pagedef/ ./tools/uxqual/render/page/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-044",
@@ -1847,7 +1868,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_044` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/policy/defaultproduct`/`tools/uxqual/pagedef`/`tools/uxqual/render/page`; `go test -count=1 ./tools/policy/defaultproduct/ ./tools/uxqual/pagedef/ ./tools/uxqual/render/page/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-045",
@@ -1871,7 +1893,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_045` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/policy/defaultproduct`; `go test -count=1 ./tools/policy/defaultproduct/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-046",
@@ -1895,7 +1918,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_046` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/policy/defaultproduct`; `go test -count=1 ./tools/policy/defaultproduct/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-047",
@@ -1919,7 +1943,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_047` PRIMARY/CONFORMANCE/GOLDEN/PROPERTY/SECURITY matrix in `tools/policy/defaultproduct`; `go test -count=1 ./tools/policy/defaultproduct/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-048",
@@ -2188,7 +2213,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_057` PRIMARY/CONFORMANCE/ERRORSTATE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/transport/conformance`/`tools/uxqual/hydration`; `go test -count=1 ./internal/transport/conformance/ ./tools/uxqual/hydration/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-058",
@@ -2295,7 +2321,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_061` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/transport/conformance`; `go test -count=1 ./internal/transport/conformance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-062",
@@ -2321,7 +2348,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_062` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/transport/conformance`; `go test -count=1 ./internal/transport/conformance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-063",
@@ -2347,7 +2375,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_063` PRIMARY/CONFORMANCE/DOCUMENTIDENTITYDEFAULTSANDCANONICALIZES/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/transport/conformance`/`tools/uxqual/render/journey`; `go test -count=1 ./internal/transport/conformance/ ./tools/uxqual/render/journey/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ALIGN-064",
@@ -2373,7 +2402,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_064` PRIMARY/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/PROPERTY/SECURITY matrix in `internal/transport/conformance`; `go test -count=1 ./internal/transport/conformance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ANALYTICS-001",
@@ -5452,7 +5482,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [ledger](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_BEN_005` PRIMARY/MUTATION/PROPERTY/RECOVERY matrix in `internal/domains/benefits`; `go test -count=1 ./internal/domains/benefits/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "BEN-006",
@@ -5475,7 +5506,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Workflow runtime](specs/workflow-runtime.md), [document pipeline](specs/platform-responsibility-boundaries.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_BEN_006` PRIMARY/PROPERTY matrix in `internal/domains/benefits`; `go test -count=1 ./internal/domains/benefits/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "BEN-007",
@@ -5500,7 +5532,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Balance engine](#38-eligibility-business-cycle-and-balance-engines), [rewards models](data/models/rewards-payroll-workforce.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_BEN_007` PRIMARY/MUTATION/PROPERTY/RACE matrix in `internal/domains/benefits`; `go test -count=1 ./internal/domains/benefits/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "BEN-008",
@@ -5525,7 +5558,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Integration platform](specs/integration-platform.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_BEN_008` PRIMARY/MUTATION/PROPERTY matrix in `internal/domains/benefits`; `go test -count=1 ./internal/domains/benefits/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "BIND-001",
@@ -6348,7 +6382,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [data quality](specs/data-quality-and-invariant-evaluation.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CLOCK_005` PRIMARY/MUTATION/PROPERTY/RACE/RECOVERY matrix in `internal/domains/clock`; `go test -count=1 ./internal/domains/clock/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "CLOCK-006",
@@ -7145,7 +7180,8 @@
     "refactor": "safety operational facts and medical facts use separate compartments",
     "refs": "[Safety model](data/models/talent-experience-cases.md), [safety intents](specs/business-intent-catalog.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CONF_016` PRIMARY/CONFORMANCE/GOLDEN/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/safety`; `go test -count=1 ./internal/domains/safety/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "CONF-017",
@@ -8449,7 +8485,8 @@
     "refactor": "shared jurisdiction/legal fixtures drive domain-specific expected obligations; neither workflow embeds legal rules",
     "refs": "[Promotion reference](reference-workflows/promote-into-management.md), [Leave slice](#38a-medical-leave-and-return-to-work-convergence-slice), [legal composition](specs/governance-decision-and-obligation-composition.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CROSS_CONF_001_*` CONFORMANCE/FAULT/GOLDEN/MODELBASED/MUTATION/PROPERTY/RECOVERY/SECURITY matrix in `internal/conformance/selectedjurisdiction`/`internal/workflow/conformance/jurisdiction`; `go test -count=1 ./internal/conformance/selectedjurisdiction/ ./internal/workflow/conformance/jurisdiction/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "CROSS-CONF-002",
@@ -12041,7 +12078,8 @@
     "refactor": "common envelope belongs to the kernel/engine boundary while domain-specific request/result semantics remain engine-owned",
     "refs": "[engine map](#37-shared-transformation-and-population-engines), [canonical envelope](specs/canonical-envelope-and-digest.md), [epistemic integrity](plan.md#513-preserve-epistemic-integrity)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ENGINE_CONF_001_*` CONFORMANCE/GOLDEN/MODELBASED/MUTATION/PROPERTY/RACE/SECURITY matrix in `internal/engines/envelope`; `go test -count=1 ./internal/engines/envelope/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ENGINE-COVERAGE-001",
@@ -12979,7 +13017,8 @@
     "refactor": "one generated route/action manifest drives channel adapters and tests; channel-specific ergonomics never duplicate business semantics",
     "refs": "[Feature coverage](#6-businessintent-capabilities-governance-and-transaction-integrity), [capability parity](specs/capability-registry-and-lifecycle.md), [experience](specs/experience-ui-and-branding.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_FEATURE_CONF_001_*` BROWSER/CONFORMANCE/FAULT/GOLDEN/INTEGRATION/MUTATION/PROPERTY/RACE/SECURITY matrix in `tools/planning/intentmanifests`; `go test -count=1 ./tools/planning/intentmanifests/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "FILING-001",
@@ -13008,7 +13047,8 @@
     "refactor": "gateway owns transport, reporting engine owns fields",
     "refs": "[Government reporting](plan.md), [filing gateway](specs/platform-responsibility-boundaries.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_FILING_001` PRIMARY/FAULT/GOLDEN/INTEGRATION/MUTATION/RACE/SECURITY matrix in `internal/domains/payroll/filing`; `go test -count=1 ./internal/domains/payroll/filing/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "FILING-002",
@@ -13031,7 +13071,8 @@
     "refactor": "government acceptance is external observation, not inferred success",
     "refs": "[Filing lifecycle](plan.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_FILING_002` PRIMARY/PROPERTY matrix in `internal/domains/payroll/filing`; `go test -count=1 ./internal/domains/payroll/filing/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "FORENSIC-001",
@@ -13430,7 +13471,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Rewards/payroll models](data/models/rewards-payroll-workforce.md), [fixed decimal](data/models/wire-contract-primitives.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_GARN_003` PRIMARY/FAULT/MUTATION/RACE/SECURITY matrix in `internal/domains/garnishment`; `go test -count=1 ./internal/domains/garnishment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "GARN-004",
@@ -13454,7 +13496,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Balance engine](#38-eligibility-business-cycle-and-balance-engines), [ledger](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_GARN_004` PRIMARY/MUTATION/PROPERTY/RACE matrix in `internal/domains/garnishment`; `go test -count=1 ./internal/domains/garnishment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "GARN-005",
@@ -13525,7 +13568,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [case models](data/models/talent-experience-cases.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_GARN_007` PRIMARY/PROPERTY/RACE matrix in `internal/domains/garnishment`; `go test -count=1 ./internal/domains/garnishment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "GATEB-EVID-001",
@@ -15870,7 +15914,8 @@
     "refactor": "conformance templates share universal mechanics while fixtures retain domain-specific materiality, legality, financial and privacy oracles",
     "refs": "[BusinessIntent contract](specs/business-intent-and-change-request.md), [feature registry](#6-businessintent-capabilities-governance-and-transaction-integrity), [reference conformance](#19-reference-workflow-conformance-harness)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_INTENT_CONF_002_*` CONFORMANCE/FAULT/GOLDEN/INTEGRATION/MUTATION/PROPERTY/RACE/RECOVERY/SECURITY matrix in `tools/planning/intentmanifests`; `go test -count=1 ./tools/planning/intentmanifests/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "INTG-001",
@@ -16805,7 +16850,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Adversarial audit](specs/adversarial-audit-32-reviewers-2026-08-14.md), [agent/intelligence models](data/models/assurance-intelligence-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_KNOW_006` PRIMARY/CONFORMANCE/MUTATION/SECURITY matrix in `internal/domains/knowledge`; `go test -count=1 ./internal/domains/knowledge/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LABOR-001",
@@ -16853,7 +16899,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Fixed decimal](data/models/wire-contract-primitives.md), [organization relationships](specs/organization-and-relationship-domain.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LABOR_002` PRIMARY/PROPERTY matrix in `internal/domains/labor`; `go test -count=1 ./internal/domains/labor/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LABOR-003",
@@ -16879,7 +16926,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Regulatory platform](specs/platform-architecture-catalog.md), [rules models](data/models/rules-and-decisions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LABOR_003` PRIMARY/MUTATION/PROPERTY/RACE/SECURITY matrix in `internal/domains/labor`; `go test -count=1 ./internal/domains/labor/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LABOR-004",
@@ -16902,7 +16950,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Rewards models](data/models/rewards-payroll-workforce.md), [balance engine](#38-eligibility-business-cycle-and-balance-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LABOR_004` PRIMARY/MUTATION/PROPERTY matrix in `internal/domains/labor`; `go test -count=1 ./internal/domains/labor/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LABOR-005",
@@ -16926,7 +16975,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Integration platform](specs/integration-platform.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LABOR_005` PRIMARY/GOLDEN/PROPERTY matrix in `internal/domains/labor`; `go test -count=1 ./internal/domains/labor/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEARN-001",
@@ -16952,7 +17002,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Talent models](data/models/talent-experience-cases.md), [intent coverage](data/models/intent-coverage-matrix.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEARN_001` PRIMARY/BROWSER/CONFORMANCE/INTEGRATION/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/learning`; `go test -count=1 ./internal/domains/learning/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEARN-002",
@@ -16975,7 +17026,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Eligibility engine](#38-eligibility-business-cycle-and-balance-engines), [qualification](#39-qualification-demand-matching-and-scenario-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEARN_002` PRIMARY/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/learning`; `go test -count=1 ./internal/domains/learning/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEARN-003",
@@ -16997,7 +17049,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Program engine](#40-attestation-and-conformance-gated-program-engines), [workflow runtime](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEARN_003` PRIMARY/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/learning`; `go test -count=1 ./internal/domains/learning/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEARN-004",
@@ -17021,7 +17074,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Integration observations](specs/integration-platform.md), [source authority](specs/source-authority-and-external-mastering.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEARN_004` PRIMARY/INTEGRATION/MUTATION/PROPERTY/RACE/SECURITY matrix in `internal/domains/learning`; `go test -count=1 ./internal/domains/learning/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEARN-005",
@@ -17043,7 +17097,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Talent models](data/models/talent-experience-cases.md), [qualification engine](#39-qualification-demand-matching-and-scenario-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEARN_005` PRIMARY/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/learning`; `go test -count=1 ./internal/domains/learning/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEARN-006",
@@ -17066,7 +17121,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Scheduling triggers](#34-batch-scheduling-and-connector-execution-substrate), [ledger](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEARN_006` PRIMARY/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/learning`; `go test -count=1 ./internal/domains/learning/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEARN-007",
@@ -17093,7 +17149,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Integration platform](specs/integration-platform.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEARN_007` PRIMARY/INTEGRATION/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/learning`; `go test -count=1 ./internal/domains/learning/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEAVE-001",
@@ -18435,7 +18492,8 @@
     "refactor": "the canonical proposal is one shared fixture; per-state divergence lives only in the release, never in the proposal",
     "refs": "[Test strategy](specs/legal-rule-packs-and-state-configuration.md#8-test-strategy), [reference suite](reference-workflows/reference-suite.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_016` plus GOLDEN/CONFORMANCE/RESISTANCE matrix in `internal/governance/legal` (`legal_016_test.go` canonical promotion-vector proof incl. MI/NY resolutions); `go test -count=1 ./internal/governance/legal/ ./internal/governance/legal/extract/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEGAL-017",
@@ -19648,7 +19706,8 @@
     "refactor": "the pack is regenerated by `internal/governance/legal/extract` from `new-york.md` at `vocabulary_version 2`+, replacing the hand-built `LEGAL-001` fixture",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: New York](research/state-employment-law/new-york.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_NY_001` plus GOLDEN matrix in `internal/governance/legal` (`legal_state_ny_test.go`, `definitions/legal/packs/states/us-ny.json` reviewed); `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEGAL-ST-OH-001",
@@ -19683,7 +19742,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `ohio.md`, not hand-built; the 2025-09-28/2025-09-30 boundary is a shared fixture with `LEGAL-016`, not duplicated here",
     "refs": "[Effective dating and legal time](specs/legal-rule-packs-and-state-configuration.md#23-effective-dating-and-legal-time), [state employment-law research: Ohio](research/state-employment-law/ohio.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_OH_001` plus GOLDEN matrix in `internal/governance/legal` (`legal_state_oh_test.go`, reviewed pack); `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEGAL-ST-OK-001",
@@ -19954,7 +20014,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `texas.md`, not hand-built; the preemption assertion is data for `LEGAL-013`'s evaluation stage, never an inline exception in a comparator",
     "refs": "[Preemption](specs/legal-rule-packs-and-state-configuration.md#64-preemption), [state employment-law research: Texas](research/state-employment-law/texas.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_TX_001` plus GOLDEN matrix in `internal/governance/legal` (`legal_state_tx_test.go`, reviewed pack); `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEGAL-ST-UT-001",
@@ -19986,7 +20047,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `utah.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Utah](research/state-employment-law/utah.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_UT_001` plus GOLDEN matrix in `internal/governance/legal` (`legal_state_ut_test.go`, reviewed pack); `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEGAL-ST-VA-001",
@@ -20055,7 +20117,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `vermont.md`, not hand-built; the voluntary PFML program is carried as a `RECOMMENDED` standard, never promoted to a statutory requirement",
     "refs": "[Authoring and review pipeline](specs/legal-rule-packs-and-state-configuration.md#7-authoring-and-review-pipeline), [state employment-law research: Vermont](research/state-employment-law/vermont.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_VT_001` plus GOLDEN matrix in `internal/governance/legal` (`legal_state_vt_test.go`, reviewed pack); `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEGAL-ST-WA-001",
@@ -20090,7 +20153,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `washington.md`, not hand-built; the Milwaukee-style locality-overlay boundary vector `LEGAL-016` requires is drawn from Washington's own registered/unregistered locality contrast, not invented separately",
     "refs": "[Test strategy](specs/legal-rule-packs-and-state-configuration.md#8-test-strategy), [state employment-law research: Washington](research/state-employment-law/washington.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_WA_001` plus GOLDEN matrix in `internal/governance/legal` (`legal_state_wa_test.go`, reviewed pack); `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEGAL-ST-WI-001",
@@ -20154,7 +20218,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `west-virginia.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: West Virginia](research/state-employment-law/west-virginia.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_WV_001` plus GOLDEN matrix in `internal/governance/legal` (`legal_state_wv_test.go`, reviewed pack); `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEGAL-ST-WY-001",
@@ -20185,7 +20250,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `wyoming.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Wyoming](research/state-employment-law/wyoming.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_WY_001` plus GOLDEN matrix in `internal/governance/legal` (`legal_state_wy_test.go`, reviewed pack); `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "LEGAL-TOOL-001",
@@ -24610,7 +24676,8 @@
     "refactor": "outcome observation cannot rewrite the original decision",
     "refs": "[Outcome model](data/models/assurance-intelligence-platform.md), [decision evidence](data/models/kernel-governance-and-evidence.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_OUTCOME_001` PRIMARY/GOLDEN/MUTATION matrix in `internal/domains/intelligence`; `go test -count=1 ./internal/domains/intelligence/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PACK-001",
@@ -24867,7 +24934,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Fixed decimal](data/models/wire-contract-primitives.md), [people/workforce models](data/models/people-workforce.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYGL_003` PRIMARY/MUTATION/PROPERTY matrix in `internal/domains/paygl`; `go test -count=1 ./internal/domains/paygl/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PAYGL-004",
@@ -24890,7 +24958,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Canonical digest](specs/canonical-envelope-and-digest.md), [rewards/payroll models](data/models/rewards-payroll-workforce.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYGL_004` PRIMARY/MUTATION/PROPERTY matrix in `internal/domains/paygl`; `go test -count=1 ./internal/domains/paygl/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PAYGL-005",
@@ -24913,7 +24982,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Ledger corrections](specs/transaction-ledger-reconciliation-and-repair.md), [transaction coordinator](specs/transaction-plan-and-commit-coordinator.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYGL_005` PRIMARY/MUTATION/PROPERTY matrix in `internal/domains/paygl`; `go test -count=1 ./internal/domains/paygl/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PAYGL-006",
@@ -24938,7 +25008,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Integration observations](specs/integration-platform.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYGL_006` PRIMARY/INTEGRATION/MUTATION/PROPERTY matrix in `internal/domains/paygl`; `go test -count=1 ./internal/domains/paygl/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PAYINPUT-001",
@@ -27891,7 +27962,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Security research §3, G-12/G-10](research/security-best-practices-2026.md#3-applications-interacting-with-federal-state-and-local-government), [California CPPA regulations](https://cppa.ca.gov/regulations/), [Colorado CPA resources](https://coag.gov/resources/colorado-privacy-act/). Maps to CCPA/CPRA; Colorado CPA; Virginia VCDPA; Texas TDPSA",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PRIV_010` PRIMARY/CONFORMANCE/GOLDEN/INTEGRATION/MUTATION/PROPERTY/SECURITY matrix in `internal/governance/privacy`; `go test -count=1 ./internal/governance/privacy/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PRIV-011",
@@ -27917,7 +27989,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Security research §3, G-13](research/security-best-practices-2026.md#3-applications-interacting-with-federal-state-and-local-government), [NARA records management](https://www.archives.gov/records-mgmt/public), [NARA scheduling](https://www.archives.gov/records-mgmt/scheduling/sch-records). Maps to NARA-approved disposition authority; state/local public-records schedules",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PRIV_011` PRIMARY/CONFORMANCE/GOLDEN/INTEGRATION/MUTATION/PROPERTY/SECURITY matrix in `internal/governance/records`; `go test -count=1 ./internal/governance/records/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PRIV-EXIT-001",
@@ -27996,7 +28069,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Model conventions](data/models/modeling-conventions.md), [registry contracts](data/models/registry-and-coverage-contracts.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PROGRAM_001` PRIMARY/CONFORMANCE/GOLDEN/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/program`; `go test -count=1 ./internal/domains/program/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PROGRAM-002",
@@ -28019,7 +28093,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Wire time](data/models/wire-contract-primitives.md), [configuration models](data/models/dataops-configuration.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PROGRAM_002` PRIMARY/FAULT/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/program`; `go test -count=1 ./internal/domains/program/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PROGRAM-003",
@@ -28044,7 +28119,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Population engine](#37-shared-transformation-and-population-engines), [eligibility/cycles](#38-eligibility-business-cycle-and-balance-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PROGRAM_003` PRIMARY/GOLDEN/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/program`; `go test -count=1 ./internal/domains/program/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PROGRAM-004",
@@ -28068,7 +28144,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [lifecycle registry](data/models/registry-and-coverage-contracts.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PROGRAM_004` PRIMARY/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/program`; `go test -count=1 ./internal/domains/program/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PROGRAM-005",
@@ -28091,7 +28168,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Rules models](data/models/rules-and-decisions.md), [provenance](specs/provenance-graph-and-lineage.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PROGRAM_005` PRIMARY/GOLDEN/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/program`; `go test -count=1 ./internal/domains/program/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PROGRAM-006",
@@ -28115,7 +28193,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [integration platform](specs/integration-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PROGRAM_006` PRIMARY/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/program`; `go test -count=1 ./internal/domains/program/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PROGRAM-CONF-001",
@@ -28141,7 +28220,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Intent coverage](data/models/intent-coverage-matrix.md), [adversarial audit](specs/adversarial-audit-32-reviewers-2026-08-14.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PROGRAM_CONF_001` PRIMARY/CONFORMANCE/GOLDEN/MUTATION/PROPERTY/SECURITY matrix in `internal/workflow/conformance/program`; `go test -count=1 ./internal/workflow/conformance/program/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PROMO-001",
@@ -29614,7 +29694,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Future-domain conformance](#21-future-domain-intent-conformance), [intent coverage](data/models/intent-coverage-matrix.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_QUAL_006` PRIMARY/CONFORMANCE/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/qualification`; `go test -count=1 ./internal/domains/qualification/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "READINESS-001",
@@ -30150,7 +30231,8 @@
     "refactor": "use the shared observation/reconciliation protocol with ATS-specific expected-state comparison",
     "refs": "[Recruiting conformance](#21-future-domain-intent-conformance), [repair](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_RECRUIT_004_*` CONFORMANCE/FAULT/GOLDEN/INTEGRATION/MUTATION/PROPERTY/RACE/SECURITY matrix in `internal/domains/recruiting`; `go test -count=1 ./internal/domains/recruiting/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "REFDATA-001",
@@ -30493,7 +30575,8 @@
     "refactor": "large inputs are content-addressed references",
     "refs": "[Reproducibility](data/models/assurance-intelligence-platform.md), [canonical digest](specs/canonical-envelope-and-digest.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_REPRO_001` PRIMARY/GOLDEN/RECOVERY/SECURITY matrix in `internal/engines/search`; `go test -count=1 ./internal/engines/search/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "RESERVE-001",
@@ -31449,7 +31532,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Human work](specs/human-work-forms-and-rules.md), [workflow runtime](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCHED_OPT_006` PRIMARY/FAULT/MUTATION/PROPERTY/RACE matrix in `internal/domains/schedopt`; `go test -count=1 ./internal/domains/schedopt/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SCHED-OPT-007",
@@ -31475,7 +31559,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [messaging](specs/messaging-and-notification-plane.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCHED_OPT_007` PRIMARY/FAULT/MUTATION/PROPERTY/RACE matrix in `internal/domains/schedopt`; `go test -count=1 ./internal/domains/schedopt/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SEARCH-001",
@@ -32501,7 +32586,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Repair](specs/transaction-ledger-reconciliation-and-repair.md), [messaging](specs/messaging-and-notification-plane.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SETTLE_006` PRIMARY/FAULT/GOLDEN/INTEGRATION/PROPERTY/RACE/SECURITY matrix in `internal/domains/settlement`; `go test -count=1 ./internal/domains/settlement/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SETTLE-007",
@@ -32530,7 +32616,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [workflow completion](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SETTLE_007` PRIMARY/FAULT/INTEGRATION/MUTATION/RACE matrix in `internal/domains/settlement`; `go test -count=1 ./internal/domains/settlement/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SKILL-001",
@@ -33890,7 +33977,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Rules models](data/models/rules-and-decisions.md), [intelligence models](data/models/assurance-intelligence-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SURVEY_006` PRIMARY/PROPERTY matrix in `internal/domains/survey`; `go test -count=1 ./internal/domains/survey/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SURVEY-007",
@@ -33913,7 +34001,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Records](specs/records-management-and-disposition.md), [ledger](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SURVEY_007` PRIMARY/FAULT/MUTATION matrix in `internal/domains/survey`; `go test -count=1 ./internal/domains/survey/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SVC-001",
@@ -36470,7 +36559,8 @@
     "refactor": "components request semantic type roles through tokens and never set arbitrary font size, weight or line height",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/tokens`, `tools/uxqual/render/journey`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_001` PRIMARY/ACCESSIBILITY/BRANDFALLBACKWRAPSWITHOUTCLIPPING/BROWSER/EXPANDEDNAVIGATIONLABELS/FALLBACKANDMEASURERESILIENCE/GOLDEN/I18N/REGRESSION matrix in `internal/humanwork/productui`/`tools/uxqual/tokens`; `go test -count=1 ./internal/humanwork/productui/ ./tools/uxqual/tokens/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UIPOLISH-002",
@@ -36496,7 +36586,8 @@
     "refactor": "use stack, cluster, grid, split and page-frame primitives with spacing-token props; remove page-specific margin chains",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/tokens`, `tools/uxqual/render/page`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_002` PRIMARY/HOMECONTINUITYSHARESPRIMARYGRIDCOLUMN/REGRESSION/REGRESSION_SIDESTACKFOLLOWSDENSITYMODES/SETTINGSSINGLEGROUPUSESFULLMEASURE matrix in `internal/humanwork/productui`/`tools/uxqual/render/page`; `go test -count=1 ./internal/humanwork/productui/ ./tools/uxqual/render/page/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UIPOLISH-003",
@@ -36521,7 +36612,8 @@
     "refactor": "shared primitives own shape and elevation; page renderers select semantic variants instead of emitting CSS values",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/tokens`, `tools/uxqual/render/journey`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_003` PRIMARY/ACCESSIBILITY/BROWSER/FOCUSRINGUSESCOMPACTCONTROLSHAPE/GOLDEN/JOURNEYSURFACESDONOTUSERESTINGELEVATION/PRODUCTIONSHAPESEMANTICS/REGRESSION/REGRESSION_STANDARDCONTAINERSUSENAMEDSURFACERADIUS/STATUSSHAPEFOLLOWSCUSTOMERCONTROLRADIUS matrix in `internal/humanwork/productui`/`tools/uxqual/render/journey`/`tools/uxqual/tokens`; `go test -count=1 ./internal/humanwork/productui/ ./tools/uxqual/render/journey/ ./tools/uxqual/tokens/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UIPOLISH-004",
@@ -36576,7 +36668,8 @@
     "refactor": "components consume semantic tokens only; no raw brand or palette values outside the token compiler",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/tokens`, `tools/uxqual/wcag`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_005` PRIMARY/ACCESSIBILITY/ACCESSIBILITY_ESSENTIALBOUNDARYUSESTHREETOONE/ADMISSIONREJECTSMISSINGSEMANTICCOLOR/BROWSER/BROWSER_STATUSTEXTREACHESTHEDOCUMENT/CUSTOMERTHEMEADMISSION/DARKCSSMATCHESQUALIFICATION/DARKHIGHCONTRASTWINSCASCADE/DARKHIGHCONTRASTYIELDSTOPRINTANDFORCEDCOLORS/GENERICQUALIFIERDOESNOTCLAIMPRODUCTADMISSION/GOLDEN/JOURNEYINTERACTIVECOLORSSTAYSCOPED/PRODUCTIONSTATES/PROPERTY/PROPERTY_ALLTENANTMODESQUALIFY/REGRESSION/REGRESSION_DARKBRANDGETSREADABLEDARKMODETEXT/SEMANTICCONTRACT/SEMANTICTOKENADMISSION/SEMANTICTOKENADMISSIONREJECTSMISSINGMALFORMEDANDRAW/SEMANTICTOKENNAMESSTABLE/STATEQUALIFICATION/STATEQUALIFICATIONREJECTSCOLOURONLYANDLOWCONTRAST/STATEQUALIFICATIONREJECTSEMPTYANDWEAKESSENTIALFLOOR/STATUSSEMANTICSREJECTCOLOURONLY matrix in `internal/humanwork/productui`/`tools/uxqual/render/journey`/`tools/uxqual/tokens`/`tools/uxqual/wcag`; `go test -count=1 ./internal/humanwork/productui/ ./tools/uxqual/render/journey/ ./tools/uxqual/tokens/ ./tools/uxqual/wcag/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UIPOLISH-006",
@@ -36603,7 +36696,8 @@
     "refactor": "all controls compose shared primitives and state tokens; pages provide labels, intent and authorization disposition only",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`, `tools/uxqual/wcag`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_006` PRIMARY/ACCESSIBILITY/GENERICPOPOVERTARGETANDFOCUS/MOBILEDRAWERCLOSEISGOVERNEDICON/PRODUCTIONTARGETSIZE/REGRESSION_OPENDRAWERKEEPSCLOSEACTIONVISIBLE/REGRESSION_SCOPEUSESSHAREDCONTROLGEOMETRY/REGRESSION_SUMMARYCONTROLSKEEPTARGETANDFOCUS/SECURITY/SHAREDTARGETS/STYLECONTRACT matrix in `internal/humanwork/productui`; `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UIPOLISH-007",
@@ -36630,7 +36724,8 @@
     "refactor": "locale keys represent semantic messages with structured parameters; components do not concatenate user-facing sentences",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/i18n`, `internal/humanwork/workspace`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_007` PRIMARY/ACCESSIBILITY/ARABICCARDINALPLURALRULES/ARABICHISTORYHASNOENGLISHPAGEORFILTERFALLBACK/ARABICNUMBERSKEEPEXACTDECIMALANDNATIVEDIGITS/GOLDEN/HELPERTEXTSTAYSPROGRESSIVE/HISTORYLOCALIZESCOLUMNSANDRECORDEDOUTCOME/HOMEACTIVITYUSESSEMANTICLOCALEKEYS/I18N/PARAMETERORDERISSEMANTIC/PRODUCTVOICECOPY/REGRESSION/REJECTSVAGUECONTROLSANDIMPLEMENTATIONCOPY/RENDERDOESNOTEXPANDPARAMETERVALUES/RENDERREJECTSUNDECLAREDPARAMETERS/SECURITY/SELFSERVICEBOUNDARYCOPY/SETTINGSCATALOG/SETTINGSIDENTITYFALLBACK/WORKSELECTIONRECOVERYACROSSLOCALES matrix in `internal/experience/localize`/`internal/humanwork/productui`/`tools/uxqual/i18n`; `go test -count=1 ./internal/experience/localize/ ./internal/humanwork/productui/ ./tools/uxqual/i18n/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UIPOLISH-008",
@@ -36659,7 +36754,8 @@
     "refactor": "density and field priority are component props backed by page definitions, not duplicated media-query rules",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/page`, `tools/uxqual/render/journey`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_008` PRIMARY/EMPTYWORKFLOWCOUNTISNOTREPEATED/HISTORYMOBILEFILTERSUSEINTRINSICCONTROLHEIGHT/HISTORYRESPONSIVEROWSKEEPCOLUMNCONTEXT/PERSISTEDDENSITYREACHESHISTORYPAGE/PRODUCTIONTABLEDENSITY/PROFILEFACTSTATUSDENSITY/PROFILEMISSINGSTATELOCALIZATION/PROGRESSIVELYDISCLOSEMULTIPLEMISSINGFACTS/REGRESSION_NARROWJOURNEYHEADERACTIONWRAPS/SELFSERVICEBOUNDARYNARROWDENSITY matrix in `internal/humanwork/productui`/`tools/uxqual/render/journey`; `go test -count=1 ./internal/humanwork/productui/ ./tools/uxqual/render/journey/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UIPOLISH-009",
@@ -36778,7 +36874,8 @@
     "refactor": "baselines render production components and server states; no mock-only design system or page-specific exception may satisfy the gate",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `test/workspace`, `tools/uxqual/tokens`, `tools/uxqual/latencygate`, `tools/uxqual/wcag`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_012` PRIMARY/ACCESSIBILITY/I18N/PERFORMANCE/REGRESSION/SSRMATRIX matrix in `internal/humanwork/productui`; `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UX-001",
@@ -36855,7 +36952,8 @@
     "refactor": "accessibility evidence is attached to release artifact, not a one-time audit",
     "refs": "[Accessibility](specs/experience-ui-and-branding.md), [Phase 1 quality](execution-plan.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UX_003` PRIMARY/BROWSER/INTEGRATION/RACE matrix in `tools/uxqual/wcag`; `go test -count=1 ./tools/uxqual/wcag/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UX-004",
@@ -37051,7 +37149,8 @@
     "refactor": "the workspace renders only authorized, server-resolved architecture state through the journey transport; every publish goes through the governed workflow, never a direct store write",
     "refs": "[job architecture](specs/job-architecture.md), [product UI](specs/product-ui.md), [Phase 1 depth matrix](plan.md#phase-1-implementation-depth-matrix)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UX_JOBARCH_001_*` GOLDEN/SECURITY matrix in `internal/domains/jobarch`; `go test -count=1 ./internal/domains/jobarch/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UX-QUAL-001",
@@ -37504,7 +37603,8 @@
     "refactor": "compose existing attention, continuity and semantic-action components through the Home floorplan",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/pagedef`, `tools/uxqual/render/journey`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_015` PRIMARY/ACCESSIBILITY/ACCESSIBILITY_COMPLETEDSTATUSISNOTATIME/BROWSER/I18N/I18N_ARABICATTENTION/I18N_TRACKEDCLOSEDSTATUS/PERFORMANCE/PROMOTIONSHORTCUTCLEARSSTALEDIRECTORYFILTERS/REGRESSION/REGRESSION_BOUNDEDHOMEKEEPSDUEANDSERVERORDER/REGRESSION_DENIEDPERSONDOESNOTENTERRECENTPEOPLEORCOUNT/REGRESSION_DENIEDWORKANDPEOPLE/REGRESSION_HISTORYGRANTISINDEPENDENTOFWORK/REGRESSION_HOMEPROMOTIONISCONTEXTUALQUICKACTION/REGRESSION_HOMESEPARATESASSIGNEDWORKFROMVISIBLEJOURNEYS/REGRESSION_RECENTPEOPLERESPECTSWORKKINDGRANTS/REGRESSION_RECENTPERSONPROFILEREQUIRESPROFILEGRANT/REGRESSION_UNBOUNDVIEWERGETSNOACTIONQUEUE/TRACKEDSTATUSUSESSERVERLOCALIZATION matrix in `internal/humanwork/productui`; `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXAUDIT-016",
@@ -37533,7 +37633,8 @@
     "refactor": "use shared identity-header, field-disposition and section-summary components",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/presentation`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_016` PRIMARY/I18N/PROFILECHROMEFAILSCLOSED/PROFILECHROMEUSESONLYADMITTEDIDENTITY/REGRESSION/SECURITY matrix in `internal/humanwork/productui`; `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXAUDIT-017",
@@ -37593,7 +37694,8 @@
     "refactor": "metrics consume certified report projections and shared accessible visualization components",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/presentation`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_018` PRIMARY/ACCESSIBILITY/I18N/REGRESSION/REGRESSION_EMPTYATTENTIONEXPLAINSNEXTSTEP/REGRESSION_UNASSIGNEDVISIBLEWORKISNOTATTENTION/SECURITY matrix in `internal/humanwork/productui`; `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXAUDIT-019",
@@ -37620,7 +37722,8 @@
     "refactor": "global and per-person history use the same query, table and detail components with scope supplied as props",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`, `internal/data`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_019` PRIMARY/ACCESSIBILITY/BROWSER/INTEGRATION/PERFORMANCE/REGRESSION matrix in `internal/humanwork/productui`; `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXAUDIT-020",
@@ -37646,7 +37749,8 @@
     "refactor": "flat and tree modes share organization-node data, employee-row and expansion-state components",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_020` PRIMARY/ACCESSIBILITY/BROWSER/INTERACTIONENHANCERISCONNECTED/PERFORMANCE/REGRESSION matrix in `internal/humanwork/productui`; `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXAUDIT-021",
@@ -37671,7 +37775,8 @@
     "refactor": "implement reusable admin form-section, preview and action-bar components rather than page-specific layout rules",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_021` PRIMARY/I18N/REGRESSION/UNSAVEDNAVIGATIONDECISION matrix in `internal/humanwork/productui`/`tools/uxqual/cmd/journeywasm`; `go test -count=1 ./internal/humanwork/productui/ ./tools/uxqual/cmd/journeywasm/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXAUDIT-022",
@@ -37698,7 +37803,8 @@
     "refactor": "reuse the existing employee/brand upload pipeline and tenant-scoped appearance revision store",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `internal/humanwork/workspace/brand_assets_test.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_022` PRIMARY/INTEGRATION/REGRESSION/SECURITY matrix in `internal/humanwork/workspace`; `go test -count=1 ./internal/humanwork/workspace/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXAUDIT-023",
@@ -37726,7 +37832,8 @@
     "refactor": "setting metadata declares scope, owner and persistence target so page composition cannot confuse user and tenant values",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/productclient/preferences_test.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_023` PRIMARY/REGRESSION_SETTINGSCARDSSHAREINTENTIONALGEOMETRY/REGRESSION_UNAVAILABLEANDSELECTEDNAVIGATION matrix in `internal/humanwork/productui`; `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXAUDIT-024",
@@ -37807,7 +37914,8 @@
     "refactor": "this is a release gate over production composition and server truth, not a parallel mock application or duplicated business fixture",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `test/workspace`, `test/workflow`, `tools/uxqual/latencygate`, `tools/uxqual/wcag`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXAUDIT_025` PRIMARY/REGRESSION matrix in `test/workspace`; `go test -count=1 ./test/workspace/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXFLOW-001",
@@ -38365,7 +38473,8 @@
     "refactor": "close the specific cross-page evidence gap through `UXAUDIT-009` and `UXAUDIT-010`'s shared policy simulation rather than a display-only approximation",
     "refs": "[organization scope and authz](specs/organization-scope-and-authz.md), `internal/humanwork/productui`, `test/workspace`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UXSCAN_008` PRIMARY/ACCESSIBILITY/BROWSER/GOLDEN/INTEGRATION/REGRESSION/SECURITY matrix in `test/workspace`/`tools/uxqual/productclient`; `go test -count=1 ./test/workspace/ ./tools/uxqual/productclient/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "UXSCAN-009",
@@ -47329,7 +47438,8 @@
     "refactor": "Readiness calculates state and Workflow coordinates; Worker Lifecycle owns requirement meaning and plan completion",
     "refs": "[Onboarding workflow](workflows/lifecycle/recruit-hire-onboard.md), [offboarding workflow](workflows/lifecycle/termination-offboarding.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_WORKER_LIFE_001_*` CONFORMANCE/GOLDEN/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/workerlifecycle`; `go test -count=1 ./internal/domains/workerlifecycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "WORKER-LIFE-002",
@@ -47357,7 +47467,8 @@
     "refactor": "domain engines evaluate individual requirements; lifecycle plan composes their typed results",
     "refs": "[Readiness engine](#40-readiness-and-leave-entitlement-engines), [recruit-to-onboard](workflows/lifecycle/recruit-hire-onboard.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_WORKER_LIFE_002_*` GOLDEN/MUTATION/PROPERTY/SECURITY matrix in `internal/domains/workerlifecycle`; `go test -count=1 ./internal/domains/workerlifecycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "WORKER-LIFE-003",
@@ -47388,7 +47499,8 @@
     "refactor": "parent stores child references and typed aggregates, never copies protected payloads or directly calls providers",
     "refs": "[Intent composition](specs/business-intent-and-change-request.md), [workflow atomic frontier](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_WORKER_LIFE_003_*` CONFORMANCE/FAULT/GOLDEN/MUTATION/PROPERTY/RACE/SECURITY matrix in `internal/domains/workerlifecycle`; `go test -count=1 ./internal/domains/workerlifecycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "WORKER-LIFE-004",
@@ -47420,7 +47532,8 @@
     "refactor": "domain owners define closure evidence; Worker Lifecycle composes and reports it",
     "refs": "[Termination/offboarding](workflows/lifecycle/termination-offboarding.md), [multidimensional completion](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_WORKER_LIFE_004_*` CONFORMANCE/FAULT/GOLDEN/INTEGRATION/MUTATION/PROPERTY/RACE/SECURITY matrix in `internal/domains/workerlifecycle`; `go test -count=1 ./internal/domains/workerlifecycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "XFORM-001",
