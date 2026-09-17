@@ -33467,7 +33467,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [integration observations](specs/integration-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SUB_008` plus RACE/INTEGRATION/FAULT matrix in `internal/domains/subscription` (`completeness.go` pure `ReconcileDelivery` classifies each expected sequence as acked, gap, unacked or ambiguous-unknown from journal evidence; provider acceptance of a later sequence never heals an earlier gap; ambiguous sequences need observation and are excluded from `NeedsRepair` so they are never blind-retried); `go test -count=1 ./internal/domains/subscription/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SUBPROCESSOR-001",

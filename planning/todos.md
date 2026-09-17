@@ -11368,7 +11368,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Credential leases](specs/secrets-key-custody-and-credential-leases.md), [security models](data/models/security-trust.md).
 
-- [ ] `SUB-008` **[PHASE_2][SOL_HIGH] Reconcile subscriber delivery completeness.**
+- [x] `SUB-008` **[PHASE_2][SOL_HIGH] Reconcile subscriber delivery completeness.**
+  - **Evidence (2026-09-17):** `TestTodo_SUB_008` plus RACE/INTEGRATION/FAULT matrix in `internal/domains/subscription` (`completeness.go` pure `ReconcileDelivery` classifies each expected sequence as acked, gap, unacked or ambiguous-unknown from journal evidence; provider acceptance of a later sequence never heals an earlier gap; ambiguous sequences need observation and are excluded from `NeedsRepair` so they are never blind-retried); `go test -count=1 ./internal/domains/subscription/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `SUB-004`–`SUB-007`, `TX-009`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SUB_008`.
