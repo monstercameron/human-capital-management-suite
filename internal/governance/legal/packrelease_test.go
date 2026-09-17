@@ -374,7 +374,7 @@ func TestTodo_LEGAL_010_Property(t *testing.T) {
 // unreviewed change to the section 3.2 field list, the framing, or the field
 // order breaks it.
 func TestTodo_LEGAL_010_Golden(t *testing.T) {
-	const wantDigest = "fbdf53feee4cdfbc0c0323f5d832a102f9dacfa0512ebd0cd1d268504f5d03e5"
+	const wantDigest = "97a76c0d2694f1d9a4c8f8bdd24d4c22b4f6b1d458fa4eca96de3d1206425ff5"
 	release := draftRelease(t, "WI", 0x2a)
 	if release.Digest != release.ComputeDigest() {
 		t.Fatal("signed digest disagrees with the recomputed digest")

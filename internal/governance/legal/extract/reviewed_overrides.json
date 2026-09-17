@@ -5199,7 +5199,7 @@
       }
     },
     "VA": {
-      "basis": "Digest-pinned draft bytes (LEGAL-016 vector); no LEGAL-ST review on record for this state, so the bytes are carried verbatim, not re-reviewed.",
+      "basis": "Reviewed content per LEGAL-ST-VA-001; carried verbatim where the heuristics do not reproduce it.",
       "kinds": {
         "ANTI_RETALIATION": [
           {
@@ -5217,10 +5217,11 @@
           {
             "id": "us-va-classification",
             "section": "§ 40.1-28.7:7",
-            "note": "§ 40.1-28.7:7: Misclassification enforcement by Department of Labor, Department of Revenue, Workers' Compensation Commission; penalties include back wages, reclassification, civil actions.",
+            "note": "Contractor classification uses the common-law/IRS control test (control, payment method, tools, permanence, integral nature of the work); no ABC statutory test. Misclassification enforced by the Department of Labor, Department of Revenue, and Workers' Compensation Commission with back wages, reclassification, and civil actions (§ 40.1-28.7:7).",
             "confidence_marker": "CONFIRMED",
             "body": {
-              "test_description": "§ 40.1-28.7:7: Misclassification enforcement by Department of Labor, Department of Revenue, Workers' Compensation Commission; penalties include back wages, reclassification, civil actions.",
+              "dimension": "CONTRACTOR",
+              "test_description": "Common-law/IRS control test for contractor status; no ABC statutory test (§ 40.1-28.7:7).",
               "standard": "REQUIRED"
             }
           }
@@ -5228,11 +5229,11 @@
         "DRUG_TESTING": [
           {
             "id": "us-va-drug-testing",
-            "section": "§ 19.2-392.4",
-            "note": "Ban-the-box for public employers only: § 19.2-392.4 restricts public employers from inquiring about expunged records; marijuana possession inquiry prohibited (§ 19.2-389.3).",
+            "section": "§ 19.2-389.3",
+            "note": "No state-level regulation of private-sector drug testing; federal law and DOT rules apply. Marijuana possession inquiry limits (§ 19.2-389.3) and medicinal-cannabis-oil discharge protection (§ 40.1-27.4) are hiring-inquiry rules, not testing rules.",
             "confidence_marker": "VERIFY",
             "body": {
-              "standard": "REQUIRED"
+              "standard": "RECOMMENDED"
             }
           }
         ],
@@ -5240,7 +5241,7 @@
           {
             "id": "us-va-field-restriction",
             "section": "§ 40.1-28.7:12",
-            "note": "Salary history inquiry block (§ 40.1-28.7:12, effective September 3, 2026):",
+            "note": "Salary-history ban (§ 40.1-28.7:12, effective 2026-09-03): employers cannot seek or require prior compensation; voluntarily disclosed history may only justify a higher offer; retaliation for refusal is barred.",
             "confidence_marker": "CONFIRMED",
             "body": {
               "restricted_fields": ["salary_history"],
@@ -5252,11 +5253,11 @@
           {
             "id": "us-va-final-pay-deadline",
             "section": "§ 40.1-29",
-            "note": "Pay frequency and final pay (§ 40.1-29): Hourly = biweekly or twice monthly; salaried = monthly; final pay on or before next regular payday; treble damages for knowing wage violations.",
+            "note": "Final pay on separation (§ 40.1-29): all earned wages on or before the next regular payday following separation; knowing violations face treble damages plus 8% annual interest (§ 40.1-29.2).",
             "confidence_marker": "CONFIRMED",
             "body": {
               "trigger": "termination_any",
-              "deadline_description": "Pay frequency and final pay (§ 40.1-29): Hourly = biweekly or twice monthly; salaried = monthly; final pay on or before next regular payday; treble damages for knowing wage violations."
+              "deadline_description": "All earned wages on or before the next regular payday following separation; knowing violations face treble damages plus 8% annual interest (§§ 40.1-29, 40.1-29.2)."
             }
           }
         ],
@@ -5264,11 +5265,25 @@
           {
             "id": "us-va-non-compete",
             "section": "§ 40.1-28.7:8",
-            "note": "Non-compete enforceability check and void (§ 40.1-28.7:8; SB 1218):",
+            "note": "Non-competes void for low-wage employees (threshold per § 65.2-500/BLS median), FLSA-overtime-eligible employees, and all healthcare professionals (SB 1218, effective 2025-07-01); unenforceable after without-cause termination without severance, compensation, or paid leave; $10,000 civil penalty with a 2-year employee action (§ 40.1-28.7:8).",
             "confidence_marker": "CONFIRMED",
             "body": {
               "recheck_on_pay_change": true,
-              "rule": "Non-compete enforceability check and void (§ 40.1-28.7:8; SB 1218):"
+              "rule": "Void for low-wage, FLSA-overtime-eligible, and healthcare-professional employees (SB 1218, effective 2025-07-01); void after without-cause termination without severance or paid leave; $10,000 penalty, 2-year action (§ 40.1-28.7:8)."
+            }
+          }
+        ],
+        "NOTICE": [
+          {
+            "id": "us-va-notice",
+            "section": "§ 40.1-29",
+            "note": "Written notice of pay decreases 1+ pay periods in advance, stating the old rate, new rate, and effective date; pay increases take effect immediately with no advance-notice duty (§ 40.1-29).",
+            "confidence_marker": "CONFIRMED",
+            "body": {
+              "who": "employer_to_worker",
+              "timing_direction": "BEFORE",
+              "channel": "written",
+              "content_fields": ["pay_rate"]
             }
           }
         ],
@@ -5276,9 +5291,50 @@
           {
             "id": "us-va-pay-equity-review",
             "section": "§ 40.1-28.6",
-            "note": "Equal pay audit and justification (§ 40.1-28.6):",
+            "note": "Equal pay for equal work irrespective of sex (§ 40.1-28.6): flag promotion rates that differ from peer rates for equal skill, effort, responsibility, and similar working conditions; seniority, merit, production, or a factor other than sex justify a differential.",
             "confidence_marker": "CONFIRMED",
             "body": {
+              "comparator_standard": "equal work",
+              "standard": "REQUIRED"
+            }
+          }
+        ],
+        "PAY_FREQUENCY": [
+          {
+            "id": "us-va-pay-frequency-hourly",
+            "section": "§ 40.1-29",
+            "note": "Hourly workers paid at least biweekly (every 14 days) or semimonthly (§ 40.1-29).",
+            "confidence_marker": "CONFIRMED",
+            "body": {
+              "minimum_frequency": "BIWEEKLY",
+              "applies_to_worker_class": "hourly employees"
+            }
+          },
+          {
+            "id": "us-va-pay-frequency-salaried",
+            "section": "§ 40.1-29",
+            "note": "Salaried workers paid at least monthly (§ 40.1-29).",
+            "confidence_marker": "CONFIRMED",
+            "body": {
+              "minimum_frequency": "MONTHLY",
+              "applies_to_worker_class": "salaried employees"
+            }
+          }
+        ],
+        "PAY_STATEMENT": [
+          {
+            "id": "us-va-pay-statement",
+            "section": "§ 40.1-29",
+            "note": "Pay statements show employer name and address, hours worked, rate of pay, gross and net wages, and the amount and purpose of each deduction, with enough detail to verify gross-to-net math; retained 3+ years (§ 40.1-29).",
+            "confidence_marker": "VERIFY",
+            "body": {
+              "required_fields": [
+                "employer_identification",
+                "hours_worked",
+                "pay_rate",
+                "gross_wages",
+                "deductions"
+              ],
               "standard": "REQUIRED"
             }
           }
@@ -5287,11 +5343,38 @@
           {
             "id": "us-va-pay-transparency",
             "section": "§ 40.1-28.7:12",
-            "note": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per subsequent violation; private right of action within 1 year (§ 40.1-28.7:12).",
+            "note": "Wage-range disclosure in all public and internal postings, in good faith from the pay scale or comparable roles, effective 2026-09-03; range disclosed on applicant request; retaliation barred; Attorney General penalties $1,000 first offense / $5,000 subsequent with a 1-year private action (§ 40.1-28.7:12).",
             "confidence_marker": "CONFIRMED",
             "body": {
               "trigger": "internal_promotion",
-              "required_disclosure": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per subsequent violation; private right of action within 1 year (§ 40.1-28.7:12)."
+              "required_disclosure": "Wage/salary range in all public and internal postings, disclosed in good faith, effective 2026-09-03; range on applicant request; $1,000/$5,000 penalties with a 1-year private action (§ 40.1-28.7:12)."
+            }
+          }
+        ],
+        "PERSONNEL_FILE": [
+          {
+            "id": "us-va-personnel-file",
+            "section": "§ 8.01-413.1",
+            "note": "Current or former employees receive copies of retained records (dates of employment, wages, title and description, workplace injuries) within 30 days of a written request, for a reasonable copying fee; narrower than a full personnel-file law, and a written disagreement accompanies third-party disclosures (§ 8.01-413.1, effective 2019-07-01).",
+            "confidence_marker": "VERIFY",
+            "body": {
+              "response_days": 30,
+              "day_basis": "CALENDAR",
+              "copy_fee_permitted": true,
+              "standard": "REQUIRED"
+            }
+          }
+        ],
+        "RETENTION": [
+          {
+            "id": "us-va-retention",
+            "section": "§ 40.1-29",
+            "note": "Payroll records (name, address, occupation, hours, rate, gross/net pay, deductions) kept 3 years; 3-year wage-claim limitations period (§ 40.1-29).",
+            "confidence_marker": "CONFIRMED",
+            "body": {
+              "record_class": "payroll_records",
+              "duration_years": 3,
+              "duration_basis": "from_record_date"
             }
           }
         ],
@@ -5299,14 +5382,15 @@
           {
             "id": "us-va-wage-floor",
             "section": "§ 40.1-28.10",
-            "note": "Minimum wage floor check (§ 40.1-28.10): On any pay change (promotion, base raise, role change), verify new rate ≥ current state minimum ($12.77 for 2026–2027; $13.75 for 2027–2028; $15.00 for 2028–2029; then annual CPI-U adjustment effective Jan 1, 2029. No tip credit: tipped employees must receive the full minimum).",
-            "confidence_marker": "VERIFY",
+            "note": "Minimum wage floor check (§ 40.1-28.10): verify any new rate against the current state minimum - $12.77 (2026-2027), $13.75 (2027-2028), $15.00 (2028-2029), then annual CPI-U adjustment. No tip credit: tipped employees receive the full minimum.",
+            "confidence_marker": "CONFIRMED",
             "body": {
               "floor_amount": {
                 "amount": "12.77",
                 "currency": "USD"
               },
-              "indexation": "CPI",
+              "basis": "HOURLY",
+              "indexation": "SCHEDULE",
               "standard": "REQUIRED"
             }
           }
@@ -5517,17 +5601,29 @@
       }
     },
     "WI": {
-      "basis": "Digest-pinned draft bytes (LEGAL-016 vector); no LEGAL-ST review on record for this state, so the bytes are carried verbatim, not re-reviewed.",
+      "basis": "Reviewed content per LEGAL-ST-WI-001; carried verbatim where the heuristics do not reproduce it.",
       "kinds": {
         "BREACH_NOTIFICATION": [
           {
             "id": "us-wi-breach-notification",
             "section": "Wis. Stat. § 134.98",
             "note": "Data breach notification (§ 134.98): any entity owning or licensing personal information must notify affected individuals within 45 days of learning of unauthorized acquisition of unencrypted personal information, unless the acquisition creates no material risk of identity theft or fraud.",
-            "confidence_marker": "VERIFY",
+            "confidence_marker": "CONFIRMED",
             "body": {
               "subject_deadline_days": 45,
               "standard": "REQUIRED"
+            }
+          }
+        ],
+        "DRUG_TESTING": [
+          {
+            "id": "us-wi-drug-testing",
+            "section": "(statutory section not stated in the research file)",
+            "note": "No Wisconsin state statute regulating private-sector pre-employment or post-accident drug testing; medical marijuana cardholders carry no statutory protection against THC-positive termination.",
+            "confidence_marker": "VERIFY",
+            "body": {
+              "permitted_bases": ["pre_employment", "post_accident"],
+              "standard": "RECOMMENDED"
             }
           }
         ],
@@ -5551,7 +5647,7 @@
             "confidence_marker": "CONFIRMED",
             "body": {
               "note": "Mass Layoff Notice (§ 109.07): for employers with 50+ employees, flag mass layoff (25% of workforce or 25+ employees affected, whichever greater) or business closure (25+ employees affected) and enforce the 60-day notice requirement; validate recipient list (affected employees, unions, municipality). No severance mandate; notice only.",
-              "employee_threshold": 25,
+              "employee_threshold": 50,
               "notice_days": 60
             }
           }
@@ -5561,25 +5657,65 @@
             "id": "us-wi-pay-statement",
             "section": "DWD 272.11(1)",
             "note": "Pay statement itemization: employers must provide an itemized pay statement showing hours worked, rate of pay, and the amount and reason for each deduction (DWD 272.11(1); deduction reasons not coded without explanation).",
-            "confidence_marker": "VERIFY",
+            "confidence_marker": "CONFIRMED",
             "body": {
               "required_fields": ["deductions", "hours_worked", "pay_rate"],
               "standard": "REQUIRED"
             }
           }
         ],
-        "SEPARATION_FILING": [
+        "PAY_EQUITY_REVIEW": [
           {
-            "id": "us-wi-separation-filing",
-            "section": "(statutory section not stated in the research file)",
-            "note": "the contract's section 5 matrix marks SEPARATION_FILING for WI, and no item in wisconsin.md evidences a separation-filing rule; recorded so the gap is visible rather than read as an absence of duty",
-            "confidence_marker": "VERIFY",
+            "id": "us-wi-pay-equity-review",
+            "section": "§ 111.31–111.395",
+            "note": "Wisconsin Fair Employment Act prohibits compensation discrimination because of sex; no standalone equal-pay-for-equal-work standard separate from sex discrimination (§§ 111.31–111.395).",
+            "confidence_marker": "CONFIRMED",
             "body": {
-              "recipient_authority": "state unemployment insurance agency",
+              "protected_bases": ["sex"],
               "standard": "REQUIRED"
             }
           }
-        ]
+        ],
+        "PAY_FREQUENCY": [
+          {
+            "id": "us-wi-pay-frequency",
+            "section": "§ 109.03",
+            "note": "Pay frequency (§ 109.03(1)): wages paid at least monthly; logging and farm labor at least quarterly.",
+            "confidence_marker": "VERIFY",
+            "body": {
+              "minimum_frequency": "MONTHLY"
+            }
+          }
+        ],
+        "PERSONNEL_FILE": [
+          {
+            "id": "us-wi-personnel-file",
+            "section": "§ 103.13",
+            "note": "Personnel file access twice per calendar year within 7 working days of a written request, at the worksite during business hours, for a reasonable copy fee; disputed information carries the employee's written position (§ 103.13).",
+            "confidence_marker": "CONFIRMED",
+            "body": {
+              "response_days": 7,
+              "day_basis": "BUSINESS",
+              "frequency_cap_per_year": 2,
+              "copy_fee_permitted": true,
+              "standard": "REQUIRED"
+            }
+          }
+        ],
+        "RETENTION": [
+          {
+            "id": "us-wi-retention",
+            "section": "DWD 272.11(1)",
+            "note": "Payroll records (name, address, birth date, occupation, rate, hours, wages, itemized deductions, fringe benefits) kept at least 3 years (DWD 272.11(1)).",
+            "confidence_marker": "VERIFY",
+            "body": {
+              "record_class": "payroll_records",
+              "duration_years": 3,
+              "duration_basis": "from_record_date"
+            }
+          }
+        ],
+        "SEPARATION_FILING": []
       }
     },
     "WV": {

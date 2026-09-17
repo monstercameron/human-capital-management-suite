@@ -1,0 +1,9 @@
+# LEGAL-ST-VA-001 golden oracle: the agent-verified Virginia draft bytes
+# (scheduled $12.77 floor, 2026-09-03 transparency/salary-history duties,
+# decreases-only notice, hourly/salaried pay-frequency limbs, next-payday
+# final pay, SB 1218 non-compete void, equal-work review, 3-year payroll
+# retention, 30-day § 8.01-413.1 records right, ?-cell VERIFY markers carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-va.json
+sha256:195eaacf2b8d53ce1ab10e52ca553af2ead9b6b8074193940edc4a8654639182

@@ -23,13 +23,29 @@
       "id": "us-wi-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/wisconsin.md",
-        "section": "Under Wis. Stat. § 103.13",
-        "note": "Personnel records: Under Wis.",
+        "section": "DWD 272.11(1)",
+        "note": "Payroll records (name, address, birth date, occupation, rate, hours, wages, itemized deductions, fringe benefits) kept at least 3 years (DWD 272.11(1)).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "record_class": "personnel_records"
+        "record_class": "payroll_records",
+        "duration_years": 3,
+        "duration_basis": "from_record_date"
+      }
+    },
+    {
+      "kind": "PAY_FREQUENCY",
+      "id": "us-wi-pay-frequency",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/wisconsin.md",
+        "section": "§ 109.03",
+        "note": "Pay frequency (§ 109.03(1)): wages paid at least monthly; logging and farm labor at least quarterly.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "VERIFY"
+      },
+      "body": {
+        "minimum_frequency": "MONTHLY"
       }
     },
     {
@@ -74,7 +90,7 @@
       },
       "body": {
         "note": "Mass Layoff Notice (§ 109.07): for employers with 50+ employees, flag mass layoff (25% of workforce or 25+ employees affected, whichever greater) or business closure (25+ employees affected) and enforce the 60-day notice requirement; validate recipient list (affected employees, unions, municipality). No severance mandate; notice only.",
-        "employee_threshold": 25,
+        "employee_threshold": 50,
         "notice_days": 60
       }
     },
@@ -84,13 +100,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/wisconsin.md",
         "section": "§ 111.31–111.395",
-        "note": "Wisconsin Fair Employment Act (WFEA) (§ 111.31–111.395) prohibits discrimination \"because of sex\" and other classes; no explicit \"equal pay for equal work\" statute separate from sex discrimination.",
+        "note": "Wisconsin Fair Employment Act prohibits compensation discrimination because of sex; no standalone equal-pay-for-equal-work standard separate from sex discrimination (§§ 111.31–111.395).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "protected_bases": ["sex"],
-        "comparator_standard": "equal work",
         "standard": "REQUIRED"
       }
     },
@@ -102,7 +117,7 @@
         "section": "DWD 272.11(1)",
         "note": "Pay statement itemization: employers must provide an itemized pay statement showing hours worked, rate of pay, and the amount and reason for each deduction (DWD 272.11(1); deduction reasons not coded without explanation).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "required_fields": ["deductions", "hours_worked", "pay_rate"],
@@ -115,12 +130,14 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/wisconsin.md",
         "section": "§ 103.13",
-        "note": "Personnel file access twice per calendar year within 7 working days: Employees may inspect records (§ 103.13); corrections/disputes recorded in file.",
+        "note": "Personnel file access twice per calendar year within 7 working days of a written request, at the worksite during business hours, for a reasonable copy fee; disputed information carries the employee's written position (§ 103.13).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "response_days": 7,
+        "frequency_cap_per_year": 2,
+        "copy_fee_permitted": true,
         "day_basis": "BUSINESS",
         "standard": "REQUIRED"
       }
@@ -141,33 +158,18 @@
       }
     },
     {
-      "kind": "SEPARATION_FILING",
-      "id": "us-wi-separation-filing",
-      "citation": {
-        "source_file": "planning/research/state-employment-law/wisconsin.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "the contract's section 5 matrix marks SEPARATION_FILING for WI, and no item in wisconsin.md evidences a separation-filing rule; recorded so the gap is visible rather than read as an absence of duty",
-        "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
-      },
-      "body": {
-        "recipient_authority": "state unemployment insurance agency",
-        "standard": "REQUIRED"
-      }
-    },
-    {
       "kind": "DRUG_TESTING",
       "id": "us-wi-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/wisconsin.md",
         "section": "(statutory section not stated in the research file)",
-        "note": "No Wisconsin state statute regulating private-sector pre-employment or post-accident drug testing.",
+        "note": "No Wisconsin state statute regulating private-sector pre-employment or post-accident drug testing; medical marijuana cardholders carry no statutory protection against THC-positive termination.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "permitted_bases": ["pre_employment", "post_accident"],
-        "standard": "REQUIRED"
+        "standard": "RECOMMENDED"
       }
     },
     {
@@ -178,7 +180,7 @@
         "section": "Wis. Stat. § 134.98",
         "note": "Data breach notification (§ 134.98): any entity owning or licensing personal information must notify affected individuals within 45 days of learning of unauthorized acquisition of unencrypted personal information, unless the acquisition creates no material risk of identity theft or fraud.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "subject_deadline_days": 45,
