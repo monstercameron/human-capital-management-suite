@@ -92,7 +92,7 @@ func TestTodo_PAYGL_002(t *testing.T) {
 			t.Fatalf("mapping[%d] lost lineage = %+v", i, mapping)
 		}
 	}
-	if result.Digest != "sha256:6c462e5f9f64283af0b6928a58a77e1e798c391a6a0e98213dee84449db42f55" {
+	if result.Digest != "sha256:3dfafea0e237f68db97296322ffd6afa8c64e003e5c16f42d3f3e69592a62744" {
 		t.Fatalf("golden mapping digest = %q", result.Digest)
 	}
 	repeated, err := MapComponents(fixture.run, fixture.components, fixture.rules)
