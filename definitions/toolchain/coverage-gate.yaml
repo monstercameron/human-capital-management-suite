@@ -373,7 +373,7 @@ exceptions:
     kind: below_floor
     owner: backlog
     reason: >-
-      61.6% of statements covered when the gate was introduced on
+      64.2% (improved from 61.6% on 2026-09-16) of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
     expiry: "2026-12-31"
   - package: internal/domains/asset
@@ -415,7 +415,7 @@ exceptions:
     kind: below_floor
     owner: backlog
     reason: >-
-      42.6% of statements covered when the gate was introduced on
+      57.3% (improved from 42.6% on 2026-09-16) of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
     expiry: "2026-12-31"
   - package: internal/domains/compensation
@@ -457,7 +457,7 @@ exceptions:
     kind: below_floor
     owner: backlog
     reason: >-
-      52.3% of statements covered when the gate was introduced on
+      68.6% (improved from 52.3% on 2026-09-16) of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
     expiry: "2026-12-31"
   - package: internal/domains/equity
@@ -492,7 +492,7 @@ exceptions:
     kind: below_floor
     owner: backlog
     reason: >-
-      61.4% of statements covered when the gate was introduced on
+      67.6% (improved from 61.4% on 2026-09-16) of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
     expiry: "2026-12-31"
   - package: internal/domains/incentive

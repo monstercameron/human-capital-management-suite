@@ -1,0 +1,114 @@
+schema: hcmnext.planning.productslices.temporal-vocabulary
+schema_version: 1
+moments:
+    - kind: effective_at
+      owning_layer: business
+      canonical_form: RFC 3339 timestamptz instant naming when a fact becomes business-effective
+      time_class: instant
+      digest_rule: sha256 of the canonical tenant-scoped fact with its effective instant
+      observed_by:
+        - business
+        - persistence
+        - presentation
+      carried_by:
+        - transport
+    - kind: effective_interval
+      owning_layer: business
+      canonical_form: half-open [start_inclusive, end_exclusive) interval with semantic kind INSTANT, LOCAL_DATE, PAY_PERIOD or REPORTING_PERIOD
+      time_class: half_open_interval
+      digest_rule: sha256 of the canonical interval bounds with semantic kind and timezone identity
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: known_at
+      owning_layer: business
+      canonical_form: RFC 3339 timestamptz horizon bounding the belief a replay or explanation may use
+      time_class: instant
+      digest_rule: sha256 of the canonical query with its knowledge horizon
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: observed_at
+      owning_layer: persistence
+      canonical_form: RFC 3339 timestamptz instant recording when a projection read observed its source
+      time_class: instant
+      digest_rule: sha256 of the canonical projection read with source sequence and observed instant
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: policy_as_of
+      owning_layer: governance
+      canonical_form: RFC 3339 timestamptz instant pinning the policy version a decision was evaluated against
+      time_class: instant
+      digest_rule: sha256 of the canonical decision with policy version and as-of instant
+      observed_by:
+        - business
+        - governance
+      carried_by:
+        - persistence
+        - presentation
+        - transport
+    - kind: projection_watermark
+      owning_layer: persistence
+      canonical_form: monotonic applied source position at or behind the latest observed source sequence
+      time_class: monotonic_sequence
+      digest_rule: sha256 of the canonical projection identity with definition version and watermark
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: received_at
+      owning_layer: transport
+      canonical_form: RFC 3339 timestamptz instant recording when the transport boundary received the request
+      time_class: instant
+      digest_rule: sha256 of the request evidence envelope, never of payload values
+      observed_by:
+        - business
+        - transport
+      carried_by:
+        - persistence
+        - presentation
+    - kind: recorded_at
+      owning_layer: persistence
+      canonical_form: RFC 3339 timestamptz instant recording when the authoritative chronology stored the event
+      time_class: instant
+      digest_rule: sha256 of the canonical ledger event with its recorded instant
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: requested_time
+      owning_layer: business
+      canonical_form: RFC 3339 timestamptz instant naming when the authorized request was made, equal to the authorization instant
+      time_class: instant
+      digest_rule: sha256 of the canonical authorized request with its requested instant
+      observed_by:
+        - business
+        - transport
+      carried_by:
+        - persistence
+        - presentation
+    - kind: source_sequence
+      owning_layer: persistence
+      canonical_form: monotonic ledger stream position naming the latest observed source event
+      time_class: monotonic_sequence
+      digest_rule: sha256 of the canonical stream identity with head sequence
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - transport
+digest: sha256:68337c0d4343b2f56391ea5ffc51c1d87acca20160656ce28de483d4804fb41e

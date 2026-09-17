@@ -218,3 +218,28 @@ func TestTodo_UIPOLISH_009_Performance(t *testing.T) {
 		t.Fatal("reserved geometry changed during repeated refresh")
 	}
 }
+
+func TestTodo_UIPOLISH_009_SubmittingRetainsSafeProjection(t *testing.T) {
+	region, err := NewRegion(FormRegion, 240)
+	if err != nil {
+		t.Fatal(err)
+	}
+	region, err = region.Transition(RegionEvent{Type: EventLoadSucceeded, HasData: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	region, err = region.Transition(RegionEvent{Type: EventSubmitStarted, OperationID: "submit-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := region.Presentation()
+	if p.Variant != StateSubmitting || p.ReservedHeight != 240 {
+		t.Fatalf("submitting presentation = %+v", p)
+	}
+	if !p.RetainProjection {
+		t.Fatal("submitting region dropped its safe projection and flashes blank")
+	}
+	if !p.SubmissionsBlocked {
+		t.Fatal("submitting region admitted a duplicate submission")
+	}
+}

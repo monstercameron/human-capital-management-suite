@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 var (
@@ -67,6 +68,10 @@ func CatalogFromInputs(inputs ...LocaleInput) Catalog {
 type Catalog map[string][]Message
 
 var keyPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(\.[a-z][a-z0-9_]*)+$`)
+
+// maxHelperRunes bounds helper copy to a short progressive hint.
+const maxHelperRunes = 160
+
 var placeholderPattern = regexp.MustCompile(`\{([a-z][a-z0-9_]*)\}`)
 var parameterNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
@@ -170,6 +175,13 @@ func (m Message) Validate() error {
 		if strings.TrimSpace(m.NextAction) == "" {
 			return fmt.Errorf("%w: message needs a next action", ErrInvalidMessage)
 		}
+	}
+	// Helper text is progressive disclosure for one field, not the task
+	// manual: UIPOLISH-007 RED rejects helper text longer than the task it
+	// explains. The bound counts runes so German and Arabic hints get the
+	// same budget as English ones.
+	if m.Kind == Helper && utf8.RuneCountInString(strings.TrimSpace(m.Text)) > maxHelperRunes {
+		return fmt.Errorf("%w: helper text must stay a short progressive hint", ErrInvalidMessage)
 	}
 	return nil
 }

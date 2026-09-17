@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: d646484e19612be44adec43929a633b593769c50ca0d594e1c6820b564d75463
-- Package count: 834
-- Within-module edge count: 2101
+- Source graph: ded2e10815e4b4b19e325a1b695f03195a450c678c8517958df495918727f7ce
+- Package count: 837
+- Within-module edge count: 2117
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -382,6 +382,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/domains/proofing`
 - `github.com/monstercameron/human-capital-management-suite/internal/domains/pseudonym`
 - `github.com/monstercameron/human-capital-management-suite/internal/domains/qualification`
+- `github.com/monstercameron/human-capital-management-suite/internal/domains/recruiting`
 - `github.com/monstercameron/human-capital-management-suite/internal/domains/refdata`
 - `github.com/monstercameron/human-capital-management-suite/internal/domains/repair`
 - `github.com/monstercameron/human-capital-management-suite/internal/domains/rewards`
@@ -657,6 +658,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/hrcase`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/learning`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leave`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leavereturn`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/managerchange`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/mobility`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/payroll`
@@ -990,4 +992,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`5ead6856fbada22b2fe0de7a7bfefd13c2666fc222f2f2dd5fdeed4c54d777fb`
+`07028724dbfbcf26674d3bd6f1f9ed5746b5704a7c7ea6f0aeb7d4cadf92b140`
