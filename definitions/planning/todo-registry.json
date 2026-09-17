@@ -834,7 +834,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_004` plus PROPERTY/GOLDEN/SECURITY/CONFORMANCE matrix in `tools/planning/productslice`; package 79.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./tools/planning/productslice/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "ALIGN-005",
@@ -1184,7 +1185,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_018` plus PROPERTY/GOLDEN/SECURITY/INTEGRATION/FAULT/CONFORMANCE matrix in `internal/transport/productquery`; package 85.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/transport/productquery/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "ALIGN-019",
@@ -1492,7 +1494,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_030` plus PROPERTY/GOLDEN/SECURITY/INTEGRATION/FAULT/CONFORMANCE matrix in `internal/intent/app`; suite PASS, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/intent/app/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "ALIGN-031",
@@ -2156,7 +2159,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_056` plus PROPERTY/GOLDEN/SECURITY/INTEGRATION/FAULT/CONFORMANCE matrix in `internal/operations/releaseevidence`; package 92.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/operations/releaseevidence/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "ALIGN-057",
@@ -2262,7 +2266,8 @@
     "refactor": "keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts",
     "refs": "[default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ALIGN_060` plus PROPERTY/GOLDEN/SECURITY/INTEGRATION/FAULT/CONFORMANCE matrix in `internal/operations/releaseevidence`; package 92.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/operations/releaseevidence/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "ALIGN-061",
@@ -2793,7 +2798,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Integration maturity](specs/integration-platform.md), [operations evidence](data/models/operations-production.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_APP_006` plus FAULT/SECURITY/CONFORMANCE in `internal/domains/partnerapp`; package 72.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/partnerapp/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "APPROVAL-001",
@@ -3063,7 +3069,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Eligibility](#38-eligibility-business-cycle-and-balance-engines), [qualification](#39-qualification-demand-matching-and-scenario-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_APPT_002` matrix in `internal/domains/appointment`; package 64.2% (below_floor exception, improved from 61.6%), `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/appointment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "APPT-003",
@@ -4338,7 +4345,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Governance composition](specs/governance-decision-and-obligation-composition.md), [attestation](#40-attestation-and-conformance-gated-program-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ATTEND_003` matrix in `internal/domains/attendance`; package 87.2%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/attendance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "ATTEND-004",
@@ -5107,7 +5115,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Payroll repair workflow](workflows/payroll/payroll-correction-retro.md), [repair](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_BAL_006` plus `PROPERTY/RACE/MUTATION` and recalculation-focused tests in `internal/domains/balance` (`reconcile.go`: dependents recompute in dependency order with version-pinned, reconciled evidence; partial recalculation stays reconciliation-required); `internal/data/balancestore` integration/recovery/fault/security tests green; `go test -count=1 ./internal/domains/balance/` PASS (82.1%), `./internal/data/balancestore/` PASS (70.2%), `go vet` and `gofmt` clean; lane-built, orchestrator-verified"
   },
   {
     "id": "BAL-007",
@@ -5133,7 +5142,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Integration observations](specs/integration-platform.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_BAL_007` plus `PROPERTY/GOLDEN/RACE/MUTATION` matrix in `internal/domains/balance` (stale/partial observations never report match; discrepancy names dimensions, period, expected/observed/delta and repair owner); package 82.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/balance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "BAL-008",
@@ -5161,7 +5171,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Provenance](specs/provenance-graph-and-lineage.md), [AuthZ](specs/organization-scope-and-authz.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_BAL_008` plus PROPERTY/RACE/MUTATION matrix in `internal/domains/balance` (`explain.go` pure explanation covering opening/entry/cap-floor/expiry/rollover/correction/authority with redaction); package 83.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/balance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "BAL-009",
@@ -5809,7 +5820,8 @@
     "refactor": "artifact bytes remain in Documents/object custody; Case owns business visibility and evidence relationships",
     "refs": "[Case conformance](#21-future-domain-intent-conformance), [confidential actors](data/models/talent-experience-cases.md), [DLP](specs/data-classification-and-dlp.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestCaseCompartmentAuthorizationPreventsParticipantNoteAndEvidenceLeakage` plus PROPERTY/GOLDEN/FUZZ/SECURITY/MUTATION in `internal/domains/hrcase`; package 67.6% (below_floor exception, improved from 61.4%), `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/hrcase/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "CASE-003",
@@ -5959,7 +5971,8 @@
     "refactor": "keep shared mechanics in kernel/engines and this package as the sole owner of the stated HCM meaning, lifecycle and correction semantics",
     "refs": "[BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [model coverage](data/models/intent-coverage-matrix.md), [engine ownership](#businessintent-context-required-by-every-todo)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestCBARevisionImpactCreatesRepresentationAndGrievanceWorkWithoutRewritingHistory` 8-test matrix incl. RACE/CONFORMANCE in `internal/domains/cba`; package 57.3% (below_floor exception, improved from 42.6%), `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/cba/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "CICD-001",
@@ -6796,7 +6809,8 @@
     "refactor": "legal rule evaluation remains external to workflow kernel",
     "refs": "[Leave workflow](workflows/leave/leave-return-to-work.md), [leave data](data/models/rewards-payroll-workforce.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CONF_004` plus `PROPERTY/GOLDEN/FAULT/SECURITY/CONFORMANCE/MUTATION/RACE` matrix in `internal/workflow/conformance/leavereturn` (P1A reference definition walks the real SIMULATE interpreter: sealed restricted review, immutable proposal, independent benefits observation with bounded repair, readiness-gated return; degraded benefits repair without rollback, manager-eligibility and compartment breaches blocked, not-ready returns blocked; JOIN REQUIRED_SET over restoration branches; reference bounded within declared limits); `go test -count=1 ./internal/workflow/conformance/leavereturn/` PASS (79.9% statements), `go vet` and `gofmt` clean (`-race` needs cgo, runs in CI); branch conf/CONF-004-leave-semantics"
   },
   {
     "id": "CONF-005",
@@ -8334,7 +8348,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Messaging](specs/messaging-and-notification-plane.md), [population engine](#37-shared-transformation-and-population-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CRM_003` plus SECURITY/MUTATION and crmstore INTEGRATION in `internal/domains/crm`; package 77.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/crm/` `go test -count=1 ./internal/data/crmstore/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "CRM-004",
@@ -8383,7 +8398,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Identity resolution](specs/identity-resolution-and-entity-linkage.md), [BusinessIntent](specs/business-intent-and-change-request.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CRM_005` matrix in `internal/domains/crm`; package 77.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/crm/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "CROSS-CONF-001",
@@ -8654,7 +8670,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Schema lifecycle](data/models/dataops-configuration.md), [records](specs/records-management-and-disposition.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CUSTOM_007` matrix incl. EventStore integration in `internal/domains/custom`; package 72.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/custom/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "CUSTOMER-001",
@@ -8953,7 +8970,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Control plane](#30-control-plane-publication-distribution-and-activation), [configuration models](data/models/dataops-configuration.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CYCLE_007` plus PROPERTY matrix in `internal/engines/cycle` (verified pre-existing); package 83.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/cycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "CYCLE-008",
@@ -8977,7 +8995,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Ledger corrections](specs/transaction-ledger-reconciliation-and-repair.md), [transaction coordinator](specs/transaction-plan-and-commit-coordinator.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CYCLE_008` plus PROPERTY/GOLDEN/MUTATION matrix in `internal/engines/cycle`; package 83.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/cycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "CYCLE-009",
@@ -9025,7 +9044,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [workflow completion](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CYCLE_010` plus PROPERTY/GOLDEN/MUTATION matrix in `internal/engines/cycle`; package 83.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/cycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "DATA-001",
@@ -11628,7 +11648,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Event substrate](#31-infrastructure-as-code-and-physical-data-services), [workflow runtime](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ELIG_006` plus PROPERTY/MUTATION in `internal/engines/eligibility`; package 78.0%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/eligibility/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "ELIG-007",
@@ -11685,7 +11706,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Future-domain conformance](#21-future-domain-intent-conformance), [intent coverage](data/models/intent-coverage-matrix.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ELIG_008` plus `PROPERTY/CONFORMANCE` matrix in `internal/engines/eligibility` (`parity.go` `CheckDomainParity` evaluates Benefits/Leave/Learning/Rewards fixtures through the shared engine and seals the verdict; exactly-four domains, valid requests, bound results, shared time semantics, distinct subject matters and non-mono rules enforced; fifth/missing/cloned/invalid fixtures refuse; fact failures resolve UNKNOWN through the shared vocabulary); `go test -count=1 ./internal/engines/eligibility/` PASS (77.3% statements), `go vet` and `gofmt` clean (`-race` needs cgo, runs in CI); branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "ENDPOINT-001",
@@ -12601,7 +12623,8 @@
     "refactor": "reuse shared engines for mechanics while this domain retains authoritative meaning, lifecycle, correction and evidence policy",
     "refs": "[BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [domain model coverage](data/models/intent-coverage-matrix.md), [authority expansion](specs/competitive-positioning-and-authority-expansion.md#authority-absorption-gate)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestEmployeeRelationsConformancePreservesAppealSettlementAndRetaliationSafeguards` 8-test matrix incl. RACE/CONFORMANCE in `internal/domains/employeerelations`; package 68.6% (below_floor exception, improved from 52.3%), `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/employeerelations/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "EVENT-001",
@@ -12741,7 +12764,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Platform architecture](specs/platform-architecture-catalog.md), [integration event runtime](specs/integration-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_EVENT_005` plus RACE/INTEGRATION/FAULT/CONFORMANCE/RECOVERY/SECURITY matrix in `internal/data/outbox`; package 84.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/data/outbox/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "EVENT-006",
@@ -13019,7 +13043,8 @@
     "refactor": "forensic tooling consumes evidence/artifact and support-access contracts; raw collection never becomes ordinary telemetry or domain fact",
     "refs": "[incident management](specs/incident-management.md), [records](specs/records-management-and-disposition.md), [evidence packaging](specs/platform-responsibility-boundaries.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestForensicAcquisitionBindsAuthorityScopeCustodyIntegrityRetentionAndDisclosure` plus PROPERTY/GOLDEN/INTEGRATION/CONFORMANCE/FAULT/SECURITY/RECOVERY/MUTATION in `internal/operations/incidentstate`; package 88.8%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/operations/incidentstate/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "FORM-001",
@@ -13215,7 +13240,8 @@
     "refactor": "physical fulfillment is a Messaging/Document effect adapter with independent observations and reconciliation",
     "refs": "[legal notice delivery](specs/messaging-and-notification-plane.md), [document controls](specs/platform-responsibility-boundaries.md), [location model](data/models/people-workforce.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestPhysicalNoticeFulfillmentBindsArtifactAddressCustodyAndDeliveryEvidence` plus full matrix incl. INTEGRATION/RECOVERY/MUTATION gap tests by orchestrator in `internal/messaging`; package 85.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/messaging/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "FX-001",
@@ -16433,7 +16459,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Operations models](data/models/operations-production.md), [SLOs](specs/slo-sli-error-budget.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_JOB_002` plus RACE/FAULT matrix and benchmark in `internal/data/jobs`; package 81.0%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/data/jobs/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "JOB-003",
@@ -17412,7 +17439,8 @@
     "refactor": "external return treatment remains observed effects, not proof of the local Leave end",
     "refs": "[Outcome management](plan.md#63-change-request-lifecycle), [workflow runtime](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEAVE_013` plus `RACE/INTEGRATION/RECOVERY/MUTATION` matrix in `internal/domains/leave` (`return_commit.go` mutex-guarded `ReturnCommitter` requires verified READY/READY_WITH_RESTRICTIONS readiness, exact preservation of every follow-up restriction, the payroll/benefits/schedule/access effect queue, a versioned obligation policy and all seven step receipts; local LEAVE_ENDED truth survives failed providers with PENDING obligation plus targeted repair; RED proven by pre-readiness, dropped-restriction, missing-restoration, terminated-employment, tampered-readiness and failpoint refusals with clean retry); `go test -count=1 ./internal/domains/leave/` PASS (87.1% statements), `go vet` and `gofmt` clean (`-race` needs cgo, runs in CI); branch leave/LEAVE-013-return-commit"
   },
   {
     "id": "LEAVE-014",
@@ -17494,7 +17522,8 @@
     "refactor": "conformance uses hypothetical rules and public capabilities; it does not certify any real jurisdiction",
     "refs": "[Leave workflow](workflows/leave/leave-return-to-work.md), [reference suite](reference-workflows/reference-suite.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEAVE_015` plus `PROPERTY/GOLDEN/RACE/FAULT/SECURITY/CONFORMANCE` matrix in `internal/domains/leave` (`medical_trace.go` `TraceMedicalLeave` seals the 15-stage canonical order anchor through receipt using only the real domain functions plus hypothetical rules, with degraded-benefits recovery, extension successor, atomic return and a 15-dimension execution receipt; every stage seal re-verifies from the trace alone); `go test -count=1 ./internal/domains/leave/` PASS (85.5% statements), `go vet` and `gofmt` clean (`-race` needs cgo, runs in CI); branch leave/LEAVE-015-medical-leave-trace"
   },
   {
     "id": "LEAVE-016",
@@ -18073,7 +18102,8 @@
     "refactor": "classification is governed computation, not UI metadata",
     "refs": "[Regulatory computation](plan.md), [worker roles](data/models/people-workforce.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_005` plus RACE/SECURITY/MUTATION matrix in `internal/governance/legal`; package 83.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-006",
@@ -18133,7 +18163,8 @@
     "refactor": "selection/composition traces are reusable legal-engine results; workflows consume typed decisions and obligations",
     "refs": "[regulatory computation](specs/platform-architecture-catalog.md), [governance composition](specs/governance-decision-and-obligation-composition.md), [legal models](data/models/rewards-payroll-workforce.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestRulePackSelectionCompositionCounselReviewAndRollbackAreDeterministic` plus full matrix in `internal/governance/legal` (`selection.go`, additive `LookupAll` on Registry); package 83.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-008",
@@ -18322,7 +18353,8 @@
     "refactor": "the receipt reuses the `LegalContext` signing and verification path; no second signature implementation",
     "refs": "[Receipt](specs/legal-rule-packs-and-state-configuration.md#65-receipt), [provenance graph and lineage](specs/provenance-graph-and-lineage.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_014` plus GOLDEN/RACE/SECURITY/RECOVERY/MUTATION matrix in `internal/governance/legal`; package 83.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-015",
@@ -18453,7 +18485,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `alaska.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Alaska](research/state-employment-law/alaska.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_AK_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-ak.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-AL-001",
@@ -18483,7 +18516,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `alabama.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Alabama](research/state-employment-law/alabama.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_AL_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-al.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-AR-001",
@@ -18515,7 +18549,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `arkansas.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Arkansas](research/state-employment-law/arkansas.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_AR_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-ar.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-AZ-001",
@@ -18549,7 +18584,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `arizona.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Arizona](research/state-employment-law/arizona.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_AZ_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-az.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-CA-001",
@@ -18586,7 +18622,8 @@
     "refactor": "the pack is regenerated by `internal/governance/legal/extract` from `california.md` at `vocabulary_version 2`+, replacing the hand-built `LEGAL-001` fixture; local-ordinance minimum wages attach as `LOCALITY`-level releases through `LEGAL-TOOL-009`, never inline on the state pack",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: California](research/state-employment-law/california.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_CA_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-ca.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-CO-001",
@@ -18622,7 +18659,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `colorado.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Colorado](research/state-employment-law/colorado.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_CO_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-co.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-CT-001",
@@ -18656,7 +18694,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `connecticut.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Connecticut](research/state-employment-law/connecticut.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_CT_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-ct.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-DC-001",
@@ -18722,7 +18761,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `delaware.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Delaware](research/state-employment-law/delaware.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_DE_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-de.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-FL-001",
@@ -18753,7 +18793,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `florida.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Florida](research/state-employment-law/florida.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_FL_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-fl.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-GA-001",
@@ -18784,7 +18825,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `georgia.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Georgia](research/state-employment-law/georgia.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_GA_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-ga.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-HI-001",
@@ -18818,7 +18860,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `hawaii.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Hawaii](research/state-employment-law/hawaii.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_HI_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-hi.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-IA-001",
@@ -19244,7 +19287,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `missouri.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Missouri](research/state-employment-law/missouri.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_MO_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-mo.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-MS-001",
@@ -19274,7 +19318,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `mississippi.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Mississippi](research/state-employment-law/mississippi.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_MS_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-ms.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-MT-001",
@@ -19306,7 +19351,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `montana.md`, not hand-built; `JOB_SECURITY`'s probation-tracking state machine lives in the workflow/HUMAN_TASK binding, not as new Legal-plane evaluation logic",
     "refs": "[Added kinds](specs/legal-rule-packs-and-state-configuration.md#42-added-kinds), [state employment-law research: Montana](research/state-employment-law/montana.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_MT_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-mt.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-NC-001",
@@ -19339,7 +19385,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `north-carolina.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: North Carolina](research/state-employment-law/north-carolina.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_NC_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-nc.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-ND-001",
@@ -19370,7 +19417,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `north-dakota.md`, not hand-built",
     "refs": "[Per-kind composition](specs/legal-rule-packs-and-state-configuration.md#63-per-kind-composition), [state employment-law research: North Dakota](research/state-employment-law/north-dakota.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_ND_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-nd.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-NE-001",
@@ -19403,7 +19451,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `nebraska.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Nebraska](research/state-employment-law/nebraska.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_NE_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-ne.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-NH-001",
@@ -19433,7 +19482,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `new-hampshire.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: New Hampshire](research/state-employment-law/new-hampshire.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_NH_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-nh.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-NJ-001",
@@ -19533,7 +19583,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `nevada.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Nevada](research/state-employment-law/nevada.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_NV_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-nv.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-NY-001",
@@ -19636,7 +19687,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `oklahoma.md`, not hand-built; the preemption assertion is data for `LEGAL-013`'s evaluation stage, never an inline exception in a comparator",
     "refs": "[Preemption](specs/legal-rule-packs-and-state-configuration.md#64-preemption), [state employment-law research: Oklahoma](research/state-employment-law/oklahoma.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_OK_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-OR-001",
@@ -19672,7 +19724,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `oregon.md`, not hand-built; scheduling obligations wait on `LEGAL-TOOL-013` rather than being invented here",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Oregon](research/state-employment-law/oregon.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_OR_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-PA-001",
@@ -19705,7 +19758,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `pennsylvania.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Pennsylvania](research/state-employment-law/pennsylvania.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_PA_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-RI-001",
@@ -19739,7 +19793,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `rhode-island.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Rhode Island](research/state-employment-law/rhode-island.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_RI_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-SC-001",
@@ -19770,7 +19825,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `south-carolina.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: South Carolina](research/state-employment-law/south-carolina.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_SC_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-SD-001",
@@ -19803,7 +19859,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `south-dakota.md`, not hand-built",
     "refs": "[Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: South Dakota](research/state-employment-law/south-dakota.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_SD_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-TN-001",
@@ -19836,7 +19893,8 @@
     "refactor": "the pack is generated by `internal/governance/legal/extract` from `tennessee.md`, not hand-built; the preemption assertion is data for `LEGAL-013`'s evaluation stage, never an inline exception in a comparator",
     "refs": "[Preemption](specs/legal-rule-packs-and-state-configuration.md#64-preemption), [state employment-law research: Tennessee](research/state-employment-law/tennessee.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_LEGAL_ST_TN_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-tn.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "LEGAL-ST-TX-001",
@@ -21108,7 +21166,8 @@
     "refactor": "provider adapters normalize mechanics into Messaging states; templates and HCM workflow remain independent of email vendor policy",
     "refs": "[messaging plane](specs/messaging-and-notification-plane.md), [destination trust](specs/platform-foundation-gap-closure.md), [integration platform](specs/integration-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestEmailDomainAuthenticationBounceComplaintAndSuppressionLifecyclePreservesMessageTruth` plus PROPERTY/GOLDEN/INTEGRATION/FAULT/SECURITY/CONFORMANCE/RECOVERY/MUTATION and benchmark in `internal/operations/messagingdelivery`; package 90.4%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/operations/messagingdelivery/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "MASK-001",
@@ -21264,7 +21323,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[DLP](specs/data-classification-and-dlp.md), [agent/intelligence models](data/models/assurance-intelligence-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_MATCH_005` plus PROPERTY matrix in `internal/domains/matching` (`fairness.go`); package 73.9%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/matching/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "MATCH-006",
@@ -23222,7 +23282,8 @@
     "refactor": "split `LEAVE-015`, notice, evidence-loop, balance-invalidation and readiness todos into contract/vector and later implementation halves before making `CONF-004` depend on them",
     "refs": "[Leave conformance track](next-steps.md#medical-leave-conformance-track), [Leave workflow](workflows/leave/leave-return-to-work.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestLeaveConformanceGraphHasNoGateABOrPhase2ImplementationDependency` plus PROPERTY/GOLDEN/FAULT/SECURITY/CONFORMANCE/MUTATION matrix in `internal/workflow/conformance/leave` (`firewall.go` CheckGraph; FAULT/CONFORMANCE/MUTATION gap tests added by orchestrator); package 96.2%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/workflow/conformance/leave/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "NEXT-008",
@@ -24904,7 +24965,8 @@
     "refactor": "keep shared mechanics in kernel/engines and this package as the sole owner of the stated HCM meaning, lifecycle and correction semantics",
     "refs": "[BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [model coverage](data/models/intent-coverage-matrix.md), [engine ownership](#businessintent-context-required-by-every-todo)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestPayInputCalculationAppliesTaxabilityLimitsArrearsAndExactDecimalRules` plus PROPERTY/GOLDEN/RACE/FAULT/SECURITY/CONFORMANCE/MUTATION matrix in `internal/domains/payinput`; package 77.8%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/payinput/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "PAYINPUT-003",
@@ -25022,7 +25084,8 @@
     "refactor": "keep shared mechanics in kernel/engines and this package as the sole owner of the stated HCM meaning, lifecycle and correction semantics",
     "refs": "[BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [model coverage](data/models/intent-coverage-matrix.md), [engine ownership](#businessintent-context-required-by-every-todo)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestPayMethodReconciliationDistinguishesVerificationAcceptanceAndSettlement` plus PROPERTY/GOLDEN/RACE/FAULT/SECURITY/CONFORMANCE/MUTATION matrix in `internal/domains/paymethod` (`reconciliation.go`); package 72.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/paymethod/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "PAYRUN-001",
@@ -25109,7 +25172,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Business cycles](#38-eligibility-business-cycle-and-balance-engines), [attestation](#40-attestation-and-conformance-gated-program-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYRUN_003` plus full matrix incl. INTEGRATION/FAULT in `internal/domains/payroll` (`inputlock.go`); package 72.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "PAYRUN-004",
@@ -25221,7 +25285,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYRUN_007` plus full matrix incl. INTEGRATION/FAULT in `internal/domains/payroll` (`release.go`); package 72.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "PAYRUN-008",
@@ -27685,7 +27750,8 @@
     "refactor": "unknown copy prevents false completeness",
     "refs": "[Privacy lifecycle](specs/records-management-and-disposition.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PRIV_006` plus GOLDEN/INTEGRATION/SECURITY/RECOVERY/MUTATION matrix in `internal/domains/privacy/dsr`; package 83.2%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/privacy/dsr/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "PRIV-007",
@@ -27734,7 +27800,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Security research §2, F-12/F-13](research/security-best-practices-2026.md#2-financial-applications-and-payment-touching-systems), [IRS Pub. 1075 encryption](https://www.irs.gov/privacy-disclosure/encryption-requirements-of-publication-1075), [IRS Publication 4557](https://www.irs.gov/pub/irs-pdf/p4557.pdf). Maps to IRS Pub. 1075 §4 (encryption)/§9 (disclosure)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PRIV_008` plus GOLDEN/SECURITY/INTEGRATION/MUTATION matrix in `internal/governance/privacy`; package 89.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/privacy/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "PRIV-009",
@@ -27759,7 +27826,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Security research §2, F-14](research/security-best-practices-2026.md#2-financial-applications-and-payment-touching-systems), [FTC data-breach response guide](https://www.ftc.gov/business-guidance/resources/data-breach-response-guide-business), [California breach reporting](https://www.oag.ca.gov/privacy/databreach/reporting). Maps to state breach-notification statutes; FTC Health Breach Notification Rule (where applicable)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PRIV_009` plus GOLDEN/SECURITY/INTEGRATION/MUTATION matrix in `internal/governance/privacy`; package 89.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/privacy/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "PRIV-010",
@@ -27864,7 +27932,8 @@
     "refactor": "projection is read-only and rebuildable",
     "refs": "[Process mining](data/models/assurance-intelligence-platform.md), [ledger](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PROCESS_001` plus GOLDEN/RACE/ScopeRejects/SECURITY/MUTATION matrix in `internal/governance/privacy` (MUTATION gap test by orchestrator); package 89.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/privacy/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "PROGRAM-001",
@@ -29426,7 +29495,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Governance composition](specs/governance-decision-and-obligation-composition.md), [rules models](data/models/rules-and-decisions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_QUAL_003` plus PROPERTY/FAULT/SECURITY/MUTATION matrix in `internal/domains/qualification` (`validity.go`); package 78.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/qualification/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "QUAL-004",
@@ -29473,7 +29543,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Workflow runtime](specs/workflow-runtime.md), [talent models](data/models/talent-experience-cases.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_QUAL_005` plus PROPERTY/SECURITY matrix in `internal/domains/qualification` (`reevaluate.go`); package 78.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/qualification/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "QUAL-006",
@@ -29942,7 +30013,8 @@
     "refactor": "Person/prospect identity, job/position truth and CRM membership remain referenced owners rather than copied ATS facts",
     "refs": "[Recruiting intents](specs/business-intent-catalog.md#vocabulary-list-non-normative), [talent models](data/models/talent-experience-cases.md), [recruit workflow](workflows/lifecycle/recruit-hire-onboard.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestRecruitingAggregateLifecyclesRejectMissingIdentityAndIllegalTransitions` plus PROPERTY/GOLDEN/SECURITY/CONFORMANCE/MUTATION matrix in `internal/domains/recruiting`; package 74.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/recruiting/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "RECRUIT-002",
@@ -30994,7 +31066,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Assurance models](data/models/assurance-intelligence-platform.md), [provenance](specs/provenance-graph-and-lineage.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCENARIO_004` plus PROPERTY/RACE matrix in `internal/domains/scenario` (`compare.go`); package 75.2%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/scenario/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "SCENARIO-005",
@@ -31169,7 +31242,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Operations models](data/models/operations-production.md), [repair](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCHED_004` plus RACE/FAULT/RECOVERY matrix in `internal/engines/schedule`; package 70.4%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/schedule/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "SCHED-OPT-001",
@@ -31253,7 +31327,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Qualification engine](#39-qualification-demand-matching-and-scenario-engines), [governance composition](specs/governance-decision-and-obligation-composition.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCHED_OPT_003` plus PROPERTY/RACE/FAULT/SECURITY/MUTATION matrix in `internal/domains/schedopt`; package 78.4%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/schedopt/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "SCHED-OPT-004",
@@ -33308,7 +33383,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Integration platform](specs/integration-platform.md), [incident management](specs/incident-management.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SUB_005` plus RACE/INTEGRATION/FAULT/SECURITY matrix in `internal/domains/subscription` (`retry.go`); package 78.8%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/subscription/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "SUB-006",
@@ -33336,7 +33412,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Ledger](specs/transaction-ledger-reconciliation-and-repair.md), [integration platform](specs/integration-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SUB_006` plus GOLDEN/RACE/INTEGRATION/FAULT/SECURITY/RECOVERY/MUTATION matrix in `internal/domains/subscription` (`replay.go`); package 78.8%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/subscription/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "SUB-007",
@@ -33615,7 +33692,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Security research §1, E-18](research/security-best-practices-2026.md#1-enterprise-applications-in-general), [CIS Controls v8.1 list](https://www.cisecurity.org/controls/cis-controls-list), [OWASP Top 10:2025](https://owasp.org/Top10/). Maps to CIS Control 7 (Continuous Vulnerability Management); NIST 800-53 SI-2/CM-3",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SUPPLY_004` plus GOLDEN/SECURITY/INTEGRATION/FAULT/RECOVERY/MUTATION in `tools/policy/vulnimpact`; package 95.0%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./tools/policy/vulnimpact/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "SURVEY-001",
@@ -34430,7 +34508,8 @@
     "refactor": "relocation remains outside Phase 1 physical deployment scope",
     "refs": "[Tenant relocation](data/models/operations-production.md), [authority fencing](specs/source-authority-and-external-mastering.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_TENANT_005` plus GOLDEN/RACE/SECURITY/RECOVERY/FAULT in `internal/domains/tenant`; package 94.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/tenant/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "THREAT-001",
@@ -36554,7 +36633,8 @@
     "refactor": "one state machine and component family serves collection, detail, form and mutation regions",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/latencygate`, `tools/uxqual/render/journey`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_009` plus GOLDEN/BROWSER/ACCESSIBILITY/FAULT/PERFORMANCE matrix in `internal/humanwork/productui` (lane increment: submitting regions retain safe projection); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "UIPOLISH-010",
@@ -36581,7 +36661,8 @@
     "refactor": "components request semantic icon IDs and never embed ad hoc SVG or Unicode arrows",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/tokens`, `tools/uxqual/render/journey/icons.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_UIPOLISH_010` plus GOLDEN/BROWSER/ACCESSIBILITY/SECURITY/REGRESSION matrix in `internal/humanwork/productui` (lane increment: icon-bypass guard covers all 24 renderer files); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "UIPOLISH-011",
@@ -37014,7 +37095,8 @@
     "refactor": "seed data supplies facts and authority only; eligibility and workflow state continue to come from the real domain and journey services",
     "refs": "[promotion workflow](reference-workflows/promote-into-management.md), `test/workflow`, `test/workspace`, `tools/uxqual/journeyclient`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "full matrix in `test/workflow`, `test/workspace` (PRIMARY/INTEGRATION/RECOVERY/BROWSER) and `internal/humanwork/productui` (ACCESSIBILITY/REGRESSION); all three suites PASS; lane-built, orchestrator-verified. `go test -count=1 ./test/workspace/` `go test -count=1 ./test/workflow/` `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "UXAUDIT-003",
@@ -37204,7 +37286,8 @@
     "refactor": "reuse the data table, selection, drawer and async task components; the server remains authoritative for effective permissions",
     "refs": "[organization scope and authz](specs/organization-scope-and-authz.md), `tools/uxqual/render/journey`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "full matrix in `internal/humanwork/productui` (PRIMARY/INTEGRATION/BROWSER/ACCESSIBILITY/PERFORMANCE/SECURITY); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "UXAUDIT-010",
@@ -37231,7 +37314,8 @@
     "refactor": "presentation consumes the existing policy simulation and proposed-scope contracts; no browser-authored permission truth",
     "refs": "[organization scope and authz](specs/organization-scope-and-authz.md), `tools/uxqual/presentation`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "full matrix in `internal/humanwork/productui` (PRIMARY/INTEGRATION/BROWSER/ACCESSIBILITY/SECURITY/REGRESSION); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "UXAUDIT-011",
@@ -37312,7 +37396,8 @@
     "refactor": "reuse authorized global search and service-request components instead of a separate ungoverned index",
     "refs": "[frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "full matrix in `internal/humanwork/productui` (PRIMARY/BROWSER/ACCESSIBILITY/SECURITY/I18N); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics"
   },
   {
     "id": "UXAUDIT-014",

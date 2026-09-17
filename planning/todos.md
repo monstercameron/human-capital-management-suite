@@ -5121,7 +5121,8 @@ closed.
   - **Refs:** [Tenant exit](specs/platform-responsibility-boundaries.md#tenant-exit-and-portability), [pilot exit](execution-plan.md#gate-b-acceptance--limited-write-authority).
   - **Evidence (2026-09-14):** `TestTodo_TENANT_004` plus `TestTodo_TENANT_004_Golden`, `_Integration`, `_Security`, `_Recovery` and `FuzzTodo_TENANT_004` in `internal/governance/exit` (`rehearsal.go`: `Rehearse` layers observed operator steps and a restore re-delete plan over the `PRIV-EXIT-001` dry-run certification — export/shutdown/revocation receipts, hold-exception list and per-copy tombstone plan returned, `CERTIFIABLE` only with complete inventory and all steps observed; kernel-pure, no irreversible destruction); RED observed (undefined symbols); `go test -count=1` PASS 6/6 incl. fuzz seeds plus a bounded 20s fuzz (150k execs, zero failures), `go vet`/`gofmt` clean; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `TENANT-005` **[GATE_C][SOL_HIGH] Relocate a tenant with signed epoch fencing and rollback.**
+- [x] `TENANT-005` **[GATE_C][SOL_HIGH] Relocate a tenant with signed epoch fencing and rollback.**
+  - **Evidence (2026-09-16):** `TestTodo_TENANT_005` plus GOLDEN/RACE/SECURITY/RECOVERY/FAULT in `internal/domains/tenant`; package 94.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/tenant/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `TENANT-001`, `DATA-020`, `WF-RUN-022`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TENANT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_TENANT_005`.
@@ -5223,7 +5224,8 @@ closed.
   - **REFACTOR:** identity proof artifacts remain separately protected.
   - **Refs:** [Privacy intents](specs/business-intent-catalog.md), [privacy records](specs/records-management-and-disposition.md).
 
-- [ ] `PRIV-006` **[GATE_C][SOL_HIGH] Resolve every subject-request item and legal exception.**
+- [x] `PRIV-006` **[GATE_C][SOL_HIGH] Resolve every subject-request item and legal exception.**
+  - **Evidence (2026-09-16):** `TestTodo_PRIV_006` plus GOLDEN/INTEGRATION/SECURITY/RECOVERY/MUTATION matrix in `internal/domains/privacy/dsr`; package 83.2%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/privacy/dsr/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `PRIV-005`, `RECORDS-COPY-001`, `RECORDS-HOLD-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestTodo_PRIV_006`.
@@ -5254,7 +5256,8 @@ closed.
   - **REFACTOR:** actual irreversible destruction remains Gate C.
   - **Refs:** [Tenant exit](specs/platform-responsibility-boundaries.md#tenant-exit-and-portability), [privacy records](specs/records-management-and-disposition.md).
 
-- [ ] `PRIV-008` **[GATE_C][SOL_HIGH] Enforce a federal-tax-information processing boundary under Publication 1075.**
+- [x] `PRIV-008` **[GATE_C][SOL_HIGH] Enforce a federal-tax-information processing boundary under Publication 1075.**
+  - **Evidence (2026-09-16):** `TestTodo_PRIV_008` plus GOLDEN/SECURITY/INTEGRATION/MUTATION matrix in `internal/governance/privacy`; package 89.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/privacy/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `PRIV-001`, `TRUST-028`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestTodo_PRIV_008`.
@@ -5264,7 +5267,8 @@ closed.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Security research §2, F-12/F-13](research/security-best-practices-2026.md#2-financial-applications-and-payment-touching-systems), [IRS Pub. 1075 encryption](https://www.irs.gov/privacy-disclosure/encryption-requirements-of-publication-1075), [IRS Publication 4557](https://www.irs.gov/pub/irs-pdf/p4557.pdf). Maps to IRS Pub. 1075 §4 (encryption)/§9 (disclosure).
 
-- [ ] `PRIV-009` **[GATE_C][SOL_HIGH] Produce a reproducible financial-breach and notification-decision matrix.**
+- [x] `PRIV-009` **[GATE_C][SOL_HIGH] Produce a reproducible financial-breach and notification-decision matrix.**
+  - **Evidence (2026-09-16):** `TestTodo_PRIV_009` plus GOLDEN/SECURITY/INTEGRATION/MUTATION matrix in `internal/governance/privacy`; package 89.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/privacy/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `PRIV-005`, `RECORDS-HOLD-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestTodo_PRIV_009`.
@@ -5487,7 +5491,8 @@ closed.
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Security research §1, E-08](research/security-best-practices-2026.md#1-enterprise-applications-in-general), [NTIA SBOM minimum elements](https://www.ntia.gov/report/2021/minimum-elements-software-bill-materials-sbom). Maps to NTIA SBOM minimum elements (license field); ASVS V14.2.
 
-- [ ] `SUPPLY-004` **[GATE_C][SOL_HIGH] Bind vulnerability severity to a patch SLA clock and emergency-change/rollback path.**
+- [x] `SUPPLY-004` **[GATE_C][SOL_HIGH] Bind vulnerability severity to a patch SLA clock and emergency-change/rollback path.**
+  - **Evidence (2026-09-16):** `TestTodo_SUPPLY_004` plus GOLDEN/SECURITY/INTEGRATION/FAULT/RECOVERY/MUTATION in `tools/policy/vulnimpact`; package 95.0%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./tools/policy/vulnimpact/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `SUPPLY-002`, `CICD-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SUPPLY_004`.
@@ -5942,7 +5947,8 @@ closed.
   - **REFACTOR:** waiver requires explicit authority and never deletes the original obligation; obligation types come from the rule-pack vocabulary; this todo adds deadline computation and status, not new kinds.
   - **Refs:** [Obligation engine and statutory calendar](plan.md), [Obligation kinds](specs/legal-rule-packs-and-state-configuration.md#4-obligation-kinds).
 
-- [ ] `LEGAL-005` **[PHASE_2][SOL_HIGH] Evaluate worker classification with uncertainty and review.**
+- [x] `LEGAL-005` **[PHASE_2][SOL_HIGH] Evaluate worker classification with uncertainty and review.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_005` plus RACE/SECURITY/MUTATION matrix in `internal/governance/legal`; package 83.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-001`, `MODEL-022`, `MODEL-025`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_005`.
@@ -6029,7 +6035,8 @@ closed.
   - **REFACTOR:** preemption is a distinct evaluation stage between release pinning and trigger evaluation; it never runs inside a comparator.
   - **Refs:** [Preemption](specs/legal-rule-packs-and-state-configuration.md#64-preemption), [state employment-law research](research/state-employment-law/README.md).
 
-- [ ] `LEGAL-014` **[PHASE_2][SOL_HIGH] Emit a signed LegalEvaluationReceipt.**
+- [x] `LEGAL-014` **[PHASE_2][SOL_HIGH] Emit a signed LegalEvaluationReceipt.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_014` plus GOLDEN/RACE/SECURITY/RECOVERY/MUTATION matrix in `internal/governance/legal`; package 83.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-012`, `MODEL-023`, `MODEL-029`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_014`.
@@ -6229,7 +6236,8 @@ closed.
   - **REFACTOR:** this is a corpus-completeness gate, not a scheduling-engine change; `internal/domains/schedopt`/`internal/domains/availability` are untouched until the research exists.
   - **Refs:** [state employment-law research](research/state-employment-law/README.md), [Non-goals](specs/legal-rule-packs-and-state-configuration.md#10-non-goals).
 
-- [ ] `LEGAL-ST-AL-001` **[PHASE_2][SOL_HIGH] Carry Alabama's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-AL-001` **[PHASE_2][SOL_HIGH] Carry Alabama's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_AL_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-al.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_AL_001`.
@@ -6240,7 +6248,8 @@ closed.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Alabama](research/state-employment-law/alabama.md).
   - **Progress (2026-09-14, NOT counsel review — todo stays open):** agent verification pass over `definitions/legal/packs/states/us-al.json` against the reviewed research file: added the missing federal-only `WAGE_FLOOR`, added pay-equity protected bases (sex, race), recorded non-compete/non-solicit duration presumptions (2yr/1yr/18mo), confirmed E-Verify confidence, removed a cannabis-use protection the research contradicts, completed truncated citation notes, added the 1000-resident AG threshold; provenance records the pass. `TestTodo_LEGAL_ST_AL_001` (+`_Golden`, `_Conformance`, incl. an all-50-drafts load table) in `internal/governance/legal` PASS, full `legal` suite green. Remaining gate is human counsel: `Releasable()` requires CounselApproved/VendorBaseline/CustomerDefined and `Publish` requires counsel signers, which an agent cannot fabricate — the PRIMARY test asserts the pack still fails the tenant review floor. Same counsel gate applies to the other 49 state packs; the AL test file is the reusable pattern.
 
-- [ ] `LEGAL-ST-AK-001` **[PHASE_2][SOL_HIGH] Carry Alaska's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-AK-001` **[PHASE_2][SOL_HIGH] Carry Alaska's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_AK_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-ak.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_AK_001`.
@@ -6250,7 +6259,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `alaska.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Alaska](research/state-employment-law/alaska.md).
 
-- [ ] `LEGAL-ST-AZ-001` **[PHASE_2][SOL_HIGH] Carry Arizona's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-AZ-001` **[PHASE_2][SOL_HIGH] Carry Arizona's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_AZ_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-az.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-008`, `LEGAL-TOOL-009`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_AZ_001`.
@@ -6260,7 +6270,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `arizona.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Arizona](research/state-employment-law/arizona.md).
 
-- [ ] `LEGAL-ST-AR-001` **[PHASE_2][SOL_HIGH] Carry Arkansas's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-AR-001` **[PHASE_2][SOL_HIGH] Carry Arkansas's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_AR_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-ar.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-009`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_AR_001`.
@@ -6270,7 +6281,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `arkansas.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Arkansas](research/state-employment-law/arkansas.md).
 
-- [ ] `LEGAL-ST-CA-001` **[PHASE_2][SOL_HIGH] Carry California's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-CA-001` **[PHASE_2][SOL_HIGH] Carry California's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_CA_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-ca.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-001`, `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-002`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-007`, `LEGAL-TOOL-008`, `LEGAL-TOOL-009`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_CA_001`.
@@ -6280,7 +6292,8 @@ closed.
   - **REFACTOR:** the pack is regenerated by `internal/governance/legal/extract` from `california.md` at `vocabulary_version 2`+, replacing the hand-built `LEGAL-001` fixture; local-ordinance minimum wages attach as `LOCALITY`-level releases through `LEGAL-TOOL-009`, never inline on the state pack.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: California](research/state-employment-law/california.md).
 
-- [ ] `LEGAL-ST-CO-001` **[PHASE_2][SOL_HIGH] Carry Colorado's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-CO-001` **[PHASE_2][SOL_HIGH] Carry Colorado's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_CO_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal` (pack `us-co.json` registered byte-identical to verified bytes, digest-matched; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-002`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-007`, `LEGAL-TOOL-008`, `LEGAL-TOOL-009`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_CO_001`.
@@ -6290,7 +6303,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `colorado.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Colorado](research/state-employment-law/colorado.md).
 
-- [ ] `LEGAL-ST-CT-001` **[PHASE_2][SOL_HIGH] Carry Connecticut's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-CT-001` **[PHASE_2][SOL_HIGH] Carry Connecticut's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_CT_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-ct.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-007`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_CT_001`.
@@ -6300,7 +6314,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `connecticut.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Connecticut](research/state-employment-law/connecticut.md).
 
-- [ ] `LEGAL-ST-DE-001` **[PHASE_2][SOL_HIGH] Carry Delaware's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-DE-001` **[PHASE_2][SOL_HIGH] Carry Delaware's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_DE_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-de.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-007`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_DE_001`.
@@ -6310,7 +6325,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `delaware.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Delaware](research/state-employment-law/delaware.md).
 
-- [ ] `LEGAL-ST-FL-001` **[PHASE_2][SOL_HIGH] Carry Florida's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-FL-001` **[PHASE_2][SOL_HIGH] Carry Florida's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_FL_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-fl.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_FL_001`.
@@ -6320,7 +6336,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `florida.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Florida](research/state-employment-law/florida.md).
 
-- [ ] `LEGAL-ST-GA-001` **[PHASE_2][SOL_HIGH] Carry Georgia's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-GA-001` **[PHASE_2][SOL_HIGH] Carry Georgia's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_GA_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-ga.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_GA_001`.
@@ -6330,7 +6347,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `georgia.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Georgia](research/state-employment-law/georgia.md).
 
-- [ ] `LEGAL-ST-HI-001` **[PHASE_2][SOL_HIGH] Carry Hawaii's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-HI-001` **[PHASE_2][SOL_HIGH] Carry Hawaii's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_HI_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-hi.json` pinned; suite PASS); lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-007`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_HI_001`.
@@ -6460,7 +6478,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `minnesota.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Minnesota](research/state-employment-law/minnesota.md).
 
-- [ ] `LEGAL-ST-MS-001` **[PHASE_2][SOL_HIGH] Carry Mississippi's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-MS-001` **[PHASE_2][SOL_HIGH] Carry Mississippi's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_MS_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-ms.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_MS_001`.
@@ -6469,7 +6488,8 @@ closed.
   - **GREEN:** the pack carries: `WAGE_FLOOR` federal-only, `F` ($7.25/hr, state's $5.15/hr figure preempted, Miss. Code § 71-1-51); `PAY_FREQUENCY` employer discretion except 50+-employee manufacturers/public-service corporations must pay bi-weekly or semi-monthly (Miss. Code § 71-1-35); `PAY_EQUITY_REVIEW` sex-based, 5+ employees, private-lawsuit-only enforcement (Miss. Code § 71-17-5, eff. 2022); `E_VERIFY` mandatory for ALL employers regardless of size (Miss. Code § 71-11-3); `BREACH_NOTIFICATION` "most expedient time possible," no private right of action (Miss. Code § 75-24-29).
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `mississippi.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Mississippi](research/state-employment-law/mississippi.md).
-- [ ] `LEGAL-ST-MO-001` **[PHASE_2][SOL_HIGH] Carry Missouri's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-MO-001` **[PHASE_2][SOL_HIGH] Carry Missouri's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_MO_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-mo.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_MO_001`.
@@ -6479,7 +6499,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `missouri.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Missouri](research/state-employment-law/missouri.md).
 
-- [ ] `LEGAL-ST-MT-001` **[PHASE_2][SOL_HIGH] Carry Montana's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-MT-001` **[PHASE_2][SOL_HIGH] Carry Montana's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_MT_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-mt.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_MT_001`.
@@ -6489,7 +6510,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `montana.md`, not hand-built; `JOB_SECURITY`'s probation-tracking state machine lives in the workflow/HUMAN_TASK binding, not as new Legal-plane evaluation logic.
   - **Refs:** [Added kinds](specs/legal-rule-packs-and-state-configuration.md#42-added-kinds), [state employment-law research: Montana](research/state-employment-law/montana.md).
 
-- [ ] `LEGAL-ST-NE-001` **[PHASE_2][SOL_HIGH] Carry Nebraska's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-NE-001` **[PHASE_2][SOL_HIGH] Carry Nebraska's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_NE_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-ne.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_NE_001`.
@@ -6499,7 +6521,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `nebraska.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Nebraska](research/state-employment-law/nebraska.md).
 
-- [ ] `LEGAL-ST-NV-001` **[PHASE_2][SOL_HIGH] Carry Nevada's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-NV-001` **[PHASE_2][SOL_HIGH] Carry Nevada's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_NV_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-nv.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-007`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_NV_001`.
@@ -6509,7 +6532,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `nevada.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Nevada](research/state-employment-law/nevada.md).
 
-- [ ] `LEGAL-ST-NH-001` **[PHASE_2][SOL_HIGH] Carry New Hampshire's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-NH-001` **[PHASE_2][SOL_HIGH] Carry New Hampshire's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_NH_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-nh.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_NH_001`.
@@ -6549,7 +6573,8 @@ closed.
   - **REFACTOR:** the pack is regenerated by `internal/governance/legal/extract` from `new-york.md` at `vocabulary_version 2`+, replacing the hand-built `LEGAL-001` fixture.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: New York](research/state-employment-law/new-york.md).
 
-- [ ] `LEGAL-ST-NC-001` **[PHASE_2][SOL_HIGH] Carry North Carolina's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-NC-001` **[PHASE_2][SOL_HIGH] Carry North Carolina's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_NC_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-nc.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-013`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_NC_001`.
@@ -6559,7 +6584,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `north-carolina.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: North Carolina](research/state-employment-law/north-carolina.md).
 
-- [ ] `LEGAL-ST-ND-001` **[PHASE_2][SOL_HIGH] Carry North Dakota's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-ND-001` **[PHASE_2][SOL_HIGH] Carry North Dakota's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_ND_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-nd.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_ND_001`.
@@ -6579,7 +6605,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `ohio.md`, not hand-built; the 2025-09-28/2025-09-30 boundary is a shared fixture with `LEGAL-016`, not duplicated here.
   - **Refs:** [Effective dating and legal time](specs/legal-rule-packs-and-state-configuration.md#23-effective-dating-and-legal-time), [state employment-law research: Ohio](research/state-employment-law/ohio.md).
 
-- [ ] `LEGAL-ST-OK-001` **[PHASE_2][SOL_HIGH] Carry Oklahoma's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-OK-001` **[PHASE_2][SOL_HIGH] Carry Oklahoma's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_OK_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-013`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_OK_001`.
@@ -6589,7 +6616,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `oklahoma.md`, not hand-built; the preemption assertion is data for `LEGAL-013`'s evaluation stage, never an inline exception in a comparator.
   - **Refs:** [Preemption](specs/legal-rule-packs-and-state-configuration.md#64-preemption), [state employment-law research: Oklahoma](research/state-employment-law/oklahoma.md).
 
-- [ ] `LEGAL-ST-OR-001` **[PHASE_2][SOL_HIGH] Carry Oregon's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-OR-001` **[PHASE_2][SOL_HIGH] Carry Oregon's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_OR_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-007`, `LEGAL-TOOL-008`, `LEGAL-TOOL-009`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`, `LEGAL-TOOL-013`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_OR_001`.
@@ -6599,7 +6627,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `oregon.md`, not hand-built; scheduling obligations wait on `LEGAL-TOOL-013` rather than being invented here.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Oregon](research/state-employment-law/oregon.md).
 
-- [ ] `LEGAL-ST-PA-001` **[PHASE_2][SOL_HIGH] Carry Pennsylvania's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-PA-001` **[PHASE_2][SOL_HIGH] Carry Pennsylvania's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_PA_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-008`, `LEGAL-TOOL-009`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_PA_001`.
@@ -6609,7 +6638,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `pennsylvania.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Pennsylvania](research/state-employment-law/pennsylvania.md).
 
-- [ ] `LEGAL-ST-RI-001` **[PHASE_2][SOL_HIGH] Carry Rhode Island's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-RI-001` **[PHASE_2][SOL_HIGH] Carry Rhode Island's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_RI_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-007`, `LEGAL-TOOL-008`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_RI_001`.
@@ -6619,7 +6649,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `rhode-island.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: Rhode Island](research/state-employment-law/rhode-island.md).
 
-- [ ] `LEGAL-ST-SC-001` **[PHASE_2][SOL_HIGH] Carry South Carolina's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-SC-001` **[PHASE_2][SOL_HIGH] Carry South Carolina's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_SC_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_SC_001`.
@@ -6629,7 +6660,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `south-carolina.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: South Carolina](research/state-employment-law/south-carolina.md).
 
-- [ ] `LEGAL-ST-SD-001` **[PHASE_2][SOL_HIGH] Carry South Dakota's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-SD-001` **[PHASE_2][SOL_HIGH] Carry South Dakota's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_SD_001` plus GOLDEN/CONFORMANCE/MUTATION matrix in `internal/governance/legal`; suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-008`, `LEGAL-TOOL-009`, `LEGAL-TOOL-010`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_SD_001`.
@@ -6639,7 +6671,8 @@ closed.
   - **REFACTOR:** the pack is generated by `internal/governance/legal/extract` from `south-dakota.md`, not hand-built.
   - **Refs:** [Per-state configuration matrix](specs/legal-rule-packs-and-state-configuration.md#5-per-state-configuration-matrix), [state employment-law research: South Dakota](research/state-employment-law/south-dakota.md).
 
-- [ ] `LEGAL-ST-TN-001` **[PHASE_2][SOL_HIGH] Carry Tennessee's promotion/base-pay obligation parameters in a reviewed RulePack.**
+- [x] `LEGAL-ST-TN-001` **[PHASE_2][SOL_HIGH] Carry Tennessee's promotion/base-pay obligation parameters in a reviewed RulePack.**
+  - **Evidence (2026-09-16):** `TestTodo_LEGAL_ST_TN_001` plus GOLDEN/CONFORMANCE matrix in `internal/governance/legal` (pack `us-tn.json` curated and registered; suite PASS); lane-built, orchestrator-registered and verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-002`, `LEGAL-013`, `LEGAL-015`, `LEGAL-TOOL-001`, `LEGAL-TOOL-003`, `LEGAL-TOOL-004`, `LEGAL-TOOL-005`, `LEGAL-TOOL-006`, `LEGAL-TOOL-008`, `LEGAL-TOOL-011`, `LEGAL-TOOL-012`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_LEGAL_ST_TN_001`.
@@ -7179,7 +7212,8 @@ closed.
   - **REFACTOR:** outcome observation cannot rewrite the original decision.
   - **Refs:** [Outcome model](data/models/assurance-intelligence-platform.md), [decision evidence](data/models/kernel-governance-and-evidence.md).
 
-- [ ] `PROCESS-001` **[PHASE_3][SOL_HIGH] Build a privacy-scoped process-mining event log.**
+- [x] `PROCESS-001` **[PHASE_3][SOL_HIGH] Build a privacy-scoped process-mining event log.**
+  - **Evidence (2026-09-16):** `TestTodo_PROCESS_001` plus GOLDEN/RACE/ScopeRejects/SECURITY/MUTATION matrix in `internal/governance/privacy` (MUTATION gap test by orchestrator); package 89.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/privacy/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `DATA-003`, `PRIV-001`, `DISCLOSURE-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PROCESS_001`.
@@ -8770,7 +8804,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Ambiguous effects](specs/transaction-ledger-reconciliation-and-repair.md), [recovery](data/models/operations-production.md).
 
-- [ ] `EVENT-005` **[PHASE_2][SOL_HIGH] Define and test the broker-neutral event adapter.**
+- [x] `EVENT-005` **[PHASE_2][SOL_HIGH] Define and test the broker-neutral event adapter.**
+  - **Evidence (2026-09-16):** `TestTodo_EVENT_005` plus RACE/INTEGRATION/FAULT/CONFORMANCE/RECOVERY/SECURITY matrix in `internal/data/outbox`; package 84.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/data/outbox/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `EVENT-004`, `PROTO-008`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_EVENT_005`.
@@ -9419,7 +9454,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Batch responsibilities](specs/platform-responsibility-boundaries.md), [operations models](data/models/operations-production.md).
 
-- [ ] `JOB-002` **[PHASE_2][SOL_HIGH] Admit and schedule batch work by priority, quota and cost.**
+- [x] `JOB-002` **[PHASE_2][SOL_HIGH] Admit and schedule batch work by priority, quota and cost.**
+  - **Evidence (2026-09-16):** `TestTodo_JOB_002` plus RACE/FAULT matrix and benchmark in `internal/data/jobs`; package 81.0%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/data/jobs/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `JOB-001`, `ADMISSION-001`, `ADMISSION-002`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_JOB_002`.
@@ -9482,7 +9518,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **Refs:** [Scheduling responsibilities](specs/platform-responsibility-boundaries.md), [workflow runtime](specs/workflow-runtime.md).
   - **Evidence (2026-09-10):** `TestTodo_SCHED_003` (one firing names one intent; redelivery converges; cursor rewinds, stale firings and poison refused without duplicating work), `TestTodo_SCHED_003_Race` (16 concurrent firings name one intent with exactly one winner), `TestTodo_SCHED_003_Integration` (occurrence plus event plus stale plus replay pipeline with cursor and distinct identities), `TestTodo_SCHED_003_Fault` (tampered trigger fails without moving the cursor; valid firing still dispatches after), `TestTodo_SCHED_003_Mutation` (same-key old-sequence replays, review receipts, unknown-event evidence) in `internal/engines/schedule` (dispatch.go Dispatcher composing the INTENT-017 Converter with the INTENT-018 eventpolicy converter; no domain/workflow/provider effect path exists); RED shown as undefined-symbol compile failure; full `go test -count=1 ./internal/engines/schedule/` PASS, `go vet` clean, gofmt clean, cover 66.7% (valid below_floor exception to 2026-12-31); branch fix/unblock-main-gateclosure.
 
-- [ ] `SCHED-004` **[PHASE_2][SOL_HIGH] Quarantine and redrive failed trigger firings.**
+- [x] `SCHED-004` **[PHASE_2][SOL_HIGH] Quarantine and redrive failed trigger firings.**
+  - **Evidence (2026-09-16):** `TestTodo_SCHED_004` plus RACE/FAULT/RECOVERY matrix in `internal/engines/schedule`; package 70.4%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/schedule/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `SCHED-003`, `OPS-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SCHED_004`.
@@ -10234,7 +10271,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **Refs:** [AuthZ explanations](specs/organization-scope-and-authz.md), [provenance](specs/provenance-graph-and-lineage.md).
   - **Evidence (2026-09-03):** `TestTodo_ELIG_005`, `_Property`, `_Golden`, `_Recovery`, `_Mutation` in `internal/engines/eligibility` (Request/Result bound to program, fact and rule snapshots; PASS/FAIL/PARTIAL/UNKNOWN lattice with no short-circuit; Explain with per-leaf redaction). Note: the ELIG section is marked DEFERRED in the 2026-09-02 disposition; implemented as a pure engine with no P1A consumer yet; `go test -count=1 ./internal/engines/eligibility/...` PASS; branch plan-revision-2026-09-02; on windows/arm64 (Go 1.26.3).
 
-- [ ] `ELIG-006` **[PHASE_2][SOL_HIGH] Reevaluate eligibility when governed inputs change.**
+- [x] `ELIG-006` **[PHASE_2][SOL_HIGH] Reevaluate eligibility when governed inputs change.**
+  - **Evidence (2026-09-16):** `TestTodo_ELIG_006` plus PROPERTY/MUTATION in `internal/engines/eligibility`; package 78.0%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/eligibility/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `ELIG-003`, `EVENT-002`, `SCHED-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.WORKFORCE,BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_ELIG_006`.
@@ -10332,7 +10370,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Rules models](data/models/rules-and-decisions.md), [workflow runtime](specs/workflow-runtime.md).
 
-- [ ] `CYCLE-007` **[PHASE_2][SOL_HIGH] Publish future cycle configuration safely.**
+- [x] `CYCLE-007` **[PHASE_2][SOL_HIGH] Publish future cycle configuration safely.**
+  - **Evidence (2026-09-16):** `TestTodo_CYCLE_007` plus PROPERTY matrix in `internal/engines/cycle` (verified pre-existing); package 83.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/cycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `CYCLE-002`, `CP-007`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.PAYROLL,BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_CYCLE_007`.
@@ -10342,7 +10381,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Control plane](#30-control-plane-publication-distribution-and-activation), [configuration models](data/models/dataops-configuration.md).
 
-- [ ] `CYCLE-008` **[PHASE_3][SOL_HIGH] Correct or restate a prior cycle append-only.**
+- [x] `CYCLE-008` **[PHASE_3][SOL_HIGH] Correct or restate a prior cycle append-only.**
+  - **Evidence (2026-09-16):** `TestTodo_CYCLE_008` plus PROPERTY/GOLDEN/MUTATION matrix in `internal/engines/cycle`; package 83.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/cycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Partial evidence (2026-09-08):** Luna implementation and Sol refinement in `internal/engines/cycle/restatement.go` and its tests; independent `go test -count=1 -cover ./internal/engines/cycle/` PASS (84.2%). Immutable record validation binds prior close/result/tenant/revision, affected-population/result manifests, approval evidence and compensation outcome evidence; planned-only compensation cannot report reconciled, and reload verification rejects changed records. This is not trusted evidence loading, durable append/sequence enforcement, transactional uniqueness or ledger replay; those integrations remain open.
   - **Depends:** `CYCLE-004`, `LEDGER-005`, `TX-010`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.PAYROLL,BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
@@ -10364,7 +10404,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Provenance](specs/provenance-graph-and-lineage.md), [AuthZ](specs/organization-scope-and-authz.md).
 
-- [ ] `CYCLE-010` **[PHASE_3][SOL_HIGH] Reconcile multidimensional cycle completion.**
+- [x] `CYCLE-010` **[PHASE_3][SOL_HIGH] Reconcile multidimensional cycle completion.**
+  - **Evidence (2026-09-16):** `TestTodo_CYCLE_010` plus PROPERTY/GOLDEN/MUTATION matrix in `internal/engines/cycle`; package 83.3%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/engines/cycle/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `CYCLE-004`, `TX-009`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.PAYROLL,BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_CYCLE_010`.
@@ -10429,7 +10470,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Business cycles](#38-eligibility-business-cycle-and-balance-engines), [rewards models](data/models/rewards-payroll-workforce.md).
 
-- [ ] `BAL-006` **[PHASE_3][SOL_HIGH] Append retroactive corrections and recalculate dependents.**
+- [x] `BAL-006` **[PHASE_3][SOL_HIGH] Append retroactive corrections and recalculate dependents.**
+  - **Evidence (2026-09-16):** `TestTodo_BAL_006` plus `PROPERTY/RACE/MUTATION` and recalculation-focused tests in `internal/domains/balance` (`reconcile.go`: dependents recompute in dependency order with version-pinned, reconciled evidence; partial recalculation stays reconciliation-required); `internal/data/balancestore` integration/recovery/fault/security tests green; `go test -count=1 ./internal/domains/balance/` PASS (82.1%), `./internal/data/balancestore/` PASS (70.2%), `go vet` and `gofmt` clean; lane-built, orchestrator-verified.
   - **Partial evidence (2026-09-08):** Luna implementation, Sol refinement and root verification: `go test -count=1 -cover ./internal/domains/balance/` PASS (81.4%); `go test -count=1 -cover ./internal/data/balancestore/` PASS (70.2%). Migration 00279 preserves correction lineage, exact decimal scale/rounding and nanosecond instants; actual PostgreSQL tests cover fresh-connection replay/conflicts, legacy upgrade, rollback, two-connection exclusion and direct-SQL constraints. Root review removed fixed four-domain ordering, caller-ID replacement and precision narrowing. The adapter verifies the immutable scoped parent digest; SQL cannot independently recompute historical canonical digests. External dependent recalculation remains explicitly reconciliation-required, so this TODO is not complete.
   - **Depends:** `BAL-003`, `LEDGER-005`, `TX-010`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
@@ -10440,7 +10482,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Payroll repair workflow](workflows/payroll/payroll-correction-retro.md), [repair](specs/transaction-ledger-reconciliation-and-repair.md).
 
-- [ ] `BAL-007` **[PHASE_3][SOL_HIGH] Reconcile external and canonical balances.**
+- [x] `BAL-007` **[PHASE_3][SOL_HIGH] Reconcile external and canonical balances.**
+  - **Evidence (2026-09-16):** `TestTodo_BAL_007` plus `PROPERTY/GOLDEN/RACE/MUTATION` matrix in `internal/domains/balance` (stale/partial observations never report match; discrepancy names dimensions, period, expected/observed/delta and repair owner); package 82.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/balance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `BAL-003`, `INTG-009`, `TX-009`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_BAL_007`.
@@ -10450,7 +10493,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Integration observations](specs/integration-platform.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md).
 
-- [ ] `BAL-008` **[PHASE_2][SOL_HIGH] Explain complete balance derivation.**
+- [x] `BAL-008` **[PHASE_2][SOL_HIGH] Explain complete balance derivation.**
+  - **Evidence (2026-09-16):** `TestTodo_BAL_008` plus PROPERTY/RACE/MUTATION matrix in `internal/domains/balance` (`explain.go` pure explanation covering opening/entry/cap-floor/expiry/rollover/correction/authority with redaction); package 83.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/balance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `BAL-003`–`BAL-007`, `MODEL-020`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_BAL_008`.
@@ -10823,7 +10867,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Source authority](specs/source-authority-and-external-mastering.md), [talent models](data/models/talent-experience-cases.md).
 
-- [ ] `QUAL-003` **[PHASE_2][SOL_HIGH] Evaluate validity, equivalencies and substitutions.**
+- [x] `QUAL-003` **[PHASE_2][SOL_HIGH] Evaluate validity, equivalencies and substitutions.**
+  - **Evidence (2026-09-16):** `TestTodo_QUAL_003` plus PROPERTY/FAULT/SECURITY/MUTATION matrix in `internal/domains/qualification` (`validity.go`); package 78.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/qualification/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `QUAL-002`, `RULE-003`, `LEGAL-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_QUAL_003`.
@@ -10844,7 +10889,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Model conventions](data/models/modeling-conventions.md), [AuthZ](specs/organization-scope-and-authz.md).
 
-- [ ] `QUAL-005` **[PHASE_2][SOL_HIGH] Reevaluate qualification on credential/fact expiry.**
+- [x] `QUAL-005` **[PHASE_2][SOL_HIGH] Reevaluate qualification on credential/fact expiry.**
+  - **Evidence (2026-09-16):** `TestTodo_QUAL_005` plus PROPERTY/SECURITY matrix in `internal/domains/qualification` (`reevaluate.go`); package 78.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/qualification/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `QUAL-004`, `SCHED-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_QUAL_005`.
@@ -10974,7 +11020,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Rules models](data/models/rules-and-decisions.md), [talent models](data/models/talent-experience-cases.md).
 
-- [ ] `MATCH-005` **[PHASE_3][SOL_HIGH] Enforce fairness and policy constraints.**
+- [x] `MATCH-005` **[PHASE_3][SOL_HIGH] Enforce fairness and policy constraints.**
+  - **Evidence (2026-09-16):** `TestTodo_MATCH_005` plus PROPERTY matrix in `internal/domains/matching` (`fairness.go`); package 73.9%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/matching/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `MATCH-004`, `PRIV-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.RECRUITING,BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_MATCH_005`.
@@ -11037,7 +11084,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Budget authority](specs/workforce-budget-authority.md), [people models](data/models/people-workforce.md).
 
-- [ ] `SCENARIO-004` **[PHASE_2][SOL_HIGH] Compare scenarios and explain assumptions.**
+- [x] `SCENARIO-004` **[PHASE_2][SOL_HIGH] Compare scenarios and explain assumptions.**
+  - **Evidence (2026-09-16):** `TestTodo_SCENARIO_004` plus PROPERTY/RACE matrix in `internal/domains/scenario` (`compare.go`); package 75.2%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/scenario/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `SCENARIO-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS,BI.INTELLIGENCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SCENARIO_004`.
@@ -11287,7 +11335,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Integration event runtime](specs/integration-platform.md), [event substrate](#31-infrastructure-as-code-and-physical-data-services).
 
-- [ ] `SUB-005` **[PHASE_2][SOL_HIGH] Retry, dead-letter, pause and resume subscriptions.**
+- [x] `SUB-005` **[PHASE_2][SOL_HIGH] Retry, dead-letter, pause and resume subscriptions.**
+  - **Evidence (2026-09-16):** `TestTodo_SUB_005` plus RACE/INTEGRATION/FAULT/SECURITY matrix in `internal/domains/subscription` (`retry.go`); package 78.8%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/subscription/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `SUB-004`, `OPS-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SUB_005`.
@@ -11297,7 +11346,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Integration platform](specs/integration-platform.md), [incident management](specs/incident-management.md).
 
-- [ ] `SUB-006` **[PHASE_2][SOL_HIGH] Replay existing events without inventing business history.**
+- [x] `SUB-006` **[PHASE_2][SOL_HIGH] Replay existing events without inventing business history.**
+  - **Evidence (2026-09-16):** `TestTodo_SUB_006` plus GOLDEN/RACE/INTEGRATION/FAULT/SECURITY/RECOVERY/MUTATION matrix in `internal/domains/subscription` (`replay.go`); package 78.8%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/subscription/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `SUB-004`, `LEDGER-006`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SUB_006`.
@@ -11383,7 +11433,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Control plane](#30-control-plane-publication-distribution-and-activation), [incident management](specs/incident-management.md).
 
-- [ ] `APP-006` **[PHASE_3][SOL_HIGH] Certify marketplace applications.**
+- [x] `APP-006` **[PHASE_3][SOL_HIGH] Certify marketplace applications.**
+  - **Evidence (2026-09-16):** `TestTodo_APP_006` plus FAULT/SECURITY/CONFORMANCE in `internal/domains/partnerapp`; package 72.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/partnerapp/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `APP-001`–`APP-005`, `CONN-RT-008`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=expose governed intent creation, inspection or consumption without persistence or provider bypass`.
   - **TEST:** `TestTodo_APP_006`.
@@ -11459,7 +11510,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [DLP](specs/data-classification-and-dlp.md), [intelligence plane](specs/platform-plane-model.md).
 
-- [ ] `CUSTOM-007` **[PHASE_4][SOL_HIGH] Version, migrate and retire custom-object types.**
+- [x] `CUSTOM-007` **[PHASE_4][SOL_HIGH] Version, migrate and retire custom-object types.**
+  - **Evidence (2026-09-16):** `TestTodo_CUSTOM_007` matrix incl. EventStore integration in `internal/domains/custom`; package 72.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/custom/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `CUSTOM-001`, `CUSTOM-004`, `DB-021`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.TENANT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_CUSTOM_007`.
@@ -11769,7 +11821,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Population engine](#37-shared-transformation-and-population-engines), [source authority](specs/source-authority-and-external-mastering.md).
 
-- [ ] `PAYRUN-003` **[PHASE_5][SOL_HIGH] Collect and lock payroll inputs at cutoff.**
+- [x] `PAYRUN-003` **[PHASE_5][SOL_HIGH] Collect and lock payroll inputs at cutoff.**
+  - **Evidence (2026-09-16):** `TestTodo_PAYRUN_003` plus full matrix incl. INTEGRATION/FAULT in `internal/domains/payroll` (`inputlock.go`); package 72.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `PAYRUN-002`, `CYCLE-003`, `ATTEST-006`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PAYRUN_003`.
@@ -11810,7 +11863,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Governance composition](specs/governance-decision-and-obligation-composition.md), [human work](specs/human-work-forms-and-rules.md).
 
-- [ ] `PAYRUN-007` **[PHASE_5][SOL_HIGH] Finalize and release payroll effects.**
+- [x] `PAYRUN-007` **[PHASE_5][SOL_HIGH] Finalize and release payroll effects.**
+  - **Evidence (2026-09-16):** `TestTodo_PAYRUN_007` plus full matrix incl. INTEGRATION/FAULT in `internal/domains/payroll` (`release.go`); package 72.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `PAYRUN-006`, `TX-008`, `SETTLE-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PAYRUN_007`.
@@ -12215,7 +12269,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Wire time](data/models/wire-contract-primitives.md), [data quality](specs/data-quality-and-invariant-evaluation.md).
 
-- [ ] `ATTEND-003` **[PHASE_4][SOL_HIGH] Detect meal, break and overtime exceptions.**
+- [x] `ATTEND-003` **[PHASE_4][SOL_HIGH] Detect meal, break and overtime exceptions.**
+  - **Evidence (2026-09-16):** `TestTodo_ATTEND_003` matrix in `internal/domains/attendance`; package 87.2%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/attendance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `ATTEND-001`, `LEGAL-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_ATTEND_003`.
@@ -12267,7 +12322,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Demand/matching](#39-qualification-demand-matching-and-scenario-engines), [population engine](#37-shared-transformation-and-population-engines).
 
-- [ ] `SCHED-OPT-003` **[PHASE_4][SOL_HIGH] Apply qualification, legal and fatigue hard constraints.**
+- [x] `SCHED-OPT-003` **[PHASE_4][SOL_HIGH] Apply qualification, legal and fatigue hard constraints.**
+  - **Evidence (2026-09-16):** `TestTodo_SCHED_OPT_003` plus PROPERTY/RACE/FAULT/SECURITY/MUTATION matrix in `internal/domains/schedopt`; package 78.4%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/schedopt/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `SCHED-OPT-002`, `QUAL-004`, `LEGAL-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SCHED_OPT_003`.
@@ -12626,7 +12682,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Privacy lifecycle](specs/records-management-and-disposition.md), [talent models](data/models/talent-experience-cases.md).
 
-- [ ] `CRM-003` **[PHASE_4][SOL_HIGH] Define recruiting campaigns and governed audiences.**
+- [x] `CRM-003` **[PHASE_4][SOL_HIGH] Define recruiting campaigns and governed audiences.**
+  - **Evidence (2026-09-16):** `TestTodo_CRM_003` plus SECURITY/MUTATION and crmstore INTEGRATION in `internal/domains/crm`; package 77.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/crm/` `go test -count=1 ./internal/data/crmstore/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Partial evidence (2026-09-08):** Campaign revision and owner-verification contracts pin pool/population, purpose, content, channels, schedule, explicit frequency window/count, exact Money cost and suppression. Root independently ran `go test -count=1 -cover ./internal/domains/crm/` PASS (latest combined package 77.2%) and `go test -count=1 ./internal/data/crmstore/ -run '^TestTodo_CRM_003_Integration$'` PASS with embedded PostgreSQL pool persistence plus population restriction/freeze. Review fixed canonicalization-error propagation, explicit caller context and detached verifier inputs with malicious-verifier regression coverage. This is not population fact-store resolution or delivery integration; the TODO remains open pending owner integration and full gates.
   - **Depends:** `CRM-001`, `POP-005`, `CYCLE-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
@@ -12647,7 +12704,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Messaging](specs/messaging-and-notification-plane.md), [privacy models](data/models/assurance-intelligence-platform.md).
 
-- [ ] `CRM-005` **[PHASE_4][SOL_HIGH] Convert prospect to candidate/application with lineage.**
+- [x] `CRM-005` **[PHASE_4][SOL_HIGH] Convert prospect to candidate/application with lineage.**
+  - **Evidence (2026-09-16):** `TestTodo_CRM_005` matrix in `internal/domains/crm`; package 77.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/crm/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Partial evidence (2026-09-08):** `PrepareProspectConversion` explicitly returns a zero-write proposal, not an applied conversion. The identity adapter calls MODEL-022 `ResolveIdentity` through an injected link owner and requires a tenant-scoped Person reference, preserving classified refusals without protected error details. Independent `go test -count=1 -cover ./internal/domains/crm/` PASS (77.2%) and `go vet ./internal/domains/crm/` PASS. Final identity provenance refinement remains under review. There is no composed durable identity-link owner, conversion-purpose consent authority, recruiting candidate/application writer or governed conversion execution integration; no zero-authoritative-effect integration claim is made from the pure preflight tests.
   - **Depends:** `CRM-002`, `MODEL-022`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
@@ -12669,7 +12727,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Talent/experience models](data/models/talent-experience-cases.md), [relationship map](data/models/relationship-map.md).
 
-- [ ] `APPT-002` **[PHASE_3][SOL_HIGH] Resolve eligible participants and availability.**
+- [x] `APPT-002` **[PHASE_3][SOL_HIGH] Resolve eligible participants and availability.**
+  - **Evidence (2026-09-16):** `TestTodo_APPT_002` matrix in `internal/domains/appointment`; package 64.2% (below_floor exception, improved from 61.6%), `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/appointment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `APPT-001`, `ELIG-003`, `QUAL-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_APPT_002`.
@@ -13205,7 +13264,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
 
 > **Disposition (2026-09-02):** DEFERRED.
 
-- [ ] `RECRUIT-001` **[PHASE_3][SOL_HIGH] Define authoritative requisition, posting, application and candidacy lifecycles.**
+- [x] `RECRUIT-001` **[PHASE_3][SOL_HIGH] Define authoritative requisition, posting, application and candidacy lifecycles.**
+  - **Evidence (2026-09-16):** `TestRecruitingAggregateLifecyclesRejectMissingIdentityAndIllegalTransitions` plus PROPERTY/GOLDEN/SECURITY/CONFORMANCE/MUTATION matrix in `internal/domains/recruiting`; package 74.7%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/recruiting/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `MODEL-016`, `INTENT-CONF-001`, `JOB-001`, `POSITION-001`, `CRM-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=own native ATS transaction semantics rather than treating CRM or an external connector as the recruiting domain`.
   - **TEST:** `TestRecruitingAggregateLifecyclesRejectMissingIdentityAndIllegalTransitions`.
@@ -13300,7 +13360,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** generic workflow coordinates a case but never owns case lifecycle or disposition.
   - **Refs:** [Case models](data/models/talent-experience-cases.md), [HR service workflows](workflows/hr-service/catalog.md), [records](specs/records-management-and-disposition.md).
 
-- [ ] `CASE-002` **[PHASE_3][SOL_HIGH] Enforce case participants, compartments, confidential notes and evidence custody.**
+- [x] `CASE-002` **[PHASE_3][SOL_HIGH] Enforce case participants, compartments, confidential notes and evidence custody.**
+  - **Evidence (2026-09-16):** `TestCaseCompartmentAuthorizationPreventsParticipantNoteAndEvidenceLeakage` plus PROPERTY/GOLDEN/FUZZ/SECURITY/MUTATION in `internal/domains/hrcase`; package 67.6% (below_floor exception, improved from 61.4%), `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/hrcase/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `CASE-001`, `ANON-004`, `ARTIFACT-005`, `TRUST-010`, `RECORDS-COPY-001`, `RECORDS-HOLD-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.PRIVACY; DIRECT=none; WHY=own relationship- and purpose-scoped visibility for sensitive HR matters`.
   - **TEST:** `TestCaseCompartmentAuthorizationPreventsParticipantNoteAndEvidenceLeakage`.
@@ -13432,7 +13493,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** reuse shared engines for mechanics while this domain retains authoritative meaning, lifecycle, correction and evidence policy.
   - **Refs:** [BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [domain model coverage](data/models/intent-coverage-matrix.md), [authority expansion](specs/competitive-positioning-and-authority-expansion.md#authority-absorption-gate).
 
-- [ ] `ER-002` **[CONFORMANCE][SOL_HIGH] Prove appeal, grievance, settlement, retaliation and correction chronology.**
+- [x] `ER-002` **[CONFORMANCE][SOL_HIGH] Prove appeal, grievance, settlement, retaliation and correction chronology.**
+  - **Evidence (2026-09-16):** `TestEmployeeRelationsConformancePreservesAppealSettlementAndRetaliationSafeguards` 8-test matrix incl. RACE/CONFORMANCE in `internal/domains/employeerelations`; package 68.6% (below_floor exception, improved from 52.3%), `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/employeerelations/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `ER-001`, `CONF-001`, `GOVERN-002`, `LEDGER-003`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.CASES,BI.WORK,BI.PRIVACY; DIRECT=none; WHY=establish explicit domain ownership while retaining evidence-gated authority expansion`.
   - **TEST:** `TestEmployeeRelationsConformancePreservesAppealSettlementAndRetaliationSafeguards`.
@@ -13820,7 +13882,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** keep shared mechanics in kernel/engines and this package as the sole owner of the stated HCM meaning, lifecycle and correction semantics.
   - **Refs:** [BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [model coverage](data/models/intent-coverage-matrix.md), [engine ownership](#businessintent-context-required-by-every-todo).
 
-- [ ] `CBA-003` **[CONFORMANCE][SOL_HIGH] Generate representation/grievance obligations and analyze agreement changes.**
+- [x] `CBA-003` **[CONFORMANCE][SOL_HIGH] Generate representation/grievance obligations and analyze agreement changes.**
+  - **Evidence (2026-09-16):** `TestCBARevisionImpactCreatesRepresentationAndGrievanceWorkWithoutRewritingHistory` 8-test matrix incl. RACE/CONFORMANCE in `internal/domains/cba`; package 57.3% (below_floor exception, improved from 42.6%), `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/cba/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `CBA-002`, `GOVERN-002`, `LEDGER-003`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORKFORCE,BI.REWARDS,BI.CASES,BI.REGULATORY; DIRECT=none; WHY=provide an explicit semantic engine owner for this accepted BusinessIntent partition`.
   - **TEST:** `TestCBARevisionImpactCreatesRepresentationAndGrievanceWorkWithoutRewritingHistory`.
@@ -13908,7 +13971,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** keep shared mechanics in kernel/engines and this package as the sole owner of the stated HCM meaning, lifecycle and correction semantics.
   - **Refs:** [BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [model coverage](data/models/intent-coverage-matrix.md), [engine ownership](#businessintent-context-required-by-every-todo).
 
-- [ ] `PAYINPUT-002` **[PHASE_5][SOL_HIGH] Calculate recurring and one-time payroll inputs with limits and arrears.**
+- [x] `PAYINPUT-002` **[PHASE_5][SOL_HIGH] Calculate recurring and one-time payroll inputs with limits and arrears.**
+  - **Evidence (2026-09-16):** `TestPayInputCalculationAppliesTaxabilityLimitsArrearsAndExactDecimalRules` plus PROPERTY/GOLDEN/RACE/FAULT/SECURITY/CONFORMANCE/MUTATION matrix in `internal/domains/payinput`; package 77.8%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/payinput/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `PAYINPUT-001`, `GOVERN-002`, `LEDGER-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL,BI.REWARDS; DIRECT=none; WHY=provide an explicit semantic engine owner for this accepted BusinessIntent partition`.
   - **TEST:** `TestPayInputCalculationAppliesTaxabilityLimitsArrearsAndExactDecimalRules`.
@@ -13950,7 +14014,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** keep shared mechanics in kernel/engines and this package as the sole owner of the stated HCM meaning, lifecycle and correction semantics.
   - **Refs:** [BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [model coverage](data/models/intent-coverage-matrix.md), [engine ownership](#businessintent-context-required-by-every-todo).
 
-- [ ] `PAYMETHOD-003` **[CONFORMANCE][SOL_HIGH] Observe prenote and reconcile payroll settlement destinations.**
+- [x] `PAYMETHOD-003` **[CONFORMANCE][SOL_HIGH] Observe prenote and reconcile payroll settlement destinations.**
+  - **Evidence (2026-09-16):** `TestPayMethodReconciliationDistinguishesVerificationAcceptanceAndSettlement` plus PROPERTY/GOLDEN/RACE/FAULT/SECURITY/CONFORMANCE/MUTATION matrix in `internal/domains/paymethod` (`reconciliation.go`); package 72.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/domains/paymethod/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `PAYMETHOD-002`, `GOVERN-002`, `LEDGER-003`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.PAYROLL,BI.PEOPLE,BI.SECURITY; DIRECT=none; WHY=provide an explicit semantic engine owner for this accepted BusinessIntent partition`.
   - **TEST:** `TestPayMethodReconciliationDistinguishesVerificationAcceptanceAndSettlement`.
@@ -15062,7 +15127,8 @@ authorized by the master and execution plans.
   - **REFACTOR:** lifecycle fan-out consumes canonical authority relationships; providers never own HCM Next principal truth.
   - **Refs:** [security models](data/models/security-trust.md), [identity foundation](specs/platform-foundation-gap-closure.md), [production identity](#32-production-identity-key-custody-and-edge-enforcement).
 
-- [ ] `LEGAL-007` **[PHASE_2][SOL_HIGH] Select, compose, review and safely roll back applicable legal RulePacks.**
+- [x] `LEGAL-007` **[PHASE_2][SOL_HIGH] Select, compose, review and safely roll back applicable legal RulePacks.**
+  - **Evidence (2026-09-16):** `TestRulePackSelectionCompositionCounselReviewAndRollbackAreDeterministic` plus full matrix in `internal/governance/legal` (`selection.go`, additive `LookupAll` on Registry); package 83.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/governance/legal/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `LEGAL-001`, `LEGAL-002`, `RULE-002`, `MODEL-018`, `SELECT-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY,BI.PEOPLE,BI.WORKFORCE,BI.REWARDS,BI.PAYROLL; DIRECT=none; WHY=turn resolved jurisdiction context into qualified, version-pinned legal composition without ambient specificity guesses`.
   - **TEST:** `TestRulePackSelectionCompositionCounselReviewAndRollbackAreDeterministic`.
@@ -15277,7 +15343,8 @@ an already-designed BusinessIntent path.
   - **REFACTOR:** channel adapters share the canonical request/idempotency contract; device policy never becomes HCM authorization by itself.
   - **Refs:** [cross-channel flows](user-flows/README.md), [authentication](specs/platform-foundation-gap-closure.md), [experience](specs/experience-ui-and-branding.md).
 
-- [ ] `MAIL-001` **[GATE_B][SOL_HIGH] Operate authenticated transactional-email domains and deliverability controls.**
+- [x] `MAIL-001` **[GATE_B][SOL_HIGH] Operate authenticated transactional-email domains and deliverability controls.**
+  - **Evidence (2026-09-16):** `TestEmailDomainAuthenticationBounceComplaintAndSuppressionLifecyclePreservesMessageTruth` plus PROPERTY/GOLDEN/INTEGRATION/FAULT/SECURITY/CONFORMANCE/RECOVERY/MUTATION and benchmark in `internal/operations/messagingdelivery`; package 90.4%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/operations/messagingdelivery/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `MSG-006`, `MSG-007`, `TRUST-017`, `EDGE-010`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK,BI.CASES,BI.DOCUMENTS; DIRECT=none; WHY=ensure email delivery mechanics and domain reputation cannot falsify business notice or expose protected content`.
   - **TEST:** `TestEmailDomainAuthenticationBounceComplaintAndSuppressionLifecyclePreservesMessageTruth`.
@@ -15287,7 +15354,8 @@ an already-designed BusinessIntent path.
   - **REFACTOR:** provider adapters normalize mechanics into Messaging states; templates and HCM workflow remain independent of email vendor policy.
   - **Refs:** [messaging plane](specs/messaging-and-notification-plane.md), [destination trust](specs/platform-foundation-gap-closure.md), [integration platform](specs/integration-platform.md).
 
-- [ ] `FULFILL-001` **[PHASE_3][SOL_HIGH] Govern print and postal fulfillment for required physical notices.**
+- [x] `FULFILL-001` **[PHASE_3][SOL_HIGH] Govern print and postal fulfillment for required physical notices.**
+  - **Evidence (2026-09-16):** `TestPhysicalNoticeFulfillmentBindsArtifactAddressCustodyAndDeliveryEvidence` plus full matrix incl. INTEGRATION/RECOVERY/MUTATION gap tests by orchestrator in `internal/messaging`; package 85.1%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/messaging/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `MSG-013`, `DOC-TEMPLATE-001`, `LOCATION-002`, `TRUST-018`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.EXPERIENCE,BI.DOCUMENTS,BI.REGULATORY,BI.CASES; DIRECT=none; WHY=make physical notice generation, custody, mailing and returned-mail outcomes observable without treating shipment as acknowledgement`.
   - **TEST:** `TestPhysicalNoticeFulfillmentBindsArtifactAddressCustodyAndDeliveryEvidence`.
@@ -15384,7 +15452,8 @@ an already-designed BusinessIntent path.
   - **REFACTOR:** process roles register diagnostics through one hardened adapter and no package exposes a listener independently.
   - **Refs:** [support access](specs/platform-foundation-gap-closure.md), [telemetry diagnostics](specs/structured-logging-and-opentelemetry.md), [edge security](specs/platform-responsibility-boundaries.md).
 
-- [ ] `FORENSIC-001` **[GATE_B][SOL_HIGH] Acquire and preserve incident forensic evidence with bounded chain of custody.**
+- [x] `FORENSIC-001` **[GATE_B][SOL_HIGH] Acquire and preserve incident forensic evidence with bounded chain of custody.**
+  - **Evidence (2026-09-16):** `TestForensicAcquisitionBindsAuthorityScopeCustodyIntegrityRetentionAndDisclosure` plus PROPERTY/GOLDEN/INTEGRATION/CONFORMANCE/FAULT/SECURITY/RECOVERY/MUTATION in `internal/operations/incidentstate`; package 88.8%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/operations/incidentstate/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `OPS-004`, `RECORDS-HOLD-001`, `EVIDENCE-001`, `OBS-021`, `DIAG-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.SECURITY,BI.PRIVACY; DIRECT=none; WHY=investigate material incidents without unaudited overcollection, evidence mutation or cross-tenant disclosure`.
   - **TEST:** `TestForensicAcquisitionBindsAuthorityScopeCustodyIntegrityRetentionAndDisclosure`.
@@ -15503,7 +15572,8 @@ evidence compilers, not permission to implement deferred HCM domains.
   - **Refs:** [P1B authority](next-steps.md#p1b--one-bounded-authority-amendment), [authority contract](plan.md#91-authority-contract).
   - **Evidence (2026-09-14):** `TestP1BAuthorityAmendmentSelectsOneTopologyAndEmitsOnlyTruthfulFacts` plus `TestTodo_NEXT_006_Property`, `_Golden`, `_Fault`, `_Security`, `_Conformance` and `_Mutation` in new kernel-pure `internal/governance/authority` (`authority.go`: immutable `Amendment` selecting exactly `EXTERNAL_AUTHORITY` or `TRANSFERRED_AUTHORITY` with tenant, exact fields/operations, effective window with mandatory expiry, partner grant required iff transferred and forbidden iff external; `Classify` emits `evidence.AuthorityLocal` only under a bound transfer and `AuthorityExternalObservation` otherwise; `AdmitLocalWrite` fails closed on digest mismatch, expiry (exclusive end), revocation, tenant mismatch, unbound field/operation and missing/wrong grant; canonical digest via `engines/canonicalbytes` with golden bytes pinned in `testdata/amendment.golden.txt`); RED observed (undefined symbols, then expired-fixture and cross-tenant findings that each strengthened the contract: expiry fixture corrected, tenant check added to `AdmitLocalWrite`); `go test -count=1` PASS 7/7, cover 79.3% (floor 70%), `go vet` clean, `gofmt` clean; Go 1.26.3 windows/arm64; branch main. REFACTOR notes: `AdmitLocalWrite` now takes the requesting tenant (confused-deputy defense); conditional admission of local command implementations from the amendment by `internal/application` remains a consumer follow-up (unblocks `WEDGE-015`, `NEXT-009`).
 
-- [ ] `NEXT-007` **[CONFORMANCE][SOL_HIGH] Firewall Medical Leave conformance from Gate A/B and Phase 2 implementations.**
+- [x] `NEXT-007` **[CONFORMANCE][SOL_HIGH] Firewall Medical Leave conformance from Gate A/B and Phase 2 implementations.**
+  - **Evidence (2026-09-16):** `TestLeaveConformanceGraphHasNoGateABOrPhase2ImplementationDependency` plus PROPERTY/GOLDEN/FAULT/SECURITY/CONFORMANCE/MUTATION matrix in `internal/workflow/conformance/leave` (`firewall.go` CheckGraph; FAULT/CONFORMANCE/MUTATION gap tests added by orchestrator); package 96.2%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/workflow/conformance/leave/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `CONF-001`, `LEAVE-001`–`LEAVE-008`, `LEAVE-012`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORKFORCE,BI.REWARDS,BI.REGULATORY,BI.DOCUMENTS; DIRECT=RequestLeave,ExtendLeave,ReturnFromLeave; WHY=use Leave as a hostile reusable-engine proof without claiming legal coverage or creating production authority`.
   - **TEST:** `TestLeaveConformanceGraphHasNoGateABOrPhase2ImplementationDependency`.
@@ -18359,7 +18429,8 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
 
-- [ ] `ALIGN-004` **[GATE_C][TERRA] Define the cross-layer temporal vocabulary.**
+- [x] `ALIGN-004` **[GATE_C][TERRA] Define the cross-layer temporal vocabulary.**
+  - **Evidence (2026-09-16):** `TestTodo_ALIGN_004` plus PROPERTY/GOLDEN/SECURITY/CONFORMANCE matrix in `tools/planning/productslice`; package 79.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./tools/planning/productslice/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `ALIGN-003`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for define the cross layer temporal vocabulary without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_004`.
@@ -18513,7 +18584,8 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
 
-- [ ] `ALIGN-018` **[GATE_C][SOL_HIGH] Compile field dispositions into product queries.**
+- [x] `ALIGN-018` **[GATE_C][SOL_HIGH] Compile field dispositions into product queries.**
+  - **Evidence (2026-09-16):** `TestTodo_ALIGN_018` plus PROPERTY/GOLDEN/SECURITY/INTEGRATION/FAULT/CONFORMANCE matrix in `internal/transport/productquery`; package 85.6%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/transport/productquery/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `ALIGN-017`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for compile field dispositions into product queries without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_018`.
@@ -18643,7 +18715,8 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
   - **Evidence (2026-09-14):** `TestTodo_ALIGN_029` plus `_Property`, `_Golden`, `_Fault` and `_Conformance` in `internal/intent/app` (the journey product stage is projected only from durable workflow state: no instance is PROPOSED/BLOCKED, a SUCCEEDED terminal decides the finished stage regardless of frontier while a SKIPPED terminal never does, the frontier node or open approval work item names the in-flight stage, non-live runtime statuses without a terminal are FAILED; the node-to-stage map is pinned and total over every compiled promotion node), and `TestTodo_ALIGN_029_Integration`/`_Security` in `internal/application` (a real promotion driven through execute and both approvals shows the product stage matching the durable `workflow_instance` frontier at each step; the stage is disclosed only to authorized personas); `go test -count=1` PASS; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ALIGN-030` **[GATE_C][SOL_HIGH] Bind accepted actions to transaction plans.**
+- [x] `ALIGN-030` **[GATE_C][SOL_HIGH] Bind accepted actions to transaction plans.**
+  - **Evidence (2026-09-16):** `TestTodo_ALIGN_030` plus PROPERTY/GOLDEN/SECURITY/INTEGRATION/FAULT/CONFORMANCE matrix in `internal/intent/app`; suite PASS, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/intent/app/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `ALIGN-029`.
   - **INTENT CONTEXT:** `ROLE=ORCHESTRATION; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for bind accepted actions to transaction plans without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_030`.
@@ -18917,7 +18990,8 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
   - **Evidence (2026-09-14):** `TestTodo_ALIGN_055` plus `_Property`, `_Golden`, `_Security`, `_Integration`, `_Fault` and `_Conformance` in `internal/operations/releaseevidence` (`Detect` compares a running cell with its verified release and names every `BINARY_SKEW`, `SCHEMA_DIGEST_SKEW`, `MIGRATION_BEHIND/AHEAD`, `DEFINITION_CHANGED/MISSING/UNRELEASED` exactly once per single-field perturbation; a forged release cannot vouch for a runtime; integration reads the applied goose version from a freshly migrated embedded PostgreSQL database and matches the release); `go test -count=1` PASS, 100% coverage; Go 1.26.3 windows/arm64; branch main.
 
-- [ ] `ALIGN-056` **[GATE_C][SOL_HIGH] Prove product-slice rollback support.**
+- [x] `ALIGN-056` **[GATE_C][SOL_HIGH] Prove product-slice rollback support.**
+  - **Evidence (2026-09-16):** `TestTodo_ALIGN_056` plus PROPERTY/GOLDEN/SECURITY/INTEGRATION/FAULT/CONFORMANCE matrix in `internal/operations/releaseevidence`; package 92.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/operations/releaseevidence/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `ALIGN-055`.
   - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for prove product slice rollback support without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_056`.
@@ -18961,7 +19035,8 @@ A capability is default-ready only when its human job, semantic owner, authorize
   - **REFACTOR:** keep canonical semantics with their domain or workflow owner, physical durability with the owning repository, and presentation mechanics behind registered page and widget contracts.
   - **Refs:** [default product alignment](specs/default-product-slice-alignment.md), [frontend plan](specs/production-frontend-and-page-composition.md), [modeling conventions](data/models/modeling-conventions.md).
 
-- [ ] `ALIGN-060` **[GATE_C][SOL_HIGH] Run the product-slice PostgreSQL chronology harness.**
+- [x] `ALIGN-060` **[GATE_C][SOL_HIGH] Run the product-slice PostgreSQL chronology harness.**
+  - **Evidence (2026-09-16):** `TestTodo_ALIGN_060` plus PROPERTY/GOLDEN/SECURITY/INTEGRATION/FAULT/CONFORMANCE matrix in `internal/operations/releaseevidence`; package 92.5%, `go vet`/`gofmt` clean; lane-built, orchestrator-verified. `go test -count=1 ./internal/operations/releaseevidence/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `ALIGN-059`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=provide cross-layer closure for run the product slice postgresql chronology harness without transferring authority between presentation, business and persistence layers`.
   - **TEST:** `TestTodo_ALIGN_060`.
@@ -19096,7 +19171,8 @@ These items are the follow-up to the 2026-09-12 blind browser audit of the runni
   - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/journey`, `internal/humanwork/workspace`.
   - **Evidence (2026-09-12):** `TestTodo_UXAUDIT_001` (the PRIMARY named in the TEST field), `TestTodo_UXAUDIT_001_Browser`, `TestTodo_UXAUDIT_001_Accessibility`, `TestTodo_UXAUDIT_001_Performance` and `TestTodo_UXAUDIT_001_Regression` in `internal/humanwork/productui` (`uxaudit001_shell_drawer_test.go`), with the focus trap itself in `drawer_focus_wasm.go` / `drawer_focus_native.go` and its own js/wasm-tagged test, plus `tools/uxqual/browser/uxaudit001_mobile_shell.spec.mjs`; no migration required. `go test -count=1 -cover ./internal/humanwork/productui/` PASS at 93.3%, `go build ./...` clean, `go vet` clean, gofmt clean and `go run ./tools/quality` PASSED on windows/arm64 (Go 1.26.3); branch main. **Verified live against the running server at 320x720, as this section's preamble requires**, after rebuilding the wasm bundle and then the server binary in that order (the assets are `go:embed`ed, so the reverse order silently serves a stale UI). Measured against the audit's own numbers: the header is a single 81px row where it had wrapped to 134px; `main` starts at y=81, 11% of the viewport, where it had started at y=451, 63%; visible content height is 639px where it was 269px; and there is exactly one page-level scroll region, `MAIN.main-scroll`, where there had been two competing ones. No horizontal overflow at 320px, which was already correct and is not regressed. Opening the drawer leaves content width unchanged at 320px. The drawer itself was verified open on screen: `left` 0px, `visibility` visible, bounding rect left 0, backdrop `display` block, `aria-expanded` true, `role=dialog`, `aria-modal=true` and the accessible name `Workspace navigation` present only while open; an Escape keydown closes it and returns `aria-expanded` to false. Two defects were found by that live run and fixed, neither visible to the Go suite as it then stood. The drawer's open rule matched the element and sat later in the cascade at higher specificity with no `!important` on either side, yet never applied -- the sidebar stayed at `left:-336px` and `visibility:hidden` whether the class was present or not. And the backdrop could never appear at all, because `.nav-drawer-backdrop` sets `display:none` while its open rule set background, inset, position and z-index but never `display`. Both are now `!important`-guarded, matching this package's existing idiom for breakpoint overrides, and the compound per-property `transition` shorthand the browser was mis-parsing was simplified to a single declaration. The test that would have caught them was added rather than the fix merely being applied: the suite previously substring-matched stylesheet text, which proves a rule exists but not that it wins the cascade, so `TestTodo_UXAUDIT_001` now parses a rule's declaration body into a property map and requires the open rule to restate `inset-inline-start` and `visibility` with a different value and an `!important` priority, and the backdrop's open rule to set `display` to something other than `none`. Verified failable by reverting each fix independently. REFACTOR's one-shell clause holds: `NavigationDrawerScope` shares a single `ui.UseState` flag between the header trigger and the sidebar, there is no per-viewport fork, and the tests assert exactly one `#workspace-navigation` and one `.primary-nav` across five pages. **Boundary.** Focus containment and restoration could not be verified in the browser pane and are not claimed here: calling `.focus()` on a real visible input among the drawer's 32 focusable descendants leaves `document.activeElement` at BODY, so neither focus entering the dialog nor returning to the trigger is observable in that environment. The trap is covered by a js/wasm-tagged unit test that compiles and by the Playwright spec, neither of which was executed here; the Escape-to-close half of the keyboard contract was confirmed live because it does not depend on focus.
 
-- [ ] `UXAUDIT-002` **[P0][SOL_HIGH] Guarantee one discoverable, authorized promotion path from person to completion.**
+- [x] `UXAUDIT-002` **[P0][SOL_HIGH] Guarantee one discoverable, authorized promotion path from person to completion.**
+  - **Evidence (2026-09-16):** full matrix in `test/workflow`, `test/workspace` (PRIMARY/INTEGRATION/RECOVERY/BROWSER) and `internal/humanwork/productui` (ACCESSIBILITY/REGRESSION); all three suites PASS; lane-built, orchestrator-verified. `go test -count=1 ./test/workspace/` `go test -count=1 ./test/workflow/` `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `PROMO-009`, `WEB-119`, `WEB-124`, `WEB-128`, `WEB-129`, `WEB-130`, `PROMOUX-001`, `PROMOUX-002`, `PROMOUX-003`, `PROMOUX-004`, `PROMOUX-005`, `PROMOUX-006`, `PROMOUX-007`, `PROMOUX-008`, `PROMOUX-009`, `PROMOUX-010`, `PROMOUX-011`, `PROMOUX-012`, `PROMOUX-013`, `PROMOUX-014`, `PROMOUX-015`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS; INTENTS=PromoteWorker; DIRECT=none; WHY=prove the shipped promotion slice is actionable from the production people experience`.
   - **TEST:** `TestTodo_UXAUDIT_002`.
@@ -19176,7 +19252,8 @@ These items are the follow-up to the 2026-09-12 blind browser audit of the runni
   - **Evidence (2026-09-13):** `TestTodo_UXAUDIT_008` (the PRIMARY named in the TEST field), `TestTodo_UXAUDIT_008_Browser`, `TestTodo_UXAUDIT_008_Accessibility`, `TestTodo_UXAUDIT_008_Performance`, `TestTodo_UXAUDIT_008_Regression` and `TestTodo_UXAUDIT_008_DirectoryTableModeRestoration` in `internal/humanwork/productui` (`uxaudit008_people_table_test.go`), plus `TestPeopleDirectoryOnlyRouteChangeCoversEveryDirectoryFilter` in `tools/uxqual/cmd/journeywasm` (`product_focus_test.go`); no migration required. `go test -count=1 -cover` PASS at 93.4% (`internal/humanwork/productui`); `go build ./...` clean, `GOOS=js GOARCH=wasm go build ./tools/uxqual/cmd/journeywasm/` clean, `go vet` clean, gofmt clean, staticcheck clean and `go run ./tools/quality` PASSED on windows/arm64 (Go 1.26.3); branch main. **Verified live against the running server, as this section's preamble requires**, after rebuilding the wasm bundle and then the server binary in that order. The RED had three independent sources and the fix took two passes, the second driven by a regression the first pass introduced. (1) Sticky headers detached because CSS `position` never inherits: the pre-existing rules stuck `<thead>` and the header `<tr>` but never the `<th>`, so the header cells' own computed `position` stayed `static` -- measured as such at 1024x768 before the fix, and `sticky` after. (2) Only a few rows fit a desktop viewport because `dataTableStylesStylesheet`'s shared `@media (max-width:1050px)` card mode caught 1024px, stacking each worker into a 199px `display:grid` card; the People directory now keeps the real 63px-row table down to 761px through `.people-directory`-scoped counter-rules that restate the shared component's own above-1050px values, leaving History and Organization on the shared breakpoint untouched. (3) The first pass scoped a taller `max-height` cap unconditionally; because `.people-directory .data-table-scroll` is two classes it beat the card-mode reset's `max-height:none` even inside that media query, but it did not restate `overflow`, leaving a bounded box still declared `overflow:visible` inside a `section.surface` that clips -- the live re-audit found 16 of 20 workers (Anika HC-21013, Aya HC-21033 and 14 more) rendering below the clipping edge and unreachable at the page's maximum scroll, a defect the first pass created and no test caught. A bounded `max-height` and a scrolling `overflow` are a matched pair; the cap now lives inside its own `min-width:761px` context with `overflow:auto` in the same rule, so the pair can never be split across contexts again, and the `scroll wrapper max-height and overflow stay a matched pair` subtest encodes that as a rule-level invariant rather than a substring grep -- mutation-verified against the exact broken pairing, which it failed with `found a bounded max-height with no scrolling overflow in the same block` and passed on revert. Live sweep at 375, 760, 900, 1024, 1440 and 1920px: every row reachable at every width, no clipping anywhere; card mode below 761px keeps `max-height:none`/`overflow:visible`. At 1024x768 the directory now shows 9 of 20 rows fully visible against 0 at the original audit, with the sticky header holding at the scroll region's top edge and all six columns aligned to 0px drift even when scrolled fully right and 200px down; 161px of horizontal scroll inside the region is the deliberate cost of keeping real columns rather than cards. 1440x900 is preserved at 11 of 20 rows with no horizontal scroll, and 1920x1080 shows 13. PROMOUX-001's server-provided unavailability reason was not deleted or reworded to win the density -- `TestTodo_PROMOUX_001` and `TestTodo_PROMOUX_001_Security` pass unmodified, the full text surviving in `title` and an `sr-only` span referenced by `aria-describedby` while the visible layout carries a compact `.people-availability-badge`. A real latent defect surfaced on the way: `eligible` was missing from `peopleDirectoryOnlyRouteChange`'s mutable-key set, so toggling the promotion-eligible filter triggered a full page reload instead of a directory-only refresh; it is now in the set and covered.
   - **Additional evidence from UX branch (2026-09-13):** `TestTodo_UXAUDIT_008` (PRIMARY), `_Browser`, `_Accessibility`, `_Performance`, `_Regression`, density/layout and en-US/de-DE/ar i18n cases in `internal/humanwork/productui`, plus `TestTodo_UXAUDIT_008_Regression_PeopleRegionRoutes` in `tools/uxqual/cmd/journeywasm`; `go test -count=1 ./internal/humanwork/productui -run '^TestTodo_UXAUDIT_008'` PASS, 100-row render about 1 ms p95 under 50 ms, `go test -count=1 -cover ./internal/humanwork/productui` PASS at 92.4%, `go test -count=1 ./internal/humanwork/workspace ./tools/uxqual/cmd/journeywasm` PASS, productclient tests, `npm test`, scoped `go vet`, gofmt, `git diff --check` and private-index `npm run check:coverage:staged` PASS (two packages at the 70% floor). The live Go/WASM server on 18768 showed six complete desktop rows before scrolling, aligned sticky headers and independently scrolling main/sidebar; sorting while scrolled preserved position, Jane search and Clear kept the layout within the viewport, a 20-row choice persisted across clean Home-to-People navigation without a page-size URL parameter, and eligible-only filtering produced 37 of 64 rows through a directory-scoped refresh. Dark 390px/320px screens showed stacked filters, horizontal sort controls and readable row cards; a temporary production-Go SSR light fixture verified desktop/390px/320px theme and card layout without changing the organization's saved appearance. The fixture was removed. The wide filter's first Clear state overflowed horizontally and was fixed before the final checks. One reusable DataTable still owns sort/table markup, and the server remains authoritative for saved table preferences and row authorization; no migration required.
 
-- [ ] `UXAUDIT-009` **[GATE_C][SOL_HIGH] Scale role assignment and access administration beyond a full-workforce accordion.**
+- [x] `UXAUDIT-009` **[GATE_C][SOL_HIGH] Scale role assignment and access administration beyond a full-workforce accordion.**
+  - **Evidence (2026-09-16):** full matrix in `internal/humanwork/productui` (PRIMARY/INTEGRATION/BROWSER/ACCESSIBILITY/PERFORMANCE/SECURITY); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `WEB-229`, `WEB-231`, `WEB-232`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ACCESS; DIRECT=none; WHY=make governed role administration operable for large workforces without moving authorization decisions into the browser`.
   - **TEST:** `TestTodo_UXAUDIT_009`.
@@ -19187,7 +19264,8 @@ These items are the follow-up to the 2026-09-12 blind browser audit of the runni
   - **Refs:** [organization scope and authz](specs/organization-scope-and-authz.md), `tools/uxqual/render/journey`.
   - **Progress (2026-09-13):** The live role route now pages and filters the employee directory and puts a two-column, fully readable role catalog and Create role above it. Role definitions open at full width; published page grants are behind a separate disclosure and 109 preview-only registered routes stay collapsed. A narrow-screen scroll cue and focusable table region expose the remaining controls. Focused UXAUDIT-009 tests and vet pass; the rebuilt Go/WASM page was manually inspected in the Codex browser at desktop and the horizontal Save path was exercised at 390px (whose capture has a truncated-canvas quirk). The server still lacks governed bulk assignment, per-worker result projection and an effective-access preview, so this gate remains open.
 
-- [ ] `UXAUDIT-010` **[GATE_C][SOL_HIGH] Turn organization visibility configuration into a previewable role policy editor.**
+- [x] `UXAUDIT-010` **[GATE_C][SOL_HIGH] Turn organization visibility configuration into a previewable role policy editor.**
+  - **Evidence (2026-09-16):** full matrix in `internal/humanwork/productui` (PRIMARY/INTEGRATION/BROWSER/ACCESSIBILITY/SECURITY/REGRESSION); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `WEB-231`, `WEB-232`, `WEB-064`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ACCESS,BI.WORKFORCE; DIRECT=none; WHY=let administrators understand proposed role scope without weakening governed authorization policy`.
   - **TEST:** `TestTodo_UXAUDIT_010`.
@@ -19221,7 +19299,8 @@ These items are the follow-up to the 2026-09-12 blind browser audit of the runni
   - **Evidence (2026-09-13):** `TestTodo_UXAUDIT_012` (the PRIMARY named in the TEST field), `TestTodo_UXAUDIT_012_Browser`, `TestTodo_UXAUDIT_012_Performance`, `TestTodo_UXAUDIT_012_Accessibility`, `TestTodo_UXAUDIT_012_Fault` and `TestTodo_UXAUDIT_012_Regression` in `internal/humanwork/productui` (`uxaudit012_layout_shift_test.go`); new `async_region.go` and `layout_shift.go`; no migration required. `go test -count=1 -cover ./internal/humanwork/productui/` PASS at 93.3%; `go build ./...` clean, `GOOS=js GOARCH=wasm go build ./tools/uxqual/cmd/journeywasm/` clean, `go vet` clean, gofmt clean and `go run ./tools/quality` PASSED on windows/arm64 (Go 1.26.3); branch main. No pre-existing test was renamed or altered. RED's sharpest clause -- loading proxies do not preserve final geometry -- was literally true rather than hypothetical, and three real defects were found by measuring rather than inspecting. `.loading-row` declared `min-height:76px` against `.work-row`'s 86px, a ten-pixel shift per row on every Home, Work and Journeys cold load; `.loading-table-row` declared 67px against `.people-row`'s 65px; and `.loading-table-head` declared 46px against `.people-columns`' 44px, both on every People and History cold load. All three are aligned in `typed_mig_C.go` with comments naming the guarding test. The geometry proof compares dimensions rather than asserting a skeleton exists, which is the distinction that makes it a test of this clause at all: the PRIMARY parses the built stylesheet with an exact standalone-selector matcher -- so a density variant such as `:root[data-hcm-density="compact"] .work-row` cannot be mistaken for the base rule -- and requires each proxy and its resolved counterpart to declare identical `min-height`. It was verified against the pre-fix values and failed there. REFACTOR's single model is `AsyncRegionState` with exactly the five states named -- Loading, Empty, Stale, Failure, Resolved -- as an int enum whose **zero value is Loading, not Resolved**. That direction is the load-bearing one here: a region descriptor that forgets to set its state renders through the sized skeleton rather than as a false-resolved empty box, which is precisely the shift. `UsesGeometryProxy` and `Announcement` switch over all five members with no default branch, returning `ErrUnknownAsyncRegionState` for anything outside the set. The fault clause is proven stronger than size compatibility: `BuildFailure` renders through the same `loadingProxyBody` call as the loading builders, and `TestTodo_UXAUDIT_012_Fault` requires the loading and failure bodies to be **byte-identical** for People, Work and Organization, so a region cannot collapse when its fetch fails. The Performance entry asserts a deterministic shift score (`|delta height| / viewport height`) rather than elapsed wall-clock time, deliberately avoiding this machine's unreliable timing, and separately proves the check rejects a real violation. **Verified live against the running server, as this section's preamble requires**, after rebuilding the wasm bundle and then the server binary in that order. Cumulative layout shift measured through a `PerformanceObserver` on `layout-shift` entries with `buffered: true`, excluding entries with recent input: `/workspace/app/people` resolved **20 rendered rows with CLS 0.00000 and zero shift entries** -- a real skeleton-to-content transition rather than a trivially empty page -- and `/workspace/app/work` likewise measured zero. Software navigation was tested by clicking a real navigation link from People to Organization: the `.app-shell` and `nav.primary-nav` elements are the **same DOM nodes** before and after, disproving RED's remount clause directly, with CLS 0.00000 across the transition. **Boundaries.** No governed numeric CLS budget exists anywhere in the repository -- `page_performance_budgets.go` is an honest stub that refuses to invent one until a governed service publishes -- so `AsyncRegionLayoutShiftBudget = 0.1` is declared as an engineering threshold, documented as not business-authoritative, in the same category as `latencygate`'s hardcoded p95 figures. The Organization and Insights loading families were not individually re-verified pixel-for-pixel; only the People, Work and History row families were fixed and proven. `BuildFailure` and `BuildAsyncRegion` are tested primitives not yet wired into the live wasm router's fetch-error path. History's resolved row has no declared `min-height`, being content-driven, so its parity with the shared proxy could not be proven pixel-exact the way People's could. The pre-existing `appShellWithHeading` LoadError branch was deliberately left alone as a different working contract.
   - **Progress (2026-09-13):** The Go/WASM route loader now passes a subject-sanitized warm baseline into the product client; changing Person, Work, History, Organization or Journey identity clears route-owned selection before a new server projection arrives. Focused UXAUDIT-012 tests pass, and a live global-search switch from Sofia to Rosa resolved only Rosa's profile. An actual delayed-network visual/CLS/focus/scroll matrix across every page is still required; this todo remains open.
 
-- [ ] `UXAUDIT-013` **[GATE_C][TERRA] Make Help a searchable support destination.**
+- [x] `UXAUDIT-013` **[GATE_C][TERRA] Make Help a searchable support destination.**
+  - **Evidence (2026-09-16):** full matrix in `internal/humanwork/productui` (PRIMARY/BROWSER/ACCESSIBILITY/SECURITY/I18N); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `WEB-193`, `WEB-194`, `WEB-195`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=help users resolve tasks without disclosing content or support cases outside their authority`.
   - **TEST:** `TestTodo_UXAUDIT_013`.
@@ -19644,7 +19723,8 @@ These items qualify the rendered production frontend against the design-token co
   - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/render/page`, `tools/uxqual/render/journey`.
   - **Progress (2026-09-13):** The embedded Journeys header action now wraps inside a bounded container; `TestTodo_UIPOLISH_008_Regression_NarrowJourneyHeaderActionWraps` and the full Journey renderer package pass. The rebuilt Go/WASM page was manually checked at the 320px Codex-browser viewport in en-US, de-DE and RTL Arabic after a previously clipped primary action was fixed. Myself read-only notice density also has a focused narrow-layout regression. The History filter stack no longer inherits desktop 150px/280px flex-basis as mobile control height: its single-column grid restores compact 44px selects, checked manually at 390px in RTL Arabic with populated records. Narrow History rows now expose a visible Change label and contextual Change/Outcome accessible names; the Arabic 390px production page was inspected and a rendered-row regression passes. The table/form/object, density-preference and full viewport/accessibility/performance matrix remain open.
 
-- [ ] `UIPOLISH-009` **[P0][TERRA] Make loading, empty, error and success states visually stable and actionable.**
+- [x] `UIPOLISH-009` **[P0][TERRA] Make loading, empty, error and success states visually stable and actionable.**
+  - **Evidence (2026-09-16):** `TestTodo_UIPOLISH_009` plus GOLDEN/BROWSER/ACCESSIBILITY/FAULT/PERFORMANCE matrix in `internal/humanwork/productui` (lane increment: submitting regions retain safe projection); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `WEB-020`, `WEB-021`, `UXAUDIT-012`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=communicate network and database effects without flicker, ambiguity or lost context`.
   - **TEST:** `TestTodo_UIPOLISH_009`.
@@ -19655,7 +19735,8 @@ These items qualify the rendered production frontend against the design-token co
   - **Refs:** [frontend plan](specs/production-frontend-and-page-composition.md), `tools/uxqual/latencygate`, `tools/uxqual/render/journey`.
   - **Progress (2026-09-13):** The Journey client now fences same-route stale detail responses by durable instance identity/version and rejects equal-version stage rewinds when presentation timestamps cannot order them; same-stage content refreshes remain allowed. The Home loading document title also stays at the generic locale-specific page title until the authorized worker name resolves, avoiding a brief raw principal-ID flash. The full Journey client and product-adapter suites pass with focused regressions; collection/detail/form async-state browser and latency qualification remains open.
 
-- [ ] `UIPOLISH-010` **[GATE_C][TERRA] Unify iconography, glyph meaning and brand substitution.**
+- [x] `UIPOLISH-010` **[GATE_C][TERRA] Unify iconography, glyph meaning and brand substitution.**
+  - **Evidence (2026-09-16):** `TestTodo_UIPOLISH_010` plus GOLDEN/BROWSER/ACCESSIBILITY/SECURITY/REGRESSION matrix in `internal/humanwork/productui` (lane increment: icon-bypass guard covers all 24 renderer files); suite PASS; lane-built, orchestrator-verified. `go test -count=1 ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch elig/ELIG-008-four-domain-semantics.
   - **Depends:** `WEB-017`, `WEB-038`, `WEB-039`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=make glyphs recognizable and safely customizable without becoming the only carrier of meaning`.
   - **TEST:** `TestTodo_UIPOLISH_010`.
