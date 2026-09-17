@@ -1,0 +1,94 @@
+schema: hcmnext.planning.productslices.absence-vocabulary
+schema_version: 1
+states:
+    - kind: not_applicable
+      owning_layer: business
+      canonical_form: the field cannot apply to this subject, for example a separation date for an active hire
+      disclosure_rule: present the fixed not-applicable placeholder; never omit, or consumers cannot tell inapplicable from missing
+      presentation: placeholder
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: not_collected
+      owning_layer: business
+      canonical_form: the owning domain never collected the value, so no source can supply it
+      disclosure_rule: omit the field from the response; an omitted field must never read as an empty business value
+      presentation: omit
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: pending_source
+      owning_layer: persistence
+      canonical_form: the value exists upstream but the projection has not applied it yet
+      disclosure_rule: defer to an authoritative refetch at or past the announced source sequence; never present a placeholder as final
+      presentation: deferred
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: redacted_value
+      owning_layer: governance
+      canonical_form: the value exists and the subject is disclosable, but the field ruling withholds the value itself
+      disclosure_rule: present the fixed redaction placeholder with the masking obligation; the source value never crosses the boundary
+      presentation: placeholder
+      observed_by:
+        - business
+        - governance
+      carried_by:
+        - persistence
+        - presentation
+        - transport
+    - kind: superseded_record
+      owning_layer: business
+      canonical_form: a newer revision replaced this record, so it no longer describes the subject
+      disclosure_rule: omit the superseded revision; history reads name the successor instead of reviving the value
+      presentation: omit
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: unavailable_projection
+      owning_layer: persistence
+      canonical_form: the projection cannot serve the value, for example a watermark ahead of its source
+      disclosure_rule: defer to a rebuilt or caught-up projection; a projection error is never presented as a business absence
+      presentation: deferred
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: unknown_value
+      owning_layer: business
+      canonical_form: the value is within scope but no known source has supplied it yet
+      disclosure_rule: present the fixed unknown placeholder; unknown must never collapse into withheld or redacted
+      presentation: placeholder
+      observed_by:
+        - business
+        - persistence
+        - presentation
+      carried_by:
+        - transport
+    - kind: withheld_authorization
+      owning_layer: governance
+      canonical_form: the authorization decision withholds the field, so its existence must not leak
+      disclosure_rule: omit the field uniformly with never-collected fields, so the response is not an existence oracle
+      presentation: omit
+      observed_by:
+        - business
+        - governance
+      carried_by:
+        - persistence
+        - presentation
+        - transport
+digest: sha256:d4b6649cddc5af34b9b9ee5e36f49527bc168238aca7fd9a53403482ceb2703a
