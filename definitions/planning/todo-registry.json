@@ -191,7 +191,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Outcome models](data/models/assurance-intelligence-platform.md), [SLOs](specs/slo-sli-error-budget.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ABUSE_007` plus SECURITY matrix in `internal/engines/abuse` (`evaluation.go` detector outcome/drift evaluation); `go test -count=1 ./internal/engines/abuse/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ABUSE-008",
@@ -4400,7 +4401,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Balance engine](#38-eligibility-business-cycle-and-balance-engines), [repair](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_ATTEND_005` plus PROPERTY matrix in `internal/domains/attendance` (`attend005.go` downstream time/payroll recalculation after resolution); `go test -count=1 ./internal/domains/attendance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "ATTEST-001",
@@ -5242,7 +5244,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Future-domain conformance](#21-future-domain-intent-conformance), [rewards models](data/models/rewards-payroll-workforce.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_BAL_010` plus PROPERTY/CONFORMANCE/MUTATION/RACE matrix in `internal/domains/balance` (`crossdomain.go` cross-domain balance conformance prover); `go test -count=1 ./internal/domains/balance/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "BAL-011",
@@ -5422,7 +5425,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[People models](data/models/people-workforce.md), [qualification engine](#39-qualification-demand-matching-and-scenario-engines)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_BEN_004` plus PROPERTY/FAULT/MUTATION matrix in `internal/domains/benefits` (`coverage.go` coverage tiers and dependent qualification); `go test -count=1 ./internal/domains/benefits/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "BEN-005",
@@ -6317,7 +6321,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Operations models](data/models/operations-production.md), [source authority](specs/source-authority-and-external-mastering.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CLOCK_004` plus PROPERTY/RECOVERY matrix in `internal/domains/clock` (`offline.go` offline store-and-forward); `go test -count=1 ./internal/domains/clock/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "CLOCK-005",
@@ -6367,7 +6372,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Attestation](#40-attestation-and-conformance-gated-program-engines), [ledger corrections](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CLOCK_006` plus PROPERTY/MUTATION matrix in `internal/domains/clock` (`correction.go` append-only punch corrections); `go test -count=1 ./internal/domains/clock/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "CLOSE-001",
@@ -13397,7 +13403,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Governance composition](specs/governance-decision-and-obligation-composition.md), [rules models](data/models/rules-and-decisions.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_GARN_002` plus FAULT/MUTATION/RACE/SECURITY matrix in `internal/domains/garnishment` (`priority002.go` garnishment priority and concurrent composition); `go test -count=1 ./internal/domains/garnishment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "GARN-003",
@@ -13493,7 +13500,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Ledger corrections](specs/transaction-ledger-reconciliation-and-repair.md), [wire time](data/models/wire-contract-primitives.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_GARN_006` plus MUTATION/RACE matrix in `internal/domains/garnishment` (`lifecycle006.go` order release/amendment/termination); `go test -count=1 ./internal/domains/garnishment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "GARN-007",
@@ -16769,7 +16777,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Provenance](specs/provenance-graph-and-lineage.md), [intelligence models](data/models/assurance-intelligence-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_KNOW_005` plus MUTATION/RECOVERY matrix in `internal/domains/knowledge` (`invalidation.go` derived-answer invalidation on content change); `go test -count=1 ./internal/domains/knowledge/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "KNOW-006",
@@ -21510,7 +21519,8 @@
     "refactor": "replay is idempotent",
     "refs": "[Metric correction](data/models/assurance-intelligence-platform.md), [provenance](specs/provenance-graph-and-lineage.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_METRIC_002` plus GOLDEN/MUTATION matrix in `internal/domains/intelligence` (`metric_correction.go` append-only metric corrections with dependent-output invalidation); `go test -count=1 ./internal/domains/intelligence/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "MOBILITY-001",
@@ -30106,7 +30116,8 @@
     "refactor": "offer document rendering/signature evidence is delegated to Documents without moving offer authority there",
     "refs": "[Offer and hire workflow](workflows/lifecycle/recruit-hire-onboard.md), [proposal integrity](plan.md#53-approval-must-bind-to-an-immutable-proposal), [documents](specs/platform-responsibility-boundaries.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_RECRUIT_003_*` PROPERTY/FAULT/GOLDEN/INTEGRATION/MUTATION/RACE/SECURITY matrix in `internal/domains/recruiting` (`offer.go` immutable OfferRevisions create/approve/sign/accept); `go test -count=1 ./internal/domains/recruiting/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "RECRUIT-004",
@@ -31411,7 +31422,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Provenance](specs/provenance-graph-and-lineage.md), [DLP](specs/data-classification-and-dlp.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCHED_OPT_005` plus PROPERTY/FAULT/MUTATION/RACE matrix in `internal/domains/schedopt` (`explain005.go` candidate schedule assignment explanations); `go test -count=1 ./internal/domains/schedopt/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SCHED-OPT-006",
@@ -32461,7 +32473,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Source authority](specs/source-authority-and-external-mastering.md), [integration observations](specs/integration-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SETTLE_005` plus FAULT/INTEGRATION/MUTATION/RACE matrix in `internal/domains/settlement` (`observation.go` separate acceptance/settlement observation); `go test -count=1 ./internal/domains/settlement/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SETTLE-006",
@@ -33854,7 +33867,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[DLP](specs/data-classification-and-dlp.md), [privacy models](data/models/assurance-intelligence-platform.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SURVEY_005` plus PROPERTY/SECURITY/MUTATION matrix in `internal/domains/survey` (`disclosure.go` minimum cohort and re-identification defenses); `go test -count=1 ./internal/domains/survey/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SURVEY-006",
@@ -34323,7 +34337,8 @@
     "refactor": "correction appends new result and delta",
     "refs": "[Tax engine](plan.md), [payroll correction](workflows/payroll/payroll-correction-retro.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_TAX_001` plus PROPERTY/MUTATION/RACE/SECURITY matrix in `internal/domains/payroll` (`tax_calc.go` version-pinned worker/employer tax calc); `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "TAXPROFILE-001",
