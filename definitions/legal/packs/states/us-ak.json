@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
         "section": "AS § 23.05.160",
-        "note": "Written notice requirement: Any change in pay rate, payday, or place of pay must be communicated in writing no later than the payday preceding the effective date of the change (AS § 23.05.160's \"on the payday before...",
+        "note": "Written notice requirement: any change in pay rate, payday, or place of pay must be communicated in writing no later than the payday preceding the effective date of the change (AS § 23.05.160's \"on the payday before the time of change\").",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -40,7 +40,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
         "section": "AS § 23.10.100",
-        "note": "Payroll record retention: Employers must keep, at the employee's place of employment, a record of each employee's name, address, and occupation, rate of pay and amount paid each pay period, hours worked each day and...",
+        "note": "Payroll record retention: employers must keep, at the employee's place of employment, each employee's name, address, occupation, rate of pay and amount paid each pay period, and hours worked each day and workweek, for at least 3 years (AS § 23.10.100).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -55,14 +55,14 @@
       "id": "us-ak-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
-        "section": "AS §§ 23.10.066",
-        "note": "Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers < 15 FTE) or 56 hours (employers ≥ 15 FTE).",
+        "section": "AS §§ 23.10.066–.067",
+        "note": "Paid sick leave (Ballot Measure 1): employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers < 15 FTE) or 56 hours (employers ≥15 FTE); full carryover; no payout on termination; rehire within 6 months restores the balance (AS §§ 23.10.066–.067).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid sick leave (Ballot Measure 1): Mandatory effective July 1, 2025; employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers < 15 FTE) or 56 hours (employers ≥ 15 FTE)."
+        "interaction_rule": "Paid sick leave (Ballot Measure 1): employees accrue 1 hour per 30 hours worked, capped at 40 hours annually (employers < 15 FTE) or 56 hours (employers ≥15 FTE); full carryover; no payout on termination; rehire within 6 months restores the balance (AS §§ 23.10.066–.067)."
       }
     },
     {
@@ -70,26 +70,28 @@
       "id": "us-ak-pay-frequency",
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
-        "section": "AS § 23.05.160",
-        "note": "Pay frequency verification: If a role change alters pay frequency, the platform must enforce the requirement that final notice goes out by the payday preceding the change (AS § 23.05.160), not merely before the next...",
+        "section": "AS § 23.05.140",
+        "note": "Employers must pay employees at least semi-monthly; more frequent payment is permitted (AS § 23.05.140).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
-      "body": {}
+      "body": {
+        "minimum_frequency": "SEMIMONTHLY"
+      }
     },
     {
       "kind": "FINAL_PAY_DEADLINE",
       "id": "us-ak-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
-        "section": "AS § 23.05.140",
-        "note": "Final pay: All wages due within 3 working days of employer-initiated termination; within 3 days of the next regular payday if employee-initiated (minimum 3 days after notice received) (AS § 23.05.140).",
+        "section": "AS § 23.05.140(f)–(g)",
+        "note": "Final pay: all wages due within 3 working days of employer-initiated termination; within 3 days of the next regular payday if employee-initiated (minimum 3 days after notice received); late-payment penalty of regular wages up to 90 working days (AS § 23.05.140(f)–(g)).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay: All wages due within 3 working days of employer-initiated termination; within 3 days of the next regular payday if employee-initiated (minimum 3 days after notice received) (AS § 23.05.140)."
+        "deadline_description": "Final pay: all wages due within 3 working days of employer-initiated termination; within 3 days of the next regular payday if employee-initiated (minimum 3 days after notice received); late-payment penalty of regular wages up to 90 working days (AS § 23.05.140(f)–(g))."
       }
     },
     {
@@ -98,7 +100,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
         "section": "AS § 23.10.065",
-        "note": "Minimum wage: $14.00/hour as of 2026-07-01 (July 1, 2026); scheduled to increase to $15.00/hour on July 1, 2027, then adjust annually for inflation starting January 1, 2028 based on Anchorage CPI-U (AS § 23.10.065).",
+        "note": "Minimum wage $14.00/hour as of 2026-07-01, rising to $15.00/hour on 2027-07-01, then indexed annually to Anchorage CPI-U from 2028-01-01 with a $2.00/hour floor above federal. No tip credit (AS § 23.10.065).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -107,7 +109,6 @@
           "amount": "14.00",
           "currency": "USD"
         },
-        "worker_class": "tipped employees",
         "basis": "HOURLY",
         "indexation": "CPI",
         "standard": "REQUIRED"
@@ -119,13 +120,21 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
         "section": "AS § 23.05.140(d)",
-        "note": "Pay statement content and form: Employers must provide written or electronic pay stubs (AS § 23.05.140(d)) showing:",
+        "note": "Pay statement content and form: employers must provide written or electronic pay stubs (AS § 23.05.140(d)) showing straight-time and overtime hours, rates of pay, gross wages, itemized deductions, pay period dates, employer name and address, and current sick-leave balance.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "required_fields": ["employer_identification"],
-        "delivery": "ELECTRONIC",
+        "required_fields": [
+          "gross_wages",
+          "net_wages",
+          "deductions",
+          "hours_worked",
+          "pay_rate",
+          "pay_period",
+          "employer_identification"
+        ],
+        "delivery": "EITHER",
         "standard": "REQUIRED"
       }
     },
@@ -134,7 +143,7 @@
       "id": "us-ak-classification",
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
-        "section": "Alaska Statute § 23.20.525(a)(8)(A",
+        "section": "AS § 23.20.525(a)(8)(A–C)",
         "note": "Contractor classification test (ABC test): Alaska Statute § 23.20.525(a)(8)(A–C) applies the ABC test for unemployment-insurance and workers'-compensation purposes.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
@@ -151,11 +160,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
         "section": "AS § 23.10.430",
-        "note": "Employee access to personnel files: Employees and former employees have a statutory right to inspect and copy their own personnel files and personnel information maintained by the employer during reasonable business...",
+        "note": "Employee access to personnel files: employees and former employees have a statutory right to inspect and copy their own personnel files during reasonable business hours under reasonable rules; employers may charge the reasonable actual cost of copying (AS § 23.10.430).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "copy_fee_permitted": true,
         "standard": "REQUIRED"
       }
     },
@@ -165,7 +175,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
         "section": "AS § 23.10.135",
-        "note": "Captive audience ban (Ballot Measure 1): Effective July 1, 2025, employers cannot require employees to attend meetings primarily about political or religious matters (opinions on legislation, elections, unionization, or...",
+        "note": "Captive audience ban (Ballot Measure 1): employers cannot require employees to attend meetings primarily about political or religious matters; retaliation for refusal is prohibited (AS § 23.10.135).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -195,12 +205,13 @@
       "id": "us-ak-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/alaska.md",
-        "section": "Alaska Statutes § 18.13.200–270",
-        "note": "Biometric data: Alaska Statutes § 18.13.200–270 contain targeted rules for biometric identifiers (fingerprints, voice patterns, retina/iris scans, face recognition).",
+        "section": "AS § 45.48.010",
+        "note": "Data breach notification: entities collecting personal information must notify affected Alaska residents of a breach of unencrypted personal information in the most expeditious time possible and without unreasonable delay; 1,000+ residents triggers Alaska Attorney General notice (AS § 45.48.010).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "authority_threshold_count": 1000,
         "standard": "REQUIRED"
       }
     }

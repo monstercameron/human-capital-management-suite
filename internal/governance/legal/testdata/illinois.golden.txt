@@ -1,0 +1,10 @@
+# LEGAL-ST-IL-001 golden oracle: the agent-verified Illinois draft bytes
+# ($15.00 § 105 floor, 820 ILCS 112 salary-history ban and pay
+# transparency, 40-hour no-forfeiture leave, § 115/5 final pay, $75k/$45k
+# 820 ILCS 90 thresholds, 50-employee 60-day WARN, sex/race 112 equity,
+# 7-business-day file access, written BIPA consent with damages,
+# honestly-gapped breach/AI-hiring/drug statutes).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-il.json
+sha256:33f69702510fef19c8079f2127807461a64d013796d5c7270115e8bfd464af39

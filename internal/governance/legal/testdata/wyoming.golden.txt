@@ -1,0 +1,8 @@
+# LEGAL-ST-WY-001 golden oracle: the agent-verified Wyoming draft bytes
+# (semimonthly pay frequency, § 27-4-104 final pay, SF 107 non-compete
+# recheck, same-establishment comparable-work pay equity, itemized
+# stubs, workers-compensation anti-retaliation, HANDBOOK_DISCLAIMER job
+# security, 2-year wage-record retention, DRUG_TESTING carried at VERIFY
+# pending the missing statutory citation).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:56ffbfd9a54f9ccec5c497651710588a986b212a5185b64b4154f4629ac73911

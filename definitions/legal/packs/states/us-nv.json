@@ -42,7 +42,7 @@
         "section": "NRS 613.133",
         "note": "If the promotion involves a pay change, verify the new pay does not rely on prior salary history (NRS 613.133 prohibition).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "restricted_fields": ["salary_history"],
@@ -71,13 +71,28 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nevada.md",
         "section": "NRS 608.0197",
-        "note": "Paid leave (NRS 608.0197): promotion does not reset accrual; earned leave carries forward.",
+        "note": "Paid leave (NRS 608.0197, employers with 50 or more employees): 0.01923 hours per hour worked, at least 40 hours per year, usable after 90 days; promotion does not reset accrual and earned leave carries forward.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "leave_type": "paid leave",
-        "interaction_rule": "Paid leave (NRS 608.0197): promotion does not reset accrual; earned leave carries forward."
+        "interaction_rule": "Paid leave (NRS 608.0197, employers with 50 or more employees): 0.01923 hours per hour worked, at least 40 hours per year, usable after 90 days; promotion does not reset accrual and earned leave carries forward."
+      }
+    },
+    {
+      "kind": "LEAVE_INTERACTION",
+      "id": "us-nv-leave-domestic-violence",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/nevada.md",
+        "section": "NRS 608.0198",
+        "note": "Domestic-violence leave of up to 160 hours in 12 months is separate from paid leave (NRS 608.0198); retaliation for its use is prohibited.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "leave_type": "domestic violence leave",
+        "interaction_rule": "Domestic-violence leave of up to 160 hours in 12 months is separate from paid leave (NRS 608.0198); promotion does not affect eligibility and retaliation for its use is prohibited."
       }
     },
     {
@@ -99,14 +114,14 @@
       "id": "us-nv-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/nevada.md",
-        "section": "NRS 613.4353",
-        "note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+        "section": "NRS 608.020, NRS 608.030",
+        "note": "Final pay is due immediately on discharge (within 3 days if the payroll office is closed), or by the earlier of 7 days and the next regular payday on resignation (NRS 608.020, NRS 608.030).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under..."
+        "deadline_description": "Final pay is due immediately on discharge (within 3 days if the payroll office is closed), or by the earlier of 7 days and the next regular payday on resignation (NRS 608.020, NRS 608.030)."
       }
     },
     {
@@ -202,13 +217,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nevada.md",
         "section": "NRS 608.0155",
-        "note": "Independent contractor presumption (NRS 608.0155): A person is presumed to be an independent contractor if:",
+        "note": "Independent contractor presumption (NRS 608.0155): a worker is presumed to be an independent contractor only with an EIN, SSN, or business tax filing, required licenses or insurance, and three or more of control, discretion, investment, profit-or-loss, or public-availability factors; the employer bears the burden of proof.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "dimension": "CONTRACTOR",
-        "test_description": "Independent contractor presumption (NRS 608.0155): A person is presumed to be an independent contractor if:",
+        "test_description": "Independent contractor presumption (NRS 608.0155): a worker is presumed to be an independent contractor only with an EIN, SSN, or business tax filing, required licenses or insurance, and three or more of control, discretion, investment, profit-or-loss, or public-availability factors; the employer bears the burden of proof.",
         "standard": "REQUIRED"
       }
     },
@@ -217,10 +232,10 @@
       "id": "us-nv-personnel-file",
       "citation": {
         "source_file": "planning/research/state-employment-law/nevada.md",
-        "section": "NRS 613.4353",
-        "note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+        "section": "NRS 613.075",
+        "note": "Employees may inspect and receive copies of their personnel records; copies may be refused for employees with less than 60 days of tenure, and reasonable copying costs may be charged (NRS 613.075).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "standard": "REQUIRED"
@@ -231,13 +246,14 @@
       "id": "us-nv-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/nevada.md",
-        "section": "NRS 613.4353",
-        "note": "P1A/P1B with pregnancy accommodation: If a promoted or base-pay-changed employee is pregnant or has a pregnancy-related condition, verify whether the role change triggers re-evaluation of reasonable accommodations under...",
+        "section": "NRS 613.330",
+        "note": "Wage discussion is protected activity: employers may not adopt or enforce pay-secrecy policies or penalize employees for discussing wages (NRS 613.330).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_activities": ["protected_leave_request"],
+        "protected_activities": ["wage_discussion"],
+        "disposition": "FLAG",
         "standard": "REQUIRED"
       }
     },
@@ -246,8 +262,8 @@
       "id": "us-nv-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/nevada.md",
-        "section": "NRS 613.330",
-        "note": "Wage transparency ban: employers cannot enforce pay-secrecy policies; discussion of wages is protected (NRS 613.330).",
+        "section": "NRS 613.132",
+        "note": "No Nevada law prohibits private-sector drug testing. Marijuana screening is permitted, but an employer may not refuse to hire based solely on a positive screening test except for firefighters, EMTs, safety-sensitive roles, or federally funded positions (NRS 613.132).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -261,8 +277,8 @@
       "id": "us-nv-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/nevada.md",
-        "section": "NRS 603",
-        "note": "Nevada privacy law (NRS 603A): Nevada does not have a comprehensive state privacy law parallel to CCPA.",
+        "section": "NRS 603A.220",
+        "note": "Breach of unencrypted computerized personal information: notify affected Nevada residents in the most expedient time possible; notify consumer reporting agencies when 1,000 or more persons are affected (NRS 603A.220).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

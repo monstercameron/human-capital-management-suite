@@ -31,7 +31,7 @@
       "body": {
         "who": "employer_to_worker",
         "channel": "written",
-        "content_fields": ["payday"]
+        "content_fields": ["payday", "pay_rate"]
       }
     },
     {
@@ -70,14 +70,14 @@
       "id": "us-me-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "M.R.S. § 626",
-        "note": "Vacation and paid leave payouts (26 M.R.S.",
+        "section": "26 M.R.S. § 637",
+        "note": "Earned Paid Leave (26 M.R.S. § 637): 40-hour minimum EPL for 10+ employees (1 hour per 40 hours worked); all accrued, unused EPL must be paid out at termination.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "CONFIRMED"
+        "confidence_marker": "VERIFY"
       },
       "body": {
         "leave_type": "accrued paid time off",
-        "interaction_rule": "Vacation and paid leave payouts (26 M.R.S."
+        "interaction_rule": "Earned Paid Leave (26 M.R.S. § 637): 40-hour minimum EPL for 10+ employees (1 hour per 40 hours worked); all accrued, unused EPL must be paid out at termination. Paid Family and Medical Leave (26 M.R.S. § 850-A et seq.): 12-week paid leave, benefits from 2026-05-01."
       }
     },
     {
@@ -99,14 +99,14 @@
       "id": "us-me-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "M.R.S. § 621-A",
-        "note": "Pay frequency and final pay (26 M.R.S.",
+        "section": "26 M.R.S. § 626",
+        "note": "Pay frequency and final pay (26 M.R.S. § 621-A, § 626): Wages paid at least weekly; final paycheck due on next regular payday.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Pay frequency and final pay (26 M.R.S."
+        "deadline_description": "Final paycheck due on next regular payday unless employee resigns without notice or is discharged (verify timing for discharge final pay) (26 M.R.S. § 621-A)."
       }
     },
     {
@@ -114,14 +114,14 @@
       "id": "us-me-non-compete",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "M.R.S. § 599-A",
-        "note": "Non-compete restrictions (26 M.R.S.",
+        "section": "26 M.R.S. § 599-A",
+        "note": "Non-compete restrictions (26 M.R.S. § 599-A, § 599-B): Non-competes enforceable only if employee earns at least 400% of federal poverty level (approximately $62,920 annually); 3-business-day pre-signing notice; 1-2 year term cap.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete restrictions (26 M.R.S."
+        "rule": "Non-compete restrictions (26 M.R.S. § 599-A, § 599-B): Non-competes enforceable only if employee earns at least 400% of federal poverty level (approximately $62,920 annually); 3-day pre-signing notice (3 business days before signing); 1-2 year term cap."
       }
     },
     {
@@ -129,13 +129,13 @@
       "id": "us-me-mini-warn",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "M.R.S. § 635",
-        "note": "Severance for plant closings (26 M.R.S.",
+        "section": "26 M.R.S. § 635",
+        "note": "Severance for plant closings (26 M.R.S. § 635): Employers with 100+ employees at a worksite must provide 90 days' notice and severance equal to 1 week's pay per year of service (up to 26 weeks).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "note": "Severance for plant closings (26 M.R.S.",
+        "note": "Severance for plant closings (26 M.R.S. § 635): Employers with 100+ employees at a worksite must provide 90 days' notice and severance equal to 1 week's pay per year of service (up to 26 weeks).",
         "employee_threshold": 100,
         "notice_days": 90
       }
@@ -146,13 +146,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
         "section": "M.R.S. § 664",
-        "note": "Minimum wage and overtime (26 M.R.S.",
+        "note": "Minimum wage and overtime (26 M.R.S. Tipped minimum $7.33/hour.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "floor_amount": {
-          "amount": "14.65",
+          "amount": "15.10",
           "currency": "USD"
         },
         "basis": "HOURLY",
@@ -165,13 +165,14 @@
       "id": "us-me-pay-equity-review",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "M.R.S. § 628-A",
+        "section": "26 M.R.S. § 628",
         "note": "Salary history ban and equal pay (26 M.R.S.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_bases": ["sex", "age"],
+        "protected_bases": ["sex"],
+        "comparator_standard": "equal work",
         "standard": "REQUIRED"
       }
     },
@@ -180,12 +181,15 @@
       "id": "us-me-pay-statement",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "M.R.S. § 630-A",
-        "note": "Pay statement requirements (26 M.R.S.",
+        "section": "26 M.R.S. § 631",
+        "note": "Pay statement requirements (26 M.R.S. § 631): Itemized statements showing gross wages, deductions, and net wages; electronic or paper delivery with employee consent.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "required_fields": ["gross_wages", "deductions", "net_wages"],
+        "delivery": "EITHER",
+        "consent_required": true,
         "standard": "REQUIRED"
       }
     },
@@ -194,18 +198,14 @@
       "id": "us-me-classification",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "M.R.S. § 664",
-        "note": "Minimum wage and overtime (26 M.R.S.",
+        "section": "26 M.R.S. § 602",
+        "note": "Contractor classification (26 M.R.S. § 602): Maine applies the economic realities test to determine contractor vs. employee status for wage-and-hour law and workers' compensation.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "dimension": "OVERTIME_THRESHOLD",
-        "test_description": "Minimum wage and overtime (26 M.R.S.",
-        "salary_threshold": {
-          "amount": "14.65",
-          "currency": "USD"
-        },
+        "dimension": "CONTRACTOR",
+        "test_description": "Contractor classification (26 M.R.S. § 602): Maine applies the economic realities test to determine contractor vs. employee status for wage-and-hour law and workers' compensation.",
         "standard": "REQUIRED"
       }
     },
@@ -214,12 +214,13 @@
       "id": "us-me-personnel-file",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "M.R.S. § 630-A",
-        "note": "Records retention and access (26 M.R.S.",
+        "section": "26 M.R.S. § 631",
+        "note": "Employee access to personnel files (26 M.R.S. § 631): Employee may obtain copies within 10 days of request; employer may charge a reasonable copying fee (not to exceed actual cost of reproduction).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "response_days": 10,
         "copy_fee_permitted": true,
         "standard": "REQUIRED"
       }
@@ -235,6 +236,8 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_activities": ["whistleblower_report", "jury_duty", "wage_claim"],
+        "disposition": "BLOCK",
         "standard": "REQUIRED"
       }
     },
@@ -243,12 +246,14 @@
       "id": "us-me-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "Statute § 683",
-        "note": "Statute § 683: Maine law does not mandate drug testing but permits it under certain conditions if job-related and conducted consistently.",
+        "section": "26 M.R.S. § 683",
+        "note": "Substance use testing (26 M.R.S. § 683): Maine law does not mandate drug testing but permits pre-employment, reasonable-suspicion, and post-accident testing with written policy notice.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "permitted_bases": ["pre_employment", "reasonable_suspicion", "post_accident"],
+        "written_policy_required": true,
         "standard": "REQUIRED"
       }
     },
@@ -257,12 +262,14 @@
       "id": "us-me-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/maine.md",
-        "section": "M.R.S. § 1348",
-        "note": "Breach notification law (10 M.R.S.",
+        "section": "10 M.R.S. § 1348",
+        "note": "Breach notification (10 M.R.S. § 1348): 30-day notice with AG notice at 100+ residents.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "subject_deadline_days": 30,
+        "authority_threshold_count": 100,
         "standard": "REQUIRED"
       }
     }

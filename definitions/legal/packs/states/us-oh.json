@@ -23,8 +23,8 @@
       "id": "us-oh-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Record retention (RC 4111.08): System must retain promotion documentation (offer, effective date, wage-change justification, HR approval, equal-pay analysis if conducted) for ≥3 years to support compliance with...",
+        "section": "RC 4111.08",
+        "note": "Record retention (RC 4111.08): System must retain promotion documentation (offer, effective date, wage-change justification, HR approval, equal-pay analysis if conducted) for at least 3 years to support compliance with director inspection or labor commissioner demand.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -39,14 +39,14 @@
       "id": "us-oh-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate.",
+        "section": "Ohio Earned Sick and Safe Leave Act (Issue 1, effective 2025)",
+        "note": "Paid sick leave interaction (Issue 1, effective 2025): employees accrue 1 hour of paid leave per 30 hours worked with no cap on accrual or carryover. On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid sick leave interaction (Issue 1 effective 2025): On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate."
+        "interaction_rule": "Earned sick time accrues at 1 hour per 30 hours worked with no cap on accrual or carryover. On promotion + pay change, if employee uses sick leave before or during promotion period, system must ensure wage upon return is not reduced below promoted rate; accrual continues during paid leave and does not reset on promotion."
       }
     },
     {
@@ -54,7 +54,7 @@
       "id": "us-oh-pay-frequency",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "RC 4113.15",
         "note": "Pay frequency and payday change (RC 4113.15): System must flag if promotion/pay change coincides with payday change.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
@@ -68,14 +68,14 @@
       "id": "us-oh-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Final pay compliance on separation (RC 4113.15): If termination occurs within promotion period, ensure all wages at promoted rate paid within 15 days of separation (or on next regular payday if sooner); capture in...",
+        "section": "RC 4113.15",
+        "note": "Final pay on separation (RC 4113.15): discharge or layoff wages due on the next regular payday or within 15 days, whichever is sooner; resignation wages due on the next regular payday. If separation follows a promotion, recalculate the final check at the promoted rate from the effective date.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay compliance on separation (RC 4113.15): If termination occurs within promotion period, ensure all wages at promoted rate paid within 15 days of separation (or on next regular payday if sooner); capture in..."
+        "deadline_description": "Discharge or layoff: all wages due on the next regular payday or within 15 days, whichever is sooner; resignation: wages due on the next regular payday (RC 4113.15). Recalculate the final check at the promoted rate from the effective date."
       }
     },
     {
@@ -83,13 +83,14 @@
       "id": "us-oh-mini-warn",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Ohio mini-WARN Act (RC 4113.31, effective Sept 29, 2025): 60-day advance notice to state/local officials + employees required for plant closing or layoff of 50+ at one site if employer has 100+ total employees or...",
+        "section": "RC 4113.31",
+        "note": "Ohio mini-WARN Act (RC 4113.31, effective September 29, 2025): 60-day advance notice to state and local officials plus employees for plant closing or layoff of 50+ employees at one site when the employer has 100+ total employees or 4,000+ combined weekly hours.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "note": "Ohio mini-WARN Act (RC 4113.31, effective Sept 29, 2025): 60-day advance notice to state/local officials + employees required for plant closing or layoff of 50+ at one site if employer has 100+ total employees or...",
+        "note": "Ohio mini-WARN Act (RC 4113.31, effective September 29, 2025): 60-day advance notice to state and local officials plus employees for plant closing or layoff of 50+ employees at one site when the employer has 100+ total employees or 4,000+ combined weekly hours.",
+        "employee_threshold": 100,
         "notice_days": 60
       }
     },
@@ -99,7 +100,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
         "section": "Ohio Constitution Art. II § 34a",
-        "note": "Minimum wage $11.00/hour (2026, indexed annually per Ohio Constitution Art.",
+        "note": "Minimum wage $11.00/hour (2026, indexed annually per Ohio Constitution Art. II § 34a) for employers with gross receipts over $405,000; small employers pay federal minimum ($7.25).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -108,9 +109,29 @@
           "amount": "11.00",
           "currency": "USD"
         },
-        "worker_class": "tipped employees",
+        "worker_class": "employers with gross receipts over $405,000",
         "basis": "HOURLY",
         "indexation": "CPI",
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-oh-wage-floor-small-employer",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/ohio.md",
+        "section": "Ohio Constitution Art. II § 34a",
+        "note": "Minimum wage $7.25/hour (federal minimum) for employers with gross receipts of $405,000 or less (Ohio Constitution Art. II § 34a).",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "floor_amount": {
+          "amount": "7.25",
+          "currency": "USD"
+        },
+        "worker_class": "employers with gross receipts of $405,000 or less",
+        "basis": "HOURLY",
         "standard": "REQUIRED"
       }
     },
@@ -119,19 +140,20 @@
       "id": "us-oh-pay-equity-review",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Equal-pay statute compliance (RC 4111.17): On promotion or pay change, system should flag if new wage for one gender deviates substantially from peer rates for equal work.",
+        "section": "RC 4111.17",
+        "note": "Equal-pay statute compliance (RC 4111.17): prohibits wage discrimination on the basis of race, color, religion, sex, age, national origin, or ancestry for equal work; applies to all employers with a private right of action. On promotion or pay change, flag if the new wage deviates from peer rates for equal work.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "protected_bases": [
-          "sex",
-          "gender",
           "race",
-          "national_origin",
+          "color",
           "religion",
-          "age"
+          "sex",
+          "age",
+          "national_origin",
+          "ancestry"
         ],
         "comparator_standard": "equal work",
         "standard": "RECOMMENDED"
@@ -142,13 +164,13 @@
       "id": "us-oh-pay-statement",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "HB 106",
-        "note": "Pay-statement compliance (HB 106 RC 4113.14, effective 4/9/2025): On promotion effective mid-pay-period, system must ensure pay stub issued on next regular payday itemizes both pre- and post-promotion wages separately...",
+        "section": "RC 4113.14 (HB 106)",
+        "note": "Pay-statement compliance (HB 106, RC 4113.14, effective 2025-04-09): itemized earnings and deductions stubs required each pay period, electronic or paper. On a mid-pay-period promotion, the stub issued on the next regular payday must itemize both pre- and post-promotion wages.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "required_fields": ["pay_rate"],
+        "required_fields": ["gross_wages", "net_wages", "deductions"],
         "standard": "REQUIRED"
       }
     },
@@ -157,12 +179,18 @@
       "id": "us-oh-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "U.S.C. § 2000gg",
-        "note": "Federal Pregnant Workers Fairness Act (PWFA, 42 U.S.C.",
+        "section": "RC 4113.52",
+        "note": "Whistleblower protection (RC 4113.52) applies to all Ohio employers: protects disclosure of violations reasonably believed to be criminal offenses or likely to cause imminent risk of physical harm or hazard to public health or safety, including safety-violation reports. Workers-compensation retaliation is separately barred (RC 4123.90).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_activities": [
+          "safety_violation_report",
+          "whistleblower_report",
+          "workers_compensation_claim"
+        ],
+        "disposition": "FLAG",
         "standard": "REQUIRED"
       }
     },
@@ -171,12 +199,13 @@
       "id": "us-oh-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "R.C. 3796.28",
-        "note": "Medical marijuana (Ohio Medical Marijuana Control Program, R.C.",
+        "section": "R.C. ch. 3796 (R.C. 3796.28)",
+        "note": "No state law restricts private-sector drug testing: pre-employment, reasonable-suspicion, post-accident, and random testing are permitted per written policy. Medical marijuana (R.C. ch. 3796; R.C. 3796.28): employers need not accommodate use and may maintain drug-free workplace policies.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "permitted_bases": ["pre_employment", "reasonable_suspicion", "post_accident"],
         "protected_status": ["medical_cannabis_patient"],
         "standard": "REQUIRED"
       }
@@ -186,12 +215,13 @@
       "id": "us-oh-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/ohio.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Data breach notification (RC 1349.19):",
+        "section": "RC 1349.19",
+        "note": "Data breach notification (RC 1349.19): any person or business owning or licensing computerized personal information of Ohio residents must notify affected residents within 45 days of discovering a breach of the security of the system.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "subject_deadline_days": 45,
         "standard": "REQUIRED"
       }
     }

@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/north-carolina.md",
         "section": "§ 95-25.13",
-        "note": "Written notice at hire or change (§ 95-25.13): Employer must provide written notice of pay rate and paydays at hire; 24 hours' notice required before reduction in wages or wage benefits (amended 2021; verify exact...",
+        "note": "Written notice at hire or change (§ 95-25.13): Employer must provide written notice of pay rate and paydays at hire; 24 hours' notice required before reduction in wages or wage benefits (amended 2021; exact timing under legal review).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -55,7 +55,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/north-carolina.md",
         "section": "§ 95-25.15",
-        "note": "Records retention (§ 95-25.15): Retain promotion documents (wage change, effective date, justification, business rationale) per employer record policy (verify whether 3 years or employer-set); support labor...",
+        "note": "Records retention (§ 95-25.15): Retain promotion documents (wage change, effective date, justification, business rationale) per employer record policy (duration under review: 3 years or employer-set); support labor commissioner inspection.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -70,13 +70,14 @@
       "id": "us-nc-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/north-carolina.md",
-        "section": "§ 95-28.3",
-        "note": "School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level.",
+        "section": "§§ 95-28.3, 50B-5.5",
+        "note": "School involvement leave 4hrs/year: no post-leave wage reduction below the pre-promotion level (§ 95-28.3). Domestic-violence protective-order leave: no discharge, demotion, or denial of promotion (§ 50B-5.5).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "interaction_rule": "School involvement leave interaction (§ 95-28.3): If employee uses 4-hour leave and receives promotion, do not reduce post-leave wage below pre-promotion level."
+        "leave_type": "school involvement leave",
+        "interaction_rule": "School involvement leave 4hrs/year: no post-leave wage reduction below the pre-promotion level (§ 95-28.3). Domestic-violence protective-order leave: no discharge, demotion, or denial of promotion (§ 50B-5.5)."
       }
     },
     {
@@ -125,6 +126,21 @@
       }
     },
     {
+      "kind": "WAGE_FLOOR",
+      "id": "us-nc-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/north-carolina.md",
+        "section": "29 U.S.C. § 206; no North Carolina statute",
+        "note": "No state minimum above federal; verify wage meets $7.25/hour on promotion or base-pay change.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
+        "standard": "REQUIRED"
+      }
+    },
+    {
       "kind": "PAY_STATEMENT",
       "id": "us-nc-pay-statement",
       "citation": {
@@ -144,12 +160,16 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/north-carolina.md",
         "section": "§ 95-240",
-        "note": "REDA retaliation check (§ 95-240 et seq.): If employee recently filed wage-and-hour, OSHA, or workers' compensation complaint, flag promotion timing to ensure retaliation cannot be inferred (timing shortly before...",
+        "note": "REDA retaliation check (§ 95-240 et seq.): If employee recently filed wage-and-hour, OSHA, or workers' compensation complaint, flag promotion timing to ensure retaliation cannot be inferred (timing shortly before a complaint is suspicious).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_activities": ["workers_compensation_claim"],
+        "protected_activities": [
+          "workers_compensation_claim",
+          "osha_complaint",
+          "wage_and_hour_complaint"
+        ],
         "disposition": "BLOCK",
         "standard": "REQUIRED"
       }
@@ -160,11 +180,17 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/north-carolina.md",
         "section": "§ 95-230",
-        "note": "Drug testing (§ 95-230 et seq., Controlled Substance Examination Regulation):",
+        "note": "Private-sector drug testing permitted (pre-employment, reasonable-suspicion, post-accident, random); procedures must meet reliability and sample-collection standards with GC/MS confirmation of positives (§ 95-230 et seq.).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "permitted_bases": [
+          "pre_employment",
+          "reasonable_suspicion",
+          "post_accident",
+          "random"
+        ],
         "standard": "REQUIRED"
       }
     },
@@ -174,7 +200,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/north-carolina.md",
         "section": "§ 75-65",
-        "note": "Data breach notification (§ 75-65, Identity Theft Protection Act):",
+        "note": "Notify affected individuals without unreasonable delay after discovery; notify the Attorney General Consumer Protection Division of every qualifying breach; encryption safe harbor (§ 75-65, Identity Theft Protection Act).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -188,6 +214,6 @@
   "provenance": {
     "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
     "source_files": ["planning/research/state-employment-law/north-carolina.md"],
-    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in. Agent verification 2026-09-16 (LEGAL-ST-NC-001, not counsel review): added the missing federal-only WAGE_FLOOR; carried school-involvement and domestic-violence leave interactions; extended anti-retaliation activities; recorded drug-testing procedure parameters; completed truncated citation notes. Counsel approval remains the release gate; pack stays UNREVIEWED."
   }
 }

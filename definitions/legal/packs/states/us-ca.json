@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "§ 2810.5",
-        "note": "Wage notice (§ 2810.5): Upon hire, system must generate/display/send notice.",
+        "note": "Wage notice (Lab. Code § 2810.5): written notice at hire covering rates, basis, payday and employer identity; written notice within 7 calendar days of any pay rate, basis, payday or allowance change.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -40,7 +40,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "§ 432.3",
-        "note": "Pay transparency mandatory: § 432.3 bans salary history questions, requires pay scale disclosure in job postings (15+ employees), mandates 3-year wage/job title record retention, and Gov.",
+        "note": "Salary history ban and pay transparency (Lab. Code § 432.3): employers may not seek salary history or rely on prior salary; must provide pay scale on request; 15+ employers must include scale in postings.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -55,7 +55,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "§ 226",
-        "note": "Pay statement accuracy (§ 226): System must generate itemized statements with all 9 required fields, retain 3-year copies, and track deduction authorization (written employee consent).",
+        "note": "Retain itemized wage statements and deduction records 3 years (Lab. Code § 226); job title and wage-rate history for employment duration plus 3 years (Lab. Code § 432.3).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -70,14 +70,14 @@
       "id": "us-ca-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
-        "section": "§§ 201–203",
-        "note": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72...",
+        "section": "Lab. Code § 246",
+        "note": "Paid sick leave (Lab. Code § 246): 40 hours (5 days) per year for 30+day employees, usable day 90, with no forfeiture on role change or demotion; plus CFRA 12-week unpaid leave (Gov. Code § 12945) and PFL up to 8 weeks via SDI (UIC § 3300).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "leave_type": "accrued paid time off",
-        "interaction_rule": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72..."
+        "leave_type": "paid sick leave",
+        "interaction_rule": "40 hours (5 days) PSL per year; accrued PSL carries across role change and demotion with no forfeiture; CFRA and PFL run per statute (Lab. Code § 246; Gov. Code § 12945; UIC § 3300)."
       }
     },
     {
@@ -100,13 +100,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "§§ 201–203",
-        "note": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72...",
+        "note": "Final pay timing (Lab. Code §§ 201–203): discharge pays immediately including accrued vacation; resignation with 72 hours notice pays at once, without notice within 72 hours; willful delay risks daily-wage penalties up to 30 days (§ 203 good-faith defense).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing (§§ 201–203): On termination/resignation, system must calculate final pay (regular + accrued vacation + accrued PSL + any penalties), alert employer of 203-penalty risk if payment delayed beyond 72..."
+        "deadline_description": "Final pay timing (Lab. Code §§ 201–203): discharge pays immediately including accrued vacation; resignation with 72 hours notice pays at once, without notice within 72 hours; willful delay risks daily-wage penalties up to 30 days (§ 203 good-faith defense)."
       }
     },
     {
@@ -130,13 +130,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "§ 16600",
-        "note": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation...",
+        "note": "Non-compete voidance: Business & Professions Code § 16600 voids non-competes except on business sale/dissolution; AB 1076 required employers to notify affected workers that void clauses are unenforceable.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete voidance: System should flag § 16600 voidance and AB 1076 required notice for any employee with non-compete clause issued after Jan 1, 2024 or working within prior 2 years; enforce void status in separation..."
+        "rule": "Non-compete voidance: Business & Professions Code § 16600 voids non-competes except on business sale/dissolution; AB 1076 required employers to notify affected workers that void clauses are unenforceable."
       }
     },
     {
@@ -145,12 +145,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "Labor Code §§ 1400–1408",
-        "note": "Cal-WARN notice (Labor Code §§ 1400–1408): California Worker Adjustment and Retraining Notification Act requires 60-day written notice of mass layoff (50+ employees in 30 days), plant closure, or relocation to:",
+        "note": "Cal-WARN (Lab. Code §§ 1400–1408): 60-day written notice of mass layoff (50+ employees in 30 days), closure or relocation to employees, EDD, local agency and elected officials; covered establishments have 75+ employees.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "note": "Cal-WARN notice (Labor Code §§ 1400–1408): California Worker Adjustment and Retraining Notification Act requires 60-day written notice of mass layoff (50+ employees in 30 days), plant closure, or relocation to:",
+        "note": "Cal-WARN (Lab. Code §§ 1400–1408): 60-day written notice of mass layoff (50+ employees in 30 days), closure or relocation to employees, EDD, local agency and elected officials; covered establishments have 75+ employees.",
         "employee_threshold": 50,
         "notice_days": 60
       }
@@ -171,6 +171,7 @@
           "currency": "USD"
         },
         "basis": "HOURLY",
+        "indexation": "CPI",
         "standard": "REQUIRED"
       }
     },
@@ -180,12 +181,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "Labor Code § 1197.5",
-        "note": "Equal pay: Labor Code § 1197.5 (California Equal Pay Act) prohibits paying employees at lower wage rates based on sex for substantially similar work (skill, effort, responsibility, working conditions).",
+        "note": "Equal pay (Lab. Code § 1197.5): no lower wages based on sex for substantially similar work; defenses are bona fide seniority, merit, output or bargaining factors; 100+ employers file annual pay-data reports by May 15 (Gov. Code § 12999).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_bases": ["sex", "age"],
+        "protected_bases": ["sex"],
         "comparator_standard": "substantially similar work",
         "standard": "REQUIRED"
       }
@@ -201,7 +202,15 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "required_fields": ["deductions", "pay_rate"],
+        "required_fields": [
+          "gross_wages",
+          "net_wages",
+          "deductions",
+          "hours_worked",
+          "pay_rate",
+          "pay_period",
+          "employer_identification"
+        ],
         "delivery": "ELECTRONIC",
         "consent_required": true,
         "standard": "REQUIRED"
@@ -212,7 +221,7 @@
       "id": "us-ca-classification",
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
-        "section": "AB 5",
+        "section": "Lab. Code § 2750.5",
         "note": "AB 5 ABC test presumes employee: All three prongs (A: no control, B: outside usual business, C: independent trade) must be satisfied to classify as contractor; failure on any = employee.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
@@ -229,12 +238,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "§ 1198.5",
-        "note": "Personnel file access (§ 1198.5): On employee request, system must flag 30-day deadline (extendable to 35 with agreement) to provide inspection/copies or $750 penalty risk.",
+        "note": "Personnel file access (Lab. Code § 1198.5): current and former employees may inspect records within 30 calendar days of written request (extendable to 35 by agreement); copies at reproduction cost; $750 penalty per violation.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "response_days": 30,
+        "day_basis": "CALENDAR",
         "standard": "REQUIRED"
       }
     },
@@ -243,13 +253,14 @@
       "id": "us-ca-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
-        "section": "Labor Code § 2810.5",
-        "note": "California is at-will employment (no state restriction on at-will doctrine).",
+        "section": "Lab. Code § 1102.5",
+        "note": "Whistleblower protection (Lab. Code § 1102.5): retaliation barred for reporting workplace violations internally or to agencies; the protection cannot be waived; safety-complaint retaliation barred (§ 6310).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_activities": ["protected_leave_request"],
+        "protected_activities": ["workplace_violation_report"],
+        "disposition": "FLAG",
         "standard": "REQUIRED"
       }
     },
@@ -258,12 +269,13 @@
       "id": "us-ca-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
-        "section": "§ 230–230.1",
-        "note": "Cannabis/domestic violence/victim leave: System must flag eligibility for AB 2188 cannabis use non-discrimination (no testing unless federal-funding job or CDL), AB 2499 victim-of-violence leave (runs concurrent with...",
+        "section": "Lab. Code § 12954",
+        "note": "Off-duty cannabis-use discrimination barred (AB 2188, Lab. Code § 12954), except federal-clearance, CDL and CBA roles; pre-employment testing permitted with a written drug-free-workplace policy.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "written_policy_required": true,
         "protected_status": ["lawful_off_duty_cannabis_use"],
         "standard": "REQUIRED"
       }
@@ -273,13 +285,12 @@
       "id": "us-ca-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
-        "section": "Civil Code § 1798.150",
-        "note": "Business obligations: Covered employers must provide privacy notice at or before collection, honor access/deletion/opt-out/correction requests within 45 days (or 90 days if unverifiable request; verify: CPPA guidance on...",
+        "section": "Civ. Code § 1798.82",
+        "note": "Breach notification (Civ. Code § 1798.82): breaches of unencrypted personal information notify affected residents without unreasonable delay (typically 30–60 days); no employer exemption.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "subject_deadline_days": 45,
         "standard": "REQUIRED"
       }
     },
@@ -289,7 +300,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/california.md",
         "section": "Civil Code § 1798.100",
-        "note": "Biometric information: Civil Code § 1798.100 et seq.",
+        "note": "CCPA/CPRA employee coverage (Civ. Code § 1798.100 et seq.): employment-data exemptions expired 2023-01-01; honor access, deletion, correction and opt-out requests within 45 days; maintain reasonable security; biometric-consent case law still to verify.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },

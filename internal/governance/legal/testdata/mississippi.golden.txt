@@ -1,0 +1,5 @@
+# LEGAL-ST-MS-001 golden oracle: the agent-verified Mississippi draft bytes
+# (federal-only floor with the 71-1-51 preemption, confirmed all-employer
+# E-Verify, 5-employee pay-equity floor, completed notes).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:623231afb61250d5fc4e2c471f4fd6e98a003d87c034cf20abd787f6c5698549

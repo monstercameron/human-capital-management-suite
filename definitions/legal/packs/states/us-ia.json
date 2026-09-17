@@ -90,7 +90,9 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "note": "Iowa WARN (§ 84C) - Layoff Scenario: If the system models a future layoff:"
+        "note": "Iowa WARN (§ 84C) - Layoff Scenario: If the system models a future layoff:",
+        "employee_threshold": 25,
+        "notice_days": 30
       }
     },
     {
@@ -104,6 +106,7 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "comparator_standard": "substantially similar work",
         "standard": "REQUIRED"
       }
     },
@@ -133,6 +136,8 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "response_days": 3,
+        "day_basis": "BUSINESS",
         "standard": "REQUIRED"
       }
     },
@@ -142,7 +147,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/iowa.md",
         "section": "SF 418",
-        "note": "Protected Classes under Chapter 216: Iowa Code Chapter 216 (Civil Rights Act) protects employees from discrimination based on sex, race, color, creed, national origin, disability, and age.",
+        "note": "Protected Classes under Chapter 216: Iowa Code Chapter 216 (Civil Rights Act) no longer covers gender identity as of SF 418 (effective 2025-07-01); sex, race, color, creed, national origin, disability, age remain protected.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -190,6 +195,22 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "subject_deadline_days": 5,
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-ia-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/iowa.md",
+        "section": "Iowa Code § 91D.1",
+        "note": "Minimum Wage: Iowa Code § 91D.1 sets minimum wage at $7.25/hour, which matches federal FLSA (29 U.S.C. § 206); the federal floor is the binding floor, no state premium.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
         "standard": "REQUIRED"
       }
     }

@@ -23,13 +23,14 @@
       "id": "us-ks-notice",
       "citation": {
         "source_file": "planning/research/state-employment-law/kansas.md",
-        "section": "U.S.C. § 211",
-        "note": "Record Retention and Notice: K.S.A.",
+        "section": "K.S.A. 44-320",
+        "note": "Record Retention and Notice: K.S.A. 44-320 requires written notice of pay rate at hire and before any reduction takes effect (per K.A.R. 49-20-1).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
         "channel": "written",
         "content_fields": ["pay_rate"]
       }
@@ -39,7 +40,7 @@
       "id": "us-ks-pay-frequency",
       "citation": {
         "source_file": "planning/research/state-employment-law/kansas.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "K.S.A. 44-313 to 44-327",
         "note": "Wage Payment Act governs pay frequency and final pay: K.S.A.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
@@ -53,7 +54,7 @@
       "id": "us-ks-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/kansas.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "K.S.A. 44-313 to 44-327",
         "note": "Wage Payment Act governs pay frequency and final pay: K.S.A.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
@@ -69,13 +70,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/kansas.md",
         "section": "SB 241",
-        "note": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (_Weber v.",
+        "note": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman), which K.S.A. 50-163 does not reach.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (_Weber v."
+        "rule": "Noncompetes remain common law; non-solicits are now partly statutory: Non-compete agreements are enforced solely under common-law reasonableness (Weber v. Tillman), which K.S.A. 50-163 does not reach."
       }
     },
     {
@@ -99,13 +100,17 @@
       "id": "us-ks-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/kansas.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Kansas is an at-will employment state.",
+        "section": "K.S.A. 43-173",
+        "note": "Kansas is an at-will employment state; retaliation for jury duty (K.S.A. 43-173), voting, military duty, or workers' compensation claims voids at-will terminations.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "protected_activities": ["whistleblower_report"],
+        "protected_activities": [
+          "jury_duty",
+          "workers_compensation_claim",
+          "whistleblower_report"
+        ],
         "standard": "REQUIRED"
       }
     },
@@ -144,13 +149,28 @@
       "id": "us-ks-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/kansas.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Data breach notification: K.S.A.",
+        "section": "K.S.A. 50-7a01",
+        "note": "Data breach notification (K.S.A. 50-7a01): trigger breach notification without unreasonable delay, typically 3-5 days; notify Kansas AG if 250+ residents affected.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "subject_deadline_days": 5,
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-ks-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/kansas.md",
+        "section": "K.S.A. 44-1202",
+        "note": "Minimum Wage: K.S.A. 44-1202 sets Kansas minimum wage at $7.25/hour, equal to the federal FLSA minimum; no state-specific rate above the federal minimum.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
         "standard": "REQUIRED"
       }
     }

@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 71-1-35",
-        "note": "Validation error: \"Manufacturers and public service corporations with 50+ employees must pay wages at least bi-weekly per Miss.",
+        "note": "Manufacturers and public service corporations with 50+ employees must pay wages bi-weekly, semi-monthly, or on the 2nd and 4th Saturdays, covering earnings from the preceding 10 days (15 for public service corporations) (Miss. Code § 71-1-35).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -38,13 +38,28 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 71-11-3",
-        "note": "E-Verify mandatory for ALL employers: Miss.",
+        "note": "E-Verify mandatory for all employers regardless of size: every new hire verified before or on the first day, no size exemption (Miss. Code § 71-11-3, Mississippi Employment Protection Act).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "required_on_new_hire_only": true,
-        "note": "E-Verify mandatory for ALL employers: Miss."
+        "note": "E-Verify mandatory for all employers regardless of size: every new hire verified before or on the first day, no size exemption (Miss. Code § 71-11-3, Mississippi Employment Protection Act)."
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-ms-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/mississippi.md",
+        "section": "Miss. Code § 71-1-51; no state minimum above federal",
+        "note": "No state minimum wage; federal FLSA $7.25/hour applies and the state's $5.15/hour figure is preempted.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
+        "standard": "REQUIRED"
       }
     },
     {
@@ -53,13 +68,14 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 71-17-5",
-        "note": "Notice: \"Miss.",
+        "note": "Miss. Code § 71-17-5 (eff. 2022) bars sex-based wage discrimination for equal work (equal skill, effort, education, responsibility); 5+ employees; private-lawsuit-only enforcement.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "protected_bases": ["sex"],
         "comparator_standard": "equal work",
+        "employer_size_floor": 5,
         "documentation_required": true,
         "standard": "REQUIRED"
       }
@@ -70,7 +86,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 13-5-35",
-        "note": "Jury Duty Leave: Miss.",
+        "note": "Employers cannot require employees to spend paid leave on jury duty and cannot retaliate for jury service (Miss. Code § 13-5-35).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -86,7 +102,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 41-137-13",
-        "note": "Notice: \"Miss.",
+        "note": "Employers may test for cannabis and discipline positive results; a medical card alone is no shield, but action taken solely on cardholder status without impairment is barred.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -104,7 +120,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/mississippi.md",
         "section": "Miss. Code § 75-24-29",
-        "note": "Data breach notification without unreasonable delay: Miss.",
+        "note": "Breach notice in the most expedient time possible and without unreasonable delay (3 days recommended); no private right of action, Attorney General enforcement (Miss. Code § 75-24-29).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -117,6 +133,6 @@
   "provenance": {
     "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
     "source_files": ["planning/research/state-employment-law/mississippi.md"],
-    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in. Agent verification 2026-09-16 (LEGAL-ST-MS-001, not counsel review): added the missing federal-only WAGE_FLOOR; completed truncated citation notes; confirmed all-employer E-Verify confidence; recorded the 5-employee pay-equity floor. Counsel approval remains the release gate; pack stays UNREVIEWED."
   }
 }

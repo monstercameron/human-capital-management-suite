@@ -1,0 +1,9 @@
+# LEGAL-ST-RI-001 golden oracle: the agent-verified Rhode Island draft bytes
+# ($16.00/hr § 28-12-3 floor, §§ 28-6-19/28-6-17 transparency and
+# salary-history ban, § 28-14-2 weekly-default pay frequency and notice,
+# § 28-57-1 sick leave, $37,650 non-compete recheck, documented
+# substantially-similar-work review, § 28-14-2.1 pay statements,
+# § 28-14-19 personnel file, § 28-50-1 anti-retaliation, § 11-49.3-4
+# breach; fully-Y Table A row).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:bbea21860ada92f16a4e6238065a30088564ca0b99aacc650297f0aeb4e1380b

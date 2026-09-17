@@ -1,0 +1,7 @@
+# LEGAL-ST-SD-001 golden oracle: the agent-verified South Dakota draft bytes
+# ($11.85/hr CPI-indexed floor, MONTHLY pay frequency,
+# next-payday final pay, SDCL 53-9-11 non-compete recheck, comparable-work
+# pay equity, 3-year retention, workers-comp anti-retaliation, SDCL
+# 22-40-20 breach; PAY_STMT ? visibly absent pending re-research).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:346ba9df8a5c6bea7cd733d3b16bfd8e835692fa2c0c050ac0a0d705f4e75996

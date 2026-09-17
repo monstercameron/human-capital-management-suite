@@ -30,7 +30,6 @@
       },
       "body": {
         "who": "employer_to_worker",
-        "timing_days": 10,
         "channel": "written",
         "content_fields": ["pay_rate", "effective_date"]
       }
@@ -55,15 +54,14 @@
       "id": "us-mn-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/minnesota.md",
-        "section": "§§ 181.960–181.966",
-        "note": "Personnel file access: §§ 181.960–181.966 grant current and former employees right to review personnel records at reasonable times within 30 calendar days of written request (extendable to 35 days by written mutual...",
+        "section": "Minn. Stat. 181.032",
+        "note": "Wage and job-title record retention: Minn. Stat. 181.032 requires employers to maintain job title and wage rate history for each employee throughout employment plus 3 years post-separation.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "record_class": "payroll_records",
-        "duration_years": 1,
-        "duration_basis": "from_record_date"
+        "record_class": "wage_records",
+        "duration_years": 3
       }
     },
     {
@@ -71,13 +69,14 @@
       "id": "us-mn-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/minnesota.md",
-        "section": "Minn. Stat. § 181.988",
-        "note": "Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date.",
+        "section": "Minn. Stat. §§ 181.9445–181.9448",
+        "note": "Earned Sick and Safe Time (effective Jan 1, 2024): use for own/family health condition, preventive care, domestic abuse, or public health emergency (Minn. Stat. §§ 181.9445–181.9448).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "CONFIRMED"
+        "confidence_marker": "VERIFY"
       },
       "body": {
-        "interaction_rule": "Pre-effective notice (P1A): System generates written notice 5 business days before promotion effective date."
+        "leave_type": "earned sick and safe leave",
+        "interaction_rule": "Earned Sick and Safe Time: at least 1 hour per 30 hours worked, max 48 hours/year; carry-over to 80-hour cap. Accrual does not reset on promotion; balance transfers. Paid Family and Medical Leave (PFML): 12-week paid leave from 2026-01-01 (ch. 268B); pending items under review."
       }
     },
     {
@@ -134,7 +133,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete."
+        "rule": "Non-compete void notice: If employee has pre-existing non-compete agreement in file, promotion should not trigger re-signing, re-confirmation, or enforcement of the non-compete. All non-competes signed before July 1, 2023 are void (retroactive application, 2023-07-01, § 181.988)."
       }
     },
     {
@@ -183,7 +182,7 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_bases": ["sex", "age"],
+        "protected_bases": ["sex"],
         "comparator_standard": "equal work",
         "standard": "REQUIRED"
       }
@@ -193,7 +192,7 @@
       "id": "us-mn-pay-statement",
       "citation": {
         "source_file": "planning/research/state-employment-law/minnesota.md",
-        "section": "§ 181.101",
+        "section": "§ 181.032",
         "note": "Pay frequency (§ 181.101): Payment required at least once every 31 days on designated payday.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
@@ -207,6 +206,7 @@
           "pay_period",
           "employer_identification"
         ],
+        "delivery": "EITHER",
         "standard": "REQUIRED"
       }
     },
@@ -231,12 +231,14 @@
       "id": "us-mn-personnel-file",
       "citation": {
         "source_file": "planning/research/state-employment-law/minnesota.md",
-        "section": "§ 177.25",
-        "note": "Overtime classification review: If promotion moves employee from overtime-eligible (48-hour threshold under § 177.25) to exempt classification, system must trigger a review workflow: (1) verify that § 177.21 exemption...",
+        "section": "§§ 181.960-181.966",
+        "note": "Personnel file access (§§ 181.960-181.966): Current employees may inspect records once per 6 months; former employees once per year with free copy. Inspection within 30 calendar days of written request (extendable to 35 days).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "response_days": 30,
+        "day_basis": "CALENDAR",
         "standard": "REQUIRED"
       }
     },
@@ -277,13 +279,11 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/minnesota.md",
         "section": "§ 325E.61",
-        "note": "Breach notification: § 325E.61 requires any person/business conducting business in Minnesota (even if data stored elsewhere) that owns or licenses \"personal information\" of Minnesota residents to notify affected...",
+        "note": "Breach notification: § 325E.61 requires any person/business conducting business in Minnesota that owns or licenses personal information of Minnesota residents to notify affected residents without unreasonable delay; no day count and no monitoring mandate typed.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "subject_deadline_days": 60,
-        "credit_monitoring_required": true,
         "standard": "RECOMMENDED"
       }
     }

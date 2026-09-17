@@ -1,0 +1,6 @@
+# LEGAL-ST-AZ-001 golden oracle: the agent-verified Arizona draft bytes
+# ($15.15/hr CPI floor with Flagstaff/Tucson locality overlays named,
+# semi-monthly frequency, 7-day final pay, sick-leave parameters, all-employer
+# E-Verify, 4-year retention and bare recordkeeping duty at VERIFY).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:a334c6ed52e6d8f1ecc868874506a85f55c652ba6ba1de903667a4209b83ad09

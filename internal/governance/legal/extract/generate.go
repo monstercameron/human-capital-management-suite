@@ -24,12 +24,17 @@ type GeneratedFile struct {
 	Extraction StateExtraction
 }
 
-// Generate builds every state draft from the research corpus and the contract
-// matrix under root, without writing anything. Callers that want the files on
-// disk pass the result to [WriteAll]; the regeneration test compares it to
-// what is already checked in.
+// Generate builds every state draft from the research corpus, the contract
+// matrix and the generator's reviewed inputs under root, without writing
+// anything. Callers that want the files on disk pass the result to
+// [WriteAll]; the regeneration test compares it to what is already
+// checked in.
 func Generate(root string) ([]GeneratedFile, error) {
 	matrix, err := LoadMatrix(root)
+	if err != nil {
+		return nil, err
+	}
+	reviewed, err := LoadReviewedOverrides(root)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +45,7 @@ func Generate(root string) ([]GeneratedFile, error) {
 		if err != nil {
 			return nil, err
 		}
-		extraction, err := ExtractState(matrix, file, state)
+		extraction, err := ExtractStateWithReviewed(matrix, file, state, reviewed)
 		if err != nil {
 			return nil, err
 		}

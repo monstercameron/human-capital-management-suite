@@ -1,0 +1,6 @@
+# LEGAL-ST-DE-001 golden oracle: the agent-verified Delaware draft bytes
+# ($15.00/hr floor under § 902, salary-history ban, monthly pay, Paid Leave
+# tiering named at VERIFY, §§ 730-735 personnel-file rule, 50/60-day
+# mini-WARN, 60-day breach clock with credit monitoring).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:72c3d13ed3a1f1580f43d696216e33c56eab0f555608c4fb602daf1f75c25f60

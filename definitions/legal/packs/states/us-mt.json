@@ -38,12 +38,16 @@
       "id": "us-mt-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/montana.md",
-        "section": "MCA § 30-14-1704",
-        "note": "Record Format: No state requirement for paper vs.",
+        "section": "(statutory section not stated in the research file)",
+        "note": "Payroll records and remuneration documents retained at least 4 years after the calendar year paid (stricter than the 3-year federal FLSA rule); no paper-vs-electronic mandate.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
-      "body": {}
+      "body": {
+        "record_class": "payroll_records",
+        "duration_years": 4,
+        "duration_basis": "from_record_date"
+      }
     },
     {
       "kind": "PAY_FREQUENCY",
@@ -51,13 +55,11 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/montana.md",
         "section": "MCA § 39-3-204",
-        "note": "Pay frequency: 10-day maximum hold: MCA § 39-3-204 caps wage withholding at 10 business days after wages are earned and due; no frequency mandate (weekly, biweekly, semi-monthly all allowed).",
+        "note": "No frequency mandate (weekly, biweekly, semi-monthly all allowed); wages may not be held more than 10 business days after earned and due; written notice of wage rate and pay date before hire (MCA § 39-3-204).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
-      "body": {
-        "minimum_frequency": "SEMIMONTHLY"
-      }
+      "body": {}
     },
     {
       "kind": "FINAL_PAY_DEADLINE",
@@ -65,13 +67,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/montana.md",
         "section": "MCA § 39-3-205",
-        "note": "Final pay timing: MCA § 39-3-205 requires immediate payment on involuntary termination unless the employer has a written policy extending to the next payday or 15 days, whichever is sooner.",
+        "note": "Final pay timing: MCA § 39-3-205 requires immediate payment on involuntary termination unless the employer has a written policy extending to the next payday or 15 days, whichever is sooner. Resignations: next regular payday or 15 days, whichever sooner.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing: MCA § 39-3-205 requires immediate payment on involuntary termination unless the employer has a written policy extending to the next payday or 15 days, whichever is sooner."
+        "deadline_description": "Immediate payment on involuntary termination unless a written policy extends to the next payday or 15 days, whichever sooner; resignations due next regular payday or 15 days (MCA § 39-3-205)."
       }
     },
     {
@@ -79,14 +81,14 @@
       "id": "us-mt-non-compete",
       "citation": {
         "source_file": "planning/research/state-employment-law/montana.md",
-        "section": "MCA § 28-2-703",
-        "note": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file.",
+        "section": "MCA §§ 28-2-703 to 28-2-705",
+        "note": "Employment non-competes generally void; enforceable only for sale of goodwill or partnership dissolution, plus narrow judicial exceptions; flag any employment covenant for legal review.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforcement (MCA § 28-2-703): Flag any non-compete agreements in the employee file."
+        "rule": "Employment non-competes generally void; enforceable only for sale of goodwill or partnership dissolution, plus narrow judicial exceptions; flag any employment covenant for legal review."
       }
     },
     {
@@ -154,12 +156,15 @@
       "id": "us-mt-job-security",
       "citation": {
         "source_file": "planning/research/state-employment-law/montana.md",
-        "section": "§ 39-2-912",
-        "note": "If the employer has written internal procedures for appealing a discharge (other than those in § 39-2-912), the employee must exhaust them before suing for wrongful discharge.",
+        "section": "MCA §§ 39-2-904, 39-2-912",
+        "note": "WDEA good-cause standard after probation: default 12-month probation, extendable once by up to 6 months (18 total); post-probation discharge requires good cause; internal-grievance exhaustion with a 90-day safety valve.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "standard_kind": "GOOD_CAUSE_AFTER_PROBATION",
+        "probation_days": 365,
+        "justification_required": true,
         "standard": "REQUIRED"
       }
     },
@@ -182,8 +187,8 @@
       "id": "us-mt-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/montana.md",
-        "section": "MCA § 39-2-205",
-        "note": "Drug Testing (MCA § 39-2-205 to 39-2-211, Workforce Drug and Alcohol Testing Act): Permitted, but only for employees in qualifying positions:",
+        "section": "MCA §§ 39-2-205 to 39-2-211",
+        "note": "Drug and alcohol testing permitted only for employees in qualifying positions under the Workforce Drug and Alcohol Testing Act.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -197,9 +202,9 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/montana.md",
         "section": "MCA § 30-14-1704",
-        "note": "Data Breach and Personal Information (MCA § 30-14-1704): If employee personal data (SSN, financial account, driver's license, etc.) is breached or exposed in a security incident, trigger notification to affected...",
+        "note": "Breach of computerized personal information requires notice to affected residents without unreasonable delay (3-5 business days recommended) (MCA § 30-14-1704).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "subject_deadline_days": 5,
@@ -212,6 +217,6 @@
   "provenance": {
     "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
     "source_files": ["planning/research/state-employment-law/montana.md"],
-    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in. Agent verification 2026-09-16 (LEGAL-ST-MT-001, not counsel review): recorded GOOD_CAUSE_AFTER_PROBATION with the 12-month default probation; sharpened the non-compete voidance rule; recorded the 4-year payroll retention rule; removed the overstated pay-frequency floor; completed truncated citation notes; separation-filing stays VERIFY for lack of research evidence. Counsel approval remains the release gate; pack stays UNREVIEWED."
   }
 }

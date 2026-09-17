@@ -1,0 +1,8 @@
+# LEGAL-ST-TX-001 golden oracle: the agent-verified Texas draft bytes
+# (§§ 61.011/61.012 pay frequency, 6-day discharge final pay, § 15.50
+# ancillary non-compete recheck, HB 2127 locality preemption of
+# WAGE_FLOOR and LEAVE_INTERACTION, 60-day breach notice,
+# workers-compensation anti-retaliation, biometric monitoring consent,
+# visible VERIFY gap emissions for PAY_STATEMENT and DRUG_TESTING).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:0ddd71c4d0b7c3c5e20374a7475e7875656755354a7b69f6d445e9a7552f9362

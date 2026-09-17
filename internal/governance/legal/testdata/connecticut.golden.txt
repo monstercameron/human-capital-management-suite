@@ -1,0 +1,6 @@
+# LEGAL-ST-CT-001 golden oracle: the agent-verified Connecticut draft bytes
+# ($16.35/hr research-stated floor, wage-range transparency, salary-history
+# ban, weekly pay, CTFMLA leave, § 31-49h non-compete recheck, § 31-51u
+# severance, ?-cell VERIFY emissions carried, anti-retaliation gap visible).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:bf6ab2b069167793f95c19600d7a826b8e4e39d6c03a5b81f3cdfbc800eb7848

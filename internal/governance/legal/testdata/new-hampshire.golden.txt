@@ -1,0 +1,8 @@
+# LEGAL-ST-NH-001 golden oracle: the agent-verified New Hampshire draft bytes
+# (federal-only floor marker, RSA 275:49/275:43/275:44 notices, low-wage
+# non-compete voidness, sex-based pay equity, RSA 275:56 personnel-file
+# inspection, mirrored mini-WARN, ?-cell VERIFY markers carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-nh.json
+sha256:aba287a8db8e4183eee1cad07315a6da596bc0cea4623cd20fb752168a92740f

@@ -59,6 +59,14 @@ type Item struct {
 	Topic Topic
 	Group string
 	Text  string
+	// numbered marks an item drawn from a numbered-list line, as opposed to
+	// a bullet or paragraph. Only numbered Implications heads own detail
+	// bullets (see ParseResearch).
+	numbered bool
+	// detailOf is the index of the numbered head this bullet elaborates, or
+	// -1. Detail bullets stay searchable on their own; the head additionally
+	// absorbs their text so rule parameters survive extraction.
+	detailOf int
 }
 
 // ResearchFile is one parsed state file.
@@ -93,26 +101,64 @@ func ParseResearchFile(root, relPath string) (*ResearchFile, error) {
 }
 
 // ParseResearch parses a research file's markdown into topic-tagged items.
+//
+// In the Implications section a numbered head owns the bullets that
+// elaborate it: "9. Iowa WARN (§ 84C) - Layoff Scenario: ..." states the
+// rule, and the indented bullets beneath it carry the 25-employee threshold
+// and the 30-day period. The head absorbs each immediately-adjacent bullet's
+// text (the bullets stay searchable on their own) so extraction sees the
+// rule statement whole. A blank line, a new group, or a new heading breaks
+// ownership: the "previously unverified" bullets that follow a resolved
+// head are freestanding evidence, never its detail.
 func ParseResearch(relPath, markdown string) *ResearchFile {
 	out := &ResearchFile{Path: relPath}
 	topic := TopicUnknown
 	group := ""
 	var pending []string
+	pendingNumbered := false
+	pendingDetailOf := -1
+	// adjacent is false once a blank line, heading, or group header passes
+	// since the last content line, which is what breaks head ownership.
+	adjacent := false
 	flush := func() {
 		if len(pending) == 0 {
+			pendingNumbered = false
+			pendingDetailOf = -1
 			return
 		}
 		text := normalizeText(strings.Join(pending, " "))
 		pending = pending[:0]
+		numbered := pendingNumbered
+		detailOf := pendingDetailOf
+		pendingNumbered = false
+		pendingDetailOf = -1
 		if text == "" {
 			return
 		}
-		item := Item{Topic: topic, Group: group, Text: text}
+		item := Item{Topic: topic, Group: group, Text: text, numbered: numbered, detailOf: detailOf}
+		if detailOf >= 0 && detailOf < len(out.Items) {
+			out.Items[detailOf].Text += " " + text
+		}
 		if openQuestions.MatchString(group) {
 			out.OpenQuestions = append(out.OpenQuestions, item)
 			return
 		}
 		out.Items = append(out.Items, item)
+	}
+	// detailTarget returns the head index an Implications bullet elaborates,
+	// or -1 when the bullet is freestanding.
+	detailTarget := func() int {
+		if topic != TopicImplications || !adjacent || len(out.Items) == 0 {
+			return -1
+		}
+		prev := out.Items[len(out.Items)-1]
+		if prev.Topic != TopicImplications || prev.Group != group {
+			return -1
+		}
+		if prev.numbered {
+			return len(out.Items) - 1
+		}
+		return prev.detailOf
 	}
 
 	for _, raw := range strings.Split(markdown, "\n") {
@@ -121,6 +167,7 @@ func ParseResearch(relPath, markdown string) *ResearchFile {
 			flush()
 			topic = classifyTopic(m[1])
 			group = ""
+			adjacent = false
 			continue
 		}
 		if topic == TopicSources || topic == TopicUnknown {
@@ -129,20 +176,26 @@ func ParseResearch(relPath, markdown string) *ResearchFile {
 		if m := boldHeaderRE.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
 			flush()
 			group = normalizeText(m[1])
+			adjacent = false
 			continue
 		}
 		if m := bulletRE.FindStringSubmatch(line); m != nil {
 			flush()
+			pendingDetailOf = detailTarget()
 			pending = append(pending, m[1])
+			adjacent = true
 			continue
 		}
 		if m := numberedRE.FindStringSubmatch(line); m != nil {
 			flush()
+			pendingNumbered = true
 			pending = append(pending, m[1])
+			adjacent = true
 			continue
 		}
 		if strings.TrimSpace(line) == "" {
 			flush()
+			adjacent = false
 			continue
 		}
 		// A plain paragraph is an item too. Several files state a rule as a
@@ -150,6 +203,7 @@ func ParseResearch(relPath, markdown string) *ResearchFile {
 		// least semimonthly...") rather than as a bullet, and skipping those
 		// lines would drop the best-cited evidence in the corpus.
 		pending = append(pending, strings.TrimSpace(line))
+		adjacent = true
 	}
 	flush()
 	return out

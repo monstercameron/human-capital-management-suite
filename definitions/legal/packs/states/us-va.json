@@ -98,13 +98,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/virginia.md",
         "section": "§ 40.1-28.7:12",
-        "note": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per...",
+        "note": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per subsequent violation; private right of action within 1 year (§ 40.1-28.7:12).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per..."
+        "required_disclosure": "Wage transparency and salary history ban effective September 3, 2026: All job postings must disclose wage/salary range; salary history inquiry prohibited; civil penalties up to $1,000 per first offense, $5,000 per subsequent violation; private right of action within 1 year (§ 40.1-28.7:12)."
       }
     },
     {
@@ -128,7 +128,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/virginia.md",
         "section": "§ 40.1-28.10",
-        "note": "Minimum wage floor check (§ 40.1-28.10): On any pay change (promotion, base raise, role change), verify new rate ≥ current state minimum ($12.77 for 2026–2027; $13.75 for 2027–2028; $15.00 for 2028–2029; then...",
+        "note": "Minimum wage floor check (§ 40.1-28.10): On any pay change (promotion, base raise, role change), verify new rate ≥ current state minimum ($12.77 for 2026–2027; $13.75 for 2027–2028; $15.00 for 2028–2029; then annual CPI-U adjustment effective Jan 1, 2029. No tip credit: tipped employees must receive the full minimum).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -190,7 +190,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/virginia.md",
         "section": "§ 40.1-28.7:9",
-        "note": "§ 40.1-28.7:9 (Wage Discussion Protection, 2022): Employer cannot discharge, discipline, threaten, discriminate against, or retaliate against employee for inquiring about, discussing, or disclosing own wages, other...",
+        "note": "§ 40.1-28.7:9 (Wage Discussion Protection, 2022): Employer cannot discharge, discipline, threaten, discriminate against, or retaliate against employee for inquiring about, discussing, or disclosing own wages, other employees' wages, or filing a wage complaint with the Commissioner (including hours and pay information).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

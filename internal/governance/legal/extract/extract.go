@@ -42,9 +42,18 @@ type StateExtraction struct {
 }
 
 // ExtractState builds one state's draft definition from its research file and
-// the contract matrix.
+// the contract matrix, with no reviewed content: the fully mechanical path.
 func ExtractState(matrix *Matrix, file *ResearchFile, state State) (StateExtraction, error) {
+	return ExtractStateWithReviewed(matrix, file, state, nil)
+}
+
+// ExtractStateWithReviewed builds one state's draft definition from its
+// research file, the contract matrix and the generator's reviewed inputs.
+// A reviewed kind emits its verbatim list (possibly empty, a confirmed
+// absence); every other kind takes the mechanical path.
+func ExtractStateWithReviewed(matrix *Matrix, file *ResearchFile, state State, reviewed *ReviewedOverrides) (StateExtraction, error) {
 	out := StateExtraction{State: state, KindCounts: map[legal.ObligationType]int{}}
+	stateReviewed := reviewed.forState(state.Code)
 
 	def := legal.PackDefinition{
 		SchemaVersion:     1,
@@ -74,6 +83,28 @@ func ExtractState(matrix *Matrix, file *ResearchFile, state State) (StateExtract
 	}
 
 	for _, kind := range legal.AllObligationTypes() {
+		if stateReviewed != nil {
+			if list, ok := stateReviewed.Kinds[kind.String()]; ok {
+				for _, ro := range list {
+					def.Obligations = append(def.Obligations, reviewedObligation(state, file, kind, ro))
+				}
+				out.KindCounts[kind] += len(list)
+				cell := matrix.Cell(state.Code, kind)
+				switch cell.Value {
+				case CellUncertain:
+					if len(list) > 0 {
+						out.UncertainEmitted = append(out.UncertainEmitted, kind)
+					} else {
+						out.UncertainDropped = append(out.UncertainDropped, kind)
+					}
+				case CellStateRule:
+					if len(list) == 0 {
+						out.UnsupportedY = append(out.UnsupportedY, kind)
+					}
+				}
+				continue
+			}
+		}
 		cell := matrix.Cell(state.Code, kind)
 		switch cell.Value {
 		case CellStateRule:
@@ -104,6 +135,23 @@ func ExtractState(matrix *Matrix, file *ResearchFile, state State) (StateExtract
 			// release, not to this subdivision pack.
 			// P: the state preempts locality rules, which is a
 			// PreemptionAssertion below, never an obligation.
+			//
+			// A review may still carry a rule here (an F-cell marker, an
+			// L-cell locality rule); that arrives through the reviewed
+			// inputs above, never through the mechanical path.
+		}
+	}
+
+	if stateReviewed != nil {
+		if len(stateReviewed.Order) > 0 {
+			ordered, err := applyOrder(state.Code, def.Obligations, stateReviewed.Order)
+			if err != nil {
+				return StateExtraction{}, err
+			}
+			def.Obligations = ordered
+		}
+		if stateReviewed.ProvenanceAppend != "" {
+			def.Provenance.Notes += stateReviewed.ProvenanceAppend
 		}
 	}
 
@@ -135,11 +183,16 @@ func draftPackID(code string) string {
 // findEvidence returns the research item that evidences a kind, searching
 // Implications, then Summary, then the topic section that owns the kind.
 //
-// Among matching items it prefers the first that also names a statutory
-// section, and falls back to the first match otherwise. A cited item is
-// strictly better evidence than an uncited one: "MCA § 39-3-404" is a rule a
-// reviewer can check, while a sentence about what the platform should flag is
-// not. Both passes walk the same fixed order, so the choice is deterministic.
+// Among matching items it prefers a cited one, and among cited ones the one
+// that states the kind earliest: an item ABOUT final pay leads with it,
+// while an item that merely mentions final pay in passing buries it two
+// hundred characters deep. Hit order breaks before search order, except that
+// a Summary statement beats an Implications restatement on an exact tie: the
+// rule as the research states it outranks the platform-behavior paraphrase.
+// Search order breaks before anything else after that, so the choice stays
+// deterministic. An uncited kind with no cited evidence falls back to the
+// first match, preserving the honest VERIFY gap rather than dropping the
+// duty.
 func findEvidence(file *ResearchFile, kind legal.ObligationType) (Item, bool) {
 	matcher, ok := MatcherFor(kind)
 	if !ok {
@@ -147,16 +200,54 @@ func findEvidence(file *ResearchFile, kind legal.ObligationType) (Item, bool) {
 	}
 	var firstMatch Item
 	haveMatch := false
+	// bestPrefer marks a winner chosen for naming the duty's identity
+	// (preferFor) rather than for position. Identity outranks position:
+	// the item that names what the duty IS beats one that merely trips
+	// the evidence words early.
+	preferRE := preferFor(kind)
+	// topicRank breaks exact hit ties: the Summary's rule statement beats
+	// the Implications' behavior paraphrase, which beats the owning
+	// section, which beats the rest of the file.
+	topicRank := func(topic Topic) int {
+		switch {
+		case topic == TopicSummary:
+			return 0
+		case topic == TopicImplications:
+			return 1
+		case topic == matcher.Owning:
+			return 2
+		default:
+			return 3
+		}
+	}
+	var best Item
+	bestHit := 0
+	bestRank := 0
+	haveBest := false
+	bestPrefer := false
 	for _, item := range file.ItemsForSearch(matcher.Owning) {
-		if !matcher.Pattern.MatchString(item.Text) {
+		loc := matcher.Pattern.FindStringIndex(item.Text)
+		if loc == nil {
 			continue
 		}
 		if !haveMatch {
 			firstMatch, haveMatch = item, true
 		}
-		if ExtractSection(item.Text) != SectionNotStated {
-			return item, true
+		if ExtractSection(item.Text) == SectionNotStated {
+			continue
 		}
+		prefer := preferRE != nil && preferRE.MatchString(item.Text)
+		rank := topicRank(item.Topic)
+		beats := !haveBest || loc[0] < bestHit || (loc[0] == bestHit && rank < bestRank)
+		switch {
+		case prefer && (!haveBest || !bestPrefer || (bestPrefer && beats)):
+			best, bestHit, bestRank, haveBest, bestPrefer = item, loc[0], rank, true, true
+		case !prefer && !bestPrefer && beats:
+			best, bestHit, bestRank, haveBest = item, loc[0], rank, true
+		}
+	}
+	if haveBest {
+		return best, true
 	}
 	return firstMatch, haveMatch
 }

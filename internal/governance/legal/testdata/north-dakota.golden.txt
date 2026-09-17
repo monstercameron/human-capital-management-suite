@@ -1,0 +1,5 @@
+# LEGAL-ST-ND-001 golden oracle: the agent-verified North Dakota draft bytes
+# (federal-only floor, confirmed final-pay deadline, confirmed non-compete
+# voidance, lawful-off-duty-activity protection, completed notes).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:4efeb44341ec1bca6bf277b2a3986ccb3203f05cc74e701d940a223bec0fc271

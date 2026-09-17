@@ -1,0 +1,8 @@
+# LEGAL-ST-NV-001 golden oracle: the agent-verified Nevada draft bytes
+# (flat $12.00 floor, 7-day decrease notice, hourly non-compete voidness,
+# 608.0197/608.0198 leave pair, corrected final-pay/personnel-file/
+# anti-retaliation citations, pay-equity VERIFY kept).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-nv.json
+sha256:637d07a7413e605a0d1098beec512b2fe09cadb9f80e0a984e543cc59bc356b0

@@ -1,0 +1,6 @@
+# LEGAL-ST-NE-001 golden oracle: the agent-verified Nebraska draft bytes
+# (general-class $15.00 floor with scheduled 1.75% adjustments, paid
+# sick-leave parameters, retaliation sections, 90-day/25-employee
+# mini-WARN, completed notes).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:342a2136bb9312b92879da6ee4366791aaddeac988fb93eea27d28e9e74001ec

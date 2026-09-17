@@ -1,0 +1,8 @@
+# LEGAL-ST-UT-001 golden oracle: the agent-verified Utah draft bytes
+# (semimonthly pay frequency, 24-hour discharge final pay, § 34-51-102
+# non-compete recheck, 150+ E-Verify, same-establishment comparable-work
+# pay equity, 1-year wage-record retention, without-unreasonable-delay
+# breach notice, visible VERIFY gap emissions for PAY_STATEMENT and
+# DRUG_TESTING).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:764c80dc6966277f9c9d334477692f11f5d39df7a2a8d1ea0490d96e51f7bf4f

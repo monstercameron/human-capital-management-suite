@@ -1,0 +1,8 @@
+# LEGAL-ST-MN-001 golden oracle: the agent-verified Minnesota draft bytes
+# ($11.41/hr floor with $16.37 locality overlay, § 181.173 pay-range
+# posting, ESST and PFMLA leave terms, void non-competes, 48-hour
+# overtime threshold, 30-day personnel response, itemized pay
+# statements, sex-based equal pay, MEAL_REST_BREAK rows in the
+# LEGAL-TOOL-002 registry).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:1f1621e88d0add835e0a0361bba4ba939b9f34c0977d94483d589e851bba968b

@@ -1,0 +1,6 @@
+# LEGAL-ST-GA-001 golden oracle: the agent-verified Georgia draft bytes
+# (federal-only floor, semi-monthly pay, corrected § 34-4-5 4-year
+# retention, documented sex-based pay-equity review, 11+ E-Verify,
+# DOL-402A separation filing distinct from WARN).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:5c3a7e8fcf5c62685cb183627292e819ae319770839c40960b53fc6f8a409ae2

@@ -37,6 +37,7 @@ func mustMatch(expr string) *regexp.Regexp { return regexp.MustCompile(`(?i)` + 
 var kindMatchers = []KindMatcher{
 	{legal.ObligationTypeNotice, TopicRelationship, mustMatch(
 		`wage notice|wage theft prevention|notice of (?:a )?(?:pay|wage|rate)|` +
+			`wage reductions?|pay reductions?|reduction in (?:pay|wages?)|` +
 			`pay[- ]change notice|written notice[^.]{0,60}(?:pay|wage|rate|compensation)|` +
 			`notif(?:y|ication)[^.]{0,50}(?:pay|wage|rate) chang|change of pay|` +
 			`§ ?2810\.5|195\(1\)|195\(2\)`)},
@@ -58,7 +59,7 @@ var kindMatchers = []KindMatcher{
 			`paid at least (?:once|twice)|wage payment interval|designated paydays?|` +
 			`regular paydays?[^.]{0,40}(?:designat|establish|at least)|payday schedule|pay schedule`)},
 	{legal.ObligationTypeFinalPayDeadline, TopicWages, mustMatch(
-		`final pay|final wage|final check|final paycheck|last paycheck|` +
+		`final[- ]pay|final[- ]wage|final[- ]check|final paycheck|last paycheck|` +
 			`wages[^.]{0,40}(?:due|paid)[^.]{0,40}(?:termination|separation|discharge|resignation)`)},
 	{legal.ObligationTypePayTransparency, TopicTransparency, mustMatch(
 		`pay transparency|salary range|wage range|pay scale|pay range|pay band|` +
@@ -81,12 +82,13 @@ var kindMatchers = []KindMatcher{
 	{legal.ObligationTypeClassification, TopicClassification, mustMatch(
 		`abc test|right[- ]of[- ]control|20-factor|classification (?:test|audit|review)|` +
 			`exempt(?:ion)? (?:test|threshold|status)|overtime threshold|` +
-			`independent contractor|misclassif`)},
+			`seventh[- ]day|independent contractor|misclassif`)},
 	{legal.ObligationTypePersonnelFile, TopicRecords, mustMatch(
 		`personnel file|personnel record|employee file|inspect[^.]{0,40}(?:file|record)|` +
 			`access to (?:their |his or her )?(?:own )?(?:personnel |employment )?(?:file|record)`)},
 	{legal.ObligationTypeAntiRetaliation, TopicRelationship, mustMatch(
 		`retaliat|whistleblower|whistle-blower|protected activity|` +
+			`no longer covers|no longer a protected class|` +
 			`adverse action[^.]{0,50}(?:complaint|claim|report)`)},
 	{legal.ObligationTypeJobSecurity, TopicRelationship, mustMatch(
 		`good cause|wrongful discharge|wrongful termination|handbook|implied contract|` +
@@ -105,6 +107,37 @@ var kindMatchers = []KindMatcher{
 	{legal.ObligationTypeMonitoringConsent, TopicPrivacy, mustMatch(
 		`biometric|electronic monitoring|surveillance|\bbipa\b|gps track|` +
 			`monitoring[^.]{0,30}(?:consent|notice)`)},
+}
+
+// kindPrefer holds the identity signals that outrank position among cited
+// matches. A separation filing IS its state form: an item naming the UI-14
+// (or BC-10, DOL-800, ...) is the filing duty even when a vaguer
+// "preserve separation notices" item trips the evidence words first.
+var kindPrefer = map[legal.ObligationType]*regexp.Regexp{
+	legal.ObligationTypeSeparationFiling: mustMatch(
+		`form [A-Z]+-?\d+|unemployment insurance (?:separation )?notice`),
+	// A notice duty names its form: "written notice of any change",
+	// "wage reduction notice", "notice before any reduction". A heading
+	// that trips the evidence words ("Pay Frequency and Wage Notices") or
+	// a comparison item ("unlike California's § 2810.5 model") does not.
+	legal.ObligationTypeNotice: mustMatch(
+		`wage reduction notice|written notice (?:of (?:any|pay rate|the)|required)|` +
+			`before any reduction|K\.A\.R\.`),
+	// A pay-frequency duty states the mandate's measure ("requires
+	// payment at least semimonthly ... within 10 business days"), not a
+	// passing payday reference.
+	legal.ObligationTypePayFrequency: mustMatch(
+		`requires payment at least`),
+	// A pay-statement duty states itemized content ("must provide itemized
+	// statement of deductions"), not a bare format disclaimer.
+	legal.ObligationTypePayStatement: mustMatch(
+		`itemized`),
+}
+
+// preferFor returns the identity signal for a kind, or nil when position
+// alone decides among cited matches.
+func preferFor(kind legal.ObligationType) *regexp.Regexp {
+	return kindPrefer[kind]
 }
 
 // MatcherFor returns the evidence rule for a kind.
@@ -136,6 +169,15 @@ var sectionPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\bM\.G\.L\.\s*c\.\s*[\dA-Za-z]+(?:,\s*§+\s*[\d\w]+)?`),
 	regexp.MustCompile(`\b(?:Tex|Cal|Md|Va|Wis|Tenn|Okla|Minn|Iowa|Neb|Kan|Miss|Ark|Ala|Del|Haw|Ida|Ind|La|Me|Mich|Mo|Mont|Nev|Ohio|Ore|Utah|Vt|Wash)\.\s+[A-Z][\w.&\s]{0,30}Code\s+(?:Ann\.\s+)?§?\s*[\d\-.]+`),
 	regexp.MustCompile(`\b(?:SB|HB|AB|LB|SF|HF)\s?\d+[\-\d]*`),
+	// Section-sign-less state codes: Indiana ("IC 22-2-8"), Kansas
+	// ("K.S.A. 44-320", ranges such as "K.S.A. 44-313 to 44-327") and Kansas
+	// regulations ("K.A.R. 49-20-1"). They sit after the bill pattern so a
+	// "SB 241"-style cite keeps winning where both appear, and before the
+	// generic section-sign pattern so a co-cited "29 U.S.C. § 211" never
+	// stands in for the operative state authority.
+	regexp.MustCompile(`\bIC\s+\d+[\dA-Za-z.\-]*(?:\s*(?:to|through|[-–])\s*\d+[\dA-Za-z.\-]*)?`),
+	regexp.MustCompile(`\bK\.S\.A\.\s*\d+[\dA-Za-z.\-]*(?:\s*(?:to|through|[-–])\s*\d+[\dA-Za-z.\-]*)?(?:\s*et seq\.?)?`),
+	regexp.MustCompile(`\bK\.A\.R\.\s*\d+[\dA-Za-z.\-]*`),
 	regexp.MustCompile(`\bAct\s+\d{4}-\d+`),
 	regexp.MustCompile(`\bChapter\s+\d+[\w.\-]*`),
 	regexp.MustCompile(`\bTitle\s+\d+[\w.\-]*`),
@@ -147,10 +189,20 @@ var sectionPatterns = []*regexp.Regexp{
 // worse than one that says it is missing.
 const SectionNotStated = "(statutory section not stated in the research file)"
 
+// federalCiteRE recognizes a federal citation ("29 U.S.C. § 211"). The
+// extractor builds state packs, so a federal cite is never the operative
+// state authority: when an item cites both ("K.S.A. 44-320 ... 29 U.S.C.
+// § 211"), the state cite wins no matter which pattern would have matched
+// first. An item citing only federal law keeps the honest gap.
+var federalCiteRE = regexp.MustCompile(`U\.?\s*S\.?\s*C\.?|C\.?\s*F\.?\s*R\.?|F\.?L\.?S\.?A\.?`)
+
 // ExtractSection lifts the first statutory citation out of an item's text.
 func ExtractSection(text string) string {
 	for _, re := range sectionPatterns {
-		if m := re.FindString(text); m != "" {
+		for _, m := range re.FindAllString(text, -1) {
+			if federalCiteRE.MatchString(m) {
+				continue
+			}
 			return cleanSection(m)
 		}
 	}
@@ -210,7 +262,7 @@ func ReadsRecommendation(text string) bool { return recommendationRE.MatchString
 // --- numbers ----------------------------------------------------------------
 
 var (
-	dayRE             = regexp.MustCompile(`(?i)\b(\d{1,3})[- ](calendar |business |working |)days?\b`)
+	dayRE             = regexp.MustCompile(`(?i)\b(\d{1,3})[- ](?:(calendar|business|working)[- ])?days?\b`)
 	yearRE            = regexp.MustCompile(`(?i)\b(\d{1,2})[- ]?(?:\+\s*)?years?\b`)
 	moneyRE           = regexp.MustCompile(`\$\s?(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)`)
 	countRE           = regexp.MustCompile(`\b(\d{1,4})\+?\s*(?:or more\s*)?(?:employees|workers)\b`)
@@ -236,6 +288,26 @@ func ExtractDays(text string) (int, string) {
 	default:
 		return n, ""
 	}
+}
+
+// noticeDaysRE matches a day count attached to the word "notice"
+// ("60-day notice", "60 days notice"). A bare day count elsewhere in the
+// item is as often the layoff window the notice is measured over as the
+// notice period itself.
+var noticeDaysRE = regexp.MustCompile(`(?i)\b(\d{1,3})\s*-days?(?:'|’s)?\s+notice\b`)
+
+// ExtractNoticeDays returns the day count attached to the word "notice",
+// or 0 when the item states no notice period of its own.
+func ExtractNoticeDays(text string) int {
+	m := noticeDaysRE.FindStringSubmatch(text)
+	if m == nil {
+		return 0
+	}
+	n, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 // ExtractYears returns the first year count, or 0.
@@ -308,13 +380,43 @@ func ExtractAnnotationCount(annotation string) int {
 	return n
 }
 
+// summarizeAbbrevRE recognizes the tokens a sentence never ends with:
+// initialisms ("K.S.A", "U.S.C", "U.S"), courtesy and reference
+// abbreviations ("No", "ch", "Sec", "Fig", "cf", "al", "Dr"). Cutting a note
+// at "Senate Enrolled Act No." or "K.S.A." would keep the citation and drop
+// the rule it cites.
+var summarizeAbbrevRE = regexp.MustCompile(`(?i)^(?:no|ch|st|vs|v|eg|ie|sec|secs|art|arts|fig|cfs?|al|etc|jr|sr|mr|mrs|ms|dr|inc|co|corp|dept|est|[a-z](?:\.[a-z])+)\.?$`)
+
+// endsAbbrev reports whether the period ending at s (inclusive, so s ends
+// with ".") belongs to an abbreviation rather than to a sentence.
+func endsAbbrev(s string) bool {
+	tok := s
+	if i := strings.LastIndexAny(tok, " \t\n([\""); i >= 0 {
+		tok = tok[i+1:]
+	}
+	tok = strings.TrimSuffix(tok, ".")
+	return summarizeAbbrevRE.MatchString(tok)
+}
+
 // Summarize trims an item's text down to a citation note: the first sentence,
 // capped so a definition file stays readable. It is a excerpt of the
 // repository's own research prose, never of a statute.
 func Summarize(text string, max int) string {
 	s := strings.TrimSpace(text)
-	if idx := strings.Index(s, ". "); idx > 0 && idx < max {
-		s = s[:idx+1]
+	for start := 0; ; {
+		rel := strings.Index(s[start:], ". ")
+		if rel < 0 {
+			break
+		}
+		idx := start + rel
+		if idx >= max {
+			break
+		}
+		if idx > 0 && !endsAbbrev(s[:idx+1]) {
+			s = s[:idx+1]
+			break
+		}
+		start = idx + 2
 	}
 	if len(s) > max {
 		cut := strings.LastIndex(s[:max], " ")

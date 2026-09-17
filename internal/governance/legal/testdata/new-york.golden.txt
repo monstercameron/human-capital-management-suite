@@ -1,0 +1,9 @@
+# LEGAL-ST-NY-001 golden oracle: the agent-verified New York draft bytes
+# (regional wage tiers, WTPA hire/7-day notice, 194-b transparency,
+# sick/family/prenatal leave trio, 50+/90-day WARN, Local Law 144 AEDT,
+# 201-i monitoring consent, DISPUTED personnel-file kind, ?-cell VERIFY
+# markers carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-ny.json
+sha256:24cd871faa064867ba45edf2c55ff08605d0b1947bd54ca2915e521b8b850366

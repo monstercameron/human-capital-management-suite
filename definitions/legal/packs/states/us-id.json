@@ -24,12 +24,15 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/idaho.md",
         "section": "Idaho Code § 45-610",
-        "note": "Three-year record retention: Idaho Code § 45-610 requires employers maintain employment records for 3 years from date of separation; must provide wage information and notice of wage reductions to employees.",
+        "note": "Wage reduction notice (Idaho Code § 45-610): Employers must inform employees of any wage reductions before the affected work is performed; written notice required if requested by employee.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "who": "employer_to_worker"
+        "who": "employer_to_worker",
+        "timing_direction": "BEFORE",
+        "channel": "written",
+        "content_fields": ["pay_rate"]
       }
     },
     {
@@ -58,9 +61,7 @@
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
-      "body": {
-        "minimum_frequency": "BIWEEKLY"
-      }
+      "body": {}
     },
     {
       "kind": "FINAL_PAY_DEADLINE",
@@ -68,13 +69,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/idaho.md",
         "section": "Idaho Code § 45-606",
-        "note": "Final pay timing strict (10 days or regular payday): Idaho Code § 45-606 requires wages by the earlier of the next regular payday or 10 days after termination; employee request for early payment triggers 48-hour...",
+        "note": "Final pay timing strict (10 days or regular payday): Idaho Code § 45-606 requires wages by the earlier of the next regular payday or 10 days after termination; employee request for early payment triggers 48-hour deadline (weekends/holidays excluded).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing strict (10 days or regular payday): Idaho Code § 45-606 requires wages by the earlier of the next regular payday or 10 days after termination; employee request for early payment triggers 48-hour..."
+        "deadline_description": "Final pay timing strict (10 days or regular payday): Idaho Code § 45-606 requires wages by the earlier of the next regular payday or 10 days after termination; employee request for early payment triggers 48-hour deadline (weekends/holidays excluded)."
       }
     },
     {
@@ -83,13 +84,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/idaho.md",
         "section": "Idaho Code §§ 44-2701",
-        "note": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope...",
+        "note": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope; must protect legitimate business interests.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope..."
+        "rule": "Non-competes enforceable with limits: Idaho Code §§ 44-2701, 44-2704 enforce non-competes for \"key employees\" only if reasonable in duration (18 months max, presumed reasonable if ≤18 months), geography, and scope; must protect legitimate business interests."
       }
     },
     {
@@ -98,7 +99,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/idaho.md",
         "section": "Idaho Code § 45-609",
-        "note": "Wage deductions restricted: Deductions only permitted if required by law or with written employee authorization (Idaho Code § 45-609); must provide itemized statement of deductions; unpaid wages accrue 15-day penalty...",
+        "note": "Wage deductions restricted: Deductions only permitted if required by law or with written employee authorization (Idaho Code § 45-609); must provide itemized statement of deductions; unpaid wages accrue 15-day penalty (up to $750).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -149,6 +150,21 @@
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-id-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/idaho.md",
+        "section": "Idaho Code § 44-1502",
+        "note": "Minimum wage tracks federal: Idaho Code § 44-1502 sets minimum wage at $7.25 per hour and automatically adjusts when federal minimum wage changes; reduced $4.25 per hour for employees under 20 in their first 90 days; tipped minimum $3.35 per hour in direct wages with make-up to the minimum.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
         "standard": "REQUIRED"
       }
     }

@@ -1,0 +1,8 @@
+# LEGAL-ST-NJ-001 golden oracle: the agent-verified New Jersey draft bytes
+# (three 2026 wage tiers, 34:6B-23 transparency, 34:6B-20 history ban,
+# 90-day NJ WARN with severance, 21-class equal pay, confirmed
+# personnel-file absence, ?-cell VERIFY markers carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-nj.json
+sha256:85cc5f6364882ae2a9bebbf26c597ed723e02172636aea83b7fb7bdb334a9060

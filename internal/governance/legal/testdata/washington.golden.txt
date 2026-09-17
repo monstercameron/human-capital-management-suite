@@ -1,0 +1,8 @@
+# LEGAL-ST-WA-001 golden oracle: the agent-verified Washington draft bytes
+# (salary-history ban, sick-accrual carryforward with PFML, $123,394.17
+# non-compete threshold recheck, 21-day personnel-file access, 60-day
+# SB 5525 mini-WARN, 15% substantially-similar-work pay equity flag,
+# itemized pay statements, visible VERIFY gap emissions for
+# PAY_FREQUENCY, DRUG_TESTING and BREACH_NOTIFICATION).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:59beb4bdd6adb822800a66e779d056abb27dc3aa5ef1ff84ee823d8bd5de5537

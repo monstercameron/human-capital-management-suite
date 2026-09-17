@@ -1,0 +1,9 @@
+# LEGAL-ST-IN-001 golden oracle: the agent-verified Indiana draft bytes
+# (federal-only floor marker, IC 22-2-5-1 semimonthly/10-day pay,
+# IC 22-2-5-2 resignation final pay, 4-year IC 22-2-8 retention,
+# IC 25-22.5-5.5 physician non-compete voidness, UI-14 filing,
+# hedged IC 24-4.9 breach cite, ?-cell VERIFY markers carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-in.json
+sha256:5bb3bcd2d109973c25a0282c88876db8c68afdd32e2b425ae146bcc04b049c56

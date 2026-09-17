@@ -1,0 +1,6 @@
+# LEGAL-ST-HI-001 golden oracle: the agent-verified Hawaii draft bytes
+# ($16.00/hr scheduled floor, salary-history ban, 50+ pay transparency,
+# HFLL leave, § 394B mini-WARN with severance, personnel-file resolution
+# carried at VERIFY granting nothing).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:3c8f3c13d87996fc1e20cd3208baf2deec15e525cc3c89fe4ec8db99eb43a5b8

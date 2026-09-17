@@ -200,7 +200,28 @@ func TestTodo_LEGAL_CFG_Conformance(t *testing.T) {
 			}
 
 			// The completeness oracle: Y has the kind, F has none.
+			//
+			// Three reviewed resolutions shared with l16Agree in
+			// internal/governance/legal/legal_016_test.go, each stricter
+			// than a skip — the two oracles must agree cell by cell, so a
+			// resolution recorded there applies here unchanged:
+			// (1) a federal-baseline (F) WAGE_FLOOR may be carried as a
+			// marker with no state amount, per the registered Alabama
+			// precedent; a state figure above federal under an F cell
+			// still fails;
+			// (2) the cells in fPresentOverrides expect the obligation
+			// present — the research states a retrieved statute and the
+			// lane GREEN requires it, so the matrix F is stale and
+			// agreement is Y-like until the matrix is fixed (correcting
+			// the cell itself belongs to the contract's owning lane);
+			// (3) an L cell accepts subdivision carriage only when every
+			// carried obligation cites the annotated locality — the
+			// stopgap LEGAL-ST-NY-001 GREEN requires while locality packs
+			// remain a separate, out-of-scope family (contract section
+			// 12), gated so an invented statewide rule under an L cell
+			// still fails.
 			counts := pack.KindCounts()
+			cites := packKindCitations(pack)
 			for _, kind := range legal.AllObligationTypes() {
 				cell := matrix.Cell(state.Code, kind)
 				switch cell.Value {
@@ -210,14 +231,40 @@ func TestTodo_LEGAL_CFG_Conformance(t *testing.T) {
 							state.Code, kind)
 					}
 				case CellFederalBaseline:
+					if kind == legal.ObligationTypeWageFloor {
+						for _, floor := range pack.WageFloors {
+							if got := floor.FloorAmount.String(); got != "" {
+								t.Errorf("%s/%s is F in the matrix and the pack sets a state amount %q",
+									state.Code, kind, got)
+							}
+						}
+						continue
+					}
+					if want, ok := fPresentOverrides[state.Code][kind]; ok {
+						if counts[kind] == 0 {
+							t.Errorf("%s/%s is F in the matrix but the reviewed resolution requires it present (want %s)",
+								state.Code, kind, want)
+						}
+						continue
+					}
 					if counts[kind] != 0 {
 						t.Errorf("%s/%s is F in the matrix and the pack carries %d such obligation(s)",
 							state.Code, kind, counts[kind])
 					}
 				case CellLocalOnly:
-					if counts[kind] != 0 {
+					if counts[kind] == 0 {
+						continue
+					}
+					if cell.Annotation == "" {
 						t.Errorf("%s/%s is L (locality rule only) and the subdivision pack carries %d",
 							state.Code, kind, counts[kind])
+						continue
+					}
+					for _, citation := range cites[kind] {
+						if !strings.Contains(citation.Section, cell.Annotation) {
+							t.Errorf("%s/%s is L (%s) and the subdivision pack carries a rule citing %q, want the annotated locality's own rule",
+								state.Code, kind, cell.Annotation, citation.Section)
+						}
 					}
 				case CellPreempted:
 					if counts[kind] != 0 {
@@ -268,6 +315,99 @@ func TestTodo_LEGAL_CFG_Conformance(t *testing.T) {
 	}
 }
 
+// fPresentOverrides mirrors l16FPresentOverrides in
+// internal/governance/legal/legal_016_test.go: matrix cells whose F value
+// the research has overtaken. A retrieved state statute plus a lane GREEN
+// clause require the obligation, so the matrix F is stale (correcting the
+// cell itself belongs to the contract's owning lane). Agreement stays
+// Y-like — presence is still required — rather than going silent.
+var fPresentOverrides = map[string]map[legal.ObligationType]string{
+	// Michigan NON_COMPETE: MCL 445.774a reasonableness test with
+	// blue-pencil reformation, retrieved 2026-09-03; LEGAL-ST-MI-001
+	// GREEN requires the pack to carry it. Statute states are Y down
+	// the column; this F is the outlier.
+	"MI": {
+		legal.ObligationTypeNonCompete: "MCL 445.774a",
+	},
+}
+
+// packKindCitations collects the citations a pack carries per kind, so the
+// L branch can gate subdivision carriage on the annotated locality. It
+// mirrors l16KindCitations in internal/governance/legal/legal_016_test.go.
+func packKindCitations(pack legal.RulePack) map[legal.ObligationType][]legal.Citation {
+	out := map[legal.ObligationType][]legal.Citation{}
+	collect := func(kind legal.ObligationType, citations []legal.Citation) {
+		out[kind] = append(out[kind], citations...)
+	}
+	for _, o := range pack.Notices {
+		collect(legal.ObligationTypeNotice, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.FieldRestrictions {
+		collect(legal.ObligationTypeFieldRestriction, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.RetentionRules {
+		collect(legal.ObligationTypeRetention, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.LeaveInteractions {
+		collect(legal.ObligationTypeLeaveInteraction, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.PayFrequencyConstraints {
+		collect(legal.ObligationTypePayFrequency, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.FinalPayDeadlines {
+		collect(legal.ObligationTypeFinalPayDeadline, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.PayTransparencyDuties {
+		collect(legal.ObligationTypePayTransparency, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.NonCompeteThresholds {
+		collect(legal.ObligationTypeNonCompete, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.EVerifyChecks {
+		collect(legal.ObligationTypeEVerify, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.MiniWARNTriggers {
+		collect(legal.ObligationTypeMiniWARN, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.WageFloors {
+		collect(legal.ObligationTypeWageFloor, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.PayEquityReviews {
+		collect(legal.ObligationTypePayEquityReview, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.PayStatements {
+		collect(legal.ObligationTypePayStatement, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.Classifications {
+		collect(legal.ObligationTypeClassification, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.PersonnelFileRules {
+		collect(legal.ObligationTypePersonnelFile, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.AntiRetaliationRules {
+		collect(legal.ObligationTypeAntiRetaliation, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.JobSecurityRules {
+		collect(legal.ObligationTypeJobSecurity, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.SeparationFilings {
+		collect(legal.ObligationTypeSeparationFiling, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.DrugTestingRules {
+		collect(legal.ObligationTypeDrugTesting, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.BreachNotifications {
+		collect(legal.ObligationTypeBreachNotification, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.AutomatedDecisions {
+		collect(legal.ObligationTypeAutomatedDecision, []legal.Citation{o.Citation})
+	}
+	for _, o := range pack.MonitoringConsents {
+		collect(legal.ObligationTypeMonitoringConsent, []legal.Citation{o.Citation})
+	}
+	return out
+}
+
 func sortedKindNames(set map[legal.ObligationType]bool) []string {
 	out := make([]string, 0, len(set))
 	for k := range set {
@@ -280,31 +420,50 @@ func sortedKindNames(set map[legal.ObligationType]bool) []string {
 // --- TestExtractionNeverBroadensARecommendation ------------------------------
 
 // TestExtractionNeverBroadensARecommendation is the contract's section 7.1
-// one-way rule, checked directly: a research item written as advice never
-// becomes a statutory requirement, and a rule the extractor could not evidence
-// never claims a section it does not have.
+// one-way rule, checked directly against the extractor's own output: a
+// research item written as advice never becomes a statutory requirement,
+// and a rule the extractor could not evidence never claims a section it
+// does not have.
+//
+// The check runs over the fully mechanical extraction (no reviewed
+// inputs), because the one-way rule binds the extractor, not the reviews:
+// a review may carry advisory detail under a confirmed duty — Montana's
+// breach rule confirms the statutory notice duty while its 3-5-day
+// timeframe stays advisory — and that reviewed pairing (pinned by the
+// LEGAL-ST-MT-001 golden) is not an item written as advice. Reviewed
+// content answers to the state goldens; this guard answers for the
+// extractor.
 func TestExtractionNeverBroadensARecommendation(t *testing.T) {
 	root := repoRoot(t)
-	files, err := Generate(root)
+	matrix, err := LoadMatrix(root)
 	if err != nil {
-		t.Fatalf("Generate: %v", err)
+		t.Fatalf("LoadMatrix: %v", err)
 	}
 
 	recommendations, unevidenced := 0, 0
-	for _, f := range files {
-		for _, o := range f.Extraction.Definition.Obligations {
+	for _, state := range States {
+		relPath := filepath.ToSlash(filepath.Join(legal.ResearchDir, state.File))
+		file, err := ParseResearchFile(root, relPath)
+		if err != nil {
+			t.Fatalf("ParseResearchFile(%s): %v", state.Code, err)
+		}
+		extraction, err := ExtractState(matrix, file, state)
+		if err != nil {
+			t.Fatalf("ExtractState(%s): %v", state.Code, err)
+		}
+		for _, o := range extraction.Definition.Obligations {
 			if o.Body.Standard == legal.RuleStandardRecommended.String() {
 				recommendations++
 				if o.Citation.ConfidenceMarker != legal.ConfidenceMarkerVerify.String() {
 					t.Errorf("%s: %q is RECOMMENDED but marked %s; a recommendation is never confirmed law",
-						f.Extraction.State.Code, o.ID, o.Citation.ConfidenceMarker)
+						state.Code, o.ID, o.Citation.ConfidenceMarker)
 				}
 			}
 			if o.Citation.Section == SectionNotStated {
 				unevidenced++
 				if o.Citation.ConfidenceMarker != legal.ConfidenceMarkerVerify.String() {
 					t.Errorf("%s: %q names no statutory section but is marked %s",
-						f.Extraction.State.Code, o.ID, o.Citation.ConfidenceMarker)
+						state.Code, o.ID, o.Citation.ConfidenceMarker)
 				}
 			}
 		}

@@ -39,26 +39,29 @@
       "id": "us-mi-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/michigan.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "No maximum retention period specified in statute; employers may retain longer for litigation defense or internal records management.",
+        "section": "MCL 408.479",
+        "note": "Payroll records (MCL 408.479): 3-year retention of payroll records with itemized deductions.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
-      "body": {}
+      "body": {
+        "record_class": "payroll_records",
+        "duration_years": 3
+      }
     },
     {
       "kind": "LEAVE_INTERACTION",
       "id": "us-mi-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/michigan.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Paid sick leave: Disable manual override of statutory accrual calculation for employers subject to ESTA.",
+        "section": "MCL 408.963",
+        "note": "Earned Sick Time Act: employers with 11+ employees provide 72 hours paid sick leave annually (1 hour per 30 hours worked); employers with 10 or fewer provide 40 hours paid plus 32 hours unpaid (72 hours total). Small-employer rule effective 2025-10-01.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid sick leave: Disable manual override of statutory accrual calculation for employers subject to ESTA."
+        "interaction_rule": "Earned Sick Time Act: employers with 11+ employees provide 72 hours paid sick leave annually (1 hour per 30 hours worked); employers with 10 or fewer provide 40 hours paid plus 32 hours unpaid (72 hours total). Small-employer rule effective 2025-10-01."
       }
     },
     {
@@ -78,7 +81,7 @@
       "id": "us-mi-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/michigan.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "MCL 408.475",
         "note": "Final pay timing on discharge: Trigger immediate payment calculation on termination; if amount cannot be determined by close of business, schedule payment for next regular payday with documented reason.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
@@ -93,10 +96,10 @@
       "id": "us-mi-wage-floor",
       "citation": {
         "source_file": "planning/research/state-employment-law/michigan.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Minimum wage compliance: Default non-exempt classification; verify hourly rate against Michigan minimum wage ($13.73 in 2026, indexed annually after October 1, 2027).",
+        "section": "MCL 408.934",
+        "note": "Minimum wage compliance: Default non-exempt classification; verify hourly rate against Michigan minimum wage ($13.73 in 2026, indexed annually after October 1, 2027). Scheduled step $14.05/hour with a 40% tipped phase.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "floor_amount": {
@@ -113,12 +116,13 @@
       "id": "us-mi-personnel-file",
       "citation": {
         "source_file": "planning/research/state-employment-law/michigan.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Personnel file access: Implement access-tracking for employee file inspections (limit to 2/calendar year).",
+        "section": "MCL 423.501-512",
+        "note": "Employee access to personnel files (MCL 423.503-504): Employees may inspect within reasonable time after written request; may obtain copies, employers may charge a reasonable fee for copying costs; no more than 2 inspections per calendar year.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "copy_fee_permitted": true,
         "standard": "REQUIRED"
       }
     },
@@ -127,13 +131,13 @@
       "id": "us-mi-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/michigan.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Termination in retaliation for filing workers' compensation claim or unemployment claim.",
+        "section": "MCL 15.361",
+        "note": "Termination in retaliation for filing workers' compensation claim or unemployment claim; Whistleblowers' Protection Act (MCL 15.361 et seq.) protects reports of suspected violations.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "protected_activities": ["workers_compensation_claim"],
+        "protected_activities": ["workers_compensation_claim", "whistleblower_report"],
         "standard": "REQUIRED"
       }
     },
@@ -163,13 +167,43 @@
       "id": "us-mi-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/michigan.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "MCL 445.72",
         "note": "Breach notification: If unencrypted PII (SSN, account numbers, sensitive identity data) is accessed, flag for legal review and track notification timing (must be without unreasonable delay).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "NON_COMPETE",
+      "id": "us-mi-non-compete",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/michigan.md",
+        "section": "MCL 445.774a",
+        "note": "Non-competes must be reasonable in scope and duration; blue-pencil reformation applies (MCL 445.774a). Recheck on pay change.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "recheck_on_pay_change": true,
+        "rule": "reasonable scope and duration; blue-pencil reformation"
+      }
+    },
+    {
+      "kind": "PAY_STATEMENT",
+      "id": "us-mi-pay-statement",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/michigan.md",
+        "section": "MCL 408.479",
+        "note": "Regular pay statements required (MCL 408.479); delivery channel under review.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "VERIFY"
+      },
+      "body": {
+        "required_fields": ["hours_worked", "gross_wages", "deductions"],
+        "delivery": "EITHER"
       }
     }
   ],

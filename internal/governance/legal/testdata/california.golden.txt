@@ -1,0 +1,6 @@
+# LEGAL-ST-CA-001 golden oracle: the agent-verified California draft bytes
+# ($16.90/hr three-tier CPI floor, 7-day hire/change notice, 246/CFRA/PFL
+# leave, void non-competes, 1197.5/12999 pay equity, 1102.5 retaliation,
+# 12954 cannabis testing, 1798.82 breach notice, CPRA monitoring at VERIFY).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:8845ba6f1620918fc54fa7f7295c8788e218d0045f59332946f46a63a0f4c7e4
