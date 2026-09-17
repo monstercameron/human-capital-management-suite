@@ -41,7 +41,39 @@ type RetroCorrectionRequest struct {
 	// Dependencies supplies the requested states for exactly that manifest.
 	ExpectedDependencies []CorrectionDependency
 	Dependencies         []CorrectionDependency
+	// Recalculators recomputes external dependents, keyed by manifest ID.
+	// A nil entry (or a missing one) means that dependent has no
+	// implementation: it stays RECONCILIATION_REQUIRED rather than being
+	// claimed done. A key with no manifest member fails the correction.
+	Recalculators map[string]DependentRecalculator
 }
+
+// RecalculationEvidence proves one dependent recomputed against this exact
+// correction. It binds the corrected canonical balance (InputDigest) and the
+// manifest-pinned artifact version (Version) so a stale or drifted
+// recomputation cannot be mistaken for a reconciled one.
+type RecalculationEvidence struct {
+	InputDigest string
+	Version     string
+	Digest      string
+}
+
+// RecalculationContext is the read-only input one dependent recalculator
+// observes. Upstream holds the already-settled impacts its declared
+// dependencies produced, in dependency order.
+type RecalculationContext struct {
+	Definition AccumulatorDefinition
+	Dependent  CorrectionDependency
+	Correction BalanceEntry
+	Balance    AuthorizedBalance
+	Upstream   []CorrectionImpact
+}
+
+// DependentRecalculator recomputes the dependent named in ctx.Dependent and
+// returns evidence for it. Any error fails the correction closed: a
+// dependent that cannot prove its recomputation stays unreconciled only when
+// no implementation was registered at all.
+type DependentRecalculator func(ctx RecalculationContext) (RecalculationEvidence, error)
 
 type CorrectionImpact struct {
 	ID        string
@@ -49,6 +81,10 @@ type CorrectionImpact struct {
 	Version   string
 	DependsOn []string
 	State     RecalculationState
+	// EvidenceDigest identifies the recomputed dependent artifact. It is set
+	// only for RECALCULATED impacts whose evidence reconciled; empty means
+	// the dependent still requires reconciliation.
+	EvidenceDigest string
 }
 
 type RetroCorrectionResult struct {
@@ -60,8 +96,11 @@ type RetroCorrectionResult struct {
 }
 
 // ApplyRetroCorrection appends a signed delta for an immutable prior entry.
-// The original is never rewritten; consumers without an owner/implementation
-// remain explicitly reconciliation-required rather than being claimed done.
+// The original is never rewritten. Dependents with a registered recalculator
+// are recomputed in dependency order and marked RECALCULATED only when their
+// evidence binds this corrected balance digest and their pinned version;
+// consumers without an owner/implementation remain explicitly
+// reconciliation-required rather than being claimed done.
 func ApplyRetroCorrection(req RetroCorrectionRequest) (RetroCorrectionResult, error) {
 	if err := req.Definition.Validate(); err != nil {
 		return RetroCorrectionResult{}, fmt.Errorf("%w: definition: %v", ErrCorrectionInvalid, err)
@@ -149,10 +188,13 @@ func ApplyRetroCorrection(req RetroCorrectionRequest) (RetroCorrectionResult, er
 	if err != nil {
 		return RetroCorrectionResult{}, err
 	}
+	if err := recalculateDependents(req, balance, correction, impacts); err != nil {
+		return RetroCorrectionResult{}, err
+	}
 	result := RetroCorrectionResult{OriginalDigest: req.Original.Digest(), Correction: correction, Balance: balance, Impacts: impacts}
 	w := canonicalbytes.New("hcmnext.domains.balance.RetroCorrectionResult", 1).String("original", result.OriginalDigest).String("correction", correction.Digest()).String("balance", balance.Digest).Count("impacts", len(impacts))
 	for _, i := range impacts {
-		w.String("impact.id", i.ID).String("impact.owner", i.Owner).String("impact.version", i.Version).String("impact.state", string(i.State)).Count("impact.depends_on", len(i.DependsOn))
+		w.String("impact.id", i.ID).String("impact.owner", i.Owner).String("impact.version", i.Version).String("impact.state", string(i.State)).String("impact.evidence", i.EvidenceDigest).Count("impact.depends_on", len(i.DependsOn))
 		for _, dependency := range i.DependsOn {
 			w.String("impact.dependency", dependency)
 		}
@@ -162,6 +204,48 @@ func ApplyRetroCorrection(req RetroCorrectionRequest) (RetroCorrectionResult, er
 		return RetroCorrectionResult{}, err
 	}
 	return result, nil
+}
+
+// recalculateDependents walks the topologically ordered impacts and invokes
+// each registered recalculator with the impacts its dependencies already
+// settled. Evidence must bind the corrected balance digest and the pinned
+// manifest version; anything else -- an error, a drifted version, a stale
+// input digest, a missing artifact digest, or a recalculator for an unknown
+// dependent -- fails the correction rather than reporting a reconciled
+// dependent that is not.
+func recalculateDependents(req RetroCorrectionRequest, balance AuthorizedBalance, correction BalanceEntry, impacts []CorrectionImpact) error {
+	byID := make(map[string]int, len(impacts))
+	for i := range impacts {
+		byID[impacts[i].ID] = i
+	}
+	for id := range req.Recalculators {
+		if _, ok := byID[id]; !ok {
+			return fmt.Errorf("%w: recalculator %s is not a member of the trusted dependency manifest", ErrCorrectionInvalid, id)
+		}
+	}
+	for i := range impacts {
+		recalculate := req.Recalculators[impacts[i].ID]
+		if recalculate == nil {
+			continue
+		}
+		dep := CorrectionDependency{ID: impacts[i].ID, Owner: impacts[i].Owner, Version: impacts[i].Version, DependsOn: append([]string(nil), impacts[i].DependsOn...)}
+		evidence, err := recalculate(RecalculationContext{Definition: req.Definition, Dependent: dep, Correction: correction.copy(), Balance: balance, Upstream: append([]CorrectionImpact(nil), impacts[:i]...)})
+		if err != nil {
+			return fmt.Errorf("%w: recalculation of %s: %v", ErrCorrectionInvalid, impacts[i].ID, err)
+		}
+		if evidence.Version != impacts[i].Version {
+			return fmt.Errorf("%w: recalculation of %s reports version %q, manifest pins %q", ErrCorrectionInvalid, impacts[i].ID, evidence.Version, impacts[i].Version)
+		}
+		if evidence.InputDigest == "" || evidence.InputDigest != balance.Digest {
+			return fmt.Errorf("%w: recalculation of %s is not bound to the corrected balance", ErrCorrectionInvalid, impacts[i].ID)
+		}
+		if strings.TrimSpace(evidence.Digest) == "" {
+			return fmt.Errorf("%w: recalculation of %s supplies no artifact digest", ErrCorrectionInvalid, impacts[i].ID)
+		}
+		impacts[i].State = RecalculationComplete
+		impacts[i].EvidenceDigest = evidence.Digest
+	}
+	return nil
 }
 
 func orderImpacts(expected, in []CorrectionDependency) ([]CorrectionImpact, error) {

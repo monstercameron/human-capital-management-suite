@@ -2,6 +2,7 @@ package crm
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -24,6 +25,32 @@ func TestTodo_CRM_005(t *testing.T) {
 	}
 	if got.Source.Campaign != p.Attribution.Campaign || got.Consent.Authority != p.Consent.Authority {
 		t.Fatal("provenance was not preserved")
+	}
+
+	// Seeded defect: a prospect converts without source lineage and without
+	// consent. Both refuse with CRM_005_REJECTED naming field/state/version,
+	// and neither writes anything: the proposal stays zero.
+	unattributed := validProspect(t)
+	unattributed.Attribution.Campaign = ""
+	empty, rej, err := PrepareProspectConversion(unattributed, crmRef("candidate", "c-1"), crmRef("application", "a-1"), crmRef("identity_link", "i-1"), CRM005IntentType, CRM005IntentVersion, conversionAt(t, "2026-01-03T00:00:00Z"))
+	if !errors.Is(err, ErrCRM005Rejected) || rej == nil || rej.Field != "source.campaign" || rej.State != "UNBOUND" || rej.Version != unattributed.Revision {
+		t.Fatalf("lineage rejection=%+v err=%v", rej, err)
+	}
+	if !reflect.DeepEqual(empty, CandidateConversionProposal{}) {
+		t.Fatalf("refused conversion wrote a proposal: %+v", empty)
+	}
+	nonconsensual := validProspect(t)
+	withdrawn, err := nonconsensual.Consent.Withdraw(conversionAt(t, "2026-01-02T12:00:00Z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	nonconsensual.Consent = withdrawn
+	empty, rej, err = PrepareProspectConversion(nonconsensual, crmRef("candidate", "c-1"), crmRef("application", "a-1"), crmRef("identity_link", "i-1"), CRM005IntentType, CRM005IntentVersion, conversionAt(t, "2026-01-03T00:00:00Z"))
+	if !errors.Is(err, ErrCRM005Rejected) || rej == nil || rej.Field != "consent" {
+		t.Fatalf("consent rejection=%+v err=%v", rej, err)
+	}
+	if !reflect.DeepEqual(empty, CandidateConversionProposal{}) {
+		t.Fatalf("refused conversion wrote a proposal: %+v", empty)
 	}
 }
 func TestTodo_CRM_005_Security(t *testing.T) {

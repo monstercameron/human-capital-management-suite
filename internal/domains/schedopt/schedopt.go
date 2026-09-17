@@ -67,11 +67,18 @@ const (
 	ConstraintCostCeiling         ConstraintKind = "COST_CEILING"
 	ConstraintCandidateUniqueness ConstraintKind = "CANDIDATE_UNIQUENESS"
 	ConstraintCoverage            ConstraintKind = "COVERAGE"
+	// ConstraintLegalAuthorization (SCHED-OPT-003) requires the worker to
+	// hold every listed legal authorization for the window.
+	ConstraintLegalAuthorization ConstraintKind = "LEGAL_AUTHORIZATION"
+	// ConstraintFatigueLimit (SCHED-OPT-003) caps accrued fatigue minutes
+	// plus the window's own minutes: a worker that would exceed the cap
+	// is blocked no matter how it scores.
+	ConstraintFatigueLimit ConstraintKind = "FATIGUE_LIMIT"
 )
 
 func (k ConstraintKind) Valid() bool {
 	switch k {
-	case ConstraintAvailability, ConstraintLocation, ConstraintQualification, ConstraintCostCeiling, ConstraintCandidateUniqueness, ConstraintCoverage:
+	case ConstraintAvailability, ConstraintLocation, ConstraintQualification, ConstraintCostCeiling, ConstraintCandidateUniqueness, ConstraintCoverage, ConstraintLegalAuthorization, ConstraintFatigueLimit:
 		return true
 	default:
 		return false
@@ -86,6 +93,12 @@ type Constraint struct {
 	Location          string
 	Cost              values.Money
 	QualificationRefs []values.EntityRef
+	// AuthorizationRefs carries LEGAL_AUTHORIZATION evidence: the legal
+	// authorizations a worker must hold for the window.
+	AuthorizationRefs []values.EntityRef
+	// MaxFatigueMinutes carries the FATIGUE_LIMIT cap: accrued worker
+	// fatigue plus the window's own minutes must not exceed it.
+	MaxFatigueMinutes int64
 }
 
 // WeightedConstraint is a descriptive alias for callers building soft rules.
@@ -125,8 +138,26 @@ func (c Constraint) validate(hard bool, tenant values.TenantId) error {
 			}
 			seen[ref.String()] = struct{}{}
 		}
+	case ConstraintLegalAuthorization:
+		if len(c.AuthorizationRefs) == 0 {
+			return fmt.Errorf("%w: legal authorization constraint requires references", ErrInvalidProblem)
+		}
+		seen := make(map[string]struct{}, len(c.AuthorizationRefs))
+		for _, ref := range c.AuthorizationRefs {
+			if err := ref.Validate(); err != nil || ref.Tenant != tenant {
+				return fmt.Errorf("%w: legal authorization reference is invalid or crosses tenant", ErrInvalidProblem)
+			}
+			if _, ok := seen[ref.String()]; ok {
+				return fmt.Errorf("%w: duplicate legal authorization reference", ErrInvalidProblem)
+			}
+			seen[ref.String()] = struct{}{}
+		}
+	case ConstraintFatigueLimit:
+		if c.MaxFatigueMinutes <= 0 {
+			return fmt.Errorf("%w: fatigue limit requires a positive minute cap", ErrInvalidProblem)
+		}
 	default:
-		if c.Location != "" || c.Weight < 0 || len(c.QualificationRefs) != 0 || c.Cost != (values.Money{}) {
+		if c.Location != "" || c.Weight < 0 || len(c.QualificationRefs) != 0 || c.Cost != (values.Money{}) || len(c.AuthorizationRefs) != 0 || c.MaxFatigueMinutes != 0 {
 			return fmt.Errorf("%w: constraint %q has fields not defined for its kind", ErrInvalidProblem, c.Kind)
 		}
 	}
@@ -368,6 +399,11 @@ func constraintCanonical(c Constraint, mode string) []byte {
 		refs = append(refs, ref.String())
 	}
 	w.SortedStrings("qualification_ref", refs)
+	authorizations := make([]string, 0, len(c.AuthorizationRefs))
+	for _, ref := range c.AuthorizationRefs {
+		authorizations = append(authorizations, ref.String())
+	}
+	w.SortedStrings("authorization_ref", authorizations).Int("max_fatigue_minutes", c.MaxFatigueMinutes)
 	raw, err := w.Bytes()
 	if err != nil {
 		return nil
