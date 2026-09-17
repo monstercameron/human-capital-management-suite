@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-17 (In-flight landing round, todos stay open)
+
+- Preserved lane work without marking anything complete: search propagation, benefits eligibility, clock observations, garnishment intake, metric compilation, promotion-path store, knowledge RAG/resolve, settlement submit (`SEARCH-002`, `BEN-003`, `CLOCK-003`, `GARN-001`, `METRIC-001`, `PERSIST-JOBARCH-002`, `KNOW-003/004`, `SETTLE-004`); abuse investigation and pseudonym rate-limit/re-identification (`ABUSE-006`, `ANON-006/008`); polish/density suites, the access-preview harness and its workspace test (`UIPOLISH-002/003/005/006`, `UXSCAN-008`). All packages green in-tree; each todo still needs its evidence and review. Noted flake: `TestTodo_PROMOUX_011_ProductRefreshPublishesOnlyNewestSequence` failed once under the hook and passed four consecutive reruns — needs a GOV-020 quarantine record, not silent retries.
+
 ## 2026-09-17 (Grouped delivery round: batch substrate, domain engines, operator surfaces)
 
 - Batch substrate (`JOB-002`, `EVENT-005`): batch work admits and schedules by priority, quota and cost with race/fault proofs, and the broker-neutral event adapter carries the race/integration/fault/conformance/recovery/security matrix over a real outbox store.
