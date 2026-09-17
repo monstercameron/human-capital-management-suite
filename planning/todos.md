@@ -7162,7 +7162,8 @@ closed.
   - **REFACTOR:** ranking never receives an unauthorized candidate.
   - **Refs:** [Intelligence model](data/models/assurance-intelligence-platform.md), [AuthZ](specs/organization-scope-and-authz.md).
 
-- [ ] `SEARCH-002` **[PHASE_2][SOL_HIGH] Propagate restriction, deletion and hold state through search/vector/cache.**
+- [x] `SEARCH-002` **[PHASE_2][SOL_HIGH] Propagate restriction, deletion and hold state through search/vector/cache.**
+  - **Evidence (2026-09-17):** `TestTodo_SEARCH_002` plus RACE/SECURITY/RECOVERY matrix in `internal/engines/search` (`propagation.go` restriction/deletion/hold propagation); `go test -count=1 ./internal/engines/search/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `SEARCH-001`, `RECORDS-COPY-001`, `PRIV-004`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=expose governed intent creation, inspection or consumption without persistence or provider bypass`.
   - **TEST:** `TestTodo_SEARCH_002`.
@@ -7172,7 +7173,8 @@ closed.
   - **REFACTOR:** indexes remain rebuildable copies, never authority.
   - **Refs:** [Copy lifecycle](specs/records-management-and-disposition.md), [intelligence model](data/models/assurance-intelligence-platform.md).
 
-- [ ] `METRIC-001` **[PHASE_2][SOL_HIGH] Compile and execute versioned semantic metrics.**
+- [x] `METRIC-001` **[PHASE_2][SOL_HIGH] Compile and execute versioned semantic metrics.**
+  - **Evidence (2026-09-17):** `TestTodo_METRIC_001` plus PROPERTY/GOLDEN matrix in `internal/domains/intelligence` (`metric.go` versioned semantic metric compile and execute); `go test -count=1 ./internal/domains/intelligence/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `MODEL-007`, `DATA-005`, `DATA-006`, `OPS-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_METRIC_001`.
@@ -11588,7 +11590,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [DLP](specs/data-classification-and-dlp.md), [adversarial audit](specs/adversarial-audit-32-reviewers-2026-08-14.md).
 
-- [ ] `ANON-006` **[PHASE_3][SOL_HIGH] Bound duplicate and spam abuse without deanonymizing.**
+- [x] `ANON-006` **[PHASE_3][SOL_HIGH] Bound duplicate and spam abuse without deanonymizing.**
+  - **Evidence (2026-09-17):** `TestTodo_ANON_006` plus SECURITY/RECOVERY matrix in `internal/domains/pseudonym` (`rate_limit.go` duplicate/spam bounds without deanonymizing); `go test -count=1 ./internal/domains/pseudonym/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `ANON-002`, `EDGE-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.PRIVACY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_ANON_006`.
@@ -11609,7 +11612,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Ledger](specs/transaction-ledger-reconciliation-and-repair.md), [provenance](specs/provenance-graph-and-lineage.md).
 
-- [ ] `ANON-008` **[CONFORMANCE][SOL_HIGH] Test analytics and search against re-identification.**
+- [x] `ANON-008` **[CONFORMANCE][SOL_HIGH] Test analytics and search against re-identification.**
+  - **Evidence (2026-09-17):** `TestTodo_ANON_008` plus SECURITY/CONFORMANCE matrix in `internal/domains/pseudonym` (`reidentification.go` re-identification guards over analytics and search); `go test -count=1 ./internal/domains/pseudonym/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `ANON-005`, `RETRIEVAL-001`, `ANALYTICS-001`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.CASES,BI.PRIVACY; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
   - **TEST:** `TestTodo_ANON_008`.
@@ -11674,7 +11678,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Governance composition](specs/governance-decision-and-obligation-composition.md), [incident management](specs/incident-management.md).
 
-- [ ] `ABUSE-006` **[GATE_C][SOL_HIGH] Investigate and disposition abuse findings.**
+- [x] `ABUSE-006` **[GATE_C][SOL_HIGH] Investigate and disposition abuse findings.**
+  - **Evidence (2026-09-17):** `TestTodo_ABUSE_006` plus SECURITY/MUTATION matrix in `internal/engines/abuse` (`investigation.go` finding lifecycle with compartment and investigator separation); `go test -count=1 ./internal/engines/abuse/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `ABUSE-004`, `OPS-004`, `WORK-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.SECURITY; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_ABUSE_006`.
@@ -12000,7 +12005,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Human work](specs/human-work-forms-and-rules.md), [AuthZ](specs/organization-scope-and-authz.md).
 
-- [ ] `SETTLE-004` **[PHASE_5][SOL_HIGH] Submit payments idempotently.**
+- [x] `SETTLE-004` **[PHASE_5][SOL_HIGH] Submit payments idempotently.**
+  - **Evidence (2026-09-17):** `TestTodo_SETTLE_004` plus RACE/INTEGRATION/FAULT/SECURITY matrix in `internal/domains/settlement` (`submit.go` idempotent payment submission); `go test -count=1 ./internal/domains/settlement/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `SETTLE-003`, `CONN-RT-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SETTLE_004`.
@@ -12040,7 +12046,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [workflow completion](specs/workflow-runtime.md).
 
-- [ ] `GARN-001` **[CONFORMANCE][SOL_HIGH] Intake and version wage-attachment orders.**
+- [x] `GARN-001` **[CONFORMANCE][SOL_HIGH] Intake and version wage-attachment orders.**
+  - **Evidence (2026-09-17):** `TestTodo_GARN_001` plus PROPERTY/GOLDEN/SECURITY/CONFORMANCE/MUTATION matrix in `internal/domains/garnishment` (`order.go` wage-attachment order intake and versioning); `go test -count=1 ./internal/domains/garnishment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `ARTIFACT-005`, `LEGAL-003`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.PAYROLL; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
   - **TEST:** `TestTodo_GARN_001`.
@@ -12137,7 +12144,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Business cycles](#38-eligibility-business-cycle-and-balance-engines), [wire time](data/models/wire-contract-primitives.md).
 
-- [ ] `BEN-003` **[PHASE_4][SOL_HIGH] Evaluate benefit eligibility.**
+- [x] `BEN-003` **[PHASE_4][SOL_HIGH] Evaluate benefit eligibility.**
+  - **Evidence (2026-09-17):** `TestTodo_BEN_003` plus PROPERTY/SECURITY matrix in `internal/domains/benefits` (`eligibility.go` benefit eligibility evaluation); `go test -count=1 ./internal/domains/benefits/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `BEN-001`, `ELIG-008`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_BEN_003`.
@@ -12219,7 +12227,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Identity resolution](specs/identity-resolution-and-entity-linkage.md), [AuthZ](specs/organization-scope-and-authz.md).
 
-- [ ] `CLOCK-003` **[PHASE_4][SOL_HIGH] Capture signed TimeObservation.**
+- [x] `CLOCK-003` **[PHASE_4][SOL_HIGH] Capture signed TimeObservation.**
+  - **Evidence (2026-09-17):** `TestTodo_CLOCK_003` plus PROPERTY/MUTATION matrix in `internal/domains/clock` (`observation.go` signed time observations); `go test -count=1 ./internal/domains/clock/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `CLOCK-002`, `TIME-001`, `LEDGER-002`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_CLOCK_003`.
@@ -12818,7 +12827,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Configuration lifecycle](data/models/dataops-configuration.md), [governance composition](specs/governance-decision-and-obligation-composition.md).
 
-- [ ] `KNOW-003` **[PHASE_3][SOL_HIGH] Resolve applicable knowledge by context.**
+- [x] `KNOW-003` **[PHASE_3][SOL_HIGH] Resolve applicable knowledge by context.**
+  - **Evidence (2026-09-17):** `TestTodo_KNOW_003` plus GOLDEN/SECURITY/MUTATION matrix in `internal/domains/knowledge` (`resolve.go` context-scoped knowledge resolution); `go test -count=1 ./internal/domains/knowledge/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `KNOW-002`, `TRUST-010`, `LEGAL-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.EXPERIENCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_KNOW_003`.
@@ -12828,7 +12838,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [AuthZ](specs/organization-scope-and-authz.md), [regulatory platform](specs/platform-architecture-catalog.md).
 
-- [ ] `KNOW-004` **[PHASE_3][SOL_HIGH] Publish safe, cited RAG derivatives.**
+- [x] `KNOW-004` **[PHASE_3][SOL_HIGH] Publish safe, cited RAG derivatives.**
+  - **Evidence (2026-09-17):** `TestTodo_KNOW_004` plus SECURITY/MUTATION matrix in `internal/domains/knowledge` (`rag.go` safe cited RAG derivatives); `go test -count=1 ./internal/domains/knowledge/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `KNOW-002`, `MODEL-023`, `TRUST-019`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.EXPERIENCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_KNOW_004`.
@@ -14085,7 +14096,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** promotion approval thresholds remain owned by the versioned promotion rule pack; benefits reevaluate eligibility through `BEN-003` and never become job-architecture-owned election state.
   - **Refs:** [job architecture](specs/job-architecture.md), [compensation](specs/compensation.md), [Phase 1 depth matrix](plan.md#phase-1-implementation-depth-matrix).
 
-- [ ] `PERSIST-JOBARCH-002` **[PHASE_3][SOL_HIGH] Persist promotion paths and pin assignment job-profile revisions.**
+- [x] `PERSIST-JOBARCH-002` **[PHASE_3][SOL_HIGH] Persist promotion paths and pin assignment job-profile revisions.**
+  - **Evidence (2026-09-17):** `TestPromotionPathStorePinsProfileRevisionsAndRefusesOverlappingPublishedEdges` plus PROPERTY/GOLDEN/INTEGRATION/FAULT/SECURITY/MUTATION matrix in `internal/domains/jobarch` (`pathstore.go` promotion-path persistence with pinned profile revisions); `go test -count=1 ./internal/domains/jobarch/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `JOBARCH-004`, `PERSIST-JOBARCH-001`, `STORE-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.REWARDS; DIRECT=none; WHY=make a path and both assignment profiles durable evidence for proposal, simulation and terminal commit`.
   - **TEST:** `TestPromotionPathStorePinsProfileRevisionsAndRefusesOverlappingPublishedEdges`.
