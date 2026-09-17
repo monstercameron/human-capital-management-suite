@@ -226,7 +226,7 @@ func declareloadingProxyStylesStyles() {
 		gwccss.Padding(gwccss.VarLength("theme-panel-padding")),
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.Raw("box-shadow", "none"),
 	)

@@ -189,7 +189,7 @@ func declareGlobalSearchStyles() {
 		gwccss.Raw("overflow-y", "auto"),
 		gwccss.Raw("overscroll-behavior", "contain"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-panel,var(--panel))")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.Raw("box-shadow", "var(--hcm-shadow-raised)"),
 		gwccss.Raw("scrollbar-width", "thin"),
@@ -509,7 +509,7 @@ func declarePopoverStyles() {
 	)
 	declareGlobal(".popover-surface",
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-panel,var(--panel))")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
 		gwccss.Raw("box-shadow", "var(--hcm-shadow-raised,0 18px 48px color-mix(in srgb,var(--ink) 18%,transparent))"),
@@ -839,7 +839,7 @@ func declareBaseStyles() {
 		gwccss.Padding(gwccss.Px(18)),
 		gwccss.Bg(gwccss.Hex("fff")),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Shadow(gwccss.ShadowOf(gwccss.Zero, gwccss.Px(18), gwccss.Px(48), gwccss.Zero, gwccss.Hex("10223822"))),
 	)
 	declareGlobal(".popover h2",
@@ -975,7 +975,7 @@ func declareBaseStyles() {
 	declareGlobal(".surface",
 		gwccss.MinWidth(gwccss.Zero),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Hex("fff")),
 	)
 	declareGlobal(".panel",
@@ -1243,7 +1243,7 @@ func declareBaseStyles() {
 		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.Px(325))),
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Hex("fff")),
 	)
 	declareGlobal(".people-columns,.people-row",
@@ -1489,7 +1489,7 @@ func declareBaseStyles() {
 		gwccss.GridCols(gwccss.TrackLen(gwccss.Px(210)), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.Px(285))),
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Hex("fff")),
 	)
 	declareGlobal(".settings-nav,.settings-form,.settings-context",
