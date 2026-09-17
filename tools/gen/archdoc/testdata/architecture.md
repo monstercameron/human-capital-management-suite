@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: ded2e10815e4b4b19e325a1b695f03195a450c678c8517958df495918727f7ce
-- Package count: 837
-- Within-module edge count: 2117
+- Source graph: b9160ba224aee72e595a371f5d08f4abbbbea34df931c4adb97db4cabcbb69aa
+- Package count: 838
+- Within-module edge count: 2118
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -656,6 +656,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/bulkack`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/edges`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/hrcase`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/jurisdiction`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/learning`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leave`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leavereturn`
@@ -992,4 +993,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`07028724dbfbcf26674d3bd6f1f9ed5746b5704a7c7ea6f0aeb7d4cadf92b140`
+`10c9c24a8cba2f674bb6909662359d2dbc56910bdb5ad1160ebc363e18bb233a`
