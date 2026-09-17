@@ -75,7 +75,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete voidness check (SF 107, effective 2025-07-01): On promotion, check if employee subject to non-compete."
+        "rule": "Non-compete voidness check (SF 107, effective 2025-07-01; Wyo. Stat. § 6-3-501 et seq.): on promotion, check if the employee is subject to a non-compete. Post-employment non-competes are void and unenforceable for non-executive staff; carve-outs only for executive or managerial personnel, sale of business, trade-secret protection, or training and relocation expense recovery. Agreements signed before 2025-07-01 remain under prior law."
       }
     },
     {
@@ -130,8 +130,8 @@
       "id": "us-wy-job-security",
       "citation": {
         "source_file": "planning/research/state-employment-law/wyoming.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Handbook implied contract (Trabing v.",
+        "section": "Trabing v. Kinko's (2002)",
+        "note": "Handbook implied contract (Trabing v. Kinko's, 2002): if a promotion changes termination procedures or at-will status, verify the handbook carries a clear, conspicuous, prominent at-will disclaimer to preserve at-will employment; bypassing listed termination procedures risks an implied-contract breach claim.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },

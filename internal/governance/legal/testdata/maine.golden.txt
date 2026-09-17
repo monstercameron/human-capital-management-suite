@@ -1,0 +1,7 @@
+# LEGAL-ST-ME-001 golden oracle: the agent-verified Maine draft bytes
+# ($15.10/hr floor with $7.33 tip credit, salary-history ban, at-hire
+# notice, EPL and PFMLA leave terms, $62,920 non-compete bar,
+# economic-realities contractor test, itemized pay statements, 10-day
+# personnel access, 30-day breach clock with AG threshold).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:761d3877e4201c03b684e9bf3ae1f574ae340f1c83468dc24339de4af0db8096

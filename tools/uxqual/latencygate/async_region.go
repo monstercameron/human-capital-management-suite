@@ -192,7 +192,10 @@ type Presentation struct {
 
 func (region Region) Presentation() Presentation {
 	p := Presentation{Variant: region.State, ReservedHeight: region.ReservedHeight, PreserveInput: region.EnteredValues}
-	if region.State == StateRefreshing || region.State == StateError {
+	// A submitting form or mutation keeps its safe projection underneath the
+	// progress cue: UIPOLISH-009 RED rejects async regions that flash blank
+	// while work is in flight.
+	if region.State == StateRefreshing || region.State == StateError || region.State == StateSubmitting {
 		p.RetainProjection = region.HasData
 	}
 	if region.State == StateLoading || region.State == StateRefreshing || region.State == StateError || region.State == StateSuccess {

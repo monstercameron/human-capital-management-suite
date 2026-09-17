@@ -1,0 +1,6 @@
+# LEGAL-ST-OK-001 golden oracle: the agent-verified Oklahoma draft bytes
+# (federal-only floor, § 165.2 pay frequency, § 165.3 final pay with 2%
+# daily penalty, §§ 219A/219B non-compete check, § 160 LEAVE preemption
+# as data, §§ 551-563 drug testing with § 427.8 safety-sensitive carve-out).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:f5a57883a93bd7104197aa2012cc4ba48420ea70abb8ed2289a83efb4a0a476b

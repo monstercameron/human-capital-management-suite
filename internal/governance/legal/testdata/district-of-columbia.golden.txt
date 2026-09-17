@@ -1,0 +1,9 @@
+# LEGAL-ST-DC-001 golden oracle: the agent-verified District draft bytes
+# ($17.95 window-start floor with July 2026 step, WTPA hire/change notice,
+# 2023 Omnibus transparency, UPL plus tiered sick leave, non-compete ban
+# with carve-outs, 32-1303 final pay, 3-year retention, itemized stubs,
+# 28-3852 breach standard, pay-equity/personnel-file gap emissions).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-dc.json
+sha256:94fb0c11a84eb5050219479ad417e8c21823b9338edb32a94083b9d25903a725

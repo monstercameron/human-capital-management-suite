@@ -23,10 +23,10 @@
       "id": "us-nh-notice",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Pay rate change notice (RSA 275:49): On any base-pay change (increase or decrease), generate automated written notice stating new rate and effective date.",
+        "section": "RSA 275:49",
+        "note": "Written advance notice of any wage, salary, payday, or policy change before the effective date, with signed employee acknowledgment retained in the personnel file (RSA 275:49).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "who": "employer_to_worker",
@@ -40,10 +40,10 @@
       "id": "us-nh-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Personnel file retention and access (RSA 275:56): For employers with 15+ employees, system must: (a) Retain all personnel and payroll records for 1 year minimum; (b) Flag records for deletion after 1-year threshold if...",
+        "section": "RSA 275:56",
+        "note": "Personnel and payroll records for employers with 15 or more employees retained at least 1 year, documenting name, address, occupation, hours, rate, gross and net pay, deductions, and leave accrual (RSA 275:56).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "record_class": "payroll_records",
@@ -56,26 +56,28 @@
       "id": "us-nh-pay-frequency",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Pay rate change notice required: Employers must provide written notice of any wage, salary, or pay schedule changes prior to the effective date and obtain employee signature (RSA 275:49).",
+        "section": "RSA 275:43",
+        "note": "Wages paid at least weekly or biweekly within 8 or 15 days of the week worked; less frequent schedules only on written petition showing good cause, never less than monthly (RSA 275:43).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
-      "body": {}
+      "body": {
+        "minimum_frequency": "BIWEEKLY"
+      }
     },
     {
       "kind": "FINAL_PAY_DEADLINE",
       "id": "us-nh-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Final pay on separation (RSA 275:44): If termination occurs during or shortly after promotion, ensure final paycheck includes all wages earned at promoted rate from effective date forward.",
+        "section": "RSA 275:44",
+        "note": "Discharge: all wages within 72 hours. Resignation with notice: next regular payday; without notice: within 72 hours of the last day worked; layoff: next regular payday (RSA 275:44).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on separation (RSA 275:44): If termination occurs during or shortly after promotion, ensure final paycheck includes all wages earned at promoted rate from effective date forward."
+        "deadline_description": "Discharge: all wages within 72 hours. Resignation with notice: next regular payday; without notice: within 72 hours of the last day worked; layoff: next regular payday (RSA 275:44)."
       }
     },
     {
@@ -83,14 +85,14 @@
       "id": "us-nh-non-compete",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any...",
+        "section": "RSA 275:70-a, RSA 329:31-a",
+        "note": "Non-competes void for employees at or below 200% of the federal minimum wage (about $14.50/hour); physician non-competes void regardless of wage; pre-offer disclosure required (RSA 275:70-a, RSA 329:31-a, RSA 275:70).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforceability check (RSA 275:70-a, RSA 329:31-a): On hiring or role change, system must: (a) Calculate employee hourly wage (or annualize if salary); (b) If ≤$14.50/hour (200% federal min), flag any..."
+        "rule": "Non-competes void for employees at or below 200% of the federal minimum wage (about $14.50/hour); recalculate on promotion because crossing the threshold changes enforceability (RSA 275:70-a)."
       }
     },
     {
@@ -98,10 +100,10 @@
       "id": "us-nh-mini-warn",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Federal WARN compliance: State-level notification requirement mirrors federal WARN Act for employers with 100+ employees planning mass layoffs or plant closings; 60 days' advance notice required (RSA 275-F).",
+        "section": "RSA 275-F",
+        "note": "Mirrors federal WARN: employers with 100 or more full-time employees give 60 days' advance written notice of plant closing or mass layoff affecting 25 or more employees or 25% or more of the workforce (RSA 275-F).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "note": "Federal WARN compliance: State-level notification requirement mirrors federal WARN Act for employers with 100+ employees planning mass layoffs or plant closings; 60 days' advance notice required (RSA 275-F).",
@@ -114,13 +116,13 @@
       "id": "us-nh-pay-equity-review",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Equal pay audit flag (RSA 275:37): On promotion + base-pay change, system should flag if new rate differs >15% from peer rates for equal work in same establishment (same employer).",
+        "section": "RSA 275:37",
+        "note": "Sex-based equal pay for equal work requiring equal skill, effort, and responsibility; wage discussion protected and pay confidentiality may not be a condition of employment (RSA 275:37, RSA 275:41-b).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_bases": ["age"],
+        "protected_bases": ["sex"],
         "comparator_standard": "equal work",
         "standard": "REQUIRED"
       }
@@ -130,7 +132,7 @@
       "id": "us-nh-pay-statement",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "RSA 275:56",
         "note": "No state-mandated itemized pay stub format; federal FLSA requirements apply (employer should document hours, wage rate, deductions, net pay per RSA 275:56 record-retention obligation).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
@@ -151,10 +153,10 @@
       "id": "us-nh-personnel-file",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Non-compete disclosure (RSA 275:70): If non-compete exists and enforceable, ensure copy provided to employee prior to offer acceptance (or upon hiring if not at offer stage).",
+        "section": "RSA 275:56",
+        "note": "Employees may inspect and receive copies of their personnel file on written request; employers with 15 or more employees retain records 1 year (RSA 275:56).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "standard": "REQUIRED"
@@ -165,12 +167,13 @@
       "id": "us-nh-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Wage discussion protection (RSA 275:41-b): Do not restrict or flag employee discussions of wages/benefits.",
+        "section": "RSA 275:41-b",
+        "note": "Wage discussion protection (RSA 275:41-b): employees protected from retaliation for disclosing or discussing wages or benefits; pay confidentiality may not be required.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_activities": ["wage_discussion"],
         "disposition": "BLOCK",
         "standard": "REQUIRED"
       }
@@ -195,12 +198,27 @@
       "id": "us-nh-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-hampshire.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "RSA 359-C:20: Any person or business in New Hampshire that owns or licenses computerized data containing personal information must notify affected individuals \"as soon as possible\" and \"without unreasonable delay\" when...",
+        "section": "RSA 359-C:20",
+        "note": "Breach of computerized personal information: notify affected individuals as soon as possible and without unreasonable delay, plus the attorney general or primary regulator, when misuse is likely (RSA 359-C:20).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-nh-wage-floor-federal",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/new-hampshire.md",
+        "section": "RSA 279:21",
+        "note": "New Hampshire sets no state minimum above the federal $7.25/hour floor (RSA 279:21); federal overtime applies.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
         "standard": "REQUIRED"
       }
     }

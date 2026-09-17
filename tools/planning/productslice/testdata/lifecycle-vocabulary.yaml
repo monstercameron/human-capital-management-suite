@@ -1,0 +1,110 @@
+schema: hcmnext.planning.productslices.lifecycle-vocabulary
+schema_version: 1
+projections:
+    - kind: approval_state
+      owning_layer: governance
+      canonical_form: closed approval verdict over one proposal revision naming allow, deny, abstain or recused
+      projection_rule: sha256 of the canonical verdict with proposal digest, deciding principal and recorded instant
+      dimensions:
+        - approval
+        - proposal
+      observed_by:
+        - business
+        - governance
+      carried_by:
+        - persistence
+        - presentation
+        - transport
+    - kind: assignment_state
+      owning_layer: business
+      canonical_form: closed assignment condition over one worker naming staffed, open, suspended or ended
+      projection_rule: latest durable assignment row wins; overlapping effective intervals are refused before projection
+      dimensions:
+        - assignment
+        - employment
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: employment_status
+      owning_layer: business
+      canonical_form: closed employment condition over one worker naming active, on_leave, suspended or separated
+      projection_rule: separation and rehire events fold in source order; the newest effective event decides
+      dimensions:
+        - employment
+      observed_by:
+        - business
+        - persistence
+        - presentation
+      carried_by:
+        - transport
+    - kind: hire_to_retire
+      owning_layer: business
+      canonical_form: ordered journey spine from requisition through hire, employment, separation and rehire eligibility
+      projection_rule: each spine position derives from exactly one durable event; gaps project as unknown, never as employed
+      dimensions:
+        - employment
+        - proposal
+        - workflow
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: payroll_run_state
+      owning_layer: business
+      canonical_form: closed payroll run condition naming drafted, calculated, approved, paid or voided
+      projection_rule: paid and voided are terminal; recalculation mints a successor run and never rewrites a paid run
+      dimensions:
+        - payroll
+        - workflow
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: proposal_state
+      owning_layer: governance
+      canonical_form: closed proposal condition over one intent naming drafted, submitted, decided, superseded or withdrawn
+      projection_rule: the decision binds the exact proposal digest; a content change mints a successor and resets the state
+      dimensions:
+        - proposal
+        - approval
+      observed_by:
+        - business
+        - governance
+      carried_by:
+        - persistence
+        - presentation
+        - transport
+    - kind: work_item_state
+      owning_layer: business
+      canonical_form: closed work-item condition naming queued, claimed, working, blocked, done or cancelled
+      projection_rule: blocked requires a named blocker; done requires the completing event and a terminal workflow node
+      dimensions:
+        - work_item
+        - workflow
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+    - kind: workflow_stage
+      owning_layer: business
+      canonical_form: named frontier position of one workflow instance over the pinned node-to-stage map
+      projection_rule: the frontier node names the in-flight stage; a succeeded terminal decides the finished stage
+      dimensions:
+        - workflow
+        - proposal
+      observed_by:
+        - business
+        - persistence
+      carried_by:
+        - presentation
+        - transport
+digest: sha256:cda46c3f67e3160d8dade22b4f950b527876928cc96769cbc1e10fe767496464

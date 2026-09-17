@@ -1,0 +1,7 @@
+# LEGAL-ST-LA-001 golden oracle: the agent-verified Louisiana draft bytes
+# (federal-only wage floor, 15-day/next-payday final pay, 2-year
+# non-compete cap, 90-day retaliation presumption, LWC separation
+# notice, drug-testing bases, delay-based breach clock, LEAVE
+# preemption asserted at La. R.S. 23:642).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:00d95454ac1d05c9c6e4a407c226ce66fb38dd88181be3755219bf0291528825

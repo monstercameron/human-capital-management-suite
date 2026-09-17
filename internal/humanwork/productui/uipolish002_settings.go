@@ -28,7 +28,7 @@ func uipolish002SettingsStylesheet() string {
 			gwccss.Raw("margin", "0"),
 			gwccss.Raw("padding", "calc(var(--hcm-space-3) * var(--hcm-density))"),
 			gwccss.Raw("border", "1px solid var(--line)"),
-			gwccss.Raw("border-radius", "var(--panel)"),
+			gwccss.Raw("border-radius", "var(--hcm-radius-surface)"),
 			gwccss.Raw("background", "var(--surface)"),
 		)
 		declareGlobal(".settings-account-group .settings-group-content>:is(.settings-context,.settings-task-card,.settings-signout) :is(h2,h3)",
@@ -61,7 +61,7 @@ func uipolish002SettingsStylesheet() string {
 			gwccss.Raw("margin", "0"),
 			gwccss.Raw("padding", "calc(var(--hcm-space-3) * var(--hcm-density))"),
 			gwccss.Raw("border", "1px solid var(--line)"),
-			gwccss.Raw("border-radius", "var(--panel)"),
+			gwccss.Raw("border-radius", "var(--hcm-radius-surface)"),
 			gwccss.Raw("background", "var(--surface)"),
 		)
 		declareGlobal(".settings-organization-group .settings-task-card :is(h3,p)",

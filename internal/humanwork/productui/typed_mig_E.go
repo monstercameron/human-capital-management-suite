@@ -179,7 +179,7 @@ func declareCustomerIdentityStyles() {
 	declareGlobal(":root[data-hcm-density=\"compact\"] .work-row",
 		mediaRule(gwccss.MinW(761), gwccss.MinHeight(gwccss.Px(74)), gwccss.Raw("padding-block", "10px")),
 	)
-	declareGlobal(":root[data-hcm-density=\"compact\"] .home-grid,:root[data-hcm-density=\"compact\"] .workbench,:root[data-hcm-density=\"compact\"] .insights-grid",
+	declareGlobal(":root[data-hcm-density=\"compact\"] .home-grid,:root[data-hcm-density=\"compact\"] .side-stack,:root[data-hcm-density=\"compact\"] .workbench,:root[data-hcm-density=\"compact\"] .insights-grid",
 		mediaRule(gwccss.MinW(761), gwccss.Gap(gwccss.Px(15))),
 	)
 	declareGlobal(":root[data-hcm-density=\"spacious\"] .main",
@@ -194,7 +194,7 @@ func declareCustomerIdentityStyles() {
 	declareGlobal(":root[data-hcm-density=\"spacious\"] .work-row",
 		mediaRule(gwccss.MinW(761), gwccss.MinHeight(gwccss.Px(96)), gwccss.Raw("padding-block", "18px")),
 	)
-	declareGlobal(":root[data-hcm-density=\"spacious\"] .home-grid,:root[data-hcm-density=\"spacious\"] .workbench,:root[data-hcm-density=\"spacious\"] .insights-grid",
+	declareGlobal(":root[data-hcm-density=\"spacious\"] .home-grid,:root[data-hcm-density=\"spacious\"] .side-stack,:root[data-hcm-density=\"spacious\"] .workbench,:root[data-hcm-density=\"spacious\"] .insights-grid",
 		mediaRule(gwccss.MinW(761), gwccss.Gap(gwccss.Px(25))),
 	)
 	declareGlobal(".appearance-brand-fields",
@@ -369,7 +369,7 @@ func declareAppearanceStyles() {
 	declareGlobal(".appearance-preview-window",
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("canvas")),
 	)
 	declareGlobal(".appearance-preview-bar",
@@ -425,7 +425,7 @@ func declareAppearanceStyles() {
 		gwccss.Gap(gwccss.Px(7)),
 		gwccss.Padding(gwccss.Px(12)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.Raw("box-shadow", "none"),
 	)
@@ -455,7 +455,7 @@ func declareAppearanceStyles() {
 		gwccss.Gap(gwccss.Px(8)),
 		gwccss.Padding(gwccss.Px(12)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.Raw("box-shadow", "0 -8px 28px color-mix(in srgb,var(--canvas) 75%,transparent)"),
 	)
@@ -622,7 +622,7 @@ func declareAppearanceStyles() {
 		gwccss.Raw("flex-direction", "column"),
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
 		gwccss.Raw("box-shadow", "0 28px 80px rgba(0,0,0,.34)"),

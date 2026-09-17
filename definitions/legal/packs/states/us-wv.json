@@ -23,8 +23,8 @@
       "id": "us-wv-notice",
       "citation": {
         "source_file": "planning/research/state-employment-law/west-virginia.md",
-        "section": "W. Va. Code § 21-5-9(4)",
-        "note": "W.",
+        "section": "W. Va. Code § 21-5-9(1)-(4)",
+        "note": "Written notice at hire of the rate of pay, day, hour, and place of payment (§ 21-5-9(1)); written notice of any pay-rate or wage-arrangement change at least 1 full pay period prior to the effective date (§ 21-5-9(4)); failure to provide advance notice triggers mandatory reimbursement of the reduction amount on the initial paycheck.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -39,12 +39,16 @@
       "id": "us-wv-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/west-virginia.md",
-        "section": "§ 21-1B-4",
-        "note": "Does the employer maintain I-9 and employment-verification records per § 21-1B-4, and what is the retention protocol?",
+        "section": "W. Va. Code § 21-5C-5",
+        "note": "Payroll records retention (2 years minimum): the employer must retain employee name, address, rate of pay, hours worked, payroll deductions, and pay-period amounts for at least 2 years (§ 21-5C-5), kept at the place of employment and made available to the Commissioner of Labor for inspection.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
-      "body": {}
+      "body": {
+        "record_class": "wage_records",
+        "duration_years": 2,
+        "duration_basis": "from_record_date"
+      }
     },
     {
       "kind": "PAY_FREQUENCY",
@@ -65,14 +69,14 @@
       "id": "us-wv-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/west-virginia.md",
-        "section": "§ 21-5-3",
-        "note": "Semi-monthly pay requirement: Employers must pay wages at least twice per month with no more than 19 days between paydays (§ 21-5-3); final pay must be due on or before the next regular payday (§ 21-5-4).",
+        "section": "W. Va. Code § 21-5-4",
+        "note": "Final pay must be due on or before the next regular payday (§ 21-5-4); employers who fail to pay as required are liable for 2x the unpaid amount in liquidated damages (§ 21-5-4(e)).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Semi-monthly pay requirement: Employers must pay wages at least twice per month with no more than 19 days between paydays (§ 21-5-3); final pay must be due on or before the next regular payday (§ 21-5-4)."
+        "deadline_description": "Final pay must be due on or before the next regular payday (§ 21-5-4); employers who fail to pay as required are liable for 2x the unpaid amount in liquidated damages (§ 21-5-4(e))."
       }
     },
     {
@@ -130,7 +134,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/west-virginia.md",
         "section": "W. Va. Code § 21-3-22",
-        "note": "Correction (2026-09-03 contradiction closure): W.",
+        "note": "Correction (2026-09-03 contradiction closure): W. Va. Code § 21-3-22 is a public-improvement construction-safety statute, not a personnel-file-access law; West Virginia has no private-sector personnel-file access statute, so this kind is carried as a visible VERIFY gap emission at RECOMMENDED, granting no access window.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },

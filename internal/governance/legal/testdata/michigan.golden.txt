@@ -1,0 +1,7 @@
+# LEGAL-ST-MI-001 golden oracle: the agent-verified Michigan draft bytes
+# ($13.73/hr floor with $14.05 step and tipped phase, ESTA dual
+# entitlement with the 2025-10-01 date, MCL 445.774a non-compete
+# rule, TOOL-005 pay-statement mandate, immediate/next-payday
+# final pay, WPA anti-retaliation, delay-based breach clock).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:3fb3bbb18e1d7fad8b0c5066bd7183aceefed426ea3daec031bb6433784bacaa

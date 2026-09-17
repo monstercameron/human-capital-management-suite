@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "pack_id": "us-dc-promotion-base-pay-change-draft",
+  "version": {
+    "major": 1,
+    "minor": 0
+  },
+  "vocabulary_version": 2,
+  "jurisdiction": {
+    "country": "US",
+    "subdivision": "DC",
+    "locality_path": [],
+    "level": "SUBDIVISION"
+  },
+  "window": {
+    "start": "2026-01-01"
+  },
+  "source_type": "STATUTE",
+  "review_status": "UNREVIEWED",
+  "obligations": [
+    {
+      "kind": "NOTICE",
+      "id": "us-dc-notice",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "Wage Theft Prevention Amendment Act of 2014 (D.C. Law 20-157)",
+        "note": "Written hire/change notice: at hire, furnish each employee a jointly signed written notice in English and the employee's primary language stating employer identity, rate of pay and basis, allowances, overtime rate or exemption, and regular payday. A new notice is due whenever any noticed item changes, so every promotion or base-pay change re-triggers the duty; retain copies for at least three years.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "who": "employer_to_worker",
+        "channel": "written",
+        "content_fields": ["pay_rate", "payday", "overtime_basis"]
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-dc-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "D.C. Code § 32-1003",
+        "note": "Minimum wage $17.95/hour in effect at the window start (July 1, 2025), rising to $18.40/hour on July 1, 2026 (D.C. Code § 32-1003), adjusted annually with the Consumer Price Index; applies to all workers regardless of employer size.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "floor_amount": {
+          "amount": "17.95",
+          "currency": "USD"
+        },
+        "basis": "HOURLY",
+        "indexation": "CPI",
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "PAY_TRANSPARENCY",
+      "id": "us-dc-pay-transparency",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "Wage Transparency Omnibus Amendment Act of 2023",
+        "note": "Pay transparency (effective 2024-06-30): employers with at least one District employee must include the good-faith minimum and maximum projected pay in all advertised job listings and position descriptions, inform applicants of healthcare benefits, never seek or rely on wage history, and post a conspicuous notice of employee rights.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "trigger": "internal_promotion",
+        "required_disclosure": "Employers with at least one District employee must include the good-faith minimum and maximum projected salary or hourly pay plus healthcare-benefits information in all job listings and position descriptions, including internal promotion postings (Wage Transparency Omnibus Amendment Act of 2023, effective 2024-06-30)."
+      }
+    },
+    {
+      "kind": "LEAVE_INTERACTION",
+      "id": "us-dc-leave-upl",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "Universal Paid Leave Amendment Act of 2016",
+        "note": "Universal Paid Leave: up to 12 weeks parental, family, and medical leave plus 2 weeks prenatal leave per 52-week period, funded solely by a 0.75% employer payroll tax with no employee contribution. Benefit reductions scheduled October 1, 2026 (verify before modeling post-September windows).",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "leave_type": "universal paid leave",
+        "interaction_rule": "Universal Paid Leave: up to 12 weeks parental, family, and medical leave plus 2 weeks prenatal leave per 52-week period, funded solely by the 0.75% employer payroll tax with no employee contribution. On promotion during active leave, restore the promoted role and rate on return and adjust the contribution base from the effective date."
+      }
+    },
+    {
+      "kind": "LEAVE_INTERACTION",
+      "id": "us-dc-leave-sick",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "Accrued Sick and Safe Leave Act of 2008 (as amended)",
+        "note": "Accrued sick and safe leave tiers by employer size: 1 hour per 37 hours worked up to 7 days (100+ employees), per 43 hours up to 5 days (25-99), per 87 hours up to 3 days (under 25). Unused leave carries over subject to annual use caps; no payout at separation.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "leave_type": "accrued sick and safe leave",
+        "interaction_rule": "Accrued Sick and Safe Leave: 1 hour per 37 hours worked up to 7 days (100+ employees), per 43 hours up to 5 days (25-99), per 87 hours up to 3 days (under 25). On promotion, carry the balance forward at the size-tiered rate with no separation payout."
+      }
+    },
+    {
+      "kind": "NON_COMPETE",
+      "id": "us-dc-non-compete",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "Ban on Non-Compete Agreements Amendment Act of 2020 (as amended 2022)",
+        "note": "Near-total non-compete ban (effective 2022-10-01): post-employment covenants void except for highly compensated employees ($150,000+/year, $250,000+/year for medical specialists, CPI-adjusted from 2024), capped at 365 days from separation (730 for medical specialists); broadcast employees never qualify.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "recheck_on_pay_change": true,
+        "rule": "Non-compete ban (effective 2022-10-01): on promotion, void any post-employment covenant unless the worker is highly compensated ($150,000+/year, $250,000+/year for medical specialists, CPI-adjusted from 2024) and the covenant stays within 365 days of separation (730 for medical specialists). Sub-threshold agreements signed on or after 2022-10-01 are void."
+      }
+    },
+    {
+      "kind": "FINAL_PAY_DEADLINE",
+      "id": "us-dc-final-pay-deadline",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "D.C. Code § 32-1303",
+        "note": "Final pay on separation (D.C. Code § 32-1303): discharge wages due not later than the working day following discharge; resignation wages due on the next regular payday or within 7 days, whichever is earlier. Pay at the promoted rate from the effective date.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "trigger": "termination_any",
+        "deadline_description": "Discharge: all earned wages due not later than the working day following discharge. Resignation: wages due on the next regular payday or within 7 days, whichever is earlier (D.C. Code § 32-1303). Pay at the promoted rate from the effective date."
+      }
+    },
+    {
+      "kind": "RETENTION",
+      "id": "us-dc-retention",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "D.C. Code § 32-1008",
+        "note": "Payroll records (D.C. Code § 32-1008(a)): make, keep, and preserve for not less than 3 years a record of each employee's name, address, occupation, rate of pay, daily and weekly hours, wages paid each pay period, and deductions. Retain Wage Theft Prevention notice copies for at least three years.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "record_class": "wage_records",
+        "duration_years": 3,
+        "duration_basis": "from_record_date"
+      }
+    },
+    {
+      "kind": "PAY_STATEMENT",
+      "id": "us-dc-pay-statement",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "D.C. Code § 32-1008(b)",
+        "note": "Itemized pay statement (D.C. Code § 32-1008(b)): at the time of wage payment, furnish a statement showing payment date, gross wages, deductions, net wages, hours worked, and tip declarations. A mid-period promotion must be paid at the promoted rate from its effective date on the next stub.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "required_fields": ["gross_wages", "net_wages", "deductions", "hours_worked"],
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "BREACH_NOTIFICATION",
+      "id": "us-dc-breach-notification",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "D.C. Code § 28-3852",
+        "note": "Breach notification (D.C. Code § 28-3852, as amended 2020): notify affected D.C. residents in the most expedient time possible and without unreasonable delay, with credit-reporting contacts and freeze instructions; written Attorney General notice at 50+ residents. No fixed statutory day count: carry an operational without-unreasonable-delay target pending counsel confirmation.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "VERIFY"
+      },
+      "body": {
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "PAY_EQUITY_REVIEW",
+      "id": "us-dc-pay-equity-review",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "(statutory section not stated in the research file)",
+        "note": "no standalone District equal-pay statute was confirmed in district-of-columbia.md; verify D.C. Human Rights Act compensation coverage before promoting this kind past a visible gap emission",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "VERIFY"
+      },
+      "body": {
+        "standard": "RECOMMENDED"
+      }
+    },
+    {
+      "kind": "PERSONNEL_FILE",
+      "id": "us-dc-personnel-file",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/district-of-columbia.md",
+        "section": "D.C. Code § 1-631.05",
+        "note": "No District statute grants private-sector employees access to personnel files; D.C. Code § 1-631.05 covers District government employees only. Carried as a visible VERIFY gap emission at RECOMMENDED, granting no access window.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "VERIFY"
+      },
+      "body": {
+        "standard": "RECOMMENDED"
+      }
+    }
+  ],
+  "preemption_assertions": [],
+  "provenance": {
+    "generator": "agent-curated from planning/research/state-employment-law/district-of-columbia.md (LEGAL-ST-DC-001)",
+    "source_files": ["planning/research/state-employment-law/district-of-columbia.md"],
+    "notes": "Curated from web-sourced District research (retrieved 2026-09-17), no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in; pay-equity and personnel-file kinds are visible gap emissions, not duties."
+  }
+}

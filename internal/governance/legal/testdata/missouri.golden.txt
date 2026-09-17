@@ -1,0 +1,5 @@
+# LEGAL-ST-MO-001 golden oracle: the agent-verified Missouri draft bytes
+# (post-HB-567 $15.00 floor with indexing removed, 30-day RSMo 290.100
+# reduction notice, sex-based pay-equity parameters, completed notes).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:4068eadeef70f2b14c3984c5e80f2c3df7dfaa5d84b1d01a12655bcd7c2285ea

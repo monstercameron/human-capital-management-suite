@@ -1,0 +1,6 @@
+# LEGAL-ST-FL-001 golden oracle: the agent-verified Florida draft bytes
+# ($14.00/$10.98 floor CPI-indexed, § 542.335 non-compete, 25+ E-Verify,
+# whistleblower anti-retaliation, drug-free workplace, 30-day breach
+# clock; no state final-pay computation, no pay-equity review per matrix F).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:8c22ce659d0aa2ed12d571946d273bfbfe30046369ac6109d0af781366347eea

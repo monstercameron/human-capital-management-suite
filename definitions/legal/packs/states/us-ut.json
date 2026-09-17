@@ -54,13 +54,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/utah.md",
         "section": "§ 34-28-5",
-        "note": "Final pay on separation during/after promotion (§ 34-28-5): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid within 24 hours (involuntary) or next...",
+        "note": "Final pay on separation during/after promotion (§ 34-28-5): if termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid within 24 hours (involuntary discharge) or on the next regular payday (voluntary resignation). Willful withholding triggers a penalty: wages continue to accrue at the same rate for up to 60 days.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on separation during/after promotion (§ 34-28-5): If termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid within 24 hours (involuntary) or next..."
+        "deadline_description": "Final pay on separation during/after promotion (§ 34-28-5): if termination occurs post-promotion, ensure all wages earned at promoted rate from effective date forward are paid within 24 hours (involuntary discharge) or on the next regular payday (voluntary resignation). The penalty for willful withholding applies: wages continue to accrue at the same rate for up to 60 days."
       }
     },
     {
@@ -69,13 +69,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/utah.md",
         "section": "§ 34-51-102",
-        "note": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete.",
+        "note": "Post-employment non-competes are capped at a flat 1 year from the termination date (§ 34-51-102, effective 2016-05-10); any covenant exceeding 1 year is void with no key-employee or compensation gate. On promotion, recheck any non-compete the employee is subject to.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete/non-solicit review (§ 34-51-102): On promotion, check if employee subject to non-compete."
+        "rule": "Post-employment non-competes are capped at a flat 1 year from the termination date (§ 34-51-102, effective 2016-05-10); any covenant exceeding 1 year is void with no key-employee or compensation gate. On promotion, recheck any non-compete the employee is subject to."
       }
     },
     {

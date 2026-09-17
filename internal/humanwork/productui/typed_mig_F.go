@@ -352,7 +352,7 @@ func declarepeopleDirectoryStyles() {
 		gwccss.Gap(gwccss.Px(7)),
 		gwccss.PaddingY(gwccss.Px(16)), gwccss.PaddingX(gwccss.Px(18)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Hex("fff")),
 	)
 	declareGlobal(".people-filter label",
@@ -920,7 +920,7 @@ func declarerefinementsStyles() {
 		gwccss.MinHeight(gwccss.Px(590)),
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Hex("fff")),
 	)
 	declareGlobal(".studio-nav,.studio-structure,.studio-inspector",

@@ -543,6 +543,36 @@ func (r *Registry) LookupExact(j Jurisdiction, date values.LocalDate) (*RulePack
 	return &out, nil
 }
 
+// LookupAll returns every registered pack for exactly j effective on date,
+// in pack-id, version and minor-version order. Unlike Lookup it never falls
+// back from a locality to its subdivision and never collapses several packs
+// to one: selection across pack families needs the whole candidate set, not
+// a winner. The returned packs are defensive copies.
+func (r *Registry) LookupAll(j Jurisdiction, date values.LocalDate) []RulePack {
+	if r == nil || date.Validate() != nil {
+		return nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []RulePack
+	for k, pack := range r.packs {
+		if k.Jurisdiction != j || !pack.Window.Contains(date) {
+			continue
+		}
+		out = append(out, *pack)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].PackID != out[j].PackID {
+			return out[i].PackID < out[j].PackID
+		}
+		if out[i].Version != out[j].Version {
+			return out[i].Version < out[j].Version
+		}
+		return out[i].MinorVersion < out[j].MinorVersion
+	})
+	return out
+}
+
 // IsRegisteredExact reports whether an exact jurisdiction release is
 // registered and effective on date. Unlike Lookup, it never falls back from
 // a locality to its subdivision; this distinction is required for locality

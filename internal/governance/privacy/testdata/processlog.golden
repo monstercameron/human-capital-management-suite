@@ -1,0 +1,5 @@
+# PROCESS-001 golden: vetted canonical digest of the fixed case-golden
+# projection (tenant-a, leave-and-return, two contiguous events ending in
+# COMPLETED, redacted resources under salt:process-001).
+# Regeneration must be re-vetted against the fixture, never blind.
+digest: sha256:b6ba7d7ec0dd4b2b2c69a3b4888eb787617b4d8f540f9512a386e5a16d67c08f

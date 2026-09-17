@@ -1,0 +1,8 @@
+# LEGAL-ST-MD-001 golden oracle: the agent-verified Maryland draft bytes
+# ($15.00/hr floor with Montgomery County overlay, 1-pay-period
+# decrease notice, wage-range-plus-benefits transparency, ESSL plus
+# FAMLI leave terms, $22.50/$46,800 non-compete bar, 50-employee
+# mini-WARN trigger, § 3-505 final pay, personnel-file resolution
+# carried at VERIFY granting nothing).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:e51c1a0a6ee9f0c193b2ae284514017c6ae0a9c18bc64fa94139101c7fd5b381

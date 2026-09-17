@@ -1,0 +1,9 @@
+# LEGAL-ST-KS-001 golden oracle: the agent-verified Kansas draft bytes
+# (federal-only floor marker, K.S.A. 44-320 pre-work reduction notice,
+# semimonthly K.S.A. 44-313/44-327 pay, Weber common-law non-compete
+# with the 50-163 exclusion, contractor classification, K.S.A. 50-7a01
+# breach notice, ?-cell VERIFY markers carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-ks.json
+sha256:50d41ebebdb1ac66bc7726d54861a4374df4d76c5d45e9af3323c80348719e7d

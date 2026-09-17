@@ -1,0 +1,6 @@
+# LEGAL-ST-AK-001 golden oracle: the agent-verified Alaska draft bytes
+# ($14.00/hr no-tip-credit CPI floor, payday-before-change notice,
+# semi-monthly frequency, 3-day/90-day final pay, Ballot Measure 1 leave,
+# AS 45.48.010 breach notice, ?-cell VERIFY gaps carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:809cf373eda50d0e762365df1a994990da35ef0afe6d85e892144ab419d3f66e

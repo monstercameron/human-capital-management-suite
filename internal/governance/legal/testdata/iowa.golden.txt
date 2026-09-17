@@ -1,0 +1,8 @@
+# LEGAL-ST-IA-001 golden oracle: the agent-verified Iowa draft bytes
+# (federal-only floor marker, 3-day § 91A.3 notice, § 91A.4 final pay,
+# 3-business-day § 91B.1 file access, 25-employee 30-day § 84C mini-WARN,
+# SF 418 gender-identity exclusion, ?-cell VERIFY markers carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-ia.json
+sha256:85d1876058ac5769325f167ea33ee4261459f6fff3db57a09866a41eb4ec07e9

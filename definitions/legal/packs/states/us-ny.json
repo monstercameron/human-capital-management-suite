@@ -23,13 +23,15 @@
       "id": "us-ny-notice",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "§ 194-b",
-        "note": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting).",
+        "section": "Labor Law § 195",
+        "note": "Wage Theft Prevention Act (Labor Law § 195): Mandatory written notice at hire and 7 days before any pay-rate decrease; notice of pay statements at each payday.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "who": "employer_to_worker"
+        "who": "employer_to_worker",
+        "channel": "written",
+        "content_fields": ["pay_rate", "payday"]
       }
     },
     {
@@ -52,14 +54,14 @@
       "id": "us-ny-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "Labor Law § 210-b",
-        "note": "No general state statute currently mandates employee access to personnel files.",
+        "section": "Labor Law § 195(4)",
+        "note": "Payroll and personnel record retention (§ 195(4), § 740): employers must retain wage and hour records for 6 years documenting hours worked, rates, deductions, and gross/net pay per employee; timekeeping records 6 years minimum.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "record_class": "personnel_records",
-        "duration_years": 3,
+        "record_class": "wage_records",
+        "duration_years": 6,
         "duration_basis": "from_record_date"
       }
     },
@@ -68,14 +70,44 @@
       "id": "us-ny-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "§ 196-b",
-        "note": "Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max).",
+        "section": "Labor Law § 196-b",
+        "note": "Accrued Paid Sick Leave Handling (§ 196-b): track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max); on promotion, carry the accrued balance forward without forfeiture.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Accrued Paid Sick Leave Handling (§ 196-b): Track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max)."
+        "interaction_rule": "Accrued Paid Sick Leave Handling (§ 196-b): track accrued sick leave (1 hour per 30 hours worked, 40-hour annual max); on promotion, carry the accrued balance forward without forfeiture."
+      }
+    },
+    {
+      "kind": "LEAVE_INTERACTION",
+      "id": "us-ny-leave-family",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/new-york.md",
+        "section": "Workers' Comp Law Art. 9",
+        "note": "Paid Family Leave Integration (Workers' Comp Law Art. 9): up to 12 weeks per calendar year at 67% of average weekly wage for bonding with a new child or caring for an ill family member; on promotion during active leave, ensure return to the promoted role and updated pay rate.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "leave_type": "paid family leave",
+        "interaction_rule": "Paid Family Leave (Workers' Comp Law Art. 9): up to 12 weeks per calendar year at 67% of average weekly wage for bonding or family care; on promotion during active leave, ensure return to the promoted role and updated pay rate."
+      }
+    },
+    {
+      "kind": "LEAVE_INTERACTION",
+      "id": "us-ny-leave-prenatal",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/new-york.md",
+        "section": "Labor Law § 196-c",
+        "note": "Paid Prenatal Leave (§ 196-c, effective 2025-01-01): up to 20 hours of paid leave in any 52-week period for prenatal appointments; on promotion during leave, carry the balance and apply the promoted rate on return.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "leave_type": "paid prenatal leave",
+        "interaction_rule": "Paid Prenatal Leave (§ 196-c, effective 2025-01-01): up to 20 hours of paid leave in any 52-week period for prenatal appointments; on promotion during leave, carry the balance and apply the promoted rate on return."
       }
     },
     {
@@ -83,8 +115,8 @@
       "id": "us-ny-pay-frequency",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Manual workers: must be paid weekly.",
+        "section": "Labor Law § 191",
+        "note": "Manual workers must be paid weekly; other employees no less often than semi-monthly (Labor Law § 191).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -98,14 +130,14 @@
       "id": "us-ny-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "§ 195(4)",
-        "note": "§ 195(4) requires records retention for 6 years covering hours, rates, deductions, and final pay.",
+        "section": "Labor Law § 195",
+        "note": "Final wages are due on the next regular payday after any termination (Labor Law § 195).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "§ 195(4) requires records retention for 6 years covering hours, rates, deductions, and final pay."
+        "deadline_description": "Final wages are due on the next regular payday after any termination (Labor Law § 195)."
       }
     },
     {
@@ -113,14 +145,14 @@
       "id": "us-ny-pay-transparency",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "§ 194-b",
-        "note": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting).",
+        "section": "Labor Law § 194-b",
+        "note": "Pay Transparency (§ 194-b): employers with 4 or more employees must include good-faith wage ranges and job descriptions in all postings, promotion notices, and transfer opportunities; internal promotions require wage-range disclosure.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay Transparency Disclosure (§ 194-b, § 195(2)): On creation of promotion posting (internal or external), require wage-range input (minimum and maximum at time of posting)."
+        "required_disclosure": "Employers with 4 or more employees must include good-faith wage ranges (minimum and maximum at time of posting) and job descriptions in all postings, promotion notices, and transfer opportunities (Labor Law § 194-b)."
       }
     },
     {
@@ -128,14 +160,14 @@
       "id": "us-ny-mini-warn",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "WARN Act Trigger (Labor Law Art.",
+        "section": "Labor Law Art. 25-A",
+        "note": "NY WARN Act (Labor Law Art. 25-A): employers with 50 or more employees must give 90 days advance written notice before a mass layoff, plant closing, or mass termination affecting 25+ employees in 30 days; violations carry $10,000/day penalties plus mandatory severance of 1 week per year of service.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "note": "WARN Act Trigger (Labor Law Art.",
-        "employee_threshold": 25,
+        "note": "NY WARN Act (Labor Law Art. 25-A): employers with 50 or more employees must give 90 days advance written notice before a mass layoff, plant closing, or mass termination affecting 25+ employees in 30 days; violations carry $10,000/day penalties plus mandatory severance of 1 week per year of service.",
+        "employee_threshold": 50,
         "notice_days": 90
       }
     },
@@ -154,6 +186,28 @@
           "amount": "17.00",
           "currency": "USD"
         },
+        "worker_class": "downstate",
+        "basis": "HOURLY",
+        "indexation": "CPI",
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-ny-wage-floor-upstate",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/new-york.md",
+        "section": "Labor Law § 652",
+        "note": "Regional minimum wage tiers (Labor Law § 652, effective 2026): rest of state $16.00/hour; frequent annual increases by CPI-W.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "floor_amount": {
+          "amount": "16.00",
+          "currency": "USD"
+        },
+        "worker_class": "rest_of_state",
         "basis": "HOURLY",
         "indexation": "CPI",
         "standard": "REQUIRED"
@@ -164,13 +218,31 @@
       "id": "us-ny-pay-equity-review",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "§ 194",
-        "note": "Equal Pay Audit Flag (§ 194): On promotion + base-pay change, system should identify peer employees performing \"substantially similar work\" in same geographic area (county minimum, employer scope optimal) and flag if...",
+        "section": "Labor Law § 194",
+        "note": "Equal Pay (§ 194): unlawful to pay protected-class employees at lower rates for substantially similar work under comparable conditions. On promotion + base-pay change, identify peers performing substantially similar work and flag differentials without documented justification (skill differential, seniority, merit system).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_bases": ["age"],
+        "protected_bases": [
+          "race",
+          "color",
+          "national_origin",
+          "ancestry",
+          "creed",
+          "sex",
+          "age",
+          "marital_status",
+          "military_status",
+          "domestic_violence_victim_status",
+          "disability",
+          "gender_identity_expression",
+          "sexual_orientation",
+          "genetic_information",
+          "atypical_hereditary_trait",
+          "predisposing_genetic_characteristics",
+          "carrier_status"
+        ],
         "comparator_standard": "substantially similar work",
         "documentation_required": true,
         "standard": "REQUIRED"
@@ -181,13 +253,13 @@
       "id": "us-ny-pay-statement",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "§ 195(2)",
-        "note": "Pay Rate Change Notice (§ 195(2)): If promotion involves pay decrease, generate mandatory 7-day advance written notice with new rate, frequency, and effective date.",
+        "section": "Labor Law § 195(3)",
+        "note": "Pay statement (§ 195(3)): an itemized statement must accompany each payment of wages showing gross pay, net pay, deductions, and the pay period covered.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "required_fields": ["pay_rate"],
+        "required_fields": ["gross_wages", "net_wages", "deductions"],
         "standard": "REQUIRED"
       }
     },
@@ -197,9 +269,9 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
         "section": "Labor Law § 210-b",
-        "note": "No general state statute currently mandates employee access to personnel files.",
+        "note": "Personnel-file access (proposed Labor Law § 210-b, S.3460/A.2107): passed the Senate and Assembly but the Governor's signature was unconfirmed as of last verification, so this is not current law. If signed, employers must provide a personnel-record copy within 5 business days of a written request at no cost.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "DISPUTED"
       },
       "body": {
         "response_days": 5,
@@ -212,13 +284,14 @@
       "id": "us-ny-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "§ 195(1)",
-        "note": "Wage Theft Prevention Act Compliance (§ 195(1), § 198): Log all pay-rate changes and link to written notice delivery.",
+        "section": "Labor Law § 215",
+        "note": "Retaliation is prohibited for reporting violations or filing complaints with the Department of Labor (Labor Law § 215, 6-year statute of limitations); whistleblower protection covers reporting violations of law (Labor Law § 740 as amended 2022).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "lookback_days": 7,
+        "protected_activities": ["wage_complaint", "whistleblower_report"],
+        "disposition": "FLAG",
         "standard": "REQUIRED"
       }
     },
@@ -243,8 +316,8 @@
       "id": "us-ny-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "the contract's section 5 matrix marks BREACH_NOTIFICATION for NY, and no item in new-york.md evidences the rule; recorded so the gap is visible rather than read as an absence of duty",
+        "section": "Information Security Breach and Notification Act",
+        "note": "Data breach notification (NYS Information Security Breach and Notification Act, effective 2025-03-21): applies to any breach of personal information (name plus financial account, SSN, health/medical info, or biometric records) by an unauthorized person; carry a 30-day operational notification target pending counsel confirmation of the statutory window.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -257,13 +330,33 @@
       "id": "us-ny-monitoring-consent",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-york.md",
-        "section": "§ 203-e",
-        "note": "Reproductive Health and Electronic Monitoring Notices: Ensure employee handbook includes § 203-e (reproductive health nondiscrimination) and § 201-i (electronic monitoring) notices; update as of January 2, 2025.",
+        "section": "Civil Rights Law § 201-i",
+        "note": "Electronic monitoring (Civil Rights Law § 201-i, effective 2022-05-07): employers who monitor telephone conversations, email, or internet access must provide written notice to new hires and current employees, obtain acknowledgment, and post the notice in a conspicuous workplace location.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "data_categories": ["email", "telephone", "internet"],
         "consent_form": "NOTICE_ONLY",
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "AUTOMATED_DECISION",
+      "id": "us-ny-automated-decision",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/new-york.md",
+        "section": "NYC Local Law 144",
+        "note": "Automated Employment Decision Tool Notice (NYC Local Law 144, effective 2023-01-01): employers using AEDTs for hiring or promotion must commission an independent annual bias audit, post the audit summary, and provide 10 business days notice to candidates before tool use.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "covered_uses": ["hiring_decision", "promotion_decision"],
+        "bias_audit_required": true,
+        "audit_period_months": 12,
+        "candidate_notice_days": 10,
+        "disclosure_required": true,
         "standard": "REQUIRED"
       }
     }

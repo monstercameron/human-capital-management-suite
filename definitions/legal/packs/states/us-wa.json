@@ -116,7 +116,7 @@
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-Compete Threshold Recheck (RCW 49.62.020): On promotion, if new salary crosses $123,394.17 threshold (2025; adjust annually), auto-flag: if employee lacks signed NCA with enforceability conditions (income threshold..."
+        "rule": "Non-Compete Threshold Recheck (RCW 49.62.020): on promotion, if the new salary crosses the $123,394.17 threshold (2025 figure, adjusted annually), auto-flag unless the employee has a signed non-compete meeting the enforceability conditions (earnings above the indexed income threshold). Covenants are unenforceable below the threshold and may not exceed an 18-month maximum duration after termination."
       }
     },
     {
@@ -139,12 +139,18 @@
       "id": "us-wa-wage-floor",
       "citation": {
         "source_file": "planning/research/state-employment-law/washington.md",
-        "section": "RCW 49.58.110",
-        "note": "Pay-Range Disclosure (RCW 49.58.110): When initiating internal transfer/promotion process: if employee requests, must provide minimum wage/salary for promoted role within standard response time.",
+        "section": "RCW 49.46.020",
+        "note": "Minimum wage $17.13/hour effective 2026-01-01 (RCW 49.46.020), indexed annually by CPI-W each January 1; youth ages 14-15 at 85%; all employers; tips and service charges do not count toward the obligation.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "floor_amount": {
+          "amount": "17.13",
+          "currency": "USD"
+        },
+        "basis": "HOURLY",
+        "indexation": "CPI",
         "standard": "REQUIRED"
       }
     },

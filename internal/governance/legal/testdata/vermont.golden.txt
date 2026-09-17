@@ -1,0 +1,7 @@
+# LEGAL-ST-VT-001 golden oracle: the agent-verified Vermont draft bytes
+# ($14.42/hr lower-of-5%-or-CPI floor, Act 155 5+ pay-range disclosure,
+# salary-history ban, written pay-rate notice, 10+/15+ parental/family
+# leave, 45-day breach notice with 14-day AG notice, visible VERIFY
+# gap emissions for RETENTION and MINI_WARN).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:4b490d654116036ad1f10c4bc03347eef29e7d39b753e475551ab08910058353

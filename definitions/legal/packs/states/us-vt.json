@@ -98,13 +98,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/vermont.md",
         "section": "V.S.A. § 342a",
-        "note": "Promotion timing and final pay: If separation occurs during or shortly after promotion, ensure final paycheck includes all wages at promoted rate from effective date.",
+        "note": "Promotion timing and final pay: if separation occurs during or shortly after promotion, ensure the final paycheck includes all wages at the promoted rate from the effective date with no hold-back. On discharge, all wages are due within 72 hours; on voluntary resignation with notice, wages are due on the next regular payday or following Friday (21 V.S.A. § 342a).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Promotion timing and final pay: If separation occurs during or shortly after promotion, ensure final paycheck includes all wages at promoted rate from effective date."
+        "deadline_description": "Promotion timing and final pay: if separation occurs during or shortly after promotion, ensure the final paycheck includes all wages at the promoted rate from the effective date with no hold-back. On discharge, all wages are due within 72 hours; on voluntary resignation with notice, wages are due on the next regular payday or following Friday (21 V.S.A. § 342a)."
       }
     },
     {

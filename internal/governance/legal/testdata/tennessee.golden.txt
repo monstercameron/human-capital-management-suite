@@ -1,0 +1,8 @@
+# LEGAL-ST-TN-001 golden oracle: the agent-verified Tennessee draft bytes
+# (at-least-monthly pay frequency, LATER_OF 21-day final pay, FMLA-floor
+# leave, common-law non-compete recheck, § 50-2-112 locality preemption
+# of WAGE_FLOOR and LEAVE_INTERACTION, 35+ E-Verify, plant-closure
+# notification, visible VERIFY gap emissions for SEPARATION_FILING,
+# PAY_STATEMENT, DRUG_TESTING and RETENTION).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:db84426056925b03346726956c7b190b263cd92e798aed40aa657ab7275f55c9

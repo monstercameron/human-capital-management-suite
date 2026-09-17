@@ -1,0 +1,6 @@
+# LEGAL-ST-CO-001 golden oracle: the agent-verified Colorado draft bytes
+# ($15.16/hr floor with Denver overlay, EPEWA transparency, monthly frequency
+# at VERIFY, immediate/6-hour/14-day final pay, HFWA/FAMLI leave, CADA
+# retaliation, separation notice, AI-act duties and biometric consent).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:2af03075ed998d760a2e1d984a5c2df7b37fd4832bd969fbd91a5f68befaabf1

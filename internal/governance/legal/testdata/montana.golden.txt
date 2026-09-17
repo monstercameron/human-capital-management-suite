@@ -1,0 +1,5 @@
+# LEGAL-ST-MT-001 golden oracle: the agent-verified Montana draft bytes
+# (GOOD_CAUSE_AFTER_PROBATION with the 12-month default, sharpened
+# non-compete voidance, 4-year retention, separation-filing gap visible).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:95f20416769ea14d8d1db1316a1110b900e92a5d91d738729f9d3ea95ab3dd08

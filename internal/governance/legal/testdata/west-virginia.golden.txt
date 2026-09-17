@@ -1,0 +1,8 @@
+# LEGAL-ST-WV-001 golden oracle: the agent-verified West Virginia draft bytes
+# ($8.75/hr 6+ floor, written pay-change notice, semimonthly frequency
+# with 19-day spacing, next-payday final pay, § 21-5B pay equity,
+# physician non-compete recheck, 10-day separation filing, § 21-3E drug
+# testing, personnel-file resolution carried at VERIFY/RECOMMENDED
+# granting nothing, visible VERIFY gap emission for BREACH_NOTIFICATION).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:228779feede42b8ddaa028283482b5262649fa68b74db2620a07eec966b65f68

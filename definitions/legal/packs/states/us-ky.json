@@ -60,7 +60,7 @@
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Provide final paycheck by the later of 14 days after termination or the next regular payday (\"whichever last occurs\", KRS 337.055)."
+        "deadline_description": "Provide final paycheck by the later of 14 days after termination or the next regular payday, whichever occurs last (KRS 337.055)."
       }
     },
     {
@@ -68,13 +68,14 @@
       "id": "us-ky-pay-equity-review",
       "citation": {
         "source_file": "planning/research/state-employment-law/kentucky.md",
-        "section": "KRS 344",
-        "note": "Has the employer reviewed pay equity by gender/race for comparable roles (KRS 344 compliance)?",
+        "section": "KRS 337.420-337.433",
+        "note": "Has the employer reviewed pay equity by gender/race for comparable roles (KRS 337.420-337.433 compliance)?",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_bases": ["gender", "race"],
+        "protected_bases": ["sex", "race"],
+        "comparator_standard": "comparable work",
         "standard": "REQUIRED"
       }
     },
@@ -104,14 +105,14 @@
       "id": "us-ky-classification",
       "citation": {
         "source_file": "planning/research/state-employment-law/kentucky.md",
-        "section": "KRS 341.010",
-        "note": "Contractor vs.",
+        "section": "KRS 337.285",
+        "note": "Seventh-day overtime: Kentucky requires premium pay (time-and-a-half) when an employee works all seven consecutive calendar days in a workweek (KRS 337.285); stricter than federal FLSA.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "dimension": "CONTRACTOR",
-        "test_description": "Contractor vs.",
+        "dimension": "OVERTIME_THRESHOLD",
+        "test_description": "Seventh-day overtime: Kentucky requires premium pay (time-and-a-half) when an employee works all seven consecutive calendar days in a workweek (KRS 337.285); stricter than federal FLSA.",
         "standard": "REQUIRED"
       }
     },
@@ -166,11 +167,26 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/kentucky.md",
         "section": "KRS 365.732",
-        "note": "Data breach notification required: Kentucky law (verify: likely KRS 365.732 or related statute) requires breach notification \"without unreasonable delay\" when personal information is exposed; specific timeline unclear...",
+        "note": "Data breach notification required: Kentucky law (verify: likely KRS 365.732 or related statute) requires breach notification \"without unreasonable delay\" when personal information is exposed; specific timeline unclear, carried as a VERIFY gap.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-ky-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/kentucky.md",
+        "section": "KRS 337.275",
+        "note": "Minimum Wage: Kentucky's statutory minimum wage is $7.25/hour (KRS 337.275), matching the federal FLSA floor; no state-specific premium.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
         "standard": "REQUIRED"
       }
     }

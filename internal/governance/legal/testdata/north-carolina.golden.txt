@@ -1,0 +1,5 @@
+# LEGAL-ST-NC-001 golden oracle: the agent-verified North Carolina draft bytes
+# (federal-only floor, school-involvement plus domestic-violence leave,
+# extended anti-retaliation activities, drug-testing parameters).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:87e0e4b10759540bb4598f3bd29ef6994ed1f32d0946abbd5cdb7249df11aca8

@@ -1,0 +1,9 @@
+# LEGAL-ST-OH-001 golden oracle: the agent-verified Ohio draft bytes
+# (dual wage tiers with CPI indexation, semimonthly paydays, itemized
+# pay stubs from 2025-04-09, Issue 1 sick leave, 100+/60-day mini-WARN
+# eff. 2025-09-29, RC 4111.17 pay equity, RC 4113.52 anti-retaliation,
+# locality deference, ?-cell VERIFY marker carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-oh.json
+sha256:954ace8abb1e920b1f7bfd9cfc5caaa0f86178d5eea6fb5975d82e79450c0fab

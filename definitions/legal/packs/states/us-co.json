@@ -38,12 +38,16 @@
       "id": "us-co-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
-        "section": "HB 24-1130",
-        "note": "Biometric data (fingerprints, iris, voice, face recognition) requires informed, written consent, a written retention/deletion policy, and destruction by the earlier of: original purpose fulfilled, 24 months after last...",
+        "section": "CRS § 8-4-103",
+        "note": "Payroll records (wages, deductions, statements, hours) retained at least 3 years; selection and promotion records for employment duration plus 3 years (EPEWA); personnel records 5 years for CADA defense (CRS § 8-4-103).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
-      "body": {}
+      "body": {
+        "record_class": "payroll_records",
+        "duration_years": 3,
+        "duration_basis": "from_record_date"
+      }
     },
     {
       "kind": "LEAVE_INTERACTION",
@@ -51,13 +55,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "CRS § 8-13.3-401",
-        "note": "Paid leave obligations: 48 hours paid sick leave per year (Healthy Families and Workplaces Act, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (family members...",
+        "note": "Paid leave: 48 hours paid sick leave per year (HFWA, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (CRS § 8-13.3-501 et seq.; 0.88% premium, $184,500 cap in 2026).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid leave obligations: 48 hours paid sick leave per year (Healthy Families and Workplaces Act, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (family members..."
+        "interaction_rule": "Paid leave: 48 hours paid sick leave per year (HFWA, CRS § 8-13.3-401 et seq.), plus 12 weeks paid family/medical leave if eligible under Colorado FAMLI (CRS § 8-13.3-501 et seq.; 0.88% premium, $184,500 cap in 2026)."
       }
     },
     {
@@ -66,11 +70,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "CRS § 8-4-102",
-        "note": "All pay changes must be documented in a new pay statement; wages must include the new rate on the next regular payday or within the pay frequency (CRS § 8-4-102).",
+        "note": "Wages payable at least monthly; monthly pay periods payable within 10 business days of period end (CRS §§ 8-4-102–103).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
-      "body": {}
+      "body": {
+        "minimum_frequency": "MONTHLY"
+      }
     },
     {
       "kind": "FINAL_PAY_DEADLINE",
@@ -78,13 +84,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "CRS § 8-4-109",
-        "note": "Final pay on involuntary termination: Compensation for labor earned, vested, determinable, and unpaid at discharge is due immediately (CRS § 8-4-109).",
+        "note": "Final pay on involuntary termination due immediately (within 6 hours of the next business day if payroll is closed); resignation pays on the next regular payday; accrued vacation payout within 14 days of written demand; willful violations risk treble damages (CRS §§ 8-4-109, 8-4-105).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on involuntary termination: Compensation for labor earned, vested, determinable, and unpaid at discharge is due immediately (CRS § 8-4-109)."
+        "deadline_description": "Final pay on involuntary termination due immediately (within 6 hours of the next business day if payroll is closed); resignation pays on the next regular payday; accrued vacation payout within 14 days of written demand; willful violations risk treble damages (CRS §§ 8-4-109, 8-4-105)."
       }
     },
     {
@@ -92,14 +98,14 @@
       "id": "us-co-pay-transparency",
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
-        "section": "CRS § 8-5-102",
-        "note": "Model job-posting and selection-notice obligations as a timed requirement: posting must include salary range and close date; selection notice must be sent within 30 calendar days (CRS § 8-5-102).",
+        "section": "CRS §§ 8-5-101–102",
+        "note": "EPEWA posting and notice duties (CRS §§ 8-5-101–102): postings carry pay range, benefits description and close date; pre-selection promotion notice to similarly situated employees; post-selection notice within 30 days.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Model job-posting and selection-notice obligations as a timed requirement: posting must include salary range and close date; selection notice must be sent within 30 calendar days (CRS § 8-5-102)."
+        "required_disclosure": "EPEWA posting and notice duties (CRS §§ 8-5-101–102): postings carry pay range, benefits description and close date; pre-selection promotion notice to similarly situated employees; post-selection notice within 30 days."
       }
     },
     {
@@ -108,13 +114,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "CRS § 8-2-113",
-        "note": "Non-competes are void unless the employee earns at or above the \"highly compensated worker\" threshold (verify current amount; SB 25-083, Aug 6, 2025) AND the restriction is no broader than necessary to protect trade...",
+        "note": "Non-competes void unless the employee earns at or above the highly compensated worker threshold (amount to verify per SB 25-083) and the restriction is no broader than necessary to protect trade secrets; physician covenants void (CRS § 8-2-113).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-competes are void unless the employee earns at or above the \"highly compensated worker\" threshold (verify current amount; SB 25-083, Aug 6, 2025) AND the restriction is no broader than necessary to protect trade..."
+        "rule": "Non-competes void unless the employee earns at or above the highly compensated worker threshold (amount to verify per SB 25-083) and the restriction is no broader than necessary to protect trade secrets; physician covenants void (CRS § 8-2-113)."
       }
     },
     {
@@ -139,16 +145,15 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "CRS § 8-6-102",
-        "note": "Minimum wage: $15.16 per hour statewide as of January 1, 2026 (CRS § 8-6-102); local jurisdictions (Denver, Boulder, Edgewater) set higher floors.",
+        "note": "Minimum wage $15.16/hour statewide as of 2026-01-01; Denver $19.29/hour and other local floors attach as locality-level overlays; tipped cash minimum $12.14/hour with tips to the state minimum (CRS § 8-6-102).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "floor_amount": {
           "amount": "15.16",
           "currency": "USD"
         },
-        "worker_class": "tipped employees",
         "basis": "HOURLY",
         "standard": "REQUIRED"
       }
@@ -159,11 +164,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "CRS § 8-5-101",
-        "note": "If raising pay, verify no equal-pay violation for other employees in similar roles (CRS § 8-5-101).",
+        "note": "Equal pay for substantially similar work regardless of sex; all employers with Colorado employees covered; maintain posting, wage-history and selection records (CRS § 8-5-101 et seq.).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_bases": ["sex"],
         "comparator_standard": "substantially similar work",
         "standard": "REQUIRED"
       }
@@ -173,13 +179,20 @@
       "id": "us-co-pay-statement",
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
-        "section": "CRS § 8-4-102",
-        "note": "All pay changes must be documented in a new pay statement; wages must include the new rate on the next regular payday or within the pay frequency (CRS § 8-4-102).",
+        "section": "CRS § 8-4-103",
+        "note": "Itemized pay statement each payday: gross pay, each deduction with reason, net pay, pay period dates and rates; retainable paper or electronic format (CRS § 8-4-103).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "required_fields": ["pay_rate"],
+        "required_fields": [
+          "gross_wages",
+          "deductions",
+          "net_wages",
+          "pay_period",
+          "pay_rate"
+        ],
+        "delivery": "EITHER",
         "standard": "REQUIRED"
       }
     },
@@ -188,14 +201,14 @@
       "id": "us-co-classification",
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
-        "section": "CRS § 8-6-101",
-        "note": "Independent contractor test (CRS § 8-6-101 et seq.): Colorado uses a modified ABC test requiring BOTH:",
+        "section": "CRS § 8-6-101 et seq.",
+        "note": "Independent contractor test (CRS § 8-6-101 et seq.): modified ABC test requiring both control-freedom and independent-trade engagement, with no usual-course prong; employer bears the burden; nine statutory factors.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "dimension": "CONTRACTOR",
-        "test_description": "Independent contractor test (CRS § 8-6-101 et seq.): Colorado uses a modified ABC test requiring BOTH:",
+        "test_description": "Independent contractor test (CRS § 8-6-101 et seq.): modified ABC test requiring both control-freedom and independent-trade engagement, with no usual-course prong; employer bears the burden; nine statutory factors.",
         "standard": "REQUIRED"
       }
     },
@@ -205,13 +218,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "CRS § 8-2-129",
-        "note": "Employee access to personnel file: Colorado law requires employers to permit employees to inspect and obtain a copy of any part of their own personnel file once per calendar year, without unreasonable delay (CRS §...",
+        "note": "Employee access to personnel file: employers must permit inspection and copying of the employee's own file once per calendar year without unreasonable delay; reasonable copying costs (CRS § 8-2-129).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "response_days": 10,
-        "day_basis": "BUSINESS",
+        "frequency_cap_per_year": 1,
         "standard": "REQUIRED"
       }
     },
@@ -220,13 +232,13 @@
       "id": "us-co-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
-        "section": "CRS § 8-4-105",
-        "note": "Practical wage/hour compliance for Human Capital Management Suite: (1) Document all pay changes and overtime calculations.",
+        "section": "CRS § 24-34-402",
+        "note": "CADA retaliation bar (CRS § 24-34-402): no discharge, demotion, pay cut or schedule change for discrimination complaints, CCRD charges or participation; wage-claim activity likewise protected; NDAs cannot silence unlawful-conduct reporting (POWR Act).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_activities": ["protected_leave_request"],
+        "protected_activities": ["discrimination_complaint", "wage_claim"],
         "disposition": "FLAG",
         "standard": "REQUIRED"
       }
@@ -237,13 +249,17 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "CRS § 8-90-107",
-        "note": "Termination requires immediate final-pay delivery if involuntary (or within 6 hours of next business day if payroll office closed), or payment on next regular payday if resignation; accrued vacation must be paid out...",
+        "note": "Written separation notice (SB 22-234, CRS § 8-90-107): every terminated employee receives UI-eligibility and reason notice at or before separation.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "recipient_authority": "state unemployment insurance agency",
-        "deadline_days": 14,
+        "form_name": "separation notice (UI eligibility and reason)",
+        "recipient_authority": "terminated employee",
+        "content_fields_filed": [
+          "reason_for_termination",
+          "unemployment_insurance_eligibility"
+        ],
         "standard": "REQUIRED"
       }
     },
@@ -267,7 +283,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "CRS § 6-1-716",
-        "note": "Breach notification: Colorado data breach notification law (CRS § 6-1-716) requires employers and other data holders to notify affected individuals of data breaches involving personal information without unreasonable...",
+        "note": "Breach notification (CRS § 6-1-716): notify affected individuals of personal-information breaches without unreasonable delay or at latest 30 days after discovery, by mail, email or telephone.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -282,7 +298,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "SB 24-205",
-        "note": "AI hiring decisions (Colorado AI Act, SB 24-205, effective 2026-02-01 verify): employers using AI systems for \"high-risk\" employment decisions must conduct impact assessments, maintain documentation, and notify affected...",
+        "note": "AI hiring decisions (Colorado AI Act, SB 24-205, effective 2026-02-01 to verify): high-risk employment decisions (hiring, compensation, promotion, termination) need impact assessments, documentation, employee notice and human-review rights.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -305,7 +321,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/colorado.md",
         "section": "HB 24-1130",
-        "note": "Biometric data (fingerprints, iris, voice, face recognition) requires informed, written consent, a written retention/deletion policy, and destruction by the earlier of: original purpose fulfilled, 24 months after last...",
+        "note": "Biometric data (HB 24-1130, effective 2025-07-01): informed written consent before collection, a written retention/deletion policy, and destruction by the earliest of purpose-fulfilled, 24 months after last interaction, or 45 days after retention is unnecessary.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

@@ -24,12 +24,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
         "section": "A.R.S. § 23-364",
-        "note": "Payroll record retention (A.R.S.",
+        "note": "Payroll record retention (A.R.S. § 23-364): employers must keep payroll records showing daily hours worked, wages, overtime pay, earned paid sick time accrual and use, and pay rates for at least 4 years; employees may inspect and copy their own records.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "record_class": "payroll_records",
+        "duration_years": 4,
         "duration_basis": "from_record_date"
       }
     },
@@ -38,14 +39,14 @@
       "id": "us-az-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
-        "section": "A.R.S. § 23-373",
-        "note": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S.",
+        "section": "A.R.S. § 23-371 et seq.",
+        "note": "Paid sick leave (A.R.S. § 23-371 et seq.): employees accrue 1 hour per 30 hours worked, capped at 40 hours/year (15+ employees) or 24 hours/year (<15 employees); usable after 90 days; carryover up to 40 hours; rehire within 9 months restores the balance.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S."
+        "interaction_rule": "Paid sick leave (A.R.S. § 23-371 et seq.): employees accrue 1 hour per 30 hours worked, capped at 40 hours/year (15+ employees) or 24 hours/year (<15 employees); usable after 90 days; carryover up to 40 hours; rehire within 9 months restores the balance."
       }
     },
     {
@@ -54,12 +55,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
         "section": "A.R.S. § 23-351",
-        "note": "Pay frequency (A.R.S.",
+        "note": "Pay frequency (A.R.S. § 23-351): employers must designate two or more paydays per month, not more than 16 days apart; regular wages paid within 5 business days after the pay period ends.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "minimum_frequency": "MONTHLY"
+        "minimum_frequency": "SEMIMONTHLY"
       }
     },
     {
@@ -68,13 +69,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
         "section": "A.R.S. § 23-353",
-        "note": "Model a 7-day working-day deadline for final wage payment upon discharge, or link to next regular payday if sooner (A.R.S.",
+        "note": "Final pay on discharge (A.R.S. § 23-353): wages due within 7 working days or by the end of the next regular payday, whichever is sooner; resignation wages due by the regular payday for the period of termination.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Model a 7-day working-day deadline for final wage payment upon discharge, or link to next regular payday if sooner (A.R.S."
+        "deadline_description": "Final pay on discharge (A.R.S. § 23-353): wages due within 7 working days or by the end of the next regular payday, whichever is sooner; resignation wages due by the regular payday for the period of termination."
       }
     },
     {
@@ -83,13 +84,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
         "section": "A.R.S. § 23-214",
-        "note": "E-Verify mandate: A.R.S.",
+        "note": "E-Verify mandate (A.R.S. § 23-214, Legal Arizona Workers Act): all Arizona employers regardless of size must verify new hires through E-Verify; keep records for employment duration or 3 years; violations risk license suspension or revocation.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "required_on_new_hire_only": true,
-        "note": "E-Verify mandate: A.R.S."
+        "note": "E-Verify mandate (A.R.S. § 23-214, Legal Arizona Workers Act): all Arizona employers regardless of size must verify new hires through E-Verify; keep records for employment duration or 3 years; violations risk license suspension or revocation."
       }
     },
     {
@@ -98,11 +99,17 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
         "section": "A.R.S. § 23-363",
-        "note": "Minimum wage (A.R.S.",
+        "note": "Minimum wage (A.R.S. § 23-363, Prop. 206): $15.15/hour statewide (2026), adjusted annually for CPI-U inflation; Flagstaff $18.35/hour (no tip credit) and Tucson $15.45/hour ($3.00 tip credit) attach as locality-level overlays.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "floor_amount": {
+          "amount": "15.15",
+          "currency": "USD"
+        },
+        "basis": "HOURLY",
+        "indexation": "CPI",
         "standard": "REQUIRED"
       }
     },
@@ -112,20 +119,11 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
         "section": "A.R.S. § 23-364",
-        "note": "Pay statement content: No detailed state requirement.",
+        "note": "Pay statement content: no detailed state requirement; employers must maintain records showing daily hours worked, pay rates, and earned paid sick time accrual and use (A.R.S. § 23-364).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "required_fields": [
-          "gross_wages",
-          "net_wages",
-          "deductions",
-          "hours_worked",
-          "pay_rate",
-          "pay_period",
-          "employer_identification"
-        ],
         "standard": "RECOMMENDED"
       }
     },
@@ -135,7 +133,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
         "section": "A.R.S. § 23-373",
-        "note": "Flag if pay reduction occurs during or within 30 days of paid sick leave use (may trigger retaliation claim under A.R.S.",
+        "note": "Use of earned paid sick time is protected from retaliation and cannot trigger adverse action; flag pay reductions during or within 30 days of sick-leave use (A.R.S. § 23-373).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -152,7 +150,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
         "section": "A.R.S. § 23-1501",
-        "note": "At-will employment: Arizona recognizes pure at-will employment codified in A.R.S.",
+        "note": "At-will employment: Arizona recognizes pure at-will employment; termination requires no advance notice unless a written contract specifies otherwise (A.R.S. § 23-1501).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -166,12 +164,13 @@
       "id": "us-az-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
-        "section": "A.R.S. § 36-2813",
-        "note": "Medical marijuana employment protections: Employers cannot discriminate against registered cardholders or penalize based on positive test result unless employee was impaired or used marijuana on premises during work...",
+        "section": "A.R.S. §§ 23-493.04, 36-2813",
+        "note": "Drug and alcohol testing permitted with an advance written policy stating circumstances and substances tested (A.R.S. § 23-493.04); registered medical-marijuana cardholders protected unless impaired or on-premises use (A.R.S. § 36-2813).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "written_policy_required": true,
         "protected_status": ["medical_cannabis_patient"],
         "standard": "REQUIRED"
       }
@@ -182,7 +181,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arizona.md",
         "section": "A.R.S. § 18-551",
-        "note": "Data breach notification (A.R.S.",
+        "note": "Data breach notification (A.R.S. §§ 18-551–552): entities must notify Arizona residents of breaches exposing personal information, including biometric data coupled with name, within 45 days and without unreasonable delay.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

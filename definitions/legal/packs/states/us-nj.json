@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-jersey.md",
         "section": "N.J.S.A. 34:11-4.1",
-        "note": "N.J.S.A.",
+        "note": "Wage Payment Law with Wage Theft Act (2019): N.J.S.A. 34:11-4.1 et seq. governs pay timing and requires written notice in advance of any wage, payday, or deduction change; Wage Theft Act extends statute of limitations to 6 years (6-year limitations period) with liquidated damages of 200% of wages due, plus attorney fees and costs.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -54,13 +54,14 @@
       "id": "us-nj-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-jersey.md",
-        "section": "N.J.S.A. 34:11",
-        "note": "Payroll and personnel record retention (N.J.S.A.",
+        "section": "N.J.S.A. 34:11D-6",
+        "note": "Payroll and personnel record retention (N.J.S.A. 34:11D-6, 34:11-4.6): Payroll records retained 5 years; general employee records 3 years; personnel files 2 years after termination.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "record_class": "payroll_records"
+        "record_class": "payroll_records",
+        "duration_years": 5
       }
     },
     {
@@ -79,16 +80,33 @@
       }
     },
     {
+      "kind": "LEAVE_INTERACTION",
+      "id": "us-nj-family-leave",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/new-jersey.md",
+        "section": "N.J.S.A. 34:11B",
+        "note": "Family Leave Act + Temporary Disability Insurance (N.J.S.A. 34:11B, 43:21-25 et seq.): State-funded paid family leave; July 2026 expansion lowers threshold to 15+ employees.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "leave_type": "paid family leave",
+        "interaction_rule": "Family Leave Act + Temporary Disability Insurance (N.J.S.A. 34:11B, 43:21-25 et seq.): State-funded paid family leave; July 2026 expansion lowers threshold to 15+ employees."
+      }
+    },
+    {
       "kind": "PAY_FREQUENCY",
       "id": "us-nj-pay-frequency",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-jersey.md",
         "section": "N.J.S.A. 34:11-4.2",
-        "note": "Pay frequency and timing (N.J.S.A.",
+        "note": "Pay frequency and timing (N.J.S.A. 34:11-4.2): twice-monthly paydays required.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
-      "body": {}
+      "body": {
+        "minimum_frequency": "SEMIMONTHLY"
+      }
     },
     {
       "kind": "FINAL_PAY_DEADLINE",
@@ -117,7 +135,7 @@
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure."
+        "required_disclosure": "Pay Transparency Notice (§ 34:6B-23): Before creating or posting a position, require input of wage range (min/max) and benefits description; block job posting if these fields empty; timestamp disclosure. On internal promotion posting, ensure reasonable-notice requirement met (applies to employers with 10 or more employees)."
       }
     },
     {
@@ -126,12 +144,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-jersey.md",
         "section": "§ 34:21-1",
-        "note": "WARN Act Trigger (§ 34:21-1 as amended): If planned layoff affects 100+ employees nationwide or 25+ employees in single event and employer has 100+ employees total, auto-flag and require 90-day notice scheduling (vs.",
+        "note": "WARN Act Trigger (§ 34:21-1 as amended): If planned layoff affects 100+ employees nationwide or 25+ employees in single event and employer has 100+ employees total, auto-flag and require 90-day notice scheduling; mandatory severance of 1 week per year of service plus 4 additional weeks if notice inadequate.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "note": "WARN Act Trigger (§ 34:21-1 as amended): If planned layoff affects 100+ employees nationwide or 25+ employees in single event and employer has 100+ employees total, auto-flag and require 90-day notice scheduling (vs.",
+        "note": "WARN Act Trigger (§ 34:21-1 as amended): If planned layoff affects 100+ employees nationwide or 25+ employees in single event and employer has 100+ employees total, auto-flag and require 90-day notice scheduling; mandatory severance of 1 week per year of service plus 4 additional weeks if notice inadequate.",
         "employee_threshold": 100,
         "notice_days": 90
       }
@@ -141,12 +159,58 @@
       "id": "us-nj-wage-floor",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-jersey.md",
-        "section": "N.J.S.A. 34:11-56",
-        "note": "Minimum wage (N.J.S.A.",
+        "section": "N.J.S.A. 34:11-56a4",
+        "note": "Minimum wage $15.92/hour for employers with 6+ employees as of 2026, with annual CPI adjustments (N.J.S.A. 34:11-56a4).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "floor_amount": {
+          "amount": "15.92",
+          "currency": "USD"
+        },
+        "worker_class": "general",
+        "basis": "HOURLY",
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-nj-wage-floor-small-employer",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/new-jersey.md",
+        "section": "N.J.S.A. 34:11-56a4",
+        "note": "Minimum wage $15.23/hour for employers with 5 or fewer employees as of 2026, with annual CPI adjustments (N.J.S.A. 34:11-56a4).",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "floor_amount": {
+          "amount": "15.23",
+          "currency": "USD"
+        },
+        "worker_class": "small_employer",
+        "basis": "HOURLY",
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-nj-wage-floor-agricultural",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/new-jersey.md",
+        "section": "N.J.S.A. 34:11-56a4",
+        "note": "Minimum wage $14.20/hour for agricultural workers in 2026 (N.J.S.A. 34:11-56a4).",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "floor_amount": {
+          "amount": "14.20",
+          "currency": "USD"
+        },
+        "worker_class": "agricultural",
+        "basis": "HOURLY",
         "standard": "REQUIRED"
       }
     },
@@ -156,27 +220,33 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-jersey.md",
         "section": "Diane B. Allen § 10:5-12",
-        "note": "Equal Pay Audit Flag (Diane B.",
+        "note": "Diane B. Allen Equal Pay Act (N.J.S.A. 10:5-12): Unlawful to pay protected-class employees at lower rates for substantially similar work; 21 protected classes including race, sex, sexual orientation, gender identity, disability, age, marital status, genetic information.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_bases": ["age"],
+        "protected_bases": [
+          "sex",
+          "race",
+          "creed",
+          "color",
+          "national_origin",
+          "ancestry",
+          "age",
+          "marital_status",
+          "civil_union_status",
+          "domestic_partnership_status",
+          "sexual_orientation",
+          "gender_identity",
+          "gender_expression",
+          "disability",
+          "genetic_information",
+          "pregnancy",
+          "breastfeeding",
+          "military_status",
+          "veteran_status"
+        ],
         "comparator_standard": "substantially similar work",
-        "standard": "REQUIRED"
-      }
-    },
-    {
-      "kind": "PERSONNEL_FILE",
-      "id": "us-nj-personnel-file",
-      "citation": {
-        "source_file": "planning/research/state-employment-law/new-jersey.md",
-        "section": "N.J.S.A. 34:11",
-        "note": "Payroll and personnel record retention (N.J.S.A.",
-        "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
-      },
-      "body": {
         "standard": "REQUIRED"
       }
     },
@@ -186,11 +256,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-jersey.md",
         "section": "§ 34:11-4.1",
-        "note": "Wage Theft Act Compliance (§ 34:11-4.1): Document all pay rate changes and provide written notice in advance; failure to provide notice triggers retaliation and wage-theft penalties (200% liquidated damages, attorney...",
+        "note": "Wage Theft Act Compliance (§ 34:11-4.1): Document all pay rate changes and provide written notice in advance; failure to provide notice triggers retaliation and wage-theft penalties (200% liquidated damages, attorney fees, 6-year statute of limitations).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_activities": ["wage_theft_complaint"],
         "standard": "REQUIRED"
       }
     },
@@ -199,8 +270,8 @@
       "id": "us-nj-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-jersey.md",
-        "section": "N.J.S.A. 24:6",
-        "note": "Cannabis exception: N.J.S.A.",
+        "section": "N.J.S.A. 24:6I-52",
+        "note": "Cannabis exception: N.J.S.A. 24:6I-52 protects lawful off-duty cannabis use and metabolites.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -216,7 +287,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-jersey.md",
         "section": "N.J.S.A. 56:8-163",
-        "note": "Data breach notification (N.J.S.A.",
+        "note": "Data breach notification (N.J.S.A. 56:8-163): Notification to affected individuals in most expedient time possible without unreasonable delay; report to NJ Division of State Police before individual notifications.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

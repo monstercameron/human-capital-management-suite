@@ -1,0 +1,7 @@
+# LEGAL-ST-SC-001 golden oracle: the agent-verified South Carolina draft bytes
+# (federal-only floor, § 41-10-30 7-day notice, § 41-10-50 48-hour final
+# pay, § 41-10-30(C) retention, § 41-1-110 handbook-disclaimer standard,
+# § 41-8-20(B) E-Verify, § 41-1-80 anti-retaliation, § 39-1-90 breach;
+# LEGAL-018 corrections held: no § 41-12, no § 41-7).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:6619aec0f37e570dd4f161cd9465b884add7b4b5c0cf9ee99e3f27c160a6636d

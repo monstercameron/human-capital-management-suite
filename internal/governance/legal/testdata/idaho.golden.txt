@@ -1,0 +1,9 @@
+# LEGAL-ST-ID-001 golden oracle: the agent-verified Idaho draft bytes
+# (federal-tracking floor marker, pre-work § 45-610 wage-reduction notice,
+# earlier-of 10-day/48-hour § 45-606 final pay, key-employee 18-month
+# non-compete, 3-year retention, 24-hour AG breach notice, empty
+# no-minimum-frequency body, ?-cell VERIFY markers carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-id.json
+sha256:496d42f87f6e3eb9fea1a7c6b8ac1bd6adfd645373b9384687b9d58417349db2

@@ -1,0 +1,7 @@
+# LEGAL-ST-PA-001 golden oracle: the agent-verified Pennsylvania draft bytes
+# (federal-only floor, § 260.4 written notice, § 260.3 final pay, § 336.1
+# sex-only pay equity at VERIFY, common-law non-compete with Act 74 cap at
+# VERIFY, §§ 1321-1324 personnel file; Philadelphia/Pittsburgh rules kept
+# locality-only via LEGAL-TOOL-009).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:f61f7191f72df63b2c97cfd6ad027d29d77b45b77e8b1ac9e8a31903893d741b

@@ -1,0 +1,9 @@
+# LEGAL-ST-KY-001 golden oracle: the agent-verified Kentucky draft bytes
+# (federal-only floor marker, KRS 337.285 seventh-day premium,
+# KRS 337.020 semi-monthly pay, KRS 337.055 later-of final pay,
+# 4-year KRS 337.320 retention, KRS 337.420 sex-based equity,
+# honestly-gapped separation/breach/anti-retaliation statutes).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-ky.json
+sha256:eb84dc9f5f3a17e90ee77101654ee67b60d5a80839e341aaa272033fdfefaf56

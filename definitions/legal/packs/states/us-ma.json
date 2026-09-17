@@ -26,7 +26,7 @@
         "section": "§ 105A",
         "note": "Salary history ban: Employers may not inquire about or consider an applicant's previous wage/salary history unless voluntarily disclosed by the candidate (M.G.L.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "restricted_fields": ["salary_history"],
@@ -46,7 +46,7 @@
       "body": {
         "record_class": "personnel_records",
         "duration_years": 3,
-        "duration_basis": "from_record_date"
+        "duration_basis": "employment_plus_years"
       }
     },
     {
@@ -54,14 +54,14 @@
       "id": "us-ma-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/massachusetts.md",
-        "section": "M § 2",
-        "note": "Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L.",
+        "section": "M.G.L. c. 149 § 148C",
+        "note": "Earned Sick Time (M.G.L. c. 149 § 148C): Employers with 11+ employees must provide 40 hours paid sick time annually (1 hour per 30 hours worked); employees accrue after 90-day eligibility period. Paid Family and Medical Leave (c. 175M): 0.88% payroll contribution, shifting fully to the employer 2027-01-01.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "leave_type": "paid leave",
-        "interaction_rule": "Duration: Paid leave of up to 12 weeks for family reasons, 20 weeks for the employee's own serious health condition, 26 weeks for military caregiving, and 26 weeks combined per benefit year (M.G.L."
+        "interaction_rule": "Earned Sick Time (M.G.L. c. 149 § 148C): Employers with 11+ employees must provide 40 hours paid sick time annually (1 hour per 30 hours worked); employees accrue after 90-day eligibility period. Paid Family and Medical Leave (c. 175M): 0.88% payroll contribution, shifting fully to the employer 2027-01-01."
       }
     },
     {
@@ -84,13 +84,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/massachusetts.md",
         "section": "§ 150",
-        "note": "Treble damages flag: Any delay in final pay triggers automatic exposure to 3x damages plus attorney fees (M.G.L.",
+        "note": "Wage Act strict compliance: Final pay on discharge due same day; on resignation, next regular payday; treble damages (triple pay) for violations plus attorney fees; 3-year statute of limitations.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Treble damages flag: Any delay in final pay triggers automatic exposure to 3x damages plus attorney fees (M.G.L."
+        "deadline_description": "Wage Act strict compliance: Final pay on discharge due same day; on resignation, next regular payday; treble damages (triple pay) for violations plus attorney fees; 3-year statute of limitations."
       }
     },
     {
@@ -99,13 +99,28 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/massachusetts.md",
         "section": "§ 105F",
-        "note": "Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure.",
+        "note": "Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure. Posting duty effective 2025-10-29.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "internal_promotion",
-        "required_disclosure": "Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure."
+        "required_disclosure": "Wage range in promotion offer: On promotion, platform must require entry of new pay range (Frances Perkins Act, § 105F); existing employee (not new hire) must receive range disclosure. Applies to employers with 25+ employees."
+      }
+    },
+    {
+      "kind": "PAY_TRANSPARENCY",
+      "id": "us-ma-pay-transparency-reporting",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/massachusetts.md",
+        "section": "M.G.L. c. 149, § 105F (reporting)",
+        "note": "Workforce pay-data reporting for employers with 100 or more employees, first report due 2025-02-01 (M.G.L. c. 149, § 105F).",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "trigger": "workforce_reporting",
+        "required_disclosure": "Pay-data report covering employers with 100+ employees, first due 2025-02-01."
       }
     },
     {
@@ -142,8 +157,8 @@
       "id": "us-ma-wage-floor",
       "citation": {
         "source_file": "planning/research/state-employment-law/massachusetts.md",
-        "section": "§ 1",
-        "note": "Minimum wage is $15.00/hour (unchanged since January 1, 2023; M.G.L.",
+        "section": "M.G.L. c. 151, § 1",
+        "note": "Minimum wage is $15.00/hour (unchanged since January 1, 2023; M.G.L. No city or county overlay raises the state floor: no local overlay applies.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -191,13 +206,15 @@
       "id": "us-ma-personnel-file",
       "citation": {
         "source_file": "planning/research/state-employment-law/massachusetts.md",
-        "section": "§ 52C",
-        "note": "Personnel record access (c.",
+        "section": "M.G.L. c. 149 § 52C",
+        "note": "Personnel record access (c. 149 § 52C): Employers with 20+ employees must notify workers within 10 days of adding negative information to file; employees may access file within 5 business days; maximum 2 inspections per calendar year; records retained 3 years post-termination.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "response_days": 10,
+        "response_days": 5,
+        "frequency_cap_per_year": 2,
+        "day_basis": "BUSINESS",
         "standard": "REQUIRED"
       }
     },

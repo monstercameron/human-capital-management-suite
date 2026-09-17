@@ -186,7 +186,7 @@ func declareLocalePreferenceStylesStyles() {
 	)
 	declareGlobal(".settings-overview-grid>.settings-context",
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.VarLength("panel")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("surface")),
 	)
 	declareGlobal(".locale-preferences",

@@ -53,13 +53,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/texas.md",
         "section": "§ 15.50",
-        "note": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying...",
+        "note": "Non-compete enforceability (§ 15.50, SB 1318): If employee is subject to non-compete on hire or during employment, verify at promotion that it is ancillary to an enforceable agreement and reasonable in time and territory. If the worker is a healthcare practitioner (physician, dentist, APRN, RN, LVN, or PA), SB 1318 caps apply to agreements entered or renewed on or after 2025-09-01.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforceability (§ 15.50): If employee is subject to non-compete on hire or during employment, verify at promotion: (a) is it ancillary to employment agreement (yes, employment relationship is underlying..."
+        "rule": "Non-compete enforceability (§ 15.50): verify at promotion that the covenant is ancillary to an enforceable agreement and reasonable in time and territory. If healthcare practitioner, SB 1318 caps apply to agreements entered or renewed on or after 2025-09-01: 1-year duration cap from termination, 5-mile radius cap from the primary practice location, buyout capped at total annual salary and wages at termination; covenant void and unenforceable if involuntary discharge without good cause."
       }
     },
     {
@@ -112,7 +112,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/texas.md",
         "section": "TDPSA § 2026",
-        "note": "Data protection if promotion involves access change (TDPSA § 2026, § 521.053): If promotion grants access to personal information (e.g., HR data, SSN, customer lists), ensure data security, breach notification...",
+        "note": "Data breach notification (§ 521.053, amended by SB 768): 60 days to notify affected individuals; 30-day notification to the Texas Attorney General if the breach affects 250+ residents. If a promotion grants access to personal information (HR data, SSN, customer lists), ensure breach notification procedures are documented with these timelines in place.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },

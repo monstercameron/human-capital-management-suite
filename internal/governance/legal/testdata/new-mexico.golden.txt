@@ -1,0 +1,8 @@
+# LEGAL-ST-NM-001 golden oracle: the agent-verified New Mexico draft bytes
+# ($12.00 floor with locality overlays named, semimonthly paydays,
+# 5/10-day final pay, Healthy Workplaces leave, healthcare non-compete
+# voidness, ban-the-box anti-retaliation, ?-cell VERIFY markers carried).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-nm.json
+sha256:022f43e23a521cc6d3fc2f2851effbc85ae3f2be1a3c1f4660d9f1021b432eed

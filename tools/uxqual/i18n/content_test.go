@@ -140,3 +140,16 @@ func TestTodo_UIPOLISH_007_RejectsVagueControlsAndImplementationCopy(t *testing.
 		}
 	}
 }
+
+func TestTodo_UIPOLISH_007_HelperTextStaysProgressive(t *testing.T) {
+	long := Message{Key: "task.field.help", MeaningID: "task.field.help.v1", Kind: Helper,
+		Text: "This helper explains the field in exhaustive detail across several sentences, restating the task, the policy background, the review chain and the appeal route instead of staying a short progressive hint."}
+	if !errors.Is(long.Validate(), ErrInvalidMessage) {
+		t.Fatal("helper text longer than the task it explains was accepted")
+	}
+	short := Message{Key: "task.field.help", MeaningID: "task.field.help.v1", Kind: Helper,
+		Text: "Use the worker's current base pay.", NextAction: ""}
+	if err := short.Validate(); err != nil {
+		t.Fatalf("concise helper was rejected: %v", err)
+	}
+}

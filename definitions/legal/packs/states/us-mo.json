@@ -23,14 +23,17 @@
       "id": "us-mo-notice",
       "citation": {
         "source_file": "planning/research/state-employment-law/missouri.md",
-        "section": "U.S.C. § 206–214",
-        "note": "Written Notices at Hire and on Change: No Missouri state law requires written notice to an employee at hire regarding at-will status, wage theft prevention, rights, duties, or any other employment term.",
+        "section": "RSMo § 290.100",
+        "note": "Pay-rate reductions require 30 days' advance written notice; $50 penalty per employee for noncompliance; no notice required for increases.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "who": "employer_to_worker",
-        "channel": "written"
+        "timing_direction": "BEFORE",
+        "timing_days": 30,
+        "channel": "written",
+        "content_fields": ["pay_rate"]
       }
     },
     {
@@ -39,11 +42,14 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/missouri.md",
         "section": "RSMo § 290.080",
-        "note": "Pay Frequency Compliance (RSMo § 290.080):",
+        "note": "Corporations must pay wages at least semi-monthly (every 16 days); executives, professionals, and commission-based employees may be paid monthly (RSMo § 290.080).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
-      "body": {}
+      "body": {
+        "minimum_frequency": "SEMIMONTHLY",
+        "applies_to_worker_class": "corporations"
+      }
     },
     {
       "kind": "FINAL_PAY_DEADLINE",
@@ -51,13 +57,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/missouri.md",
         "section": "RSMo § 290.110",
-        "note": "Final Pay Impact (RSMo § 290.110):",
+        "note": "All unpaid wages due on the day of discharge; 7-day written-request penalty trigger with continuing wages capped at 60 days (RSMo § 290.110).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final Pay Impact (RSMo § 290.110):"
+        "deadline_description": "All unpaid wages due on the day of discharge; continuing-wage penalty after 7 days without payment on written request, capped at 60 days (RSMo § 290.110)."
       }
     },
     {
@@ -81,17 +87,17 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/missouri.md",
         "section": "RSMo § 290.502",
-        "note": "Minimum wage: $13.75/hour effective 2025 (RSMo § 290.502); increases to $15.00/hour January 1, 2026; no further annual indexing (HB 567 effective August 28, 2025 removed CPI adjustments).",
+        "note": "Minimum wage $15.00/hour effective 2026-01-01; HB 567 (eff. 2025-08-28) repealed CPI indexing, so no further automatic increases (RSMo § 290.502).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "floor_amount": {
-          "amount": "13.75",
+          "amount": "15.00",
           "currency": "USD"
         },
         "basis": "HOURLY",
-        "indexation": "CPI",
+        "indexation": "NONE",
         "standard": "REQUIRED"
       }
     },
@@ -101,11 +107,14 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/missouri.md",
         "section": "RSMo § 290.410",
-        "note": "Compensation Review & Equal Pay Audit (RSMo § 290.410):",
+        "note": "Sex-based wage discrimination barred for the same quantity and quality of the same classification of work; seniority, skill, shift, hours, and other good-faith factors permitted (RSMo § 290.410).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_bases": ["sex"],
+        "comparator_standard": "same quantity and quality of same classification",
+        "documentation_required": true,
         "standard": "REQUIRED"
       }
     },
@@ -115,7 +124,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/missouri.md",
         "section": "§ 290.080",
-        "note": "After the pay change is effective, ensure the next wage statement (monthly minimum per § 290.080) clearly shows the new rate and all deductions.",
+        "note": "Wage statement at least once each calendar month showing the new rate and total deductions, attached to the voucher or sent separately; $50-$500 misdemeanor fine per offense (RSMo § 290.080).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -145,11 +154,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/missouri.md",
         "section": "(statutory section not stated in the research file)",
-        "note": "Unemployment Insurance Separation Notice:",
+        "note": "File form DOL-8 Separation Notice with the Missouri Department of Labor on separation (filing deadline under verification); no statutory advance notice to the worker.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "form_name": "DOL-8 Separation Notice",
         "recipient_authority": "state unemployment insurance agency",
         "standard": "REQUIRED"
       }
@@ -180,7 +190,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/missouri.md",
         "section": "RSMo § 407.1500",
-        "note": "Data Breach Notification (RSMo § 407.1500 — PERSONAL INFORMATION EXPOSURE):",
+        "note": "Breach notification without unreasonable delay (3 business days best practice); no fixed day count; Attorney General enforcement, no private right of action (RSMo § 407.1500).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -193,6 +203,6 @@
   "provenance": {
     "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
     "source_files": ["planning/research/state-employment-law/missouri.md"],
-    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in. Agent verification 2026-09-16 (LEGAL-ST-MO-001, not counsel review): carried the 30-day RSMo § 290.100 reduction-notice rule; corrected the wage-floor body to the $15.00 post-HB-567 rate with indexing removed; recorded sex-based pay-equity parameters; completed truncated citation notes. Counsel approval remains the release gate; pack stays UNREVIEWED."
   }
 }

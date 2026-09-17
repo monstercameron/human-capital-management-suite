@@ -121,6 +121,10 @@ const (
 	SurfaceBrowser
 	SurfaceRPC
 	SurfaceExport
+	// SurfaceEnhancedBrowser is the qualified client-hydrated surface
+	// (ALIGN-057). It is numbered after the existing surfaces so every
+	// previously valid surface keeps its value.
+	SurfaceEnhancedBrowser
 )
 
 // String returns the stable surface spelling.
@@ -134,6 +138,8 @@ func (s Surface) String() string {
 		return "RPC"
 	case SurfaceExport:
 		return "EXPORT"
+	case SurfaceEnhancedBrowser:
+		return "ENHANCED_BROWSER"
 	default:
 		return "UNKNOWN"
 	}
@@ -381,7 +387,7 @@ type SurfaceProjection struct {
 // ProjectSurface returns a transport-labelled copy of e. The surface label is
 // metadata only; it is absent from the semantic digest.
 func ProjectSurface(surface Surface, e QueryEnvelope) (SurfaceProjection, error) {
-	if surface < SurfaceSSR || surface > SurfaceExport {
+	if surface < SurfaceSSR || surface > SurfaceEnhancedBrowser {
 		return SurfaceProjection{}, fmt.Errorf("%w: %d", ErrInvalidSurface, surface)
 	}
 	if err := e.Validate(); err != nil {

@@ -61,6 +61,12 @@ func buildBody(
 
 	case legal.ObligationTypePayFrequency:
 		body.MinimumFrequency = payFrequency(text)
+		if payFrequencyDenied(text) {
+			// "Does not mandate a specific pay frequency" is a finding,
+			// not a frequency: naming one (usually lifted from a
+			// parenthetical example) would contradict the research.
+			body.MinimumFrequency = ""
+		}
 		if body.MinimumFrequency != "" {
 			body.AppliesToWorkerClass = workerClass(text)
 		}
@@ -92,6 +98,14 @@ func buildBody(
 		body.Note = note
 		body.EmployeeThreshold = ExtractEmployeeCount(text)
 		if days, _ := ExtractDays(text); days > 0 {
+			body.NoticeDays = days
+		}
+		// The notice period is the count attached to the word "notice"
+		// ("60-day notice"), not the layoff window it is measured over
+		// ("layoffs affecting 50+ employees in 30 days require 60-day
+		// notice"). The first bare day count is that window as often as
+		// it is the deadline.
+		if days := ExtractNoticeDays(text); days > 0 {
 			body.NoticeDays = days
 		}
 		if n := ExtractAnnotationDays(cell.Annotation); n > 0 {
@@ -217,9 +231,15 @@ func noticeDirection(text string) string {
 	switch {
 	case strings.Contains(lowered, "before any change"),
 		strings.Contains(lowered, "before the change"),
+		strings.Contains(lowered, "before the affected work"),
+		strings.Contains(lowered, "before any reduction"),
+		strings.Contains(lowered, "before effective date"),
+		strings.Contains(lowered, "before or at the time of"),
 		strings.Contains(lowered, "prior to the change"),
 		strings.Contains(lowered, "advance notice"),
-		strings.Contains(lowered, "in advance of"):
+		strings.Contains(lowered, "advance-notice"),
+		strings.Contains(lowered, "in advance of"),
+		strings.Contains(lowered, "in advance"):
 		return "BEFORE"
 	case strings.Contains(lowered, "within"), strings.Contains(lowered, "after the change"),
 		strings.Contains(lowered, "following the change"):
@@ -242,8 +262,10 @@ func noticeContentFields(text string) []string {
 	var out []string
 	for _, pair := range []struct{ needle, field string }{
 		{"pay rate", "pay_rate"},
+		{"pay-rate", "pay_rate"},
 		{"rate of pay", "pay_rate"},
 		{"wage rate", "pay_rate"},
+		{"wage reduction", "pay_rate"},
 		{"pay basis", "pay_basis"},
 		{"payday", "payday"},
 		{"pay frequency", "pay_frequency"},
@@ -327,12 +349,18 @@ func retentionBasis(text string) string {
 	return ""
 }
 
+// payFrequencyDenied reports whether the research explicitly denies a
+// minimum pay frequency. Idaho Code § 45-606 is the template case: it sets
+// final-pay timing but "does not mandate a specific pay frequency".
+func payFrequencyDenied(text string) bool {
+	return payFrequencyDenyRE.MatchString(text)
+}
+
+var payFrequencyDenyRE = regexp.MustCompile(`(?i)does not mandate[^.]{0,40}pay frequency|no[^.]{0,25}mandate[^.]{0,25}frequen`)
+
 func payFrequency(text string) string {
 	lowered := strings.ToLower(text)
 	switch {
-	case strings.Contains(lowered, "weekly") && !strings.Contains(lowered, "biweekly") &&
-		!strings.Contains(lowered, "bi-weekly"):
-		return "WEEKLY"
 	case strings.Contains(lowered, "semimonthly"), strings.Contains(lowered, "semi-monthly"),
 		strings.Contains(lowered, "twice a month"), strings.Contains(lowered, "twice per month"):
 		return "SEMIMONTHLY"
@@ -341,6 +369,8 @@ func payFrequency(text string) string {
 		return "BIWEEKLY"
 	case strings.Contains(lowered, "monthly"):
 		return "MONTHLY"
+	case strings.Contains(lowered, "weekly"):
+		return "WEEKLY"
 	default:
 		return ""
 	}
@@ -390,6 +420,11 @@ func indexation(text string) string {
 	}
 }
 
+// ageWordRE matches "age" as a word of its own. A substring test would read
+// the protected basis "age" out of every "wage", "average" and "package" in
+// the corpus.
+var ageWordRE = regexp.MustCompile(`(?i)\bage\b`)
+
 func protectedBases(text string) []string {
 	lowered := strings.ToLower(text)
 	var out []string
@@ -400,7 +435,6 @@ func protectedBases(text string) []string {
 		{"ethnic", "ethnicity"},
 		{"national origin", "national_origin"},
 		{"religion", "religion"},
-		{"age", "age"},
 		{"disabilit", "disability"},
 		{"sexual orientation", "sexual_orientation"},
 		{"gender identity", "gender_identity"},
@@ -408,6 +442,9 @@ func protectedBases(text string) []string {
 		if strings.Contains(lowered, pair.needle) && !contains(out, pair.basis) {
 			out = append(out, pair.basis)
 		}
+	}
+	if ageWordRE.MatchString(text) && !contains(out, "age") {
+		out = append(out, "age")
 	}
 	return out
 }
@@ -470,6 +507,11 @@ func classificationDimension(text string) string {
 	case strings.Contains(lowered, "contractor"), strings.Contains(lowered, "abc test"),
 		strings.Contains(lowered, "right-of-control"), strings.Contains(lowered, "right of control"):
 		return "CONTRACTOR"
+	case strings.Contains(lowered, "seventh"):
+		// A seventh-consecutive-day premium (Kentucky's KRS 337.285) is an
+		// overtime-threshold rule: it fires on the week's shape, not on a
+		// worker's exemption or contractor status.
+		return "OVERTIME_THRESHOLD"
 	case strings.Contains(lowered, "overtime"):
 		return "OVERTIME_THRESHOLD"
 	case strings.Contains(lowered, "exempt"):
@@ -530,7 +572,7 @@ func jobSecurityStandard(text string) string {
 	}
 }
 
-var separationFormRE = regexp.MustCompile(`(?i)\b(?:form\s+)?((?:BC|DOL|LE|UC|DE|MODES|WVUC)[- ]?\d+[A-Za-z\-]*)\b`)
+var separationFormRE = regexp.MustCompile(`(?i)\b(?:form\s+)?((?:BC|DOL|LE|UC|UI|DE|MODES|WVUC)[- ]?\d+[A-Za-z\-]*)\b`)
 
 func separationForm(text string) string {
 	if m := separationFormRE.FindStringSubmatch(text); m != nil {

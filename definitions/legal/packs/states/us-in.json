@@ -23,7 +23,7 @@
       "id": "us-in-retention",
       "citation": {
         "source_file": "planning/research/state-employment-law/indiana.md",
-        "section": "U.S.C. § 211",
+        "section": "IC 22-2-8",
         "note": "Payroll Record Retention: IC 22-2-8 requires employers to retain payroll records, time records, and documents related to remuneration for at least 4 years after the calendar year in which remuneration was paid.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
@@ -39,8 +39,8 @@
       "id": "us-in-pay-frequency",
       "citation": {
         "source_file": "planning/research/state-employment-law/indiana.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Wage payment compliance: Ensure new base pay is communicated and recorded in accordance with IC 22-2-5 semimonthly or biweekly payment schedule.",
+        "section": "IC 22-2-5-1",
+        "note": "Wage payment frequency semimonthly or biweekly: IC 22-2-5-1 requires payment at least semimonthly or biweekly, with wages earned within 10 business days prior.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -53,14 +53,14 @@
       "id": "us-in-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/indiana.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "IC 22-2-5-2",
         "note": "Final-pay calculation audit: On termination, calculate final pay as all earned wages through termination date, accrued PTO (if required by policy), and vacation (if required by policy).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final-pay calculation audit: On termination, calculate final pay as all earned wages through termination date, accrued PTO (if required by policy), and vacation (if required by policy)."
+        "deadline_description": "Final pay on voluntary resignation (IC 22-2-5-2): if an employee voluntarily leaves employment, accrued wages are due on the next regular payday; involuntary termination follows contract terms or federal FLSA timely-payment requirements."
       }
     },
     {
@@ -68,14 +68,14 @@
       "id": "us-in-non-compete",
       "citation": {
         "source_file": "planning/research/state-employment-law/indiana.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Non-compete flag: If the employee is a physician or the employer uses non-compete agreements, attach and flag for legal review:",
+        "section": "IC 25-22.5-5.5",
+        "note": "Physician non-competes heavily restricted: IC 25-22.5-5.5, amended by SEA 475 effective July 1, 2025, voids any non-compete between a physician and hospital, hospital parent company, or hospital system entered on or after July 1, 2025.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete flag: If the employee is a physician or the employer uses non-compete agreements, attach and flag for legal review:"
+        "rule": "Physician non-competes heavily restricted: IC 25-22.5-5.5, amended by SEA 475 effective July 1, 2025, voids any non-compete between a physician and hospital, hospital parent company, or hospital system entered on or after July 1, 2025."
       }
     },
     {
@@ -83,7 +83,7 @@
       "id": "us-in-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/indiana.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "IC 22-9",
         "note": "Ensure no retaliation: Confirm termination is not in retaliation for jury duty, voting, public policy (e.g., OSHA complaint), or protected activity under federal law.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
@@ -98,12 +98,13 @@
       "id": "us-in-separation-filing",
       "citation": {
         "source_file": "planning/research/state-employment-law/indiana.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Retain termination records: Preserve separation notice, final-pay documentation, and any signed agreements (non-compete, acknowledgment, etc.) for 4 years per IC 22-2-8.",
+        "section": "IC 22-2-8",
+        "note": "Retain termination records: Preserve separation notices (Form UI-14), final-pay documentation, and any signed agreements (non-compete, acknowledgment, etc.) for 4 years per IC 22-2-8.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "form_name": "UI-14",
         "standard": "REQUIRED"
       }
     },
@@ -127,12 +128,27 @@
       "id": "us-in-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/indiana.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "IC 24-4.9",
         "note": "Data Privacy Law: Indiana has no comprehensive state data privacy statute equivalent to California CCPA or Colorado CPA.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "standard": "REQUIRED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-in-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/indiana.md",
+        "section": "IC 22-2-2",
+        "note": "Minimum Wage: Indiana's statutory minimum wage under IC 22-2-2 is $7.25/hour (tied to federal FLSA); IC 22-2-2-10.5 preempts local minimum wage ordinances, only the state rate applies.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
         "standard": "REQUIRED"
       }
     }

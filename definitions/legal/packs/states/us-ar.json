@@ -40,7 +40,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arkansas.md",
         "section": "Ark. Code § 11-4-401",
-        "note": "Semi-monthly pay frequency required for most employees; corporations with $500k+ annual income may pay exempt management once per month (Ark.",
+        "note": "Semi-monthly pay required for corporate employers; corporations with $500k+ annual income may pay exempt management monthly; non-corporate employers must keep a consistent schedule (Ark. Code § 11-4-401).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -54,13 +54,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arkansas.md",
         "section": "Ark. Code § 11-4-405",
-        "note": "Final pay due within 7 days of termination if employee requests it, or by next regular payday (Ark.",
+        "note": "Final paycheck due within 7 days of discharge on employee demand, otherwise by the next regular payday; double-wage penalty for late payment (Ark. Code § 11-4-405).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay due within 7 days of termination if employee requests it, or by next regular payday (Ark."
+        "deadline_description": "Final paycheck due within 7 days of discharge on employee demand, otherwise by the next regular payday; double-wage penalty for late payment (Ark. Code § 11-4-405)."
       }
     },
     {
@@ -69,13 +69,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arkansas.md",
         "section": "Ark. Code § 4-75-101",
-        "note": "Verify non-compete is ancillary to employment and limited in time/scope (Ark.",
+        "note": "Non-competes enforceable under Act 921 if ancillary to employment, limited in time and scope, and protecting a legitimate business interest; courts must reform (blue-pencil) overbroad covenants; physician non-competes void as of 2025 (Ark. Code § 4-75-101).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Verify non-compete is ancillary to employment and limited in time/scope (Ark."
+        "rule": "Non-competes enforceable under Act 921 if ancillary to employment, limited in time and scope, and protecting a legitimate business interest; courts must reform (blue-pencil) overbroad covenants; physician non-competes void as of 2025 (Ark. Code § 4-75-101)."
       }
     },
     {
@@ -84,7 +84,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arkansas.md",
         "section": "Ark. Code § 11-4-211",
-        "note": "Minimum wage: $11.00/hour for employers with 4+ employees (Ark.",
+        "note": "Minimum wage $11.00/hour for employers with 4+ employees; overtime 1.5x for actual hours over 40/week; the higher of state or federal controls (Ark. Code § 11-4-211).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -103,12 +103,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arkansas.md",
         "section": "Ark. Code § 11-4-405",
-        "note": "Sex-based wage discrimination prohibited for employers of any size (Ark.",
+        "note": "Sex-based wage discrimination prohibited for employers of any size; differentials allowed for seniority, experience, training, skill, ability, duties, shift, or other reasonable differentiation (Ark. Code § 11-4-405).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_bases": ["sex", "age"],
+        "protected_bases": ["sex"],
         "standard": "REQUIRED"
       }
     },
@@ -132,7 +132,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/arkansas.md",
         "section": "(statutory section not stated in the research file)",
-        "note": "### Drug Testing",
+        "note": "No specific Arkansas state law addressing drug testing; employers may test if notice is provided and the policy is applied consistently.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -145,10 +145,10 @@
       "id": "us-ar-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/arkansas.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "### Breach Notification",
+        "section": "Ark. Code Title 4, Chapter 110",
+        "note": "Breach of personal information (including biometric) posing reasonable risk of identity theft or fraud requires notice to affected persons without unreasonable delay (Arkansas Personal Information Protection Act, Ark. Code Title 4, Chapter 110).",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "standard": "REQUIRED"

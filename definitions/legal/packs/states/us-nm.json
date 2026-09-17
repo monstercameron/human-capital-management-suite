@@ -63,7 +63,7 @@
       },
       "body": {
         "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Paid sick leave interaction (§ 50-17-1 et seq.): On promotion + pay change, if employee uses sick leave concurrently, system must not reduce post-leave wage below pre-promotion level."
+        "interaction_rule": "Paid sick leave interaction (§ 50-17-1 et seq., effective July 1, 2022): 1 hour per 30 hours worked, capped at 64 hours/year carry-over. On promotion + pay change, if employee uses sick leave concurrently, system must not reduce post-leave wage below pre-promotion level."
       }
     },
     {
@@ -76,7 +76,9 @@
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
-      "body": {}
+      "body": {
+        "minimum_frequency": "SEMIMONTHLY"
+      }
     },
     {
       "kind": "FINAL_PAY_DEADLINE",
@@ -84,13 +86,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-mexico.md",
         "section": "§ 50-4-4",
-        "note": "Final pay on separation during/after promotion: If termination occurs following promotion, ensure all wages earned at promoted rate from effective date forward are paid within 5 days (fixed wages) or 10 days (other...",
+        "note": "Final pay on separation during/after promotion: If termination occurs following promotion, ensure all wages earned at promoted rate from effective date forward are paid within 5 days (fixed wages) or 10 days (other compensation) of discharge per § 50-4-4; on resignation, final pay due at next regular payday (§ 50-4-5).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay on separation during/after promotion: If termination occurs following promotion, ensure all wages earned at promoted rate from effective date forward are paid within 5 days (fixed wages) or 10 days (other..."
+        "deadline_description": "Final pay on separation during/after promotion: If termination occurs following promotion, ensure all wages earned at promoted rate from effective date forward are paid within 5 days (fixed wages) or 10 days (other compensation) of discharge per § 50-4-4; on resignation, final pay due at next regular payday (§ 50-4-5)."
       }
     },
     {
@@ -99,13 +101,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-mexico.md",
         "section": "§ 50-4A-1",
-        "note": "Non-compete enforceability check (§ 50-4A-1): On promotion to healthcare practitioner role, system must: (a) Identify if employee subject to non-compete; (b) If yes, flag as unenforceable per § 50-4A-1 (applies to all...",
+        "note": "Non-compete enforceability check (§ 50-4A-1): On promotion to healthcare practitioner role, system must: (a) Identify if employee subject to non-compete; (b) If yes, flag as unenforceable per § 50-4A-1 (applies to all listed healthcare roles); (c) Document non-solicitation clause with 1-year non-solicitation permission (1 year or less) and liquidated damages as enforceable alternatives; (d) On promotion, check if new role changes healthcare-practitioner status and update enforceability status.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Non-compete enforceability check (§ 50-4A-1): On promotion to healthcare practitioner role, system must: (a) Identify if employee subject to non-compete; (b) If yes, flag as unenforceable per § 50-4A-1 (applies to all..."
+        "rule": "Non-compete enforceability check (§ 50-4A-1): On promotion to healthcare practitioner role, system must: (a) Identify if employee subject to non-compete; (b) If yes, flag as unenforceable per § 50-4A-1 (applies to all listed healthcare roles); (c) Document non-solicitation clause with 1-year non-solicitation permission (1 year or less) and liquidated damages as enforceable alternatives; (d) On promotion, check if new role changes healthcare-practitioner status and update enforceability status."
       }
     },
     {
@@ -114,7 +116,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-mexico.md",
         "section": "§ 50-4-22",
-        "note": "Statewide minimum wage $12.00/hour: Local ordinances in Santa Fe ($15.00), Albuquerque ($12.00), Las Cruces ($13.01), and Bernalillo County ($12.00) set higher minimums; employers must pay the highest applicable rate...",
+        "note": "Statewide minimum wage $12.00/hour: Local ordinances in Santa Fe ($15.00), Albuquerque ($12.00), Las Cruces ($13.01), and Bernalillo County ($12.00) set higher minimums; employers must pay the highest applicable rate (NMSA 1978 § 50-4-22).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -133,12 +135,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-mexico.md",
         "section": "§ 28-23-1",
-        "note": "Fair Pay for Women Act compliance (§ 28-23-1 et seq.): On promotion or base-pay change, system should flag if new wage for one gender differs >15% from peer rates for equal work within same establishment; require...",
+        "note": "Fair Pay for Women Act compliance (§ 28-23-1 et seq.): On promotion or base-pay change, system should flag if new wage for one gender differs >15% from peer rates for equal work within same establishment; require manager justification or HR approval for outlier increases (applies to employers with 4+ employees).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "protected_bases": ["gender", "age"],
+        "protected_bases": ["sex"],
         "comparator_standard": "equal work",
         "employer_size_floor": 4,
         "standard": "REQUIRED"
@@ -149,8 +151,8 @@
       "id": "us-nm-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/new-mexico.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Retaliation prohibited for asserting a claim under the Act.",
+        "section": "NMSA 28-2-3.1",
+        "note": "Retaliation prohibited for asserting a claim under the Act (ban-the-box, NMSA 28-2-3.1): § 28-2-3.1 prohibits criminal history inquiry on initial application.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -170,6 +172,7 @@
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "permitted_bases": ["pre_employment"],
         "protected_status": ["medical_cannabis_patient"],
         "standard": "REQUIRED"
       }
@@ -180,11 +183,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/new-mexico.md",
         "section": "§ 57-12C-1",
-        "note": "Data Breach Notification (§ 57-12C-1 et seq.):",
+        "note": "Data Breach Notification (§ 57-12C-1 et seq.): 45-day notification rule.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "subject_deadline_days": 45,
         "standard": "REQUIRED"
       }
     }

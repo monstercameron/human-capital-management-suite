@@ -23,10 +23,10 @@
       "id": "us-la-final-pay-deadline",
       "citation": {
         "source_file": "planning/research/state-employment-law/louisiana.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "La. R.S. 23:631",
         "note": "Calculate final pay (all earned wages including overtime through last day, plus accrued leave if applicable) within 15 days of termination or on the next regular payday (La.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
@@ -38,14 +38,14 @@
       "id": "us-la-non-compete",
       "citation": {
         "source_file": "planning/research/state-employment-law/louisiana.md",
-        "section": "(statutory section not stated in the research file)",
-        "note": "Flag noncompete enforceability if the employer uses noncompete agreements: verify 2-year cap, reasonableness, and physician-specific amendments if applicable",
+        "section": "La. R.S. 23:921",
+        "note": "Flag noncompete enforceability if the employer uses noncompete agreements: verify a 2 years post-employment cap, legitimate business interest, reasonableness, and physician-specific amendments if applicable",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "recheck_on_pay_change": true,
-        "rule": "Flag noncompete enforceability if the employer uses noncompete agreements: verify 2-year cap, reasonableness, and physician-specific amendments if applicable"
+        "rule": "Flag noncompete enforceability if the employer uses noncompete agreements: verify a 2 years post-employment cap, legitimate business interest, reasonableness, and physician-specific amendments if applicable"
       }
     },
     {
@@ -53,10 +53,10 @@
       "id": "us-la-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/louisiana.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "La. R.S. 23:967",
         "note": "Track retaliation risks (e.g., termination within 90 days of jury duty, voting, workers' compensation claim, FMLA use, protected complaint, or environmental whistleblower report under La.",
         "review_status": "UNREVIEWED",
-        "confidence_marker": "VERIFY"
+        "confidence_marker": "CONFIRMED"
       },
       "body": {
         "protected_activities": [
@@ -88,12 +88,13 @@
       "id": "us-la-drug-testing",
       "citation": {
         "source_file": "planning/research/state-employment-law/louisiana.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "La. R.S. 1017.1",
         "note": "If the employer requires drug testing, ensure procedures are documented and notices are posted (La.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
+        "permitted_bases": ["pre_employment", "post_accident", "reasonable_suspicion"],
         "standard": "REQUIRED"
       }
     },
@@ -102,15 +103,29 @@
       "id": "us-la-breach-notification",
       "citation": {
         "source_file": "planning/research/state-employment-law/louisiana.md",
-        "section": "(statutory section not stated in the research file)",
+        "section": "La. R.S. 51:3071",
         "note": "Database Security Breach Notification (La.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
       "body": {
-        "subject_deadline_days": 3,
         "day_basis": "BUSINESS",
         "standard": "RECOMMENDED"
+      }
+    },
+    {
+      "kind": "WAGE_FLOOR",
+      "id": "us-la-wage-floor",
+      "citation": {
+        "source_file": "planning/research/state-employment-law/louisiana.md",
+        "section": "29 U.S.C. § 206; no Louisiana statute",
+        "note": "No state minimum wage; federal FLSA $7.25/hour applies.",
+        "review_status": "UNREVIEWED",
+        "confidence_marker": "CONFIRMED"
+      },
+      "body": {
+        "basis": "HOURLY",
+        "standard": "REQUIRED"
       }
     }
   ],

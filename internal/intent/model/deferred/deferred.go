@@ -18,7 +18,7 @@ import (
 // DB016PreviewDigest is the digest of the complete, generated DB-016 preview
 // set: the ten migration previews and storage-disposition.deferred.yaml.
 // The golden test cross-checks this value against tools/gen/deferredschema.
-const DB016PreviewDigest = "sha256:db4d39efb2b865b3e792f1658ac2283222c5c885d1a9b3b9a4fb33e67740c967"
+const DB016PreviewDigest = "sha256:e1aae06f9c86326f97b8e5daccab110be4075881f8f7f63f0e3dc99a772850f6"
 
 // ErrWriteAuthority classifies a deferred source that would expose a
 // production mutation capability.

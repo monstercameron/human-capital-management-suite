@@ -1,0 +1,10 @@
+# LEGAL-ST-WI-001 golden oracle: the agent-verified Wisconsin draft bytes
+# (four-kind locality preemption, next-payday/24-hour final pay,
+# reasonableness/blue-pencil non-compete, twice-yearly 7-day file access,
+# 50-employee 60-day mini-WARN, 3-year payroll retention, monthly pay
+# frequency, confirmed breach/statement markers, VERIFY gaps carried,
+# separation filing confirmed absent).
+# Any silent edit breaks this test before the pack reaches evaluation.
+# Recompute after applying curated rows:
+#   sha256sum definitions/legal/packs/states/us-wi.json
+sha256:849031ab234281a071984b6e649f9969bc76923c5560c6ca23b8aa237549e418

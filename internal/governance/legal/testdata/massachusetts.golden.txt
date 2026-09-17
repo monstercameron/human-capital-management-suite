@@ -1,0 +1,8 @@
+# LEGAL-ST-MA-001 golden oracle: the agent-verified Massachusetts draft bytes
+# ($15.00/hr floor with no local overlay, posting and reporting
+# transparency duties with their own dates, salary-history ban,
+# sick-time and PFMLA leave terms, same-day/treble-damages final pay,
+# garden-leave non-competes, 5-day personnel access with 10-day
+# negative-information notice).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:7385cda0b3525df6fa1a0c7879b34b3408ec6308e1da9f98647fe5b360cc2f27

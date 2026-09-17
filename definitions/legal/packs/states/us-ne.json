@@ -24,7 +24,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. § 48-1230",
-        "note": "Notice of payday changes: If an employer alters regular paydays, 30 days' written notice must be given to each employee before the change takes effect (Neb.",
+        "note": "Notice of payday changes: If an employer alters regular paydays, 30 days' written notice must be given to each employee before the change takes effect (Neb. Rev. Stat. § 48-1230).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -41,14 +41,14 @@
       "id": "us-ne-leave-interaction",
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
-        "section": "Neb. Rev. Stat. §§ 48-3801",
-        "note": "Neb.",
+        "section": "Neb. Rev. Stat. §§ 48-3801 to 48-3811",
+        "note": "Paid sick leave 1hr/30hrs after 80 hours worked, 11+-employee threshold; 40hr/yr small-employer and 56hr/yr larger-employer caps; carryover or payout-and-refresh; eff. 2025-10-01 (Initiative 436).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "leave_type": "accrued paid sick leave",
-        "interaction_rule": "Neb."
+        "leave_type": "paid sick leave",
+        "interaction_rule": "Accrued paid sick time preserved on promotion or base-pay change; accrual continues at 1 hour per 30 hours worked (Initiative 436)."
       }
     },
     {
@@ -61,9 +61,7 @@
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
-      "body": {
-        "minimum_frequency": "SEMIMONTHLY"
-      }
+      "body": {}
     },
     {
       "kind": "FINAL_PAY_DEADLINE",
@@ -71,13 +69,13 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. § 48-1230",
-        "note": "Final pay timing: next payday or within 2 weeks of termination, whichever is sooner: Unpaid wages (including accrued vacation/PTO) become due immediately on separation under Neb.",
+        "note": "Unpaid wages including accrued vacation/PTO due on separation; next regular payday or within 2 weeks, whichever sooner; accrued PTO counts as wages (Neb. Rev. Stat. § 48-1230).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
         "trigger": "termination_any",
-        "deadline_description": "Final pay timing: next payday or within 2 weeks of termination, whichever is sooner: Unpaid wages (including accrued vacation/PTO) become due immediately on separation under Neb."
+        "deadline_description": "Unpaid wages including accrued vacation/PTO due on separation; next regular payday or within 2 weeks, whichever sooner; accrued PTO counts as wages (Neb. Rev. Stat. § 48-1230)."
       }
     },
     {
@@ -86,12 +84,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "LB 921",
-        "note": "Nebraska WARN Act (LB 921) requires 90-day notice for mass layoffs of 25+ employees: State mini-WARN applies to separations of 25 or more employees on the same day, for the same reason, expected to last 7+ days; federal...",
+        "note": "Nebraska WARN Act (LB 921) requires 90-day notice for mass layoffs of 25+ employees: State mini-WARN applies to separations of 25 or more employees on the same day, for the same reason, expected to last 7+ days; federal 60-day/100-employee WARN applies alongside.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
-        "note": "Nebraska WARN Act (LB 921) requires 90-day notice for mass layoffs of 25+ employees: State mini-WARN applies to separations of 25 or more employees on the same day, for the same reason, expected to last 7+ days; federal...",
+        "note": "Nebraska WARN Act (LB 921) requires 90-day notice for mass layoffs of 25+ employees: State mini-WARN applies to separations of 25 or more employees on the same day, for the same reason, expected to last 7+ days; federal 60-day/100-employee WARN applies alongside.",
         "employee_threshold": 25,
         "notice_days": 90
       }
@@ -102,7 +100,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "LB 258",
-        "note": "Minimum wage: $15/hour (2026), with annual increases: Effective January 1, 2026, minimum wage is $15/hour per Initiative 433 (LB 258); increases 1.75% annually starting January 1, 2027, calculated and published by...",
+        "note": "Minimum wage: $15/hour (2026), with annual increases: Effective January 1, 2026, minimum wage is $15/hour per Initiative 433 (LB 258); increases 1.75% annually starting January 1, 2027, calculated and published by October 15 each year.",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -111,8 +109,9 @@
           "amount": "15.00",
           "currency": "USD"
         },
-        "worker_class": "tipped employees",
         "basis": "HOURLY",
+        "indexation": "SCHEDULE",
+        "next_adjustment_date": "2027-01-01",
         "standard": "REQUIRED"
       }
     },
@@ -122,11 +121,12 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. § 48-1219",
-        "note": "Capture job-classification and compensation data: Neb.",
+        "note": "Sex-based wage discrimination barred for equal work requiring equal skill, effort, and responsibility under similar conditions; document classifications and conditions (Neb. Rev. Stat. § 48-1219).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_bases": ["sex"],
         "comparator_standard": "equal work",
         "documentation_required": true,
         "standard": "REQUIRED"
@@ -138,7 +138,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. § 48-1230",
-        "note": "Wage Statements: Neb.",
+        "note": "Wage statement each regular payday showing employer identity, hours paid, wages earned, and deductions (Neb. Rev. Stat. § 48-1230).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -152,12 +152,13 @@
       "id": "us-ne-anti-retaliation",
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
-        "section": "Neb. Rev. Stat. §§ 48-1219",
-        "note": "Equal Pay Law: Neb.",
+        "section": "Neb. Rev. Stat. §§ 48-1114, 48-1221",
+        "note": "Wage-disclosure retaliation barred (§ 48-1114); retaliation for invoking Equal Pay Act rights barred (§ 48-1221).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
       "body": {
+        "protected_activities": ["wage_disclosure", "equal_pay_complaint"],
         "disposition": "BLOCK",
         "standard": "REQUIRED"
       }
@@ -182,7 +183,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Nebraska Revised Statutes §§ 48-1901",
-        "note": "Drug and Alcohol Testing: Nebraska Revised Statutes §§ 48-1901 to 48-1910 address drug and alcohol testing in the workplace.",
+        "note": "Drug and alcohol testing neither required nor prohibited; no Nebraska-specific procedures, timing, or notice mandates (§§ 48-1901 to 48-1910).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "VERIFY"
       },
@@ -197,7 +198,7 @@
       "citation": {
         "source_file": "planning/research/state-employment-law/nebraska.md",
         "section": "Neb. Rev. Stat. § 87-803",
-        "note": "Data breach notification required without unreasonable delay: Neb.",
+        "note": "Breach notification as soon as possible and without unreasonable delay; law-enforcement delay only if investigation impeded (Neb. Rev. Stat. § 87-803).",
         "review_status": "UNREVIEWED",
         "confidence_marker": "CONFIRMED"
       },
@@ -210,6 +211,6 @@
   "provenance": {
     "generator": "internal/governance/legal/extract v1 (LEGAL-010, LEGAL-011)",
     "source_files": ["planning/research/state-employment-law/nebraska.md"],
-    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in."
+    "notes": "Mechanically extracted from the research file's Implications for P1A/P1B section and the rule-pack contract's section 5 matrix. Agent-drafted research, no legal review, not legal advice. Every rule is UNREVIEWED and this pack is unusable under any nonzero tenant review floor. A field the research does not state is left unstated rather than filled in. Agent verification 2026-09-16 (LEGAL-ST-NE-001, not counsel review): corrected the wage-floor body (general class, scheduled 1.75% adjustments from 2027-01-01); carried the paid-sick-leave, wage-statement, and retaliation parameters; removed the overstated pay-frequency floor; completed truncated citation notes. Counsel approval remains the release gate; pack stays UNREVIEWED."
   }
 }

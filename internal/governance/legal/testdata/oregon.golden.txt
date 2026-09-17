@@ -1,0 +1,7 @@
+# LEGAL-ST-OR-001 golden oracle: the agent-verified Oregon draft bytes
+# (three-tier CPI floor headed at $16.80, 659A.357 salary-history ban,
+# 652.220 comparable-character review, 653.601 sick-time carryover at
+# VERIFY, $116,427 non-compete recheck, 652.140 final pay, 652.610 pay
+# statements; scheduling left to LEGAL-TOOL-013).
+# Any silent edit breaks this test before the pack reaches evaluation.
+sha256:9e423735c6679f78cda0010de5bc29d97bad55a49fe0cc7bad0bdc27e69d949c
