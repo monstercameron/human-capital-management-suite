@@ -5235,7 +5235,8 @@ closed.
   - **REFACTOR:** unknown copy prevents false completeness.
   - **Refs:** [Privacy lifecycle](specs/records-management-and-disposition.md).
 
-- [ ] `PRIV-007` **[GATE_C][SOL_HIGH] Reconcile processor acknowledgements and certify fulfillment.**
+- [x] `PRIV-007` **[GATE_C][SOL_HIGH] Reconcile processor acknowledgements and certify fulfillment.**
+  - **Evidence (2026-09-17):** `TestTodo_PRIV_007` plus FAULT/SECURITY/MUTATION matrix in `internal/governance/privacy` (`processorcert.go` pure `ReconcileFulfillment` derives per-item RESOLVED/PENDING_RETRY/ESCALATED/EXCEPTION from collected acks at an injected instant; silence before due retries, at/after due escalates; partial receipts block `CertifyFulfillment` with `ErrFulfillmentIncomplete`; certificate digest-binds request plus resolutions); `go test -count=1 ./internal/governance/privacy/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `PRIV-006`, `INTG-010`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
   - **TEST:** `TestTodo_PRIV_007`.
@@ -13372,7 +13373,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** artifact bytes remain in Documents/object custody; Case owns business visibility and evidence relationships.
   - **Refs:** [Case conformance](#21-future-domain-intent-conformance), [confidential actors](data/models/talent-experience-cases.md), [DLP](specs/data-classification-and-dlp.md).
 
-- [ ] `CASE-003` **[PHASE_3][SOL_HIGH] Implement case assignment, SLA, evidence review, finding and disposition.**
+- [x] `CASE-003` **[PHASE_3][SOL_HIGH] Implement case assignment, SLA, evidence review, finding and disposition.**
+  - **Evidence (2026-09-17):** `TestCaseResolutionRequiresEligibleAssigneeCompleteObligationsAndBoundFinding` plus PROPERTY/GOLDEN/RACE/FAULT/SECURITY/MUTATION matrix in `internal/domains/hrcase` (`resolution.go` mutex-guarded `Resolution` with eligibility roster, recusal, delegation, explicit-calendar SLA with pause-driven due extension, reassignment-proof evidence reviews, single CAS close); `go test -count=1 ./internal/domains/hrcase/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `CASE-002`, `WORK-003`, `CYCLE-003`, `LEGAL-003`, `APPROVAL-005`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.WORK; DIRECT=none; WHY=own accountable human-case progress and business resolution`.
   - **TEST:** `TestCaseResolutionRequiresEligibleAssigneeCompleteObligationsAndBoundFinding`.
@@ -13382,7 +13384,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Work owns claims/leases/tasks; Case owns accountable assignment history, findings and disposition.
   - **Refs:** [Human work](specs/human-work-forms-and-rules.md), [legal obligations](specs/governance-decision-and-obligation-composition.md).
 
-- [ ] `CASE-004` **[PHASE_3][SOL_HIGH] Implement case reopen, appeal, relationship graph and evidence-package export.**
+- [x] `CASE-004` **[PHASE_3][SOL_HIGH] Implement case reopen, appeal, relationship graph and evidence-package export.**
+  - **Evidence (2026-09-17):** `TestCaseAppealCreatesSuccessorProceedingAndVerifiableScopedEvidencePackage` plus PROPERTY/GOLDEN/INTEGRATION/FAULT/SECURITY/CONFORMANCE/MUTATION matrix in `internal/domains/hrcase` (`appeal.go` explicit REOPEN_OF/APPEAL_OF/DUPLICATE_OF/RELATED_TO edges, scoped evidence package with ordered chronology, redaction/hold/retention decisions and canonical digest); `go test -count=1 ./internal/domains/hrcase/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `CASE-003`, `EVIDENCE-001`, `RECORDS-HOLD-001`, `INTENT-015`, `DOC-EVIDENCE-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.DOCUMENTS; DIRECT=none; WHY=preserve reviewable case chronology across successor proceedings and exports`.
   - **TEST:** `TestCaseAppealCreatesSuccessorProceedingAndVerifiableScopedEvidencePackage`.

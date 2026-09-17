@@ -5851,7 +5851,8 @@
     "refactor": "Work owns claims/leases/tasks; Case owns accountable assignment history, findings and disposition",
     "refs": "[Human work](specs/human-work-forms-and-rules.md), [legal obligations](specs/governance-decision-and-obligation-composition.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestCaseResolutionRequiresEligibleAssigneeCompleteObligationsAndBoundFinding` plus PROPERTY/GOLDEN/RACE/FAULT/SECURITY/MUTATION matrix in `internal/domains/hrcase` (`resolution.go` mutex-guarded `Resolution` with eligibility roster, recusal, delegation, explicit-calendar SLA with pause-driven due extension, reassignment-proof evidence reviews, single CAS close); `go test -count=1 ./internal/domains/hrcase/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "CASE-004",
@@ -5882,7 +5883,8 @@
     "refactor": "package generation consumes ledger/provenance rather than reconstructing truth from mutable projections",
     "refs": "[Evidence package](specs/provenance-graph-and-lineage.md), [case model](data/models/talent-experience-cases.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestCaseAppealCreatesSuccessorProceedingAndVerifiableScopedEvidencePackage` plus PROPERTY/GOLDEN/INTEGRATION/FAULT/SECURITY/CONFORMANCE/MUTATION matrix in `internal/domains/hrcase` (`appeal.go` explicit REOPEN_OF/APPEAL_OF/DUPLICATE_OF/RELATED_TO edges, scoped evidence package with ordered chronology, redaction/hold/retention decisions and canonical digest); `go test -count=1 ./internal/domains/hrcase/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "CBA-001",
@@ -27775,7 +27777,8 @@
     "refactor": "certificate is derived from evidence, never a manual status toggle",
     "refs": "[Processor lifecycle](specs/records-management-and-disposition.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PRIV_007` plus FAULT/SECURITY/MUTATION matrix in `internal/governance/privacy` (`processorcert.go` pure `ReconcileFulfillment` derives per-item RESOLVED/PENDING_RETRY/ESCALATED/EXCEPTION from collected acks at an injected instant; silence before due retries, at/after due escalates; partial receipts block `CertifyFulfillment` with `ErrFulfillmentIncomplete`; certificate digest-binds request plus resolutions); `go test -count=1 ./internal/governance/privacy/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PRIV-008",
