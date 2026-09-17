@@ -8816,7 +8816,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Platform architecture](specs/platform-architecture-catalog.md), [integration event runtime](specs/integration-platform.md).
 
-- [ ] `EVENT-006` **[PHASE_2][SOL_HIGH] Gate promotion from PostgreSQL outbox to a broker.**
+- [x] `EVENT-006` **[PHASE_2][SOL_HIGH] Gate promotion from PostgreSQL outbox to a broker.**
+  - **Evidence (2026-09-17):** `TestTodo_EVENT_006` plus FUZZ/RACE/INTEGRATION/FAULT/CONFORMANCE/RECOVERY/BENCHMARK matrix in `internal/data/outbox` over embedded PostgreSQL (`promotion.go` transport gate: Postgres stays authoritative unless an evaluated low-cost OSS transport is allowlisted and measured); `go test -count=1 ./internal/data/outbox/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `EVENT-005`, `PERF-ENV-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_EVENT_006`.
@@ -9466,7 +9467,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Operations models](data/models/operations-production.md), [SLOs](specs/slo-sli-error-budget.md).
 
-- [ ] `JOB-003` **[PHASE_2][SOL_HIGH] Implement fenced leases and resumable partition execution.**
+- [x] `JOB-003` **[PHASE_2][SOL_HIGH] Implement fenced leases and resumable partition execution.**
+  - **Evidence (2026-09-17):** `TestTodo_JOB_003` plus RACE/FAULT/MUTATION matrix in `internal/data/jobs` over embedded PostgreSQL (`lease.go` fencing generations with acquire/renew/release/check plus fenced checkpoint; `resume.go` resumable partition plans); `go test -count=1 ./internal/data/jobs/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `JOB-001`, `JOB-002`, `OPS-006`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_JOB_003`.
@@ -9476,7 +9478,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Workflow leases](specs/workflow-runtime.md), [batch responsibilities](specs/platform-responsibility-boundaries.md).
 
-- [ ] `JOB-004` **[PHASE_2][SOL_HIGH] Implement governed pause, cancel, redrive and housekeeping.**
+- [x] `JOB-004` **[PHASE_2][SOL_HIGH] Implement governed pause, cancel, redrive and housekeeping.**
+  - **Evidence (2026-09-17):** `TestTodo_JOB_004` plus RACE/FAULT/SECURITY matrix in `internal/data/jobs` over embedded PostgreSQL (`govern.go` pause/cancel/redrive/housekeeping with typed refusals); `go test -count=1 ./internal/data/jobs/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `JOB-003`, `TRUST-021`, `RECORDS-DISP-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_JOB_004`.
@@ -11032,7 +11035,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [DLP](specs/data-classification-and-dlp.md), [agent/intelligence models](data/models/assurance-intelligence-platform.md).
 
-- [ ] `MATCH-006` **[PHASE_3][SOL_HIGH] Explain inclusion, ranking and exclusion safely.**
+- [x] `MATCH-006` **[PHASE_3][SOL_HIGH] Explain inclusion, ranking and exclusion safely.**
+  - **Evidence (2026-09-17):** `TestTodo_MATCH_006` plus PROPERTY/MUTATION matrix in `internal/domains/matching` (`explain.go` safe inclusion/ranking/exclusion explanations with typed refusals); `go test -count=1 ./internal/domains/matching/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `MATCH-003`–`MATCH-005`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.RECRUITING,BI.TALENT; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_MATCH_006`.
@@ -11096,7 +11100,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Assurance models](data/models/assurance-intelligence-platform.md), [provenance](specs/provenance-graph-and-lineage.md).
 
-- [ ] `SCENARIO-005` **[PHASE_3][SOL_HIGH] Approve a selected scenario into an immutable Plan.**
+- [x] `SCENARIO-005` **[PHASE_3][SOL_HIGH] Approve a selected scenario into an immutable Plan.**
+  - **Evidence (2026-09-17):** `TestTodo_SCENARIO_005` plus PROPERTY/MUTATION matrix in `internal/domains/scenario` (selected-scenario approval into an immutable Plan); `go test -count=1 ./internal/domains/scenario/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `SCENARIO-004`, `APPROVAL-002`, `TRUST-014`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS,BI.INTELLIGENCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SCENARIO_005`.
@@ -11106,7 +11111,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Human work](specs/human-work-forms-and-rules.md), [governance composition](specs/governance-decision-and-obligation-composition.md).
 
-- [ ] `SCENARIO-006` **[PHASE_3][SOL_HIGH] Compile approved Plan deltas into BusinessIntents.**
+- [x] `SCENARIO-006` **[PHASE_3][SOL_HIGH] Compile approved Plan deltas into BusinessIntents.**
+  - **Evidence (2026-09-17):** `TestTodo_SCENARIO_006` plus PROPERTY matrix in `internal/domains/scenario` (approved-Plan delta compilation into BusinessIntents); `go test -count=1 ./internal/domains/scenario/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `SCENARIO-005`, `INTENT-001`, `TX-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS,BI.INTELLIGENCE; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_SCENARIO_006`.
@@ -11834,7 +11840,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Business cycles](#38-eligibility-business-cycle-and-balance-engines), [attestation](#40-attestation-and-conformance-gated-program-engines).
 
-- [ ] `PAYRUN-004` **[PHASE_5][SOL_HIGH] Execute deterministic trial payroll calculation.**
+- [x] `PAYRUN-004` **[PHASE_5][SOL_HIGH] Execute deterministic trial payroll calculation.**
+  - **Evidence (2026-09-17):** `TestTodo_PAYRUN_004` plus PROPERTY/RACE/INTEGRATION/FAULT/SECURITY/MUTATION matrix in `internal/domains/payroll` (`trialcalc.go` deterministic scale-2 trial pricing with integer basis-point rates, canonical order and digests; unknown jurisdiction/rules/balance block, never zero); `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `PAYRUN-003`, `BAL-003`, `LEGAL-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PAYRUN_004`.
@@ -11844,7 +11851,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Regulatory platform](specs/platform-architecture-catalog.md), [fixed decimal](data/models/wire-contract-primitives.md).
 
-- [ ] `PAYRUN-005` **[PHASE_5][SOL_HIGH] Resolve payroll exceptions and recalculate affected scope.**
+- [x] `PAYRUN-005` **[PHASE_5][SOL_HIGH] Resolve payroll exceptions and recalculate affected scope.**
+  - **Evidence (2026-09-17):** `TestTodo_PAYRUN_005` plus PROPERTY/RACE/INTEGRATION/FAULT/MUTATION matrix in `internal/domains/payroll` (`exception.go` scoped invalidation with recalculation over the affected scope only); `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `PAYRUN-004`, `WORK-001`, `TX-010`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PAYRUN_005`.
@@ -11876,7 +11884,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [reconciliation](specs/transaction-ledger-reconciliation-and-repair.md).
 
-- [ ] `PAYRUN-008` **[PHASE_5][SOL_HIGH] Reopen or correct a finalized payroll append-only.**
+- [x] `PAYRUN-008` **[PHASE_5][SOL_HIGH] Reopen or correct a finalized payroll append-only.**
+  - **Evidence (2026-09-17):** `TestTodo_PAYRUN_008` plus PROPERTY/RACE/INTEGRATION/FAULT/MUTATION matrix in `internal/domains/payroll` (`correction.go` append-only reopen/correct with causal linkage and delta precision); `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `PAYRUN-007`, `LEDGER-005`, `TX-010`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PAYRUN_008`.
@@ -11886,7 +11895,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Payroll repair reference](workflows/payroll/payroll-correction-retro.md), [ledger corrections](specs/transaction-ledger-reconciliation-and-repair.md).
 
-- [ ] `PAYRUN-009` **[PHASE_5][SOL_HIGH] Reconcile multidimensional payroll completion.**
+- [x] `PAYRUN-009` **[PHASE_5][SOL_HIGH] Reconcile multidimensional payroll completion.**
+  - **Evidence (2026-09-17):** `TestTodo_PAYRUN_009` plus PROPERTY/GOLDEN/RACE/INTEGRATION/FAULT/MUTATION matrix in `internal/domains/payroll` (`completion.go` digested multidimensional completion reconciliation bound to the released revision); `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `PAYRUN-007`, `TX-009`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_PAYRUN_009`.
@@ -12740,7 +12750,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Eligibility](#38-eligibility-business-cycle-and-balance-engines), [qualification](#39-qualification-demand-matching-and-scenario-engines).
 
-- [ ] `APPT-003` **[PHASE_3][SOL_HIGH] Reserve appointment slot and resources atomically.**
+- [x] `APPT-003` **[PHASE_3][SOL_HIGH] Reserve appointment slot and resources atomically.**
+  - **Evidence (2026-09-17):** `TestTodo_APPT_003` plus RACE/MUTATION matrix in `internal/domains/appointment` (`reservation.go` atomic all-holds-or-none reserve with deterministic fingerprint replay, fenced release/expire); `go test -count=1 ./internal/domains/appointment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `APPT-002`, `RESERVE-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_APPT_003`.
@@ -12750,7 +12761,8 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.
   - **Refs:** [Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [workflow runtime](specs/workflow-runtime.md).
 
-- [ ] `APPT-004` **[PHASE_3][SOL_HIGH] Confirm, reschedule and cancel appointments.**
+- [x] `APPT-004` **[PHASE_3][SOL_HIGH] Confirm, reschedule and cancel appointments.**
+  - **Evidence (2026-09-17):** `TestTodo_APPT_004` plus RACE matrix in `internal/domains/appointment` (`transition.go` confirm/reschedule/cancel lifecycle over reservations); `go test -count=1 ./internal/domains/appointment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
   - **Depends:** `APPT-003`, `MSG-003`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_APPT_004`.

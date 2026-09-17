@@ -3093,7 +3093,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [workflow runtime](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_APPT_003` plus RACE/MUTATION matrix in `internal/domains/appointment` (`reservation.go` atomic all-holds-or-none reserve with deterministic fingerprint replay, fenced release/expire); `go test -count=1 ./internal/domains/appointment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "APPT-004",
@@ -3115,7 +3116,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Messaging](specs/messaging-and-notification-plane.md), [human work](specs/human-work-forms-and-rules.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_APPT_004` plus RACE matrix in `internal/domains/appointment` (`transition.go` confirm/reschedule/cancel lifecycle over reservations); `go test -count=1 ./internal/domains/appointment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "APPT-005",
@@ -12795,7 +12797,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Architecture principles](plan.md), [operations production](data/models/operations-production.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_EVENT_006` plus FUZZ/RACE/INTEGRATION/FAULT/CONFORMANCE/RECOVERY/BENCHMARK matrix in `internal/data/outbox` over embedded PostgreSQL (`promotion.go` transport gate: Postgres stays authoritative unless an evaluated low-cost OSS transport is allowlisted and measured); `go test -count=1 ./internal/data/outbox/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "EVIDENCE-001",
@@ -16487,7 +16490,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Workflow leases](specs/workflow-runtime.md), [batch responsibilities](specs/platform-responsibility-boundaries.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_JOB_003` plus RACE/FAULT/MUTATION matrix in `internal/data/jobs` over embedded PostgreSQL (`lease.go` fencing generations with acquire/renew/release/check plus fenced checkpoint; `resume.go` resumable partition plans); `go test -count=1 ./internal/data/jobs/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "JOB-004",
@@ -16512,7 +16516,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Operations models](data/models/operations-production.md), [records](specs/records-management-and-disposition.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_JOB_004` plus RACE/FAULT/SECURITY matrix in `internal/data/jobs` over embedded PostgreSQL (`govern.go` pause/cancel/redrive/housekeeping with typed refusals); `go test -count=1 ./internal/data/jobs/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "JOBARCH-001",
@@ -21350,7 +21355,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Provenance](specs/provenance-graph-and-lineage.md), [AuthZ](specs/organization-scope-and-authz.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_MATCH_006` plus PROPERTY/MUTATION matrix in `internal/domains/matching` (`explain.go` safe inclusion/ranking/exclusion explanations with typed refusals); `go test -count=1 ./internal/domains/matching/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "MATCH-007",
@@ -25203,7 +25209,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Regulatory platform](specs/platform-architecture-catalog.md), [fixed decimal](data/models/wire-contract-primitives.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYRUN_004` plus PROPERTY/RACE/INTEGRATION/FAULT/SECURITY/MUTATION matrix in `internal/domains/payroll` (`trialcalc.go` deterministic scale-2 trial pricing with integer basis-point rates, canonical order and digests; unknown jurisdiction/rules/balance block, never zero); `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PAYRUN-005",
@@ -25230,7 +25237,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Human work](specs/human-work-forms-and-rules.md), [payroll repair](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYRUN_005` plus PROPERTY/RACE/INTEGRATION/FAULT/MUTATION matrix in `internal/domains/payroll` (`exception.go` scoped invalidation with recalculation over the affected scope only); `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PAYRUN-006",
@@ -25315,7 +25323,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Payroll repair reference](workflows/payroll/payroll-correction-retro.md), [ledger corrections](specs/transaction-ledger-reconciliation-and-repair.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYRUN_008` plus PROPERTY/RACE/INTEGRATION/FAULT/MUTATION matrix in `internal/domains/payroll` (`correction.go` append-only reopen/correct with causal linkage and delta precision); `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PAYRUN-009",
@@ -25342,7 +25351,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Reconciliation](specs/transaction-ledger-reconciliation-and-repair.md), [workflow completion](specs/workflow-runtime.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_PAYRUN_009` plus PROPERTY/GOLDEN/RACE/INTEGRATION/FAULT/MUTATION matrix in `internal/domains/payroll` (`completion.go` digested multidimensional completion reconciliation bound to the released revision); `go test -count=1 ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "PEOPLE-001",
@@ -31094,7 +31104,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[Human work](specs/human-work-forms-and-rules.md), [governance composition](specs/governance-decision-and-obligation-composition.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCENARIO_005` plus PROPERTY/MUTATION matrix in `internal/domains/scenario` (selected-scenario approval into an immutable Plan); `go test -count=1 ./internal/domains/scenario/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SCENARIO-006",
@@ -31117,7 +31128,8 @@
     "refactor": "Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior",
     "refs": "[BusinessIntent](specs/business-intent-and-change-request.md), [transaction coordinator](specs/transaction-plan-and-commit-coordinator.md)",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_SCENARIO_006` plus PROPERTY matrix in `internal/domains/scenario` (approved-Plan delta compilation into BusinessIntents); `go test -count=1 ./internal/domains/scenario/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog"
   },
   {
     "id": "SCENARIO-007",
