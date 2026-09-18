@@ -225,6 +225,7 @@ func TestTodo_PROMOUX_015_Recovery(t *testing.T) {
 	if fired, err := h.scheduler(h.afterEffectiveDate()).Tick(context.Background()); err != nil || fired.Fired != 1 {
 		t.Fatalf("Tick after restart = %+v, %v; want exactly one timer fired", fired, err)
 	}
+	h.acknowledgeParkedPromotion(id)
 	if err := promoux015CommittedOnce(approved, h.effects()); err != nil {
 		t.Fatal(err)
 	}
@@ -304,6 +305,7 @@ func TestTodo_PROMOUX_015_Mutation(t *testing.T) {
 	if fired, err := h.scheduler(h.afterEffectiveDate()).Tick(context.Background()); err != nil || fired.Fired != 1 {
 		t.Fatalf("Tick = %+v, %v; want exactly one timer fired", fired, err)
 	}
+	h.acknowledgeParkedPromotion(id)
 	committed := h.effects()
 	if err := promoux015CommittedOnce(approved, committed); err != nil {
 		t.Fatalf("the unmutated journey fails its own oracle: %v", err)

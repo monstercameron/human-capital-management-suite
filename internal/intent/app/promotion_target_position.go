@@ -45,7 +45,7 @@ func (e *journeyEngine) committedPay(ctx context.Context, principal *trust.Princ
 }
 
 // selectTargetPosition returns the revision reference of the OPEN position a
-// created worker's promotion targets. It returns "" when this cell has no
+// position-less proposal targets. It returns "" when this cell has no
 // execution database or the tenant's catalog records no position for the
 // target at all (the proposal then stays position-less and cannot commit), and
 // a typed input refusal when every recorded position is already full.

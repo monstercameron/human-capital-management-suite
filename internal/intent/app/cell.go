@@ -599,6 +599,12 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 		engine := newJourneyEngine(svc, cfg.ExecutionDB, cfg.ExecutionApprover, cfg.Now, locateWorker, cfg.WorkerIDs)
 		engine.recorder = cfg.WorkflowRecorder
 		engine.authority = cfg.ApprovalAuthority
+		// UXLIVE-011: the same reader the propose path's own target-position
+		// check uses, plus the directory it cannot list on its own.
+		engine.positionReader = positionReader
+		if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
+			engine.positions = positionfacts.Reader{DB: cfg.ExecutionDB, TenantUUID: cfg.TenantUUID}
+		}
 		journey = engine
 	}
 	workflowControl, workflowTenantIDs, err := composeWorkflowControl(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now, cfg.WorkflowRecorder)
@@ -607,10 +613,18 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	}
 	// The repair door takes its own receipt journal seam; nil is the same
 	// in-process journal composeWorkflowControl uses today.
-	workflowRepair, err := composeWorkflowRepair(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now, cfg.WorkflowRecorder,
+	workflowRepair, repairAuthority, err := composeWorkflowRepair(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now, cfg.WorkflowRecorder,
 		nil, cfg.RepairEffect, cfg.RepairObservation, cfg.RepairReconciliation)
 	if err != nil {
 		return nil, err
+	}
+	// UXLIVE-006: the journey projects this same door, so a REPAIR_REQUIRED
+	// journey can name the repair it is waiting on, state what the door
+	// demands, and say who may open it. It is assigned here rather than in
+	// newJourneyEngine because the door is composed after the engine.
+	if engine, ok := journey.(*journeyEngine); ok {
+		engine.repair = workflowRepair
+		engine.repairAuthority = repairAuthority
 	}
 
 	cell := &Cell{

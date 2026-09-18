@@ -51,13 +51,19 @@ type (
 //
 // It returns a nil controller, never an error, when the cell has no execution
 // database or tenant mapping -- the same contract composeWorkflowControl has.
+//
+// The authority resolver is returned alongside the controller so a surface
+// that only wants to say whether a viewer could open this door asks the
+// identical resolver the door itself consults (UXLIVE-006). A second,
+// separately built resolver would be a second opinion about authority, which
+// is the one thing a governed door must not have.
 func composeWorkflowRepair(
 	db dbport.Beginner, tenantUUID func(values.TenantId) uuid.UUID, now func() time.Time,
 	recorder WorkflowRecorder, journal operator.Journal, effect RepairEffectPort,
 	observation RepairObservationPort, reconciliation RepairReconciliationPort,
-) (*workflowcontrol.RepairController, error) {
+) (*workflowcontrol.RepairController, workflowcontrol.AuthorityResolver, error) {
 	if db == nil || tenantUUID == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	ids := func(t values.TenantId) (uuid.UUID, error) {
 		id := tenantUUID(t)
@@ -85,7 +91,7 @@ func composeWorkflowRepair(
 		Records: PostgresRepairRecords(db),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("app: compose repair executor: %w", err)
+		return nil, nil, fmt.Errorf("app: compose repair executor: %w", err)
 	}
 	if journal == nil {
 		// The same in-process default composeWorkflowControl takes. It is the
@@ -100,9 +106,9 @@ func composeWorkflowRepair(
 	controller, err := workflowcontrol.NewRepairController(journal, executor, authority, now,
 		workflowcontrol.WithRepairPreflightSimulation(), workflowcontrol.WithRepairRecorder(recorder))
 	if err != nil {
-		return nil, fmt.Errorf("app: compose workflow repair: %w", err)
+		return nil, nil, fmt.Errorf("app: compose workflow repair: %w", err)
 	}
-	return controller, nil
+	return controller, authority, nil
 }
 
 // repairRecords is the PostgreSQL-backed [execute.RepairIdempotencyStore].

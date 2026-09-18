@@ -20,6 +20,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/evidencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
@@ -144,7 +145,7 @@ func TestTodo_WF_RUN_034_Integration(t *testing.T) {
 		{promotionexec.NodeExecutePromotion, promotionexec.NodeObservePayroll},
 		{promotionexec.NodeObservePayroll, promotionexec.NodeObserveAccess},
 		{promotionexec.NodeObserveAccess, promotionexec.NodeObserveReconciliation},
-		{promotionexec.NodeObserveReconciliation, promotionexec.NodeEndComplete},
+		{promotionexec.NodeObserveReconciliation, promotionexec.NodeAcknowledgeRelease},
 	} {
 		if !wfrun034Took(routes, edge[0], edge[1]) {
 			t.Fatalf("after the effective date the run did not advance %s -> %s; routes %+v", edge[0], edge[1], routes)
@@ -152,6 +153,28 @@ func TestTodo_WF_RUN_034_Integration(t *testing.T) {
 	}
 	if wfrun034Took(routes, promotionexec.NodeStillValid, promotionexec.NodeEndBlocked) {
 		t.Fatal("still_valid blocked a revalidation the recorded governance confirms")
+	}
+	// Reconciliation verified every downstream leg, but the run must not
+	// complete while the acknowledgement obligation is open: it parks on the
+	// gate with a durable OPEN subscription instead of completing silently.
+	if got := h.wfrun034Count(`SELECT count(*) FROM workflow_signal_subscription WHERE node_id = $1 AND subscription_state = 'OPEN'`, promotionexec.NodeAcknowledgeRelease); got != 1 {
+		t.Fatalf("open acknowledgement subscriptions = %d, want 1", got)
+	}
+	if got := h.journeyFor("hiring-manager", id).GetStage(); got != journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT {
+		t.Fatalf("parked proposer sees stage %s, want AWAITING_ACKNOWLEDGEMENT", got)
+	}
+	acked, ackErr := h.composed.Cell().Journey.Acknowledge(h.ackOperatorCtx(), id, workspace.Acknowledgement{
+		EvidenceRef: "hris:signature:wfrun034", Note: "signed copy verified against the HRIS record",
+	})
+	if ackErr != nil {
+		t.Fatalf("Journey.Acknowledge as the HR operator: %v", ackErr)
+	}
+	if got := acked.Summary.Stage; got != workspace.JourneyStageRecorded {
+		t.Fatalf("acknowledged journey stage = %s, want RECORDED", got)
+	}
+	routes = h.wfrun034Routes()
+	if !wfrun034Took(routes, promotionexec.NodeAcknowledgeRelease, promotionexec.NodeEndComplete) {
+		t.Fatalf("after the acknowledgement the run did not advance %s -> %s; routes %+v", promotionexec.NodeAcknowledgeRelease, promotionexec.NodeEndComplete, routes)
 	}
 	var completed bool
 	for _, r := range routes {

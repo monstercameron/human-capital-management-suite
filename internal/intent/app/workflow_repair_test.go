@@ -116,20 +116,26 @@ func TestComposeWorkflowRepairNeedsADatabaseAndTenantMapping(t *testing.T) {
 	mapper := func(values.TenantId) uuid.UUID { return tenantID }
 	clock := func() time.Time { return time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC) }
 
-	withoutDB, err := composeWorkflowRepair(nil, mapper, clock, nil, nil, nil, nil, nil)
+	withoutDB, _, err := composeWorkflowRepair(nil, mapper, clock, nil, nil, nil, nil, nil)
 	if err != nil || withoutDB != nil {
 		t.Fatalf("no execution database composed %v, %v; want no repair door and no error", withoutDB, err)
 	}
-	withoutTenants, err := composeWorkflowRepair(db.Conn, nil, clock, nil, nil, nil, nil, nil)
+	withoutTenants, _, err := composeWorkflowRepair(db.Conn, nil, clock, nil, nil, nil, nil, nil)
 	if err != nil || withoutTenants != nil {
 		t.Fatalf("no tenant mapping composed %v, %v; want no repair door and no error", withoutTenants, err)
 	}
-	controller, err := composeWorkflowRepair(db.Conn, mapper, clock, nil, nil, nil, nil, nil)
+	controller, composedAuthority, err := composeWorkflowRepair(db.Conn, mapper, clock, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("compose: %v", err)
 	}
 	if controller == nil {
 		t.Fatal("a cell with a database and tenant mapping composed no repair door")
+	}
+	// UXLIVE-006: the same resolver the door consults is handed back, so a
+	// surface that only asks "could this viewer open it" cannot form a
+	// second opinion about authority.
+	if composedAuthority == nil {
+		t.Fatal("the composed repair door exposed no authority resolver")
 	}
 }
 

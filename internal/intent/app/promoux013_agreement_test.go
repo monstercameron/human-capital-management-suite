@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -54,12 +55,26 @@ func TestTodo_PROMOUX_013_ClientServerAvailabilityAgreement(t *testing.T) {
 		workspace.JourneyInterventionWithdraw: journeyclient.ActionWithdraw,
 		workspace.JourneyInterventionCancel:   journeyclient.ActionCancel,
 	}
+	// REPAIR (UXLIVE-006) is deliberately outside this cross-check, and that
+	// is a property rather than a gap. This test proves the client can
+	// recompute the server's answer from the stage alone; REPAIR's answer
+	// depends on whether the deployment composed the repair door and whether
+	// the viewer holds a current JIT grant, neither of which the browser
+	// knows or should be told to guess. The client therefore renders REPAIR
+	// from the server's own preview. What the two sides must still share is
+	// the reason vocabulary, which TestTodo_UXLIVE_006_Security checks.
+	notStageOnly := map[workspace.JourneyInterventionKind]bool{
+		workspace.JourneyInterventionRepair: true,
+	}
 	var kinds []workspace.JourneyInterventionKind
 	for value, name := range journeyv1.JourneyInterventionKind_name {
 		if value == 0 { // JOURNEY_INTERVENTION_KIND_UNSPECIFIED
 			continue
 		}
 		kind := workspace.JourneyInterventionKind(strings.TrimPrefix(name, "JOURNEY_INTERVENTION_KIND_"))
+		if notStageOnly[kind] {
+			continue
+		}
 		if _, ok := clientKindOf[kind]; !ok {
 			t.Fatalf("the wire declares intervention kind %q with no client-side mapping in this test; "+
 				"add one to clientKindOf before this cross-check can be trusted", kind)
@@ -70,21 +85,27 @@ func TestTodo_PROMOUX_013_ClientServerAvailabilityAgreement(t *testing.T) {
 		t.Fatal("no intervention kinds found in the generated wire enum; this test would pass vacuously")
 	}
 
+	// The two implementations must agree for a journey that started its
+	// workflow and one that did not: BLOCKED resolves differently between
+	// them (UXLIVE-026), so a cross-check over stages alone would no longer
+	// cover the rule.
 	for _, kind := range kinds {
 		for _, stage := range stages {
-			t.Run(string(kind)+"/"+string(stage), func(t *testing.T) {
-				serverReason, serverUnavailable := interventionUnavailableAtStage(kind, stage)
-				clientReason, clientAvailable := journeyclient.InterventionAvailability(clientKindOf[kind], string(stage))
-				serverAvailable := !serverUnavailable
-				if serverAvailable != clientAvailable {
-					t.Fatalf("%s at %s: server available=%v, client available=%v -- the two implementations disagree on whether this action may be offered",
-						kind, stage, serverAvailable, clientAvailable)
-				}
-				if serverReason != clientReason {
-					t.Fatalf("%s at %s: server reason=%q, client reason=%q -- the two implementations disagree on why",
-						kind, stage, serverReason, clientReason)
-				}
-			})
+			for _, started := range []bool{false, true} {
+				t.Run(string(kind)+"/"+string(stage)+"/started="+strconv.FormatBool(started), func(t *testing.T) {
+					serverReason, serverUnavailable := interventionUnavailableAtStage(kind, stage, started)
+					clientReason, clientAvailable := journeyclient.InterventionAvailability(clientKindOf[kind], string(stage), started)
+					serverAvailable := !serverUnavailable
+					if serverAvailable != clientAvailable {
+						t.Fatalf("%s at %s (started=%v): server available=%v, client available=%v -- the two implementations disagree on whether this action may be offered",
+							kind, stage, started, serverAvailable, clientAvailable)
+					}
+					if serverReason != clientReason {
+						t.Fatalf("%s at %s (started=%v): server reason=%q, client reason=%q -- the two implementations disagree on why",
+							kind, stage, started, serverReason, clientReason)
+					}
+				})
+			}
 		}
 	}
 }

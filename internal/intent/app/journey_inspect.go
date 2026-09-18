@@ -333,6 +333,12 @@ func journeyStageForNode(nodeID string) (workspace.JourneyStage, bool) {
 		return journeyStageExecuted, true
 	case promotionexec.NodeObservePayroll, promotionexec.NodeObserveAccess, promotionexec.NodeObserveReconciliation:
 		return journeyStageObservingEffects, true
+	case promotionexec.NodeAcknowledgeRelease:
+		return workspace.JourneyStageAwaitingAcknowledgement, true
+	case promotionexec.NodeCompensateHold:
+		// Every compensate route lands on the RepairPlan terminal: once the
+		// run reaches this node, governed repair is its determined future.
+		return journeyStageRepairRequired, true
 	case promotionexec.NodeEndComplete:
 		return journeyStageRecorded, true
 	case promotionexec.NodeEndRepairPlan:

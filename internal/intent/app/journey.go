@@ -25,6 +25,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
@@ -78,6 +79,21 @@ type journeyEngine struct {
 	// authority re-resolves a promotion approval's authority at decision
 	// time (WF-STEP-003). Nil refuses every promotion-class decision.
 	authority ApprovalAuthoritySource
+	// positions and positionReader are UXLIVE-011's vacancy projection: the
+	// directory this cell can read and the Position domain's own facts port
+	// that decides which of those rows is real, authorized and still open.
+	// Both nil on a cell with no execution database, which yields no
+	// vacancy options at all -- never a free-text fallback.
+	positions      PositionDirectorySource
+	positionReader position.PositionFacts
+	// repair and repairAuthority are UXLIVE-006's governed repair
+	// projection: the door a REPAIR_REQUIRED journey names as its next step,
+	// and the resolver that says whether this viewer currently holds the
+	// grant to open it. Both nil on a cell composed without an execution
+	// database, which the preview reports as "this deployment cannot
+	// repair" -- never as "no repair is needed".
+	repair          *workflowcontrol.RepairController
+	repairAuthority workflowcontrol.AuthorityResolver
 }
 
 var _ workspace.JourneyEngine = (*journeyEngine)(nil)
@@ -524,7 +540,10 @@ func (e *journeyEngine) Propose(ctx context.Context, in workspace.ProposalInput)
 	if err := validatePublishedPromotionPath(current, in, baseline); err != nil {
 		return workspace.JourneySummary{}, err
 	}
-	if strings.TrimSpace(in.TargetPositionID) == "" && subject.Created != nil {
+	// A proposal that names no position is given the catalog vacancy when
+	// the tenant's catalog records one; without a catalog the proposal
+	// stays position-less and the run closes BLOCKED exactly as before.
+	if strings.TrimSpace(in.TargetPositionID) == "" {
 		selected, selectErr := e.selectTargetPosition(ctx, principal, current.orgUnit, strings.TrimSpace(in.TargetJobCode), strings.TrimSpace(in.TargetGrade), baseline.effective)
 		if selectErr != nil {
 			return workspace.JourneySummary{}, selectErr
@@ -622,6 +641,26 @@ func (e *journeyEngine) Propose(ctx context.Context, in workspace.ProposalInput)
 	summary.Viewer = journeyViewerProjection(summary.Stage,
 		isJourneyInitiator(created.GetIntent().GetInitiator().GetPrincipalId(), principal.Subject()), nil)
 	return summary, nil
+}
+
+// displayPositionID renders a stored position reference as the position it
+// names. The proposal binds the picker-issued revision reference durably,
+// which is right: it pins the exact revision the decision was made against.
+// It is not, however, a thing a reader can read -- printed whole it is a
+// 299-character token that carried the comparison table's Change column off
+// the screen (UXLIVE-003). A value the decoder does not understand is
+// returned unchanged, because the page's job is to show what the intent
+// carries, not to hide it.
+func displayPositionID(stored string) string {
+	trimmed := strings.TrimSpace(stored)
+	if trimmed == "" {
+		return trimmed
+	}
+	selected, _, err := position.RevisionRef(trimmed).Decode()
+	if err != nil {
+		return trimmed
+	}
+	return selected.Id
 }
 
 // journeySubjects declares the intent's subjects: the worker always, and a
@@ -1130,7 +1169,7 @@ func journeySummaryFromProto(msg *intentsv1.IntentInstance) (workspace.JourneySu
 		summary.Target = workspace.JourneyPlacement{
 			JobCode:    optionalStr(target, "job_code"),
 			Grade:      optionalStr(target, "grade"),
-			PositionID: optionalStr(target, "position_id"),
+			PositionID: displayPositionID(optionalStr(target, "position_id")),
 			OrgUnit:    optionalStr(target, "org_unit"),
 			PayZone:    optionalStr(target, "pay_zone"),
 		}
@@ -1144,7 +1183,7 @@ func journeySummaryFromProto(msg *intentsv1.IntentInstance) (workspace.JourneySu
 		summary.Current = workspace.JourneyPlacement{
 			JobCode:    optionalStr(placement, "job_code"),
 			Grade:      optionalStr(placement, "grade"),
-			PositionID: optionalStr(placement, "position_id"),
+			PositionID: displayPositionID(optionalStr(placement, "position_id")),
 			OrgUnit:    optionalStr(placement, "org_unit"),
 			PayZone:    optionalStr(placement, "pay_zone"),
 		}
