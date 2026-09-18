@@ -96,18 +96,25 @@ ticks.
 ## CI red, then green
 
 The PR's root-module suite failed only the quality gate: CI staticcheck
-(which the local hook does not run) flagged seven findings in ticked
-todos' test files, all pre-existing HEAD content my branch did not
-touch -- an S1016 struct literal in `data/outbox`, four dead helpers
-(`appt003Request`, `readGolden`, `streamIDs`, `selectionCite`, each
-defined once and never called on any platform), and two
-same-expression `!=` determinism assertions (`align063`,
-`secarch010`). Fixed on the branch without weakening any assertion:
-struct conversion, dead-helper removal (plus its orphaned imports),
-and two-variable determinism comparisons. The seven suites pass.
-`go run ./tools/quality` locally still lists fourteen further U1000s
-that CI on Linux does not report; those functions are used under Linux
-build constraints, so they were deliberately left alone.
+(which the local hook does not run) first flagged seven findings in
+ticked todos' test files, all pre-existing HEAD content my branch did
+not touch -- an S1016 struct literal in `data/outbox`, four dead
+helpers (`appt003Request`, `readGolden`, `streamIDs`, `selectionCite`,
+each defined once and never called), and two same-expression `!=`
+determinism assertions (`align063`, `secarch010`). Fixed on the branch
+without weakening any assertion and the seven suites pass -- but the
+re-run surfaced fourteen more pre-existing U1000/S1011/SA4006 findings
+in production files (my first log grep had filtered them out by
+matching only `_test.go` lines): dead `valid()` methods on
+`ReservationState` and `OfferStatus`, three unused schema-version
+consts, an unused `version` const in `clock/offline.go`, an S1011 loop
+in `custom/versioning.go`, dead route/address setters in `productui`
+shell and `productclient` (orphaned by the UXLIVE-007 profile
+refactor), a dead `requireAnyPageView` helper, and an unread derived
+context in `workflowcontrol` Simulate. All removed or mechanically
+fixed (append form, blank context) with zero callers each; every
+affected suite passes and `go run ./tools/quality` is clean locally,
+which replicates the CI gate exactly.
 
 ## Left partial
 

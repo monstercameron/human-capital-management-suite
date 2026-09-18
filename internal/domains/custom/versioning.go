@@ -311,9 +311,7 @@ func RollbackPlan(plan TypeMigration) (TypeMigration, error) {
 		HoldClearance: plan.HoldClearance, EffectiveAt: plan.EffectiveAt,
 		inverse: true,
 	}
-	for _, r := range plan.Added {
-		back.Removed = append(back.Removed, r)
-	}
+	back.Removed = append(back.Removed, plan.Added...)
 	for _, r := range plan.Removed {
 		back.Added = append(back.Added, r)
 		back.AddedDefaults[r] = TypedValue{FieldName: r, Type: "unknown", Value: nil}
