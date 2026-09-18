@@ -129,6 +129,27 @@ var colorModePresets = []appearancePreset{
 
 // DefaultCustomerTheme is deliberately explicit so stored versions remain
 // understandable even when additional presets are introduced later.
+// ColorSchemeContent is the value of <meta name="color-scheme"> for a stored
+// colour mode.
+//
+// The meta tag decides what the browser paints before any stylesheet applies
+// -- the canvas behind the first frame -- and what it uses for everything it
+// draws itself: scrollbars, native select popups, date pickers, autofill.
+// "light dark" means "follow the device". That is right for a workspace set
+// to follow the device and wrong for one that is not: a workspace set to light
+// on a dark device was declaring itself dark to the browser, which then drew
+// its own controls dark inside a light page.
+func ColorSchemeContent(mode string) string {
+	switch mode {
+	case "light":
+		return "light"
+	case "dark":
+		return "dark"
+	default:
+		return "light dark"
+	}
+}
+
 func DefaultCustomerTheme() CustomerTheme {
 	return CustomerTheme{
 		BrandName: "Human Capital Management Suite", BrandMark: "H", Palette: "evergreen", Shape: "balanced",

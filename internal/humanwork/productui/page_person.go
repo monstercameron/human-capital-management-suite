@@ -180,7 +180,14 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 	case !authorized:
 		unavailableDetail = PromotionAvailabilityReason(view.Locale, PromotionWithheld)
 	case hasActiveJourney:
-		// The active-promotion card above is the recovery path.
+		// The active-promotion card above is the recovery path. When the
+		// launcher has no card to show anyway, the empty state says why
+		// rather than falling back to the generic unavailable sentence
+		// (UXLIVE-023); this names nothing the page does not already show
+		// in its own active-workflows list.
+		if len(workflows) == 0 {
+			unavailableDetail = PromotionAvailabilityReason(view.Locale, PromotionActiveConflict)
+		}
 	case !personPromotionEligible(person):
 		unavailableDetail = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability)
 	}

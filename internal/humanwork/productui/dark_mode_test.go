@@ -42,17 +42,30 @@ func TestDarkModeUsesSemanticTokensAcrossExplicitAndSystemSchemes(t *testing.T) 
 	}
 }
 
+// The color-scheme meta used to say "light dark" whatever the workspace was set
+// to. That tells the browser to follow the device for everything it draws
+// itself -- the canvas before the first frame, scrollbars, select popups, date
+// pickers -- so a workspace set to light on a dark device drew dark native
+// controls inside a light page. It now names the stored mode, and says "light
+// dark" only when the workspace is set to follow the device.
 func TestEveryRenderedPageCarriesTheDarkModeContract(t *testing.T) {
-	for _, definition := range PageDefinitions() {
-		view := testView(definition.ID)
-		view.Appearance = DefaultCustomerTheme()
-		view.Appearance.ColorMode = "dark"
-		doc, err := Render(view)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.Contains(doc, `data-hcm-color-mode="dark"`) || !strings.Contains(doc, `<meta name="color-scheme" content="light dark">`) {
-			t.Errorf("page %q dropped the dark-mode document contract", definition.ID)
+	for _, tc := range []struct{ mode, scheme string }{
+		{"dark", "dark"},
+		{"light", "light"},
+		{"system", "light dark"},
+	} {
+		for _, definition := range PageDefinitions() {
+			view := testView(definition.ID)
+			view.Appearance = DefaultCustomerTheme()
+			view.Appearance.ColorMode = tc.mode
+			doc, err := Render(view)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(doc, `data-hcm-color-mode="`+tc.mode+`"`) ||
+				!strings.Contains(doc, `<meta name="color-scheme" content="`+tc.scheme+`">`) {
+				t.Errorf("page %q in %s mode does not declare color-scheme %q", definition.ID, tc.mode, tc.scheme)
+			}
 		}
 	}
 }

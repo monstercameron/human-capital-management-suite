@@ -36,7 +36,12 @@ func TestTodo_WEB_013_Golden(t *testing.T) {
 		t.Fatal("default theme compilation is nondeterministic")
 	}
 	got := fmt.Sprintf("%x", sha256.Sum256([]byte(first.CSS())))
-	const want = "8ac7d30e25878f1bf6f3e87b9066f83c0c1355d76c6ad8458bf87b9cdd76350e"
+	// Updated when the shape scale was tightened: radius.control 8px -> 6px,
+	// radius.surface 12px -> 10px, and a radius.xs added for the marks that
+	// were carrying raw pixel literals, and again when size.control joined it
+	// so every inline control could share one height. The digest exists to catch a theme
+	// that changed without anybody deciding to; this one was decided.
+	const want = "d4061d7be5771679d355a6e9df2dd72cae76440ca698dec70d8a4b8a0c49fbc3"
 	if got != want {
 		t.Fatalf("default theme digest = %s, want %s", got, want)
 	}

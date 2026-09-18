@@ -86,10 +86,12 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// its own sign-out exit action, mounted only on PageJourneys.
 	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath}
 	preferences := newServerPreferenceController(ctx, service)
+	// No Apply here. Both controllers start from defaults, and the document
+	// the server sent already carries the stored theme and preferences on
+	// <html>; applying the defaults over them is what made a light workspace
+	// flash dark on a dark device. They take over at the first Load.
 	appearance := newBrowserThemeController(productui.DisplayLabel(cfg.Tenant), preferences.SaveTheme)
-	appearance.Apply(appearance.Saved())
 	accessibility := newBrowserAccessibilityController(preferences.SaveAccessibility)
-	accessibility.Apply(accessibility.Saved())
 	productNavigationGroups = newBrowserNavigationGroupController(preferences.SaveNavigationGroups)
 	productNavigationGroups.Bind()
 	productTransientPopovers = newBrowserTransientPopoverController()
@@ -141,8 +143,8 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				persistPresentation := productHistory != nil && productHistory.ClaimSoftwareNavigation(routeContext.Path, routeContext.Query.Encode())
 				// A route change discards an unsaved preview and reapplies the last
 				// customer selection before the next component tree is mounted.
-				appearance.Apply(appearance.Saved())
-				accessibility.Apply(accessibility.Saved())
+				appearance.Reapply()
+				accessibility.Reapply()
 				// GWC v5 binds RouteContext to the loader's route generation. Reading
 				// location.search here would race a later push/pop navigation and let
 				// the older generation issue reads for the newer address.

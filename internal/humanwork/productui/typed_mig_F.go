@@ -15,8 +15,8 @@ func declarehistoryTableStyles() {
 	declareGlobal(".history-clear",
 		gwccss.W(gwccss.RawLength("max-content")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "none"),
 	)
 	declareGlobal(".history-clear:hover",
@@ -33,10 +33,10 @@ func declarehistoryTableStyles() {
 		gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(22)),
 		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Bg(gwccss.Hex("f6f8f6")),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".history-list",
 		gwccss.Raw("border-top", "0"),
@@ -52,7 +52,7 @@ func declarehistoryTableStyles() {
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
 	declareGlobal(".history-sort.active",
-		gwccss.Raw("font-weight", "750"),
+		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(".history-record-heading",
 		gwccss.Raw("text-align", "right"),
@@ -60,7 +60,7 @@ func declarehistoryTableStyles() {
 	declareGlobal(".history-change",
 		gwccss.Margin(gwccss.Zero),
 		gwccss.Raw("overflow-wrap", "anywhere"),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".history-mobile-label",
 		gwccss.Display.None,
@@ -70,7 +70,7 @@ func declarehistoryTableStyles() {
 	)
 	declareGlobal(".history-source",
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".history-row>.button",
 		gwccss.Raw("justify-self", "end"),
@@ -91,7 +91,7 @@ func declarehistoryTableStyles() {
 		mediaRule(gwccss.MaxW(1080), gwccss.GridColumn(gwccss.GridLineAt(1))),
 	)
 	declareGlobal(".history-mobile-label",
-		mediaRule(gwccss.MaxW(1080), gwccss.Display.Block, gwccss.Raw("margin-bottom", "4px"), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "650")),
+		mediaRule(gwccss.MaxW(1080), gwccss.Display.Block, gwccss.Raw("margin-bottom", "4px"), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "600")),
 	)
 	declareGlobal(".history-row>.status",
 		mediaRule(gwccss.MaxW(1080), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(1))),
@@ -168,7 +168,7 @@ func declareprofileDetailStyles() {
 	)
 	declareGlobal(".sensitive-heading p",
 		gwccss.Raw("margin-top", "3px"),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".privacy-icon",
 		gwccss.Display.Grid,
@@ -179,15 +179,15 @@ func declareprofileDetailStyles() {
 		gwccss.Rounded(gwccss.Percent(50)),
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.FontSize(gwccss.Rem(.55)),
-		gwccss.Shadow(gwccss.ShadowInset(gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Px(1), gwccss.Hex("c6ddd5"))),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Px(1), gwccss.Var("line"))),
 	)
 	declareGlobal(".privacy-icon-glyph",
 		gwccss.W(gwccss.Px(18)), gwccss.H(gwccss.Px(18)),
 	)
 	declareGlobal(".privacy-badge",
 		gwccss.Raw("margin-left", "auto"),
-		gwccss.Bg(gwccss.Hex("f2f4f3")),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("muted")),
 	)
 	declareGlobal(".privacy-notice",
@@ -196,11 +196,11 @@ func declareprofileDetailStyles() {
 		gwccss.RowGap(gwccss.Px(5)), gwccss.ColumnGap(gwccss.Px(12)),
 		gwccss.Raw("margin", "0 22px 18px"),
 		gwccss.PaddingY(gwccss.Px(13)), gwccss.PaddingX(gwccss.Px(14)),
-		gwccss.BorderLeft(gwccss.Px(3), gwccss.Hex("9d6b16")),
+		gwccss.BorderLeft(gwccss.Px(3), gwccss.Var("warning")),
 		gwccss.Rounded(gwccss.RawLength("0 var(--radius) var(--radius) 0")),
 		gwccss.Bg(gwccss.Var("warning-bg")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".privacy-notice strong",
 		gwccss.TextColor(gwccss.Var("warning")),
@@ -246,8 +246,8 @@ func declareworkflowHistoryStyles() {
 	)
 	declareGlobal(".history-filter>label",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".history-filter-controls",
 		gwccss.Display.Grid,
@@ -259,9 +259,9 @@ func declareworkflowHistoryStyles() {
 		gwccss.MinWidth(gwccss.Zero),
 		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(9)), gwccss.PaddingX(gwccss.Px(12)),
-		gwccss.Border(gwccss.Px(1), gwccss.Hex("7b8997")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("control-border")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
 	declareGlobal(".history-list",
@@ -273,13 +273,13 @@ func declareworkflowHistoryStyles() {
 		gwccss.Gap(gwccss.Px(18)),
 		gwccss.Items.Center,
 		gwccss.PaddingY(gwccss.Px(19)), gwccss.PaddingX(gwccss.Px(22)),
-		gwccss.BorderBottom(gwccss.Px(1), gwccss.Hex("e8ede9")),
+		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
 	)
 	declareGlobal(".history-row:last-child",
 		gwccss.Raw("border-bottom", "0"),
 	)
 	declareGlobal(".history-row:hover",
-		gwccss.Bg(gwccss.Hex("fcfcfa")),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
 	declareGlobal(".history-record",
 		gwccss.MinWidth(gwccss.Zero),
@@ -291,7 +291,7 @@ func declareworkflowHistoryStyles() {
 	declareGlobal(".history-record p",
 		gwccss.Margin(gwccss.Zero),
 		gwccss.Raw("overflow-wrap", "anywhere"),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".history-dates",
 		gwccss.Display.Grid,
@@ -353,12 +353,12 @@ func declarepeopleDirectoryStyles() {
 		gwccss.PaddingY(gwccss.Px(16)), gwccss.PaddingX(gwccss.Px(18)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 	)
 	declareGlobal(".people-filter label",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".people-filter-control",
 		gwccss.Display.Grid,
@@ -370,9 +370,9 @@ func declarepeopleDirectoryStyles() {
 		gwccss.MinWidth(gwccss.Zero),
 		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(10)), gwccss.PaddingX(gwccss.Px(13)),
-		gwccss.Border(gwccss.Px(1), gwccss.Hex("7b8997")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("control-border")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
 	declareGlobal(".people-filter-actions",
@@ -390,9 +390,9 @@ func declarepeopleDirectoryStyles() {
 		gwccss.MinHeight(gwccss.Px(68)),
 		gwccss.PaddingY(gwccss.Px(11)), gwccss.PaddingX(gwccss.Px(17)),
 		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Bg(gwccss.Hex("fcfcfa")),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".pager-status",
 		gwccss.Display.Flex,
@@ -405,8 +405,8 @@ func declarepeopleDirectoryStyles() {
 	)
 	declareGlobal(".button.disabled",
 		gwccss.BorderColor(gwccss.Var("line")),
-		gwccss.Bg(gwccss.Hex("f3f5f3")),
-		gwccss.TextColor(gwccss.Hex("8b9690")),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
+		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.Raw("cursor", "not-allowed"),
 		gwccss.OpacityNum(gwccss.Num(.78)),
 	)
@@ -445,8 +445,8 @@ func declarepersonProfileStyles() {
 	declareGlobal(".back-link",
 		gwccss.W(gwccss.RawLength("max-content")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.FontSize(gwccss.Rem(.875)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "none"),
 	)
 	declareGlobal(".back-link:hover",
@@ -469,7 +469,7 @@ func declarepersonProfileStyles() {
 	declareGlobal(".avatar.profile",
 		gwccss.W(gwccss.Px(64)),
 		gwccss.H(gwccss.Px(64)),
-		gwccss.BorderColor(gwccss.Hex("b6d7ca")),
+		gwccss.BorderColor(gwccss.Var("accent-hover")),
 		gwccss.FontSize(gwccss.Rem(1)),
 	)
 	declareGlobal(".person-identity h2",
@@ -483,8 +483,8 @@ func declarepersonProfileStyles() {
 	declareGlobal(".eyebrow",
 		gwccss.Display.Block,
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.FontSize(gwccss.Rem(.7)),
-		gwccss.Raw("font-weight", "750"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "700"),
 		gwccss.Tracking(gwccss.Ems(.08)),
 		gwccss.Raw("text-transform", "uppercase"),
 	)
@@ -525,11 +525,11 @@ func declarepersonProfileStyles() {
 	)
 	declareGlobal(".profile-fact small",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".profile-fact strong",
 		gwccss.Raw("overflow-wrap", "anywhere"),
-		gwccss.FontSize(gwccss.Rem(.9)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 	)
 	declareGlobal(".profile-missing-summary",
 		gwccss.Display.Flex,
@@ -577,8 +577,8 @@ func declarepersonProfileStyles() {
 	)
 	declareGlobal(".workflow-search label",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".workflow-search-control",
 		gwccss.Display.Grid,
@@ -590,9 +590,9 @@ func declarepersonProfileStyles() {
 		gwccss.MinWidth(gwccss.Zero),
 		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(10)), gwccss.PaddingX(gwccss.Px(12)),
-		gwccss.Border(gwccss.Px(1), gwccss.Hex("7b8997")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("control-border")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
 	declareGlobal(".workflow-results",
@@ -614,10 +614,10 @@ func declarepersonProfileStyles() {
 		gwccss.Raw("place-items", "center"),
 		gwccss.W(gwccss.Px(40)),
 		gwccss.H(gwccss.Px(40)),
-		gwccss.Rounded(gwccss.Px(10)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.Raw("font-weight", "750"),
+		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(".workflow-icon-glyph",
 		gwccss.Raw("width", "20px"), gwccss.Raw("height", "20px"),
@@ -631,7 +631,7 @@ func declarepersonProfileStyles() {
 	)
 	declareGlobal(".workflow-copy p",
 		gwccss.Margin(gwccss.Zero),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".workflow-empty",
 		gwccss.Display.Grid,
@@ -696,6 +696,30 @@ func declareviewportShellStyles() {
 		gwccss.W(gwccss.Percent(100)),
 		gwccss.H(gwccss.Percent(100)),
 		gwccss.Raw("overflow", "hidden"),
+	)
+	// overflow:hidden still makes the root a scroll container: it offers no
+	// scrollbar, but script can scroll it and nothing can scroll it back.
+	// Measured on Brand & appearance at 1440x900, the root reported a
+	// scrollHeight of 1207 and window.scrollTo(0,500) moved the document to
+	// 307, putting the global header at top -307 with no way to recover it
+	// (UXLIVE-025). overflow:clip clips the same content and creates no
+	// scroll container at all. The hidden declaration above stays as the
+	// fallback for engines without clip; this rule wins on source order
+	// where it is supported. The shell's real scroll owners -- .main-scroll
+	// and .sidebar -- are untouched, and the print rule below still escapes
+	// both.
+	declareGlobal("html,body,#app",
+		gwccss.Raw("overflow", "clip"),
+	)
+	// The scroll owners are also the containing block for anything inside
+	// them that positions itself absolutely. Without this, such a descendant
+	// resolves against the initial containing block, escapes the scroller's
+	// clip and extends the document: one visually-hidden `.sr-only` span
+	// deep inside the appearance form sat at y=1221 and gave the root a
+	// 1222px scroll area inside a 900px viewport, which is what let the
+	// whole shell be scrolled away from the header (UXLIVE-025).
+	declareGlobal(".main,.main-scroll,.sidebar",
+		gwccss.Position.Relative,
 	)
 	declareGlobal("body",
 		gwccss.Raw("overscroll-behavior", "none"),
@@ -801,7 +825,7 @@ func declarecomponentRefinementsStyles() {
 		gwccss.Margin(gwccss.Zero),
 		gwccss.Raw("padding-block", "7px"),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.78)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".collection-empty",
 		gwccss.Display.Grid,
@@ -832,15 +856,15 @@ func declarecomponentRefinementsStyles() {
 		gwccss.Display.Grid,
 		gwccss.Gap(gwccss.Px(6)),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.875)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 	)
 	declareGlobal(".support-form input,.support-form textarea,.support-form select",
 		gwccss.W(gwccss.Percent(100)),
 		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(9)), gwccss.PaddingX(gwccss.Px(11)),
-		gwccss.Border(gwccss.Px(1), gwccss.Hex("7b8997")),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("control-border")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
 	declareGlobal(".support-form textarea",
@@ -859,7 +883,7 @@ func declarecomponentRefinementsStyles() {
 	)
 	declareGlobal(".settings-anchor span",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".topbar",
 		mediaRule(gwccss.MaxW(1190), gwccss.GridCols(gwccss.TrackLen(gwccss.Px(210)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(180)), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto")))),
@@ -902,7 +926,7 @@ func declarerefinementsStyles() {
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.BorderLeft(gwccss.Px(4), gwccss.Var("accent")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("muted")),
 	)
 	declareGlobal(".studio-notice.success",
@@ -910,7 +934,7 @@ func declarerefinementsStyles() {
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
 	declareGlobal(".studio-notice.warning",
-		gwccss.Raw("border-left-color", "#bc7a16"),
+		gwccss.Raw("border-left-color", "var(--warning)"),
 		gwccss.Bg(gwccss.Var("warning-bg")),
 		gwccss.TextColor(gwccss.Var("warning")),
 	)
@@ -921,7 +945,7 @@ func declarerefinementsStyles() {
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 	)
 	declareGlobal(".studio-nav,.studio-structure,.studio-inspector",
 		gwccss.Padding(gwccss.Px(20)),
@@ -931,7 +955,7 @@ func declarerefinementsStyles() {
 		gwccss.FlexDir.Col,
 		gwccss.Gap(gwccss.Px(4)),
 		gwccss.BorderRight(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Bg(gwccss.Hex("f7f9f7")),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
 	declareGlobal(".studio-nav small",
 		gwccss.Raw("margin", "14px 9px 5px"),
@@ -942,13 +966,13 @@ func declarerefinementsStyles() {
 	declareGlobal(".studio-nav a",
 		gwccss.Padding(gwccss.Px(9)),
 		gwccss.Rounded(gwccss.VarLength("radius")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.Raw("text-decoration", "none"),
 	)
 	declareGlobal(".studio-nav a:hover,.studio-nav a.active",
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".studio-structure",
 		gwccss.BorderRight(gwccss.Px(1), gwccss.Var("line")),
@@ -961,7 +985,7 @@ func declarerefinementsStyles() {
 	)
 	declareGlobal(".studio-section-head h2",
 		gwccss.MarginY(gwccss.Px(3)), gwccss.MarginX(gwccss.Zero),
-		gwccss.FontSize(gwccss.Rem(1.05)),
+		gwccss.FontSize(gwccss.Rem(1)),
 	)
 	declareGlobal(".studio-region",
 		gwccss.Display.Flex,
@@ -979,22 +1003,22 @@ func declarerefinementsStyles() {
 		gwccss.Bg(gwccss.Var("soft")),
 	)
 	declareGlobal(".studio-region>.drag-handle",
-		gwccss.TextColor(gwccss.Hex("93a09a")),
+		gwccss.TextColor(gwccss.Var("muted")),
 	)
 	declareGlobal(".studio-region>small",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.7)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".studio-canvas",
 		gwccss.Padding(gwccss.Px(24)),
-		gwccss.Bg(gwccss.Hex("f0f3f0")),
+		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
 	declareGlobal(".canvas-bar",
 		gwccss.Display.Flex,
 		gwccss.Raw("justify-content", "space-between"),
 		gwccss.Raw("margin-bottom", "12px"),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".mini-page",
 		gwccss.MinHeight(gwccss.Px(435)),
@@ -1002,7 +1026,7 @@ func declarerefinementsStyles() {
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
 		gwccss.Bg(gwccss.Var("canvas")),
-		gwccss.Shadow(gwccss.ShadowOf(gwccss.Zero, gwccss.Px(12), gwccss.Px(30), gwccss.Zero, gwccss.Hex("10223812"))),
+		gwccss.Raw("box-shadow", "var(--hcm-shadow-resting)"),
 	)
 	declareGlobal(".mini-head",
 		gwccss.Display.Flex,
@@ -1012,20 +1036,20 @@ func declarerefinementsStyles() {
 	)
 	declareGlobal(".mini-head h2",
 		gwccss.Margin(gwccss.Zero),
-		gwccss.FontSize(gwccss.Rem(1.35)),
+		gwccss.FontSize(gwccss.Rem(1.25)),
 	)
 	declareGlobal(".mini-head p",
 		gwccss.MarginY(gwccss.Px(3)), gwccss.MarginX(gwccss.Zero),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".mini-scope",
 		gwccss.H(gwccss.RawLength("max-content")),
 		gwccss.PaddingY(gwccss.Px(6)), gwccss.PaddingX(gwccss.Px(8)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.Px(5)),
-		gwccss.Bg(gwccss.Hex("fff")),
-		gwccss.FontSize(gwccss.Rem(.7)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-xs")),
+		gwccss.Bg(gwccss.Var("surface")),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".mini-grid",
 		gwccss.Display.Grid,
@@ -1039,7 +1063,7 @@ func declarerefinementsStyles() {
 		gwccss.Padding(gwccss.Px(15)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 	)
 	declareGlobal(".mini-card.selected",
 		gwccss.Raw("outline", "2px solid var(--accent)"),
@@ -1051,7 +1075,7 @@ func declarerefinementsStyles() {
 	)
 	declareGlobal(".mini-card small,.mini-card span",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.7)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".studio-inspector",
 		gwccss.BorderLeft(gwccss.Px(1), gwccss.Var("line")),
@@ -1097,8 +1121,8 @@ func declarerefinementsStyles() {
 	)
 	declareGlobal(".governance-card a",
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "none"),
 	)
 	declareGlobal(".studio-shell",
@@ -1200,12 +1224,12 @@ func declarecollapsibleNavigationStyles() {
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "none"),
 	)
 	declareGlobal(".sidebar-toggle:hover",
-		gwccss.BorderColor(gwccss.Hex("9eb5ac")),
+		gwccss.BorderColor(gwccss.Var("accent-hover")),
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
@@ -1231,9 +1255,9 @@ func declarecollapsibleNavigationStyles() {
 		gwccss.Raw("place-items", "center"),
 		gwccss.W(gwccss.Px(34)),
 		gwccss.H(gwccss.Px(34)),
-		gwccss.Rounded(gwccss.Px(9)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
 		gwccss.Bg(gwccss.Var("accent")),
-		gwccss.TextColor(gwccss.Hex("fff")),
+		gwccss.TextColor(gwccss.Var("on-brand")),
 		gwccss.FontSize(gwccss.Rem(1)),
 		gwccss.Tracking(gwccss.Zero),
 	)

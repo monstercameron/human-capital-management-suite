@@ -54,8 +54,6 @@ func declareJourneyTokens() {
 		gwccss.CustomLength("jn-r2", gwccss.Rem(0.625)),
 		gwccss.CustomLength("jn-r3", gwccss.Rem(0.75)),
 		gwccss.CustomLength("jn-r4", gwccss.Rem(1)),
-		gwccss.Custom("jn-shadow", "0 1px 2px rgba(16,20,43,.05),0 1px 1px rgba(16,20,43,.04)"),
-		gwccss.Custom("jn-shadow-raised", "0 1px 3px rgba(16,20,43,.09),0 6px 18px rgba(16,20,43,.06)"),
 		gwccss.Custom("jn-shadow-lift", "0 2px 6px rgba(16,20,43,.10),0 14px 32px rgba(16,20,43,.09)"),
 		gwccss.Custom("jn-ring", "0 0 0 3px rgba(43,58,143,.28)"),
 		gwccss.Custom("jn-ease", "cubic-bezier(.22,.61,.36,1)"),
@@ -191,11 +189,11 @@ func declareJourneyTokens() {
 	)
 	declareGlobal(`.jn-brand-name`,
 		gwccss.FontSize(gwccss.Rem(1)),
-		gwccss.Raw("font-weight", "660"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Tracking(gwccss.Ems(-.014)),
 	)
 	declareGlobal(`.jn-tenant`,
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.TextColor(gwccss.Var("jn-masthead-muted")),
 		gwccss.Tracking(gwccss.Ems(.005)),
 	)
@@ -208,8 +206,8 @@ func declareJourneyTokens() {
 		gwccss.Display.InlineBlock,
 		gwccss.PaddingY(gwccss.Rem(.375)), gwccss.PaddingX(gwccss.Rem(.75)),
 		gwccss.Rounded(gwccss.VarLength("jn-r1")),
-		gwccss.FontSize(gwccss.Rem(.875)),
-		gwccss.Raw("font-weight", "550"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "500"),
 		gwccss.Raw("text-decoration", "none"),
 		gwccss.TextColor(gwccss.Var("jn-masthead-muted")),
 		gwccss.Transition(gwccss.TransitionProps(gwccss.Prop("background-color"), gwccss.Prop("color")), gwccss.S(.15), gwccss.Easing("var(--jn-ease)")),
@@ -228,7 +226,7 @@ func declareJourneyTokens() {
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Rem(.5)),
 		gwccss.Raw("flex-wrap", "wrap"),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.TextColor(gwccss.Var("jn-masthead-muted")),
 		gwccss.MinWidth(gwccss.Zero),
 	)
@@ -242,12 +240,12 @@ func declareJourneyTokens() {
 		gwccss.TextColor(gwccss.Var("jn-masthead-chip-ink")),
 		gwccss.Rounded(gwccss.Px(999)),
 		gwccss.PaddingY(gwccss.Rem(.0625)), gwccss.PaddingX(gwccss.Rem(.5)),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-family", "var(--jn-mono)"),
 		gwccss.Tracking(gwccss.Ems(-.01)),
 	)
 	declareGlobal(`.jn-logout`,
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.TextColor(gwccss.Var("jn-masthead-muted")),
 	)
 	declareGlobal(`.jn-masthead-inner`,
@@ -280,11 +278,11 @@ func declareJourneyTokens() {
 		gwccss.Raw("min-width", "0"),
 	)
 	declareGlobal(`.jn-notice-title`,
-		gwccss.Raw("font-weight", "650"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Tracking(gwccss.Ems(-.01)),
 	)
 	declareGlobal(`.jn-notice-detail`,
-		gwccss.FontSize(gwccss.Rem(.875)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 		gwccss.Raw("margin-top", ".125rem"),
 	)
@@ -293,11 +291,11 @@ func declareJourneyTokens() {
 	)
 	declareGlobal(`.jn-notice-support`,
 		gwccss.Raw("margin-top", ".75rem"),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(`.jn-notice-support summary`,
 		gwccss.Raw("cursor", "pointer"),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "underline"),
 		gwccss.Raw("text-underline-offset", ".18em"),
 	)
@@ -308,7 +306,7 @@ func declareJourneyTokens() {
 		gwccss.Raw("margin-top", ".5rem"),
 	)
 	declareGlobal(`.jn-notice-support-body label`,
-		gwccss.Raw("font-weight", "620"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-support-reference`,
 		gwccss.Raw("box-sizing", "border-box"),
@@ -324,8 +322,8 @@ func declareJourneyTokens() {
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
 	declareGlobal(`.jn-notice-fields-title`,
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-notice-fieldlist`,
 		gwccss.Display.Flex,
@@ -338,8 +336,8 @@ func declareJourneyTokens() {
 	declareGlobal(`.jn-notice-fieldlist a`,
 		gwccss.Display.InlineFlex,
 		gwccss.Items.Center,
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("jn-ink")),
 		gwccss.Bg(gwccss.Var("jn-surface")),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("jn-hairline")),
@@ -397,10 +395,10 @@ func declareJourneyTokens() {
 		gwccss.FontSize(gwccss.Rem(1.75)),
 		gwccss.LineHeight(gwccss.Num(1.18)),
 		gwccss.Tracking(gwccss.Ems(-.024)),
-		gwccss.Raw("font-weight", "680"),
+		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(`.jn-display`,
-		gwccss.FontSize(gwccss.Rem(2.125)),
+		gwccss.FontSize(gwccss.Rem(2)),
 		gwccss.LineHeight(gwccss.Num(1.1)),
 		gwccss.Tracking(gwccss.Ems(-.03)),
 		gwccss.Raw("font-weight", "700"),
@@ -414,7 +412,7 @@ func declareJourneyTokens() {
 		gwccss.FontSize(gwccss.Rem(1.25)),
 		gwccss.LineHeight(gwccss.Num(1.3)),
 		gwccss.Tracking(gwccss.Ems(-.018)),
-		gwccss.Raw("font-weight", "660"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Display.Flex,
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Rem(.5)),
@@ -423,14 +421,14 @@ func declareJourneyTokens() {
 		gwccss.FontSize(gwccss.Rem(1)),
 		gwccss.LineHeight(gwccss.Num(1.35)),
 		gwccss.Tracking(gwccss.Ems(-.012)),
-		gwccss.Raw("font-weight", "640"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-headicon`,
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
 	declareGlobal(`.jn-eyebrow`,
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "660"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Tracking(gwccss.Ems(.07)),
 		gwccss.Raw("text-transform", "uppercase"),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
@@ -444,7 +442,7 @@ func declareJourneyTokens() {
 		gwccss.Raw("margin-bottom", "var(--jn-s2)"),
 	)
 	declareGlobal(`.jn-count`,
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 		gwccss.Raw("font-variant-numeric", "tabular-nums"),
 	)
@@ -466,7 +464,7 @@ func declareJourneyTokens() {
 	)
 	declareGlobal(`.jn-mono`,
 		gwccss.Raw("font-family", "var(--jn-mono)"),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.Tracking(gwccss.Ems(-.01)),
 		gwccss.Raw("overflow-wrap", "anywhere"),
 	)
@@ -497,8 +495,8 @@ func declareJourneyTokens() {
 		gwccss.Raw("text-align", "center"),
 	)
 	declareGlobal(`.jn-context-link`,
-		gwccss.FontSize(gwccss.Rem(.875)),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-subject-card`,
 		gwccss.Position.Relative,
@@ -531,12 +529,12 @@ func declareJourneyTokens() {
 		gwccss.Raw("flex", "none"),
 		gwccss.Bg(gwccss.Var("jn-accent-soft")),
 		gwccss.TextColor(gwccss.Var("jn-accent-strong")),
-		gwccss.Raw("font-weight", "720"),
+		gwccss.Raw("font-weight", "700"),
 		gwccss.Tracking(gwccss.Ems(.02)),
 	)
 	declareGlobal(`.jn-subject-title`,
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
-		gwccss.FontSize(gwccss.Rem(.875)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 		gwccss.Raw("margin-top", ".125rem"),
 	)
 	declareGlobal(`.jn-subject-facts`,
@@ -550,8 +548,8 @@ func declareJourneyTokens() {
 		gwccss.Gap(gwccss.Rem(.3125)),
 		gwccss.Rounded(gwccss.Px(999)),
 		gwccss.PaddingY(gwccss.Rem(.1875)), gwccss.PaddingX(gwccss.Rem(.5625)),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Tracking(gwccss.Ems(-.005)),
 		gwccss.Bg(gwccss.Var("jn-neutral-soft")),
 		gwccss.TextColor(gwccss.Var("jn-neutral")),
@@ -655,12 +653,15 @@ func declareJourneyTokens() {
 		gwccss.TextColor(gwccss.Var("jn-accent")),
 	)
 	declareGlobal(`.jn-journey-headline`,
-		gwccss.FontSize(gwccss.Rem(.875)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
 	declareGlobal(`.jn-journey-pay`,
-		gwccss.FontSize(gwccss.Rem(1.0625)),
-		gwccss.Raw("font-weight", "640"),
+		// One step above the card title: the pay change is the loudest fact
+		// on a promotion card, and at the title's own size it stops being
+		// one.
+		gwccss.FontSize(gwccss.Rem(1.125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("font-variant-numeric", "tabular-nums"),
 		gwccss.Tracking(gwccss.Ems(-.016)),
 	)
@@ -668,7 +669,7 @@ func declareJourneyTokens() {
 		gwccss.Display.Flex,
 		gwccss.Raw("flex-wrap", "wrap"),
 		gwccss.RowGap(gwccss.Rem(.25)), gwccss.ColumnGap(gwccss.Rem(1)),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
 	declareGlobal(`.jn-meta-key`,
@@ -682,8 +683,8 @@ func declareJourneyTokens() {
 		gwccss.Raw("margin-top", "auto"),
 		gwccss.Raw("padding-top", ".625rem"),
 		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("jn-hairline")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("jn-accent")),
 	)
 	declareGlobal(`.jn-journey-arrow`,
@@ -698,7 +699,7 @@ func declareJourneyTokens() {
 		gwccss.Gap(gwccss.Rem(.375)),
 		gwccss.Raw("margin-top", "calc(var(--jn-s2) * -0.5)"),
 		gwccss.Raw("margin-bottom", "var(--jn-s2)"),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
 	declareGlobal(`.jn-people-note-icon`,
@@ -712,7 +713,7 @@ func declareJourneyTokens() {
 		gwccss.Raw("overscroll-behavior", "contain"),
 	)
 	declareGlobal(`table.jn-people`,
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(`.jn-people thead th`,
 		gwccss.ZIndex(2),
@@ -753,26 +754,26 @@ func declareJourneyTokens() {
 		gwccss.TextColor(gwccss.Var("jn-accent")),
 	)
 	declareGlobal(`.jn-people-name`,
-		gwccss.FontSize(gwccss.Rem(.9375)),
-		gwccss.Raw("font-weight", "660"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Tracking(gwccss.Ems(-.014)),
 		gwccss.TextColor(gwccss.Var("jn-ink")),
 	)
 	declareGlobal(`.jn-people-title`,
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
 	declareGlobal(`.jn-people-number`,
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
-		gwccss.FontSize(gwccss.Rem(.6875)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(`.jn-people-selected`,
 		gwccss.Display.InlineFlex,
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Rem(.25)),
 		gwccss.Raw("margin-top", ".125rem"),
-		gwccss.FontSize(gwccss.Rem(.6875)),
-		gwccss.Raw("font-weight", "680"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "700"),
 		gwccss.Tracking(gwccss.Ems(.04)),
 		gwccss.Raw("text-transform", "uppercase"),
 		gwccss.TextColor(gwccss.Var("jn-accent")),
@@ -782,12 +783,12 @@ func declareJourneyTokens() {
 	)
 	declareGlobal(`.jn-people-job`,
 		gwccss.Raw("font-variant-numeric", "tabular-nums"),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-people-pay`,
-		gwccss.Raw("font-weight", "620"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-people-count`,
-		gwccss.Raw("font-weight", "660"),
+		gwccss.Raw("font-weight", "600"),
 	)
 }

@@ -218,7 +218,7 @@ func declareUxaudit008TableDensityStyles() {
 		gwccss.PaddingY(gwccss.Px(3)), gwccss.PaddingX(gwccss.Px(8)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("white-space", "nowrap"),
 		gwccss.Raw("cursor", "default"),
 	)

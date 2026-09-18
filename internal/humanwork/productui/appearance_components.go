@@ -84,7 +84,7 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 		html.Form(html.Props{Class: "appearance-form", OnSubmit: preventFormSubmit(props.OnSave, &draft)},
 			html.Fieldset(html.Props{Class: "appearance-edit-boundary", Disabled: !props.Editable},
 				html.Div(html.Props{Class: "appearance-controls"},
-					appearanceBrandSignature(props.I18nProps, draft, func(value string) {
+					appearanceBrandSignature(props.I18nProps, draft, props.PreviewTenant, func(value string) {
 						draft.BrandName = value
 						previewAppearance(props.OnPreview, draft)
 					}, func(value string) {
@@ -176,7 +176,21 @@ func resetAppearanceDraft(draft *CustomerTheme, onReset func()) {
 	}
 }
 
-func appearanceBrandSignature(i18n I18nProps, theme CustomerTheme, onName, onMark, onLogo func(string), picker ...BrandAssetPickerProps) ui.Node {
+// appearanceBrandSignature edits the organization's brand identity. It also
+// says what the header shows right now: while the theme still holds the
+// product default, HeaderBrandIdentity falls back to the admitted tenant
+// name, so presenting the stored default alone told an administrator the
+// header said something it did not (UXLIVE-008).
+func appearanceBrandSignature(i18n I18nProps, theme CustomerTheme, tenant string, onName, onMark, onLogo func(string), picker ...BrandAssetPickerProps) ui.Node {
+	nameHelp, markHelp := i18n.Text("appearance.workspace_name_help"), i18n.Text("appearance.short_mark_help")
+	if headerName, headerMark := HeaderBrandIdentity(theme, tenant); headerName != theme.BrandName || headerMark != theme.BrandMark {
+		if headerName != theme.BrandName {
+			nameHelp = i18n.Text("appearance.workspace_name_default_help", map[string]string{"shown": headerName})
+		}
+		if headerMark != theme.BrandMark {
+			markHelp = i18n.Text("appearance.short_mark_default_help", map[string]string{"shown": headerMark})
+		}
+	}
 	name := html.Props{ID: "appearance-brand-name", Type: "text", Name: "brand_name", Value: theme.BrandName, MaxLength: 40, AutoComplete: "off"}
 	mark := html.Props{ID: "appearance-brand-mark", Type: "text", Name: "brand_mark", Value: theme.BrandMark, MaxLength: 3, AutoComplete: "off"}
 	if onName != nil {
@@ -196,8 +210,8 @@ func appearanceBrandSignature(i18n I18nProps, theme CustomerTheme, onName, onMar
 		html.Legend(html.Props{}, ui.Text(i18n.Text("appearance.brand_signature"))),
 		html.P(html.Props{Class: "muted appearance-group-help"}, ui.Text(i18n.Text("appearance.brand_help"))),
 		html.Div(html.Props{Class: "appearance-brand-fields"},
-			ui.CreateElement(LabeledControl, LabeledControlProps{For: name.ID, Label: i18n.Text("appearance.workspace_name"), Control: html.Input(name), Help: i18n.Text("appearance.workspace_name_help")}),
-			ui.CreateElement(LabeledControl, LabeledControlProps{For: mark.ID, Label: i18n.Text("appearance.short_mark"), Control: html.Input(mark), Help: i18n.Text("appearance.short_mark_help")}),
+			ui.CreateElement(LabeledControl, LabeledControlProps{For: name.ID, Label: i18n.Text("appearance.workspace_name"), Control: html.Input(name), Help: nameHelp}),
+			ui.CreateElement(LabeledControl, LabeledControlProps{For: mark.ID, Label: i18n.Text("appearance.short_mark"), Control: html.Input(mark), Help: markHelp}),
 			html.Div(html.Props{Class: "appearance-brand-logo-field"}, ui.CreateElement(BrandAssetPicker, assetProps)),
 		),
 	)

@@ -110,7 +110,7 @@ func TestPeopleTableScrollsInsideItsOwnContainer(t *testing.T) {
 	for _, want := range []string{
 		".jn-peoplewrap{max-height:34rem;overflow-y:auto",
 		".jn-tablewrap{border:1px solid var(--jn-hairline);border-radius:var(--jn-r2);overflow-x:auto;}",
-		".jn-table thead th{background-color:var(--jn-surface-muted);color:var(--jn-ink-muted);font-size:0.6875rem;font-weight:660;letter-spacing:0.06em;",
+		".jn-table thead th{background-color:var(--jn-surface-muted);color:var(--jn-ink-muted);font-size:0.75rem;font-weight:600;letter-spacing:0.06em;",
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("the stylesheet is missing %q", want)

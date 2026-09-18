@@ -37,7 +37,10 @@ func insightsPage(view View) ui.Node {
 		{Label: view.Locale.Text("insights.in_progress_label"), Value: fmt.Sprint(active), Note: view.Locale.Text("insights.in_progress_note")},
 		{Label: view.Locale.Text("insights.closed_label"), Value: fmt.Sprint(terminal), Note: view.Locale.Text("insights.closed_note")},
 	}
-	attentionDescription := view.Locale.Text("insights.attention_description")
+	// The queue describes the queue. The scope limitation is the evidence
+	// card's job, and printing it in both places said the same sentence
+	// twice on one screen (UXLIVE-015).
+	attentionDescription := view.Locale.Text("insights.attention_queue_detail")
 	if len(attentionPopulation) == 0 {
 		attentionDescription = view.Locale.Text("work.action_queue_empty_detail")
 	}

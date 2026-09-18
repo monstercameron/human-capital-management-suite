@@ -1079,6 +1079,8 @@ func journeyStageKey(stage journeyv1.JourneyStage) string {
 		return "journey.stage_observing_effects"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED:
 		return "journey.stage_repair_required"
+	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT:
+		return "journey.stage_awaiting_acknowledgement"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED:
 		return "journey.stage_completed"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED:

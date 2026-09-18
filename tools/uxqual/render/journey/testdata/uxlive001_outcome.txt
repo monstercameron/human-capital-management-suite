@@ -1,0 +1,21 @@
+recorded
+  Result | Promotion outcome recorded | success
+  Effective date | 1 Jun 2026 | success
+  Outcome recorded | 17 Sep 2026, 22:24 UTC |
+  chip | Recorded | success
+blocked
+  Result | Promotion not recorded | warning
+  Outcome recorded | 17 Sep 2026, 22:24 UTC |
+  chip | Blocked | warning
+failed
+  Result | Promotion not recorded | danger
+  Outcome recorded | 17 Sep 2026, 22:24 UTC |
+  chip | Failed | danger
+repair_required
+  Result | Promotion not recorded | danger
+  Outcome recorded | 17 Sep 2026, 22:24 UTC |
+  chip | Needs repair | danger
+rejected
+  Result | Promotion not recorded | danger
+  Outcome recorded | 17 Sep 2026, 22:24 UTC |
+  chip | Rejected | danger

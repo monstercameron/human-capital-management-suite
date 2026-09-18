@@ -12,16 +12,17 @@ import (
 // (internal/intent/app TestTodo_PROMOUX_012); this is only its projection.
 func TestJourneyStatusDimensionTable(t *testing.T) {
 	steps := map[journeyv1.JourneyNextStep]NextStep{
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_UNSPECIFIED:          NextStepNone,
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_START_APPROVAL:       NextStepStartApproval,
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_CORRECT_PROPOSAL:     NextStepCorrectProposal,
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_APPROVAL_DECISION:    NextStepApprovalDecision,
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_MANAGER_DECISION:     NextStepManagerDecision,
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_FINANCE_DECISION:     NextStepFinanceDecision,
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REAPPROVAL_DECISION:  NextStepReapprovalDecision,
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REPAIR:               NextStepRepair,
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE: NextStepAwaitEffectiveDate,
-		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_SYSTEM_PROCESSING:    NextStepSystemProcessing,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_UNSPECIFIED:           NextStepNone,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_START_APPROVAL:        NextStepStartApproval,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_CORRECT_PROPOSAL:      NextStepCorrectProposal,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_APPROVAL_DECISION:     NextStepApprovalDecision,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_MANAGER_DECISION:      NextStepManagerDecision,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_FINANCE_DECISION:      NextStepFinanceDecision,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REAPPROVAL_DECISION:   NextStepReapprovalDecision,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REPAIR:                NextStepRepair,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE:  NextStepAwaitEffectiveDate,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_SYSTEM_PROCESSING:     NextStepSystemProcessing,
+		journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT: NextStepAwaitAcknowledgement,
 	}
 	if len(steps) != len(journeyv1.JourneyNextStep_name) {
 		t.Fatalf("table covers %d next steps, the enum has %d", len(steps), len(journeyv1.JourneyNextStep_name))
