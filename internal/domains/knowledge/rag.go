@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-const chunkSchemaVersion = 1
-
 var (
 	// ErrChunkRejected is the KNOW-004 seeded-defect sentinel. Uncited,
 	// stale, injected or invalidated knowledge presented for RAG publication

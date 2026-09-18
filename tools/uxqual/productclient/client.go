@@ -279,46 +279,6 @@ func routeProfileFor(page productui.PageID) productui.RouteStateProfile {
 	return routeProfile.StateProfile()
 }
 
-func setPeopleRouteValues(values url.Values, state State) {
-	request := state.Request
-	setProvidedRouteValue(values, state, "q", request.Query)
-	setProvidedRouteInt(values, state, "page", request.PeoplePage)
-	setProvidedRouteInt(values, state, "page_size", request.PeoplePageSize)
-	setProvidedRouteValue(values, state, "team", request.PeopleTeam)
-	setProvidedRouteValue(values, state, "location", request.PeopleLocation)
-	eligibleValue := ""
-	if request.PeopleEligibleOnly {
-		eligibleValue = "1"
-	}
-	setProvidedRouteValue(values, state, "eligible", eligibleValue)
-	setProvidedRouteValue(values, state, "sort", request.PeopleSort)
-	setProvidedRouteValue(values, state, "dir", request.PeopleDirection)
-}
-
-func setHistoryRouteValues(values url.Values, state State) {
-	request := state.Request
-	setProvidedRouteValue(values, state, "history_q", request.HistoryQuery)
-	setProvidedRouteValue(values, state, "outcome", request.HistoryOutcome)
-	setProvidedRouteValue(values, state, "history_person", request.HistoryPerson)
-	setProvidedRouteValue(values, state, "history_year", request.HistoryYear)
-	setProvidedRouteValue(values, state, "history_sort", request.HistorySort)
-	setProvidedRouteValue(values, state, "history_dir", request.HistoryDirection)
-	setProvidedRouteInt(values, state, "history_page", request.HistoryPage)
-	setProvidedRouteInt(values, state, "history_page_size", request.HistoryPageSize)
-}
-
-func setProvidedRouteValue(values url.Values, state State, key, value string) {
-	if state.Provided[key] {
-		values.Set(key, value)
-	}
-}
-
-func setProvidedRouteInt(values url.Values, state State, key string, value int) {
-	if state.Provided[key] {
-		values.Set(key, strconv.Itoa(value))
-	}
-}
-
 func parseFavoritePages(raw string) []productui.PageID {
 	parts := strings.Split(raw, ",")
 	pages := make([]productui.PageID, 0, len(parts))

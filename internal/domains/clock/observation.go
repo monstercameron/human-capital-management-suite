@@ -11,8 +11,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
-const observationSchemaVersion = 1
-
 // observationSkew is the maximum tolerance for device clock drift ahead of
 // the server clock. Past occurred times are accepted: offline buffering is
 // owned by CLOCK-004, not punished here.

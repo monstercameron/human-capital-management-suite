@@ -134,7 +134,6 @@ type SyncResult struct {
 // skew window sync as DEGRADED, never as rejected: drift is evidence, not
 // loss.
 func SyncOffline(buf OfflineBuffer, now time.Time) (SyncResult, error) {
-	const version = "clock-offline/v1"
 	if strings.TrimSpace(buf.DeviceRef) == "" || len(buf.Entries) == 0 {
 		return SyncResult{}, fmt.Errorf("%w: sync requires a buffered log", ErrOfflineEvidence)
 	}
