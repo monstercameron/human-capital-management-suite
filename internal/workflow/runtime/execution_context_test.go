@@ -9,6 +9,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
@@ -89,6 +90,111 @@ func TestNodeAllowsModeFailsClosed(t *testing.T) {
 	if runtime.NodeAllowsMode(workflow.CompiledNode{}, workflow.ModeExecute) {
 		t.Fatal("a node with no compiled modes admitted a mode")
 	}
+}
+
+// TestTodo_Unit6_ExecutionContextDigestCoversEveryField proves the pinned
+// fingerprint binds every execution dimension it names: changing any one
+// field of the context changes its digest, and changing any one source
+// dimension of the derivation changes the derived digest. A field or source
+// the digest ignored would let that dimension drift mid-run undetected, so
+// each is proven live here rather than trusted to the marshal.
+func TestTodo_Unit6_ExecutionContextDigestCoversEveryField(t *testing.T) {
+	base := runtime.ExecutionContext{
+		Principal: "principal:a", PrincipalKind: "HUMAN", Tenant: "tenant:a", Organization: "org:a",
+		Locale: "en-US", LegalEntity: "le:a", LegalContextDigest: "sha256:legal",
+		Purpose: "purpose:a", Residency: "residency:a", EntitlementDigest: "sha256:ent",
+		RiskClass: "risk:a", BillingRef: "billing:a", ExecutionMode: workflow.ModeExecute,
+		WorkflowID: "wf.a", WorkflowVersion: 1, CompiledPlanDigest: "sha256:plan",
+		RuntimeVersion: runtime.RuntimeVersion,
+	}
+	pinned := base.Digest()
+	for name, mutate := range map[string]func(*runtime.ExecutionContext){
+		"principal":      func(c *runtime.ExecutionContext) { c.Principal = "principal:b" },
+		"principal kind": func(c *runtime.ExecutionContext) { c.PrincipalKind = "SERVICE" },
+		"tenant":         func(c *runtime.ExecutionContext) { c.Tenant = "tenant:b" },
+		"organization":   func(c *runtime.ExecutionContext) { c.Organization = "org:b" },
+		"locale":         func(c *runtime.ExecutionContext) { c.Locale = "de-DE" },
+		"legal entity":   func(c *runtime.ExecutionContext) { c.LegalEntity = "le:b" },
+		"legal digest":   func(c *runtime.ExecutionContext) { c.LegalContextDigest = "sha256:legal-b" },
+		"purpose":        func(c *runtime.ExecutionContext) { c.Purpose = "purpose:b" },
+		"residency":      func(c *runtime.ExecutionContext) { c.Residency = "residency:b" },
+		"entitlement":    func(c *runtime.ExecutionContext) { c.EntitlementDigest = "sha256:ent-b" },
+		"risk class":     func(c *runtime.ExecutionContext) { c.RiskClass = "risk:b" },
+		"billing":        func(c *runtime.ExecutionContext) { c.BillingRef = "billing:b" },
+		"mode":           func(c *runtime.ExecutionContext) { c.ExecutionMode = workflow.ModeSimulate },
+		"workflow":       func(c *runtime.ExecutionContext) { c.WorkflowID = "wf.b" },
+		"workflow ver":   func(c *runtime.ExecutionContext) { c.WorkflowVersion = 2 },
+		"plan digest":    func(c *runtime.ExecutionContext) { c.CompiledPlanDigest = "sha256:plan-b" },
+		"runtime ver":    func(c *runtime.ExecutionContext) { c.RuntimeVersion = "hcmnext.workflow.runtime/v0" },
+	} {
+		changed := base
+		mutate(&changed)
+		if changed.Digest() == pinned {
+			t.Errorf("changing %s left the execution context digest unchanged", name)
+		}
+	}
+
+	// Every derivation source dimension flips the derived digest. The
+	// proposal revision's own identity and material digest are deliberately
+	// absent: proposal binding is enforced per advancement by the drift
+	// checks against the stored work item, timer and signal rows, not by
+	// this digest.
+	pf := newPromotionFixture(t, values.TenantId("ctx-unit6-tenant"), "intent:ctx-unit6")
+	tenantID := uuid.New()
+	derive := func(req runtime.StartRequest, sel runtime.WorkflowSelection) string {
+		return runtime.DeriveExecutionContext(req, sel).Digest()
+	}
+	sel := runtime.WorkflowSelection{WorkflowID: pf.Plan.WorkflowID, Plan: pf.Plan}
+	derived := derive(pf.baseStartRequest(tenantID, "ctx-unit6"), sel)
+	flip := func(name string, mutate func(*runtime.StartRequest, *runtime.WorkflowSelection)) {
+		t.Helper()
+		req := pf.baseStartRequest(tenantID, "ctx-unit6")
+		s := sel
+		mutate(&req, &s)
+		if derive(req, s) == derived {
+			t.Errorf("source dimension %s is not bound into the derived execution context", name)
+		}
+	}
+	flip("tenant", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) { req.TenantID = uuid.New() })
+	flip("locale", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) { req.Locale = "de-DE" })
+	flip("billing", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) { req.BillingRef = "billing:other" })
+	flip("mode", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) {
+		req.ExecutionMode = workflow.ModeExecute
+	})
+	flip("workflow id", func(_ *runtime.StartRequest, s *runtime.WorkflowSelection) { s.WorkflowID = "wf.other" })
+	flip("plan risk", func(req *runtime.StartRequest, s *runtime.WorkflowSelection) {
+		plan := *s.Plan
+		plan.RiskClass = "risk:changed"
+		s.Plan = &plan
+	})
+	flip("principal", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) {
+		req.Proposal.Revision.CreatedBy.PrincipalID = "principal:other"
+	})
+	flip("principal kind", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) {
+		req.Proposal.Revision.CreatedBy.Kind = intent.InitiatorService
+	})
+	flip("organization", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) {
+		req.Proposal.Revision.OrganizationScopeID = "org:other"
+	})
+	flip("legal entity", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) {
+		req.Proposal.Revision.LegalEntityID = "le:other"
+	})
+	flip("legal digest", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) {
+		snaps := req.Proposal.Revision.ControlSnapshots
+		snaps.LegalContextDigest = "sha256:other-legal"
+		req.Proposal.Revision.ControlSnapshots = snaps
+	})
+	flip("entitlement", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) {
+		snaps := req.Proposal.Revision.ControlSnapshots
+		snaps.EntitlementDigest = "sha256:other-ent"
+		req.Proposal.Revision.ControlSnapshots = snaps
+	})
+	flip("purpose", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) {
+		req.Proposal.Revision.Purpose.Purpose = "purpose:other"
+	})
+	flip("residency", func(req *runtime.StartRequest, _ *runtime.WorkflowSelection) {
+		req.Proposal.Revision.Purpose.ResidencyRef = "residency:other"
+	})
 }
 
 // TestTodo_WF_RUN_040 proves the execution context is pinned durably at

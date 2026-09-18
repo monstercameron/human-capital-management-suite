@@ -93,6 +93,50 @@ type SignalReader interface {
 	LoadMatchedSignal(ctx context.Context, ex runtime.Executor, q MatchedSignalQuery) (MatchedSignal, error)
 }
 
+// ExpiredSubscriptionQuery names the committed EXPIRED wait a timeout resume
+// advances from.
+type ExpiredSubscriptionQuery struct {
+	TenantID       uuid.UUID
+	SubscriptionID uuid.UUID
+}
+
+// ExpiredSubscription is the committed EXPIRED wait
+// [SignalTimeoutReader] hands back. It carries the timeout continuation
+// reference, never any signal payload: an expiry has no signal.
+type ExpiredSubscription struct {
+	SubscriptionID uuid.UUID
+	InstanceID     uuid.UUID
+	NodeID         string
+	NodeAttempt    int
+	// Settled reports that the wait is EXPIRED with the timeout continuation
+	// referencing this exact subscription.
+	Settled         bool
+	ContinuationRef string
+	// Causal is the wait's stored causal identity. It links the resume span
+	// and never governs the advancement.
+	Causal *runtime.CausalMetadata
+}
+
+// SignalTimeoutReader loads the expired wait [Driver.ResumeSignalTimeout]
+// advances from, inside the advancement's own transaction.
+type SignalTimeoutReader interface {
+	LoadExpiredSubscription(ctx context.Context, ex runtime.Executor, q ExpiredSubscriptionQuery) (ExpiredSubscription, error)
+}
+
+// ResumeSignalTimeoutRequest names the expired wait a WAITING SIGNAL node
+// times out from. It carries no outcome and no payload: the node's outcome is
+// always TIMED_OUT, derived from the committed expiry alone, and the
+// advancement records the wait's timeout continuation reference as the node's
+// output.
+type ResumeSignalTimeoutRequest struct {
+	Start                   runtime.StartRequest
+	InstanceID              uuid.UUID
+	ExpectedInstanceVersion int64
+	SubscriptionID          uuid.UUID
+	Refs                    runtime.GovernanceRefs
+	RecordedAt              time.Time
+}
+
 // ResumeSignalRequest names the matched receipt a WAITING SIGNAL node resumes
 // from. It carries no outcome and no payload: the node's outcome is derived
 // from the committed receipt alone, and the advancement records the
@@ -143,7 +187,7 @@ func (d *Driver) ResumeSignal(ctx context.Context, req ResumeSignalRequest) (ret
 			}
 			outcome, driftErr := checkSignalDrift(req, selection, row)
 			return outcome, req.Refs, nil, driftErr
-		})
+		}, nil)
 	if err != nil {
 		settled := d.settlePause(ctx, run, at, err)
 		if paused, ok := pausedResult(settled, Result{}); ok {
@@ -215,6 +259,121 @@ func checkSignalDrift(req ResumeSignalRequest, selection runtime.WorkflowSelecti
 	return frontier.NodeOutcome{NodeID: row.NodeID, Outcome: workflow.OutcomeSucceeded, OutputDigest: row.ContinuationRef}, nil
 }
 
+// ResumeSignalTimeout advances a WAITING SIGNAL node with the TIMED_OUT
+// outcome from the expired wait [SignalTimeoutReader] loads, then drains any
+// READY successors exactly as Execute does. It is fenced and leased like
+// [Driver.ResumeSignal]; the instance version compare-and-swap and the node's
+// own settled state make a second timeout resume from the same wait a refusal
+// rather than a second advancement. The outcome routes through the node's
+// declared TIMED_OUT edge: a wait that closed with no signal repairs instead
+// of completing silently.
+func (d *Driver) ResumeSignalTimeout(ctx context.Context, req ResumeSignalTimeoutRequest) (ret0 Result, retErr error) {
+	ctx, obsOp := observe.Begin(d.observed(ctx), "workflow.execute.resume_signal_timeout", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
+	selection, err := validateResumeSignalTimeoutConfig(ctx, req, d.opts.SignalTimeoutReader)
+	if err != nil {
+		return Result{}, err
+	}
+	run := runContext{
+		start: req.Start, selection: selection, instanceID: req.InstanceID,
+		traceID: d.opts.Instrumentation.TraceID(ctx),
+	}
+	at := req.RecordedAt.UTC()
+	if req.RecordedAt.IsZero() {
+		at = d.opts.Clock().UTC()
+	}
+	ctx, release, err := d.acquireInstanceLease(ctx, req.Start.TenantID, req.InstanceID)
+	if err != nil {
+		return Result{}, err
+	}
+	defer func() { retErr = releasing(retErr, release) }()
+
+	advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, req.ExpectedInstanceVersion, at, 1,
+		func(ctx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
+			row, loadErr := d.opts.SignalTimeoutReader.LoadExpiredSubscription(ctx, ex, ExpiredSubscriptionQuery{
+				TenantID: req.Start.TenantID, SubscriptionID: req.SubscriptionID,
+			})
+			if loadErr != nil {
+				return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, nil, loadErr
+			}
+			outcome, driftErr := checkSignalTimeout(req, selection, row)
+			return outcome, req.Refs, nil, driftErr
+		}, nil)
+	if err != nil {
+		settled := d.settlePause(ctx, run, at, err)
+		if paused, ok := pausedResult(settled, Result{}); ok {
+			return paused, nil
+		}
+		return Result{}, settled
+	}
+
+	result := Result{
+		Advances:        []runtime.AdvanceReceipt{advanced},
+		WorkItems:       created,
+		Timers:          timers,
+		InstanceVersion: advanced.NewInstanceVersion,
+		Frontier:        append([]string(nil), advanced.Frontier...),
+		EvidenceIDs:     evidenceIDs,
+	}
+	if advanced.Complete {
+		result.Status = StatusComplete
+		return result, nil
+	}
+	ready, parked := readyAndParked(advanced.Continuations)
+	if parked {
+		result.Status = StatusParked
+		return result, nil
+	}
+	if len(ready) == 0 {
+		return Result{}, fmt.Errorf("%w: resumed instance %s has no READY continuation", ErrNoProgress, req.InstanceID)
+	}
+	return d.drainReady(ctx, run, result, ready)
+}
+
+// validateResumeSignalTimeoutConfig checks wiring, request shape and the
+// pinned plan's identity before any transaction opens. It never reads the
+// expired wait.
+func validateResumeSignalTimeoutConfig(ctx context.Context, req ResumeSignalTimeoutRequest, reader SignalTimeoutReader) (runtime.WorkflowSelection, error) {
+	if reader == nil {
+		return runtime.WorkflowSelection{}, invalid("resume from a signal timeout has no SignalTimeoutReader")
+	}
+	if req.Start.TenantID == uuid.Nil || req.InstanceID == uuid.Nil ||
+		req.SubscriptionID == uuid.Nil || req.ExpectedInstanceVersion < 1 {
+		return runtime.WorkflowSelection{}, invalid(
+			"resume from a signal timeout requires tenant, instance, subscription and a positive expected instance version")
+	}
+	return resolvePinnedPlan(ctx, req.Start, "resume from a signal timeout")
+}
+
+// checkSignalTimeout compares the committed expiry against the request and
+// the pinned plan. The outcome is always TIMED_OUT: only an EXPIRED wait
+// whose timeout continuation references this exact subscription advances a
+// node, and the node, and the reference the node records as its output, are
+// always taken from the stored row.
+func checkSignalTimeout(req ResumeSignalTimeoutRequest, selection runtime.WorkflowSelection, row ExpiredSubscription) (frontier.NodeOutcome, error) {
+	if row.SubscriptionID != req.SubscriptionID {
+		return frontier.NodeOutcome{}, signalDrift("loaded expiry %s is not the requested %s",
+			row.SubscriptionID, req.SubscriptionID)
+	}
+	if !row.Settled {
+		return frontier.NodeOutcome{}, signalDrift(
+			"subscription %s is not an expired wait; only an EXPIRED wait with its timeout continuation resumes a node as TIMED_OUT",
+			row.SubscriptionID)
+	}
+	if row.ContinuationRef != timeoutContinuationRef(row.SubscriptionID) {
+		return frontier.NodeOutcome{}, signalDrift("expiry continuation %q is not the timeout reference to subscription %s",
+			row.ContinuationRef, row.SubscriptionID)
+	}
+	if row.InstanceID != req.InstanceID {
+		return frontier.NodeOutcome{}, signalDrift("expiry %s settled instance %s, not %s", row.SubscriptionID, row.InstanceID, req.InstanceID)
+	}
+	node, ok := selection.Plan.Node(row.NodeID)
+	if !ok || node.Type != workflow.StepSignal {
+		return frontier.NodeOutcome{}, signalDrift("expiry %s settled node %s, which is not a SIGNAL in the pinned plan", row.SubscriptionID, row.NodeID)
+	}
+	return frontier.NodeOutcome{NodeID: row.NodeID, Outcome: workflow.Outcome("TIMED_OUT"), OutputDigest: row.ContinuationRef}, nil
+}
+
 // requireSignalSubscription is the sink half: it opens the durable
 // subscription through the configured port, or refuses exactly as the driver
 // did before WF-RUN-005 when none is configured.
@@ -244,4 +403,14 @@ func (s *continuationSink) requireSignalSubscription(ctx context.Context, ex run
 
 func signalDrift(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrSignalDrift, fmt.Sprintf(format, args...))
+}
+
+// timeoutContinuationRef is the reference an expired wait's continuation
+// carries: the timeout namespace apart from signal receipts, naming the
+// expired subscription. internal/data/signals.ExpiryContinuationRef is the
+// durable source of this reference; the adapter proves they agree, and this
+// check keeps a row that names anything else from advancing a node as a
+// timeout.
+func timeoutContinuationRef(subscriptionID uuid.UUID) string {
+	return "signal-timeout:" + subscriptionID.String()
 }

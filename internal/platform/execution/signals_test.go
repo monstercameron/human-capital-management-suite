@@ -210,6 +210,96 @@ func TestSignalSubscriptions_Integration(t *testing.T) {
 	})
 }
 
+// TestSignalSubscriptions_ExpiryIntegration sweeps a due wait through the
+// production adapter: ExpireDue marks it EXPIRED with its timeout
+// continuation, and LoadExpiredSubscription hands the driver a settled
+// expiry whose reference is the durable timeout namespace. An OPEN wait and
+// an unknown subscription are both ErrSignalDrift: neither is evidence a
+// node may time out on.
+func TestSignalSubscriptions_ExpiryIntegration(t *testing.T) {
+	db := pgtest.New(t)
+	ctx := context.Background()
+	tenantID := uuid.New()
+	db.Exec(t, `INSERT INTO tenant (tenant_id, tenant_key, cell_id, display_name, status, effective_from)
+		VALUES ($1, $2, 'cell-local', 'signal expiry adapter', 'ACTIVE', timestamptz '2026-01-01T00:00:00Z')`, tenantID, "signal-expiry-adapter-"+tenantID.String())
+	newRunningInstance := func(key string) uuid.UUID {
+		t.Helper()
+		instanceID := uuid.New()
+		db.Exec(t, `INSERT INTO workflow_instance
+			(tenant_id, instance_id, cell_id, workflow_id, workflow_version, compiled_plan_hash,
+			 business_subject_refs, execution_mode, runtime_status, completion_dimensions, input_ref,
+			 variable_revision_head, current_node_ids, correlation_id, created_at)
+			VALUES ($1, $2, 'cell-local', 'fixture', 1, repeat('a', 64), '{}', 'EXECUTE', 'WAITING', '{}',
+			        'input:one', 0, '{signal_ack_received}', $3, $4)`, tenantID, instanceID, key, signalAdapterAt)
+		return instanceID
+	}
+	dueInstance, openInstance := newRunningInstance("corr:due"), newRunningInstance("corr:open")
+	conn := db.NewConn(t)
+	if _, err := conn.Exec(ctx, "SET ROLE "+tenancy.AppRole); err != nil {
+		t.Fatal(err)
+	}
+	inTx := func(fn func(tx dbport.Tx) error) {
+		t.Helper()
+		tx, err := conn.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = tx.Rollback(ctx) }()
+		if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+			t.Fatal(err)
+		}
+		if err := fn(tx); err != nil {
+			t.Fatal(err)
+		}
+		if err := tx.Commit(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	adapter := SignalSubscriptions{Correlate: func(req execute.SignalSubscriptionRequest) (string, error) {
+		return "worker:jane", nil
+	}}
+	dueSub := signals.SubscriptionIDFor(tenantID, dueInstance, fixtureSignalNode, 1)
+	openSub := signals.SubscriptionIDFor(tenantID, openInstance, fixtureSignalNode, 1)
+	inTx(func(tx dbport.Tx) error {
+		if _, err := adapter.CreateSubscription(ctx, tx, signalFixtureRequest(t, tenantID, dueInstance)); err != nil {
+			return err
+		}
+		// The second wait parks two days later, so its close is still in
+		// the future when the sweep runs: exactly one wait is due.
+		later := signalFixtureRequest(t, tenantID, openInstance)
+		later.CreatedAt = signalAdapterAt.Add(48 * time.Hour)
+		_, err := adapter.CreateSubscription(ctx, tx, later)
+		return err
+	})
+	inTx(func(tx dbport.Tx) error {
+		expired, err := (signals.Store{}).ExpireDue(ctx, tx, tenantID, signalAdapterAt.Add(25*time.Hour), 8)
+		if err != nil {
+			return err
+		}
+		if len(expired) != 1 || expired[0].SubscriptionID != dueSub {
+			t.Fatalf("expired = %+v, want exactly the due wait", expired)
+		}
+		return nil
+	})
+	inTx(func(tx dbport.Tx) error {
+		row, err := adapter.LoadExpiredSubscription(ctx, tx, execute.ExpiredSubscriptionQuery{TenantID: tenantID, SubscriptionID: dueSub})
+		if err != nil {
+			return err
+		}
+		if !row.Settled || row.InstanceID != dueInstance || row.NodeID != fixtureSignalNode ||
+			row.ContinuationRef != signals.ExpiryContinuationRef(dueSub) {
+			t.Fatalf("expired subscription = %+v, want a settled timeout reference for the due wait", row)
+		}
+		if _, err := adapter.LoadExpiredSubscription(ctx, tx, execute.ExpiredSubscriptionQuery{TenantID: tenantID, SubscriptionID: openSub}); !errors.Is(err, execute.ErrSignalDrift) {
+			t.Fatalf("an OPEN wait: err = %v, want ErrSignalDrift", err)
+		}
+		if _, err := adapter.LoadExpiredSubscription(ctx, tx, execute.ExpiredSubscriptionQuery{TenantID: tenantID, SubscriptionID: uuid.New()}); !errors.Is(err, execute.ErrSignalDrift) {
+			t.Fatalf("an unknown subscription: err = %v, want ErrSignalDrift", err)
+		}
+		return nil
+	})
+}
+
 type acceptAll struct{}
 
 func (acceptAll) Verify(stepsignal.Signal) error { return nil }

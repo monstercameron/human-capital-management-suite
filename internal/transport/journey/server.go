@@ -421,6 +421,35 @@ func (s *server) DecideJourney(ctx context.Context, req *journeyv1.DecideJourney
 	return &journeyv1.DecideJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
 }
 
+// AcknowledgeJourney forwards to workspace.JourneyEngine.Acknowledge, which
+// receives the employee's verified acknowledgement as a correlated signal and
+// resumes the driver from the matched receipt. Governed write. The page gate
+// matches ExecuteJourney (advancing the journey, not deciding an approval);
+// the engine itself enforces the attester rules (cell admission, no
+// self-attestation by the initiator, open wait required).
+func (s *server) AcknowledgeJourney(ctx context.Context, req *journeyv1.AcknowledgeJourneyRequest) (*journeyv1.AcknowledgeJourneyResponse, error) {
+	principal, inv, ctxErr := trustedContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
+		return nil, err
+	}
+	eng, depErr := s.engine(principal, inv, "acknowledge")
+	if depErr != nil {
+		return nil, depErr
+	}
+
+	detail, err := eng.Acknowledge(ctx, req.GetIntentId(), workspace.Acknowledgement{
+		EvidenceRef: req.GetEvidenceRef(),
+		Note:        req.GetNote(),
+	})
+	if err != nil {
+		return nil, ownedError(err, principal, inv, "acknowledge")
+	}
+	return &journeyv1.AcknowledgeJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
+}
+
 // EditProposal forwards to workspace.JourneyEngine.EditProposal, which is
 // SupersedeIntent scoped to journeys. Governed write.
 func (s *server) EditProposal(ctx context.Context, req *journeyv1.EditProposalRequest) (*journeyv1.EditProposalResponse, error) {

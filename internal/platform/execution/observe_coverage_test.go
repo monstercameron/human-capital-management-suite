@@ -10,16 +10,17 @@ import (
 // context-taking functions that open no observe operation, with the reason.
 var executionUninstrumentedByDesign = map[string]string{
 	// The telemetry seams themselves.
-	"observe_recorder.go ObserveRecorder.Start":                     "the recorder seam",
-	"telemetry.go OTelInstrumentation.TraceID":                      "instrumentation seam",
-	"telemetry.go OTelInstrumentation.StartNodeSpan":                "instrumentation seam",
-	"telemetry.go OTelInstrumentation.StartAdvanceSpan":             "instrumentation seam",
-	"telemetry.go OTelInstrumentation.StartTerminalSpan":            "instrumentation seam",
-	"telemetry.go OTelInstrumentation.StartResumeSpan":              "instrumentation seam",
-	"progress_observer.go ProgressObserver.StartSweep":              "progress telemetry seam (span and log)",
-	"progress_observer.go ProgressObserver.Stuck":                   "progress telemetry seam (log)",
-	"workload_observer.go WorkloadObserver.Observe":                 "workload telemetry seam (span and log)",
-	"evidence.go capabilityEvidenceAdapter.RecordExecutionEvidence": "evidence sink write inside the instrumented driver advance",
+	"observe_recorder.go ObserveRecorder.Start":                       "the recorder seam",
+	"telemetry.go OTelInstrumentation.TraceID":                        "instrumentation seam",
+	"telemetry.go OTelInstrumentation.StartNodeSpan":                  "instrumentation seam",
+	"telemetry.go OTelInstrumentation.StartAdvanceSpan":               "instrumentation seam",
+	"telemetry.go OTelInstrumentation.StartTerminalSpan":              "instrumentation seam",
+	"telemetry.go OTelInstrumentation.StartResumeSpan":                "instrumentation seam",
+	"progress_observer.go ProgressObserver.StartSweep":                "progress telemetry seam (span and log)",
+	"progress_observer.go ProgressObserver.Stuck":                     "progress telemetry seam (log)",
+	"workload_observer.go WorkloadObserver.Observe":                   "workload telemetry seam (span and log)",
+	"evidence.go capabilityEvidenceAdapter.RecordExecutionEvidence":   "evidence sink write inside the instrumented driver advance",
+	"evidence.go capabilityEvidenceAdapter.RecordExecutionEvidenceTx": "evidence sink write inside the instrumented driver advance",
 
 	// Pure delegation to the instrumented execution driver.
 	"execution.go executeDriverAdapter.Execute":        "delegates to the instrumented driver",
@@ -32,6 +33,11 @@ var executionUninstrumentedByDesign = map[string]string{
 	// WF-RUN-005: the signal driver adapter and the resumer function adapter.
 	"signal_resume.go executeDriverAdapter.ResumeSignal":          "delegates to the instrumented driver",
 	"scheduler/signal_dispatch.go SignalResumerFunc.ResumeSignal": "function adapter",
+
+	// The expiry sweeper: the timeout driver adapter and the expirer
+	// function adapter.
+	"signal_resume.go executeDriverAdapter.ResumeSignalTimeout":          "delegates to the instrumented driver",
+	"scheduler/signal_dispatch.go SignalExpirerFunc.ResumeExpiredSignal": "function adapter",
 
 	// WF-STEP-018: the approval kernel adapter and its authority port adapter.
 	"approval_kernel.go executeDriverAdapter.CompleteApproval":   "delegates to the instrumented driver",

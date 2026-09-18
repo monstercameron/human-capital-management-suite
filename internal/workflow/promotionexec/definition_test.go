@@ -12,7 +12,7 @@ import (
 // The digest moved with WF-RUN-037: it now pins execute_promotion as the
 // AUTHORITATIVE_CORE (the only change; with the role cleared the plan still
 // digests to 186dcb387bc3f6576b88935be0435839fb96afd055e1e69a1da0c6fa74d60674).
-const promotionExecutePlanDigest = "f368f53c962603e0546a888d2a965b2b0568e08d925e352af00ded2898eb5864"
+const promotionExecutePlanDigest = "655535f1e484991a79562a292eb21374381b1e757e115a3ec53eb25ce61679d7"
 
 func TestPromotionExecuteDefinitionCompiles(t *testing.T) {
 	plan, err := Compile()
@@ -75,6 +75,8 @@ func TestTodo_PROMO_EXEC_DEF_Conformance(t *testing.T) {
 		NodeStillValid:            workflow.StepDecision,
 		NodeReapproval:            workflow.StepTask,
 		NodeExecutePromotion:      workflow.StepCapability,
+		NodeCompensateHold:        workflow.StepCompensate,
+		NodeAcknowledgeRelease:    workflow.StepSignal,
 		NodeObservePayroll:        workflow.StepObserve,
 		NodeObserveAccess:         workflow.StepObserve,
 		NodeObserveReconciliation: workflow.StepObserve,
@@ -110,8 +112,13 @@ func TestTodo_PROMO_EXEC_DEF_Conformance(t *testing.T) {
 		{NodeReapproval, NodeEndInvalidated, "INVALIDATED"},
 		{NodeExecutePromotion, NodeObservePayroll, "SUCCEEDED"},
 		{NodeObservePayroll, NodeObserveAccess, "PASS"},
+		{NodeObservePayroll, NodeCompensateHold, "FAIL"},
 		{NodeObserveAccess, NodeObserveReconciliation, "PASS"},
-		{NodeObserveReconciliation, NodeEndComplete, "CONSISTENT"},
+		{NodeObserveAccess, NodeCompensateHold, "PARTIAL"},
+		{NodeCompensateHold, NodeEndRepairPlan, "COMPENSATED"},
+		{NodeObserveReconciliation, NodeAcknowledgeRelease, "CONSISTENT"},
+		{NodeAcknowledgeRelease, NodeEndComplete, "SUCCEEDED"},
+		{NodeAcknowledgeRelease, NodeEndRepairPlan, "TIMED_OUT"},
 		{NodeObserveReconciliation, NodeEndRepairPlan, "DEGRADED"},
 	}
 	for _, want := range expectedEdges {

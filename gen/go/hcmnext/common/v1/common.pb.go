@@ -275,6 +275,13 @@ const (
 	// cleanly refused; governed repair is required to reach a consistent
 	// terminal state.
 	InterventionOutcome_INTERVENTION_OUTCOME_REPAIR_REQUIRED InterventionOutcome = 5
+	// INTERVENTION_OUTCOME_INDETERMINATE: the governed repair ran and its
+	// admission fence could not establish whether the corrective effect
+	// reached the external system. It is deliberately distinct from APPLIED
+	// and from DENIED: the one thing a reader must not be told here is that
+	// the state is known. It mirrors the REPAIR mode's own
+	// internal/workflow/execute.RepairIndeterminate verdict.
+	InterventionOutcome_INTERVENTION_OUTCOME_INDETERMINATE InterventionOutcome = 6
 )
 
 // Enum value maps for InterventionOutcome.
@@ -286,6 +293,7 @@ var (
 		3: "INTERVENTION_OUTCOME_DENIED",
 		4: "INTERVENTION_OUTCOME_TOO_LATE",
 		5: "INTERVENTION_OUTCOME_REPAIR_REQUIRED",
+		6: "INTERVENTION_OUTCOME_INDETERMINATE",
 	}
 	InterventionOutcome_value = map[string]int32{
 		"INTERVENTION_OUTCOME_UNSPECIFIED":        0,
@@ -294,6 +302,7 @@ var (
 		"INTERVENTION_OUTCOME_DENIED":             3,
 		"INTERVENTION_OUTCOME_TOO_LATE":           4,
 		"INTERVENTION_OUTCOME_REPAIR_REQUIRED":    5,
+		"INTERVENTION_OUTCOME_INDETERMINATE":      6,
 	}
 )
 
@@ -1609,14 +1618,15 @@ const file_hcmnext_common_v1_common_proto_rawDesc = "" +
 	"\x16EffectiveTimeRangeKind\x12)\n" +
 	"%EFFECTIVE_TIME_RANGE_KIND_UNSPECIFIED\x10\x00\x12%\n" +
 	"!EFFECTIVE_TIME_RANGE_KIND_INSTANT\x10\x01\x12(\n" +
-	"$EFFECTIVE_TIME_RANGE_KIND_LOCAL_DATE\x10\x02*\xf8\x01\n" +
+	"$EFFECTIVE_TIME_RANGE_KIND_LOCAL_DATE\x10\x02*\xa0\x02\n" +
 	"\x13InterventionOutcome\x12$\n" +
 	" INTERVENTION_OUTCOME_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cINTERVENTION_OUTCOME_APPLIED\x10\x01\x12+\n" +
 	"'INTERVENTION_OUTCOME_PENDING_SAFE_POINT\x10\x02\x12\x1f\n" +
 	"\x1bINTERVENTION_OUTCOME_DENIED\x10\x03\x12!\n" +
 	"\x1dINTERVENTION_OUTCOME_TOO_LATE\x10\x04\x12(\n" +
-	"$INTERVENTION_OUTCOME_REPAIR_REQUIRED\x10\x05*\xe0\x02\n" +
+	"$INTERVENTION_OUTCOME_REPAIR_REQUIRED\x10\x05\x12&\n" +
+	"\"INTERVENTION_OUTCOME_INDETERMINATE\x10\x06*\xe0\x02\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bERROR_CODE_INVALID_ARGUMENT\x10\x01\x12\x1e\n" +

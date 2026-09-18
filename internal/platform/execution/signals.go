@@ -50,8 +50,9 @@ type SignalSubscriptions struct {
 }
 
 var (
-	_ execute.SignalSubscriber = SignalSubscriptions{}
-	_ execute.SignalReader     = SignalSubscriptions{}
+	_ execute.SignalSubscriber    = SignalSubscriptions{}
+	_ execute.SignalReader        = SignalSubscriptions{}
+	_ execute.SignalTimeoutReader = SignalSubscriptions{}
 )
 
 // DefaultCorrelation is the closed correlation vocabulary a composition gets
@@ -164,6 +165,31 @@ func (a SignalSubscriptions) LoadMatchedSignal(ctx context.Context, ex runtime.E
 		SignalID: row.SignalID, SubscriptionID: row.SubscriptionID, InstanceID: row.InstanceID,
 		NodeID: row.NodeID, NodeAttempt: row.NodeAttempt, Settled: row.Settled(),
 		ContinuationRef: row.ContinuationRef, Causal: runtimeCausal(row.Causal),
+	}, nil
+}
+
+// LoadExpiredSubscription loads the committed EXPIRED wait a timeout resume
+// advances from. Anything but an EXPIRED row is [execute.ErrSignalDrift]:
+// the request names evidence that was never committed, or a wait that is
+// still receivable. Settled additionally proves the durable timeout
+// reference agrees with the driver's: the advancement records it as the
+// SIGNAL node's output, so the two namespaces must be one.
+func (a SignalSubscriptions) LoadExpiredSubscription(ctx context.Context, ex runtime.Executor, q execute.ExpiredSubscriptionQuery) (ret0 execute.ExpiredSubscription, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.execution.load_expired_subscription", q)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
+	row, err := a.Store.LoadExpiredSubscription(ctx, ex, q.TenantID, q.SubscriptionID)
+	if errors.Is(err, signals.ErrNoExpiredSubscription) {
+		return execute.ExpiredSubscription{}, fmt.Errorf("%w: %w", execute.ErrSignalDrift, err)
+	}
+	if err != nil {
+		return execute.ExpiredSubscription{}, err
+	}
+	return execute.ExpiredSubscription{
+		SubscriptionID: row.SubscriptionID, InstanceID: row.InstanceID,
+		NodeID: row.NodeID, NodeAttempt: row.NodeAttempt,
+		Settled:         true,
+		ContinuationRef: signals.ExpiryContinuationRef(row.SubscriptionID),
+		Causal:          runtimeCausal(row.Causal),
 	}, nil
 }
 
