@@ -77,6 +77,10 @@ const (
 	// JOURNEY_STAGE_REPAIR_REQUIRED: the workflow requires governed repair
 	// before it can reach a consistent terminal state.
 	JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED JourneyStage = 15
+	// JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT: downstream effects reconciled
+	// and the workflow is parked on the employee acknowledgement gate before
+	// the promotion may complete.
+	JourneyStage_JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT JourneyStage = 16
 )
 
 // Enum value maps for JourneyStage.
@@ -98,24 +102,26 @@ var (
 		13: "JOURNEY_STAGE_OBSERVING_EFFECTS",
 		14: "JOURNEY_STAGE_RECORDED",
 		15: "JOURNEY_STAGE_REPAIR_REQUIRED",
+		16: "JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT",
 	}
 	JourneyStage_value = map[string]int32{
-		"JOURNEY_STAGE_UNSPECIFIED":            0,
-		"JOURNEY_STAGE_PROPOSED":               1,
-		"JOURNEY_STAGE_BLOCKED":                2,
-		"JOURNEY_STAGE_AWAITING_APPROVAL":      3,
-		"JOURNEY_STAGE_COMPLETED":              4,
-		"JOURNEY_STAGE_REJECTED":               5,
-		"JOURNEY_STAGE_FAILED":                 6,
-		"JOURNEY_STAGE_FINANCE_APPROVAL":       7,
-		"JOURNEY_STAGE_MANAGER_APPROVAL":       8,
-		"JOURNEY_STAGE_WAITING_EFFECTIVE_DATE": 9,
-		"JOURNEY_STAGE_REVALIDATION":           10,
-		"JOURNEY_STAGE_REAPPROVAL":             11,
-		"JOURNEY_STAGE_EXECUTED":               12,
-		"JOURNEY_STAGE_OBSERVING_EFFECTS":      13,
-		"JOURNEY_STAGE_RECORDED":               14,
-		"JOURNEY_STAGE_REPAIR_REQUIRED":        15,
+		"JOURNEY_STAGE_UNSPECIFIED":              0,
+		"JOURNEY_STAGE_PROPOSED":                 1,
+		"JOURNEY_STAGE_BLOCKED":                  2,
+		"JOURNEY_STAGE_AWAITING_APPROVAL":        3,
+		"JOURNEY_STAGE_COMPLETED":                4,
+		"JOURNEY_STAGE_REJECTED":                 5,
+		"JOURNEY_STAGE_FAILED":                   6,
+		"JOURNEY_STAGE_FINANCE_APPROVAL":         7,
+		"JOURNEY_STAGE_MANAGER_APPROVAL":         8,
+		"JOURNEY_STAGE_WAITING_EFFECTIVE_DATE":   9,
+		"JOURNEY_STAGE_REVALIDATION":             10,
+		"JOURNEY_STAGE_REAPPROVAL":               11,
+		"JOURNEY_STAGE_EXECUTED":                 12,
+		"JOURNEY_STAGE_OBSERVING_EFFECTS":        13,
+		"JOURNEY_STAGE_RECORDED":                 14,
+		"JOURNEY_STAGE_REPAIR_REQUIRED":          15,
+		"JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT": 16,
 	}
 )
 
@@ -301,33 +307,39 @@ const (
 	JourneyNextStep_JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE JourneyNextStep = 8
 	// JOURNEY_NEXT_STEP_SYSTEM_PROCESSING: the workflow is processing.
 	JourneyNextStep_JOURNEY_NEXT_STEP_SYSTEM_PROCESSING JourneyNextStep = 9
+	// JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT: the workflow is parked on the
+	// employee acknowledgement gate; a person must record the verified
+	// acknowledgement, but no role class on the journey names whose job it is.
+	JourneyNextStep_JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT JourneyNextStep = 10
 )
 
 // Enum value maps for JourneyNextStep.
 var (
 	JourneyNextStep_name = map[int32]string{
-		0: "JOURNEY_NEXT_STEP_UNSPECIFIED",
-		1: "JOURNEY_NEXT_STEP_START_APPROVAL",
-		2: "JOURNEY_NEXT_STEP_CORRECT_PROPOSAL",
-		3: "JOURNEY_NEXT_STEP_APPROVAL_DECISION",
-		4: "JOURNEY_NEXT_STEP_MANAGER_DECISION",
-		5: "JOURNEY_NEXT_STEP_FINANCE_DECISION",
-		6: "JOURNEY_NEXT_STEP_REAPPROVAL_DECISION",
-		7: "JOURNEY_NEXT_STEP_REPAIR",
-		8: "JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE",
-		9: "JOURNEY_NEXT_STEP_SYSTEM_PROCESSING",
+		0:  "JOURNEY_NEXT_STEP_UNSPECIFIED",
+		1:  "JOURNEY_NEXT_STEP_START_APPROVAL",
+		2:  "JOURNEY_NEXT_STEP_CORRECT_PROPOSAL",
+		3:  "JOURNEY_NEXT_STEP_APPROVAL_DECISION",
+		4:  "JOURNEY_NEXT_STEP_MANAGER_DECISION",
+		5:  "JOURNEY_NEXT_STEP_FINANCE_DECISION",
+		6:  "JOURNEY_NEXT_STEP_REAPPROVAL_DECISION",
+		7:  "JOURNEY_NEXT_STEP_REPAIR",
+		8:  "JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE",
+		9:  "JOURNEY_NEXT_STEP_SYSTEM_PROCESSING",
+		10: "JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT",
 	}
 	JourneyNextStep_value = map[string]int32{
-		"JOURNEY_NEXT_STEP_UNSPECIFIED":          0,
-		"JOURNEY_NEXT_STEP_START_APPROVAL":       1,
-		"JOURNEY_NEXT_STEP_CORRECT_PROPOSAL":     2,
-		"JOURNEY_NEXT_STEP_APPROVAL_DECISION":    3,
-		"JOURNEY_NEXT_STEP_MANAGER_DECISION":     4,
-		"JOURNEY_NEXT_STEP_FINANCE_DECISION":     5,
-		"JOURNEY_NEXT_STEP_REAPPROVAL_DECISION":  6,
-		"JOURNEY_NEXT_STEP_REPAIR":               7,
-		"JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE": 8,
-		"JOURNEY_NEXT_STEP_SYSTEM_PROCESSING":    9,
+		"JOURNEY_NEXT_STEP_UNSPECIFIED":           0,
+		"JOURNEY_NEXT_STEP_START_APPROVAL":        1,
+		"JOURNEY_NEXT_STEP_CORRECT_PROPOSAL":      2,
+		"JOURNEY_NEXT_STEP_APPROVAL_DECISION":     3,
+		"JOURNEY_NEXT_STEP_MANAGER_DECISION":      4,
+		"JOURNEY_NEXT_STEP_FINANCE_DECISION":      5,
+		"JOURNEY_NEXT_STEP_REAPPROVAL_DECISION":   6,
+		"JOURNEY_NEXT_STEP_REPAIR":                7,
+		"JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE":  8,
+		"JOURNEY_NEXT_STEP_SYSTEM_PROCESSING":     9,
+		"JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT": 10,
 	}
 )
 
@@ -440,6 +452,14 @@ const (
 	// journey is in an eligible wait (for example, waiting on approval or on
 	// its effective-date safe point).
 	JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL JourneyInterventionKind = 2
+	// JOURNEY_INTERVENTION_KIND_REPAIR: the governed repair a journey stopped
+	// in REPAIR_REQUIRED names as its next step. Unlike the two above it is
+	// not a CancelIntent composition: it is the operator repair door
+	// (internal/intent/operator/workflowcontrol.RepairController), with its
+	// own JIT authority, dual control and simulation requirements. Previewing
+	// it is what this service offers; the corrective effect itself is driven
+	// through that door against an authored repair plan.
+	JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_REPAIR JourneyInterventionKind = 3
 )
 
 // Enum value maps for JourneyInterventionKind.
@@ -448,11 +468,13 @@ var (
 		0: "JOURNEY_INTERVENTION_KIND_UNSPECIFIED",
 		1: "JOURNEY_INTERVENTION_KIND_WITHDRAW",
 		2: "JOURNEY_INTERVENTION_KIND_CANCEL",
+		3: "JOURNEY_INTERVENTION_KIND_REPAIR",
 	}
 	JourneyInterventionKind_value = map[string]int32{
 		"JOURNEY_INTERVENTION_KIND_UNSPECIFIED": 0,
 		"JOURNEY_INTERVENTION_KIND_WITHDRAW":    1,
 		"JOURNEY_INTERVENTION_KIND_CANCEL":      2,
+		"JOURNEY_INTERVENTION_KIND_REPAIR":      3,
 	}
 )
 
@@ -542,7 +564,7 @@ func (x ManagerRelationshipProjection_Disposition) Number() protoreflect.EnumNum
 
 // Deprecated: Use ManagerRelationshipProjection_Disposition.Descriptor instead.
 func (ManagerRelationshipProjection_Disposition) EnumDescriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{77, 0}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{80, 0}
 }
 
 // Placement is one side (current or target) of the placement change
@@ -2849,6 +2871,113 @@ func (x *DecideJourneyResponse) GetDetail() *JourneyDetail {
 	return nil
 }
 
+type AcknowledgeJourneyRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	IntentId string                 `protobuf:"bytes,1,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	// evidence_ref points at the verified artifact (signed document or HRIS
+	// record) when there is one; note carries anything else the attester
+	// states. Both travel verbatim into the signal payload.
+	EvidenceRef   string `protobuf:"bytes,2,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	Note          string `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcknowledgeJourneyRequest) Reset() {
+	*x = AcknowledgeJourneyRequest{}
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcknowledgeJourneyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcknowledgeJourneyRequest) ProtoMessage() {}
+
+func (x *AcknowledgeJourneyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcknowledgeJourneyRequest.ProtoReflect.Descriptor instead.
+func (*AcknowledgeJourneyRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *AcknowledgeJourneyRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *AcknowledgeJourneyRequest) GetEvidenceRef() string {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return ""
+}
+
+func (x *AcknowledgeJourneyRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+type AcknowledgeJourneyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Detail        *JourneyDetail         `protobuf:"bytes,1,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcknowledgeJourneyResponse) Reset() {
+	*x = AcknowledgeJourneyResponse{}
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcknowledgeJourneyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcknowledgeJourneyResponse) ProtoMessage() {}
+
+func (x *AcknowledgeJourneyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcknowledgeJourneyResponse.ProtoReflect.Descriptor instead.
+func (*AcknowledgeJourneyResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *AcknowledgeJourneyResponse) GetDetail() *JourneyDetail {
+	if x != nil {
+		return x.Detail
+	}
+	return nil
+}
+
 // EditProposalRequest carries the corrected fields for an unstarted or
 // not-yet-approved proposal. The worker is not editable here: an edit
 // changes the promotion being proposed, never who it is for.
@@ -2873,7 +3002,7 @@ type EditProposalRequest struct {
 
 func (x *EditProposalRequest) Reset() {
 	*x = EditProposalRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[24]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2885,7 +3014,7 @@ func (x *EditProposalRequest) String() string {
 func (*EditProposalRequest) ProtoMessage() {}
 
 func (x *EditProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[24]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2898,7 +3027,7 @@ func (x *EditProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditProposalRequest.ProtoReflect.Descriptor instead.
 func (*EditProposalRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{24}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *EditProposalRequest) GetIntentId() string {
@@ -2971,7 +3100,7 @@ type EditProposalResponse struct {
 
 func (x *EditProposalResponse) Reset() {
 	*x = EditProposalResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[25]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2983,7 +3112,7 @@ func (x *EditProposalResponse) String() string {
 func (*EditProposalResponse) ProtoMessage() {}
 
 func (x *EditProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[25]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2996,7 +3125,7 @@ func (x *EditProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditProposalResponse.ProtoReflect.Descriptor instead.
 func (*EditProposalResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{25}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *EditProposalResponse) GetJourney() *Journey {
@@ -3023,7 +3152,7 @@ type PreviewJourneyInterventionRequest struct {
 
 func (x *PreviewJourneyInterventionRequest) Reset() {
 	*x = PreviewJourneyInterventionRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[26]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3035,7 +3164,7 @@ func (x *PreviewJourneyInterventionRequest) String() string {
 func (*PreviewJourneyInterventionRequest) ProtoMessage() {}
 
 func (x *PreviewJourneyInterventionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[26]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3048,7 +3177,7 @@ func (x *PreviewJourneyInterventionRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use PreviewJourneyInterventionRequest.ProtoReflect.Descriptor instead.
 func (*PreviewJourneyInterventionRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{26}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PreviewJourneyInterventionRequest) GetIntentId() string {
@@ -3087,13 +3216,25 @@ type PreviewJourneyInterventionResponse struct {
 	// client can confirm the intervention with RequestJourneyIntervention
 	// without a second read.
 	CurrentGovernanceVersion uint64 `protobuf:"varint,5,opt,name=current_governance_version,json=currentGovernanceVersion,proto3" json:"current_governance_version,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// requires_dual_control and requires_simulation are the governed door's
+	// own requirements for this kind, read from the operator policy rather
+	// than restated by a client. A page that named a governed action without
+	// them would be describing a lighter action than the one that exists.
+	RequiresDualControl bool `protobuf:"varint,6,opt,name=requires_dual_control,json=requiresDualControl,proto3" json:"requires_dual_control,omitempty"`
+	RequiresSimulation  bool `protobuf:"varint,7,opt,name=requires_simulation,json=requiresSimulation,proto3" json:"requires_simulation,omitempty"`
+	// authority_role_refs names the JIT roles whose grant may authorize this
+	// kind. It is the "who can act" half of a refusal: a viewer who may not
+	// act is told which authority is needed, not merely that they lack it.
+	// The roles a kind requires are policy, identical for every caller, so
+	// naming them discloses nothing about who holds them.
+	AuthorityRoleRefs []string `protobuf:"bytes,8,rep,name=authority_role_refs,json=authorityRoleRefs,proto3" json:"authority_role_refs,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PreviewJourneyInterventionResponse) Reset() {
 	*x = PreviewJourneyInterventionResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[27]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3105,7 +3246,7 @@ func (x *PreviewJourneyInterventionResponse) String() string {
 func (*PreviewJourneyInterventionResponse) ProtoMessage() {}
 
 func (x *PreviewJourneyInterventionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[27]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3118,7 +3259,7 @@ func (x *PreviewJourneyInterventionResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use PreviewJourneyInterventionResponse.ProtoReflect.Descriptor instead.
 func (*PreviewJourneyInterventionResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{27}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *PreviewJourneyInterventionResponse) GetAvailable() bool {
@@ -3156,6 +3297,27 @@ func (x *PreviewJourneyInterventionResponse) GetCurrentGovernanceVersion() uint6
 	return 0
 }
 
+func (x *PreviewJourneyInterventionResponse) GetRequiresDualControl() bool {
+	if x != nil {
+		return x.RequiresDualControl
+	}
+	return false
+}
+
+func (x *PreviewJourneyInterventionResponse) GetRequiresSimulation() bool {
+	if x != nil {
+		return x.RequiresSimulation
+	}
+	return false
+}
+
+func (x *PreviewJourneyInterventionResponse) GetAuthorityRoleRefs() []string {
+	if x != nil {
+		return x.AuthorityRoleRefs
+	}
+	return nil
+}
+
 type RequestJourneyInterventionRequest struct {
 	state                   protoimpl.MessageState  `protogen:"open.v1"`
 	IntentId                string                  `protobuf:"bytes,1,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
@@ -3169,7 +3331,7 @@ type RequestJourneyInterventionRequest struct {
 
 func (x *RequestJourneyInterventionRequest) Reset() {
 	*x = RequestJourneyInterventionRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[28]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3181,7 +3343,7 @@ func (x *RequestJourneyInterventionRequest) String() string {
 func (*RequestJourneyInterventionRequest) ProtoMessage() {}
 
 func (x *RequestJourneyInterventionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[28]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3194,7 +3356,7 @@ func (x *RequestJourneyInterventionRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use RequestJourneyInterventionRequest.ProtoReflect.Descriptor instead.
 func (*RequestJourneyInterventionRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{28}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RequestJourneyInterventionRequest) GetIntentId() string {
@@ -3246,7 +3408,7 @@ type RequestJourneyInterventionResponse struct {
 
 func (x *RequestJourneyInterventionResponse) Reset() {
 	*x = RequestJourneyInterventionResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[29]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3258,7 +3420,7 @@ func (x *RequestJourneyInterventionResponse) String() string {
 func (*RequestJourneyInterventionResponse) ProtoMessage() {}
 
 func (x *RequestJourneyInterventionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[29]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3271,7 +3433,7 @@ func (x *RequestJourneyInterventionResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use RequestJourneyInterventionResponse.ProtoReflect.Descriptor instead.
 func (*RequestJourneyInterventionResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{29}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RequestJourneyInterventionResponse) GetJourney() *Journey {
@@ -3322,7 +3484,7 @@ type WatchJourneyRequest struct {
 
 func (x *WatchJourneyRequest) Reset() {
 	*x = WatchJourneyRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[30]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3334,7 +3496,7 @@ func (x *WatchJourneyRequest) String() string {
 func (*WatchJourneyRequest) ProtoMessage() {}
 
 func (x *WatchJourneyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[30]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3347,7 +3509,7 @@ func (x *WatchJourneyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchJourneyRequest.ProtoReflect.Descriptor instead.
 func (*WatchJourneyRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{30}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *WatchJourneyRequest) GetIntentId() string {
@@ -3399,7 +3561,7 @@ type WatchJourneyResponse struct {
 
 func (x *WatchJourneyResponse) Reset() {
 	*x = WatchJourneyResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[31]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3411,7 +3573,7 @@ func (x *WatchJourneyResponse) String() string {
 func (*WatchJourneyResponse) ProtoMessage() {}
 
 func (x *WatchJourneyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[31]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3424,7 +3586,7 @@ func (x *WatchJourneyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchJourneyResponse.ProtoReflect.Descriptor instead.
 func (*WatchJourneyResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{31}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *WatchJourneyResponse) GetDetail() *JourneyDetail {
@@ -3509,7 +3671,7 @@ type Worker struct {
 
 func (x *Worker) Reset() {
 	*x = Worker{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[32]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3521,7 +3683,7 @@ func (x *Worker) String() string {
 func (*Worker) ProtoMessage() {}
 
 func (x *Worker) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[32]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3534,7 +3696,7 @@ func (x *Worker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Worker.ProtoReflect.Descriptor instead.
 func (*Worker) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{32}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *Worker) GetWorkerRef() string {
@@ -3716,13 +3878,20 @@ type WorkforceOptions struct {
 	// edges. A pay band proves a target can be paid; only one of these edges
 	// proves it is a permitted next role for a particular current profile.
 	PromotionPaths []*PromotionPathOption `protobuf:"bytes,8,rep,name=promotion_paths,json=promotionPaths,proto3" json:"promotion_paths,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// position_vacancies are the positions the cell has proved are real,
+	// authorized and still open at the read coordinate. The parallel
+	// positions list above is every position id the observed population
+	// occupies, which is the opposite of a vacancy; it stays for
+	// worker-creation controls. An empty list means "no vacancy this caller
+	// may target", which is an answer, not an invitation to type one in.
+	PositionVacancies []*PositionVacancyOption `protobuf:"bytes,9,rep,name=position_vacancies,json=positionVacancies,proto3" json:"position_vacancies,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *WorkforceOptions) Reset() {
 	*x = WorkforceOptions{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[33]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3734,7 +3903,7 @@ func (x *WorkforceOptions) String() string {
 func (*WorkforceOptions) ProtoMessage() {}
 
 func (x *WorkforceOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[33]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3747,7 +3916,7 @@ func (x *WorkforceOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkforceOptions.ProtoReflect.Descriptor instead.
 func (*WorkforceOptions) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{33}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *WorkforceOptions) GetJobCodes() []string {
@@ -3806,6 +3975,133 @@ func (x *WorkforceOptions) GetPromotionPaths() []*PromotionPathOption {
 	return nil
 }
 
+func (x *WorkforceOptions) GetPositionVacancies() []*PositionVacancyOption {
+	if x != nil {
+		return x.PositionVacancies
+	}
+	return nil
+}
+
+// PositionVacancyOption is one position a promotion proposal may target.
+//
+// reference is the only field a proposal binds to: it is the server-issued
+// position revision reference, never a raw position id, so a value that did
+// not come from this list cannot be made to decode as one.
+type PositionVacancyOption struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Reference    string                 `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+	Title        string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Organization string                 `protobuf:"bytes,3,opt,name=organization,proto3" json:"organization,omitempty"`
+	Manager      string                 `protobuf:"bytes,4,opt,name=manager,proto3" json:"manager,omitempty"`
+	Location     string                 `protobuf:"bytes,5,opt,name=location,proto3" json:"location,omitempty"`
+	// job_code and org_unit are the position's own governed codes, published
+	// so a form can narrow the list to the role being proposed. They narrow
+	// what is shown; they never widen what may be chosen.
+	JobCode string `protobuf:"bytes,6,opt,name=job_code,json=jobCode,proto3" json:"job_code,omitempty"`
+	OrgUnit string `protobuf:"bytes,7,opt,name=org_unit,json=orgUnit,proto3" json:"org_unit,omitempty"`
+	// vacancy_end is the earliest date the position is known to stop being
+	// open, as yyyy-mm-dd, or empty when no end is known.
+	VacancyEnd string `protobuf:"bytes,8,opt,name=vacancy_end,json=vacancyEnd,proto3" json:"vacancy_end,omitempty"`
+	// reservation_state is the disclosed state of the position's capacity,
+	// stated rather than implied by the option's mere presence.
+	ReservationState string `protobuf:"bytes,9,opt,name=reservation_state,json=reservationState,proto3" json:"reservation_state,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *PositionVacancyOption) Reset() {
+	*x = PositionVacancyOption{}
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PositionVacancyOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PositionVacancyOption) ProtoMessage() {}
+
+func (x *PositionVacancyOption) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PositionVacancyOption.ProtoReflect.Descriptor instead.
+func (*PositionVacancyOption) Descriptor() ([]byte, []int) {
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *PositionVacancyOption) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
+func (x *PositionVacancyOption) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *PositionVacancyOption) GetOrganization() string {
+	if x != nil {
+		return x.Organization
+	}
+	return ""
+}
+
+func (x *PositionVacancyOption) GetManager() string {
+	if x != nil {
+		return x.Manager
+	}
+	return ""
+}
+
+func (x *PositionVacancyOption) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *PositionVacancyOption) GetJobCode() string {
+	if x != nil {
+		return x.JobCode
+	}
+	return ""
+}
+
+func (x *PositionVacancyOption) GetOrgUnit() string {
+	if x != nil {
+		return x.OrgUnit
+	}
+	return ""
+}
+
+func (x *PositionVacancyOption) GetVacancyEnd() string {
+	if x != nil {
+		return x.VacancyEnd
+	}
+	return ""
+}
+
+func (x *PositionVacancyOption) GetReservationState() string {
+	if x != nil {
+		return x.ReservationState
+	}
+	return ""
+}
+
 // WorkforcePlacementOption is one exact compensation-catalog scope. It is
 // the minimum governed target identity the current journey surface can offer;
 // future job-architecture revisions may additionally pin a profile/path ref.
@@ -3821,7 +4117,7 @@ type WorkforcePlacementOption struct {
 
 func (x *WorkforcePlacementOption) Reset() {
 	*x = WorkforcePlacementOption{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[34]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3833,7 +4129,7 @@ func (x *WorkforcePlacementOption) String() string {
 func (*WorkforcePlacementOption) ProtoMessage() {}
 
 func (x *WorkforcePlacementOption) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[34]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3846,7 +4142,7 @@ func (x *WorkforcePlacementOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkforcePlacementOption.ProtoReflect.Descriptor instead.
 func (*WorkforcePlacementOption) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{34}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *WorkforcePlacementOption) GetJobCode() string {
@@ -3903,7 +4199,7 @@ type PromotionPathOption struct {
 
 func (x *PromotionPathOption) Reset() {
 	*x = PromotionPathOption{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[35]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3915,7 +4211,7 @@ func (x *PromotionPathOption) String() string {
 func (*PromotionPathOption) ProtoMessage() {}
 
 func (x *PromotionPathOption) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[35]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3928,7 +4224,7 @@ func (x *PromotionPathOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromotionPathOption.ProtoReflect.Descriptor instead.
 func (*PromotionPathOption) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{35}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *PromotionPathOption) GetPathRef() string {
@@ -4037,7 +4333,7 @@ type ListWorkersRequest struct {
 
 func (x *ListWorkersRequest) Reset() {
 	*x = ListWorkersRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[36]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4049,7 +4345,7 @@ func (x *ListWorkersRequest) String() string {
 func (*ListWorkersRequest) ProtoMessage() {}
 
 func (x *ListWorkersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[36]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4062,7 +4358,7 @@ func (x *ListWorkersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkersRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkersRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{36}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{39}
 }
 
 type ListWorkersResponse struct {
@@ -4075,7 +4371,7 @@ type ListWorkersResponse struct {
 
 func (x *ListWorkersResponse) Reset() {
 	*x = ListWorkersResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[37]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4087,7 +4383,7 @@ func (x *ListWorkersResponse) String() string {
 func (*ListWorkersResponse) ProtoMessage() {}
 
 func (x *ListWorkersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[37]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4100,7 +4396,7 @@ func (x *ListWorkersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkersResponse.ProtoReflect.Descriptor instead.
 func (*ListWorkersResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{37}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ListWorkersResponse) GetWorkers() []*Worker {
@@ -4153,7 +4449,7 @@ type CreateWorkerRequest struct {
 
 func (x *CreateWorkerRequest) Reset() {
 	*x = CreateWorkerRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[38]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4165,7 +4461,7 @@ func (x *CreateWorkerRequest) String() string {
 func (*CreateWorkerRequest) ProtoMessage() {}
 
 func (x *CreateWorkerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[38]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4178,7 +4474,7 @@ func (x *CreateWorkerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkerRequest.ProtoReflect.Descriptor instead.
 func (*CreateWorkerRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{38}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *CreateWorkerRequest) GetLegalName() string {
@@ -4281,7 +4577,7 @@ type CreateWorkerResponse struct {
 
 func (x *CreateWorkerResponse) Reset() {
 	*x = CreateWorkerResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[39]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4293,7 +4589,7 @@ func (x *CreateWorkerResponse) String() string {
 func (*CreateWorkerResponse) ProtoMessage() {}
 
 func (x *CreateWorkerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[39]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4306,7 +4602,7 @@ func (x *CreateWorkerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkerResponse.ProtoReflect.Descriptor instead.
 func (*CreateWorkerResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{39}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *CreateWorkerResponse) GetWorker() *Worker {
@@ -4328,7 +4624,7 @@ type TablePreferences struct {
 
 func (x *TablePreferences) Reset() {
 	*x = TablePreferences{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[40]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4340,7 +4636,7 @@ func (x *TablePreferences) String() string {
 func (*TablePreferences) ProtoMessage() {}
 
 func (x *TablePreferences) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[40]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4353,7 +4649,7 @@ func (x *TablePreferences) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TablePreferences.ProtoReflect.Descriptor instead.
 func (*TablePreferences) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{40}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *TablePreferences) GetPageSize() int32 {
@@ -4396,7 +4692,7 @@ type AccessibilityPreferences struct {
 
 func (x *AccessibilityPreferences) Reset() {
 	*x = AccessibilityPreferences{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[41]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4408,7 +4704,7 @@ func (x *AccessibilityPreferences) String() string {
 func (*AccessibilityPreferences) ProtoMessage() {}
 
 func (x *AccessibilityPreferences) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[41]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4421,7 +4717,7 @@ func (x *AccessibilityPreferences) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccessibilityPreferences.ProtoReflect.Descriptor instead.
 func (*AccessibilityPreferences) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{41}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *AccessibilityPreferences) GetTextSize() string {
@@ -4468,7 +4764,7 @@ type UserPreferences struct {
 
 func (x *UserPreferences) Reset() {
 	*x = UserPreferences{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[42]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4480,7 +4776,7 @@ func (x *UserPreferences) String() string {
 func (*UserPreferences) ProtoMessage() {}
 
 func (x *UserPreferences) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[42]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4493,7 +4789,7 @@ func (x *UserPreferences) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserPreferences.ProtoReflect.Descriptor instead.
 func (*UserPreferences) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{42}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UserPreferences) GetVersion() int64 {
@@ -4578,7 +4874,7 @@ type CustomerTheme struct {
 
 func (x *CustomerTheme) Reset() {
 	*x = CustomerTheme{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[43]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4590,7 +4886,7 @@ func (x *CustomerTheme) String() string {
 func (*CustomerTheme) ProtoMessage() {}
 
 func (x *CustomerTheme) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[43]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4603,7 +4899,7 @@ func (x *CustomerTheme) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CustomerTheme.ProtoReflect.Descriptor instead.
 func (*CustomerTheme) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{43}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *CustomerTheme) GetVersion() int64 {
@@ -4712,7 +5008,7 @@ type GetProductPreferencesRequest struct {
 
 func (x *GetProductPreferencesRequest) Reset() {
 	*x = GetProductPreferencesRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[44]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4724,7 +5020,7 @@ func (x *GetProductPreferencesRequest) String() string {
 func (*GetProductPreferencesRequest) ProtoMessage() {}
 
 func (x *GetProductPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[44]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4737,7 +5033,7 @@ func (x *GetProductPreferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProductPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*GetProductPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{44}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{47}
 }
 
 type GetProductPreferencesResponse struct {
@@ -4751,7 +5047,7 @@ type GetProductPreferencesResponse struct {
 
 func (x *GetProductPreferencesResponse) Reset() {
 	*x = GetProductPreferencesResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[45]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4763,7 +5059,7 @@ func (x *GetProductPreferencesResponse) String() string {
 func (*GetProductPreferencesResponse) ProtoMessage() {}
 
 func (x *GetProductPreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[45]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4776,7 +5072,7 @@ func (x *GetProductPreferencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProductPreferencesResponse.ProtoReflect.Descriptor instead.
 func (*GetProductPreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{45}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *GetProductPreferencesResponse) GetUser() *UserPreferences {
@@ -4809,7 +5105,7 @@ type SaveUserPreferencesRequest struct {
 
 func (x *SaveUserPreferencesRequest) Reset() {
 	*x = SaveUserPreferencesRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[46]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4821,7 +5117,7 @@ func (x *SaveUserPreferencesRequest) String() string {
 func (*SaveUserPreferencesRequest) ProtoMessage() {}
 
 func (x *SaveUserPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[46]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4834,7 +5130,7 @@ func (x *SaveUserPreferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveUserPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*SaveUserPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{46}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *SaveUserPreferencesRequest) GetUser() *UserPreferences {
@@ -4853,7 +5149,7 @@ type SaveUserPreferencesResponse struct {
 
 func (x *SaveUserPreferencesResponse) Reset() {
 	*x = SaveUserPreferencesResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[47]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4865,7 +5161,7 @@ func (x *SaveUserPreferencesResponse) String() string {
 func (*SaveUserPreferencesResponse) ProtoMessage() {}
 
 func (x *SaveUserPreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[47]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4878,7 +5174,7 @@ func (x *SaveUserPreferencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveUserPreferencesResponse.ProtoReflect.Descriptor instead.
 func (*SaveUserPreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{47}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *SaveUserPreferencesResponse) GetUser() *UserPreferences {
@@ -4897,7 +5193,7 @@ type SaveTenantAppearanceRequest struct {
 
 func (x *SaveTenantAppearanceRequest) Reset() {
 	*x = SaveTenantAppearanceRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[48]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4909,7 +5205,7 @@ func (x *SaveTenantAppearanceRequest) String() string {
 func (*SaveTenantAppearanceRequest) ProtoMessage() {}
 
 func (x *SaveTenantAppearanceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[48]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4922,7 +5218,7 @@ func (x *SaveTenantAppearanceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveTenantAppearanceRequest.ProtoReflect.Descriptor instead.
 func (*SaveTenantAppearanceRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{48}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *SaveTenantAppearanceRequest) GetTheme() *CustomerTheme {
@@ -4941,7 +5237,7 @@ type SaveTenantAppearanceResponse struct {
 
 func (x *SaveTenantAppearanceResponse) Reset() {
 	*x = SaveTenantAppearanceResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[49]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4953,7 +5249,7 @@ func (x *SaveTenantAppearanceResponse) String() string {
 func (*SaveTenantAppearanceResponse) ProtoMessage() {}
 
 func (x *SaveTenantAppearanceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[49]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4966,7 +5262,7 @@ func (x *SaveTenantAppearanceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveTenantAppearanceResponse.ProtoReflect.Descriptor instead.
 func (*SaveTenantAppearanceResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{49}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *SaveTenantAppearanceResponse) GetTheme() *CustomerTheme {
@@ -4987,7 +5283,7 @@ type OrganizationVisibilityPolicy struct {
 
 func (x *OrganizationVisibilityPolicy) Reset() {
 	*x = OrganizationVisibilityPolicy{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[50]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4999,7 +5295,7 @@ func (x *OrganizationVisibilityPolicy) String() string {
 func (*OrganizationVisibilityPolicy) ProtoMessage() {}
 
 func (x *OrganizationVisibilityPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[50]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5012,7 +5308,7 @@ func (x *OrganizationVisibilityPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrganizationVisibilityPolicy.ProtoReflect.Descriptor instead.
 func (*OrganizationVisibilityPolicy) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{50}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *OrganizationVisibilityPolicy) GetVersion() int64 {
@@ -5045,7 +5341,7 @@ type SaveOrganizationVisibilityRequest struct {
 
 func (x *SaveOrganizationVisibilityRequest) Reset() {
 	*x = SaveOrganizationVisibilityRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[51]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5057,7 +5353,7 @@ func (x *SaveOrganizationVisibilityRequest) String() string {
 func (*SaveOrganizationVisibilityRequest) ProtoMessage() {}
 
 func (x *SaveOrganizationVisibilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[51]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5070,7 +5366,7 @@ func (x *SaveOrganizationVisibilityRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use SaveOrganizationVisibilityRequest.ProtoReflect.Descriptor instead.
 func (*SaveOrganizationVisibilityRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{51}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *SaveOrganizationVisibilityRequest) GetPolicy() *OrganizationVisibilityPolicy {
@@ -5089,7 +5385,7 @@ type SaveOrganizationVisibilityResponse struct {
 
 func (x *SaveOrganizationVisibilityResponse) Reset() {
 	*x = SaveOrganizationVisibilityResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[52]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5101,7 +5397,7 @@ func (x *SaveOrganizationVisibilityResponse) String() string {
 func (*SaveOrganizationVisibilityResponse) ProtoMessage() {}
 
 func (x *SaveOrganizationVisibilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[52]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5114,7 +5410,7 @@ func (x *SaveOrganizationVisibilityResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use SaveOrganizationVisibilityResponse.ProtoReflect.Descriptor instead.
 func (*SaveOrganizationVisibilityResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{52}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *SaveOrganizationVisibilityResponse) GetPolicy() *OrganizationVisibilityPolicy {
@@ -5138,7 +5434,7 @@ type AccessRole struct {
 
 func (x *AccessRole) Reset() {
 	*x = AccessRole{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[53]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5150,7 +5446,7 @@ func (x *AccessRole) String() string {
 func (*AccessRole) ProtoMessage() {}
 
 func (x *AccessRole) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[53]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5163,7 +5459,7 @@ func (x *AccessRole) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccessRole.ProtoReflect.Descriptor instead.
 func (*AccessRole) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{53}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *AccessRole) GetVersion() int64 {
@@ -5219,7 +5515,7 @@ type WorkerRoleAssignment struct {
 
 func (x *WorkerRoleAssignment) Reset() {
 	*x = WorkerRoleAssignment{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[54]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5231,7 +5527,7 @@ func (x *WorkerRoleAssignment) String() string {
 func (*WorkerRoleAssignment) ProtoMessage() {}
 
 func (x *WorkerRoleAssignment) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[54]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5244,7 +5540,7 @@ func (x *WorkerRoleAssignment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkerRoleAssignment.ProtoReflect.Descriptor instead.
 func (*WorkerRoleAssignment) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{54}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *WorkerRoleAssignment) GetVersion() int64 {
@@ -5280,7 +5576,7 @@ type RoleOrganizationVisibilityPolicy struct {
 
 func (x *RoleOrganizationVisibilityPolicy) Reset() {
 	*x = RoleOrganizationVisibilityPolicy{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[55]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5292,7 +5588,7 @@ func (x *RoleOrganizationVisibilityPolicy) String() string {
 func (*RoleOrganizationVisibilityPolicy) ProtoMessage() {}
 
 func (x *RoleOrganizationVisibilityPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[55]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5305,7 +5601,7 @@ func (x *RoleOrganizationVisibilityPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoleOrganizationVisibilityPolicy.ProtoReflect.Descriptor instead.
 func (*RoleOrganizationVisibilityPolicy) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{55}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *RoleOrganizationVisibilityPolicy) GetVersion() int64 {
@@ -5351,7 +5647,7 @@ type RolePagePermission struct {
 
 func (x *RolePagePermission) Reset() {
 	*x = RolePagePermission{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[56]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5363,7 +5659,7 @@ func (x *RolePagePermission) String() string {
 func (*RolePagePermission) ProtoMessage() {}
 
 func (x *RolePagePermission) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[56]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5376,7 +5672,7 @@ func (x *RolePagePermission) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePagePermission.ProtoReflect.Descriptor instead.
 func (*RolePagePermission) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{56}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *RolePagePermission) GetVersion() int64 {
@@ -5444,7 +5740,7 @@ type RoleFeaturePermission struct {
 
 func (x *RoleFeaturePermission) Reset() {
 	*x = RoleFeaturePermission{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[57]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5456,7 +5752,7 @@ func (x *RoleFeaturePermission) String() string {
 func (*RoleFeaturePermission) ProtoMessage() {}
 
 func (x *RoleFeaturePermission) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[57]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5469,7 +5765,7 @@ func (x *RoleFeaturePermission) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoleFeaturePermission.ProtoReflect.Descriptor instead.
 func (*RoleFeaturePermission) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{57}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *RoleFeaturePermission) GetVersion() int64 {
@@ -5536,7 +5832,7 @@ type GetRoleAccessRequest struct {
 
 func (x *GetRoleAccessRequest) Reset() {
 	*x = GetRoleAccessRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[58]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5548,7 +5844,7 @@ func (x *GetRoleAccessRequest) String() string {
 func (*GetRoleAccessRequest) ProtoMessage() {}
 
 func (x *GetRoleAccessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[58]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5561,7 +5857,7 @@ func (x *GetRoleAccessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoleAccessRequest.ProtoReflect.Descriptor instead.
 func (*GetRoleAccessRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{58}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{61}
 }
 
 type GetRoleAccessResponse struct {
@@ -5577,7 +5873,7 @@ type GetRoleAccessResponse struct {
 
 func (x *GetRoleAccessResponse) Reset() {
 	*x = GetRoleAccessResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[59]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5589,7 +5885,7 @@ func (x *GetRoleAccessResponse) String() string {
 func (*GetRoleAccessResponse) ProtoMessage() {}
 
 func (x *GetRoleAccessResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[59]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5602,7 +5898,7 @@ func (x *GetRoleAccessResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoleAccessResponse.ProtoReflect.Descriptor instead.
 func (*GetRoleAccessResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{59}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *GetRoleAccessResponse) GetRoles() []*AccessRole {
@@ -5649,7 +5945,7 @@ type SaveAccessRoleRequest struct {
 
 func (x *SaveAccessRoleRequest) Reset() {
 	*x = SaveAccessRoleRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[60]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5661,7 +5957,7 @@ func (x *SaveAccessRoleRequest) String() string {
 func (*SaveAccessRoleRequest) ProtoMessage() {}
 
 func (x *SaveAccessRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[60]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5674,7 +5970,7 @@ func (x *SaveAccessRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveAccessRoleRequest.ProtoReflect.Descriptor instead.
 func (*SaveAccessRoleRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{60}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *SaveAccessRoleRequest) GetRole() *AccessRole {
@@ -5693,7 +5989,7 @@ type SaveAccessRoleResponse struct {
 
 func (x *SaveAccessRoleResponse) Reset() {
 	*x = SaveAccessRoleResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[61]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5705,7 +6001,7 @@ func (x *SaveAccessRoleResponse) String() string {
 func (*SaveAccessRoleResponse) ProtoMessage() {}
 
 func (x *SaveAccessRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[61]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5718,7 +6014,7 @@ func (x *SaveAccessRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveAccessRoleResponse.ProtoReflect.Descriptor instead.
 func (*SaveAccessRoleResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{61}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *SaveAccessRoleResponse) GetRole() *AccessRole {
@@ -5737,7 +6033,7 @@ type SaveWorkerRoleAssignmentRequest struct {
 
 func (x *SaveWorkerRoleAssignmentRequest) Reset() {
 	*x = SaveWorkerRoleAssignmentRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[62]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5749,7 +6045,7 @@ func (x *SaveWorkerRoleAssignmentRequest) String() string {
 func (*SaveWorkerRoleAssignmentRequest) ProtoMessage() {}
 
 func (x *SaveWorkerRoleAssignmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[62]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5762,7 +6058,7 @@ func (x *SaveWorkerRoleAssignmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveWorkerRoleAssignmentRequest.ProtoReflect.Descriptor instead.
 func (*SaveWorkerRoleAssignmentRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{62}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *SaveWorkerRoleAssignmentRequest) GetAssignment() *WorkerRoleAssignment {
@@ -5781,7 +6077,7 @@ type SaveWorkerRoleAssignmentResponse struct {
 
 func (x *SaveWorkerRoleAssignmentResponse) Reset() {
 	*x = SaveWorkerRoleAssignmentResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[63]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5793,7 +6089,7 @@ func (x *SaveWorkerRoleAssignmentResponse) String() string {
 func (*SaveWorkerRoleAssignmentResponse) ProtoMessage() {}
 
 func (x *SaveWorkerRoleAssignmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[63]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5806,7 +6102,7 @@ func (x *SaveWorkerRoleAssignmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveWorkerRoleAssignmentResponse.ProtoReflect.Descriptor instead.
 func (*SaveWorkerRoleAssignmentResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{63}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *SaveWorkerRoleAssignmentResponse) GetAssignment() *WorkerRoleAssignment {
@@ -5825,7 +6121,7 @@ type SaveRoleOrganizationVisibilityRequest struct {
 
 func (x *SaveRoleOrganizationVisibilityRequest) Reset() {
 	*x = SaveRoleOrganizationVisibilityRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[64]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5837,7 +6133,7 @@ func (x *SaveRoleOrganizationVisibilityRequest) String() string {
 func (*SaveRoleOrganizationVisibilityRequest) ProtoMessage() {}
 
 func (x *SaveRoleOrganizationVisibilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[64]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5850,7 +6146,7 @@ func (x *SaveRoleOrganizationVisibilityRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use SaveRoleOrganizationVisibilityRequest.ProtoReflect.Descriptor instead.
 func (*SaveRoleOrganizationVisibilityRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{64}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *SaveRoleOrganizationVisibilityRequest) GetPolicy() *RoleOrganizationVisibilityPolicy {
@@ -5869,7 +6165,7 @@ type SaveRoleOrganizationVisibilityResponse struct {
 
 func (x *SaveRoleOrganizationVisibilityResponse) Reset() {
 	*x = SaveRoleOrganizationVisibilityResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[65]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5881,7 +6177,7 @@ func (x *SaveRoleOrganizationVisibilityResponse) String() string {
 func (*SaveRoleOrganizationVisibilityResponse) ProtoMessage() {}
 
 func (x *SaveRoleOrganizationVisibilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[65]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5894,7 +6190,7 @@ func (x *SaveRoleOrganizationVisibilityResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use SaveRoleOrganizationVisibilityResponse.ProtoReflect.Descriptor instead.
 func (*SaveRoleOrganizationVisibilityResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{65}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *SaveRoleOrganizationVisibilityResponse) GetPolicy() *RoleOrganizationVisibilityPolicy {
@@ -5913,7 +6209,7 @@ type SaveRolePagePermissionRequest struct {
 
 func (x *SaveRolePagePermissionRequest) Reset() {
 	*x = SaveRolePagePermissionRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[66]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5925,7 +6221,7 @@ func (x *SaveRolePagePermissionRequest) String() string {
 func (*SaveRolePagePermissionRequest) ProtoMessage() {}
 
 func (x *SaveRolePagePermissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[66]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5938,7 +6234,7 @@ func (x *SaveRolePagePermissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveRolePagePermissionRequest.ProtoReflect.Descriptor instead.
 func (*SaveRolePagePermissionRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{66}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *SaveRolePagePermissionRequest) GetPermission() *RolePagePermission {
@@ -5957,7 +6253,7 @@ type SaveRolePagePermissionResponse struct {
 
 func (x *SaveRolePagePermissionResponse) Reset() {
 	*x = SaveRolePagePermissionResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[67]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5969,7 +6265,7 @@ func (x *SaveRolePagePermissionResponse) String() string {
 func (*SaveRolePagePermissionResponse) ProtoMessage() {}
 
 func (x *SaveRolePagePermissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[67]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5982,7 +6278,7 @@ func (x *SaveRolePagePermissionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveRolePagePermissionResponse.ProtoReflect.Descriptor instead.
 func (*SaveRolePagePermissionResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{67}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *SaveRolePagePermissionResponse) GetPermission() *RolePagePermission {
@@ -6001,7 +6297,7 @@ type SaveRoleFeaturePermissionRequest struct {
 
 func (x *SaveRoleFeaturePermissionRequest) Reset() {
 	*x = SaveRoleFeaturePermissionRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[68]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6013,7 +6309,7 @@ func (x *SaveRoleFeaturePermissionRequest) String() string {
 func (*SaveRoleFeaturePermissionRequest) ProtoMessage() {}
 
 func (x *SaveRoleFeaturePermissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[68]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6026,7 +6322,7 @@ func (x *SaveRoleFeaturePermissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveRoleFeaturePermissionRequest.ProtoReflect.Descriptor instead.
 func (*SaveRoleFeaturePermissionRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{68}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *SaveRoleFeaturePermissionRequest) GetPermission() *RoleFeaturePermission {
@@ -6045,7 +6341,7 @@ type SaveRoleFeaturePermissionResponse struct {
 
 func (x *SaveRoleFeaturePermissionResponse) Reset() {
 	*x = SaveRoleFeaturePermissionResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[69]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6057,7 +6353,7 @@ func (x *SaveRoleFeaturePermissionResponse) String() string {
 func (*SaveRoleFeaturePermissionResponse) ProtoMessage() {}
 
 func (x *SaveRoleFeaturePermissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[69]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6070,7 +6366,7 @@ func (x *SaveRoleFeaturePermissionResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use SaveRoleFeaturePermissionResponse.ProtoReflect.Descriptor instead.
 func (*SaveRoleFeaturePermissionResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{69}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *SaveRoleFeaturePermissionResponse) GetPermission() *RoleFeaturePermission {
@@ -6089,7 +6385,7 @@ type RecordWorkflowUseRequest struct {
 
 func (x *RecordWorkflowUseRequest) Reset() {
 	*x = RecordWorkflowUseRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[70]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6101,7 +6397,7 @@ func (x *RecordWorkflowUseRequest) String() string {
 func (*RecordWorkflowUseRequest) ProtoMessage() {}
 
 func (x *RecordWorkflowUseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[70]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6114,7 +6410,7 @@ func (x *RecordWorkflowUseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordWorkflowUseRequest.ProtoReflect.Descriptor instead.
 func (*RecordWorkflowUseRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{70}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *RecordWorkflowUseRequest) GetWorkflowId() string {
@@ -6133,7 +6429,7 @@ type RecordWorkflowUseResponse struct {
 
 func (x *RecordWorkflowUseResponse) Reset() {
 	*x = RecordWorkflowUseResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[71]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6145,7 +6441,7 @@ func (x *RecordWorkflowUseResponse) String() string {
 func (*RecordWorkflowUseResponse) ProtoMessage() {}
 
 func (x *RecordWorkflowUseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[71]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6158,7 +6454,7 @@ func (x *RecordWorkflowUseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordWorkflowUseResponse.ProtoReflect.Descriptor instead.
 func (*RecordWorkflowUseResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{71}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *RecordWorkflowUseResponse) GetUser() *UserPreferences {
@@ -6190,7 +6486,7 @@ type WorkerIDPolicy struct {
 
 func (x *WorkerIDPolicy) Reset() {
 	*x = WorkerIDPolicy{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[72]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6202,7 +6498,7 @@ func (x *WorkerIDPolicy) String() string {
 func (*WorkerIDPolicy) ProtoMessage() {}
 
 func (x *WorkerIDPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[72]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6215,7 +6511,7 @@ func (x *WorkerIDPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkerIDPolicy.ProtoReflect.Descriptor instead.
 func (*WorkerIDPolicy) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{72}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *WorkerIDPolicy) GetVersion() int64 {
@@ -6324,7 +6620,7 @@ type GetWorkerIDPolicyRequest struct {
 
 func (x *GetWorkerIDPolicyRequest) Reset() {
 	*x = GetWorkerIDPolicyRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[73]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6336,7 +6632,7 @@ func (x *GetWorkerIDPolicyRequest) String() string {
 func (*GetWorkerIDPolicyRequest) ProtoMessage() {}
 
 func (x *GetWorkerIDPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[73]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6349,7 +6645,7 @@ func (x *GetWorkerIDPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkerIDPolicyRequest.ProtoReflect.Descriptor instead.
 func (*GetWorkerIDPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{73}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{76}
 }
 
 type GetWorkerIDPolicyResponse struct {
@@ -6362,7 +6658,7 @@ type GetWorkerIDPolicyResponse struct {
 
 func (x *GetWorkerIDPolicyResponse) Reset() {
 	*x = GetWorkerIDPolicyResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[74]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6374,7 +6670,7 @@ func (x *GetWorkerIDPolicyResponse) String() string {
 func (*GetWorkerIDPolicyResponse) ProtoMessage() {}
 
 func (x *GetWorkerIDPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[74]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6387,7 +6683,7 @@ func (x *GetWorkerIDPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkerIDPolicyResponse.ProtoReflect.Descriptor instead.
 func (*GetWorkerIDPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{74}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *GetWorkerIDPolicyResponse) GetPolicy() *WorkerIDPolicy {
@@ -6413,7 +6709,7 @@ type SaveWorkerIDPolicyRequest struct {
 
 func (x *SaveWorkerIDPolicyRequest) Reset() {
 	*x = SaveWorkerIDPolicyRequest{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[75]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6425,7 +6721,7 @@ func (x *SaveWorkerIDPolicyRequest) String() string {
 func (*SaveWorkerIDPolicyRequest) ProtoMessage() {}
 
 func (x *SaveWorkerIDPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[75]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6438,7 +6734,7 @@ func (x *SaveWorkerIDPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveWorkerIDPolicyRequest.ProtoReflect.Descriptor instead.
 func (*SaveWorkerIDPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{75}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *SaveWorkerIDPolicyRequest) GetPolicy() *WorkerIDPolicy {
@@ -6458,7 +6754,7 @@ type SaveWorkerIDPolicyResponse struct {
 
 func (x *SaveWorkerIDPolicyResponse) Reset() {
 	*x = SaveWorkerIDPolicyResponse{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[76]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6470,7 +6766,7 @@ func (x *SaveWorkerIDPolicyResponse) String() string {
 func (*SaveWorkerIDPolicyResponse) ProtoMessage() {}
 
 func (x *SaveWorkerIDPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[76]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6483,7 +6779,7 @@ func (x *SaveWorkerIDPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveWorkerIDPolicyResponse.ProtoReflect.Descriptor instead.
 func (*SaveWorkerIDPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{76}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *SaveWorkerIDPolicyResponse) GetPolicy() *WorkerIDPolicy {
@@ -6516,7 +6812,7 @@ type ManagerRelationshipProjection struct {
 
 func (x *ManagerRelationshipProjection) Reset() {
 	*x = ManagerRelationshipProjection{}
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[77]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6528,7 +6824,7 @@ func (x *ManagerRelationshipProjection) String() string {
 func (*ManagerRelationshipProjection) ProtoMessage() {}
 
 func (x *ManagerRelationshipProjection) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[77]
+	mi := &file_hcmnext_journey_v1_journey_service_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6541,7 +6837,7 @@ func (x *ManagerRelationshipProjection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagerRelationshipProjection.ProtoReflect.Descriptor instead.
 func (*ManagerRelationshipProjection) Descriptor() ([]byte, []int) {
-	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{77}
+	return file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *ManagerRelationshipProjection) GetDisposition() ManagerRelationshipProjection_Disposition {
@@ -6775,6 +7071,12 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\aapprove\x18\x02 \x01(\bR\aapprove\x12\x16\n" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason\"R\n" +
 	"\x15DecideJourneyResponse\x129\n" +
+	"\x06detail\x18\x01 \x01(\v2!.hcmnext.journey.v1.JourneyDetailR\x06detail\"o\n" +
+	"\x19AcknowledgeJourneyRequest\x12\x1b\n" +
+	"\tintent_id\x18\x01 \x01(\tR\bintentId\x12!\n" +
+	"\fevidence_ref\x18\x02 \x01(\tR\vevidenceRef\x12\x12\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\"W\n" +
+	"\x1aAcknowledgeJourneyResponse\x129\n" +
 	"\x06detail\x18\x01 \x01(\v2!.hcmnext.journey.v1.JourneyDetailR\x06detail\"\xdb\x02\n" +
 	"\x13EditProposalRequest\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\x12:\n" +
@@ -6790,13 +7092,16 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x14superseded_intent_id\x18\x02 \x01(\tR\x12supersededIntentId\"\x81\x01\n" +
 	"!PreviewJourneyInterventionRequest\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\x12?\n" +
-	"\x04kind\x18\x02 \x01(\x0e2+.hcmnext.journey.v1.JourneyInterventionKindR\x04kind\"\xb6\x02\n" +
+	"\x04kind\x18\x02 \x01(\x0e2+.hcmnext.journey.v1.JourneyInterventionKindR\x04kind\"\xcb\x03\n" +
 	"\"PreviewJourneyInterventionResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x124\n" +
 	"\x16unavailable_reason_ref\x18\x02 \x01(\tR\x14unavailableReasonRef\x12/\n" +
 	"\x13consequence_summary\x18\x03 \x01(\tR\x12consequenceSummary\x12M\n" +
 	"\x0elikely_outcome\x18\x04 \x01(\x0e2&.hcmnext.common.v1.InterventionOutcomeR\rlikelyOutcome\x12<\n" +
-	"\x1acurrent_governance_version\x18\x05 \x01(\x04R\x18currentGovernanceVersion\"\xfe\x01\n" +
+	"\x1acurrent_governance_version\x18\x05 \x01(\x04R\x18currentGovernanceVersion\x122\n" +
+	"\x15requires_dual_control\x18\x06 \x01(\bR\x13requiresDualControl\x12/\n" +
+	"\x13requires_simulation\x18\a \x01(\bR\x12requiresSimulation\x12.\n" +
+	"\x13authority_role_refs\x18\b \x03(\tR\x11authorityRoleRefs\"\xfe\x01\n" +
 	"!RequestJourneyInterventionRequest\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\x12?\n" +
 	"\x04kind\x18\x02 \x01(\x0e2+.hcmnext.journey.v1.JourneyInterventionKindR\x04kind\x12:\n" +
@@ -6843,7 +7148,7 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x11profile_photo_url\x18\x13 \x01(\tR\x0fprofilePhotoUrl\x12\x1b\n" +
 	"\tjob_title\x18\x14 \x01(\tR\bjobTitle\x12)\n" +
 	"\x10subject_revision\x18\x15 \x01(\tR\x0fsubjectRevision\x12d\n" +
-	"\x14manager_relationship\x18\x16 \x01(\v21.hcmnext.journey.v1.ManagerRelationshipProjectionR\x13managerRelationship\"\xdb\x02\n" +
+	"\x14manager_relationship\x18\x16 \x01(\v21.hcmnext.journey.v1.ManagerRelationshipProjectionR\x13managerRelationship\"\xb5\x03\n" +
 	"\x10WorkforceOptions\x12\x1b\n" +
 	"\tjob_codes\x18\x01 \x03(\tR\bjobCodes\x12\x16\n" +
 	"\x06grades\x18\x02 \x03(\tR\x06grades\x12\x1b\n" +
@@ -6854,7 +7159,19 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\n" +
 	"placements\x18\a \x03(\v2,.hcmnext.journey.v1.WorkforcePlacementOptionR\n" +
 	"placements\x12P\n" +
-	"\x0fpromotion_paths\x18\b \x03(\v2'.hcmnext.journey.v1.PromotionPathOptionR\x0epromotionPaths\"\x82\x01\n" +
+	"\x0fpromotion_paths\x18\b \x03(\v2'.hcmnext.journey.v1.PromotionPathOptionR\x0epromotionPaths\x12X\n" +
+	"\x12position_vacancies\x18\t \x03(\v2).hcmnext.journey.v1.PositionVacancyOptionR\x11positionVacancies\"\xa9\x02\n" +
+	"\x15PositionVacancyOption\x12\x1c\n" +
+	"\treference\x18\x01 \x01(\tR\treference\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\"\n" +
+	"\forganization\x18\x03 \x01(\tR\forganization\x12\x18\n" +
+	"\amanager\x18\x04 \x01(\tR\amanager\x12\x1a\n" +
+	"\blocation\x18\x05 \x01(\tR\blocation\x12\x19\n" +
+	"\bjob_code\x18\x06 \x01(\tR\ajobCode\x12\x19\n" +
+	"\borg_unit\x18\a \x01(\tR\aorgUnit\x12\x1f\n" +
+	"\vvacancy_end\x18\b \x01(\tR\n" +
+	"vacancyEnd\x12+\n" +
+	"\x11reservation_state\x18\t \x01(\tR\x10reservationState\"\x82\x01\n" +
 	"\x18WorkforcePlacementOption\x12\x19\n" +
 	"\bjob_code\x18\x01 \x01(\tR\ajobCode\x12\x14\n" +
 	"\x05grade\x18\x02 \x01(\tR\x05grade\x12\x19\n" +
@@ -7100,7 +7417,7 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x10DISPOSITION_ROOT\x10\x01\x12\x17\n" +
 	"\x13DISPOSITION_VISIBLE\x10\x02\x12\x18\n" +
 	"\x14DISPOSITION_WITHHELD\x10\x03\x12\x16\n" +
-	"\x12DISPOSITION_ORPHAN\x10\x04*\x8c\x04\n" +
+	"\x12DISPOSITION_ORPHAN\x10\x04*\xb8\x04\n" +
 	"\fJourneyStage\x12\x1d\n" +
 	"\x19JOURNEY_STAGE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16JOURNEY_STAGE_PROPOSED\x10\x01\x12\x19\n" +
@@ -7118,7 +7435,8 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x16JOURNEY_STAGE_EXECUTED\x10\f\x12#\n" +
 	"\x1fJOURNEY_STAGE_OBSERVING_EFFECTS\x10\r\x12\x1a\n" +
 	"\x16JOURNEY_STAGE_RECORDED\x10\x0e\x12!\n" +
-	"\x1dJOURNEY_STAGE_REPAIR_REQUIRED\x10\x0f*\xc8\x01\n" +
+	"\x1dJOURNEY_STAGE_REPAIR_REQUIRED\x10\x0f\x12*\n" +
+	"&JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT\x10\x10*\xc8\x01\n" +
 	"\x19JourneyViewerRelationship\x12+\n" +
 	"'JOURNEY_VIEWER_RELATIONSHIP_UNSPECIFIED\x10\x00\x12)\n" +
 	"%JOURNEY_VIEWER_RELATIONSHIP_INITIATOR\x10\x01\x12(\n" +
@@ -7129,7 +7447,7 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"-JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED\x10\x01\x12*\n" +
 	"&JOURNEY_VIEWER_RESPONSIBILITY_TRACKING\x10\x02\x12+\n" +
 	"'JOURNEY_VIEWER_RESPONSIBILITY_OBSERVING\x10\x03\x12(\n" +
-	"$JOURNEY_VIEWER_RESPONSIBILITY_CLOSED\x10\x04*\x99\x03\n" +
+	"$JOURNEY_VIEWER_RESPONSIBILITY_CLOSED\x10\x04*\xc6\x03\n" +
 	"\x0fJourneyNextStep\x12!\n" +
 	"\x1dJOURNEY_NEXT_STEP_UNSPECIFIED\x10\x00\x12$\n" +
 	" JOURNEY_NEXT_STEP_START_APPROVAL\x10\x01\x12&\n" +
@@ -7140,25 +7458,29 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"%JOURNEY_NEXT_STEP_REAPPROVAL_DECISION\x10\x06\x12\x1c\n" +
 	"\x18JOURNEY_NEXT_STEP_REPAIR\x10\a\x12*\n" +
 	"&JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE\x10\b\x12'\n" +
-	"#JOURNEY_NEXT_STEP_SYSTEM_PROCESSING\x10\t*\xd7\x01\n" +
+	"#JOURNEY_NEXT_STEP_SYSTEM_PROCESSING\x10\t\x12+\n" +
+	"'JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT\x10\n" +
+	"*\xd7\x01\n" +
 	"\x10JourneyStepOwner\x12\"\n" +
 	"\x1eJOURNEY_STEP_OWNER_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bJOURNEY_STEP_OWNER_PROPOSER\x10\x01\x12\x1f\n" +
 	"\x1bJOURNEY_STEP_OWNER_APPROVER\x10\x02\x12\x1e\n" +
 	"\x1aJOURNEY_STEP_OWNER_MANAGER\x10\x03\x12\x1e\n" +
 	"\x1aJOURNEY_STEP_OWNER_FINANCE\x10\x04\x12\x1d\n" +
-	"\x19JOURNEY_STEP_OWNER_SYSTEM\x10\x05*\x92\x01\n" +
+	"\x19JOURNEY_STEP_OWNER_SYSTEM\x10\x05*\xb8\x01\n" +
 	"\x17JourneyInterventionKind\x12)\n" +
 	"%JOURNEY_INTERVENTION_KIND_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"JOURNEY_INTERVENTION_KIND_WITHDRAW\x10\x01\x12$\n" +
-	" JOURNEY_INTERVENTION_KIND_CANCEL\x10\x022\xff\x16\n" +
+	" JOURNEY_INTERVENTION_KIND_CANCEL\x10\x02\x12$\n" +
+	" JOURNEY_INTERVENTION_KIND_REPAIR\x10\x032\xf4\x17\n" +
 	"\x0eJourneyService\x12a\n" +
 	"\fListJourneys\x12'.hcmnext.journey.v1.ListJourneysRequest\x1a(.hcmnext.journey.v1.ListJourneysResponse\x12g\n" +
 	"\x0eProposeJourney\x12).hcmnext.journey.v1.ProposeJourneyRequest\x1a*.hcmnext.journey.v1.ProposeJourneyResponse\x12m\n" +
 	"\x10ProposePromotion\x12+.hcmnext.journey.v1.ProposePromotionRequest\x1a,.hcmnext.journey.v1.ProposePromotionResponse\x12g\n" +
 	"\x0eInspectJourney\x12).hcmnext.journey.v1.InspectJourneyRequest\x1a*.hcmnext.journey.v1.InspectJourneyResponse\x12g\n" +
 	"\x0eExecuteJourney\x12).hcmnext.journey.v1.ExecuteJourneyRequest\x1a*.hcmnext.journey.v1.ExecuteJourneyResponse\x12d\n" +
-	"\rDecideJourney\x12(.hcmnext.journey.v1.DecideJourneyRequest\x1a).hcmnext.journey.v1.DecideJourneyResponse\x12a\n" +
+	"\rDecideJourney\x12(.hcmnext.journey.v1.DecideJourneyRequest\x1a).hcmnext.journey.v1.DecideJourneyResponse\x12s\n" +
+	"\x12AcknowledgeJourney\x12-.hcmnext.journey.v1.AcknowledgeJourneyRequest\x1a..hcmnext.journey.v1.AcknowledgeJourneyResponse\x12a\n" +
 	"\fEditProposal\x12'.hcmnext.journey.v1.EditProposalRequest\x1a(.hcmnext.journey.v1.EditProposalResponse\x12\x8b\x01\n" +
 	"\x1aPreviewJourneyIntervention\x125.hcmnext.journey.v1.PreviewJourneyInterventionRequest\x1a6.hcmnext.journey.v1.PreviewJourneyInterventionResponse\x12\x8b\x01\n" +
 	"\x1aRequestJourneyIntervention\x125.hcmnext.journey.v1.RequestJourneyInterventionRequest\x1a6.hcmnext.journey.v1.RequestJourneyInterventionResponse\x12c\n" +
@@ -7192,7 +7514,7 @@ func file_hcmnext_journey_v1_journey_service_proto_rawDescGZIP() []byte {
 }
 
 var file_hcmnext_journey_v1_journey_service_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_hcmnext_journey_v1_journey_service_proto_msgTypes = make([]protoimpl.MessageInfo, 84)
+var file_hcmnext_journey_v1_journey_service_proto_msgTypes = make([]protoimpl.MessageInfo, 87)
 var file_hcmnext_journey_v1_journey_service_proto_goTypes = []any{
 	(JourneyStage)(0),                              // 0: hcmnext.journey.v1.JourneyStage
 	(JourneyViewerRelationship)(0),                 // 1: hcmnext.journey.v1.JourneyViewerRelationship
@@ -7225,100 +7547,103 @@ var file_hcmnext_journey_v1_journey_service_proto_goTypes = []any{
 	(*ExecuteJourneyResponse)(nil),                 // 28: hcmnext.journey.v1.ExecuteJourneyResponse
 	(*DecideJourneyRequest)(nil),                   // 29: hcmnext.journey.v1.DecideJourneyRequest
 	(*DecideJourneyResponse)(nil),                  // 30: hcmnext.journey.v1.DecideJourneyResponse
-	(*EditProposalRequest)(nil),                    // 31: hcmnext.journey.v1.EditProposalRequest
-	(*EditProposalResponse)(nil),                   // 32: hcmnext.journey.v1.EditProposalResponse
-	(*PreviewJourneyInterventionRequest)(nil),      // 33: hcmnext.journey.v1.PreviewJourneyInterventionRequest
-	(*PreviewJourneyInterventionResponse)(nil),     // 34: hcmnext.journey.v1.PreviewJourneyInterventionResponse
-	(*RequestJourneyInterventionRequest)(nil),      // 35: hcmnext.journey.v1.RequestJourneyInterventionRequest
-	(*RequestJourneyInterventionResponse)(nil),     // 36: hcmnext.journey.v1.RequestJourneyInterventionResponse
-	(*WatchJourneyRequest)(nil),                    // 37: hcmnext.journey.v1.WatchJourneyRequest
-	(*WatchJourneyResponse)(nil),                   // 38: hcmnext.journey.v1.WatchJourneyResponse
-	(*Worker)(nil),                                 // 39: hcmnext.journey.v1.Worker
-	(*WorkforceOptions)(nil),                       // 40: hcmnext.journey.v1.WorkforceOptions
-	(*WorkforcePlacementOption)(nil),               // 41: hcmnext.journey.v1.WorkforcePlacementOption
-	(*PromotionPathOption)(nil),                    // 42: hcmnext.journey.v1.PromotionPathOption
-	(*ListWorkersRequest)(nil),                     // 43: hcmnext.journey.v1.ListWorkersRequest
-	(*ListWorkersResponse)(nil),                    // 44: hcmnext.journey.v1.ListWorkersResponse
-	(*CreateWorkerRequest)(nil),                    // 45: hcmnext.journey.v1.CreateWorkerRequest
-	(*CreateWorkerResponse)(nil),                   // 46: hcmnext.journey.v1.CreateWorkerResponse
-	(*TablePreferences)(nil),                       // 47: hcmnext.journey.v1.TablePreferences
-	(*AccessibilityPreferences)(nil),               // 48: hcmnext.journey.v1.AccessibilityPreferences
-	(*UserPreferences)(nil),                        // 49: hcmnext.journey.v1.UserPreferences
-	(*CustomerTheme)(nil),                          // 50: hcmnext.journey.v1.CustomerTheme
-	(*GetProductPreferencesRequest)(nil),           // 51: hcmnext.journey.v1.GetProductPreferencesRequest
-	(*GetProductPreferencesResponse)(nil),          // 52: hcmnext.journey.v1.GetProductPreferencesResponse
-	(*SaveUserPreferencesRequest)(nil),             // 53: hcmnext.journey.v1.SaveUserPreferencesRequest
-	(*SaveUserPreferencesResponse)(nil),            // 54: hcmnext.journey.v1.SaveUserPreferencesResponse
-	(*SaveTenantAppearanceRequest)(nil),            // 55: hcmnext.journey.v1.SaveTenantAppearanceRequest
-	(*SaveTenantAppearanceResponse)(nil),           // 56: hcmnext.journey.v1.SaveTenantAppearanceResponse
-	(*OrganizationVisibilityPolicy)(nil),           // 57: hcmnext.journey.v1.OrganizationVisibilityPolicy
-	(*SaveOrganizationVisibilityRequest)(nil),      // 58: hcmnext.journey.v1.SaveOrganizationVisibilityRequest
-	(*SaveOrganizationVisibilityResponse)(nil),     // 59: hcmnext.journey.v1.SaveOrganizationVisibilityResponse
-	(*AccessRole)(nil),                             // 60: hcmnext.journey.v1.AccessRole
-	(*WorkerRoleAssignment)(nil),                   // 61: hcmnext.journey.v1.WorkerRoleAssignment
-	(*RoleOrganizationVisibilityPolicy)(nil),       // 62: hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
-	(*RolePagePermission)(nil),                     // 63: hcmnext.journey.v1.RolePagePermission
-	(*RoleFeaturePermission)(nil),                  // 64: hcmnext.journey.v1.RoleFeaturePermission
-	(*GetRoleAccessRequest)(nil),                   // 65: hcmnext.journey.v1.GetRoleAccessRequest
-	(*GetRoleAccessResponse)(nil),                  // 66: hcmnext.journey.v1.GetRoleAccessResponse
-	(*SaveAccessRoleRequest)(nil),                  // 67: hcmnext.journey.v1.SaveAccessRoleRequest
-	(*SaveAccessRoleResponse)(nil),                 // 68: hcmnext.journey.v1.SaveAccessRoleResponse
-	(*SaveWorkerRoleAssignmentRequest)(nil),        // 69: hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest
-	(*SaveWorkerRoleAssignmentResponse)(nil),       // 70: hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
-	(*SaveRoleOrganizationVisibilityRequest)(nil),  // 71: hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest
-	(*SaveRoleOrganizationVisibilityResponse)(nil), // 72: hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse
-	(*SaveRolePagePermissionRequest)(nil),          // 73: hcmnext.journey.v1.SaveRolePagePermissionRequest
-	(*SaveRolePagePermissionResponse)(nil),         // 74: hcmnext.journey.v1.SaveRolePagePermissionResponse
-	(*SaveRoleFeaturePermissionRequest)(nil),       // 75: hcmnext.journey.v1.SaveRoleFeaturePermissionRequest
-	(*SaveRoleFeaturePermissionResponse)(nil),      // 76: hcmnext.journey.v1.SaveRoleFeaturePermissionResponse
-	(*RecordWorkflowUseRequest)(nil),               // 77: hcmnext.journey.v1.RecordWorkflowUseRequest
-	(*RecordWorkflowUseResponse)(nil),              // 78: hcmnext.journey.v1.RecordWorkflowUseResponse
-	(*WorkerIDPolicy)(nil),                         // 79: hcmnext.journey.v1.WorkerIDPolicy
-	(*GetWorkerIDPolicyRequest)(nil),               // 80: hcmnext.journey.v1.GetWorkerIDPolicyRequest
-	(*GetWorkerIDPolicyResponse)(nil),              // 81: hcmnext.journey.v1.GetWorkerIDPolicyResponse
-	(*SaveWorkerIDPolicyRequest)(nil),              // 82: hcmnext.journey.v1.SaveWorkerIDPolicyRequest
-	(*SaveWorkerIDPolicyResponse)(nil),             // 83: hcmnext.journey.v1.SaveWorkerIDPolicyResponse
-	(*ManagerRelationshipProjection)(nil),          // 84: hcmnext.journey.v1.ManagerRelationshipProjection
-	nil,                                            // 85: hcmnext.journey.v1.TablePreferences.FiltersEntry
-	nil,                                            // 86: hcmnext.journey.v1.UserPreferences.NavigationGroupsEntry
-	nil,                                            // 87: hcmnext.journey.v1.UserPreferences.TablesEntry
-	nil,                                            // 88: hcmnext.journey.v1.UserPreferences.WorkflowUsesEntry
-	nil,                                            // 89: hcmnext.journey.v1.CustomerTheme.TokenOverridesEntry
-	nil,                                            // 90: hcmnext.journey.v1.CustomerTheme.DarkTokenOverridesEntry
-	(*timestamppb.Timestamp)(nil),                  // 91: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),                         // 92: hcmnext.common.v1.PageRequest
-	(*v1.PageResponse)(nil),                        // 93: hcmnext.common.v1.PageResponse
-	(v1.InterventionOutcome)(0),                    // 94: hcmnext.common.v1.InterventionOutcome
+	(*AcknowledgeJourneyRequest)(nil),              // 31: hcmnext.journey.v1.AcknowledgeJourneyRequest
+	(*AcknowledgeJourneyResponse)(nil),             // 32: hcmnext.journey.v1.AcknowledgeJourneyResponse
+	(*EditProposalRequest)(nil),                    // 33: hcmnext.journey.v1.EditProposalRequest
+	(*EditProposalResponse)(nil),                   // 34: hcmnext.journey.v1.EditProposalResponse
+	(*PreviewJourneyInterventionRequest)(nil),      // 35: hcmnext.journey.v1.PreviewJourneyInterventionRequest
+	(*PreviewJourneyInterventionResponse)(nil),     // 36: hcmnext.journey.v1.PreviewJourneyInterventionResponse
+	(*RequestJourneyInterventionRequest)(nil),      // 37: hcmnext.journey.v1.RequestJourneyInterventionRequest
+	(*RequestJourneyInterventionResponse)(nil),     // 38: hcmnext.journey.v1.RequestJourneyInterventionResponse
+	(*WatchJourneyRequest)(nil),                    // 39: hcmnext.journey.v1.WatchJourneyRequest
+	(*WatchJourneyResponse)(nil),                   // 40: hcmnext.journey.v1.WatchJourneyResponse
+	(*Worker)(nil),                                 // 41: hcmnext.journey.v1.Worker
+	(*WorkforceOptions)(nil),                       // 42: hcmnext.journey.v1.WorkforceOptions
+	(*PositionVacancyOption)(nil),                  // 43: hcmnext.journey.v1.PositionVacancyOption
+	(*WorkforcePlacementOption)(nil),               // 44: hcmnext.journey.v1.WorkforcePlacementOption
+	(*PromotionPathOption)(nil),                    // 45: hcmnext.journey.v1.PromotionPathOption
+	(*ListWorkersRequest)(nil),                     // 46: hcmnext.journey.v1.ListWorkersRequest
+	(*ListWorkersResponse)(nil),                    // 47: hcmnext.journey.v1.ListWorkersResponse
+	(*CreateWorkerRequest)(nil),                    // 48: hcmnext.journey.v1.CreateWorkerRequest
+	(*CreateWorkerResponse)(nil),                   // 49: hcmnext.journey.v1.CreateWorkerResponse
+	(*TablePreferences)(nil),                       // 50: hcmnext.journey.v1.TablePreferences
+	(*AccessibilityPreferences)(nil),               // 51: hcmnext.journey.v1.AccessibilityPreferences
+	(*UserPreferences)(nil),                        // 52: hcmnext.journey.v1.UserPreferences
+	(*CustomerTheme)(nil),                          // 53: hcmnext.journey.v1.CustomerTheme
+	(*GetProductPreferencesRequest)(nil),           // 54: hcmnext.journey.v1.GetProductPreferencesRequest
+	(*GetProductPreferencesResponse)(nil),          // 55: hcmnext.journey.v1.GetProductPreferencesResponse
+	(*SaveUserPreferencesRequest)(nil),             // 56: hcmnext.journey.v1.SaveUserPreferencesRequest
+	(*SaveUserPreferencesResponse)(nil),            // 57: hcmnext.journey.v1.SaveUserPreferencesResponse
+	(*SaveTenantAppearanceRequest)(nil),            // 58: hcmnext.journey.v1.SaveTenantAppearanceRequest
+	(*SaveTenantAppearanceResponse)(nil),           // 59: hcmnext.journey.v1.SaveTenantAppearanceResponse
+	(*OrganizationVisibilityPolicy)(nil),           // 60: hcmnext.journey.v1.OrganizationVisibilityPolicy
+	(*SaveOrganizationVisibilityRequest)(nil),      // 61: hcmnext.journey.v1.SaveOrganizationVisibilityRequest
+	(*SaveOrganizationVisibilityResponse)(nil),     // 62: hcmnext.journey.v1.SaveOrganizationVisibilityResponse
+	(*AccessRole)(nil),                             // 63: hcmnext.journey.v1.AccessRole
+	(*WorkerRoleAssignment)(nil),                   // 64: hcmnext.journey.v1.WorkerRoleAssignment
+	(*RoleOrganizationVisibilityPolicy)(nil),       // 65: hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
+	(*RolePagePermission)(nil),                     // 66: hcmnext.journey.v1.RolePagePermission
+	(*RoleFeaturePermission)(nil),                  // 67: hcmnext.journey.v1.RoleFeaturePermission
+	(*GetRoleAccessRequest)(nil),                   // 68: hcmnext.journey.v1.GetRoleAccessRequest
+	(*GetRoleAccessResponse)(nil),                  // 69: hcmnext.journey.v1.GetRoleAccessResponse
+	(*SaveAccessRoleRequest)(nil),                  // 70: hcmnext.journey.v1.SaveAccessRoleRequest
+	(*SaveAccessRoleResponse)(nil),                 // 71: hcmnext.journey.v1.SaveAccessRoleResponse
+	(*SaveWorkerRoleAssignmentRequest)(nil),        // 72: hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest
+	(*SaveWorkerRoleAssignmentResponse)(nil),       // 73: hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
+	(*SaveRoleOrganizationVisibilityRequest)(nil),  // 74: hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest
+	(*SaveRoleOrganizationVisibilityResponse)(nil), // 75: hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse
+	(*SaveRolePagePermissionRequest)(nil),          // 76: hcmnext.journey.v1.SaveRolePagePermissionRequest
+	(*SaveRolePagePermissionResponse)(nil),         // 77: hcmnext.journey.v1.SaveRolePagePermissionResponse
+	(*SaveRoleFeaturePermissionRequest)(nil),       // 78: hcmnext.journey.v1.SaveRoleFeaturePermissionRequest
+	(*SaveRoleFeaturePermissionResponse)(nil),      // 79: hcmnext.journey.v1.SaveRoleFeaturePermissionResponse
+	(*RecordWorkflowUseRequest)(nil),               // 80: hcmnext.journey.v1.RecordWorkflowUseRequest
+	(*RecordWorkflowUseResponse)(nil),              // 81: hcmnext.journey.v1.RecordWorkflowUseResponse
+	(*WorkerIDPolicy)(nil),                         // 82: hcmnext.journey.v1.WorkerIDPolicy
+	(*GetWorkerIDPolicyRequest)(nil),               // 83: hcmnext.journey.v1.GetWorkerIDPolicyRequest
+	(*GetWorkerIDPolicyResponse)(nil),              // 84: hcmnext.journey.v1.GetWorkerIDPolicyResponse
+	(*SaveWorkerIDPolicyRequest)(nil),              // 85: hcmnext.journey.v1.SaveWorkerIDPolicyRequest
+	(*SaveWorkerIDPolicyResponse)(nil),             // 86: hcmnext.journey.v1.SaveWorkerIDPolicyResponse
+	(*ManagerRelationshipProjection)(nil),          // 87: hcmnext.journey.v1.ManagerRelationshipProjection
+	nil,                                            // 88: hcmnext.journey.v1.TablePreferences.FiltersEntry
+	nil,                                            // 89: hcmnext.journey.v1.UserPreferences.NavigationGroupsEntry
+	nil,                                            // 90: hcmnext.journey.v1.UserPreferences.TablesEntry
+	nil,                                            // 91: hcmnext.journey.v1.UserPreferences.WorkflowUsesEntry
+	nil,                                            // 92: hcmnext.journey.v1.CustomerTheme.TokenOverridesEntry
+	nil,                                            // 93: hcmnext.journey.v1.CustomerTheme.DarkTokenOverridesEntry
+	(*timestamppb.Timestamp)(nil),                  // 94: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),                         // 95: hcmnext.common.v1.PageRequest
+	(*v1.PageResponse)(nil),                        // 96: hcmnext.common.v1.PageResponse
+	(v1.InterventionOutcome)(0),                    // 97: hcmnext.common.v1.InterventionOutcome
 }
 var file_hcmnext_journey_v1_journey_service_proto_depIdxs = []int32{
 	7,   // 0: hcmnext.journey.v1.Journey.current:type_name -> hcmnext.journey.v1.Placement
 	7,   // 1: hcmnext.journey.v1.Journey.target:type_name -> hcmnext.journey.v1.Placement
 	0,   // 2: hcmnext.journey.v1.Journey.stage:type_name -> hcmnext.journey.v1.JourneyStage
-	91,  // 3: hcmnext.journey.v1.Journey.created_at:type_name -> google.protobuf.Timestamp
-	91,  // 4: hcmnext.journey.v1.Journey.updated_at:type_name -> google.protobuf.Timestamp
+	94,  // 3: hcmnext.journey.v1.Journey.created_at:type_name -> google.protobuf.Timestamp
+	94,  // 4: hcmnext.journey.v1.Journey.updated_at:type_name -> google.protobuf.Timestamp
 	10,  // 5: hcmnext.journey.v1.Journey.current_work_item:type_name -> hcmnext.journey.v1.JourneyWorkItemSummary
 	9,   // 6: hcmnext.journey.v1.Journey.viewer:type_name -> hcmnext.journey.v1.JourneyViewerProjection
 	1,   // 7: hcmnext.journey.v1.JourneyViewerProjection.relationships:type_name -> hcmnext.journey.v1.JourneyViewerRelationship
 	2,   // 8: hcmnext.journey.v1.JourneyViewerProjection.responsibility:type_name -> hcmnext.journey.v1.JourneyViewerResponsibility
 	3,   // 9: hcmnext.journey.v1.JourneyViewerProjection.next_step:type_name -> hcmnext.journey.v1.JourneyNextStep
 	4,   // 10: hcmnext.journey.v1.JourneyViewerProjection.next_step_owner:type_name -> hcmnext.journey.v1.JourneyStepOwner
-	91,  // 11: hcmnext.journey.v1.JourneyWorkItemSummary.due_at:type_name -> google.protobuf.Timestamp
-	91,  // 12: hcmnext.journey.v1.Instance.created_at:type_name -> google.protobuf.Timestamp
-	91,  // 13: hcmnext.journey.v1.Instance.started_at:type_name -> google.protobuf.Timestamp
-	91,  // 14: hcmnext.journey.v1.Instance.completed_at:type_name -> google.protobuf.Timestamp
-	91,  // 15: hcmnext.journey.v1.NodeExecution.started_at:type_name -> google.protobuf.Timestamp
-	91,  // 16: hcmnext.journey.v1.NodeExecution.completed_at:type_name -> google.protobuf.Timestamp
-	91,  // 17: hcmnext.journey.v1.NodeExecution.recorded_at:type_name -> google.protobuf.Timestamp
-	91,  // 18: hcmnext.journey.v1.WorkItem.claimed_at:type_name -> google.protobuf.Timestamp
-	91,  // 19: hcmnext.journey.v1.WorkItem.claim_expires_at:type_name -> google.protobuf.Timestamp
-	91,  // 20: hcmnext.journey.v1.WorkItem.completed_at:type_name -> google.protobuf.Timestamp
-	91,  // 21: hcmnext.journey.v1.WorkItem.deadline_at:type_name -> google.protobuf.Timestamp
-	91,  // 22: hcmnext.journey.v1.WorkItem.created_at:type_name -> google.protobuf.Timestamp
-	91,  // 23: hcmnext.journey.v1.WorkItemTransition.at:type_name -> google.protobuf.Timestamp
-	91,  // 24: hcmnext.journey.v1.LedgerEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	91,  // 25: hcmnext.journey.v1.LedgerEvent.effective_at:type_name -> google.protobuf.Timestamp
-	91,  // 26: hcmnext.journey.v1.LedgerEvent.recorded_at:type_name -> google.protobuf.Timestamp
-	91,  // 27: hcmnext.journey.v1.TimelineEvent.at:type_name -> google.protobuf.Timestamp
+	94,  // 11: hcmnext.journey.v1.JourneyWorkItemSummary.due_at:type_name -> google.protobuf.Timestamp
+	94,  // 12: hcmnext.journey.v1.Instance.created_at:type_name -> google.protobuf.Timestamp
+	94,  // 13: hcmnext.journey.v1.Instance.started_at:type_name -> google.protobuf.Timestamp
+	94,  // 14: hcmnext.journey.v1.Instance.completed_at:type_name -> google.protobuf.Timestamp
+	94,  // 15: hcmnext.journey.v1.NodeExecution.started_at:type_name -> google.protobuf.Timestamp
+	94,  // 16: hcmnext.journey.v1.NodeExecution.completed_at:type_name -> google.protobuf.Timestamp
+	94,  // 17: hcmnext.journey.v1.NodeExecution.recorded_at:type_name -> google.protobuf.Timestamp
+	94,  // 18: hcmnext.journey.v1.WorkItem.claimed_at:type_name -> google.protobuf.Timestamp
+	94,  // 19: hcmnext.journey.v1.WorkItem.claim_expires_at:type_name -> google.protobuf.Timestamp
+	94,  // 20: hcmnext.journey.v1.WorkItem.completed_at:type_name -> google.protobuf.Timestamp
+	94,  // 21: hcmnext.journey.v1.WorkItem.deadline_at:type_name -> google.protobuf.Timestamp
+	94,  // 22: hcmnext.journey.v1.WorkItem.created_at:type_name -> google.protobuf.Timestamp
+	94,  // 23: hcmnext.journey.v1.WorkItemTransition.at:type_name -> google.protobuf.Timestamp
+	94,  // 24: hcmnext.journey.v1.LedgerEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	94,  // 25: hcmnext.journey.v1.LedgerEvent.effective_at:type_name -> google.protobuf.Timestamp
+	94,  // 26: hcmnext.journey.v1.LedgerEvent.recorded_at:type_name -> google.protobuf.Timestamp
+	94,  // 27: hcmnext.journey.v1.TimelineEvent.at:type_name -> google.protobuf.Timestamp
 	8,   // 28: hcmnext.journey.v1.JourneyDetail.journey:type_name -> hcmnext.journey.v1.Journey
 	11,  // 29: hcmnext.journey.v1.JourneyDetail.findings:type_name -> hcmnext.journey.v1.Finding
 	12,  // 30: hcmnext.journey.v1.JourneyDetail.instance:type_name -> hcmnext.journey.v1.Instance
@@ -7327,122 +7652,126 @@ var file_hcmnext_journey_v1_journey_service_proto_depIdxs = []int32{
 	15,  // 33: hcmnext.journey.v1.JourneyDetail.transitions:type_name -> hcmnext.journey.v1.WorkItemTransition
 	16,  // 34: hcmnext.journey.v1.JourneyDetail.ledger:type_name -> hcmnext.journey.v1.LedgerEvent
 	17,  // 35: hcmnext.journey.v1.JourneyDetail.timeline:type_name -> hcmnext.journey.v1.TimelineEvent
-	92,  // 36: hcmnext.journey.v1.ListJourneysRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	95,  // 36: hcmnext.journey.v1.ListJourneysRequest.page:type_name -> hcmnext.common.v1.PageRequest
 	8,   // 37: hcmnext.journey.v1.ListJourneysResponse.journeys:type_name -> hcmnext.journey.v1.Journey
-	93,  // 38: hcmnext.journey.v1.ListJourneysResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	96,  // 38: hcmnext.journey.v1.ListJourneysResponse.page:type_name -> hcmnext.common.v1.PageResponse
 	7,   // 39: hcmnext.journey.v1.ProposeJourneyRequest.target:type_name -> hcmnext.journey.v1.Placement
 	8,   // 40: hcmnext.journey.v1.ProposeJourneyResponse.journey:type_name -> hcmnext.journey.v1.Journey
 	0,   // 41: hcmnext.journey.v1.ProposePromotionResponse.stage:type_name -> hcmnext.journey.v1.JourneyStage
 	18,  // 42: hcmnext.journey.v1.InspectJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
 	18,  // 43: hcmnext.journey.v1.ExecuteJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
 	18,  // 44: hcmnext.journey.v1.DecideJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
-	7,   // 45: hcmnext.journey.v1.EditProposalRequest.target:type_name -> hcmnext.journey.v1.Placement
-	8,   // 46: hcmnext.journey.v1.EditProposalResponse.journey:type_name -> hcmnext.journey.v1.Journey
-	5,   // 47: hcmnext.journey.v1.PreviewJourneyInterventionRequest.kind:type_name -> hcmnext.journey.v1.JourneyInterventionKind
-	94,  // 48: hcmnext.journey.v1.PreviewJourneyInterventionResponse.likely_outcome:type_name -> hcmnext.common.v1.InterventionOutcome
-	5,   // 49: hcmnext.journey.v1.RequestJourneyInterventionRequest.kind:type_name -> hcmnext.journey.v1.JourneyInterventionKind
-	8,   // 50: hcmnext.journey.v1.RequestJourneyInterventionResponse.journey:type_name -> hcmnext.journey.v1.Journey
-	94,  // 51: hcmnext.journey.v1.RequestJourneyInterventionResponse.outcome:type_name -> hcmnext.common.v1.InterventionOutcome
-	18,  // 52: hcmnext.journey.v1.WatchJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
-	91,  // 53: hcmnext.journey.v1.Worker.created_at:type_name -> google.protobuf.Timestamp
-	84,  // 54: hcmnext.journey.v1.Worker.manager_relationship:type_name -> hcmnext.journey.v1.ManagerRelationshipProjection
-	41,  // 55: hcmnext.journey.v1.WorkforceOptions.placements:type_name -> hcmnext.journey.v1.WorkforcePlacementOption
-	42,  // 56: hcmnext.journey.v1.WorkforceOptions.promotion_paths:type_name -> hcmnext.journey.v1.PromotionPathOption
-	39,  // 57: hcmnext.journey.v1.ListWorkersResponse.workers:type_name -> hcmnext.journey.v1.Worker
-	40,  // 58: hcmnext.journey.v1.ListWorkersResponse.options:type_name -> hcmnext.journey.v1.WorkforceOptions
-	39,  // 59: hcmnext.journey.v1.CreateWorkerResponse.worker:type_name -> hcmnext.journey.v1.Worker
-	85,  // 60: hcmnext.journey.v1.TablePreferences.filters:type_name -> hcmnext.journey.v1.TablePreferences.FiltersEntry
-	48,  // 61: hcmnext.journey.v1.UserPreferences.accessibility:type_name -> hcmnext.journey.v1.AccessibilityPreferences
-	86,  // 62: hcmnext.journey.v1.UserPreferences.navigation_groups:type_name -> hcmnext.journey.v1.UserPreferences.NavigationGroupsEntry
-	87,  // 63: hcmnext.journey.v1.UserPreferences.tables:type_name -> hcmnext.journey.v1.UserPreferences.TablesEntry
-	88,  // 64: hcmnext.journey.v1.UserPreferences.workflow_uses:type_name -> hcmnext.journey.v1.UserPreferences.WorkflowUsesEntry
-	89,  // 65: hcmnext.journey.v1.CustomerTheme.token_overrides:type_name -> hcmnext.journey.v1.CustomerTheme.TokenOverridesEntry
-	90,  // 66: hcmnext.journey.v1.CustomerTheme.dark_token_overrides:type_name -> hcmnext.journey.v1.CustomerTheme.DarkTokenOverridesEntry
-	49,  // 67: hcmnext.journey.v1.GetProductPreferencesResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
-	50,  // 68: hcmnext.journey.v1.GetProductPreferencesResponse.theme:type_name -> hcmnext.journey.v1.CustomerTheme
-	57,  // 69: hcmnext.journey.v1.GetProductPreferencesResponse.organization_visibility:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
-	49,  // 70: hcmnext.journey.v1.SaveUserPreferencesRequest.user:type_name -> hcmnext.journey.v1.UserPreferences
-	49,  // 71: hcmnext.journey.v1.SaveUserPreferencesResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
-	50,  // 72: hcmnext.journey.v1.SaveTenantAppearanceRequest.theme:type_name -> hcmnext.journey.v1.CustomerTheme
-	50,  // 73: hcmnext.journey.v1.SaveTenantAppearanceResponse.theme:type_name -> hcmnext.journey.v1.CustomerTheme
-	57,  // 74: hcmnext.journey.v1.SaveOrganizationVisibilityRequest.policy:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
-	57,  // 75: hcmnext.journey.v1.SaveOrganizationVisibilityResponse.policy:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
-	60,  // 76: hcmnext.journey.v1.GetRoleAccessResponse.roles:type_name -> hcmnext.journey.v1.AccessRole
-	61,  // 77: hcmnext.journey.v1.GetRoleAccessResponse.assignments:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
-	62,  // 78: hcmnext.journey.v1.GetRoleAccessResponse.visibility_policies:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
-	63,  // 79: hcmnext.journey.v1.GetRoleAccessResponse.page_permissions:type_name -> hcmnext.journey.v1.RolePagePermission
-	64,  // 80: hcmnext.journey.v1.GetRoleAccessResponse.feature_permissions:type_name -> hcmnext.journey.v1.RoleFeaturePermission
-	60,  // 81: hcmnext.journey.v1.SaveAccessRoleRequest.role:type_name -> hcmnext.journey.v1.AccessRole
-	60,  // 82: hcmnext.journey.v1.SaveAccessRoleResponse.role:type_name -> hcmnext.journey.v1.AccessRole
-	61,  // 83: hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest.assignment:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
-	61,  // 84: hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse.assignment:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
-	62,  // 85: hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest.policy:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
-	62,  // 86: hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse.policy:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
-	63,  // 87: hcmnext.journey.v1.SaveRolePagePermissionRequest.permission:type_name -> hcmnext.journey.v1.RolePagePermission
-	63,  // 88: hcmnext.journey.v1.SaveRolePagePermissionResponse.permission:type_name -> hcmnext.journey.v1.RolePagePermission
-	64,  // 89: hcmnext.journey.v1.SaveRoleFeaturePermissionRequest.permission:type_name -> hcmnext.journey.v1.RoleFeaturePermission
-	64,  // 90: hcmnext.journey.v1.SaveRoleFeaturePermissionResponse.permission:type_name -> hcmnext.journey.v1.RoleFeaturePermission
-	49,  // 91: hcmnext.journey.v1.RecordWorkflowUseResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
-	79,  // 92: hcmnext.journey.v1.GetWorkerIDPolicyResponse.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
-	79,  // 93: hcmnext.journey.v1.SaveWorkerIDPolicyRequest.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
-	79,  // 94: hcmnext.journey.v1.SaveWorkerIDPolicyResponse.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
-	6,   // 95: hcmnext.journey.v1.ManagerRelationshipProjection.disposition:type_name -> hcmnext.journey.v1.ManagerRelationshipProjection.Disposition
-	47,  // 96: hcmnext.journey.v1.UserPreferences.TablesEntry.value:type_name -> hcmnext.journey.v1.TablePreferences
-	19,  // 97: hcmnext.journey.v1.JourneyService.ListJourneys:input_type -> hcmnext.journey.v1.ListJourneysRequest
-	21,  // 98: hcmnext.journey.v1.JourneyService.ProposeJourney:input_type -> hcmnext.journey.v1.ProposeJourneyRequest
-	23,  // 99: hcmnext.journey.v1.JourneyService.ProposePromotion:input_type -> hcmnext.journey.v1.ProposePromotionRequest
-	25,  // 100: hcmnext.journey.v1.JourneyService.InspectJourney:input_type -> hcmnext.journey.v1.InspectJourneyRequest
-	27,  // 101: hcmnext.journey.v1.JourneyService.ExecuteJourney:input_type -> hcmnext.journey.v1.ExecuteJourneyRequest
-	29,  // 102: hcmnext.journey.v1.JourneyService.DecideJourney:input_type -> hcmnext.journey.v1.DecideJourneyRequest
-	31,  // 103: hcmnext.journey.v1.JourneyService.EditProposal:input_type -> hcmnext.journey.v1.EditProposalRequest
-	33,  // 104: hcmnext.journey.v1.JourneyService.PreviewJourneyIntervention:input_type -> hcmnext.journey.v1.PreviewJourneyInterventionRequest
-	35,  // 105: hcmnext.journey.v1.JourneyService.RequestJourneyIntervention:input_type -> hcmnext.journey.v1.RequestJourneyInterventionRequest
-	37,  // 106: hcmnext.journey.v1.JourneyService.WatchJourney:input_type -> hcmnext.journey.v1.WatchJourneyRequest
-	43,  // 107: hcmnext.journey.v1.JourneyService.ListWorkers:input_type -> hcmnext.journey.v1.ListWorkersRequest
-	45,  // 108: hcmnext.journey.v1.JourneyService.CreateWorker:input_type -> hcmnext.journey.v1.CreateWorkerRequest
-	51,  // 109: hcmnext.journey.v1.JourneyService.GetProductPreferences:input_type -> hcmnext.journey.v1.GetProductPreferencesRequest
-	53,  // 110: hcmnext.journey.v1.JourneyService.SaveUserPreferences:input_type -> hcmnext.journey.v1.SaveUserPreferencesRequest
-	55,  // 111: hcmnext.journey.v1.JourneyService.SaveTenantAppearance:input_type -> hcmnext.journey.v1.SaveTenantAppearanceRequest
-	58,  // 112: hcmnext.journey.v1.JourneyService.SaveOrganizationVisibility:input_type -> hcmnext.journey.v1.SaveOrganizationVisibilityRequest
-	65,  // 113: hcmnext.journey.v1.JourneyService.GetRoleAccess:input_type -> hcmnext.journey.v1.GetRoleAccessRequest
-	67,  // 114: hcmnext.journey.v1.JourneyService.SaveAccessRole:input_type -> hcmnext.journey.v1.SaveAccessRoleRequest
-	69,  // 115: hcmnext.journey.v1.JourneyService.SaveWorkerRoleAssignment:input_type -> hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest
-	71,  // 116: hcmnext.journey.v1.JourneyService.SaveRoleOrganizationVisibility:input_type -> hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest
-	73,  // 117: hcmnext.journey.v1.JourneyService.SaveRolePagePermission:input_type -> hcmnext.journey.v1.SaveRolePagePermissionRequest
-	75,  // 118: hcmnext.journey.v1.JourneyService.SaveRoleFeaturePermission:input_type -> hcmnext.journey.v1.SaveRoleFeaturePermissionRequest
-	77,  // 119: hcmnext.journey.v1.JourneyService.RecordWorkflowUse:input_type -> hcmnext.journey.v1.RecordWorkflowUseRequest
-	80,  // 120: hcmnext.journey.v1.JourneyService.GetWorkerIDPolicy:input_type -> hcmnext.journey.v1.GetWorkerIDPolicyRequest
-	82,  // 121: hcmnext.journey.v1.JourneyService.SaveWorkerIDPolicy:input_type -> hcmnext.journey.v1.SaveWorkerIDPolicyRequest
-	20,  // 122: hcmnext.journey.v1.JourneyService.ListJourneys:output_type -> hcmnext.journey.v1.ListJourneysResponse
-	22,  // 123: hcmnext.journey.v1.JourneyService.ProposeJourney:output_type -> hcmnext.journey.v1.ProposeJourneyResponse
-	24,  // 124: hcmnext.journey.v1.JourneyService.ProposePromotion:output_type -> hcmnext.journey.v1.ProposePromotionResponse
-	26,  // 125: hcmnext.journey.v1.JourneyService.InspectJourney:output_type -> hcmnext.journey.v1.InspectJourneyResponse
-	28,  // 126: hcmnext.journey.v1.JourneyService.ExecuteJourney:output_type -> hcmnext.journey.v1.ExecuteJourneyResponse
-	30,  // 127: hcmnext.journey.v1.JourneyService.DecideJourney:output_type -> hcmnext.journey.v1.DecideJourneyResponse
-	32,  // 128: hcmnext.journey.v1.JourneyService.EditProposal:output_type -> hcmnext.journey.v1.EditProposalResponse
-	34,  // 129: hcmnext.journey.v1.JourneyService.PreviewJourneyIntervention:output_type -> hcmnext.journey.v1.PreviewJourneyInterventionResponse
-	36,  // 130: hcmnext.journey.v1.JourneyService.RequestJourneyIntervention:output_type -> hcmnext.journey.v1.RequestJourneyInterventionResponse
-	38,  // 131: hcmnext.journey.v1.JourneyService.WatchJourney:output_type -> hcmnext.journey.v1.WatchJourneyResponse
-	44,  // 132: hcmnext.journey.v1.JourneyService.ListWorkers:output_type -> hcmnext.journey.v1.ListWorkersResponse
-	46,  // 133: hcmnext.journey.v1.JourneyService.CreateWorker:output_type -> hcmnext.journey.v1.CreateWorkerResponse
-	52,  // 134: hcmnext.journey.v1.JourneyService.GetProductPreferences:output_type -> hcmnext.journey.v1.GetProductPreferencesResponse
-	54,  // 135: hcmnext.journey.v1.JourneyService.SaveUserPreferences:output_type -> hcmnext.journey.v1.SaveUserPreferencesResponse
-	56,  // 136: hcmnext.journey.v1.JourneyService.SaveTenantAppearance:output_type -> hcmnext.journey.v1.SaveTenantAppearanceResponse
-	59,  // 137: hcmnext.journey.v1.JourneyService.SaveOrganizationVisibility:output_type -> hcmnext.journey.v1.SaveOrganizationVisibilityResponse
-	66,  // 138: hcmnext.journey.v1.JourneyService.GetRoleAccess:output_type -> hcmnext.journey.v1.GetRoleAccessResponse
-	68,  // 139: hcmnext.journey.v1.JourneyService.SaveAccessRole:output_type -> hcmnext.journey.v1.SaveAccessRoleResponse
-	70,  // 140: hcmnext.journey.v1.JourneyService.SaveWorkerRoleAssignment:output_type -> hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
-	72,  // 141: hcmnext.journey.v1.JourneyService.SaveRoleOrganizationVisibility:output_type -> hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse
-	74,  // 142: hcmnext.journey.v1.JourneyService.SaveRolePagePermission:output_type -> hcmnext.journey.v1.SaveRolePagePermissionResponse
-	76,  // 143: hcmnext.journey.v1.JourneyService.SaveRoleFeaturePermission:output_type -> hcmnext.journey.v1.SaveRoleFeaturePermissionResponse
-	78,  // 144: hcmnext.journey.v1.JourneyService.RecordWorkflowUse:output_type -> hcmnext.journey.v1.RecordWorkflowUseResponse
-	81,  // 145: hcmnext.journey.v1.JourneyService.GetWorkerIDPolicy:output_type -> hcmnext.journey.v1.GetWorkerIDPolicyResponse
-	83,  // 146: hcmnext.journey.v1.JourneyService.SaveWorkerIDPolicy:output_type -> hcmnext.journey.v1.SaveWorkerIDPolicyResponse
-	122, // [122:147] is the sub-list for method output_type
-	97,  // [97:122] is the sub-list for method input_type
-	97,  // [97:97] is the sub-list for extension type_name
-	97,  // [97:97] is the sub-list for extension extendee
-	0,   // [0:97] is the sub-list for field type_name
+	18,  // 45: hcmnext.journey.v1.AcknowledgeJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
+	7,   // 46: hcmnext.journey.v1.EditProposalRequest.target:type_name -> hcmnext.journey.v1.Placement
+	8,   // 47: hcmnext.journey.v1.EditProposalResponse.journey:type_name -> hcmnext.journey.v1.Journey
+	5,   // 48: hcmnext.journey.v1.PreviewJourneyInterventionRequest.kind:type_name -> hcmnext.journey.v1.JourneyInterventionKind
+	97,  // 49: hcmnext.journey.v1.PreviewJourneyInterventionResponse.likely_outcome:type_name -> hcmnext.common.v1.InterventionOutcome
+	5,   // 50: hcmnext.journey.v1.RequestJourneyInterventionRequest.kind:type_name -> hcmnext.journey.v1.JourneyInterventionKind
+	8,   // 51: hcmnext.journey.v1.RequestJourneyInterventionResponse.journey:type_name -> hcmnext.journey.v1.Journey
+	97,  // 52: hcmnext.journey.v1.RequestJourneyInterventionResponse.outcome:type_name -> hcmnext.common.v1.InterventionOutcome
+	18,  // 53: hcmnext.journey.v1.WatchJourneyResponse.detail:type_name -> hcmnext.journey.v1.JourneyDetail
+	94,  // 54: hcmnext.journey.v1.Worker.created_at:type_name -> google.protobuf.Timestamp
+	87,  // 55: hcmnext.journey.v1.Worker.manager_relationship:type_name -> hcmnext.journey.v1.ManagerRelationshipProjection
+	44,  // 56: hcmnext.journey.v1.WorkforceOptions.placements:type_name -> hcmnext.journey.v1.WorkforcePlacementOption
+	45,  // 57: hcmnext.journey.v1.WorkforceOptions.promotion_paths:type_name -> hcmnext.journey.v1.PromotionPathOption
+	43,  // 58: hcmnext.journey.v1.WorkforceOptions.position_vacancies:type_name -> hcmnext.journey.v1.PositionVacancyOption
+	41,  // 59: hcmnext.journey.v1.ListWorkersResponse.workers:type_name -> hcmnext.journey.v1.Worker
+	42,  // 60: hcmnext.journey.v1.ListWorkersResponse.options:type_name -> hcmnext.journey.v1.WorkforceOptions
+	41,  // 61: hcmnext.journey.v1.CreateWorkerResponse.worker:type_name -> hcmnext.journey.v1.Worker
+	88,  // 62: hcmnext.journey.v1.TablePreferences.filters:type_name -> hcmnext.journey.v1.TablePreferences.FiltersEntry
+	51,  // 63: hcmnext.journey.v1.UserPreferences.accessibility:type_name -> hcmnext.journey.v1.AccessibilityPreferences
+	89,  // 64: hcmnext.journey.v1.UserPreferences.navigation_groups:type_name -> hcmnext.journey.v1.UserPreferences.NavigationGroupsEntry
+	90,  // 65: hcmnext.journey.v1.UserPreferences.tables:type_name -> hcmnext.journey.v1.UserPreferences.TablesEntry
+	91,  // 66: hcmnext.journey.v1.UserPreferences.workflow_uses:type_name -> hcmnext.journey.v1.UserPreferences.WorkflowUsesEntry
+	92,  // 67: hcmnext.journey.v1.CustomerTheme.token_overrides:type_name -> hcmnext.journey.v1.CustomerTheme.TokenOverridesEntry
+	93,  // 68: hcmnext.journey.v1.CustomerTheme.dark_token_overrides:type_name -> hcmnext.journey.v1.CustomerTheme.DarkTokenOverridesEntry
+	52,  // 69: hcmnext.journey.v1.GetProductPreferencesResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
+	53,  // 70: hcmnext.journey.v1.GetProductPreferencesResponse.theme:type_name -> hcmnext.journey.v1.CustomerTheme
+	60,  // 71: hcmnext.journey.v1.GetProductPreferencesResponse.organization_visibility:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
+	52,  // 72: hcmnext.journey.v1.SaveUserPreferencesRequest.user:type_name -> hcmnext.journey.v1.UserPreferences
+	52,  // 73: hcmnext.journey.v1.SaveUserPreferencesResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
+	53,  // 74: hcmnext.journey.v1.SaveTenantAppearanceRequest.theme:type_name -> hcmnext.journey.v1.CustomerTheme
+	53,  // 75: hcmnext.journey.v1.SaveTenantAppearanceResponse.theme:type_name -> hcmnext.journey.v1.CustomerTheme
+	60,  // 76: hcmnext.journey.v1.SaveOrganizationVisibilityRequest.policy:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
+	60,  // 77: hcmnext.journey.v1.SaveOrganizationVisibilityResponse.policy:type_name -> hcmnext.journey.v1.OrganizationVisibilityPolicy
+	63,  // 78: hcmnext.journey.v1.GetRoleAccessResponse.roles:type_name -> hcmnext.journey.v1.AccessRole
+	64,  // 79: hcmnext.journey.v1.GetRoleAccessResponse.assignments:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
+	65,  // 80: hcmnext.journey.v1.GetRoleAccessResponse.visibility_policies:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
+	66,  // 81: hcmnext.journey.v1.GetRoleAccessResponse.page_permissions:type_name -> hcmnext.journey.v1.RolePagePermission
+	67,  // 82: hcmnext.journey.v1.GetRoleAccessResponse.feature_permissions:type_name -> hcmnext.journey.v1.RoleFeaturePermission
+	63,  // 83: hcmnext.journey.v1.SaveAccessRoleRequest.role:type_name -> hcmnext.journey.v1.AccessRole
+	63,  // 84: hcmnext.journey.v1.SaveAccessRoleResponse.role:type_name -> hcmnext.journey.v1.AccessRole
+	64,  // 85: hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest.assignment:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
+	64,  // 86: hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse.assignment:type_name -> hcmnext.journey.v1.WorkerRoleAssignment
+	65,  // 87: hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest.policy:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
+	65,  // 88: hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse.policy:type_name -> hcmnext.journey.v1.RoleOrganizationVisibilityPolicy
+	66,  // 89: hcmnext.journey.v1.SaveRolePagePermissionRequest.permission:type_name -> hcmnext.journey.v1.RolePagePermission
+	66,  // 90: hcmnext.journey.v1.SaveRolePagePermissionResponse.permission:type_name -> hcmnext.journey.v1.RolePagePermission
+	67,  // 91: hcmnext.journey.v1.SaveRoleFeaturePermissionRequest.permission:type_name -> hcmnext.journey.v1.RoleFeaturePermission
+	67,  // 92: hcmnext.journey.v1.SaveRoleFeaturePermissionResponse.permission:type_name -> hcmnext.journey.v1.RoleFeaturePermission
+	52,  // 93: hcmnext.journey.v1.RecordWorkflowUseResponse.user:type_name -> hcmnext.journey.v1.UserPreferences
+	82,  // 94: hcmnext.journey.v1.GetWorkerIDPolicyResponse.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
+	82,  // 95: hcmnext.journey.v1.SaveWorkerIDPolicyRequest.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
+	82,  // 96: hcmnext.journey.v1.SaveWorkerIDPolicyResponse.policy:type_name -> hcmnext.journey.v1.WorkerIDPolicy
+	6,   // 97: hcmnext.journey.v1.ManagerRelationshipProjection.disposition:type_name -> hcmnext.journey.v1.ManagerRelationshipProjection.Disposition
+	50,  // 98: hcmnext.journey.v1.UserPreferences.TablesEntry.value:type_name -> hcmnext.journey.v1.TablePreferences
+	19,  // 99: hcmnext.journey.v1.JourneyService.ListJourneys:input_type -> hcmnext.journey.v1.ListJourneysRequest
+	21,  // 100: hcmnext.journey.v1.JourneyService.ProposeJourney:input_type -> hcmnext.journey.v1.ProposeJourneyRequest
+	23,  // 101: hcmnext.journey.v1.JourneyService.ProposePromotion:input_type -> hcmnext.journey.v1.ProposePromotionRequest
+	25,  // 102: hcmnext.journey.v1.JourneyService.InspectJourney:input_type -> hcmnext.journey.v1.InspectJourneyRequest
+	27,  // 103: hcmnext.journey.v1.JourneyService.ExecuteJourney:input_type -> hcmnext.journey.v1.ExecuteJourneyRequest
+	29,  // 104: hcmnext.journey.v1.JourneyService.DecideJourney:input_type -> hcmnext.journey.v1.DecideJourneyRequest
+	31,  // 105: hcmnext.journey.v1.JourneyService.AcknowledgeJourney:input_type -> hcmnext.journey.v1.AcknowledgeJourneyRequest
+	33,  // 106: hcmnext.journey.v1.JourneyService.EditProposal:input_type -> hcmnext.journey.v1.EditProposalRequest
+	35,  // 107: hcmnext.journey.v1.JourneyService.PreviewJourneyIntervention:input_type -> hcmnext.journey.v1.PreviewJourneyInterventionRequest
+	37,  // 108: hcmnext.journey.v1.JourneyService.RequestJourneyIntervention:input_type -> hcmnext.journey.v1.RequestJourneyInterventionRequest
+	39,  // 109: hcmnext.journey.v1.JourneyService.WatchJourney:input_type -> hcmnext.journey.v1.WatchJourneyRequest
+	46,  // 110: hcmnext.journey.v1.JourneyService.ListWorkers:input_type -> hcmnext.journey.v1.ListWorkersRequest
+	48,  // 111: hcmnext.journey.v1.JourneyService.CreateWorker:input_type -> hcmnext.journey.v1.CreateWorkerRequest
+	54,  // 112: hcmnext.journey.v1.JourneyService.GetProductPreferences:input_type -> hcmnext.journey.v1.GetProductPreferencesRequest
+	56,  // 113: hcmnext.journey.v1.JourneyService.SaveUserPreferences:input_type -> hcmnext.journey.v1.SaveUserPreferencesRequest
+	58,  // 114: hcmnext.journey.v1.JourneyService.SaveTenantAppearance:input_type -> hcmnext.journey.v1.SaveTenantAppearanceRequest
+	61,  // 115: hcmnext.journey.v1.JourneyService.SaveOrganizationVisibility:input_type -> hcmnext.journey.v1.SaveOrganizationVisibilityRequest
+	68,  // 116: hcmnext.journey.v1.JourneyService.GetRoleAccess:input_type -> hcmnext.journey.v1.GetRoleAccessRequest
+	70,  // 117: hcmnext.journey.v1.JourneyService.SaveAccessRole:input_type -> hcmnext.journey.v1.SaveAccessRoleRequest
+	72,  // 118: hcmnext.journey.v1.JourneyService.SaveWorkerRoleAssignment:input_type -> hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest
+	74,  // 119: hcmnext.journey.v1.JourneyService.SaveRoleOrganizationVisibility:input_type -> hcmnext.journey.v1.SaveRoleOrganizationVisibilityRequest
+	76,  // 120: hcmnext.journey.v1.JourneyService.SaveRolePagePermission:input_type -> hcmnext.journey.v1.SaveRolePagePermissionRequest
+	78,  // 121: hcmnext.journey.v1.JourneyService.SaveRoleFeaturePermission:input_type -> hcmnext.journey.v1.SaveRoleFeaturePermissionRequest
+	80,  // 122: hcmnext.journey.v1.JourneyService.RecordWorkflowUse:input_type -> hcmnext.journey.v1.RecordWorkflowUseRequest
+	83,  // 123: hcmnext.journey.v1.JourneyService.GetWorkerIDPolicy:input_type -> hcmnext.journey.v1.GetWorkerIDPolicyRequest
+	85,  // 124: hcmnext.journey.v1.JourneyService.SaveWorkerIDPolicy:input_type -> hcmnext.journey.v1.SaveWorkerIDPolicyRequest
+	20,  // 125: hcmnext.journey.v1.JourneyService.ListJourneys:output_type -> hcmnext.journey.v1.ListJourneysResponse
+	22,  // 126: hcmnext.journey.v1.JourneyService.ProposeJourney:output_type -> hcmnext.journey.v1.ProposeJourneyResponse
+	24,  // 127: hcmnext.journey.v1.JourneyService.ProposePromotion:output_type -> hcmnext.journey.v1.ProposePromotionResponse
+	26,  // 128: hcmnext.journey.v1.JourneyService.InspectJourney:output_type -> hcmnext.journey.v1.InspectJourneyResponse
+	28,  // 129: hcmnext.journey.v1.JourneyService.ExecuteJourney:output_type -> hcmnext.journey.v1.ExecuteJourneyResponse
+	30,  // 130: hcmnext.journey.v1.JourneyService.DecideJourney:output_type -> hcmnext.journey.v1.DecideJourneyResponse
+	32,  // 131: hcmnext.journey.v1.JourneyService.AcknowledgeJourney:output_type -> hcmnext.journey.v1.AcknowledgeJourneyResponse
+	34,  // 132: hcmnext.journey.v1.JourneyService.EditProposal:output_type -> hcmnext.journey.v1.EditProposalResponse
+	36,  // 133: hcmnext.journey.v1.JourneyService.PreviewJourneyIntervention:output_type -> hcmnext.journey.v1.PreviewJourneyInterventionResponse
+	38,  // 134: hcmnext.journey.v1.JourneyService.RequestJourneyIntervention:output_type -> hcmnext.journey.v1.RequestJourneyInterventionResponse
+	40,  // 135: hcmnext.journey.v1.JourneyService.WatchJourney:output_type -> hcmnext.journey.v1.WatchJourneyResponse
+	47,  // 136: hcmnext.journey.v1.JourneyService.ListWorkers:output_type -> hcmnext.journey.v1.ListWorkersResponse
+	49,  // 137: hcmnext.journey.v1.JourneyService.CreateWorker:output_type -> hcmnext.journey.v1.CreateWorkerResponse
+	55,  // 138: hcmnext.journey.v1.JourneyService.GetProductPreferences:output_type -> hcmnext.journey.v1.GetProductPreferencesResponse
+	57,  // 139: hcmnext.journey.v1.JourneyService.SaveUserPreferences:output_type -> hcmnext.journey.v1.SaveUserPreferencesResponse
+	59,  // 140: hcmnext.journey.v1.JourneyService.SaveTenantAppearance:output_type -> hcmnext.journey.v1.SaveTenantAppearanceResponse
+	62,  // 141: hcmnext.journey.v1.JourneyService.SaveOrganizationVisibility:output_type -> hcmnext.journey.v1.SaveOrganizationVisibilityResponse
+	69,  // 142: hcmnext.journey.v1.JourneyService.GetRoleAccess:output_type -> hcmnext.journey.v1.GetRoleAccessResponse
+	71,  // 143: hcmnext.journey.v1.JourneyService.SaveAccessRole:output_type -> hcmnext.journey.v1.SaveAccessRoleResponse
+	73,  // 144: hcmnext.journey.v1.JourneyService.SaveWorkerRoleAssignment:output_type -> hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
+	75,  // 145: hcmnext.journey.v1.JourneyService.SaveRoleOrganizationVisibility:output_type -> hcmnext.journey.v1.SaveRoleOrganizationVisibilityResponse
+	77,  // 146: hcmnext.journey.v1.JourneyService.SaveRolePagePermission:output_type -> hcmnext.journey.v1.SaveRolePagePermissionResponse
+	79,  // 147: hcmnext.journey.v1.JourneyService.SaveRoleFeaturePermission:output_type -> hcmnext.journey.v1.SaveRoleFeaturePermissionResponse
+	81,  // 148: hcmnext.journey.v1.JourneyService.RecordWorkflowUse:output_type -> hcmnext.journey.v1.RecordWorkflowUseResponse
+	84,  // 149: hcmnext.journey.v1.JourneyService.GetWorkerIDPolicy:output_type -> hcmnext.journey.v1.GetWorkerIDPolicyResponse
+	86,  // 150: hcmnext.journey.v1.JourneyService.SaveWorkerIDPolicy:output_type -> hcmnext.journey.v1.SaveWorkerIDPolicyResponse
+	125, // [125:151] is the sub-list for method output_type
+	99,  // [99:125] is the sub-list for method input_type
+	99,  // [99:99] is the sub-list for extension type_name
+	99,  // [99:99] is the sub-list for extension extendee
+	0,   // [0:99] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_journey_v1_journey_service_proto_init() }
@@ -7456,7 +7785,7 @@ func file_hcmnext_journey_v1_journey_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_journey_v1_journey_service_proto_rawDesc), len(file_hcmnext_journey_v1_journey_service_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   84,
+			NumMessages:   87,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

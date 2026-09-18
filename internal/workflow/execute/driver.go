@@ -82,6 +82,10 @@ type Options struct {
 	// the continuation unsupported, exactly as it was before that ticket.
 	Signals      SignalSubscriber
 	SignalReader SignalReader
+	// SignalTimeoutReader loads the expired wait a
+	// [Driver.ResumeSignalTimeout] advances from. Required only once a
+	// caller actually calls ResumeSignalTimeout.
+	SignalTimeoutReader SignalTimeoutReader
 	// ConflictFence is the application-composed durable conflict adapter used
 	// only when a prepared transaction plan carries a registered intent. It is
 	// intentionally a port: workflow execution must not construct a data
@@ -471,7 +475,7 @@ func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, 
 			return Result{}, err
 		}
 
-		advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, result.InstanceVersion, at, attempt, inputs)
+		advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, result.InstanceVersion, at, attempt, inputs, nil)
 		if err != nil {
 			settled := d.settlePause(ctx, run, at, err)
 			if paused, ok := pausedResult(settled, result); ok {
@@ -673,6 +677,7 @@ func (d *Driver) advanceOnce(
 	at time.Time,
 	attempt int,
 	inputs advanceInputsFunc,
+	evidence AdvanceEvidence,
 ) (runtime.AdvanceReceipt, []workitem.WorkItem, []string, []TimerHandle, error) {
 	// The advancement's own node id is not known until inputs(...) runs
 	// inside the transaction below (Resume derives it from the durable
@@ -871,6 +876,24 @@ func (d *Driver) advanceOnce(
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}
 	sink.timersCreated = append(sink.timersCreated, retryTimers...)
+	// OBS-024: the caller's evidence entry, if any, is recorded on this
+	// same transaction before it commits: entry and outcome commit together
+	// or roll back together, never one without the other.
+	if evidence != nil {
+		if kind, refID, ok := evidence(advanced); ok {
+			evidenceID, evErr := recordTxEvidence(advCtx, tx, d.opts.Evidence, run.start.TenantID, kind,
+				run.instanceID.String(), advanced.NodeID, refID, advanced.OutputDigest, at)
+			if evErr != nil {
+				advSpan.End(OutcomeFailure, evErr)
+				resumeOutcome = OutcomeFailure
+				err = fmt.Errorf("workflow execute: record %s evidence: %w", kind, evErr)
+				return runtime.AdvanceReceipt{}, nil, nil, nil, err
+			}
+			if evidenceID != "" {
+				sink.evidenceIDs = append(sink.evidenceIDs, evidenceID)
+			}
+		}
+	}
 	if commitErr := tx.Commit(advCtx); commitErr != nil {
 		advSpan.End(OutcomeFailure, commitErr)
 		// The commit error binds to the if scope, so publish it through

@@ -37,6 +37,8 @@ const (
 	NodeStillValid            = "still_valid"
 	NodeReapproval            = "reapproval_task"
 	NodeExecutePromotion      = "execute_promotion"
+	NodeCompensateHold        = "compensate_budget_hold"
+	NodeAcknowledgeRelease    = "acknowledge_release"
 	NodeObservePayroll        = "observe_payroll"
 	NodeObserveAccess         = "observe_access"
 	NodeObserveReconciliation = "observe_reconciliation"
@@ -58,6 +60,7 @@ const (
 	capObservePayroll = "hcmnext.payroll.observe_promotion"
 	capObserveAccess  = "hcmnext.access.observe_promotion"
 	capObserveRecon   = "hcmnext.reconciliation.observe_promotion"
+	capReleaseHold    = "hcmnext.rewards.release_compensation_budget"
 
 	organizationScope      = "acme/engineering"
 	purpose                = "PROMOTION_EXECUTION"
@@ -316,6 +319,59 @@ func promotionNodes() []workflow.Node {
 			FailureRoute:  NodeEndRepairPlan,
 			Governance:    invocation([]string{ApprovalFinance, ApprovalManager}, workflow.RevalidatePreEffect),
 		},
+		{
+			// The bounded automatic correction: when a downstream
+			// observation reports known-bad state, this step releases the
+			// unit's compensation-pool hold under the proposal's original
+			// idempotency identity before the run reaches its RepairPlan
+			// terminal. The promotion itself stands (honest partial
+			// completion); only the encumbrance is unwound, so repair starts
+			// unencumbered. Indeterminate (UNKNOWN) observations route
+			// straight to repair with no auto-action.
+			//
+			// The reference workflow's acknowledgement gate (a SIGNAL node
+			// between reconciliation and completion) is deliberately not
+			// here yet: no production subscriber, reader or intake exists,
+			// and landing the node without them would turn served
+			// completions into errors (no subscriber) or indefinite parks
+			// (no timeout sweeper). It ships with the signal-intake unit.
+			ID: NodeCompensateHold, Type: workflow.StepCompensate, SafePointRequested: true,
+			DeclaredEffect: capability.EffectInternalMutation, EffectRole: workflow.RoleDownstreamEffect,
+			InputSchema: capabilitySchema(capReleaseHold, "request"), OutputSchema: capabilitySchema(capReleaseHold, "response"),
+			Inputs:        []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "proposal_digest", Type: plainString()}},
+			Outputs:       []workflow.Field{{Path: "released", Type: boolean()}, {Path: "release_digest", Type: plainString()}},
+			InputMappings: []workflow.Mapping{{Target: "worker_id", Source: input("worker_id")}, {Target: "proposal_digest", Source: output(NodeSimulateCompensation, "proposal_digest")}},
+			Capability:    &workflow.CapabilityRef{ID: capReleaseHold, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:rewards.write"}, IdempotencyKeyMapping: "proposal_digest", EffectBinding: "promotion.compensation.hold_release"},
+			FailureRoute:  NodeEndRepairPlan,
+			Governance:    invocation([]string{ApprovalFinance, ApprovalManager}, workflow.RevalidatePreEffect),
+		},
+		{
+			// The acknowledgement gate: reconciliation may verify every
+			// downstream leg, but the run still may not complete while the
+			// employee notification/acknowledgement obligation is open.
+			// Correlation is the proposal intent identity so concurrent
+			// intents for one worker never wake on each other's signal; the
+			// served subscriber resolves it through the driver's closed
+			// correlation vocabulary. The expiry sweeper (signals.ExpireDue
+			// through the scheduler's signal role) traverses the TIMED_OUT
+			// edge when the close window passes with no accepted signal.
+			ID: NodeAcknowledgeRelease, Type: workflow.StepSignal,
+			DeclaredEffect: capability.EffectPure,
+			InputSchema:    schema("AcknowledgeReleaseInput"), OutputSchema: schema("AcknowledgeReleaseResult"),
+			Inputs:        []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}},
+			Outputs:       []workflow.Field{{Path: "acknowledgement_ref", Type: plainString()}},
+			InputMappings: []workflow.Mapping{{Target: "worker_id", Source: input("worker_id")}},
+			Signal: &workflow.SignalSpec{
+				EventType:                "hcmnext.events.promotion_ack",
+				CorrelationKeyExpression: "proposal.intent_id",
+				ExpectedSchemaRef:        schema("PromotionAckPayload"),
+				AcceptedSources:          []string{"hcmnext.integrations.hris"},
+				Ordering:                 workflow.SignalOrderingNone,
+				CloseAfterSeconds:        1209600,
+			},
+			FailureRoute: NodeEndRepairPlan,
+			Governance:   nonCapabilityGovernance(nil, workflow.RevalidatePreExecution),
+		},
 		observationNode(NodeObservePayroll, capObservePayroll, []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "expected_promotion_state", Type: plainString()}}, []workflow.Field{{Path: "payroll_state", Type: plainString()}, {Path: "source_watermark", Type: plainString()}}, []workflow.Mapping{{Target: "worker_id", Source: output(NodeExecutePromotion, "worker_id")}, {Target: "expected_promotion_state", Source: output(NodeExecutePromotion, "promotion_state")}}, "payroll.authority", "expected_promotion_state"),
 		observationNode(NodeObserveAccess, capObserveAccess, []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "expected_access_state", Type: plainString()}}, []workflow.Field{{Path: "access_state", Type: plainString()}, {Path: "source_watermark", Type: plainString()}}, []workflow.Mapping{{Target: "worker_id", Source: input("worker_id")}, {Target: "expected_access_state", Source: output(NodeObservePayroll, "payroll_state")}}, "access.authority", "expected_access_state"),
 		observationNode(NodeObserveReconciliation, capObserveRecon, []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "payroll_state", Type: plainString()}, {Path: "access_state", Type: plainString()}}, []workflow.Field{{Path: "reconciliation_state", Type: plainString()}, {Path: "source_watermark", Type: plainString()}}, []workflow.Mapping{{Target: "worker_id", Source: input("worker_id")}, {Target: "payroll_state", Source: output(NodeObservePayroll, "payroll_state")}, {Target: "access_state", Source: output(NodeObserveAccess, "access_state")}}, "reconciliation.authority", "payroll_state"),
@@ -385,14 +441,21 @@ func promotionEdges() []workflow.Edge {
 	edges = append(edges, standardCapability(NodeExecutePromotion, NodeObservePayroll)...)
 	edges = append(edges,
 		workflow.Edge{From: NodeObservePayroll, To: NodeObserveAccess, RouteKey: "PASS"},
-		workflow.Edge{From: NodeObservePayroll, To: NodeEndRepairPlan, RouteKey: "FAIL"},
-		workflow.Edge{From: NodeObservePayroll, To: NodeEndRepairPlan, RouteKey: "PARTIAL"},
+		workflow.Edge{From: NodeObservePayroll, To: NodeCompensateHold, RouteKey: "FAIL"},
+		workflow.Edge{From: NodeObservePayroll, To: NodeCompensateHold, RouteKey: "PARTIAL"},
 		workflow.Edge{From: NodeObservePayroll, To: NodeEndRepairPlan, RouteKey: "UNKNOWN"},
 		workflow.Edge{From: NodeObserveAccess, To: NodeObserveReconciliation, RouteKey: "PASS"},
-		workflow.Edge{From: NodeObserveAccess, To: NodeEndRepairPlan, RouteKey: "FAIL"},
-		workflow.Edge{From: NodeObserveAccess, To: NodeEndRepairPlan, RouteKey: "PARTIAL"},
+		workflow.Edge{From: NodeObserveAccess, To: NodeCompensateHold, RouteKey: "FAIL"},
+		workflow.Edge{From: NodeObserveAccess, To: NodeCompensateHold, RouteKey: "PARTIAL"},
 		workflow.Edge{From: NodeObserveAccess, To: NodeEndRepairPlan, RouteKey: "UNKNOWN"},
-		workflow.Edge{From: NodeObserveReconciliation, To: NodeEndComplete, RouteKey: "CONSISTENT"},
+		workflow.Edge{From: NodeCompensateHold, To: NodeEndRepairPlan, RouteKey: "COMPENSATED"},
+		workflow.Edge{From: NodeCompensateHold, To: NodeEndRepairPlan, RouteKey: "PARTIAL"},
+		workflow.Edge{From: NodeCompensateHold, To: NodeEndRepairPlan, RouteKey: "FAILED"},
+		workflow.Edge{From: NodeCompensateHold, To: NodeEndRepairPlan, RouteKey: "REPAIR_REQUIRED"},
+		workflow.Edge{From: NodeObserveReconciliation, To: NodeAcknowledgeRelease, RouteKey: "CONSISTENT"},
+		workflow.Edge{From: NodeAcknowledgeRelease, To: NodeEndComplete, RouteKey: "SUCCEEDED"},
+		workflow.Edge{From: NodeAcknowledgeRelease, To: NodeEndRepairPlan, RouteKey: "TIMED_OUT"},
+		workflow.Edge{From: NodeAcknowledgeRelease, To: NodeEndCancelled, RouteKey: "CANCELLED"},
 		workflow.Edge{From: NodeObserveReconciliation, To: NodeEndRepairPlan, RouteKey: "DEGRADED"},
 		workflow.Edge{From: NodeObserveReconciliation, To: NodeEndRepairPlan, RouteKey: "FAIL"},
 		workflow.Edge{From: NodeObserveReconciliation, To: NodeEndRepairPlan, RouteKey: "PARTIAL"},
@@ -414,8 +477,10 @@ func capabilityRecord(id, owner string, effect capability.EffectClass, scope str
 
 func capabilities(mode workflow.ExecutionMode) workflow.CapabilityResolver {
 	promotionEffect := capability.EffectInternalMutation
+	releaseEffect := capability.EffectInternalMutation
 	if mode == workflow.ModeSimulate {
 		promotionEffect = capability.EffectReadOnly
+		releaseEffect = capability.EffectReadOnly
 	}
 	return staticCapabilities{
 		{ID: capSnapshotWorker, Version: 1}: capabilityRecord(capSnapshotWorker, "people", capability.EffectReadOnly, "scope:people.read"),
@@ -426,6 +491,7 @@ func capabilities(mode workflow.ExecutionMode) workflow.CapabilityResolver {
 		{ID: capObservePayroll, Version: 1}: capabilityRecord(capObservePayroll, "payroll", capability.EffectReadOnly, "scope:observation.read"),
 		{ID: capObserveAccess, Version: 1}:  capabilityRecord(capObserveAccess, "access", capability.EffectReadOnly, "scope:observation.read"),
 		{ID: capObserveRecon, Version: 1}:   capabilityRecord(capObserveRecon, "reconciliation", capability.EffectReadOnly, "scope:observation.read"),
+		{ID: capReleaseHold, Version: 1}:    capabilityRecord(capReleaseHold, "rewards", releaseEffect, "scope:rewards.write"),
 	}
 }
 
@@ -435,7 +501,7 @@ func compilerDefinition(def workflow.Definition, mode workflow.ExecutionMode) wo
 	def.Edges = canonicalEdges(def.Edges, def.Nodes)
 	if mode == workflow.ModeSimulate {
 		for i := range def.Nodes {
-			if def.Nodes[i].ID != NodeExecutePromotion {
+			if def.Nodes[i].ID != NodeExecutePromotion && def.Nodes[i].ID != NodeCompensateHold {
 				continue
 			}
 			def.Nodes[i].DeclaredEffect = capability.EffectReadOnly
@@ -518,7 +584,7 @@ func CompileSimulation(definitions ...workflow.Definition) (*workflow.CompiledWo
 // NodeOrder returns the deterministic documented order used by the package's
 // golden test and by inspectors.
 func NodeOrder() []string {
-	ids := []string{NodeSnapshotWorker, NodeSimulateCompensation, NodeEvaluateBand, NodeRaiseThreshold, NodeApproveFinance, NodeApproveManager, NodeWaitEffectiveDate, NodeRevalidate, NodeStillValid, NodeExecutePromotion, NodeReapproval, NodeEndBlocked, NodeObservePayroll, NodeEndInvalidated, NodeEndCancelled, NodeEndRejected, NodeEndExpired, NodeObserveAccess, NodeObserveReconciliation, NodeEndComplete, NodeEndRepairPlan}
+	ids := []string{NodeSnapshotWorker, NodeSimulateCompensation, NodeEvaluateBand, NodeRaiseThreshold, NodeApproveFinance, NodeApproveManager, NodeWaitEffectiveDate, NodeRevalidate, NodeStillValid, NodeExecutePromotion, NodeReapproval, NodeEndBlocked, NodeObservePayroll, NodeEndInvalidated, NodeEndRejected, NodeEndExpired, NodeObserveAccess, NodeObserveReconciliation, NodeCompensateHold, NodeAcknowledgeRelease, NodeEndComplete, NodeEndRepairPlan, NodeEndCancelled}
 	return append([]string(nil), ids...)
 }
 

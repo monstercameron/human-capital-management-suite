@@ -272,6 +272,7 @@ func TestJourneyStageEnumIsTotal(t *testing.T) {
 		{workspace.JourneyStageObservingEffects, journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS},
 		{workspace.JourneyStageRecorded, journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED},
 		{workspace.JourneyStageRepairRequired, journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED},
+		{workspace.JourneyStageAwaitingAcknowledgement, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT},
 		{workspace.JourneyStage("SOMETHING_NEW"), journeyv1.JourneyStage_JOURNEY_STAGE_UNSPECIFIED},
 		{workspace.JourneyStage(""), journeyv1.JourneyStage_JOURNEY_STAGE_UNSPECIFIED},
 	}

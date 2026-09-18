@@ -131,6 +131,7 @@ func TestPromotionStepsDispatchesTypedOutcomes(t *testing.T) {
 		ObservePayroll:        observationFake{},
 		ObserveAccess:         observationFake{},
 		ObserveReconciliation: reconciliationFake{},
+		CompensateHold:        holdReleaseFake{},
 	})
 	plan, err := promotionexec.Compile()
 	if err != nil {
@@ -148,6 +149,14 @@ func TestPromotionStepsDispatchesTypedOutcomes(t *testing.T) {
 		case promotionexec.NodeApproveFinance, promotionexec.NodeApproveManager, promotionexec.NodeReapproval:
 			if runErr != nil || out.Await != frontier.AwaitWorkItem {
 				t.Errorf("%s = outcome=%+v err=%v, want WORK_ITEM_REQUIRED", node.ID, out, runErr)
+			}
+		case promotionexec.NodeCompensateHold:
+			if runErr != nil || out.Failed || out.Outcome != "COMPENSATED" || out.OutputDigest == "" {
+				t.Errorf("%s = %+v err=%v, want typed COMPENSATED output", node.ID, out, runErr)
+			}
+		case promotionexec.NodeAcknowledgeRelease:
+			if runErr != nil || out.Await != frontier.AwaitSignal || out.Outcome != "" {
+				t.Errorf("%s = %+v err=%v, want driver-owned SIGNAL park with no outcome", node.ID, out, runErr)
 			}
 		case promotionexec.NodeEndComplete, promotionexec.NodeEndRepairPlan,
 			promotionexec.NodeEndRejected, promotionexec.NodeEndInvalidated,

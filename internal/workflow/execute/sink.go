@@ -191,11 +191,14 @@ func (s *continuationSink) Complete(ctx context.Context, ex runtime.Executor, re
 		}
 	}
 
+	// OBS-024: the TERMINAL_WRITTEN entry joins the terminal write on this
+	// same transaction: the governed write and its evidence commit together
+	// or roll back together.
 	evidence := s.evidence
 	if evidence == nil {
 		evidence = NoopExecutionEvidence{}
 	}
-	evidenceID, evErr := evidence.RecordExecutionEvidence(ctx, rec.TenantID, EvidenceKindTerminalWritten,
+	evidenceID, evErr := recordTxEvidence(ctx, s.tx, evidence, rec.TenantID, EvidenceKindTerminalWritten,
 		rec.InstanceID.String(), rec.TargetNodeID, identity.Identity.EventRef, digest, rec.RecordedAt)
 	if evErr != nil {
 		return fmt.Errorf("workflow execute: record TERMINAL_WRITTEN evidence: %w", evErr)

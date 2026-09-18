@@ -111,8 +111,12 @@ func TestTodo_WF_RUN_037_Conformance(t *testing.T) {
 			}
 			if def.name == "promotionexec.execute" {
 				cores := plan.NodesWithRole(workflow.RoleAuthoritativeCore)
-				if len(cores) != 1 || cores[0] != promotionexec.NodeExecutePromotion || len(plan.Effects.NodesByRole) != 1 {
-					t.Fatalf("promotion roles = %v, want %s as the only classified write, the AUTHORITATIVE_CORE", plan.Effects.NodesByRole, promotionexec.NodeExecutePromotion)
+				downstream := plan.NodesWithRole(workflow.RoleDownstreamEffect)
+				if len(cores) != 1 || cores[0] != promotionexec.NodeExecutePromotion {
+					t.Fatalf("promotion cores = %v, want exactly %s as the AUTHORITATIVE_CORE", cores, promotionexec.NodeExecutePromotion)
+				}
+				if len(downstream) != 1 || downstream[0] != promotionexec.NodeCompensateHold || len(plan.Effects.NodesByRole) != 2 {
+					t.Fatalf("promotion roles = %v, want the core plus %s as the one DOWNSTREAM_EFFECT", plan.Effects.NodesByRole, promotionexec.NodeCompensateHold)
 				}
 			}
 		})

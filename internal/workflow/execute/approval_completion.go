@@ -167,10 +167,15 @@ func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionReq
 		traceID: d.opts.Instrumentation.TraceID(ctx),
 	}
 	var vote approvalVote
+	// OBS-024: the same APPROVAL_COMPLETED evidence Resume records, on the
+	// advance transaction itself so it commits beside the outcome.
 	advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, req.ExpectedInstanceVersion, at, 1,
 		func(ctx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
 			outcome, refs, voteErr := d.voteApproval(ctx, ex, req, selection, at, &vote)
 			return outcome, refs, nil, voteErr
+		},
+		func(runtime.AdvanceReceipt) (string, string, bool) {
+			return EvidenceKindApprovalCompleted, vote.completed.WorkItemID.String(), true
 		})
 	switch {
 	case errors.Is(err, errApprovalAlreadyAdvanced):
@@ -189,15 +194,6 @@ func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionReq
 		return ApprovalCompletionResult{}, settled
 	}
 
-	// OBS-024: the same APPROVAL_COMPLETED evidence Resume records.
-	evidenceID, err := d.opts.Evidence.RecordExecutionEvidence(ctx, req.Start.TenantID, EvidenceKindApprovalCompleted,
-		req.InstanceID.String(), advanced.NodeID, vote.completed.WorkItemID.String(), advanced.OutputDigest, at)
-	if err != nil {
-		return ApprovalCompletionResult{}, fmt.Errorf("workflow execute: record %s evidence: %w", EvidenceKindApprovalCompleted, err)
-	}
-	if evidenceID != "" {
-		evidenceIDs = append(evidenceIDs, evidenceID)
-	}
 	base := Result{
 		Advances: []runtime.AdvanceReceipt{advanced}, WorkItems: created, Timers: timers,
 		InstanceVersion: advanced.NewInstanceVersion, Frontier: append([]string(nil), advanced.Frontier...),

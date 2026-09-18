@@ -69,6 +69,11 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 	}
 	defer func() { retErr = releasing(retErr, release) }()
 
+	// OBS-024: a Resume that just advanced from a completed work item is
+	// either an APPROVAL_COMPLETED or a TASK_SUBMITTED event, decided from
+	// the pinned plan's own node type for the node the advancement names —
+	// never from a caller-asserted kind. The entry is recorded by advanceOnce
+	// on the advance transaction itself, so it commits beside the outcome.
 	advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, req.ExpectedInstanceVersion, at, 1,
 		func(ctx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
 			item, loadErr := d.opts.Items.Load(ctx, ex, req.Start.TenantID, req.WorkItemID)
@@ -80,6 +85,19 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 			// on work items), so this path always advances unlinked.
 			outcome, refs, driftErr := checkWorkItemDrift(req, selection, item)
 			return outcome, refs, nil, driftErr
+		},
+		func(advanced runtime.AdvanceReceipt) (string, string, bool) {
+			node, ok := selection.Plan.Node(advanced.NodeID)
+			if !ok {
+				return "", "", false
+			}
+			switch node.Type {
+			case workflow.StepApproval:
+				return EvidenceKindApprovalCompleted, req.WorkItemID.String(), true
+			case workflow.StepTask:
+				return EvidenceKindTaskSubmitted, req.WorkItemID.String(), true
+			}
+			return "", "", false
 		})
 	if err != nil {
 		settled := d.settlePause(ctx, run, at, err)
@@ -87,30 +105,6 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 			return paused, nil
 		}
 		return Result{}, settled
-	}
-
-	// OBS-024: a Resume that just advanced from a completed work item is
-	// either an APPROVAL_COMPLETED or a TASK_SUBMITTED event, decided from
-	// the pinned plan's own node type for the node the advancement names —
-	// never from a caller-asserted kind.
-	if node, ok := selection.Plan.Node(advanced.NodeID); ok {
-		var kind string
-		switch node.Type {
-		case workflow.StepApproval:
-			kind = EvidenceKindApprovalCompleted
-		case workflow.StepTask:
-			kind = EvidenceKindTaskSubmitted
-		}
-		if kind != "" {
-			evidenceID, evErr := d.opts.Evidence.RecordExecutionEvidence(ctx, req.Start.TenantID, kind,
-				req.InstanceID.String(), advanced.NodeID, req.WorkItemID.String(), advanced.OutputDigest, at)
-			if evErr != nil {
-				return Result{}, fmt.Errorf("workflow execute: record %s evidence: %w", kind, evErr)
-			}
-			if evidenceID != "" {
-				evidenceIDs = append(evidenceIDs, evidenceID)
-			}
-		}
 	}
 
 	result := Result{

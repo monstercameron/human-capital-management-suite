@@ -69,6 +69,10 @@ func (e *streamEngine) Decide(ctx context.Context, id string, _ workspace.Decisi
 	return e.Inspect(ctx, id)
 }
 
+func (e *streamEngine) Acknowledge(ctx context.Context, id string, _ workspace.Acknowledgement) (workspace.JourneyDetail, error) {
+	return e.Inspect(ctx, id)
+}
+
 func (e *streamEngine) EditProposal(context.Context, string, uint64, string, string, workspace.EditProposalInput) (workspace.JourneySummary, string, error) {
 	return workspace.JourneySummary{}, "", nil
 }

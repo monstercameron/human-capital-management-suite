@@ -11,8 +11,12 @@ import (
 
 // TestTodo_WF_RUN_010_Semantics proves the REFACTOR clause: every compiled
 // node declares its cancellation semantics from its effect class and its
-// published compensation, and the promotion plan's one write
-// (execute_promotion) is the only node that is not cancellation-free.
+// published compensation. The promotion plan has two writes: execute_promotion
+// (the authoritative core) and compensate_budget_hold (the bounded hold
+// release). Both are IRREVERSIBLE by declaration -- a produced core commit is
+// never unwound by cancellation, and a produced release cannot itself be
+// un-released (re-holding would be a new reservation, not a compensation).
+// Every other node is cancellation-free.
 func TestTodo_WF_RUN_010_Semantics(t *testing.T) {
 	plan, err := promotionexec.Compile()
 	if err != nil {
@@ -27,7 +31,8 @@ func TestTodo_WF_RUN_010_Semantics(t *testing.T) {
 	}
 	for _, sem := range sems {
 		want := workflow.CancelFree
-		if sem.NodeID == promotionexec.NodeExecutePromotion {
+		if sem.NodeID == promotionexec.NodeExecutePromotion ||
+			sem.NodeID == promotionexec.NodeCompensateHold {
 			want = workflow.CancelIrreversible
 		}
 		if sem.Class != want {

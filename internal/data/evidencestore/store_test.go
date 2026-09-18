@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/evidencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -320,5 +321,66 @@ func TestTodo_WF_RUN_035_Security(t *testing.T) {
 	}
 	if _, err := store.List(ctx, "globex"); err != nil {
 		t.Fatalf("globex's untampered evidence = %v", err)
+	}
+}
+
+// TestTodo_Unit5_EvidenceJoinsCallerTransaction proves the in-advance
+// recording shares the caller's transaction fate: an entry recorded on a
+// transaction that rolls back leaves no orphan row, and the same entry
+// recorded on a transaction that commits lands durably under the same
+// deterministic id.
+func TestTodo_Unit5_EvidenceJoinsCallerTransaction(t *testing.T) {
+	ctx := context.Background()
+	db := pgtest.New(t)
+	acme := seedTenant(t, db, "evs-tx")
+	store := evidencestore.New(db.Conn, mapper(map[values.TenantId]uuid.UUID{"acme": acme}))
+	instance := uuid.NewString()
+
+	aborted, err := db.Conn.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	if err := tenancy.WithTenant(ctx, aborted, acme); err != nil {
+		t.Fatalf("scope tenant: %v", err)
+	}
+	rolledBackID, err := store.RecordExecutionEvidenceTx(ctx, aborted, acme,
+		"TERMINAL_WRITTEN", instance, "end", "event:1", "sha256:term", at)
+	if err != nil {
+		t.Fatalf("RecordExecutionEvidenceTx: %v", err)
+	}
+	if err := aborted.Rollback(ctx); err != nil {
+		t.Fatalf("rollback: %v", err)
+	}
+	if records, err := store.List(ctx, "acme"); err != nil || len(records) != 0 {
+		t.Fatalf("List after rollback = %d records, %v; want no orphan evidence", len(records), err)
+	}
+
+	committed, err := db.Conn.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer func() { _ = committed.Rollback(ctx) }()
+	if err := tenancy.WithTenant(ctx, committed, acme); err != nil {
+		t.Fatalf("scope tenant: %v", err)
+	}
+	committedID, err := store.RecordExecutionEvidenceTx(ctx, committed, acme,
+		"TERMINAL_WRITTEN", instance, "end", "event:1", "sha256:term", at)
+	if err != nil {
+		t.Fatalf("RecordExecutionEvidenceTx: %v", err)
+	}
+	if committedID != rolledBackID {
+		t.Fatalf("committed id %q != rolled-back id %q: the entry must be content-addressed, not commit-addressed", committedID, rolledBackID)
+	}
+	if err := committed.Commit(ctx); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	records, err := store.List(ctx, "acme")
+	if err != nil || len(records) != 1 || records[0].EvidenceID != committedID {
+		t.Fatalf("List after commit = %+v, %v; want the one entry %s", records, err, committedID)
+	}
+
+	if _, err := store.RecordExecutionEvidenceTx(ctx, nil, acme,
+		"TERMINAL_WRITTEN", instance, "end", "event:1", "sha256:term", at); err == nil {
+		t.Fatal("a nil caller transaction was accepted: the entry would have nowhere atomic to land")
 	}
 }

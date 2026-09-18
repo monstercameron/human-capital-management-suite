@@ -125,6 +125,17 @@ service JourneyService {
   // not by this service.
   rpc DecideJourney(DecideJourneyRequest) returns (DecideJourneyResponse);
 
+  // AcknowledgeJourney records the employee's verified promotion
+  // acknowledgement against a journey parked on its acknowledgement gate.
+  // Effect class: governed write through the durable signal store and the
+  // caller-driven execution driver - workspace.JourneyEngine.Acknowledge
+  // receives the correlated signal and resumes the driver from the matched
+  // receipt, which runs the instance to its COMPLETE terminal and records
+  // the one ledger fact the END node raises. The caller is the attester and
+  // must not be the journey's initiator; a journey with no open
+  // acknowledgement wait is refused FAILED_PRECONDITION.
+  rpc AcknowledgeJourney(AcknowledgeJourneyRequest) returns (AcknowledgeJourneyResponse);
+
   // EditProposal corrects an unstarted or not-yet-approved promotion
   // proposal (PROMOUX-013). Effect class: governed write through the intent
   // service - it is workspace.JourneyEngine.EditProposal, which is
@@ -330,6 +341,10 @@ enum JourneyStage {
   // JOURNEY_STAGE_REPAIR_REQUIRED: the workflow requires governed repair
   // before it can reach a consistent terminal state.
   JOURNEY_STAGE_REPAIR_REQUIRED = 15;
+  // JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT: downstream effects reconciled
+  // and the workflow is parked on the employee acknowledgement gate before
+  // the promotion may complete.
+  JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT = 16;
 }
 
 // Placement is one side (current or target) of the placement change
@@ -484,6 +499,10 @@ enum JourneyNextStep {
   JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE = 8;
   // JOURNEY_NEXT_STEP_SYSTEM_PROCESSING: the workflow is processing.
   JOURNEY_NEXT_STEP_SYSTEM_PROCESSING = 9;
+  // JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT: the workflow is parked on the
+  // employee acknowledgement gate; a person must record the verified
+  // acknowledgement, but no role class on the journey names whose job it is.
+  JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT = 10;
 }
 
 // JourneyStepOwner is the role class that holds a journey's next step.
@@ -842,6 +861,19 @@ message DecideJourneyResponse {
   JourneyDetail detail = 1;
 }
 
+message AcknowledgeJourneyRequest {
+  string intent_id = 1;
+  // evidence_ref points at the verified artifact (signed document or HRIS
+  // record) when there is one; note carries anything else the attester
+  // states. Both travel verbatim into the signal payload.
+  string evidence_ref = 2;
+  string note = 3;
+}
+
+message AcknowledgeJourneyResponse {
+  JourneyDetail detail = 1;
+}
+
 // JourneyInterventionKind is the closed set of typed interventions
 // PROMOUX-013 adds beyond Execute and Decide. Both kinds run the same
 // underlying governed capability (CancelIntent); the kind exists so the
@@ -857,6 +889,14 @@ enum JourneyInterventionKind {
   // journey is in an eligible wait (for example, waiting on approval or on
   // its effective-date safe point).
   JOURNEY_INTERVENTION_KIND_CANCEL = 2;
+  // JOURNEY_INTERVENTION_KIND_REPAIR: the governed repair a journey stopped
+  // in REPAIR_REQUIRED names as its next step. Unlike the two above it is
+  // not a CancelIntent composition: it is the operator repair door
+  // (internal/intent/operator/workflowcontrol.RepairController), with its
+  // own JIT authority, dual control and simulation requirements. Previewing
+  // it is what this service offers; the corrective effect itself is driven
+  // through that door against an authored repair plan.
+  JOURNEY_INTERVENTION_KIND_REPAIR = 3;
 }
 
 // EditProposalRequest carries the corrected fields for an unstarted or
@@ -913,6 +953,18 @@ message PreviewJourneyInterventionResponse {
   // client can confirm the intervention with RequestJourneyIntervention
   // without a second read.
   uint64 current_governance_version = 5;
+  // requires_dual_control and requires_simulation are the governed door's
+  // own requirements for this kind, read from the operator policy rather
+  // than restated by a client. A page that named a governed action without
+  // them would be describing a lighter action than the one that exists.
+  bool requires_dual_control = 6;
+  bool requires_simulation = 7;
+  // authority_role_refs names the JIT roles whose grant may authorize this
+  // kind. It is the "who can act" half of a refusal: a viewer who may not
+  // act is told which authority is needed, not merely that they lack it.
+  // The roles a kind requires are policy, identical for every caller, so
+  // naming them discloses nothing about who holds them.
+  repeated string authority_role_refs = 8;
 }
 
 message RequestJourneyInterventionRequest {
@@ -1067,6 +1119,37 @@ message WorkforceOptions {
   // edges. A pay band proves a target can be paid; only one of these edges
   // proves it is a permitted next role for a particular current profile.
   repeated PromotionPathOption promotion_paths = 8;
+  // position_vacancies are the positions the cell has proved are real,
+  // authorized and still open at the read coordinate. The parallel
+  // positions list above is every position id the observed population
+  // occupies, which is the opposite of a vacancy; it stays for
+  // worker-creation controls. An empty list means "no vacancy this caller
+  // may target", which is an answer, not an invitation to type one in.
+  repeated PositionVacancyOption position_vacancies = 9;
+}
+
+// PositionVacancyOption is one position a promotion proposal may target.
+//
+// reference is the only field a proposal binds to: it is the server-issued
+// position revision reference, never a raw position id, so a value that did
+// not come from this list cannot be made to decode as one.
+message PositionVacancyOption {
+  string reference = 1;
+  string title = 2;
+  string organization = 3;
+  string manager = 4;
+  string location = 5;
+  // job_code and org_unit are the position's own governed codes, published
+  // so a form can narrow the list to the role being proposed. They narrow
+  // what is shown; they never widen what may be chosen.
+  string job_code = 6;
+  string org_unit = 7;
+  // vacancy_end is the earliest date the position is known to stop being
+  // open, as yyyy-mm-dd, or empty when no end is known.
+  string vacancy_end = 8;
+  // reservation_state is the disclosed state of the position's capacity,
+  // stated rather than implied by the option's mere presence.
+  string reservation_state = 9;
 }
 
 // WorkforcePlacementOption is one exact compensation-catalog scope. It is
