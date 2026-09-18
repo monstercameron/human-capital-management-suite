@@ -40,22 +40,6 @@ func appt003Quantity(t *testing.T, n string) values.Quantity {
 	return q
 }
 
-func appt003Request(t *testing.T, participantSuffix, resourceSuffix string) ReservationRequest {
-	t.Helper()
-	return ReservationRequest{
-		Slot:         appt003Slot(t, 9, 0, 9, 30),
-		Participants: []values.EntityRef{typedAppointmentRef(values.Kind("worker"), participantSuffix)},
-		Resources: []ResourceHold{
-			{
-				ResourceRef:     typedAppointmentRef(values.Kind("resource"), resourceSuffix),
-				ResourceTypeRef: typedAppointmentRef(values.Kind("resource_type"), "003"),
-				Quantity:        appt003Quantity(t, "1"),
-			},
-		},
-		HoldTTL: 15 * time.Minute,
-	}
-}
-
 func appt003KnownRequest(t *testing.T) (Requirement, ReservationRequest) {
 	t.Helper()
 	req := appt003Requirement(t)

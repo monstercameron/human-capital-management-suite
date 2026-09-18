@@ -8,15 +8,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
-func selectionCite() Citation {
-	return Citation{
-		SourceFile:       "planning/research/state-employment-law/texas.md",
-		Section:          "fixture-selection",
-		Status:           ReviewStatusUnreviewed,
-		ConfidenceMarker: ConfidenceMarkerConfirmed,
-	}
-}
-
 func selectionPack(t *testing.T, packID string, source SourceType, status ReviewStatus, version uint32, j Jurisdiction) RulePack {
 	t.Helper()
 	window, err := NewOpenEffectiveWindow(mustDate(t, 2020, time.January, 1))
