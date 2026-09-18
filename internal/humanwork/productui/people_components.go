@@ -424,7 +424,7 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 	// The short disclosure keeps dense rows scannable while giving pointer,
 	// keyboard, and touch users the same server-projected explanation.
 	workflowMenu := ui.Node(ui.CreateElement(TransientPopover, TransientPopoverProps{
-		Kind: "people-workflows", Class: "people-workflow-menu people-unavailable-menu",
+		Kind: "people-workflows", Group: "people-workflows", Class: "people-workflow-menu people-unavailable-menu",
 		TriggerClass:  "people-availability-badge muted",
 		Title:         noWorkflowsLabel,
 		DescriptionID: "people-unavailable-" + props.ID,
@@ -435,7 +435,7 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 	}))
 	if len(actions) > 0 {
 		workflowMenu = ui.CreateElement(TransientPopover, TransientPopoverProps{
-			Kind: "people-workflows", Class: "people-workflow-menu", TriggerClass: "button secondary people-row-action",
+			Kind: "people-workflows", Group: "people-workflows", Class: "people-workflow-menu", TriggerClass: "button secondary people-row-action",
 			Label:   props.Text("people.workflows_aria", map[string]string{"name": identityLabel}),
 			Trigger: []ui.Node{ui.Text(props.Text("people.workflows")), productIcon("expand", "people-workflow-chevron")}, PanelClass: "people-workflow-options",
 			Children: []ui.Node{html.Ul(html.Props{Class: "people-workflow-options-list"}, actions...)},

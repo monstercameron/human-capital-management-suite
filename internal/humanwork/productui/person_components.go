@@ -373,7 +373,10 @@ func WorkflowLauncher(props WorkflowLauncherProps) ui.Node {
 	}
 	if len(results) == 0 {
 		title, detail := props.Text("workflow.none"), props.Text("workflow.none_detail")
-		if props.TotalCount == 0 {
+		// "No matching workflows / try a name" answers a search. With an
+		// empty filter box nothing was searched, and the sentence read as a
+		// contradiction of the active-workflow list below it (UXLIVE-023).
+		if props.TotalCount == 0 || strings.TrimSpace(props.Filter.Query) == "" {
 			title, detail = props.Text("workflow.unavailable"), props.Text("workflow.unavailable_detail")
 			if props.UnavailableDetail != "" {
 				detail = props.UnavailableDetail

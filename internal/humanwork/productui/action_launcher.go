@@ -42,12 +42,12 @@ func declareActionLauncherStyles() {
 	declareGlobal(".action-launcher", gwccss.Position.Relative, gwccss.MinWidth(gwccss.Px(0)))
 	declareGlobal(".action-launcher-trigger",
 		gwccss.Display.InlineFlex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(7)),
-		gwccss.MinHeight(gwccss.Px(42)), gwccss.MaxWidth(gwccss.Px(230)),
-		gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(11)),
+		gwccss.MinHeight(gwccss.RawLength("var(--hcm-control-height)")), gwccss.MaxWidth(gwccss.Px(230)),
+		gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(11)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.FontSize(gwccss.Rem(0.78)), gwccss.Raw("font-weight", "700"), gwccss.Raw("text-align", "start"),
+		gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "700"), gwccss.Raw("text-align", "start"),
 		hoverRule(
 			gwccss.Raw("border-color", "var(--hcm-hover-border,var(--accent))"),
 			gwccss.Raw("background", "var(--surface-hover,var(--soft))"),
@@ -59,54 +59,114 @@ func declareActionLauncherStyles() {
 		gwccss.Position.Absolute, gwccss.ZIndex(30),
 		gwccss.Display.Grid, gwccss.Raw("grid-template-rows", "auto minmax(0,1fr)"),
 		gwccss.Raw("inset-block-start", "48px"), gwccss.Raw("inset-inline-end", "0"),
-		gwccss.W(gwccss.MinLen(gwccss.Px(360), gwccss.RawLength("calc(100vw - 28px)"))),
+		// 400px rather than 360: at 360 nearly every action's description
+		// wrapped to a second line, so the list alternated 58px and 74px rows
+		// for no reason a reader could act on.
+		gwccss.W(gwccss.MinLen(gwccss.Px(400), gwccss.RawLength("calc(100vw - 28px)"))),
 		gwccss.MaxHeight(gwccss.MinLen(gwccss.Vh(70), gwccss.Px(560))),
 		gwccss.Raw("overflow", "hidden"),
-		gwccss.Padding(gwccss.Px(16)),
+		gwccss.Padding(gwccss.Px(12)),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
-		gwccss.Shadow(gwccss.ShadowOf(gwccss.Px(0), gwccss.Px(18), gwccss.Px(48), gwccss.Zero, gwccss.Hex("10223822"))),
+		// The surface radius, not the control radius: this is a panel, and it
+		// contains rows that carry the control radius. A container rounded
+		// less than the things inside it reads as a mistake, because it is
+		// one.
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),
+		gwccss.Raw("box-shadow", "var(--hcm-shadow-raised)"),
 	)
 	declareGlobal(".action-launcher-dialog-hidden", gwccss.Display.None)
 	declareGlobal(".action-launcher-head",
 		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(8)),
-		gwccss.Raw("margin-bottom", "12px"), gwccss.Raw("padding-bottom", "8px"),
+		gwccss.Raw("margin-bottom", "10px"), gwccss.Raw("padding-bottom", "10px"),
+		// The head already reserved space beneath itself and drew nothing in
+		// it, so the search field and the results ran together.
+		gwccss.Raw("border-block-end", "1px solid var(--line)"),
+	)
+	// The dialog's own title is a label for the thing below it, not a
+	// competitor to the actions. At body size and the same weight as a row
+	// title it read as the first item in the list.
+	declareGlobal(".action-launcher-head>strong",
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.TextColor(gwccss.Var("muted")),
+		gwccss.Raw("letter-spacing", ".04em"),
+		gwccss.Raw("text-transform", "uppercase"),
 	)
 	declareGlobal(".action-launcher-panel,.action-launcher-results-wrap",
 		gwccss.MinHeight(gwccss.Zero), gwccss.Raw("overflow-y", "auto"),
+		// Rows were stacked with their borders touching, which doubled every
+		// line between them. They are separated by space now, and the space
+		// is small enough that the list still reads as one group.
+		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(2)),
+	)
+	// The list is a popover-surface for its listbox contract, and that class
+	// brings a border, the surface radius and a raised shadow. Inside the
+	// dialog, which already has all three, it drew a second framed card within
+	// the first. Scoped under the dialog because the shared popover sheet is
+	// emitted after this one, so a single class loses to it.
+	declareGlobal(".action-launcher-dialog .action-launcher-panel",
+		gwccss.Raw("border", "0"), gwccss.Raw("border-radius", "0"),
+		gwccss.Raw("box-shadow", "none"), gwccss.Raw("background", "transparent"),
 	)
 	declareGlobal(".action-launcher-input",
-		gwccss.MinHeight(gwccss.Px(42)),
-		gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(11)),
+		gwccss.MinHeight(gwccss.RawLength("var(--hcm-control-height)")),
+		gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(12)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.FontSize(gwccss.Rem(0.85)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+	)
+	// Focus as the header search field beside it shows focus: the accent
+	// border with the theme's focus halo. Without this the field fell through
+	// to the generic control ring -- a dark outline offset from the border --
+	// and was the only text field in the shell drawn that way.
+	declareGlobal(".action-launcher-input:focus",
+		gwccss.Bg(gwccss.Var("surface")),
+		gwccss.Raw("border-color", "var(--accent)"),
+		gwccss.Raw("box-shadow", "var(--hcm-focus-ring)"),
+		gwccss.Raw("outline", "0"),
+	)
+	declareGlobal(".action-launcher-input:focus",
+		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.Raw("outline", "2px solid Highlight"), gwccss.OutlineOffset(gwccss.Px(-1))),
 	)
 	declareGlobal(".action-launcher-result",
 		gwccss.Display.Flex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(10)),
 		gwccss.MinHeight(gwccss.Px(48)),
 		gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(10)),
-		gwccss.Raw("border", "1px solid var(--line)"),
+		// Transparent rather than absent: the row still reserves the border
+		// it gets on hover and when active, so nothing moves when it is
+		// highlighted. Drawn on every row at rest it made a menu look like a
+		// stack of five cards.
+		gwccss.Raw("border", "1px solid transparent"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
-		gwccss.Bg(gwccss.Var("surface")), gwccss.TextColor(gwccss.Var("ink")),
+		gwccss.Raw("background", "transparent"), gwccss.TextColor(gwccss.Var("ink")),
 		gwccss.Raw("text-decoration", "none"), gwccss.Raw("text-align", "start"),
-		hoverRule(
-			gwccss.Raw("border-color", "var(--accent)"),
-			gwccss.Raw("background", "var(--surface-hover,var(--soft))"),
-		),
+	)
+	// Selection is drawn the way global search, in the same bar, and the
+	// primary navigation draw it: a soft fill with a faint accent edge, and a
+	// 3px accent bar on the leading side for the active row. A full accent
+	// outline was this menu's alone and made the highlighted row read as a
+	// focused text field.
+	declareGlobal(".action-launcher-result:hover,.action-launcher-result.active",
+		gwccss.Raw("border-color", "color-mix(in srgb,var(--accent) 20%,transparent)"),
+		gwccss.Bg(gwccss.Var("soft")),
 	)
 	declareGlobal(".action-launcher-result.active",
-		gwccss.Raw("border-color", "var(--accent)"),
-		gwccss.Raw("background", "var(--surface-hover,var(--soft))"),
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
+	)
+	declareGlobal("[dir=rtl] .action-launcher-result.active",
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(-3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
+	)
+	declareGlobal(".action-launcher-result.active",
+		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.Raw("outline", "2px solid Highlight"), gwccss.OutlineOffset(gwccss.Px(-2))),
 	)
 
 	declareGlobal(".action-launcher-result-unavailable",
 		gwccss.Raw("cursor", "default"), gwccss.Raw("opacity", "0.72"),
 	)
 	declareGlobal(".action-launcher-result-unavailable:hover",
-		gwccss.Raw("border-color", "var(--line)"), gwccss.Raw("background", "var(--surface)"),
+		gwccss.Raw("border-color", "transparent"), gwccss.Raw("background", "transparent"),
 	)
 
 	declareGlobal(".action-launcher-result[aria-disabled=true]",
@@ -115,14 +175,31 @@ func declareActionLauncherStyles() {
 		gwccss.Raw("border-color", "var(--line)"),
 		gwccss.Raw("background", "var(--surface-subtle,var(--soft))"),
 	)
+	// The row's own text had no rules at all: an inline <strong> and a
+	// <small> in a bare span, so the action's name sat at body size with no
+	// measured distance to its description.
+	declareGlobal(".action-launcher-copy",
+		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(2)),
+		gwccss.Raw("min-inline-size", "0"),
+	)
+	declareGlobal(".action-launcher-copy>strong",
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("line-height", "1.3"),
+	)
 	declareGlobal(".action-launcher-result small",
 		gwccss.Display.Block,
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(0.72)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("line-height", "1.35"),
+	)
+	// The icon keeps its own size whatever the row's text does to it.
+	declareGlobal(".action-launcher-result>svg",
+		gwccss.Raw("flex", "none"),
 	)
 	declareGlobal(".action-launcher-reason",
 		gwccss.Raw("margin-top", "3px"),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("muted")),
 	)
 	declareGlobal(".action-launcher-recovery",
@@ -606,6 +683,12 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 			props.Navigate(item.Href)
 		}
 	}
+	// The launcher is a dialog like the utility drawer and gets the same
+	// focus contract: focus moves into it when it opens and returns to the
+	// control that opened it when it closes. Without this the launcher left
+	// focus wherever it had been, so a keyboard user who dismissed it
+	// resumed somewhere else entirely (UXLIVE-020).
+	useDrawerFocusTrap("action-launcher-dialog", "action-launcher-trigger", open.Get())
 	triggerKey, dialogKey, filterKey, placeholderKey := actionLauncherCopyKeys(props.Items)
 	trigger := html.Button(html.Props{
 		ID: "action-launcher-trigger", Class: "action-launcher-trigger", Type: "button",

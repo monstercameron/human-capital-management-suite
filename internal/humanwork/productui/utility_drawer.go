@@ -130,11 +130,21 @@ func utilityDrawerProps(view View) UtilityDrawerProps {
 // sections the context offers nothing, so the drawer renders as a fragment
 // instead of an empty control. The closed dialog stays in the document with
 // its destinations and accessible name resolving without client state.
+//
+// It is the same control as the "Start an action" launcher beside it and is
+// built the same way: a root element holding the trigger and a non-modal
+// popover anchored under it, dismissed when the pointer or focus leaves.
+// It used to return the trigger and the dialog as a bare fragment. That left
+// nothing for the dismissal hook to test "inside" against, so the drawer
+// stayed open after the reader clicked or tabbed away, and nothing
+// positioned to anchor the popover to, so it opened wherever the nearest
+// positioned ancestor happened to be.
 func UtilityDrawer(props UtilityDrawerProps) ui.Node {
 	if len(props.Sections) == 0 {
 		return html.Fragment()
 	}
 	open := ui.UseState(false)
+	usePopoverFocusDismissal("utility-drawer", "utility-drawer-trigger", open.Get(), func() { open.Set(false) })
 	useDrawerFocusTrap("utility-drawer-dialog", "utility-drawer-trigger", open.Get())
 	trigger := html.Button(html.Props{
 		ID: "utility-drawer-trigger", Class: "utility-drawer-trigger", Type: "button",
@@ -146,7 +156,7 @@ func UtilityDrawer(props UtilityDrawerProps) ui.Node {
 	}, navIcon("expand"), html.Span(html.Props{Class: "utility-drawer-label"}, ui.Text(props.Text("utility_drawer.trigger"))))
 	dialogProps := html.Props{
 		ID: "utility-drawer-dialog", Class: "utility-drawer utility-drawer-dialog",
-		Raw: map[string]any{"role": "dialog", "aria-modal": "true", "aria-label": props.Text("utility_drawer.dialog_title")},
+		Raw: map[string]any{"role": "dialog", "aria-label": props.Text("utility_drawer.dialog_title")},
 		OnKeyDown: ui.UseEvent(func(event ui.KeyboardEvent) {
 			if drawerEscapeCloses(event.GetKey()) {
 				open.Set(false)
@@ -174,13 +184,21 @@ func UtilityDrawer(props UtilityDrawerProps) ui.Node {
 			html.Ul(html.Props{Class: "utility-drawer-list"}, items...)))
 	}
 	closeLabel := props.Text("utility_drawer.close")
-	children := append([]ui.Node{html.Button(html.Props{
-		ID: "utility-drawer-close", Class: "utility-drawer-close", Type: "button",
-		Aria:    map[string]string{"label": closeLabel},
-		OnClick: ui.UseEvent(func(ui.MouseEvent) { open.Set(false) }),
-	}, ui.Text(closeLabel))}, sections...)
+	head := html.Div(html.Props{Class: "utility-drawer-head"},
+		html.Strong(html.Props{}, ui.Text(props.Text("utility_drawer.dialog_title"))),
+		html.Button(html.Props{
+			ID: "utility-drawer-close", Class: "utility-drawer-close", Type: "button",
+			Aria:    map[string]string{"label": closeLabel},
+			OnClick: ui.UseEvent(func(ui.MouseEvent) { open.Set(false) }),
+		}, navIcon("close")),
+	)
+	children := append([]ui.Node{head}, sections...)
 	dialog := html.Div(dialogProps, children...)
-	return html.Fragment(trigger, dialog)
+	class := "utility-drawer-root"
+	if open.Get() {
+		class += " utility-drawer-open"
+	}
+	return html.Div(html.Props{ID: "utility-drawer", Class: class}, trigger, dialog)
 }
 
 func utilityDrawer(view View) ui.Node {

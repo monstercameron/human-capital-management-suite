@@ -8,11 +8,18 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-// useDrawerFocusTrap contains keyboard focus inside the overlay drawer while
-// it is open and restores focus to whatever had it beforehand (the trigger,
-// in every real path) once it closes. It mirrors
-// usePopoverFocusDismissal's effect lifecycle (popover_focus_wasm.go): bind
-// on open, clean up on close or unmount.
+// useDrawerFocusTrap moves focus into an overlay when it opens and gives it
+// back to whatever had it beforehand (the trigger, in every real path) once
+// it closes. It mirrors usePopoverFocusDismissal's effect lifecycle
+// (popover_focus_wasm.go): bind on open, clean up on close or unmount.
+//
+// What it does in between follows what the dialog declares. A dialog marked
+// aria-modal="true" -- the mobile navigation drawer, the appearance preview --
+// has promised that the page behind it is inert, so Tab wraps at its edges.
+// A non-modal popover -- Start an action, Page utilities -- has promised the
+// opposite, and trapping Tab there made the reader's only way out of it the
+// Escape key: Tab from the last item wrapped to the first, so the focus-leaves
+// dismissal in usePopoverFocusDismissal could never fire from the keyboard.
 func useDrawerFocusTrap(dialogID, triggerID string, open bool) {
 	ui.UseEffectOf(func() func() {
 		if !open {
@@ -34,6 +41,7 @@ func bindDrawerFocusTrap(dialogID, triggerID string) func() {
 		return nil
 	}
 	previouslyFocused := doc.Get("activeElement")
+	modal := dialog.Call("getAttribute", "aria-modal").String() == "true"
 
 	focusable := func() []js.Value {
 		list := dialog.Call("querySelectorAll", drawerFocusableSelector)
@@ -58,7 +66,7 @@ func bindDrawerFocusTrap(dialogID, triggerID string) func() {
 	}
 
 	listener := js.FuncOf(func(_ js.Value, args []js.Value) any {
-		if len(args) == 0 || args[0].Get("key").String() != "Tab" {
+		if !modal || len(args) == 0 || args[0].Get("key").String() != "Tab" {
 			return nil
 		}
 		event := args[0]
@@ -87,6 +95,14 @@ func bindDrawerFocusTrap(dialogID, triggerID string) func() {
 	return func() {
 		dialog.Call("removeEventListener", "keydown", listener)
 		listener.Release()
+		// Give focus back only if the dialog still had it, or had it until it
+		// hid and the browser dropped it to the body. If the reader has already
+		// put focus somewhere else -- tabbed past the popover, clicked another
+		// control -- that is where they meant to be, and pulling it back to the
+		// trigger would undo their move.
+		if active := doc.Get("activeElement"); active.Truthy() && !active.Equal(doc.Get("body")) && !dialog.Call("contains", active).Bool() {
+			return
+		}
 		if previouslyFocused.Truthy() && previouslyFocused.Get("isConnected").Bool() && previouslyFocused.Get("focus").Truthy() && !previouslyFocused.Equal(doc.Get("body")) {
 			previouslyFocused.Call("focus")
 			return

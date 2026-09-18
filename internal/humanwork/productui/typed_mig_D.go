@@ -17,7 +17,7 @@ func declareColorModeControlStylesStyles() {
 		gwccss.GridCols(gwccss.Repeat(3, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
 	)
 	declareGlobal(".swatch-system-1,.swatch-light-1",
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 	)
 	declareGlobal(".swatch-system-2,.swatch-dark-1",
 		gwccss.Bg(gwccss.Hex("101820")),
@@ -93,14 +93,14 @@ func declareLocaleStylesStyles() {
 	declareGlobal(".locale-menu>summary",
 		gwccss.Display.Grid,
 		gwccss.Raw("place-items", "center"),
-		gwccss.MinWidth(gwccss.Px(44)),
-		gwccss.MinHeight(gwccss.Px(44)),
+		gwccss.MinWidth(gwccss.RawLength("var(--hcm-control-height)")),
+		gwccss.MinHeight(gwccss.RawLength("var(--hcm-control-height)")),
 		gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(8)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "750"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "700"),
 		gwccss.Raw("list-style", "none"),
 	)
 	declareGlobal(".locale-menu>summary::-webkit-details-marker",
@@ -232,7 +232,7 @@ func declareLocalePreferenceStylesStyles() {
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.FontSize(gwccss.Rem(.72)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-weight", "800"),
 		gwccss.Tracking(gwccss.Ems(.04)),
 	)
@@ -249,8 +249,8 @@ func declareLocalePreferenceStylesStyles() {
 		gwccss.Rounded(gwccss.Px(999)),
 		gwccss.Bg(gwccss.Var("accent")),
 		gwccss.TextColor(gwccss.Var("on-brand")),
-		gwccss.FontSize(gwccss.Rem(.7)),
-		gwccss.Raw("font-weight", "750"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(".locale-preferences-status",
 		gwccss.Margin(gwccss.Zero),
@@ -258,7 +258,7 @@ func declareLocalePreferenceStylesStyles() {
 		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.78)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".settings-overview-grid",
 		mediaRule(gwccss.MaxW(960), gwccss.GridCols(gwccss.Fr(1))),
@@ -357,12 +357,26 @@ func declareAccessibilityStylesStyles() {
 		gwccss.Padding(gwccss.Zero),
 		gwccss.Raw("list-style", "none"),
 	)
+	// These lists are layout, not prose. UIPOLISH-001's readable measure caps
+	// every li in the shell at 65ch, which is right for a sentence and wrong
+	// for a container: it held each organization unit to 583px inside an
+	// 886px column and left the rest of the card empty (UXLIVE-024). The
+	// text inside them keeps its own measure.
+	//
+	// The shell class is part of the selector deliberately. UIPOLISH-001's
+	// rule is `:where(.app-shell,.jn-embedded) :is(...,.prose p,...)`, whose
+	// :is() takes `.prose p`'s (0,1,1); a bare `:is(classes)>li` ties with it
+	// and loses on source order, because the typography sheet is
+	// concatenated after this one.
+	declareGlobal(":is(.app-shell,.jn-embedded) :is(.metrics,.recent,.org-branches,.work-rows,.people-rows)>li",
+		gwccss.Raw("max-inline-size", "none"),
+	)
 	declareGlobal(".facts,.person-fact-grid",
 		gwccss.Margin(gwccss.Zero),
 	)
 	declareGlobal(".facts dt,.profile-fact dt",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".facts dd,.profile-fact dd",
 		gwccss.Margin(gwccss.Zero),
@@ -371,7 +385,7 @@ func declareAccessibilityStylesStyles() {
 	)
 	declareGlobal(".activity>time",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.8)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".nav-favorite",
 		gwccss.MinWidth(gwccss.Px(44)),
@@ -412,7 +426,7 @@ func declareAccessibilityStylesStyles() {
 	)
 	declareGlobal(".accessibility-group legend",
 		gwccss.Padding(gwccss.Zero),
-		gwccss.Raw("font-weight", "750"),
+		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(".accessibility-group>p",
 		gwccss.Raw("margin", "4px 0 12px"),
@@ -460,7 +474,7 @@ func declareAccessibilityStylesStyles() {
 		gwccss.MinHeight(gwccss.Px(24)),
 		gwccss.Raw("margin", "10px 0 0"),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.8)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".accessibility-status[data-tone=\"success\"]",
 		gwccss.TextColor(gwccss.Var("success")),
@@ -510,7 +524,7 @@ func declareAccessibilityStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("justify-content", "space-between"), gwccss.Gap(gwccss.Px(18))),
 	)
 	declareGlobal(".people-row>.people-cell:before",
-		mediaRule(gwccss.MaxW(760), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "650")),
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "600")),
 	)
 	declareGlobal(".history-action,.history-action>.button",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("justify-self", "stretch"), gwccss.W(gwccss.Percent(100))),
@@ -696,8 +710,6 @@ func declareThemeCoverageBaseStylesStyles() {
 		gwccss.Custom("jn-r2", "var(--hcm-radius-control)"),
 		gwccss.Custom("jn-r3", "var(--hcm-radius-surface)"),
 		gwccss.Custom("jn-r4", "var(--hcm-radius-surface)"),
-		gwccss.Custom("jn-shadow", "var(--hcm-shadow-resting)"),
-		gwccss.Custom("jn-shadow-raised", "var(--hcm-shadow-raised)"),
 		gwccss.Custom("jn-shadow-lift", "var(--hcm-shadow-raised)"),
 		gwccss.Custom("jn-ring", "0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)"),
 	)

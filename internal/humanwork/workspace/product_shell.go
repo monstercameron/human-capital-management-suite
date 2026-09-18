@@ -71,6 +71,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		nav = "collapsed"
 	}
 	appearance := productui.DefaultCustomerTheme()
+	accessibility := productui.DefaultAccessibilityPreferences()
 	if h.preferences != nil && principal != nil {
 		snapshot, loadErr := h.preferences.Load(admitted.Context(), principal.Tenant(), principal.OrganizationScopeID(), principal.Subject())
 		if loadErr != nil {
@@ -78,6 +79,16 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		appearance = productThemeFromPreference(snapshot.Theme.Theme)
+		// The same read already returned this person's own accessibility
+		// preferences, and the document used to discard them and render the
+		// defaults. Someone who reads at large text or needs more contrast
+		// therefore got standard text and system contrast on first paint,
+		// then watched the page reflow to their setting once the client
+		// loaded -- on every navigation.
+		stored := snapshot.User.Accessibility
+		accessibility = productui.NormalizeAccessibilityPreferences(productui.AccessibilityPreferences{
+			TextSize: stored.TextSize, Contrast: stored.Contrast, Motion: stored.Motion, Links: stored.Links,
+		})
 	}
 	appearance = productui.NormalizeCustomerTheme(appearance)
 	if productui.ValidateCustomerTheme(appearance) != nil {
@@ -88,7 +99,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		h.writeProblem(w, http.StatusServiceUnavailable, "Appearance unavailable", "Organization appearance could not be qualified.")
 		return
 	}
-	doc, err := productShellDocumentForRouteStateWithTheme(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, stylesheet)
+	doc, err := productShellDocumentForRouteStateWithPreferences(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, accessibility, stylesheet)
 	if err != nil {
 		h.writeProblem(w, http.StatusInternalServerError, "Workspace unavailable", err.Error())
 		return
@@ -171,6 +182,14 @@ func productShellDocumentForRouteState(config JourneyConfig, bundleBuilt bool, l
 }
 
 func productShellDocumentForRouteStateWithTheme(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string, theme productui.CustomerTheme, stylesheet string) (string, error) {
+	return productShellDocumentForRouteStateWithPreferences(config, bundleBuilt, locale, page, menuQuery, nav, theme, productui.DefaultAccessibilityPreferences(), stylesheet)
+}
+
+// productShellDocumentForRouteStateWithPreferences renders the shell with the
+// stored theme and the stored accessibility preferences on <html>, which is
+// what makes the first paint final: the client adopts these attributes rather
+// than replacing them (see browserThemeController.Reapply).
+func productShellDocumentForRouteStateWithPreferences(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string, theme productui.CustomerTheme, accessibilityPreferences productui.AccessibilityPreferences, stylesheet string) (string, error) {
 	island, err := json.Marshal(config)
 	if err != nil {
 		return "", err
@@ -187,11 +206,11 @@ func productShellDocumentForRouteStateWithTheme(config JourneyConfig, bundleBuil
 	for _, name := range []string{"data-hcm-color-mode", "data-hcm-palette", "data-hcm-shape", "data-hcm-density", "data-hcm-glyphs", "data-hcm-typeface", "data-hcm-navigation", "data-hcm-motion"} {
 		b.WriteString(` ` + name + `="` + html.EscapeString(appearance[name]) + `"`)
 	}
-	accessibility := productui.AccessibilityPreferenceAttributes(productui.DefaultAccessibilityPreferences())
+	accessibility := productui.AccessibilityPreferenceAttributes(accessibilityPreferences)
 	for _, name := range []string{"data-hcm-text-size", "data-hcm-contrast", "data-hcm-motion-preference", "data-hcm-links"} {
 		b.WriteString(` ` + name + `="` + html.EscapeString(accessibility[name]) + `"`)
 	}
-	b.WriteString(`><head><meta charset="utf-8"><meta name="color-scheme" content="light dark">`)
+	b.WriteString(`><head><meta charset="utf-8"><meta name="color-scheme" content="` + html.EscapeString(productui.ColorSchemeContent(appearance["data-hcm-color-mode"])) + `">`)
 	b.WriteString(`<meta name="viewport" content="width=device-width, initial-scale=1">`)
 	b.WriteString("<title>Human Capital Management Suite</title><style>")
 	b.WriteString(stylesheet)

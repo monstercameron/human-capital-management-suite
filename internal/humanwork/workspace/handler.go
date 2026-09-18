@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -438,7 +439,16 @@ func (h *Handler) serveAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", metadata.ContentType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Cache-Control", "private, max-age=0, must-revalidate")
+	// A request that names the exact bytes it wants can be answered once and
+	// kept: the address changes whenever the bytes do, so a stored copy can
+	// never be stale. Without this the bundle was re-transferred on every
+	// navigation (UXLIVE-013). The cache stays private: this is an
+	// authenticated asset and no shared cache may keep it.
+	if contentAddressed(r, metadata.SHA256) {
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	} else {
+		w.Header().Set("Cache-Control", "private, max-age=0, must-revalidate")
+	}
 	w.Header().Set("Vary", "Accept-Encoding")
 	if encoding != "" {
 		w.Header().Set("Content-Encoding", encoding)
@@ -455,9 +465,29 @@ func (h *Handler) serveAsset(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
+	// The bytes are already whole in memory, so the length is known. Writing
+	// the header before the body suppresses Go's own sniffing and the
+	// response would otherwise go out chunked, which leaves a browser
+	// deciding whether to store a multi-megabyte entry without knowing how
+	// large it will be.
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
 }
+
+// contentAddressed reports whether the request names the asset's own digest,
+// which makes its address unique to these bytes.
+func contentAddressed(r *http.Request, sha256Hex string) bool {
+	if strings.TrimSpace(sha256Hex) == "" {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(r.URL.Query().Get(assetVersionQueryKey)), sha256Hex)
+}
+
+// assetVersionQueryKey is the parameter the loader stamps an asset address
+// with. It is presentation only: the bytes served never depend on it, and a
+// wrong or absent value simply falls back to revalidation.
+const assetVersionQueryKey = "v"
 
 func encodingOrIdentity(encoding string) string {
 	if encoding == "" {

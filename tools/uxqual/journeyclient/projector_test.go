@@ -372,7 +372,7 @@ func TestListPageCards(t *testing.T) {
 		Stage:         "AWAITING_APPROVAL",
 		StageLabel:    "Awaiting approval",
 		StageTone:     toneWarning,
-		Updated:       "2026-05-12 09:12 UTC",
+		Updated:       "12 May 2026, 09:12 UTC",
 		InstanceID:    testInstanceID,
 	}
 	// JourneyCard carries an OnOpen callback, so the comparison is field by
@@ -485,7 +485,10 @@ func TestProposalFormShape(t *testing.T) {
 		{FieldWorker, NameWorker, kindSelect, "", true},
 		{FieldJobCode, NameJobCode, kindSelect, "", true},
 		{FieldGrade, NameGrade, kindSelect, "", true},
-		{FieldPosition, NamePosition, kindText, "", false},
+		// UXLIVE-011 replaced the free-text target position with the
+		// governed picker. The kind is what this line is protecting: a text
+		// box here is the defect, not a stylistic choice.
+		{FieldPosition, NamePosition, kindPositionPicker, "", false},
 		{FieldBase, NameBase, kindNumber, "", true},
 		{FieldEffective, NameEffective, kindDate, "2026-12-01", true},
 		{FieldReason, NameReason, kindTextarea, "", true},
@@ -628,11 +631,11 @@ func TestDetailPageStepTimesComeFromTheTimeline(t *testing.T) {
 	p := DetailPage(testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
 	steps := p.Detail.Steps
 	want := []string{
-		"2026-05-12 08:58 UTC", // INTENT_CREATED
-		"2026-05-12 10:02 UTC", // the finance WORK_ITEM transition
-		"",                     // the legacy fixture has no separate manager work item
-		"1 Jun 2026",           // immutable proposal effective date
-		"2026-05-12 10:04 UTC", // LEDGER_RECORDED
+		"12 May 2026, 08:58 UTC", // INTENT_CREATED
+		"12 May 2026, 10:02 UTC", // the finance WORK_ITEM transition
+		"",                       // the legacy fixture has no separate manager work item
+		"1 Jun 2026",             // immutable proposal effective date
+		"12 May 2026, 10:04 UTC", // LEDGER_RECORDED
 	}
 	for i, w := range want {
 		if steps[i].At != w {
@@ -790,8 +793,27 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 					}
 				}
 			}
-			if len(actions) != len(wantInterventionIDs) {
-				t.Fatalf("actions = %+v, want exactly the three interventions", actions)
+			// UXLIVE-006 added a fourth action at REPAIR_REQUIRED, and only
+			// there: the governed repair that stage names as its own next
+			// step. Before it, this stage's Actions section offered nothing
+			// about the repair it was waiting on, which is the finding. The
+			// other two stages in this loop still offer exactly three.
+			want := len(wantInterventionIDs)
+			if stage == journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED {
+				want++
+				repair := findAction(t, actions, ActionRepair)
+				if !repair.Disabled || repair.DisabledReason == "" {
+					t.Errorf("the governed repair is offered (or offers no reason) at %s: %+v", stageOf(stage), repair)
+				}
+			} else {
+				for _, a := range actions {
+					if a.ID == ActionRepair {
+						t.Errorf("stage %s names a governed repair it is not waiting on", stageOf(stage))
+					}
+				}
+			}
+			if len(actions) != want {
+				t.Fatalf("actions = %+v, want %d", actions, want)
 			}
 			if w := findAction(t, actions, ActionWithdraw); !w.Disabled || w.DisabledReason == "" {
 				t.Errorf("Withdraw is offered (or offers no reason) at %s: %+v", stageOf(stage), w)
@@ -997,7 +1019,7 @@ func TestDetailPageSections(t *testing.T) {
 	if w.Owner != testApprover {
 		t.Errorf("work item owner = %q, want the routed owner %q", w.Owner, testApprover)
 	}
-	if w.Completed != testApprover+", 2026-05-12 10:02 UTC" {
+	if w.Completed != testApprover+", 12 May 2026, 10:02 UTC" {
 		t.Errorf("work item completion = %q", w.Completed)
 	}
 	if w.Tone != toneSuccess {
@@ -1007,7 +1029,7 @@ func TestDetailPageSections(t *testing.T) {
 	if d.Ledger == nil {
 		t.Fatal("the ledger fact is missing from a completed journey")
 	}
-	if d.Ledger.Sequence != "4" || d.Ledger.EffectiveAt != "1 Jun 2026" || d.Ledger.RecordedAt != "2026-05-12 10:04 UTC" {
+	if d.Ledger.Sequence != "4" || d.Ledger.EffectiveAt != "1 Jun 2026" || d.Ledger.RecordedAt != "12 May 2026, 10:04 UTC" {
 		t.Errorf("ledger card = %+v", *d.Ledger)
 	}
 
@@ -1019,7 +1041,7 @@ func TestDetailPageSections(t *testing.T) {
 		t.Fatal("the effective window is missing")
 	}
 	if d.EffectiveWindow.Start != "12 May 2026" || d.EffectiveWindow.EffectiveDate != "1 Jun 2026" ||
-		d.EffectiveWindow.KnownAt != "2026-05-12 09:12 UTC" {
+		d.EffectiveWindow.KnownAt != "12 May 2026, 09:12 UTC" {
 		t.Errorf("effective window = %+v", *d.EffectiveWindow)
 	}
 
@@ -1061,7 +1083,7 @@ func TestTodo_UXAUDIT_006_I18N_PromotionDetailBusinessProjection(t *testing.T) {
 			if got := page.Detail.Timeline[0].Title; got != tc.recorded {
 				t.Errorf("recorded history title = %q, want %q", got, tc.recorded)
 			}
-			if got := page.Detail.Timeline[0].At; got == "2026-05-12 10:04 UTC" || got == "" {
+			if got := page.Detail.Timeline[0].At; got == "12 May 2026, 10:04 UTC" || got == "" {
 				t.Errorf("history time not localized: %q", got)
 			}
 			if page.Detail.Ledger == nil || page.Detail.Ledger.EffectiveAt != tc.date {
@@ -1083,7 +1105,7 @@ func TestTimelineIsNewestFirstAndToned(t *testing.T) {
 	if events[len(events)-1].Title != "Promotion requested" {
 		t.Errorf("oldest entry = %+v, want the proposal", events[len(events)-1])
 	}
-	if events[0].At != "2026-05-12 10:04 UTC" {
+	if events[0].At != "12 May 2026, 10:04 UTC" {
 		t.Errorf("newest entry time = %q", events[0].At)
 	}
 

@@ -36,7 +36,13 @@ func appShellWithHeading(view View, page ui.Node, showHeading bool) ui.Node {
 		showHeading = false
 	} else if view.LoadError != "" {
 		content = html.Div(html.Props{Class: "page-stack"},
-			unavailablePanel(view.Locale.Text("shell.live_unavailable"), view.Locale.Text("shell.load_recovery")),
+			unavailablePanelWithRetry(
+				view.Locale.Text("shell.live_unavailable"),
+				view.Locale.Text("shell.load_recovery"),
+				view.Locale.Text("shell.load_retry"),
+				statefulHref(view, view.Page),
+				view.Navigate,
+			),
 			page,
 		)
 	}

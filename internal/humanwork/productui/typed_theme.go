@@ -150,7 +150,7 @@ func declareAppearancePreviewThemeStyles() {
 	declareGlobal(".appearance-preview-content h4",
 		gwccss.Raw("margin", "0"),
 		gwccss.Raw("font-family", "var(--hcm-font-sans)"),
-		gwccss.Raw("font-size", ".85rem"),
+		gwccss.Raw("font-size", "0.875rem"),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
 	declareGlobal(".appearance-preview-nav .nav-icon",
@@ -158,16 +158,16 @@ func declareAppearancePreviewThemeStyles() {
 		gwccss.Raw("stroke", "var(--ink)"),
 	)
 	declareGlobal(".appearance-preview-card strong",
-		gwccss.Raw("font-size", ".76rem"),
+		gwccss.Raw("font-size", "0.75rem"),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
 	declareGlobal(".appearance-preview-card small",
-		gwccss.Raw("font-size", ".68rem"),
+		gwccss.Raw("font-size", "0.75rem"),
 		gwccss.TextColor(gwccss.Var("muted")),
 	)
 	declareGlobal(".appearance-preview-pill",
 		gwccss.Raw("font-style", "normal"),
-		gwccss.Raw("font-size", ".65rem"),
+		gwccss.Raw("font-size", "0.75rem"),
 		gwccss.Raw("font-weight", "700"),
 		gwccss.Raw("justify-self", "start"),
 		gwccss.Raw("padding", "4px 8px"),

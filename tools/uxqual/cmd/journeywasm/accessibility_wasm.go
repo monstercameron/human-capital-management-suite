@@ -10,7 +10,10 @@ import (
 
 type browserAccessibilityController struct {
 	saved productui.AccessibilityPreferences
-	save  func(productui.AccessibilityPreferences, func(error))
+	// loaded reports whether saved holds the person's real preferences rather
+	// than the defaults it starts with. See Reapply.
+	loaded bool
+	save   func(productui.AccessibilityPreferences, func(error))
 }
 
 func newBrowserAccessibilityController(save func(productui.AccessibilityPreferences, func(error))) *browserAccessibilityController {
@@ -20,6 +23,19 @@ func newBrowserAccessibilityController(save func(productui.AccessibilityPreferen
 func (c *browserAccessibilityController) Load(value productui.AccessibilityPreferences) {
 	if c != nil {
 		c.saved = productui.NormalizeAccessibilityPreferences(value)
+		c.loaded = true
+		c.Apply(c.saved)
+	}
+}
+
+// Reapply restores the last known preferences, discarding any unsaved preview,
+// and does nothing before the first Load -- for the same reason as the theme
+// controller's. Applying the defaults at boot reset a person who reads at
+// large text, or needs more contrast, to standard text and system contrast
+// until the page's data read finished: the layout reflowed twice on every
+// page for exactly the people least able to follow it.
+func (c *browserAccessibilityController) Reapply() {
+	if c != nil && c.loaded {
 		c.Apply(c.saved)
 	}
 }
@@ -42,6 +58,7 @@ func (c *browserAccessibilityController) Save(value productui.AccessibilityPrefe
 	}
 	value = productui.NormalizeAccessibilityPreferences(value)
 	c.saved = value
+	c.loaded = true
 	c.Apply(value)
 	c.setStatus("saving", "preview")
 	if c.save == nil {

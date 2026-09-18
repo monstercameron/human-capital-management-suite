@@ -595,6 +595,9 @@ func fixtureLedger() *LedgerCard {
 		IdempotencyKey: "idem_01JX7Q2M4K8N3RA6_record",
 		RecordedAt:     "12 May 2026, 10:04 UTC",
 		EffectiveAt:    "1 Jun 2026",
+		Recorded:       true,
+		StatusLabel:    "Recorded",
+		StatusTone:     "success",
 	}
 }
 

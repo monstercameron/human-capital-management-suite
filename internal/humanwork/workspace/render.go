@@ -272,11 +272,28 @@ const loaderSource = `(function(){` +
 	`if(!window.WebAssembly){return}` +
 	`var c=document.getElementById("` + JourneyConfigElementID + `"),j=JSON.parse(c?c.textContent||"{}":"{}");` +
 	`function o(i){return{credentials:"same-origin",headers:{authorization:"Bearer "+(j.bearer||"")},integrity:i||""}}` +
+	// v stamps an asset address with its own digest so a stored copy can
+	// never be stale and never has to be revalidated (UXLIVE-013).
+	`function v(a){return a&&a.sha256?"?v="+encodeURIComponent(a.sha256):""}` +
+	// k answers an addressed asset from the origin's own cache storage
+	// when it has been seen before. The HTTP cache is the right place for
+	// this and the immutable policy above is what asks it to do the job,
+	// but a browser caps how large a single entry it will store -- measured
+	// here, the multi-megabyte bundle is refused while every smaller asset
+	// with the identical policy is kept -- so the bundle alone would still
+	// be transferred on every navigation. Cache storage has no such cap.
+	//
+	// The key always carries the asset's own digest, so a stored copy can
+	// never answer for different bytes, and entries under any other digest
+	// are dropped as soon as a new one is stored. What is kept was verified
+	// by subresource integrity when it was fetched; the cache is
+	// origin-private, so anything able to write it already runs here.
+	`function k(u,i){var f=function(){return fetch(u,o(i))};if(!window.caches){return f()}return caches.open("hcmnext-assets").then(function(c){return c.match(u).then(function(r){if(r){return r}return f().then(function(r){if(r.ok){c.put(u,r.clone()).then(function(){return c.keys().then(function(ks){for(var n=0;n<ks.length;n++){var q=new URL(ks[n].url);if(q.pathname==new URL(u,location.href).pathname&&ks[n].url.indexOf(u)<0){c.delete(ks[n])}}})},function(){})}return r})})},f)}` +
 	`fetch("` + PathAssetManifest + `",o())` +
 	`.then(function(r){if(!r.ok){throw new Error("asset manifest unavailable")}return r.json()})` +
 	`.then(function(m){var a,s;for(var i=0;i<m.assets.length;i++){if(m.assets[i].path=="` + PathWasm + `"){a=m.assets[i]}else if(m.assets[i].path=="` + PathWasmExec + `"){s=m.assets[i]}}` +
 	`if(!a||!s||typeof a.integrity!=="string"||typeof s.integrity!=="string"){throw new Error("asset integrity unavailable")}` +
-	`return fetch("` + PathWasmExec + `",o(s.integrity)).then(function(r){if(!r.ok){throw new Error("wasm runtime unavailable")}return r.blob()}).then(function(b){var u=URL.createObjectURL(b);return import(u).then(function(){URL.revokeObjectURL(u)},function(e){URL.revokeObjectURL(u);throw e})}).then(function(){if(!window.Go){throw new Error("wasm runtime unavailable")}var g=new window.Go();return window.WebAssembly.instantiateStreaming(fetch("` + PathWasm + `",o(a.integrity)),g.importObject).then(function(r){g.run(r.instance)})})})` +
+	`return k("` + PathWasmExec + `"+v(s),s.integrity).then(function(r){if(!r.ok){throw new Error("wasm runtime unavailable")}return r.blob()}).then(function(b){var u=URL.createObjectURL(b);return import(u).then(function(){URL.revokeObjectURL(u)},function(e){URL.revokeObjectURL(u);throw e})}).then(function(){if(!window.Go){throw new Error("wasm runtime unavailable")}var g=new window.Go();return window.WebAssembly.instantiateStreaming(k("` + PathWasm + `"+v(a),a.integrity),g.importObject).then(function(r){g.run(r.instance)})})})` +
 	`.catch(function(){});` +
 	`})();`
 

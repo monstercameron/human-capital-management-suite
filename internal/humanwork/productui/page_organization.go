@@ -28,20 +28,27 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 		visible[person.ID] = true
 	}
 	members := map[string][]OwnershipNodeProps{}
+	// The browsable groups are the search result. The scope figures below
+	// are the authorized scope, and are counted over the whole population:
+	// deriving them from the filter made the card report one unit, one
+	// location and one pay zone beside a workforce of sixty-four, under a
+	// heading that says it describes the scope (UXLIVE-007).
+	units := map[string]bool{}
 	locations := map[string]bool{}
 	payZones := map[string]bool{}
 	for index, person := range relationships.people {
-		if !visible[person.ID] {
-			continue
-		}
-		team := valueOrUnavailable(person.Team)
-		members[team] = append(members[team], relationships.annotate(scoped, index))
+		units[valueOrUnavailable(person.Team)] = true
 		if value := strings.TrimSpace(person.Location); value != "" {
 			locations[value] = true
 		}
 		if value := strings.TrimSpace(person.PayZone); value != "" {
 			payZones[value] = true
 		}
+		if !visible[person.ID] {
+			continue
+		}
+		team := valueOrUnavailable(person.Team)
+		members[team] = append(members[team], relationships.annotate(scoped, index))
 	}
 	names := make([]string, 0, len(members))
 	for name := range members {
@@ -60,7 +67,7 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 	return ui.CreateElement(OrganizationPage, OrganizationPageProps{
 
 		I18nProps: I18nProps{Locale: view.Locale}, Title: title, Description: description, Groups: groups,
-		Summary: OrganizationSummaryProps{VisiblePeople: len(population), Units: len(groups), Scope: view.Scope,
+		Summary: OrganizationSummaryProps{VisiblePeople: len(population), Units: len(units), Scope: view.Scope,
 			CompactLabel: densityLabel(view.Locale, "compact"), ComfortableLabel: densityLabel(view.Locale, "comfortable"), SpaciousLabel: densityLabel(view.Locale, "spacious"),
 			ExpandAllLabel: view.Locale.Text("nav.expand"), CollapseAllLabel: view.Locale.Text("nav.collapse")}, Density: view.Appearance.Density,
 		ViewLabel: view.Locale.Text("organization.view_label"), TreeActive: forceTree || view.OrganizationView == organizationViewTree, TreeLocked: forceTree,
@@ -83,7 +90,7 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 			Items: []BusinessMetadataItemProps{
 				{Label: view.Locale.Text("organization.business_name"), Value: valueOrUnavailableFor(view.Locale, view.Tenant)},
 				{Label: view.Locale.Text("organization.visible_workforce"), Value: number(len(population))},
-				{Label: view.Locale.Text("organization.units"), Value: number(len(groups))},
+				{Label: view.Locale.Text("organization.units"), Value: number(len(units))},
 				{Label: view.Locale.Text("organization.locations"), Value: number(len(locations))},
 				{Label: view.Locale.Text("organization.pay_zones"), Value: number(len(payZones))},
 				{Label: view.Locale.Text("organization.access_scope"), Value: valueOrUnavailableFor(view.Locale, view.Scope)},

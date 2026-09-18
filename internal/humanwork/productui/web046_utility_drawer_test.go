@@ -93,9 +93,62 @@ func TestTodo_WEB_046_Golden(t *testing.T) {
 	// rendered markup to confirm no stub page or unresolved key leaked in.
 	// Re-pinned 2026-09-15: the rendered markup was already this digest at
 	// main; inspected, it still lists exactly those four related pages.
-	const want = "9a5f6335dddfa152190660e0a309cfce246e895d996da54873c17a220486efdd"
+	// Re-pinned 2026-09-18: the drawer now renders inside a root element (the
+	// anchor for its popover and the "inside" for focus dismissal), is no
+	// longer aria-modal, and has a head with its title and an icon close
+	// button, matching the Start an action launcher. Inspected: the same four
+	// related pages, no unresolved key.
+	const want = "c4a3706d87e5974a069c6cc41eeb5511653ed4c9fc7f544663c514a35dc85da5"
 	if got != want {
 		t.Fatalf("utility drawer golden digest = %s, want %s", got, want)
+	}
+}
+
+// TestUtilityDrawerIsTheLaunchersKindOfPopover pins the structure the
+// dismissal depends on. usePopoverFocusDismissal treats focus or a pointer
+// landing outside the element with id "utility-drawer" as leaving the drawer;
+// when the drawer rendered as a bare fragment there was no such element, so it
+// never closed on blur. The popover is non-modal like the launcher's: a panel
+// that closes when you click past it does not make the page inert.
+func TestUtilityDrawerIsTheLaunchersKindOfPopover(t *testing.T) {
+	view := ApplyRoleVisibility(testView(PageRoles), []string{RoleHCMAdmin})
+	node, err := ui.RenderToString(UtilityDrawer(utilityDrawerProps(view)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(node, `<div class="utility-drawer-root" id="utility-drawer">`) {
+		t.Fatalf("the drawer is not wrapped in the root element its dismissal tests against: %.120s", node)
+	}
+	trigger := strings.Index(node, `id="utility-drawer-trigger"`)
+	dialog := strings.Index(node, `id="utility-drawer-dialog"`)
+	if trigger < 0 || dialog < trigger || !strings.HasSuffix(node, "</div></div>") {
+		t.Fatal("the trigger and the dialog are not both inside the drawer root")
+	}
+	if strings.Contains(node, "aria-modal") {
+		t.Fatal("the drawer declares itself modal but closes on an outside click")
+	}
+	head := strings.Index(node, `class="utility-drawer-head"`)
+	closeAt := strings.Index(node, `id="utility-drawer-close"`)
+	if head < 0 || closeAt < head || strings.Index(node, `class="utility-drawer-section"`) < closeAt {
+		t.Fatal("the close control is not in the dialog head ahead of the sections")
+	}
+}
+
+// TestUtilityDrawerGroupLabelOutranksTheTypeScale: the drawer's group label
+// is an h2 for the outline but a 0.75rem label to the eye. The type scale's
+// heading rule ties a single class and comes later, so the label must be
+// scoped under the dialog or it renders at section-heading size.
+func TestUtilityDrawerGroupLabelOutranksTheTypeScale(t *testing.T) {
+	css := Stylesheet()
+	rule := ".utility-drawer-dialog .utility-drawer-section-title{"
+	at := strings.Index(css, rule)
+	if at < 0 {
+		t.Fatalf("the group label rule is not scoped under the dialog: %s missing", rule)
+	}
+	body := css[at+len(rule):]
+	body = body[:strings.Index(body, "}")]
+	if !strings.Contains(body, "font-size:0.75rem") {
+		t.Fatalf("the group label is not the launcher's 0.75rem label size: %s", body)
 	}
 }
 
