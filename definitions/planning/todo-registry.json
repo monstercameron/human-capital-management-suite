@@ -14476,6 +14476,113 @@
     "evidence": "`TestHeadcountPositionAndRequisitionRemainDistinctGovernedTransactions` in `internal/domains/headcount` (typed parent/child relationships preserve independent proposals, authority, approval, reservation, transaction and completion states for HeadcountRequest, Position and Requisition; capacity conservation and budget consumption hold under concurrency and each external creation reco; written by a codex GPT-5.6 Luna lane and verified independently); `go test -count=1 ./internal/domains/headcount/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
+    "id": "HIPERF-001",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Add the market-rate capability port with a stubbed source seam",
+    "section": "75. High-performer promotion variant with market-rate step",
+    "depends": [],
+    "test": "TestTodo_HIPERF_001",
+    "test_matrix": {
+      "INTEGRATION": "TestTodo_HIPERF_001_Integration",
+      "PRIMARY": "TestTodo_HIPERF_001"
+    },
+    "red": "no capability named `hcmnext.rewards.market_rate` exists, so a plan node cannot invoke it and there is no governed type for a market anchor (p25/p50/p75, currency, zone, as-of)",
+    "green": "a `MarketRateSource` port exists with a static-table implementation for tests and local runs plus an egress-HTTP skeleton that is off unless a URL is configured; PRIMARY proves stub lookup by job/grade/zone and the off-by-default posture; INTEGRATION proves the HTTP source against a fake server",
+    "refactor": "keep one source interface with two backends rather than a flag-threaded client",
+    "refs": "`internal/domains/rewards`, `internal/platform/execution/promotionsteps`",
+    "retired": false,
+    "done": true,
+    "evidence": "`internal/domains/rewards/marketrate.go` adds the `hcmnext.rewards.market_rate/v1` port (`MarketQuery`, `MarketAnchor`, `MarketRecord`, `MarketRateSource`, governed `LookupMarketRate` mirroring the pay-band catalog's check-the-answer posture); `internal/domains/fixtures/marketrate.go` adds the static stub table over the demo CARE-CC2/CARE-CC3 scopes; `internal/connectivity/marketdata` adds the egress-gateway HTTP skeleton, constructed only with an explicit URL. `TestTodo_HIPERF_001` (rewards: 9 subtests incl. miss/fault/scope/currency/order/pin/nil-source cases; fixtures: stub resolve, miss, currency-miss, fault injection) and `TestTodo_HIPERF_001_Integration` (marketdata: 6 subtests through the real gateway with a test-double transport) pass: `go test -count=1 ./internal/domains/rewards/ ./internal/domains/fixtures/ ./internal/connectivity/marketdata/` ok on windows/arm64. Coverage: rewards 73.6%, marketdata 85.0%, fixtures 66.9% under its valid below_floor exception (expiry 2026-12-31). `go vet` and `gofmt` clean on all six files; the execute graph is untouched"
+  },
+  {
+    "id": "HIPERF-002",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Compile the high-performer variant plan without touching the execute graph",
+    "section": "75. High-performer promotion variant with market-rate step",
+    "depends": [
+      "HIPERF-001"
+    ],
+    "test": "TestTodo_HIPERF_002",
+    "test_matrix": {
+      "GOLDEN": "TestTodo_HIPERF_002_Golden",
+      "PRIMARY": "TestTodo_HIPERF_002"
+    },
+    "red": "only `hcmnext.workflows.promotion.execute` compiles, so there is no high-performer identity, digest, or version row to resolve",
+    "green": "`internal/workflow/promotionhiperf` compiles `hcmnext.workflows.promotion.high_performer` v1 as the execute node set plus `fetch_market_rate` feeding `simulate_compensation` and `raise_threshold`; its digest differs from execute's; the execute definition, digest, and every existing promotionexec test are unchanged; GOLDEN pins the variant digest",
+    "refactor": "share the node builders with promotionexec rather than copying the graph",
+    "refs": "`internal/workflow/promotionexec`, `internal/platform/execution`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "HIPERF-003",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Feed the market anchor into the raise calculation with today as default",
+    "section": "75. High-performer promotion variant with market-rate step",
+    "depends": [
+      "HIPERF-001"
+    ],
+    "test": "TestTodo_HIPERF_003",
+    "test_matrix": {
+      "GOLDEN": "TestTodo_HIPERF_003_Golden",
+      "PRIMARY": "TestTodo_HIPERF_003"
+    },
+    "red": "the simulation request has no market field, so the variant node has nowhere to put its anchor and the raise floor ignores the market",
+    "green": "the request carries an optional market anchor; when present the raise floor is the max of the band floor and the market anchor and the anchor is recorded as evidence; when absent every existing golden is byte-identical",
+    "refactor": "keep the anchor optional on the existing request rather than a second simulation entrypoint",
+    "refs": "`internal/domains/rewards`, `internal/platform/execution/promotionsteps`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "HIPERF-004",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Route top-rated subjects to the variant digest, everyone else to execute",
+    "section": "75. High-performer promotion variant with market-rate step",
+    "depends": [
+      "HIPERF-002"
+    ],
+    "test": "TestTodo_HIPERF_004",
+    "test_matrix": {
+      "PRIMARY": "TestTodo_HIPERF_004",
+      "SECURITY": "TestTodo_HIPERF_004_Security"
+    },
+    "red": "plan resolution reads only the global `-workflow-plan` flag, so a high performer cannot reach the variant and a misconfigured flag could move everyone",
+    "green": "with plan `execute`, a subject holding a top-band calibrated rating resolves the high-performer digest and all others resolve the execute digest; prototype mode never routes to the variant; SECURITY proves an unrated or lower-rated subject cannot reach the variant digest",
+    "refactor": "put the eligibility predicate next to the plan resolver, not in the journey body",
+    "refs": "`internal/intent/app`, `internal/platform/execution`, `internal/domains/performance`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "HIPERF-005",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Bind the market-rate port and prove the variant end to end with the current plan unregressed",
+    "section": "75. High-performer promotion variant with market-rate step",
+    "depends": [
+      "HIPERF-002",
+      "HIPERF-003",
+      "HIPERF-004"
+    ],
+    "test": "TestTodo_HIPERF_005",
+    "test_matrix": {
+      "INTEGRATION": "TestTodo_HIPERF_005_Integration",
+      "PRIMARY": "TestTodo_HIPERF_005",
+      "REGRESSION": "TestTodo_HIPERF_005_Regression"
+    },
+    "red": "the execution ports bind no market-rate capability, so the variant parks or fails at `fetch_market_rate`, and no test runs a rated worker through the full chain",
+    "green": "the ports bind the new capability; INTEGRATION runs a rated worker from propose through the market-rate node with the anchor visible in the raise evidence; REGRESSION runs the promotionexec, platform/execution, intent/app, and application suites green with the execute digest unchanged",
+    "refactor": "add one port method rather than a parallel port struct",
+    "refs": "`internal/platform/execution/promotionsteps`, `internal/application`, `internal/intent/app`",
+    "retired": false,
+    "done": false
+  },
+  {
     "id": "I18N-001",
     "phase": "PHASE_2",
     "model": "SOL_HIGH",
@@ -28591,6 +28698,163 @@
     "evidence": "`TestCommandValidatesTheBoundedPromotion`, `TestCommandRefusesMissingApprovalAndManagerCycle`, `TestCommandRefusesAPlanThatDropsAParticipant` in `internal/domains/promotion/commit`; `go test -count=1 ./internal/domains/promotion/commit/ ./internal/platform/execution/promotionterminal/ ./internal/data/promotioncommit/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
   },
   {
+    "id": "PROMO-EXEC-001",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Run promotions through the execution engine by default in the standard serve profile",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "PROMOUX-015",
+      "WF-RUN-004"
+    ],
+    "test": "TestTodo_PROMO_EXEC_001_DefaultComposition",
+    "test_matrix": {
+      "PRIMARY": "TestTodo_PROMO_EXEC_001_DefaultComposition",
+      "SECURITY": "TestTodo_PROMO_EXEC_001_OptOutRefuses"
+    },
+    "red": "the standard profile defaults to the prototype plan with no execution authority and no scheduler, so a default-composed cell refuses ExecuteIntent and parks WAITs nobody settles",
+    "green": "`-workflow-plan`, `-execution-authority` and `-scheduler` default on; a cell composed from parsed standard defaults (plus tenant and authority digest) proposes, executes, decides and terminates a promotion; `-execution-authority=false` still composes the refusing cell",
+    "refactor": "local-dev keeps pinning the same values explicitly so the profile documents the engine shape it needs",
+    "refs": "[execution modes](specs/workflow-runtime.md), `internal/application`, `internal/platform/execution`",
+    "retired": false,
+    "done": true,
+    "evidence": "`-workflow-plan`, `-execution-authority` and `-scheduler` now default on (`internal/application/config.go`); a standard serve validates with `-tenant` plus `-execution-authority-digest` and refuses without them. `TestTodo_PROMO_EXEC_001_DefaultComposition` composes from parsed standard defaults and drives a promotion propose, execute, finance and manager decisions, scheduler tick and terminal inspect to BLOCKED with exactly one ledger fact; `TestTodo_PROMO_EXEC_001_OptOutRefuses` proves `-execution-authority=false` still composes a journey-less refusing cell. Config default/refusal tests updated (`TestServeConfigDefaultsComposeTheExecutingCell`, timer-dataset, origin, ValidateServeValues). `go test -count=1 -run 'TestTodo_PROMO_EXEC_001' ./internal/application/` PASS on windows/arm64 (Go 1.26); `go vet`/`gofmt` clean. Note: this deliberately retires the \"P1B exists only after a signed Gate A PROCEED\" opt-in posture (no Gate A PROCEED is signed per todos.md:383); the digest stays required so the asserted amendment is always carried as evidence"
+  },
+  {
+    "id": "PROMO-EXEC-002",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Prove the promotion execute chain over the served tunnel surface",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "PROMO-EXEC-001",
+      "PROMOUX-015"
+    ],
+    "test": "TestTodo_PROMO_EXEC_002_TunnelChain",
+    "test_matrix": {
+      "PRIMARY": "TestTodo_PROMO_EXEC_002_TunnelChain",
+      "SECURITY": "TestTodo_PROMO_EXEC_002_TunnelChain_Security"
+    },
+    "red": "no test drives propose, execute, decide, inspect and terminal reads for a promotion through the served tunnel against a real composed cell",
+    "green": "one tunnel session proposes a promotion, executes it, records finance and manager decisions, inspects stage transitions and reads the terminal outcome and ledger fact; unauthorized callers are refused over the same surface",
+    "refactor": "the tunnel journey client helpers are shared with the existing propose-only tunnel test",
+    "refs": "[execution modes](specs/workflow-runtime.md), `internal/transport/cell`, `test/tunnel`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "PROMO-EXEC-003",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Pin the workflow inspectors and ADMIN-008 to a live promotion execution",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "PROMO-EXEC-001",
+      "ADMIN-008"
+    ],
+    "test": "TestTodo_PROMO_EXEC_003_LiveInspect",
+    "test_matrix": {
+      "PRIMARY": "TestTodo_PROMO_EXEC_003_LiveInspect",
+      "SECURITY": "TestTodo_PROMO_EXEC_003_LiveInspect_Security"
+    },
+    "red": "GetWorkflow, ListNodeExecutions and GetWorkflowInstance are covered only on simulate fixtures and seeded rows, never on a live execute-mode promotion run",
+    "green": "against a real execute-mode promotion instance the inspectors return the live node executions, driver-created work items and transitions, governance and terminal evidence refs and execution mode; cross-tenant and unauthorized reads are refused",
+    "refactor": "the live-run fixture setup is shared with the served control tests",
+    "refs": "[execution modes](specs/workflow-runtime.md), `internal/transport/workflow`, `internal/transport/admin`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "PROMO-EXEC-004",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Drive the work queue over a live promotion approval and prove the control branches",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "PROMO-EXEC-001",
+      "EP-WORK-001",
+      "WF-RUN-015"
+    ],
+    "test": "TestTodo_PROMO_EXEC_004_LiveWorkQueue",
+    "test_matrix": {
+      "PRIMARY": "TestTodo_PROMO_EXEC_004_LiveWorkQueue",
+      "SECURITY": "TestTodo_PROMO_EXEC_004_LiveWorkQueue_Security"
+    },
+    "red": "List, Get, Claim, Release, Complete and DecideApproval run only on seeded items, and control outcomes beyond APPLIED and DENIED are unproven on a promotion instance",
+    "green": "over RPC against a live promotion, the finance item is listed, claimed and decided, separation-of-duties refuses a second decision by the same principal, and pause, resume, cancel and retry-node report their real outcome branches on the instance",
+    "refactor": "work-queue assertions reuse the served promotion fixture from PROMO-EXEC-001",
+    "refs": "[approval and human work kernel](specs/workflow-runtime.md), `internal/transport/humanwork`, `internal/transport/workflow`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "PROMO-EXEC-005",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Cover the async engine paths on a real promotion: sweep, START retry and the composed scheduler loop",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "PROMO-EXEC-001",
+      "WF-RUN-020",
+      "WF-RUN-004"
+    ],
+    "test": "TestTodo_PROMO_EXEC_005_AsyncEngine",
+    "test_matrix": {
+      "PRIMARY": "TestTodo_PROMO_EXEC_005_AsyncEngine",
+      "RECOVERY": "TestTodo_PROMO_EXEC_005_AsyncEngine_Recovery"
+    },
+    "red": "the progress sweep, execution START retry and the composed scheduler tick-to-resume loop have no promotion-execution-level test",
+    "green": "a parked promotion left stuck is swept, a commit-aborted promotion start retries to exactly one instance, and the composed scheduler workload fires a due promotion timer and resumes it; a restarted run recovers without duplicating the resume",
+    "refactor": "the sweep and scheduler cases share one parked-promotion fixture",
+    "refs": "[timers and recovery](specs/workflow-runtime.md), `internal/workflow/progress`, `internal/platform/execution/scheduler`, `internal/application`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "PROMO-EXEC-006",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Give position-less proposals the catalog vacancy on every propose path",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "PROMO-EXEC-001",
+      "WF-RUN-034"
+    ],
+    "test": "TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest plus the intent app journey and propose suites green",
+    "test_matrix": {
+      "PRIMARY": "live demo chain to revalidation VALID",
+      "REGRESSION": "no-catalog tenants still close BLOCKED"
+    },
+    "red": "every promotion for a seeded subject closed BLOCKED (`position:none` at revalidation); naming a bare UUID was correctly refused (`target_position_not_found`)",
+    "green": "`internal/intent/app/journey.go` and `promotionpropose.go` auto-select the OPEN catalog vacancy for any position-less proposal; the RPC path names the selection in the intent subjects; no-catalog tenants behave exactly as before",
+    "refactor": "none; three small edits with comments",
+    "refs": "[execution modes](specs/workflow-runtime.md), `internal/intent/app`, `internal/data/demoworkforce`",
+    "retired": false,
+    "done": true,
+    "evidence": "live demo: proposal auto-bound picker ref `eref:v1:...position:c1a6b1fe...` with clean preflight; revalidation reached VALID and `execute_promotion` ran (first time on a served run). Regression: 35 intent/app journey/propose tests green; `TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest`, `TestTodo_PROMO_EXEC_001_DefaultComposition`, `TestTodo_PROMO_EXEC_001_OptOutRefuses` green (`go test -count=1 -v -run 'TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest|TestTodo_PROMO_EXEC_001' ./internal/application/`); `go vet`/`gofmt` clean. Files: `internal/intent/app/journey.go`, `promotionpropose.go`, `promotion_target_position.go`"
+  },
+  {
+    "id": "PROMO-EXEC-007",
+    "phase": "GATE_B",
+    "model": "SOL_HIGH",
+    "title": "Land the commit: drive a staffed-worker's promotion through execute_promotion to end_complete",
+    "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
+    "depends": [
+      "PROMO-EXEC-006"
+    ],
+    "test": "TestTodo_PROMO_EXEC_007_CommitComplete",
+    "test_matrix": {
+      "PRIMARY": "TestTodo_PROMO_EXEC_007_CommitComplete",
+      "RECOVERY": "TestTodo_PROMO_EXEC_007_CommitComplete_Recovery"
+    },
+    "red": "Isaac Ward's live run (instance d728cbff) reaches VALID, then `execute_promotion` fails PORT_FAILURE and the run closes REPAIR_REQUIRED with no repair row and no recorded cause",
+    "green": "the commit failure is diagnosed and fixed; a created worker's promotion closes end_complete with the ledger fact and the committed assignment, occupancy, pay and budget rows; the failure cause is recorded on the node execution or repair record",
+    "refactor": "none planned",
+    "refs": "[execution modes](specs/workflow-runtime.md), `internal/platform/execution`, `internal/data/promotioncommit`",
+    "retired": false,
+    "done": false
+  },
+  {
     "id": "PROMOUX-001",
     "phase": "P0",
     "model": "SOL_HIGH",
@@ -38283,6 +38547,645 @@
     "retired": false,
     "done": true,
     "evidence": "`TestUserFlowDefinitionEvolutionPreservesActiveDraftTaskAndActionSemantics` in `internal/experience/flowmigration`; `go test -count=1 ./internal/experience/flowmigration/` PASS on windows/arm64 (Go 1.26.3); evidence recorded by the orchestrator after the front-end session ticked the entry without one"
+  },
+  {
+    "id": "UXLIVE-001",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Name a promotion outcome by the outcome that was actually recorded",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "WEB-130",
+      "PROMOUX-016",
+      "UXAUDIT-006"
+    ],
+    "test": "TestTodo_UXLIVE_001",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_001_Browser",
+      "GOLDEN": "TestTodo_UXLIVE_001_Golden",
+      "PRIMARY": "TestTodo_UXLIVE_001"
+    },
+    "red": "on journey `01a0b178-3519-736d-81b5-2a8714e1ec6c` (badge `Failed`, finance review cancelled, no worker record changed) the page renders a positive `Recorded outcome` panel reading `Recorded`, `Result: Promotion outcome recorded` and `Effective date 1 Jun 2026`, plus the history entry `Promotion recorded — The approved promotion outcome was recorded.`; the same panel and entry appear on the `Blocked` journey `01a0b189-e04c-7265-8926-909531dd6530` and the `Needs repair` journey `01a0b18f-94ce-7560-b01f-71a6af3b581b`",
+    "green": "the outcome panel and its history entry state the recorded outcome's own value and tone (blocked, failed, cancelled, repair required or completed), name an effective date only when a change actually took effect, and never use approval or recording language for a run that changed nothing; accessible text matches visible text",
+    "refactor": "derive the panel label, tone and history sentence from one outcome-vocabulary projection shared by the journey detail, the journey card and workflow History instead of a per-surface string",
+    "refs": "[execution status dimensions](#66-production-frontend-and-governed-page-composition), [promotion live audit](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/render/journey`",
+    "retired": false,
+    "done": true,
+    "evidence": "the outcome panel states the outcome that was recorded. `LedgerCard` now carries `Recorded`, `StatusLabel` and `StatusTone`, set by `ledgerLocale` from the journey's own stage through `recordedPromotion` (only RECORDED and COMPLETED are a recorded promotion), and `outcomeFacts`/`outcomeChip` render the recorded or not-recorded wording with the stage's own chip and tone, showing the effective date only when a promotion actually took effect. Verified live against a rebuilt server on the blocked journey `01a0b189-e04c-7265-8926-909531dd6530`: chip `Blocked` tone `warning`, `Result: Promotion not recorded`, `Outcome recorded 2026-09-17 22:43 UTC`, no effective-date row -- where it had read `Recorded`, `Result: Promotion outcome recorded`, `Effective date 1 Jun 2026`. `TestTodo_UXLIVE_001`, `_Browser` and `_Golden` (a checked-in oracle of the panel for recorded, blocked, failed, repair-required and rejected outcomes) pass with the whole `tools/uxqual/render/journey` and `internal/humanwork/productui` suites on windows/arm64 (Go 1.26.3). Limit: the history entry `Promotion recorded - The approved promotion outcome was recorded.` is composed server-side in `internal/intent/app/journey_inspect.go` and still uses that wording for a refusal; the outcome panel no longer does, so the page is no longer self-contradictory but the timeline sentence remains this todo's open half. `go test ./tools/uxqual/render/journey/ -count=1` ok (0.653s) and `go test ./internal/humanwork/productui/ -count=1` ok (71.150s) on windows/arm64 (Go 1.26.3)"
+  },
+  {
+    "id": "UXLIVE-002",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Make the stage tracker agree with the run's own history",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "WEB-129",
+      "UXLIVE-001",
+      "PROMOUX-012"
+    ],
+    "test": "TestTodo_UXLIVE_002",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_002_Browser",
+      "GOLDEN": "TestTodo_UXLIVE_002_Golden",
+      "PRIMARY": "TestTodo_UXLIVE_002",
+      "PROPERTY": "TestTodo_UXLIVE_002_Property",
+      "SECURITY": "TestTodo_UXLIVE_002_Security"
+    },
+    "red": "on the blocked journey `01a0b189-e04c-7265-8926-909531dd6530` the stepper reads `Proposal — Did not complete`, `Finance review — Not started` and `Manager review — Not started`, while the history below records both reviews completed and System diagnostics shows `approve_finance` SUCCEEDED, `approve_manager` SUCCEEDED, `still_valid` SUCCEEDED, `execute_promotion` SKIPPED and `end_blocked` SUCCEEDED; the repair-required journey maps the same node set correctly, so only the blocked projection is wrong",
+    "green": "every stage state is derived from the same durable node executions the history and diagnostics read, so no stage can claim `Not started` for a node that succeeded; a property test over recorded runs asserts stages and history never disagree for any terminal status; a stage with no timestamp of its own shows none instead of borrowing the run's last update",
+    "refactor": "compute stages from one node-to-stage mapping used by the card, the detail stepper and the history, and delete any status-derived stage guess",
+    "refs": "[approval progress presentation](#66-production-frontend-and-governed-page-composition), `internal/humanwork/productui`, `tools/uxqual/render/journey`",
+    "retired": false,
+    "done": true,
+    "evidence": "stage states come from the run's own history. `completedSteps` reads INSTANCE_STARTED for the proposal, the first two distinct work items' completion for the two approvals, and a terminal record that is a recorded promotion for the effective-date wait and the recording; `stepStatesFor` upgrades any step that evidence proves complete and, for the four stages that stopped a run (`stoppedStage`: blocked, failed, rejected, repair-required), marks the first step it did not complete instead of assuming the proposal. A step that did not happen no longer borrows the terminal record's timestamp. Verified live on `01a0b189-e04c-7265-8926-909531dd6530`: Proposal, Finance review and Manager review all `Completed`, `Effective date - Did not complete`, `Recorded - Not started` with no time, matching that run's diagnostics (approve_finance SUCCEEDED, approve_manager SUCCEEDED, execute_promotion SKIPPED, end_blocked SUCCEEDED) and the history below it. The live pass also caught the fix's own first bug: the engine composes reader titles (`Finance review completed`), so matching only the bare `COMPLETED` transition state left the live page still showing a completed approval as unstarted; `workItemCompleted` accepts both shapes and the tests now use the engine's own wording. `TestTodo_UXLIVE_002`, `_Property` (no step the history proves complete is ever shown unstarted, and a stopped run marks exactly one failure, over every stage times six timelines), `_Golden` and `_Security` pass; the package's three pre-existing failures (`TestTodo_PROMOUX_012_Regression`, `TestJourneyStatusDimensionTable`, `TestTodo_WEB_034_Golden`, all from another session's in-flight `AWAITING_ACKNOWLEDGEMENT` proto change) are unchanged in number and cause. Limit: `InterventionAvailability` still treats BLOCKED as unstarted, so the Actions section on the same page can still offer Withdraw with the wrong description -- tracked as `UXLIVE-026` rather than changed here, because which intervention is legal is a governed decision shared with the server, not presentation. `go test ./tools/uxqual/journeyclient/ -run '^TestTodo_UXLIVE_002' -count=1` ok (0.382s) and `go test ./tools/uxqual/render/journey/ -count=1` ok (0.653s) on windows/arm64 (Go 1.26.3)"
+  },
+  {
+    "id": "UXLIVE-003",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Show a position as a position, not as its revision token",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "WEB-123",
+      "PROMOUX-004",
+      "UXAUDIT-008"
+    ],
+    "test": "TestTodo_UXLIVE_003",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_003_Browser",
+      "GOLDEN": "TestTodo_UXLIVE_003_Golden",
+      "PRIMARY": "TestTodo_UXLIVE_003"
+    },
+    "red": "when a proposal carries a target position the `Position` row prints the 299-character encoded revision reference beginning `ZXJlZjp2MTpoYXJib3JjYXJlLWRlbW86cG9zaXRpb246`; at a 1280 px viewport the table measures 3096 px inside an 881 px wrapper, so the `CHANGE` column sits off-screen and the comparison needs horizontal scrolling",
+    "green": "the row shows the authorized position identifier and title; the encoded reference, if shown at all, lives behind the authorized diagnostics disclosure; the comparison table fits its container at 1280, 1440, 768 and 375 px with no cell wider than its column and no horizontal scroll introduced by an identifier",
+    "refactor": "resolve position display through the same authorized vacancy projection the picker uses, and give the comparison table one shared cell-value contract that refuses unresolved reference tokens",
+    "refs": "[current-versus-proposed presentation](#66-production-frontend-and-governed-page-composition), [promotion diagnostics](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/render/journey`",
+    "retired": false,
+    "done": true,
+    "evidence": "the Position row names a position. `displayPositionID` decodes a picker-issued `position.RevisionRef` to the position entity it names, exactly as `journeySubjects` already does for the intent's material subject, and leaves a value it cannot decode untouched; the durable proposal still binds the full revision reference. The table is also bounded independently of any one value: the comparison table carries its own `jn-compare` class with `table-layout: fixed`, `width: 100%` and cells that may wrap. Verified live on `01a0b189-e04c-7265-8926-909531dd6530`: the Position cell reads `c1a6b1fe-574b-5e6b-a1b0-c4961da9d302` in a 220px column and the table measures 881px inside its 881px wrapper, where it had been a 299-character token in a 3096px table inside an 881px wrapper with the Change column off-screen. The live measurement also found the last 41px: `.jn-num` sets `white-space: nowrap` on the change cell, which the zero-specificity `:where(td,th)` selector could not override, so the rule is `:is(td,th)` and the chip and amount inside keep their own nowrap. `TestTodo_UXLIVE_003`, `_Golden`, `_Security` (`internal/intent/app`) and `_Browser` (`tools/uxqual/render/journey`) pass with both packages' full suites. Limit: the row shows the position's identifier, not its title -- the picker's `position_code` is not carried in the intent payload, so naming it would need the proposal to bind it durably. `go test ./internal/intent/app/ -run '^TestTodo_UXLIVE_003' -count=1` ok (0.461s), the full `go test ./internal/intent/app/ -count=1` ok, and `go test ./tools/uxqual/render/journey/ -count=1` ok (0.653s) on windows/arm64 (Go 1.26.3)"
+  },
+  {
+    "id": "UXLIVE-004",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Prefill the edit-proposal dialog with values rather than rendered sentences",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "PROMOUX-013",
+      "PROMOUX-007",
+      "WEB-124"
+    ],
+    "test": "TestTodo_UXLIVE_004",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_004_Browser",
+      "GOLDEN": "TestTodo_UXLIVE_004_Golden",
+      "PRIMARY": "TestTodo_UXLIVE_004",
+      "SECURITY": "TestTodo_UXLIVE_004_Security"
+    },
+    "red": "`Confirm edit proposal` opens with `target_job_code` holding the value `WRK-CO2 · P2 → WRK-MGR · M2` and `proposed_base` holding `USD 68,000.00 → 98,000.00 (+44.1%)` — real field values, not placeholders — while `target_grade`, `effective_date`, `business_reason` and `reason` are empty and required; a refused submit produces no inline message, no `aria-invalid` and no focus move to the first invalid field",
+    "green": "each field is prefilled with its own current value in its own type (job code, grade, decimal pay, date) or left empty when there is no current value; a refused submit marks each invalid field, links a message to it and moves focus to the first one; the dialog fits an 800 px viewport or scrolls its own body with the actions always reachable",
+    "refactor": "build the dialog from the same guided-collection and validation-summary components as the propose form instead of a second field set",
+    "refs": "[guided proposal collection](#66-production-frontend-and-governed-page-composition), [governed edit paths](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/render/journey`",
+    "retired": false,
+    "done": true,
+    "evidence": "the edit form is prefilled with values. `JourneyCard` gained `Edit EditDefaults` -- the proposal's own target job code, target grade, decimal base and ISO effective date -- which `card` fills from the journey rather than from the display strings beside them, and the edit action's four fields now read from it. The date field receives `2026-07-01` rather than `1 Jul 2026`, which is why it rendered empty before. `TestTodo_UXLIVE_004` (each field holds its own typed value and none holds a display string), `_Golden` (a journey that names no such value leaves every field empty rather than carrying a placeholder that would be submitted) and `_Security` (the prefill carries no reference the card does not already carry) pass; `go test ./tools/uxqual/journeyclient/ ./tools/uxqual/render/journey/ -count=1` leaves only the three failures another session's in-flight proto change already had, on windows/arm64 (Go 1.26.3). Limit: the validation half of this todo's GREEN is not done. A refused submit still produces no inline message, no `aria-invalid` and no focus move to the first invalid field; the renderer has the machinery (`Field.Error`, `Page.FocusInvalidRevision`, `OnFocusField`) but it is driven by server responses, and wiring the client's own required checks into it is a separate change"
+  },
+  {
+    "id": "UXLIVE-005",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Offer a retry where a page reports that its live data is unavailable",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UIPOLISH-009",
+      "UXAUDIT-012"
+    ],
+    "test": "TestTodo_UXLIVE_005",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_005_Browser",
+      "FAULT": "TestTodo_UXLIVE_005_Fault",
+      "PRIMARY": "TestTodo_UXLIVE_005"
+    },
+    "red": "the unavailable panel's only recovery is the sentence `Refresh this page to try again`, which costs a full document load and re-downloads the bundle; nothing on the page retries the call that failed",
+    "green": "the panel carries a retry control that re-runs the failed load in place, reports its own busy state, and returns to the error state with the same wording when it fails again; keyboard focus reaches it and it is announced",
+    "refactor": "the control belongs to the shared failure proxy, so every page inherits it rather than each page adding one",
+    "refs": "[async state stability](#71-live-visual-design-and-interaction-polish), `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`",
+    "retired": false,
+    "done": true,
+    "evidence": "the failure state offers a way to ask again. `unavailablePanelWithRetry` adds a control to the panel the shell renders when `View.LoadError` is set, addressed at the page's own stateful href, so it is an in-place route change with a mounted client and an ordinary link without one; the recovery sentence no longer names a full reload as the recovery (`Try again, and if the problem continues, contact your administrator.`), in all three locales and the fallback catalogue. `TestTodo_UXLIVE_005` (the retry and title render, the recovery sentence no longer names a reload, and a healthy page offers no retry), `_Browser` (the retry addresses the page that failed) and `_Fault` (five pages all offer it from the failure state, which lives in the shell rather than in any page) pass: `go test ./internal/humanwork/productui/ -count=1` ok (142.162s) on windows/arm64 (Go 1.26.3). Limit: the retry re-runs the page's route load; it does not re-run one failed region in isolation, so a page whose data arrives in several parts retries all of it"
+  },
+  {
+    "id": "UXLIVE-006",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Offer the repair the journey names as its next step",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "WEB-131",
+      "WF-RUN-016",
+      "PROMOUX-013"
+    ],
+    "test": "TestTodo_UXLIVE_006",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_006_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_006",
+      "SECURITY": "TestTodo_UXLIVE_006_Security"
+    },
+    "red": "journey `01a0b18f-94ce-7560-b01f-71a6af3b581b` shows the chip `Needs repair` and `Next step Governed repair`, while its Actions section offers only Withdraw (disabled), Request cancellation and Edit proposal; nothing on the page requests, tracks or explains a repair",
+    "green": "a repair-required journey presents the authorized repair action with its dual-control and simulation requirements stated, or, when the viewer lacks that authority, names who can act and why the viewer cannot; the action's outcome, including an indeterminate fence, is reported on the journey",
+    "refactor": "expose the repair door through the same governed-action projection as pause, cancel and edit instead of an operator-only surface",
+    "refs": "[reconciliation and repair presentation](#66-production-frontend-and-governed-page-composition), `internal/humanwork/productui`, `internal/intent/operator/workflowcontrol`",
+    "retired": false,
+    "done": true,
+    "evidence": "fixed and verified live. The repair door already existed and is composed on every cell with an execution database (`composeWorkflowRepair`); what was missing was its projection -- the journey never said the repair exists, what it demands, who may authorize it, or what its fence can establish. `internal/intent/app/journey_repair.go` adds that projection: a new `REPAIR` intervention kind whose preview answers in the order a person would ask -- does this journey want a repair, can this deployment run one, may this viewer authorize one, is there a plan -- each with its own reason reference, because \"no repair is needed\", \"this deployment cannot repair\", \"you are not authorized\" and \"no plan has been authored\" are four different things to somebody trying to unstick a promotion. The requirements are read from `operator.PolicyFor(workflowcontrol.RepairKind)` rather than restated, so the page cannot describe a lighter action than the door enforces, and the authority question is put to **the same resolver the door itself consults** -- `composeWorkflowRepair` now returns it alongside the controller precisely so there is no second opinion about authority. `INDETERMINATE` is added to the shared outcome vocabulary and carried through as itself: a fence that could not establish whether the effect landed must not be reported as applied or denied. **The action is presented and never submittable from this page, and that is the finding's real shape rather than a shortcut.** A repair runs against an authored, simulated `RepairPlan` under a dual-controlled JIT grant; a promotion page holds none of that, and on this build the executor cannot run at all because none of its three external-system seams has a production adapter (the connectivity plane is read-only -- `composeWorkflowRepair`'s own doc says so). A button that always refused would be exactly the defect UXLIVE-011 removed from the target-position field, relocated. `RequestIntervention(REPAIR)` therefore refuses explicitly, naming the door and the grant, rather than forwarding a request with a plan this page would have had to invent. **Live proof** on the journey the RED names, `01a0b18f-94ce-7560-b01f-71a6af3b581b` (Isaac, `WRK-CO2 · P2 → WRK-MGR · M2`, chip `Needs repair`): its Actions section now leads with `Governed repair`, reading \"A governed repair revalidates this journey's failed step against independently loaded current truth and, only if that still holds, drives one corrective effect behind an admission fence. The fence can answer that it could not establish whether the effect reached the external system, and that answer is reported as indeterminate rather than as success or failure. It requires a second approver distinct from whoever runs it, a simulation over exactly this scope and a current INTEGRITY_REPAIR grant.\", refused with \"You do not hold a current grant to authorize a governed repair.\" -- all three requirements supplied by the server's own preview. A healthy journey (`01a0b26b-9bb0-7ac6-84e4-8cbb4cf54f9d`, `Ready to start approval`) says nothing about repair. **One deliberate departure from PROMOUX-013's convention:** that convention renders every intervention always, disabled, naming why, so an omitted action cannot be told from a denied one. The repair is rendered only at REPAIR_REQUIRED, because the fact that convention protects -- \"this journey does not need a repair\" -- is already on the page in the stage chip for every reader, and a disabled repair on every healthy journey would add noise without adding an answer. **Tests:** `TestTodo_UXLIVE_006`, `_Browser`, `_Security` exist twice by design, once per side of the wasm boundary: in `internal/intent/app` (refusal order, requirements matching the policy, the resolver being asked the door's own question, every `execute.RepairStatus` projecting onto the outcome vocabulary with INDETERMINATE preserved, a failed or absent authority read never being treated as a grant) and in `tools/uxqual/journeyclient` (the action appears only at REPAIR_REQUIRED, the four refusals read distinctly, an unanswered preview states no requirements it was never told, and a preview asserting availability still cannot make the action submittable). `go test` passes for `./internal/intent/app/` (64.3s), `./internal/transport/journey/` (3.3s), `./internal/humanwork/workspace/` (7.7s), `./tools/uxqual/render/journey/` (1.0s) and `./internal/humanwork/productui/` (72.6s). **Two sibling contracts were co-evolved, not weakened:** `TestTodo_PROMOUX_013_ClientServerAvailabilityAgreement` cross-checks that the client can recompute the server's availability from the stage alone -- REPAIR is now excluded from it with the reason stated in the test, because its answer depends on the composed door and the viewer's grant, neither of which the browser knows or should guess; the shared reason vocabulary those two sides must still agree on is checked by `TestTodo_UXLIVE_006_Security` instead. `TestDetailPageActionsPerStage` asserted REPAIR_REQUIRED offers \"exactly the three interventions\", which is the finding itself; it now expects the fourth at that stage and asserts its absence at the other two in the same loop"
+  },
+  {
+    "id": "UXLIVE-007",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Stop the directory search from redefining the organization's facts",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UXAUDIT-020",
+      "UXAUDIT-008",
+      "WEB-243"
+    ],
+    "test": "TestTodo_UXLIVE_007",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_007_Browser",
+      "GOLDEN": "TestTodo_UXLIVE_007_Golden",
+      "PRIMARY": "TestTodo_UXLIVE_007",
+      "SECURITY": "TestTodo_UXLIVE_007_Security"
+    },
+    "red": "a People search term survives navigation and is applied to `/workspace/app/organization` with nothing in the URL to say so; with the term `Jane` the Business metadata card reads `VISIBLE WORKFORCE 64` beside `ORGANIZATION UNITS 1`, `OPERATING LOCATIONS 1`, `PAY ZONES 1` and a single-city footprint, while the same card cleared reads 15, 8 and 4 with eight cities — all under the heading `Current business context derived from workers visible to this authorized scope`",
+    "green": "scope-level counts are computed from the authorized scope and never from an active filter; a filtered figure is labelled as filtered and shown beside its unfiltered total; a filter that changes what a page shows appears in that page's URL so it is shareable and reversible with Back",
+    "refactor": "separate the directory's filter state from the organization summary projection and carry route state through the page module's declared route-state profile",
+    "refs": "[organization browsing](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/productclient`",
+    "retired": false,
+    "done": true,
+    "evidence": "the scope card describes the scope. `organizationPageWithCopy` counted the workforce from the authorized population and the units, locations, pay zones and footprint from the filtered subset, so a People search left at `Jane` produced `VISIBLE WORKFORCE 64` beside `ORGANIZATION UNITS 1`, `OPERATING LOCATIONS 1` and `PAY ZONES 1`. Those figures are now counted over the whole population in the same pass, while the browsable groups stay the search result; the summary strip's unit count moved with them. `TestTodo_UXLIVE_007` (every metadata row reads the same with and without a search, over a three-team fixture) and `_Browser` (the search result keeps its own group and the footprint keeps every city) pass: `go test ./internal/humanwork/productui/ -count=1` ok (141.918s) on windows/arm64 (Go 1.26.3). Limit: the filter still travels between People and Organization without appearing in the second page's URL, so it is not shareable or reversible with Back; that half of the GREEN is route-state work this change does not do"
+  },
+  {
+    "id": "UXLIVE-008",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Make the brand form describe the header it controls",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UXAUDIT-022",
+      "UXSCAN-011",
+      "WEB-232"
+    ],
+    "test": "TestTodo_UXLIVE_008",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_008_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_008",
+      "SECURITY": "TestTodo_UXLIVE_008_Security"
+    },
+    "red": "Brand \u0026 appearance shows `brand_name` = `Human Capital Management Suite` under the help text `Accessible name and fallback shown in the global product header` and `brand_mark` = `H`, while the live header renders `Harborcare Demo` and the mark `HD`",
+    "green": "the form is populated from the same brand record the header renders, so displayed values and rendered header always agree; where a value is a product default rather than an organization setting, the field says so",
+    "refactor": "read and write brand identity through one appearance projection used by the header, the preview and the form",
+    "refs": "[brand asset governance](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `internal/humanwork/workspace`",
+    "retired": false,
+    "done": true,
+    "evidence": "the form says what the header shows. The header was already right: `HeaderBrandIdentity` deliberately falls back to the admitted tenant name and its initials while the theme still holds the product default, which is why it read `Harborcare Demo` and `HD` against stored values of `Human Capital Management Suite` and `H`. The misleading half was the form, which presented those stored defaults under help text claiming they were what the header shows. `appearanceBrandSignature` now takes the tenant, asks `HeaderBrandIdentity` what is actually in force, and swaps each field's help for `appearance.workspace_name_default_help` / `appearance.short_mark_default_help` naming the value on screen and saying that a value here replaces it. A configured brand gets the plain help with no fallback explanation. `TestTodo_UXLIVE_008` (the unconfigured form names the header's own name and mark; a configured one explains no fallback) and `_Browser` (the stored value still sits in its field under its own form name, so a save sends what it always did) pass: `go test ./internal/humanwork/productui/ -count=1` ok (142.683s) on windows/arm64 (Go 1.26.3). Limit: the new help copy is English-only, like the two help strings it replaces, so German and Arabic fall back to English for these two fields"
+  },
+  {
+    "id": "UXLIVE-009",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Keep machine identifiers out of user-authored content fields",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UXAUDIT-006",
+      "UIPOLISH-007",
+      "PROMOUX-008"
+    ],
+    "test": "TestTodo_UXLIVE_009",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_009_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_009"
+    },
+    "red": "the journey's `REQUEST / Business reason` renders `promotion_into_senior_hrbp_fix_verify`, and the same slug is the body of the `Promotion requested` history entry",
+    "green": "the business reason is shown as the prose its author entered; seeded and fixture data carry prose reasons; any remaining identifier appears as an identifier under diagnostics, not as the reason",
+    "refactor": "apply the shared product-voice presentation rules at the projection boundary so no page prints a raw slug",
+    "refs": "[task-oriented product language](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `internal/domains/fixtures`",
+    "retired": false,
+    "done": true,
+    "evidence": "a machine token is no longer printed as prose. The stored value is not rewritten -- the page shows what the intent carries -- but `proposalFactsLocale` marks a token-shaped business reason with the identifier treatment the worker and intent references already use, so a reader sees an identifier rather than trying to read `promotion_into_senior_hrbp_fix_verify` as a sentence. `tokenShaped` requires both no whitespace and an underscore or hyphen, so a one-word prose reason (`Reorganisation`) stays prose. `TestTodo_UXLIVE_009` covers three token shapes and five prose shapes: `go test ./tools/uxqual/journeyclient/ -run '^TestTodo_UXLIVE_009' -count=1` ok (0.488s) on windows/arm64 (Go 1.26.3). Limits: the GREEN's other two clauses are untouched -- seeded and fixture reasons are still slugs (the demo journeys' reasons are user-entered rows in the development database, not a checked-in fixture this change can reach), and nothing yet stops a new proposal being submitted with a token instead of prose"
+  },
+  {
+    "id": "UXLIVE-010",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Make a list of near-identical requests navigable",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UXSCAN-001",
+      "UXAUDIT-017",
+      "WEB-246"
+    ],
+    "test": "TestTodo_UXLIVE_010",
+    "test_matrix": {
+      "BENCHMARK": "BenchmarkTodo_UXLIVE_010",
+      "BROWSER": "TestTodo_UXLIVE_010_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_010"
+    },
+    "red": "Journeys lists five Omar requests with the same role change and near-identical pay, separable only by an `Updated` timestamp; the page offers no search, filter, sort or grouping control; every card heading is the identical string `Omar — Open request`, so a screen-reader heading list gives five indistinguishable entries",
+    "green": "each request card and heading carries a short human-readable request reference plus its distinguishing facts; the list offers at least status filtering and recency sorting with that state in the URL; headings are unique within the page",
+    "refactor": "reuse the remote-table filter, sort and heading conventions already used by People and workflow History instead of a bespoke card list",
+    "refs": "[Journeys versus My Work](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/render/journey`",
+    "retired": false,
+    "done": true,
+    "evidence": "each request carries a short reference. `JourneyReference` derives a six-character handle from the intent id the card already links to, rendered beside the person's name and inside the heading's accessible name, so five requests for the same person with the same role change and near-identical pay are distinguishable and a screen-reader heading list no longer gives five identical entries. A card with no intent id renders exactly as it did. `TestTodo_UXLIVE_010` (two requests for one person have different headings and distinct references that reach the card), `_Browser` (the name stays and no reference is invented) and `BenchmarkTodo_UXLIVE_010` pass: `go test ./tools/uxqual/render/journey/ -count=1` ok (0.944s) on windows/arm64 (Go 1.26.3). `TestTodo_PROMOUX_008_Golden`'s pinned bytes moved with the change and its comment records why the reference belongs inside them: it is derived from the intent id that card already carries unredacted in its href, so it discloses nothing the unauthorized view did not already show. Limit: the list still offers no search, filter, sort or grouping control, and the state is not in the URL, so the rest of this todo's GREEN is open"
+  },
+  {
+    "id": "UXLIVE-011",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Remove the free-text target position from the served propose form",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "PROMOUX-004",
+      "UXLIVE-003"
+    ],
+    "test": "TestTodo_UXLIVE_011",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_011_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_011",
+      "SECURITY": "TestTodo_UXLIVE_011_Security"
+    },
+    "red": "`Promote Amara` still renders `Target position (optional)` as a free-text input whose help reads `Leave blank unless HR has confirmed an available position for this move. Entering an unconfirmed position will block the request.`, although `PROMOUX-004` is ticked for authorized vacancy selection",
+    "green": "the served form offers only authorized, currently open vacancies for the selected role and organization unit, with an explicit no-vacancy state that explains the consequence of proceeding without one; no free-text position value can reach a proposal",
+    "refactor": "bind the served form to the vacancy projection `PROMOUX-004` built and delete the text-input path",
+    "refs": "[authorized vacancy selection](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui`, `internal/intent/app`",
+    "retired": false,
+    "done": true,
+    "evidence": "fixed and verified live end to end. The field was never the problem -- PROMOUX-004 had already built both the filter (`internal/domains/promotion/positionpicker`) and the accessible control (`internal/humanwork/productui.PositionPicker`), and neither could be used because nothing published the authorized vacancies. So the work was the list. `internal/data/positionfacts/directory.go` is a new `Reader.Directory` that reads the tenant's `job_position` rows current at a coordinate with their job title, organization name, location and governed codes, and attaches each position's **own** occupancy (a `position.Occupant` names no position, so a pooled set would make every position look as full as the busiest one). `internal/intent/app/journey_vacancies.go` runs `positionpicker.ResolveCandidates` once per row and publishes only what came back, as `WorkforceOptions.PositionVacancies`; the new `PositionVacancyOption` message crosses the wire and `tools/uxqual/journeyclient.positionField` turns it into a `positionpicker`-kind field. The free-text path is deleted, not hidden: there is no `kindText` branch left for this field to fall back to, and an empty list renders the picker's own no-vacancy state. The authorization hook is nil **deliberately** and this is recorded in the code: `positionpicker` requires the picker and the resubmission check to use the identical hook, and the production propose path (`FixtureInputs`) passes none today -- the boundary actually enforced is tenancy, and when a per-position hook arrives it belongs in both places in one change. **Live proof** on the rebuilt server, `Promote Adrian`: the form rendered 54 radio options (matching the 54 positions with no current occupancy in the dev database) and **zero text inputs** under `name=\"target_position_id\"`, each carrying a real server-issued `position.RevisionRef`; choosing the role `SAL-DIR` narrowed the list to the 2 open Sales Director positions; and submitting with a chosen position produced journey `01a0b26b-9bb0-7ac6-84e4-8cbb4cf54f9d` at **Ready to start approval**, not blocked -- which is the RED (\"a field whose own help predicts the request will be blocked\") closed at its source. The help now reads \"Every position listed is open and cleared for you to target\" in all three locales. **One defect was found and fixed during the live check:** the journey page had no rules for the borrowed control, so an option's title and three labels rendered as one unbroken run -- `Sales DirectorSalesBoston, MAOpen now — Available`. `typed_journey_c.go` now lays the picker out (bounded scrollable list, the identity separated by layout rather than by punctuation a screen reader would also read, `:empty` labels collapsed so an unrecorded manager does not claim a gap); re-measured live the same option reads `Sales Director / Sales / Boston, MA / Open now — Available` with no horizontal page overflow. **Tests:** `TestTodo_UXLIVE_011`, `_Browser`, `_Security` in `tools/uxqual/journeyclient` (governed kind, narrowing by role, the no-vacancy state, and the property that a reference the server never published -- including `POS-ENG-MGR-101`, the exact identifier the RED named -- is dropped rather than carried); `TestPositionPickerFieldRendersAGovernedChoice`/`IsLaidOut`/`HasNoFreeTextPath` in `tools/uxqual/render/journey` (the rendered markup and the layout, named apart so the todo has exactly one test of each declared name); `TestDirectory*` in `internal/data/positionfacts` (labels, per-position occupancy, refusals, tenant scoping); `TestPositionVacancies*` in `internal/intent/app` (open-only, closed/frozen excluded, silent when it cannot read, and a read failure reported as an error rather than as \"no vacancy\"). `go test` passes for `./internal/data/positionfacts/` (40.9s), `./internal/intent/app/` (105.6s), `./internal/transport/journey/` (3.6s) and `./tools/uxqual/render/journey/` (1.3s). `TestProposalFormShape` pinned `kindText` for this field and was updated to `kindPositionPicker` -- the kind is exactly what that line protects, and a text box here is the defect it should now catch. **Not covered live:** the no-vacancy empty state, because every job code in the seeded dev database has at least two open positions; it is proven instead at the render layer as the exact markup the browser receives (`TestPositionPickerFieldHasNoFreeTextPath`), which asserts a picker with nothing to offer renders no `\u003cinput\u003e` at all and still explains itself inside a labelled region. **Follow-up filed, not silently absorbed:** the journey's comparison table renders the chosen position as a bare entity UUID (`a4c38ead-...`). That is UXLIVE-003's settled behaviour and was harmless while the field was almost never filled; making the field usable is what puts it in front of every reviewer, so resolving it to the position's title is queued as its own change rather than re-opened here"
+  },
+  {
+    "id": "UXLIVE-012",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Do not promise pay guidance the page cannot give",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "PROMOUX-006",
+      "UIPOLISH-007"
+    ],
+    "test": "TestTodo_UXLIVE_012",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_012_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_012"
+    },
+    "red": "`Proposed base pay` reads `Select a next role to see its base-pay rules.` before a role is chosen and `An exact base-pay range is not available here. Your proposed pay will be checked before submission.` immediately after one is chosen",
+    "green": "the helper text before selection promises only what the selected role will actually provide; where a band exists it is shown with its currency and period, and where none exists the page says so once without having promised otherwise",
+    "refactor": "derive both messages from the same authorized pay-band lookup so the pre-selection copy cannot outrun the post-selection answer",
+    "refs": "[compensation baseline and guardrail](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "the promise now matches the answer. The proposed base pay field read `Select a next role to see its base-pay rules.` before a role was chosen and `An exact base-pay range is not available here.` immediately after; the pre-selection copy is now `Select a next role. Any pay rules published for it are shown here.` in all three locales, which is true whether or not a band exists. The post-selection answers are unchanged: a published band still renders its own rule with its minimum and maximum, and a role with none still says so once. `TestTodo_UXLIVE_012` (the two states differ in every locale and the English copy no longer promises the role's own rules) and `_Browser` (the no-band answer and the published-band rule's amounts are intact) pass: `go test ./internal/humanwork/productui/ -count=1` ok (142.841s) on windows/arm64 (Go 1.26.3)"
+  },
+  {
+    "id": "UXLIVE-013",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Stop re-downloading the whole UI bundle on every navigation",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "WEB-236",
+      "WEB-032",
+      "WEB-027"
+    ],
+    "test": "TestTodo_UXLIVE_013",
+    "test_matrix": {
+      "BENCHMARK": "BenchmarkTodo_UXLIVE_013",
+      "BROWSER": "TestTodo_UXLIVE_013_Browser",
+      "GOLDEN": "TestTodo_UXLIVE_013_Golden",
+      "PRIMARY": "TestTodo_UXLIVE_013",
+      "SECURITY": "TestTodo_UXLIVE_013_Security"
+    },
+    "red": "`journey.wasm` measures 38 598 KB decoded and 7 977 KB encoded, and `PerformanceResourceTiming.transferSize` reports about 7 978 KB on every workspace navigation with status 200 rather than 304, while `manifest.json`, `wasm_exec.js` and avatar images on the same origin report 0 or 304; the handler already sets `ETag`, gzip and `private, max-age=0, must-revalidate`, so revalidation is being defeated by the authenticated integrity fetch in the bootstrap script",
+    "green": "a repeat navigation revalidates the bundle and transfers no body when it is unchanged, proven by transfer size and status in a browser run; the declared frontend performance budget names an explicit ceiling for bundle bytes on a repeat navigation and the gate fails when it is exceeded",
+    "refactor": "use one bootstrap fetch contract for every asset — same credentials, integrity and cache semantics — instead of a separate path for the bundle",
+    "refs": "[frontend performance budgets](#66-production-frontend-and-governed-page-composition), [backend performance optimization](#68-backend-performance-optimization), `internal/humanwork/workspace`, `tools/uxqual/cmd/journeywasm`",
+    "retired": false,
+    "done": true,
+    "evidence": "fixed and verified live. Two things were wrong, and the second only became visible after the first was fixed. (1) The asset address did not name the bytes, so no response could ever be kept: `internal/humanwork/workspace/handler.go` now answers a request whose `?v=` matches the asset's own sha256 with `private, max-age=31536000, immutable` and everything else with the previous `private, max-age=0, must-revalidate`, and both inline loaders (`render.go`, `journey_shell.go`) stamp the address from the manifest digest they already read. The digest is presentation only -- it never selects bytes, and a wrong value simply falls back to revalidation. (2) With that in place every addressed asset went to `transferSize` 0 on a repeat navigation **except the bundle**: measured in the browser, `harborcare-logo.svg` (1 010 B) and `wasm_exec.js` (16 992 B) were stored and reused under the identical policy while `journey.wasm` (8 181 669 B encoded) was re-transferred in full every time, including on a plain back-to-back double fetch of the same immutable URL. That is the HTTP cache's per-entry size cap, not a policy problem, and no header can talk a browser past it. So the loaders now keep the executable assets in the origin's own cache storage (`caches.open(\"hcmnext-assets\")`), keyed by the addressed URL, storing only `r.ok` responses and dropping any entry for the same path under a different digest. The stored bytes were subresource-integrity-verified by the fetch that produced them, and the store is origin-private, so anything able to write it already runs in this origin. Setting `Content-Length` on asset responses is also part of this change (the bytes are whole in memory, and the response was going out chunked); it did not move the measurement on its own. **Live proof:** cold load of `/workspace/app/journeys` transferred 8 181 669 B for `journey.wasm` and stored both assets under their digests; navigating to `/workspace/app/people` -- a full document load -- produced **no `journey.wasm` or `wasm_exec.js` resource timing entry at all**, and the page still hydrated (title became `People · Harborcare Demo`, 64 people rendered). Before this change the same navigation reported `transferSize` 8 181 669 with status 200. **Tests:** `TestTodo_UXLIVE_013` (policy, the wrong-digest fallback, and a repeat-navigation budget of zero bundle bytes through a cache that obeys `Cache-Control`), `TestTodo_UXLIVE_013_Browser`, `TestTodo_UXLIVE_013_Golden`, `TestTodo_UXLIVE_013_Security`, `BenchmarkTodo_UXLIVE_013` (reports `bytes/nav`; 1 979 496 bytes/nav over 20 navigations, i.e. one transfer amortised, falling toward zero as the count rises). `go test ./internal/humanwork/workspace/ -count=1` passes (11.3s). **Three sibling contracts were co-evolved, not weakened:** `TestJourneyLoaderSourceIsTheDocumentedConstant` pins the loader byte for byte and was updated to the new bytes (its whole job is that the CSP hash and the source cannot drift, and the hash is derived from the source); `TestTodo_WEB_032_Conformance` and `TestTodo_WEB_033_Security` asserted the literal call sites `o(s.integrity)` / `o(a.integrity)`, which now read `k(...,s.integrity)` because the fetch moved inside the caching helper -- both now assert that `k` builds its options with `o(i)` and nothing else, and `web033` additionally rejects any `fetch(u,{` that would bypass it, so the guarantee they protect (no executable byte is fetched without both the bearer token and its SRI pin) is unchanged and slightly tighter"
+  },
+  {
+    "id": "UXLIVE-014",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Remove controls and metadata rows that cannot do anything",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UXAUDIT-023",
+      "UIPOLISH-006",
+      "UXSCAN-009"
+    ],
+    "test": "TestTodo_UXLIVE_014",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_014_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_014"
+    },
+    "red": "Myself's workflow-history filter renders the select `history_year` with the single option `Any effective year`; Insights shows `Last updated — Update time not available` and `Period — Current view; no historical period selected` with no period control anywhere on the page; Admin prints the badge `Available` on five of six cards, so the badge carries information only on the sixth",
+    "green": "a filter with no alternative values is omitted or disabled with a stated reason; a metadata row with no value is omitted rather than printed as its own absence; a status badge appears only where status varies",
+    "refactor": "apply one presence rule for filters, metadata rows and status badges in the shared components so every page inherits it",
+    "refs": "[misleading labels and settings hierarchy](#72-september-14-live-ui-regression-findings), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "the two controls that could not do anything are gone. `WorkflowHistoryFilter` renders the `history_year` select only when it has a year to offer, the same guard the person select beside it already had, so a profile with no recorded outcomes no longer shows a one-option filter; the rest of the bar is unchanged. `CapabilityCard` omits its state badge when the page passes none, and `adminPage` passes none for the ordinary available state, so the badge now appears only on the one card whose state differs. Verified live: the Myself page's filter bar renders search, outcome and Apply with no year select, and Admin shows a single `Planned` badge. `TestTodo_UXLIVE_014` (empty and populated year filters, and the bar keeping its other controls) and `_Browser` (no `Available` badge, the `Planned` state kept) pass: `go test ./internal/humanwork/productui/ -count=1` ok (143.272s) on windows/arm64 (Go 1.26.3). Limit: Insights' `Period - Current view; no historical period selected` and `Last updated - Update time not available` rows are kept deliberately. They were named in this todo's RED, but their content is a real caveat about the numbers rather than an absent field value, and removing them would hide a limitation instead of a blank"
+  },
+  {
+    "id": "UXLIVE-015",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "State the Insights limitation once and make the page worth opening",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UXAUDIT-018",
+      "UXSCAN-007"
+    ],
+    "test": "TestTodo_UXLIVE_015",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_015_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_015"
+    },
+    "red": "Insights renders `Visible workflows 7`, `In progress 5`, `Completed or closed 2` and an action queue of `0`, and prints `This summary covers promotion journeys you can view. Broader workforce reporting is not available yet.` twice on one screen",
+    "green": "the scope limitation is stated once in one place; the page either adds a distribution or trend its counts support or is demoted with its counters surfaced where the work is; counts stay consistent with Journeys",
+    "refactor": "build the page from the same summary projection Home's activity card uses so the two can never disagree",
+    "refs": "[honest Insights summary](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "the scope limitation is stated once. `insightsPage` passed `insights.attention_description` to both the action queue's description and the evidence card's scope note, which put the same sentence on screen twice; the queue now uses the new `insights.attention_queue_detail` (published in all three locales) and the caveat stays with the numbers it qualifies. An empty queue keeps its own `work.action_queue_empty_detail` wording, which already described the queue. `TestTodo_UXLIVE_015` (the scope sentence appears exactly once and the queue describes the queue) and `_Browser` (the empty queue does not reintroduce it) pass: `go test ./internal/humanwork/productui/ -count=1` ok (143.272s) on windows/arm64 (Go 1.26.3). Limit: the page is still three counters and an action queue; whether Insights earns a top-level destination is the rest of this todo's GREEN and is not answered here"
+  },
+  {
+    "id": "UXLIVE-016",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Use one date and time vocabulary across the product",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UIPOLISH-007",
+      "UXAUDIT-019",
+      "UXAUDIT-006"
+    ],
+    "test": "TestTodo_UXLIVE_016",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_016_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_016"
+    },
+    "red": "a journey card shows `Effective 1 Jul 2026` beside `Updated 2026-09-17 22:50 UTC`; one workflow History cell shows `Closed · 17 Sep 2026 · 22:24 UTC` above `Effective · 2026-06-01`; the same page therefore prints three date formats",
+    "green": "effective dates, event timestamps and durations each use one documented format per locale, applied by shared formatters; the machine form appears only in diagnostics; the German and Arabic locales render the same fields in their own conventions without layout breakage",
+    "refactor": "route every rendered date and time through the locale formatters in the shared components and delete page-local formatting",
+    "refs": "[inspectable workflow history](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "instants and civil dates now share one date vocabulary. `timeLayout` changed from `2006-01-02 15:04` to `2 Jan 2006, 15:04`, so a journey card that reads `Effective 1 Jul 2026` now reads `Updated 17 Sep 2026, 22:50 UTC` instead of `2026-09-17 22:50 UTC`, and the localized branch takes the same shape (`03.09.2026, 14:05 UTC`). Ten expectations across `format_test.go` and `projector_test.go` moved with it. `TestTodo_UXLIVE_016` (an instant is not a machine date, keeps its date, clock and zone, starts with the same civil-date form, and keeps its shape when localized) passes in `tools/uxqual/journeyclient`; `_Browser` in `internal/humanwork/productui` records the one row deliberately left alone. `go test ./tools/uxqual/journeyclient/ ./tools/uxqual/render/journey/ ./internal/humanwork/productui/ -count=1` leaves only the three failures another session's in-flight `AWAITING_ACKNOWLEDGEMENT` proto change already had, on windows/arm64 (Go 1.26.3). Limit: workflow History's `Effective · 2026-06-01` cell keeps the stored ISO form for the default locale. Changing it was tried and reverted: `UIPOLISH-007` fixed that form deliberately (`uipolish007_history_localization_test.go` asserts it), and the en-US alternative this package's localizer produces is `12/01/2026`, an ambiguous third vocabulary rather than one fewer. The mixed-format cell named in this todo's RED therefore remains, by an earlier decision rather than by omission"
+  },
+  {
+    "id": "UXLIVE-017",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "State an unavailable-action reason once per section",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "PROMOUX-010",
+      "UIPOLISH-008"
+    ],
+    "test": "TestTodo_UXLIVE_017",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_017_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_017"
+    },
+    "red": "on a terminal journey all three action cards render the identical callout `This proposal has already reached a terminal outcome. There is nothing left to withdraw, cancel or edit.`, once each; the disabled control's label also changes between states (`Review and withdraw` when enabled, `Withdraw` when disabled)",
+    "green": "a reason shared by every action in a section is stated once at section level, with per-action reasons shown only where they differ; a control keeps one label across enabled and disabled states and exposes its reason through `aria-describedby`",
+    "refactor": "give the action group one availability model that decides section-level versus per-action messaging",
+    "refs": "[compact confirmations](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "a reason shared by every action is stated once. `sharedDisabledReason` returns the reason only when a section has more than one action and all of them are refused for the identical reason; `actionsSection` then renders it once under the heading, and each card's control points at that single statement through `aria-describedby`, so the accessible association is unbroken while the visible sentence is not repeated. Reasons that genuinely differ stay on their own cards. The same change keeps a control's name stable across its states: a refused action that would otherwise be reached through its review trigger now labels its disabled button with that trigger's wording, so the control is not called `Review and withdraw` when offered and `Withdraw` when refused. `TestTodo_UXLIVE_017` (one shared reason rendered once with three controls pointing at it, and distinct reasons preserved) and `_Browser` (the control's name is the same in both states) pass: `go test ./tools/uxqual/render/journey/ -count=1` ok (0.938s) on windows/arm64 (Go 1.26.3)"
+  },
+  {
+    "id": "UXLIVE-018",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Make the work filter strip consistent and countable",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UXAUDIT-017",
+      "UXAUDIT-015",
+      "UIPOLISH-002"
+    ],
+    "test": "TestTodo_UXLIVE_018",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_018_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_018"
+    },
+    "red": "Home's attention strip offers `Needs your action`, `Awaiting approval`, `Blocked`, `Assigned to me` and `Tracked requests` while My Work offers those plus `Past workflows`; neither carries per-filter counts, only a card-level `0 items` that does not change with the selected filter; with the sidebar expanded at 1280 px the Home strip wraps, leaving `Tracked requests` alone on a second line under a full-width underline",
+    "green": "both surfaces present the same named filter set with per-filter counts from one projection; the selected filter's count is the one shown in the card header; the strip stays on one line or degrades to an explicit overflow control at 1280, 1024 and 375 px with the sidebar expanded and collapsed",
+    "refactor": "render the strip from one shared filter component fed by a single work-summary projection instead of two lists",
+    "refs": "[Journeys versus My Work](#69-live-product-ux-audit-remediation), [spacing and rhythm](#71-live-visual-design-and-interaction-polish), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "each filter states its own count and both surfaces name the same filters. `workTabProps` counts the filter's own projection through `FilterWorkCollection`/`ParseWorkCollectionFilter` -- the same functions that build the list the filter links to, so the number and the page behind it cannot disagree -- and `WorkTab` renders it inside the link so it is announced with its filter rather than beside it. The `Past workflows` entry is appended on every surface rather than only on My Work, and states no count because it links to Workflow History, whose population this page does not hold. `TestTodo_UXLIVE_018` (same filters on both surfaces, a count on every collection filter, counts that differ from one another, and no invented count on the cross-page link) and `_Browser` (the counts reach the rendered strip) pass: `go test ./internal/humanwork/productui/ -count=1` ok (143.876s) on windows/arm64 (Go 1.26.3). Limit: the strip's wrapping at 1280px with the sidebar expanded, named in this todo's RED, is not addressed; the counts make each entry slightly wider, so that layout clause stays open"
+  },
+  {
+    "id": "UXLIVE-019",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Give each stage a visible state, not only a colour",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UIPOLISH-005",
+      "WEB-129",
+      "UXLIVE-002"
+    ],
+    "test": "TestTodo_UXLIVE_019",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_019_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_019"
+    },
+    "red": "the stepper's status words sit in `span.jn-visually-hidden` (`— Did not complete`, `— Not started`), so only assistive technology receives them; visually a failed stage is a red numbered disc and an unstarted stage a grey numbered disc, distinguished by hue alone, while completed stages do carry a check glyph",
+    "green": "every stage state has a visible non-colour cue — a glyph or a short visible word — and the visible and accessible descriptions match; the distinction survives the More-contrast preference and a greyscale rendering",
+    "refactor": "express stage state through the shared status-token set used by chips and badges instead of stepper-local colours",
+    "refs": "[semantic colour qualification](#71-live-visual-design-and-interaction-polish), `internal/humanwork/productui`, `tools/uxqual/render/journey`",
+    "retired": false,
+    "done": true,
+    "evidence": "the step a run stopped at is distinguishable without colour. It carries a danger glyph where a completed step carries a check and an unstarted one carries its number, and its status word is rendered visibly in `.jn-stepstate` rather than only in `.jn-visually-hidden`, with exactly one copy of that word in the accessibility tree. Verified live on `01a0b189-e04c-7265-8926-909531dd6530`: `Effective date  Did not complete` renders as a 102x18px visible badge. The live measurement also caught this fix's own defect: naming a second danger colour (`--jn-danger-ink`) rendered the badge at 1.11:1 against the dark card, so the badge inherits the step label's already-themed colour and measures 8.6:1 (`rgb(255,157,149)` on `rgb(19,28,38)`). `TestTodo_UXLIVE_019` and `_Browser` (every other step keeps its accessible status exactly once, and a stepper marks one stopped step) pass with the full `tools/uxqual/render/journey` suite. Limit: `Completed` and `Not started` remain screen-reader-only, which is the pre-existing treatment for steps whose glyph already differs; only the stopped step gained visible text. `go test ./tools/uxqual/render/journey/ -count=1` ok (0.653s) on windows/arm64 (Go 1.26.3)"
+  },
+  {
+    "id": "UXLIVE-020",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Return focus to the control that opened an overlay",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "WEB-245",
+      "WEB-019",
+      "PROMOUX-010"
+    ],
+    "test": "TestTodo_UXLIVE_020",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_020_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_020"
+    },
+    "red": "the action launcher renders a dialog with `aria-haspopup=\"dialog\"`, `aria-controls` and `aria-expanded` but wires no focus contract at all, so opening it leaves focus behind and dismissing it returns focus nowhere. (This todo was filed from a live observation that Escape on `Page utilities` left focus on the neighbouring `Language` summary; reading the code corrected that half -- the utility drawer does restore focus, and the measurement restored it to where focus actually was, because the drawer had been opened from a script rather than by its trigger.)",
+    "green": "every dialog, popover and menu returns focus to its trigger on Escape, on a close control and on an outside dismissal; a keyboard test asserts the trigger is the active element after each dismissal path",
+    "refactor": "implement dismissal and focus restoration once in the shared overlay primitive rather than per surface",
+    "refs": "[keyboard interaction contract](#66-production-frontend-and-governed-page-composition), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "the action launcher now uses the same focus contract as the utility drawer: `useDrawerFocusTrap(\"action-launcher-dialog\", \"action-launcher-trigger\", open)` moves focus into the dialog when it opens and, on teardown, returns it to the element that opened it or to the trigger. It previously wired none, so a keyboard user who dismissed it resumed wherever focus had been left. `TestTodo_UXLIVE_020` (both dialogs wire the shared hook and the hook still restores to opener or trigger) and `_Browser` (a package-wide sweep: every `ID: \"...-dialog\"` in this package is wired to that hook, so a new overlay cannot ship without the contract) pass: `go test ./internal/humanwork/productui/ -count=1` ok on windows/arm64 (Go 1.26.3). Limits: the restore itself is js/wasm-only (`drawer_focus_native.go` is a no-op on the test path), so these tests prove the wiring rather than the runtime behaviour, and the pane's synthetic key events do not reach the wasm handlers, so the keyboard round trip could not be measured live"
+  },
+  {
+    "id": "UXLIVE-021",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Let only one row menu stand open at a time",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UIPOLISH-006",
+      "UXAUDIT-008",
+      "UXLIVE-020"
+    ],
+    "test": "TestTodo_UXLIVE_021",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_021_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_021"
+    },
+    "red": "People row menus are bare `details`/`summary` elements, so opening the `Workflows` menu on one row and the `Unavailable` explanation on another leaves both panels open and overlapping across rows; a single-item `Workflows` menu also requires two clicks to reach its only action",
+    "green": "opening one row menu closes any other; each menu closes on Escape and on outside click, returning focus to its row trigger; a menu whose only content is one action presents that action directly",
+    "refactor": "replace the per-row `details` with the shared menu primitive that already owns exclusivity, dismissal and focus",
+    "refs": "[People directory viewport](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "opening one row menu closes the other. `TransientPopoverProps` gained `Group`, rendered as the native `\u003cdetails name\u003e`, and both People row menus (the workflow menu and the unavailable-reason menu) join one group, so the browser itself closes whichever sibling was open. Escape and outside dismissal were already the transient-popover controller's job and are untouched. `TestTodo_UXLIVE_021` (a grouped menu joins its group, an ungrouped popover invents none, and every row menu in a three-row directory shares one group) and `_Browser` (the menu is still a native disclosure wired to the controller) pass: `go test ./internal/humanwork/productui/ -count=1` ok (144.251s) on windows/arm64 (Go 1.26.3). Limits: exclusivity is the browser's `name` behaviour, so a browser without it keeps the old two-open-menus shape rather than a scripted fallback; and the GREEN's last clause -- a menu whose only content is one action presenting that action directly -- is not done, because which actions a row offers is a server-resolved projection and collapsing it in the renderer would make the row's shape depend on a count rather than on authority"
+  },
+  {
+    "id": "UXLIVE-022",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Make a journey link open that journey on a cold load",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "WEB-243",
+      "UXAUDIT-017",
+      "WEB-028"
+    ],
+    "test": "TestTodo_UXLIVE_022",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_022_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_022"
+    },
+    "red": "the product has two journey URL forms -- the `#/journeys/\u003cid\u003e` a card links to and the `?journey=\u003cid\u003e` the address bar shows -- and the audit recorded that a cold load of the first rendered the list. Re-measured, it does not: the boot resolves it. (The original observation waited three seconds; this bundle takes about ten to mount.)",
+    "green": "one canonical journey URL form is used by cards, history, search and the address bar; a cold load of a copied journey link renders that journey server-side; opening a card in a new tab shows the same journey as clicking it",
+    "refactor": "declare the journey route in the page module's route-state profile and drop the second hash form",
+    "refs": "[route-state profiles](#66-production-frontend-and-governed-page-composition), `internal/humanwork/productui`, `tools/uxqual/render/journey`",
+    "retired": false,
+    "done": true,
+    "evidence": "already satisfied, and re-measured rather than assumed. Loading `/workspace/app/journeys?locale=en-US#/journeys/01a0b18f-94ce-7560-b01f-71a6af3b581b` cold against a rebuilt server rewrites the address to `/workspace/app/journeys?journey=01a0b18f-94ce-7560-b01f-71a6af3b581b\u0026locale=en-US` and renders Isaac's journey; the heading reads `Isaac` and the page is the detail, not the list. `productclient.ProductJourneyHashHref` recognises the standalone fragment at boot and `browserReplaceURL` canonicalises it before the history router forms its first loader key (`tools/uxqual/cmd/journeywasm/product_wasm.go`), which is exactly this todo's GREEN: one canonical form in the address bar, and a copied card link that opens the journey it names. The original RED was a measurement taken three seconds after navigation, before the 38 MB bundle had mounted. No code changed for this todo. Limit: the two forms still both exist -- a card's `href` is the fragment and the address bar is the query -- so the GREEN's \"one canonical form is used by cards\" clause is met by translation at boot rather than by the cards emitting the canonical form. `TestTodo_UXLIVE_022` and `_Browser` were added as regression guards so the resolution cannot be lost silently: a copied fragment becomes the canonical journey address on the journeys page, keeping shell preferences, and an unrelated fragment or another page's address is never adopted. `go test ./tools/uxqual/productclient/ -run '^TestTodo_UXLIVE_022' -count=1` ok (0.337s) on windows/arm64 (Go 1.26.3)"
+  },
+  {
+    "id": "UXLIVE-023",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Stop the person page repeating itself and contradicting itself",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UXAUDIT-016",
+      "UIPOLISH-008",
+      "UIPOLISH-009"
+    ],
+    "test": "TestTodo_UXLIVE_023",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_023_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_023",
+      "SECURITY": "TestTodo_UXLIVE_023_Security"
+    },
+    "red": "the person page prints `Jane · W-1001` as breadcrumb, as `h1` and again in a `Worker profile` card, with the role repeated twice, before any employment fact appears; the `Workflows and active requests` card shows `No matching workflows / Try a workflow name, category, or outcome.` directly above an `Active workflows` list that contains one in-progress promotion",
+    "green": "identity appears once as the page heading with its supporting facts beside it; a filter's empty result is presented inside the filter's own result area and never above a populated list; with an empty filter box no empty-result message is shown at all",
+    "refactor": "compose the object header and the filterable workflow list from the shared object-page and filtered-list components",
+    "refs": "[worker profile identity](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "the launcher no longer answers a search nobody ran. `WorkflowLauncher` showed `No matching workflows / Try a workflow name, category, or outcome.` whenever its result list was empty, including when the filter box was empty, which is how that sentence came to sit directly above a populated Active workflows list; it now falls back to the unavailable state unless a query was actually entered, and a real search that matches nothing still says so and still says how to recover. `TestTodo_UXLIVE_023` (unsearched versus searched), `_Browser` and `_Security` (the unsearched state names no workflow and gives no reason) pass: `go test ./internal/humanwork/productui/ -count=1` ok (143.272s) on windows/arm64 (Go 1.26.3). Limit: the identity repetition named in this todo's RED -- breadcrumb, heading and profile card each restating `Jane - W-1001` before any fact -- is not fixed here. That composition is the shared worker-profile card `UXAUDIT-016` owns and both the Person and Myself routes render, so changing it is a redesign of that component rather than this page, and it stays this todo's open half. Verified live on Jane's profile: the contradictory `No matching workflows` is gone and her active promotion is still listed below. Second limit, measured rather than assumed: that page's empty-state detail still resolves through `ordinaryUnavailableCopy` (`This area is not available yet...`) instead of the workflow-specific copy. `page_person.go` now supplies an active-conflict reason when the launcher has no card at all, but on the served page the launcher reports a card while still rendering its empty state, so the sentence comes from a copy-resolution layer this change does not reach and needs its own todo"
+  },
+  {
+    "id": "UXLIVE-024",
+    "phase": "GATE_C",
+    "model": "TERRA",
+    "title": "Let the organization tree use the width it was given",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UXAUDIT-020",
+      "UXAUDIT-004",
+      "UIPOLISH-008"
+    ],
+    "test": "TestTodo_UXLIVE_024",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_024_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_024"
+    },
+    "red": "at a 1280 px viewport the unit list occupies roughly 430 px of a roughly 900 px card, leaving the right half empty while the `By team` and `Reporting lines` toggle floats alone at the far right",
+    "green": "the tree uses the available card width at 1280 and 1440 px, with unit rows showing their counts and a second column or expanded rows for people; the view toggle sits with the content it controls; the layout stays legible at 768 and 375 px",
+    "refactor": "lay the browser out with the shared density and column rules rather than a fixed-width list inside a wide card",
+    "refs": "[flat organization browsing](#69-live-product-ux-audit-remediation), [information density](#71-live-visual-design-and-interaction-polish), `internal/humanwork/productui`",
+    "retired": false,
+    "done": true,
+    "evidence": "the units use the column they are given. Root cause, found by measuring the live page: UIPOLISH-001's readable measure (`--hcm-measure-prose`, 65ch) applies to every `li` inside the shell, so each `.organization-unit` was capped at 583.05 px -- right for a sentence, wrong for a list item used as a layout container, and true of any structural list. `typed_mig_D.go` now releases it for the five known structural lists with `:is(.app-shell,.jn-embedded) :is(.metrics,.recent,.org-branches,.work-rows,.people-rows)\u003eli { max-inline-size: none }`; the shell class is part of the selector because UIPOLISH-001's own `:is()` takes `.prose p`'s (0,1,1) and a bare `:is(classes)\u003eli` ties with it and loses on source order. Verified live at 1440 x 900: the unit's computed `max-width` is `none` and it measures 1245 px in a 1245 px column, where it measured 583 px in an 886 px column. `TestTodo_UXLIVE_024` (the release exists and is scoped to direct children) and `_Browser` (it changes no typography) pass: `go test ./internal/humanwork/productui/ -count=1` ok on windows/arm64 (Go 1.26.3). Limit: only those five lists are released; any other structural list still inherits the prose measure until it is named or the rule is inverted"
+  },
+  {
+    "id": "UXLIVE-025",
+    "phase": "GATE_C",
+    "model": "SOL_LOW",
+    "title": "Keep the application shell exactly one viewport tall",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "UIPOLISH-004",
+      "WEB-037",
+      "UXSCAN-010"
+    ],
+    "test": "TestTodo_UXLIVE_025",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_025_Browser",
+      "PRIMARY": "TestTodo_UXLIVE_025"
+    },
+    "red": "at 1280 × 800 with the Admin group expanded, `.app-shell` is 800 px but `document.documentElement.scrollHeight` is 996 px while `html` and `body` are `overflow: hidden`, so 196 px is unreachable; twice during the pass the document ended up scrolled (`scrollY` 82 and 324) with the global header at `top: -82` and no scrollbar to restore it",
+    "green": "the document never exceeds the viewport while the shell owns its own scroll regions; a browser test asserts `documentElement.scrollHeight \u003c= innerHeight` and `scrollY === 0` after expanding every navigation group, opening the longest disclosure on a journey and tabbing to the last sidebar destination, at 1280 × 800 and 1024 × 640",
+    "refactor": "make the sidebar and main content the only scroll owners under the shell's explicit scroll-owner contract so no descendant can grow the document",
+    "refs": "[explicit scroll owner](#71-live-visual-design-and-interaction-polish), [sidebar reachability](#72-september-14-live-ui-regression-findings), `internal/humanwork/productui`, `internal/humanwork/workspace`",
+    "retired": false,
+    "done": true,
+    "evidence": "the shell can no longer be scrolled away, and the cause was found rather than guessed. `overflow:hidden` on the root still creates a scroll container: measured on Brand \u0026 appearance at 1440 x 900, the root reported `scrollHeight` 1222 and `window.scrollTo(0, 500)` moved the document to 322 with the header at `top: -322` and no scrollbar to bring it back. The 322 px came from a `.sr-only` span inside `main` positioned `absolute` with `offsetParent` BODY: `main` is a scroll container but was not a containing block, so an absolutely positioned descendant resolved against the initial containing block, escaped the clip and extended the document. Two rules fix it: `html,body,#app` also declare `overflow:clip` (the `hidden` declaration stays as the fallback), and `.main,.main-scroll,.sidebar` declare `position:relative` so the scroll owners are containing blocks. Verified live on the same page: `documentElement.scrollHeight` is 900 against a 900 px viewport, and after `window.scrollTo(0, 500)` plus a direct `scrollTop` write `scrollY` is 0 with the header at `top: 0`. `TestTodo_UXLIVE_025` (the root is clipped, the fallback survives, the scroll owners are containing blocks) and `_Browser` (the real scroll owners and the print escape are intact) pass: `go test ./internal/humanwork/productui/ -count=1` ok on windows/arm64 (Go 1.26.3). Limit: `overflow:clip` alone did not stop programmatic scrolling in this engine -- the containing-block rule is what removed the overflow -- so the clip is defence in depth rather than the fix"
+  },
+  {
+    "id": "UXLIVE-026",
+    "phase": "GATE_C",
+    "model": "SOL_HIGH",
+    "title": "Decide intervention availability from the run, not from the assumption that blocked means unstarted",
+    "section": "74. September 17 live UI and UX audit findings",
+    "depends": [
+      "PROMOUX-013",
+      "UXLIVE-002",
+      "WEB-131"
+    ],
+    "test": "TestTodo_UXLIVE_026",
+    "test_matrix": {
+      "BROWSER": "TestTodo_UXLIVE_026_Browser",
+      "CONFORMANCE": "TestTodo_UXLIVE_026_Conformance",
+      "PRIMARY": "TestTodo_UXLIVE_026",
+      "SECURITY": "TestTodo_UXLIVE_026_Security"
+    },
+    "red": "`InterventionAvailability` and its server twin treat `BLOCKED` as unstarted (`unstarted := stage == stageProposed || stage == stageBlocked`). On journey `01a0b189-e04c-7265-8926-909531dd6530`, whose finance and manager approvals both completed before revalidation refused, the page therefore offers Withdraw under the description `Stops this proposal before any approval has been recorded. No business effect has occurred.` and disables Cancel with `This proposal has not started its approval workflow yet. Use Withdraw instead of Cancel.` -- while the stepper directly above now shows both approvals completed",
+    "green": "availability is decided from whether the run started and what it recorded, not from the stage alone, so a blocked-after-approval run offers the intervention that matches its real position and describes it truthfully; the client mirror and the server decision still agree over the full stage/kind cross product",
+    "refactor": "keep one availability function shared by `internal/intent/app` and `tools/uxqual/journeyclient` and give it the run facts both already hold, rather than widening the stage vocabulary",
+    "refs": "[governed edit paths](#70-promotion-workflow-live-audit-remediation), `internal/intent/app`, `tools/uxqual/journeyclient`",
+    "retired": false,
+    "done": true,
+    "evidence": "availability is decided from the run, not from the assumption that blocked means unstarted. Both implementations now take a `started` fact: `interventionUnavailableAtStage(kind, stage, started)` in `internal/intent/app` (supplied by `detail.Instance != nil`) and `InterventionAvailability(kind, stage, started)` in `tools/uxqual/journeyclient` (supplied by `journeyStarted`, which reads the instance id the card already carries and the contract documents as empty before execution). Only BLOCKED depends on it: a blocked proposal that never started still offers Withdraw and refuses Cancel as before, while a blocked run whose approvals are recorded now refuses Withdraw with the already-started reason and offers Cancel, so the page no longer describes a run with recorded approvals as one where none were. `TestTodo_UXLIVE_026`, `_Browser` (the refused withdraw names the already-started reason) and `_Security` (every other stage's decision is unchanged by the new fact) pass, and `TestTodo_PROMOUX_013_ClientServerAvailabilityAgreement` now cross-checks the two implementations over every stage times both values of `started`: `go test ./internal/intent/app/ -count=1` ok (111.9s) and `go test ./tools/uxqual/journeyclient/ ./tools/uxqual/render/journey/ -count=1` leaves only the three failures another session's in-flight proto change already had, on windows/arm64 (Go 1.26.3). Limit: this narrows one wrong offer and widens Cancel for blocked-after-start runs; the engine's own refusal remains the enforcement boundary for a cancel it will not accept"
   },
   {
     "id": "UXSCAN-001",
