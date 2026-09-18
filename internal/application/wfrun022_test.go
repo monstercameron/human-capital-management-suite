@@ -195,6 +195,7 @@ func TestTodo_WF_RUN_022(t *testing.T) {
 	if fenceB <= fenceA || !strings.Contains(holderB, "replica-b") {
 		t.Fatalf("queue lease after restore = fence %d holder %s, want replica B above fence %d", fenceB, holderB, fenceA)
 	}
+	h.acknowledgeParkedPromotion(id)
 	if err := promoux015CommittedOnce(effectsBefore, h.effects()); err != nil {
 		t.Fatalf("the restored wait's commit: %v", err)
 	}
@@ -227,13 +228,14 @@ func TestTodo_WF_RUN_022(t *testing.T) {
 // after the commit -- and proves neither restore loses or repeats anything.
 func TestTodo_WF_RUN_022_Recovery(t *testing.T) {
 	h := promoux015Compose(t)
-	_, instance, _, _ := h.waitingWithLease()
+	id, instance, _, _ := h.waitingWithLease()
 	effectsBefore := h.effects()
 	h.interrupt()
 	late := h.afterEffectiveDate()()
 	if tick, err := h.replica("replica-b", func() time.Time { return late }).Tick(context.Background()); err != nil || tick.Fired != 1 {
 		t.Fatalf("resume after the first restore = %+v, %v", tick, err)
 	}
+	h.acknowledgeParkedPromotion(id)
 	committedState := h.wfrun022State(instance)
 	committed := h.effects()
 	h.interrupt()
@@ -253,7 +255,7 @@ func TestTodo_WF_RUN_022_Recovery(t *testing.T) {
 // timer: the restored wait cannot be woken twice.
 func TestTodo_WF_RUN_022_Race(t *testing.T) {
 	h := promoux015Compose(t)
-	_, _, _, _ = h.waitingWithLease()
+	id, _, _, _ := h.waitingWithLease()
 	effectsBefore := h.effects()
 	h.interrupt()
 	late := h.afterEffectiveDate()()
@@ -279,6 +281,7 @@ func TestTodo_WF_RUN_022_Race(t *testing.T) {
 	if leased != 1 || fired != 1 {
 		t.Fatalf("concurrent replicas after restore leased %d and fired %d, want exactly 1 each", leased, fired)
 	}
+	h.acknowledgeParkedPromotion(id)
 	if err := promoux015CommittedOnce(effectsBefore, h.effects()); err != nil {
 		t.Fatal(err)
 	}
@@ -343,6 +346,7 @@ func TestTodo_WF_RUN_022_Integration(t *testing.T) {
 	if tick, err := h.replica("replica-b", func() time.Time { return late }).Tick(context.Background()); err != nil || tick.Fired != 1 {
 		t.Fatalf("resume after interruption = %+v, %v", tick, err)
 	}
+	h.acknowledgeParkedPromotion(id)
 	if err := promoux015CommittedOnce(before, h.effects()); err != nil {
 		t.Fatal(err)
 	}

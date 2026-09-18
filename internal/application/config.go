@@ -67,11 +67,14 @@ const (
 	FieldOTelExporter    = "otel-exporter"
 	FieldOTelEndpoint    = "otel-endpoint"
 
-	// FieldExecutionAuthority is the P1B execution authority gate family.
-	// Every field below defaults to off/empty; a cell composed with no
-	// -execution-authority behaves byte-for-byte like the P1A cell of today
-	// (internal/intent/app.ExecutionAuthority is nil, and ExecuteIntent
-	// refuses exactly as every other governed write in this release does).
+	// FieldExecutionAuthority is the execution authority family. The engine
+	// is on by default: a cell composed with no flags runs promotions
+	// through the caller-driven execution driver
+	// (internal/intent/app.ExecutionAuthority is set, and ExecuteIntent
+	// runs instead of refusing). -execution-authority=false opts back out
+	// to the refusing cell; -execution-authority-digest stays required
+	// whenever the authority is composed, so the asserted amendment is
+	// always carried as evidence.
 	FieldExecutionAuthority               = "execution-authority"
 	FieldExecutionAuthorityDigest         = "execution-authority-digest"
 	FieldExecutionAuthorityRole           = "execution-authority-role"
@@ -249,7 +252,7 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldDevBrowserLogin, Usage: "dev-only: serve a pasted-token sign-in form for the workspace at " + workspace.PathLogin, Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldOTelExporter, Usage: "OTel exporter: none, stdout, or otlphttp", Default: OTelExporterNone},
 		{Name: FieldOTelEndpoint, Usage: "OTLP/HTTP collector endpoint; required when -" + FieldOTelExporter + "=" + OTelExporterOTLPHTTP},
-		{Name: FieldExecutionAuthority, Usage: "P1B gate: compose this cell with the caller-driven promotion execution driver, so ExecuteIntent can run instead of refusing (planning/next-steps.md \"P1B exists only after a signed Gate A PROCEED\")", Default: "false", Kind: bootstrap.KindBool},
+		{Name: FieldExecutionAuthority, Usage: "compose this cell with the caller-driven promotion execution driver, so ExecuteIntent runs through the workflow engine; false opts back out to the refusing cell (then -scheduler must also be false)", Default: "true", Kind: bootstrap.KindBool},
 		{Name: FieldExecutionAuthorityDigest, Usage: "the signed P1B authority amendment digest this cell asserts; carried through as evidence, never verified by this process"},
 		{Name: FieldExecutionAuthorityRole, Usage: "the principal role ExecuteIntent additionally requires under -" + FieldExecutionAuthority, Default: "promotion_operator"},
 		{Name: FieldExecutionApprover, Usage: "the principal the composed promotion workflow routes its finance approval WorkItem to", Default: "principal:promotion-approver"},
@@ -257,9 +260,9 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldExecutionFinancePartner, Usage: "the principal the executable promotion plan's FinancePartnerFor(cost_center) approval routes to; empty derives a class-scoped identity from -" + FieldExecutionApprover},
 		{Name: FieldTimerTzdbVersion, Usage: "tzdb release the execution driver's durable timers resolve wake instants against; with -" + FieldTimerCalendarVersion + " it composes the WAIT-node timer ports, empty composes none", Default: DefaultTimerTzdbVersion},
 		{Name: FieldTimerCalendarVersion, Usage: "business-calendar release the execution driver's durable timers resolve wake instants against", Default: DefaultTimerCalendarVersion},
-		{Name: FieldScheduler, Usage: "run the in-process workflow timer/ready-work dispatcher", Default: "false", Kind: bootstrap.KindBool},
+		{Name: FieldScheduler, Usage: "run the in-process workflow timer/ready-work dispatcher; on by default so the execute plan's durable WAITs settle (requires -tenant and -execution-authority=true)", Default: "true", Kind: bootstrap.KindBool},
 		{Name: FieldHealthAddr, Env: EnvHealthAddr, Usage: "loopback host:port (127.0.0.1, localhost or ::1) to serve the health/readiness endpoint on; empty disables it"},
-		{Name: FieldWorkflowPlan, Usage: "promotion workflow plan: prototype or execute", Default: WorkflowPlanPrototype},
+		{Name: FieldWorkflowPlan, Usage: "promotion workflow plan: execute runs promotions through the engine, prototype simulates without effects", Default: WorkflowPlanExecute},
 		{Name: FieldLegalEvidenceIssuerKeys, Env: EnvLegalEvidenceIssuerKeys, Usage: "comma-separated standard-base64 public keys trusted for governed legal evidence"},
 		{Name: FieldExecutionRetry, Usage: "enable persisted admission for execution START retries", Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldExecutionRetryVersion, Usage: "persisted execution retry budget version; required when retries are enabled"},

@@ -21,8 +21,8 @@ func TestTodo_PROMOUX_012(t *testing.T) {
 			}
 			stage := workspace.JourneyStage(strings.TrimPrefix(name, "JOURNEY_STAGE_"))
 			transition := journeyStageTransition(stage)
-			_, unavailable := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage)
-			reason, _ := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage)
+			_, unavailable := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage, false)
+			reason, _ := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage, false)
 			terminal := unavailable && reason == reasonInterventionAlreadyTerminal
 			if journeyStageClosed(stage) != terminal {
 				t.Errorf("%s: closed = %t, the intervention rule's terminal = %t", stage, journeyStageClosed(stage), terminal)
@@ -85,6 +85,9 @@ func TestTodo_PROMOUX_012(t *testing.T) {
 		{"repair names no owner, so an initiator only tracks it", workspace.JourneyStageRepairRequired, true, nil,
 			workspace.JourneyViewerProjection{Relationships: rel(workspace.JourneyViewerInitiator), Responsibility: workspace.JourneyResponsibilityTracking,
 				NextStep: workspace.JourneyNextStepRepair, AwaitsPerson: true}},
+		{"acknowledgement names no owner, so an initiator only tracks it", workspace.JourneyStageAwaitingAcknowledgement, true, nil,
+			workspace.JourneyViewerProjection{Relationships: rel(workspace.JourneyViewerInitiator), Responsibility: workspace.JourneyResponsibilityTracking,
+				NextStep: workspace.JourneyNextStepAwaitAcknowledgement, AwaitsPerson: true}},
 		{"initiator and assignee at once, relationships sorted", workspace.JourneyStageReapproval, true, holds,
 			workspace.JourneyViewerProjection{Relationships: rel(workspace.JourneyViewerAssignee, workspace.JourneyViewerInitiator), Responsibility: workspace.JourneyResponsibilityActionRequired,
 				NextStep: workspace.JourneyNextStepReapprovalDecision, NextStepOwner: workspace.JourneyStepOwnerApprover, AwaitsPerson: true}},
