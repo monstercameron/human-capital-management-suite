@@ -78,7 +78,9 @@ func TestTodo_SECARCH_010_Golden(t *testing.T) {
 	if oa1 != oa2 {
 		t.Fatalf("object key not deterministic: %q vs %q", oa1, oa2)
 	}
-	if BackupPlacement("tenant-a", "s") != BackupPlacement("tenant-a", "s") {
+	once := BackupPlacement("tenant-a", "s")
+	twice := BackupPlacement("tenant-a", "s")
+	if once != twice {
 		t.Fatal("backup placement not deterministic")
 	}
 	engine := NewEngine(DefaultDenyHandler)

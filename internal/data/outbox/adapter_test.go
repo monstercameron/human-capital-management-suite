@@ -31,7 +31,7 @@ type errRow struct{ err error }
 func (r errRow) Scan(...any) error { return r.err }
 
 func (s errBrokerStore) QueryRow(context.Context, string, ...any) dbport.Row {
-	return errRow{s.err}
+	return errRow(s)
 }
 
 func brokerPolicy() BrokerPolicy { return BrokerPolicy{MaxAttempts: 3, MaxPollLimit: 100} }

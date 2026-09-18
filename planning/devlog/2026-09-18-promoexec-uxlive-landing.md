@@ -93,6 +93,22 @@ ticks.
   with `go test -count=1 -run '^TestPromoUXRealServerPromotionContract$'
 ./test/workflow/` PASS (20.4s).
 
+## CI red, then green
+
+The PR's root-module suite failed only the quality gate: CI staticcheck
+(which the local hook does not run) flagged seven findings in ticked
+todos' test files, all pre-existing HEAD content my branch did not
+touch -- an S1016 struct literal in `data/outbox`, four dead helpers
+(`appt003Request`, `readGolden`, `streamIDs`, `selectionCite`, each
+defined once and never called on any platform), and two
+same-expression `!=` determinism assertions (`align063`,
+`secarch010`). Fixed on the branch without weakening any assertion:
+struct conversion, dead-helper removal (plus its orphaned imports),
+and two-variable determinism comparisons. The seven suites pass.
+`go run ./tools/quality` locally still lists fourteen further U1000s
+that CI on Linux does not report; those functions are used under Linux
+build constraints, so they were deliberately left alone.
+
 ## Left partial
 
 - `PROMO-EXEC-002/003/004/005/007` and `HIPERF-002/003/004/005` have no

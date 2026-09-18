@@ -24,7 +24,9 @@ func TestTodo_ALIGN_063(t *testing.T) {
 }
 
 func TestTodo_ALIGN_063_Property(t *testing.T) {
-	if conformance.CatalogDigest() != conformance.CatalogDigest() {
+	first := conformance.CatalogDigest()
+	second := conformance.CatalogDigest()
+	if first != second {
 		t.Fatal("catalog digest is not deterministic")
 	}
 	for _, locale := range []conformance.Locale{conformance.LocaleEnglish, conformance.LocaleSpanish, conformance.LocaleFrench} {
