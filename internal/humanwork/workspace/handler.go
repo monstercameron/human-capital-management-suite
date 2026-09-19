@@ -20,6 +20,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/forms"
+	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
 )
 
@@ -988,22 +989,37 @@ func writeRedirect(w http.ResponseWriter, r *http.Request, target string, status
 //
 // It carries the same stylesheet the workspace does, so the policy's
 // style-src hash covers it and a refusal does not arrive as unstyled text
-// under a policy that then blocks its own page's CSS.
+// under a policy that then blocks its own page's CSS. That means the whole of
+// gwc.Stylesheet(), which is what stylesheetHash hashes: it inlined only the
+// token layer, the bytes never matched, and the browser blocked the page's
+// only stylesheet -- every 404 and refusal rendered as bare serif text.
+//
+// The tone follows who can act on it. A refusal the reader can resolve --
+// a page their role does not grant, a route that does not exist, a
+// submission to correct -- is an amber notice; red is kept for the server
+// failing. And every problem page offers the way back to the workspace:
+// a refusal with no link out was a dead end the reader could only escape
+// with the browser's Back button.
 func (h *Handler) writeProblem(w http.ResponseWriter, status int, title, detail string) {
+	tone := "failed"
+	if status < http.StatusInternalServerError {
+		tone = "needs_review"
+	}
 	doc := `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>` + html.EscapeString(title) + `</title>
-<style>` + tokens.WorkspaceCSS() + `</style>
+<style>` + gwc.Stylesheet() + `</style>
 </head>
 <body>
 <div class="workspace">
 <header class="workspace-header"><h1>` + html.EscapeString(title) + `</h1></header>
 <main id="main-content">
 <section>
-<div class="status-banner" data-status="failed" role="status">` + html.EscapeString(detail) + `</div>
+<div class="status-banner" data-status="` + tone + `" role="status">` + html.EscapeString(detail) + `</div>
+<p class="actions"><a href="` + PathProductPrefix + `">Back to the workspace</a></p>
 </section>
 </main>
 </div>
