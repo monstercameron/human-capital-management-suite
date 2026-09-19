@@ -623,6 +623,11 @@ func TestStartingAnotherPromotionOpensTheEmployeesActiveJourney(t *testing.T) {
 	if h.svc.called("ProposePromotion") != 0 {
 		t.Fatal("opening an active journey proposed another promotion")
 	}
+	// The reader asked for a new proposal and got an existing journey; the
+	// page says why instead of silently swapping one for the other.
+	if p.Notice == nil || p.Notice.TitleKey != "journey.notice_existing_title" || p.Notice.Tone != toneInfo {
+		t.Fatalf("redirect to the active journey explained nothing: notice = %+v", p.Notice)
+	}
 }
 
 func TestBlockedPromotionIsStillAnActiveConflict(t *testing.T) {

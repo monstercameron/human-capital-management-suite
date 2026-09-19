@@ -556,6 +556,34 @@ func positionField(selected string, options *journeyv1.WorkforceOptions, jobCode
 	}
 }
 
+// narrowVacanciesToRoles keeps only the open positions whose role is one of
+// the employee's published next roles. Before a role is chosen, the picker
+// otherwise listed every open position in the tenant (54 in the demo) for a
+// person with a single possible next role, and any of the others would be
+// refused as incompatible. A vacancy that names no role is kept: nothing
+// says it is incompatible.
+func narrowVacanciesToRoles(fields []journey.Field, jobCodes []string) {
+	allowed := make(map[string]bool, len(jobCodes))
+	for _, code := range jobCodes {
+		allowed[code] = true
+	}
+	for i := range fields {
+		if fields[i].ID != FieldPosition {
+			continue
+		}
+		kept := fields[i].Vacancies[:0:0]
+		for _, vacancy := range fields[i].Vacancies {
+			if vacancy.JobCode == "" || allowed[vacancy.JobCode] {
+				kept = append(kept, vacancy)
+			}
+		}
+		fields[i].Vacancies = kept
+		if !slices.ContainsFunc(kept, func(v journey.VacancyOption) bool { return v.Reference == fields[i].Value }) {
+			fields[i].Value = ""
+		}
+	}
+}
+
 func localizeProposalForm(form *journey.ProposalForm, copy productui.LocaleContext, focused bool, path *journeyv1.PromotionPathOption, payRange *proposalPayRange) {
 	if form == nil {
 		return
@@ -913,6 +941,9 @@ func focusedProposalForm(values map[string]string, selectedRef string, options *
 	}
 	form.Fields[1].Options = promotionJobOptions(options, worker, jobCodes, values[FieldJobCode])
 	form.Fields[2].Options = stringOptions("Select target grade", grades, values[FieldGrade])
+	if worker != nil && values[FieldJobCode] == "" {
+		narrowVacanciesToRoles(form.Fields, jobCodes)
+	}
 	path := selectedPromotionPath(options, worker, values[FieldJobCode], values[FieldGrade])
 	localizeProposalForm(&form, productui.ResolveProductLocale(""), true, path, proposalPayRangeFor(worker, options, path))
 	form.Action = ProposalHref(selectedRef)
@@ -1531,7 +1562,7 @@ func DetailPageWithInterventions(
 		Ledger:          ledgerLocale(cfg.Locale, detail.GetLedger(), summary.GetEffectiveDate(), head),
 		PendingOutcome:  pendingOutcomeLocale(cfg.Locale, head.Stage, head.EffectiveDate),
 		Evidence:        detail.GetEvidenceIds(),
-		Timeline:        timelineLocale(cfg.Locale, detail.GetTimeline()),
+		Timeline:        endedTimeline(cfg.Locale, timelineLocale(cfg.Locale, detail.GetTimeline()), head.Stage),
 		Actions:         detailActions,
 		EffectiveWindow: effectiveWindowLocale(cfg.Locale, summary),
 	}
@@ -1891,8 +1922,15 @@ func findingsLocale(locale string, in []*journeyv1.Finding) []journey.Finding {
 		message := strings.TrimSpace(f.GetMessage())
 		// This server-authored finding has a stable semantic code. Localize
 		// that code rather than parsing or translating its English prose.
-		if strings.TrimSpace(f.GetCode()) == "promotion.budget_authority_observation_only" {
+		switch strings.TrimSpace(f.GetCode()) {
+		case "promotion.budget_authority_observation_only":
 			message = productui.ResolveProductLocale(locale).Text("journey.finding_budget_observation")
+		case "compensation.increase_over_ten_percent":
+			// The engine's prose ("annualized increase of 18.5185% exceeds
+			// the 10.0000% review threshold") is lower-case, four-decimal
+			// and English-only; the comparison above already states the
+			// percentage in the reader's locale.
+			message = productui.ResolveProductLocale(locale).Text("journey.finding_increase_threshold")
 		}
 		out = append(out, journey.Finding{
 			Severity: severityOf(f.GetSeverity()),
@@ -2250,6 +2288,27 @@ func timelineDetailLocale(locale string, e *journeyv1.TimelineEvent) string {
 	default:
 		return ""
 	}
+}
+
+// endedTimeline relabels the outcome entry of a journey that ended without
+// the promotion. The END node writes one ledger fact on every terminal route
+// (invalidated, rejected, cancelled as well as completed), and the history
+// called each of them "Promotion recorded -- the approved promotion outcome
+// was recorded", in success tone, directly under a Failed status.
+func endedTimeline(locale string, events []journey.TimelineEvent, stage string) []journey.TimelineEvent {
+	if stage != stageFailed && stage != stageRejected {
+		return events
+	}
+	copy := productui.ResolveProductLocale(locale)
+	recorded := copy.Text("journey.timeline_recorded")
+	for i := range events {
+		if events[i].Title == recorded {
+			events[i].Title = copy.Text("journey.timeline_ended")
+			events[i].Detail = copy.Text("journey.timeline_ended_detail")
+			events[i].Tone = toneDanger
+		}
+	}
+	return events
 }
 
 func collapseTimeline(events []journey.TimelineEvent) []journey.TimelineEvent {

@@ -163,3 +163,26 @@ func TestTodo_UXLIVE_011_Security(t *testing.T) {
 		t.Fatalf("an option with no server-issued reference was offered: %+v", blank.Vacancies)
 	}
 }
+
+// TestPositionPickerStartsWithTheEmployeesNextRoles: before a role is chosen
+// the person-scoped form listed every open position in the tenant, although
+// only positions for the employee's published next roles can be accepted.
+func TestPositionPickerStartsWithTheEmployeesNextRoles(t *testing.T) {
+	options := testWorkforceOptions()
+	options.PositionVacancies = []*journeyv1.PositionVacancyOption{
+		uxlive011Vacancy("ref-mgr", "ENG-MGR1", "Engineering Manager"),
+		uxlive011Vacancy("ref-nurse", "CLN-NURSE4", "Charge Nurse"),
+		uxlive011Vacancy("ref-open", "", "Unassigned role"),
+	}
+	jane := findWorker(testWorkers(), "jane-doe")
+	if jane == nil {
+		t.Fatal("fixture has no jane-doe")
+	}
+	got := map[string]bool{}
+	for _, vacancy := range uxlive011Field(t, focusedProposalForm(map[string]string{}, "jane-doe", options, jane)).Vacancies {
+		got[vacancy.Reference] = true
+	}
+	if !got["ref-mgr"] || !got["ref-open"] || got["ref-nurse"] {
+		t.Fatalf("vacancies before a role is chosen = %v, want the ENG-MGR1 and role-less positions only", got)
+	}
+}

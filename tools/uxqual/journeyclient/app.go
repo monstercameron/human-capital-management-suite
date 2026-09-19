@@ -131,6 +131,10 @@ type App struct {
 	// navigation and reload the page (taking the notice the write was made
 	// to show with it). See [App.selectWorker].
 	applied string
+	// arrivalNotice explains a redirect the reader did not ask for: opening
+	// a new proposal for someone whose promotion is already in progress
+	// lands on that journey, and loadDetail shows this once when it does.
+	arrivalNotice *journey.Notice
 }
 
 // New returns a client over cfg, svc and store. now is the clock the form's
@@ -625,6 +629,13 @@ func (a *App) loadList(ctx context.Context, generation int) {
 			a.mu.Unlock()
 			if proposalRoute {
 				if existing := activeJourneyID(journeys.GetJourneys(), findWorker(workers.GetWorkers(), selected)); existing != "" {
+					copy := a.localeCopy()
+					a.mu.Lock()
+					a.arrivalNotice = &journey.Notice{
+						Tone: toneInfo, Title: copy.Text("journey.notice_existing_title"), Detail: copy.Text("journey.notice_existing_detail"),
+						TitleKey: "journey.notice_existing_title", MessageKey: "journey.notice_existing_detail",
+					}
+					a.mu.Unlock()
 					a.Navigate(DetailHref(existing))
 					return
 				}
@@ -681,12 +692,17 @@ func (a *App) loadDetail(ctx context.Context, generation int, intentID string) {
 		if a.stale(generation) {
 			return
 		}
+		// Taken once, answer or refusal, so it cannot attach to a later load.
+		a.mu.Lock()
+		arrival := a.arrivalNotice
+		a.arrivalNotice = nil
+		a.mu.Unlock()
 		if err != nil {
 			a.showCurrent(generation, routeReadNotice(err))
 			return
 		}
 		a.loadInterventionPreviews(ctx, generation, intentID)
-		a.applyDetail(generation, resp.GetDetail(), nil)
+		a.applyDetail(generation, resp.GetDetail(), arrival)
 		a.startWatch(generation, intentID, resp.GetDetail().GetDetailDigest())
 	})
 }

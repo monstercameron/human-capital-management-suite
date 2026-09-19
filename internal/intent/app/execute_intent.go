@@ -367,6 +367,12 @@ func executionError(err error) *envelope.Error {
 				"this proposal revision has been superseded and may no longer be executed",
 				ruleExecutionAuthorityGate).
 			WithDiagnostic(err)
+	// No ACTIVE workflow version (or none resolvable) is this cell's
+	// configuration, not the proposal's stage: nothing the caller does to the
+	// journey changes it. Reported as the generic domain refusal, the page
+	// told the reader the action was "not available at this stage".
+	case runtime.CodeVersionNotActive, runtime.CodeVersionResolutionFailed, runtime.CodeWorkflowResolutionFailed:
+		return executionUnavailable().WithDiagnostic(err)
 	case runtime.CodeMutableProposal, runtime.CodeApprovalBindingMismatch:
 		return envelope.New(envelope.CodeFailedPrecondition, reasonStaleProposal,
 			"a precondition for the operation is not met").

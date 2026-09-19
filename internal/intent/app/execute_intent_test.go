@@ -175,6 +175,11 @@ func TestExecutionErrorProjectsTheDerivedProposalRefusals(t *testing.T) {
 		{runtime.CodeSupersededProposal, reasonSupersededProposal},
 		{runtime.CodeMutableProposal, reasonStaleProposal},
 		{runtime.CodeApprovalBindingMismatch, reasonStaleProposal},
+		// A missing ACTIVE workflow version is the cell's configuration, so
+		// the journey page reports the service unavailable, not a stage.
+		{runtime.CodeVersionNotActive, reasonExecutionUnavailable},
+		{runtime.CodeVersionResolutionFailed, reasonExecutionUnavailable},
+		{runtime.CodeWorkflowResolutionFailed, reasonExecutionUnavailable},
 	} {
 		t.Run(tc.code, func(t *testing.T) {
 			owned := executionError(&runtime.Error{Code: tc.code, Detail: "refused"})

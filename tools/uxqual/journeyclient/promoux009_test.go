@@ -56,6 +56,9 @@ func TestTodo_PROMOUX_009_Browser(t *testing.T) {
 		if wire.Code == "promotion.budget_authority_observation_only" && got[i].Message == wire.Message {
 			t.Fatal("the coded budget observation exposed a misleading raw wire message instead of safe business copy")
 		}
+		if wire.Code == "compensation.increase_over_ten_percent" && got[i].Message == wire.Message {
+			t.Fatal("the coded increase advisory exposed the engine's raw four-decimal prose instead of business copy")
+		}
 	}
 	if got[0].Severity != severityBlocking {
 		t.Fatalf("rendered severity[0] = %q, want %q", got[0].Severity, severityBlocking)
