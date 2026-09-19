@@ -41,7 +41,7 @@ func TestWireMethodsCoverEveryRegisteredService(t *testing.T) {
 		"hcmnext.intents.v1.IntentService":    10,
 		"hcmnext.registry.v1.RegistryService": 4,
 		"hcmnext.admin.v1.AdminService":       6,
-		"hcmnext.journey.v1.JourneyService":   25, // 24 unary + WatchJourney
+		"hcmnext.journey.v1.JourneyService":   27, // 26 unary + WatchJourney
 	}
 	for service, n := range want {
 		if perService[service] != n {

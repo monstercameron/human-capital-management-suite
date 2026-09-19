@@ -224,6 +224,8 @@ func unboundWireAllowlist() []AllowlistEntry {
 			owner:     ownerProto010,
 			rationale: "the JourneyService is outside internal/transport/manifest's governedServices list; its journey/worker routes are an experience surface with no published capability standing behind them",
 			refs: []string{
+				"hcmnext.journey.v1.JourneyService/AcknowledgeJourney",
+				"hcmnext.journey.v1.JourneyService/AddJourneyNote",
 				"hcmnext.journey.v1.JourneyService/CreateWorker",
 				"hcmnext.journey.v1.JourneyService/DecideJourney",
 				"hcmnext.journey.v1.JourneyService/EditProposal",
