@@ -189,6 +189,16 @@ service JourneyService {
   // losing caller's request never touches durable state at all.
   rpc RequestJourneyIntervention(RequestJourneyInterventionRequest) returns (RequestJourneyInterventionResponse);
 
+  // AddJourneyNote appends one note to a journey. Effect class: append-only
+  // experience write. Anyone the journey detail admits may add a note, at any
+  // stage and after the journey has closed; a note is not a decision, carries
+  // no authority and changes nothing about the journey. Notes are never
+  // edited or removed. A retry with the same idempotency_key returns the note
+  // the first call recorded; the same key with different content is refused.
+  // The response carries the recorded note and the journey detail read in
+  // the same call, with the new note in JourneyDetail.notes.
+  rpc AddJourneyNote(AddJourneyNoteRequest) returns (AddJourneyNoteResponse);
+
   // WatchJourney is a server-streaming change feed over the same read
   // InspectJourney performs. Effect class: READ_ONLY.
   //
@@ -690,6 +700,37 @@ message JourneyDetail {
   // Clients must not infer them from locally held role strings.
   bool diagnostics_available = 13;
   bool can_decide = 14;
+  // notes are the journey's free-standing notes, oldest first.
+  repeated JourneyNote notes = 15;
+}
+
+// JourneyNote is one append-only note on a journey. The author is disclosed
+// by display name only; the principal identifier stays on the server.
+message JourneyNote {
+  string note_id = 1;
+  // author_display is the author's display name, empty when it cannot be
+  // resolved for this viewer.
+  string author_display = 2;
+  // authored_by_viewer is true when the calling principal wrote the note.
+  bool authored_by_viewer = 3;
+  string body = 4;
+  // stage is the journey stage when the note was written.
+  JourneyStage stage = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message AddJourneyNoteRequest {
+  string intent_id = 1;
+  // body is 1 to 2000 characters after trimming surrounding whitespace.
+  string body = 2;
+  // idempotency_key identifies this one submission; required, at most 128
+  // characters.
+  string idempotency_key = 3;
+}
+
+message AddJourneyNoteResponse {
+  JourneyNote note = 1;
+  JourneyDetail detail = 2;
 }
 
 message ListJourneysRequest {

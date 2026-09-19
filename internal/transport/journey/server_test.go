@@ -515,7 +515,7 @@ func TestJourneyServicePublishesTwentyUnaryMethodsAndOneServerStream(t *testing.
 		"ListJourneys": true, "ProposeJourney": true, "ProposePromotion": true,
 		"InspectJourney": true, "ExecuteJourney": true, "DecideJourney": true, "AcknowledgeJourney": true,
 		"EditProposal": true, "PreviewJourneyIntervention": true, "RequestJourneyIntervention": true,
-		"ListWorkers": true, "CreateWorker": true,
+		"AddJourneyNote": true, "ListWorkers": true, "CreateWorker": true,
 		"GetProductPreferences": true, "SaveUserPreferences": true,
 		"SaveTenantAppearance": true, "SaveOrganizationVisibility": true, "RecordWorkflowUse": true,
 		"GetRoleAccess": true, "SaveAccessRole": true, "SaveWorkerRoleAssignment": true, "SaveRoleOrganizationVisibility": true, "SaveRolePagePermission": true, "SaveRoleFeaturePermission": true,

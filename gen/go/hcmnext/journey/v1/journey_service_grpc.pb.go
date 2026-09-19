@@ -29,6 +29,7 @@ const (
 	JourneyService_EditProposal_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/EditProposal"
 	JourneyService_PreviewJourneyIntervention_FullMethodName     = "/hcmnext.journey.v1.JourneyService/PreviewJourneyIntervention"
 	JourneyService_RequestJourneyIntervention_FullMethodName     = "/hcmnext.journey.v1.JourneyService/RequestJourneyIntervention"
+	JourneyService_AddJourneyNote_FullMethodName                 = "/hcmnext.journey.v1.JourneyService/AddJourneyNote"
 	JourneyService_WatchJourney_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/WatchJourney"
 	JourneyService_ListWorkers_FullMethodName                    = "/hcmnext.journey.v1.JourneyService/ListWorkers"
 	JourneyService_CreateWorker_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/CreateWorker"
@@ -223,6 +224,15 @@ type JourneyServiceClient interface {
 	// SupersedeIntent already use - so no partial domain write is possible: a
 	// losing caller's request never touches durable state at all.
 	RequestJourneyIntervention(ctx context.Context, in *RequestJourneyInterventionRequest, opts ...grpc.CallOption) (*RequestJourneyInterventionResponse, error)
+	// AddJourneyNote appends one note to a journey. Effect class: append-only
+	// experience write. Anyone the journey detail admits may add a note, at any
+	// stage and after the journey has closed; a note is not a decision, carries
+	// no authority and changes nothing about the journey. Notes are never
+	// edited or removed. A retry with the same idempotency_key returns the note
+	// the first call recorded; the same key with different content is refused.
+	// The response carries the recorded note and the journey detail read in
+	// the same call, with the new note in JourneyDetail.notes.
+	AddJourneyNote(ctx context.Context, in *AddJourneyNoteRequest, opts ...grpc.CallOption) (*AddJourneyNoteResponse, error)
 	// WatchJourney is a server-streaming change feed over the same read
 	// InspectJourney performs. Effect class: READ_ONLY.
 	//
@@ -415,6 +425,16 @@ func (c *journeyServiceClient) RequestJourneyIntervention(ctx context.Context, i
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RequestJourneyInterventionResponse)
 	err := c.cc.Invoke(ctx, JourneyService_RequestJourneyIntervention_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *journeyServiceClient) AddJourneyNote(ctx context.Context, in *AddJourneyNoteRequest, opts ...grpc.CallOption) (*AddJourneyNoteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddJourneyNoteResponse)
+	err := c.cc.Invoke(ctx, JourneyService_AddJourneyNote_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -766,6 +786,15 @@ type JourneyServiceServer interface {
 	// SupersedeIntent already use - so no partial domain write is possible: a
 	// losing caller's request never touches durable state at all.
 	RequestJourneyIntervention(context.Context, *RequestJourneyInterventionRequest) (*RequestJourneyInterventionResponse, error)
+	// AddJourneyNote appends one note to a journey. Effect class: append-only
+	// experience write. Anyone the journey detail admits may add a note, at any
+	// stage and after the journey has closed; a note is not a decision, carries
+	// no authority and changes nothing about the journey. Notes are never
+	// edited or removed. A retry with the same idempotency_key returns the note
+	// the first call recorded; the same key with different content is refused.
+	// The response carries the recorded note and the journey detail read in
+	// the same call, with the new note in JourneyDetail.notes.
+	AddJourneyNote(context.Context, *AddJourneyNoteRequest) (*AddJourneyNoteResponse, error)
 	// WatchJourney is a server-streaming change feed over the same read
 	// InspectJourney performs. Effect class: READ_ONLY.
 	//
@@ -893,6 +922,9 @@ func (UnimplementedJourneyServiceServer) PreviewJourneyIntervention(context.Cont
 }
 func (UnimplementedJourneyServiceServer) RequestJourneyIntervention(context.Context, *RequestJourneyInterventionRequest) (*RequestJourneyInterventionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RequestJourneyIntervention not implemented")
+}
+func (UnimplementedJourneyServiceServer) AddJourneyNote(context.Context, *AddJourneyNoteRequest) (*AddJourneyNoteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AddJourneyNote not implemented")
 }
 func (UnimplementedJourneyServiceServer) WatchJourney(*WatchJourneyRequest, grpc.ServerStreamingServer[WatchJourneyResponse]) error {
 	return status.Error(codes.Unimplemented, "method WatchJourney not implemented")
@@ -1139,6 +1171,24 @@ func _JourneyService_RequestJourneyIntervention_Handler(srv interface{}, ctx con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(JourneyServiceServer).RequestJourneyIntervention(ctx, req.(*RequestJourneyInterventionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _JourneyService_AddJourneyNote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddJourneyNoteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).AddJourneyNote(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_AddJourneyNote_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).AddJourneyNote(ctx, req.(*AddJourneyNoteRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1470,6 +1520,10 @@ var JourneyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestJourneyIntervention",
 			Handler:    _JourneyService_RequestJourneyIntervention_Handler,
+		},
+		{
+			MethodName: "AddJourneyNote",
+			Handler:    _JourneyService_AddJourneyNote_Handler,
 		},
 		{
 			MethodName: "ListWorkers",

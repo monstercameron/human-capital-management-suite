@@ -454,6 +454,10 @@ type JourneyDetail struct {
 	// must not reconstruct either from roles or principal identifiers.
 	DiagnosticsAvailable bool
 	CanDecide            bool
+
+	// Notes are the journey's free-standing notes, oldest first (see
+	// [JourneyNoteEngine]).
+	Notes []JourneyNote
 }
 
 // Decision is the approver's answer.

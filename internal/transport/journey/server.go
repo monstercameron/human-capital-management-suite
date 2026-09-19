@@ -3,6 +3,7 @@ package journey
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"google.golang.org/grpc"
@@ -264,12 +265,19 @@ var knownInputFields = map[string]bool{
 	"worker_key": true, "worker": true, "legal_name": true, "preferred_name": true,
 	"org_unit": true, "pay_zone": true, "location": true, "job_code": true, "grade": true,
 	"base_pay": true, "currency": true, "bonus_target": true, "hire_date": true,
+	"body": true, "idempotency_key": true,
 }
 
 var knownInputReasons = map[string]bool{
 	"journey.input.invalid":                       true,
 	"promotion.base_pay.not_exact":                true,
 	"promotion.ladder.base_increase_out_of_range": true,
+	workspace.JourneyNoteReasonEmpty:              true,
+	workspace.JourneyNoteReasonTooLong:            true,
+	workspace.JourneyNoteReasonInvalidText:        true,
+	workspace.JourneyNoteReasonKeyInvalid:         true,
+	workspace.JourneyNoteReasonKeyReused:          true,
+	workspace.JourneyNoteReasonLimit:              true,
 }
 
 // engine returns the configured port, or a typed UNAVAILABLE when the
@@ -509,6 +517,41 @@ func (s *server) PreviewJourneyIntervention(ctx context.Context, req *journeyv1.
 // RequestJourneyIntervention forwards to
 // workspace.JourneyEngine.RequestIntervention, which is CancelIntent scoped
 // to journeys. Governed write.
+// AddJourneyNote forwards to workspace.JourneyNoteEngine.AddNote. Append-only
+// experience write. The page gate is the detail gate: whoever may read a
+// journey's detail may leave a note on it, and the engine re-admits the
+// caller to that one journey before recording anything.
+func (s *server) AddJourneyNote(ctx context.Context, req *journeyv1.AddJourneyNoteRequest) (*journeyv1.AddJourneyNoteResponse, error) {
+	principal, inv, ctxErr := trustedContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+	if err := s.requireAnyFeatureView(ctx, principal, inv,
+		featureAccessRequest{pageID: "journeys", featureID: "journey_detail"},
+		featureAccessRequest{pageID: "work", featureID: "assigned_queue"},
+	); err != nil {
+		return nil, err
+	}
+	eng, depErr := s.engine(principal, inv, "add_note")
+	if depErr != nil {
+		return nil, depErr
+	}
+	notes, ok := eng.(workspace.JourneyNoteEngine)
+	if !ok {
+		return nil, ownedError(fmt.Errorf("%w: this cell records no journey notes", workspace.ErrJourneyUnavailable), principal, inv, "add_note")
+	}
+	note, detail, err := notes.AddNote(ctx, req.GetIntentId(), workspace.JourneyNoteInput{
+		Body: req.GetBody(), IdempotencyKey: req.GetIdempotencyKey(),
+	})
+	if err != nil {
+		return nil, ownedError(err, principal, inv, "add_note")
+	}
+	return &journeyv1.AddJourneyNoteResponse{
+		Note:   toJourneyNote(note),
+		Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal)),
+	}, nil
+}
+
 func (s *server) RequestJourneyIntervention(ctx context.Context, req *journeyv1.RequestJourneyInterventionRequest) (*journeyv1.RequestJourneyInterventionResponse, error) {
 	principal, inv, ctxErr := trustedContext(ctx)
 	if ctxErr != nil {

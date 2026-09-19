@@ -470,7 +470,24 @@ func toDetail(d workspace.JourneyDetail, diagAuthorized bool) *journeyv1.Journey
 	for _, e := range d.Timeline {
 		out.Timeline = append(out.Timeline, toTimelineEvent(e))
 	}
+	for _, n := range d.Notes {
+		out.Notes = append(out.Notes, toJourneyNote(n))
+	}
 	out.DetailDigest = detailDigest(out)
+	return out
+}
+
+// toJourneyNote projects one note. The author's principal identifier
+// (AuthorRef) is deliberately not on the wire: a reader is shown a display
+// name and whether the note is their own, never another person's principal.
+func toJourneyNote(n workspace.JourneyNote) *journeyv1.JourneyNote {
+	out := &journeyv1.JourneyNote{
+		NoteId: n.NoteID, AuthorDisplay: n.AuthorDisplay, AuthoredByViewer: n.AuthoredByViewer,
+		Body: n.Body, Stage: stageToProto(n.Stage),
+	}
+	if !n.CreatedAt.IsZero() {
+		out.CreatedAt = timestamppb.New(n.CreatedAt)
+	}
 	return out
 }
 
