@@ -54,6 +54,9 @@ func declareJourneyTokens() {
 		gwccss.CustomLength("jn-r2", gwccss.Rem(0.625)),
 		gwccss.CustomLength("jn-r3", gwccss.Rem(0.75)),
 		gwccss.CustomLength("jn-r4", gwccss.Rem(1)),
+		// Chips and pills. The product maps this to its status radius, so an
+		// embedded journey's chips match the shell's counts and statuses.
+		gwccss.CustomLength("jn-rpill", gwccss.Px(999)),
 		gwccss.Custom("jn-shadow-lift", "0 2px 6px rgba(16,20,43,.10),0 14px 32px rgba(16,20,43,.09)"),
 		gwccss.Custom("jn-ring", "0 0 0 3px rgba(43,58,143,.28)"),
 		gwccss.Custom("jn-ease", "cubic-bezier(.22,.61,.36,1)"),
@@ -119,7 +122,7 @@ func declareJourneyTokens() {
 	)
 	declareGlobal(`.jn-skip`,
 		gwccss.Position.Absolute,
-		gwccss.Left(gwccss.VarLength("jn-s1")),
+		gwccss.Raw("inset-inline-start", "var(--jn-s1)"),
 		gwccss.Top(gwccss.VarLength("jn-s1")),
 		gwccss.ZIndex(20),
 		gwccss.Transform(gwccss.TranslateY(gwccss.Percent(-200))),
@@ -238,7 +241,7 @@ func declareJourneyTokens() {
 		gwccss.Display.InlineBlock,
 		gwccss.Bg(gwccss.Var("jn-masthead-chip")),
 		gwccss.TextColor(gwccss.Var("jn-masthead-chip-ink")),
-		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Rounded(gwccss.VarLength("jn-rpill")),
 		gwccss.PaddingY(gwccss.Rem(.0625)), gwccss.PaddingX(gwccss.Rem(.5)),
 		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-family", "var(--jn-mono)"),
@@ -397,6 +400,15 @@ func declareJourneyTokens() {
 		gwccss.Tracking(gwccss.Ems(-.024)),
 		gwccss.Raw("font-weight", "700"),
 	)
+	// Inside the product the journey page's title is a product page title:
+	// the customer's heading size and the shell's tracking. At its own 1.75rem
+	// it was the one page in the workspace with a smaller title than its
+	// neighbours. The standalone page keeps its own scale.
+	declareGlobal(`.jn-embedded .jn-pagehead>h1`,
+		gwccss.Raw("font-size", "var(--hcm-font-size-heading,1.75rem)"),
+		gwccss.LineHeight(gwccss.Num(1.1)),
+		gwccss.Tracking(gwccss.Ems(-.04)),
+	)
 	declareGlobal(`.jn-display`,
 		gwccss.FontSize(gwccss.Rem(2)),
 		gwccss.LineHeight(gwccss.Num(1.1)),
@@ -429,7 +441,7 @@ func declareJourneyTokens() {
 	declareGlobal(`.jn-eyebrow`,
 		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-weight", "600"),
-		gwccss.Tracking(gwccss.Ems(.07)),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps,.05em)"),
 		gwccss.Raw("text-transform", "uppercase"),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
@@ -494,9 +506,16 @@ func declareJourneyTokens() {
 		gwccss.Raw("overflow-wrap", "break-word"),
 		gwccss.Raw("text-align", "center"),
 	)
+	// Navigation links, drawn like the shell's: accent, underlined on hover.
+	// Permanently underlined ink they read as body-copy references.
 	declareGlobal(`.jn-context-link`,
 		gwccss.FontSize(gwccss.Rem(0.875)),
 		gwccss.Raw("font-weight", "600"),
+		gwccss.TextColor(gwccss.Var("jn-accent")),
+		gwccss.Raw("text-decoration", "none"),
+	)
+	declareGlobal(`.jn-context-link:hover`,
+		gwccss.Raw("text-decoration", "underline"),
 	)
 	declareGlobal(`.jn-subject-card`,
 		gwccss.Position.Relative,
@@ -505,7 +524,8 @@ func declareJourneyTokens() {
 	declareGlobal(`.jn-subject-card::before`,
 		gwccss.Raw("content", "\"\""),
 		gwccss.Position.Absolute,
-		gwccss.Raw("inset", "0 auto 0 0"),
+		// The leading edge, which is the right in Arabic.
+		gwccss.Raw("inset-block", "0"), gwccss.Raw("inset-inline-start", "0"),
 		gwccss.W(gwccss.Px(4)),
 		gwccss.Bg(gwccss.Var("jn-accent")),
 	)
@@ -546,7 +566,7 @@ func declareJourneyTokens() {
 		gwccss.Display.InlineFlex,
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Rem(.3125)),
-		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Rounded(gwccss.VarLength("jn-rpill")),
 		gwccss.PaddingY(gwccss.Rem(.1875)), gwccss.PaddingX(gwccss.Rem(.5625)),
 		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-weight", "600"),
@@ -604,8 +624,8 @@ func declareJourneyTokens() {
 	declareGlobal(`.jn-journey::before`,
 		gwccss.Raw("content", "\"\""),
 		gwccss.Position.Absolute,
-		gwccss.Left(gwccss.Zero),
-		gwccss.Right(gwccss.Zero),
+		gwccss.Raw("inset-inline-start", "0"),
+		gwccss.Raw("inset-inline-end", "0"),
 		gwccss.Top(gwccss.Zero),
 		gwccss.H(gwccss.Px(3)),
 		gwccss.Rounded(gwccss.RawLength("var(--jn-r3) var(--jn-r3) 0 0")),
@@ -737,7 +757,7 @@ func declareJourneyTokens() {
 		gwccss.Raw("align-items", "flex-start"),
 		gwccss.Gap(gwccss.Rem(.0625)),
 		gwccss.MinWidth(gwccss.Zero),
-		gwccss.Raw("text-align", "left"),
+		gwccss.Raw("text-align", "start"),
 		gwccss.LineHeight(gwccss.Num(1.3)),
 	)
 	declareGlobal(`.jn-people-pick`,
@@ -773,8 +793,8 @@ func declareJourneyTokens() {
 		gwccss.Gap(gwccss.Rem(.25)),
 		gwccss.Raw("margin-top", ".125rem"),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
-		gwccss.Tracking(gwccss.Ems(.04)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps,.05em)"),
 		gwccss.Raw("text-transform", "uppercase"),
 		gwccss.TextColor(gwccss.Var("jn-accent")),
 	)

@@ -230,7 +230,7 @@ func TestTodo_UXAUDIT_006_I18N_DetailMoneyAndDates(t *testing.T) {
 	if got, ok := amountDeltaLocale("de-DE", "USD", "93000.00", "98000.00"); !ok || got != "+5.000,00\u00a0USD" {
 		t.Errorf("German exact delta = (%q, %v)", got, ok)
 	}
-	if got, ok := percentDeltaLocale("de-DE", "93000.00", "98000.00"); !ok || got != "+5,4%" {
+	if got, ok := percentDeltaLocale("de-DE", "93000.00", "98000.00"); !ok || got != "+5,4\u00a0%" {
 		t.Errorf("German exact percent = (%q, %v)", got, ok)
 	}
 	if got := formatAmountLocale("ar", "USD", "1234.50"); got == "" || got == "USD 1,234.50" {

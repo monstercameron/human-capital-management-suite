@@ -273,6 +273,14 @@ func declareWorkspaceBasePost() {
 		gwccss.Raw("flex-wrap", "wrap"),
 		gwccss.Gap(gwccss.Rem(.75)),
 	)
+	// Links take the workspace accent. With no rule they fell to the
+	// browser's default blue and purple, the only color on these pages from
+	// outside the palette (the sign-in page, every refusal page's way back).
+	declareGlobal(`:where(a[href])`,
+		gwccss.Raw("color", "var(--color-accent)"),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("text-underline-offset", "2px"),
+	)
 	declareGlobal(`button`,
 		gwccss.Raw("font", "inherit"),
 		gwccss.PaddingY(gwccss.Rem(.6)), gwccss.PaddingX(gwccss.Rem(1.2)),

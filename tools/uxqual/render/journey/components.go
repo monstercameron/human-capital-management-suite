@@ -1078,18 +1078,32 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 		// same compact, contained, keyboard-stable confirmation instead of
 		// submitting straight from the input fields.
 		triggerLabel := submit
+		confirmHeading := copy.Text("journey.action_confirm_generic", map[string]string{"action": strings.ToLower(submit)})
+		finalBtn := submitBtn
 		if !strings.EqualFold(strings.TrimSpace(submit), strings.TrimSpace(copy.Text("journey.form_submit"))) {
 			triggerLabel = copy.Text("journey.action_review_generic", map[string]string{"action": strings.ToLower(submit)})
+		} else {
+			// The trigger already says "Review and submit". Inside the review
+			// the heading and the final button repeated it ("Confirm review
+			// and submit" over a second "Review and submit"), so the button
+			// that actually sends the proposal did not say it sends it.
+			confirmHeading = copy.Text("journey.form_confirm_title")
+			finalBtn = html.Button(btn, html.Text(copy.Text("journey.form_submit_final")))
 		}
+		// The review trigger is this form's primary action: the page exists to
+		// propose, and nothing else on it is primary. Left at the surface's
+		// secondary default it read as optional, an outlined button at the
+		// foot of a long form.
 		foot = append(foot, ui.CreateElement(reviewSurface, reviewSurfaceProps{
-			ID:           proposeReviewID,
-			TriggerLabel: triggerLabel,
-			Heading:      copy.Text("journey.action_confirm_generic", map[string]string{"action": strings.ToLower(submit)}),
-			Facts:        f.Confirmation,
-			Note:         nonEmpty(f.ConfirmationNote, copy.Text("journey.form_submit_help")),
-			Submit:       submitBtn,
-			Busy:         busy,
-			BusyLabel:    f.BusyLabel,
+			ID:             proposeReviewID,
+			TriggerVariant: "primary",
+			TriggerLabel:   triggerLabel,
+			Heading:        confirmHeading,
+			Facts:          f.Confirmation,
+			Note:           nonEmpty(f.ConfirmationNote, copy.Text("journey.form_submit_help")),
+			Submit:         finalBtn,
+			Busy:           busy,
+			BusyLabel:      f.BusyLabel,
 		}))
 	default:
 		foot = append(foot, submitBtn,

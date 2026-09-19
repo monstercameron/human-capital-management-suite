@@ -1,6 +1,8 @@
 package journey
 
 import (
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -227,5 +229,86 @@ func TestJourneyCardOrdersItsPartsForAScreenReader(t *testing.T) {
 	// alone.
 	if !strings.Contains(markup, `aria-hidden="true"`) || !strings.Contains(markup, "Ready to start approval") {
 		t.Fatalf("the stage is not stated in text beside its dot:\n%s", markup)
+	}
+}
+
+// TestEmbeddedJourneyTitleUsesTheProductHeadingSize: inside the product
+// shell the journey page title follows the customer's heading token, so it
+// matches every other page title instead of sitting a size smaller.
+func TestEmbeddedJourneyTitleUsesTheProductHeadingSize(t *testing.T) {
+	css := Stylesheet()
+	rule := ".jn-embedded .jn-pagehead>h1{"
+	at := strings.Index(css, rule)
+	if at < 0 {
+		t.Fatalf("no embedded page-title rule %q", rule)
+	}
+	body := css[at+len(rule):]
+	body = body[:strings.Index(body, "}")]
+	if !strings.Contains(body, "font-size:var(--hcm-font-size-heading,1.75rem)") {
+		t.Fatalf("the embedded journey title does not use the product heading size: %s", body)
+	}
+}
+
+// TestEmptyStateExplanationSitsBelowItsTitle: the empty state's copy is a
+// step smaller than its title, held to a readable measure, and wrapped so it
+// does not strand a last word.
+func TestEmptyStateExplanationSitsBelowItsTitle(t *testing.T) {
+	css := Stylesheet()
+	rule := ".jn-empty-title+p{"
+	at := strings.Index(css, rule)
+	if at < 0 {
+		t.Fatalf("no rule for the empty state's explanation")
+	}
+	body := css[at+len(rule):]
+	body = body[:strings.Index(body, "}")]
+	for _, want := range []string{"font-size:0.875rem", "text-wrap:pretty", "max-width:48ch"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("empty-state copy lacks %q: %s", want, body)
+		}
+	}
+}
+
+// TestPeopleTableToneBarsMirrorInRightToLeft: the id cell's tone bar marks the
+// row's leading edge, so each tone has a :dir(rtl) rule moving it to the
+// cell's right side.
+func TestPeopleTableToneBarsMirrorInRightToLeft(t *testing.T) {
+	css := Stylesheet()
+	for _, row := range []string{`[data-tone="info"]`, `[data-tone="success"]`, `[data-tone="warning"]`, `[data-tone="danger"]`, `[data-selected="true"]`} {
+		rule := ".jn-people tbody tr" + row + " .jn-people-idcell:dir(rtl){box-shadow:inset -3px 0 0 0 "
+		if !strings.Contains(css, rule) {
+			t.Errorf("no right-to-left tone bar for %s", row)
+		}
+	}
+}
+
+// TestProposalReviewTriggerIsTheFormsPrimaryAction: the form exists to
+// propose, so the trigger that opens its review is drawn as the primary
+// action, not the review surface's secondary default.
+func TestProposalReviewTriggerIsTheFormsPrimaryAction(t *testing.T) {
+	src, err := os.ReadFile("components.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(src)
+	at := strings.Index(body, "ID:             proposeReviewID,")
+	if at < 0 || !strings.Contains(body[at:at+200], `TriggerVariant: "primary"`) {
+		t.Fatal("the proposal form's review trigger is not the primary action")
+	}
+}
+
+// TestJourneyStylesheetDefinesWhatItUses: the journey sheet renders on its
+// own page as well as inside the product, so every custom property it uses
+// is either one of its own or carries a fallback. --jn-ink-2 was neither, and
+// the position picker's secondary text inherited full ink instead of muted.
+func TestJourneyStylesheetDefinesWhatItUses(t *testing.T) {
+	css := Stylesheet()
+	defined := map[string]bool{}
+	for _, m := range regexp.MustCompile(`[;{]\s*--([a-zA-Z0-9_-]+)\s*:`).FindAllStringSubmatch(css, -1) {
+		defined[m[1]] = true
+	}
+	for _, m := range regexp.MustCompile(`var\(--([a-zA-Z0-9_-]+)(,)?`).FindAllStringSubmatch(css, -1) {
+		if !defined[m[1]] && m[2] == "" {
+			t.Errorf("--%s is used with no definition and no fallback", m[1])
+		}
 	}
 }

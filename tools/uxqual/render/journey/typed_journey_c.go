@@ -9,7 +9,7 @@ import (
 // print rules, in original order.
 func declareJourneyMotion() {
 	declareGlobal(`.jn-wait-explanation`,
-		gwccss.BorderLeft(gwccss.Px(3), gwccss.Var("jn-warning")),
+		gwccss.Raw("border-inline-start", "3px solid var(--jn-warning)"),
 	)
 	declareGlobal(`.jn-wait-explanation .jn-facts`,
 		gwccss.Raw("margin-top", "var(--jn-s2)"),
@@ -159,7 +159,7 @@ func declareJourneyMotion() {
 		gwccss.Raw("content", "\"\""),
 		gwccss.W(gwccss.Rem(.5)),
 		gwccss.H(gwccss.Rem(.5)),
-		gwccss.Rounded(gwccss.VarLength("hcm-radius-xs")),
+		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-xs,4px)")),
 		gwccss.Bg(gwccss.Var("jn-neutral")),
 	)
 	declareGlobal(`.jn-gauge-legend dt[data-which="proposed"]::before`,
@@ -167,7 +167,7 @@ func declareJourneyMotion() {
 	)
 	declareGlobal(`.jn-gauge-legend dd`,
 		gwccss.Margin(gwccss.Zero),
-		gwccss.Raw("text-align", "right"),
+		gwccss.Raw("text-align", "end"),
 		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-gauge-note`,
@@ -196,14 +196,14 @@ func declareJourneyMotion() {
 		gwccss.Display.Flex,
 		gwccss.FlexDir.Col,
 		gwccss.Gap(gwccss.Rem(.0625)),
-		gwccss.Raw("padding-left", "1.125rem"),
+		gwccss.Raw("padding-inline-start", "1.125rem"),
 	)
 	declareGlobal(`.jn-stop`,
-		mediaRule(gwccss.RawMedia("(min-width:44rem)"), gwccss.Raw("padding-left", "0"), gwccss.Raw("padding-top", "1.125rem")),
+		mediaRule(gwccss.RawMedia("(min-width:44rem)"), gwccss.Raw("padding-inline-start", "0"), gwccss.Raw("padding-top", "1.125rem")),
 	)
 	declareGlobal(`.jn-stop-dot`,
 		gwccss.Position.Absolute,
-		gwccss.Left(gwccss.Zero),
+		gwccss.Raw("inset-inline-start", "0"),
 		gwccss.Top(gwccss.Rem(.375)),
 		gwccss.W(gwccss.Rem(.625)),
 		gwccss.H(gwccss.Rem(.625)),
@@ -212,10 +212,10 @@ func declareJourneyMotion() {
 		gwccss.Bg(gwccss.Var("jn-surface")),
 	)
 	declareGlobal(`.jn-stop-dot`,
-		mediaRule(gwccss.RawMedia("(min-width:44rem)"), gwccss.Left(gwccss.Zero), gwccss.Top(gwccss.Zero)),
+		mediaRule(gwccss.RawMedia("(min-width:44rem)"), gwccss.Raw("inset-inline-start", "0"), gwccss.Top(gwccss.Zero)),
 	)
 	declareGlobal(`.jn-stop::before`,
-		mediaRule(gwccss.RawMedia("(min-width:44rem)"), gwccss.Raw("content", "\"\""), gwccss.Position.Absolute, gwccss.Left(gwccss.Rem(.625)), gwccss.Right(gwccss.Zero), gwccss.Top(gwccss.Rem(.25)), gwccss.H(gwccss.Px(2)), gwccss.Bg(gwccss.Var("jn-hairline"))),
+		mediaRule(gwccss.RawMedia("(min-width:44rem)"), gwccss.Raw("content", "\"\""), gwccss.Position.Absolute, gwccss.Raw("inset-inline-start", ".625rem"), gwccss.Raw("inset-inline-end", "0"), gwccss.Top(gwccss.Rem(.25)), gwccss.H(gwccss.Px(2)), gwccss.Bg(gwccss.Var("jn-hairline"))),
 	)
 	declareGlobal(`.jn-stop:last-child::before`,
 		mediaRule(gwccss.RawMedia("(min-width:44rem)"), gwccss.Display.None),
@@ -227,7 +227,7 @@ func declareJourneyMotion() {
 	declareGlobal(`.jn-stop-label`,
 		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-weight", "600"),
-		gwccss.Tracking(gwccss.Ems(.05)),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps,.05em)"),
 		gwccss.Raw("text-transform", "uppercase"),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
@@ -352,6 +352,15 @@ func declareJourneyMotion() {
 	declareGlobal(`.jn-confirm-close-label`,
 		gwccss.Display.None,
 	)
+	// Open, the trigger reads "Cancel review". A cancel is never the primary
+	// action, whatever tone the trigger has closed, so it takes the secondary
+	// look; the dialog's own submit is the primary.
+	declareGlobal(`.jn-confirm[open] > summary.jn-btn`,
+		gwccss.Raw("background", "var(--jn-surface)"),
+		gwccss.TextColor(gwccss.Var("jn-accent")),
+		gwccss.BorderColor(gwccss.Var("jn-control-border")),
+		gwccss.Raw("box-shadow", "none"),
+	)
 	declareGlobal(`.jn-confirm[open] > summary .jn-confirm-open-label`,
 		gwccss.Display.None,
 	)
@@ -427,8 +436,10 @@ func declareJourneyMotion() {
 		gwccss.Gap(gwccss.Rem(.5)),
 		mediaRule(gwccss.RawMedia("(min-width:30rem)"), gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))))),
 	)
+	// What the reader is confirming is the most important text in the
+	// dialog; at 13px it was its smallest.
 	declareGlobal(`.jn-confirm-facts .jn-fact dd`,
-		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 	)
 	declareGlobal(`.jn-confirm-note`,
 		gwccss.Display.Flex,
@@ -894,7 +905,7 @@ func declareJourneyMotion() {
 		gwccss.Raw("padding-inline", "var(--jn-s2)"),
 		gwccss.Raw("font-size", "0.8125rem"),
 		gwccss.Raw("font-weight", "600"),
-		gwccss.Raw("color", "var(--jn-ink-2)"),
+		gwccss.Raw("color", "var(--jn-ink-muted)"),
 	)
 	declareGlobal(`.position-picker-options`,
 		gwccss.Display.Grid,
@@ -905,7 +916,10 @@ func declareJourneyMotion() {
 		gwccss.Raw("max-block-size", "18rem"),
 		gwccss.Raw("overflow-y", "auto"),
 	)
+	// A list item takes the prose measure by default; an option row spans
+	// the list, or two thirds of the picker sat empty beside every option.
 	declareGlobal(`.position-picker-option`,
+		gwccss.Raw("max-inline-size", "none"),
 		gwccss.Display.Flex,
 		gwccss.Raw("flex-wrap", "wrap"),
 		gwccss.Raw("align-items", "baseline"),
@@ -914,6 +928,16 @@ func declareJourneyMotion() {
 		gwccss.Raw("padding", "var(--jn-s2)"),
 		gwccss.Raw("border", "1px solid var(--jn-hairline)"),
 		gwccss.Rounded(gwccss.VarLength("jn-r1")),
+	)
+	// The chosen position is marked on its whole row, as selected choice
+	// cards are elsewhere in the product (appearance, organization
+	// visibility), not by the 13px radio alone.
+	declareGlobal(`.position-picker-option:has(input:checked)`,
+		gwccss.Raw("border-color", "var(--jn-accent)"),
+		gwccss.Raw("background", "var(--jn-accent-soft)"),
+	)
+	declareGlobal(`.position-picker-option:hover`,
+		gwccss.Raw("border-color", "var(--jn-control-border)"),
 	)
 	declareGlobal(`.position-picker-option>label`,
 		gwccss.Display.Flex,
@@ -932,8 +956,14 @@ func declareJourneyMotion() {
 		gwccss.Raw("gap", "0 var(--jn-s2)"),
 		gwccss.Raw("min-inline-size", "0"),
 	)
+	// The position's title leads its row at list size (14px), a step under
+	// the section heading above the picker rather than level with it.
+	declareGlobal(`.position-picker-option-main>strong`,
+		gwccss.Raw("font-size", "0.875rem"),
+		gwccss.Raw("font-weight", "600"),
+	)
 	declareGlobal(`.position-picker-option-main>small`,
-		gwccss.Raw("color", "var(--jn-ink-2)"),
+		gwccss.Raw("color", "var(--jn-ink-muted)"),
 		gwccss.Raw("font-size", "0.8125rem"),
 	)
 	// An empty <small> is what a position with no recorded manager produces.
@@ -943,7 +973,7 @@ func declareJourneyMotion() {
 		gwccss.Display.None,
 	)
 	declareGlobal(`.position-picker-option-meta`,
-		gwccss.Raw("color", "var(--jn-ink-2)"),
+		gwccss.Raw("color", "var(--jn-ink-muted)"),
 		gwccss.Raw("font-size", "0.8125rem"),
 		gwccss.Raw("white-space", "nowrap"),
 	)
@@ -956,7 +986,7 @@ func declareJourneyMotion() {
 	)
 	declareGlobal(`.position-picker-empty-detail`,
 		gwccss.Display.Block,
-		gwccss.Raw("color", "var(--jn-ink-2)"),
+		gwccss.Raw("color", "var(--jn-ink-muted)"),
 	)
 	// The current-versus-proposed table is the artifact reviewers read, and
 	// its Change column is the point. One long value in one cell used to
@@ -1057,7 +1087,7 @@ func declareJourneyMotion() {
 		gwccss.Raw("flex", "none"),
 		gwccss.W(gwccss.Rem(5.5)),
 		gwccss.H(gwccss.Rem(1.625)),
-		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Rounded(gwccss.VarLength("jn-rpill")),
 	)
 	declareGlobal(`.jn-proxy-control`,
 		gwccss.W(gwccss.Rem(6)),

@@ -298,7 +298,8 @@ func percentDeltaLocale(locale, from, to string) (string, bool) {
 	if strings.HasPrefix(decimal, "+") || strings.HasPrefix(decimal, "-") {
 		sign, decimal = decimal[:1], decimal[1:]
 	}
-	return sign + productui.ResolveProductLocale(locale).FormatNumber(decimal, 1) + "%", true
+	resolved := productui.ResolveProductLocale(locale)
+	return sign + resolved.FormatNumber(decimal, 1) + resolved.PercentSign(), true
 }
 
 // signedAmount puts the sign in front of the currency code rather than in
