@@ -137,6 +137,11 @@ type App struct {
 	arrivalNotice *journey.Notice
 }
 
+// maxReasonBytes mirrors the transport's structural bound on any one string
+// field (internal/transport/validate.go maxStringFieldBytes), restated here
+// because this module does not import internal/.
+const maxReasonBytes = 4096
+
 // New returns a client over cfg, svc and store. now is the clock the form's
 // default effective date is computed from; nil means time.Now.
 func New(cfg Config, svc Service, store *journey.Store, now func() time.Time) *App {
@@ -854,6 +859,18 @@ func (a *App) propose(ctx context.Context, generation int, values map[string]str
 		a.show(keyedNotice(toneWarning, "journey.required_fields_title", "journey.required_fields_detail"))
 		return
 	}
+	if len(reason) > maxReasonBytes {
+		// The transport refuses any string over its byte bound before the
+		// handler runs, and that refusal came back as "Enter a clear business
+		// reason", which is no help to someone who wrote a long one.
+		a.mu.Lock()
+		a.proposalErrors = map[string]string{FieldReason: copy.Text("journey.field_reason_too_long")}
+		a.proposalCorrections = map[string]proposalCorrection{FieldReason: {key: "journey.field_reason_too_long"}}
+		a.proposalFocusRevision++
+		a.mu.Unlock()
+		a.show(keyedNotice(toneWarning, "journey.error_invalid_title", "journey.error_invalid_detail"))
+		return
+	}
 	if !a.proposalTargetIsGoverned(worker, jobCode, grade) {
 		a.show(keyedNotice(toneWarning, "journey.refusal_target_title", "journey.refusal_target_detail"))
 		return
@@ -1542,7 +1559,7 @@ func (a *App) setProposalValue(fieldID, value string) {
 		delete(a.proposalCorrections, fieldID)
 	}
 	remaining := len(a.proposalErrors)
-	workers, options, routeWorker := a.workers, a.options, a.route.WorkerRef
+	workers, options, routeWorker, locale := a.workers, a.options, a.route.WorkerRef, a.cfg.Locale
 	a.mu.Unlock()
 	a.store.Update(func(page *journey.Page) {
 		if page.Values == nil {
@@ -1560,7 +1577,7 @@ func (a *App) setProposalValue(fieldID, value string) {
 					page.Proposal.Form.Fields[i].Error = ""
 				}
 			}
-			page.Proposal.Form.Confirmation = draftConfirmation(page.Values, findWorker(workers, routeWorker), options)
+			page.Proposal.Form.Confirmation = draftConfirmation(locale, page.Values, findWorker(workers, routeWorker), options)
 		}
 		if page.List != nil {
 			for i := range page.List.Form.Fields {
@@ -1573,7 +1590,7 @@ func (a *App) setProposalValue(fieldID, value string) {
 			if ref == "" {
 				ref = routeWorker
 			}
-			page.List.Form.Confirmation = draftConfirmation(page.Values, findWorker(workers, ref), options)
+			page.List.Form.Confirmation = draftConfirmation(locale, page.Values, findWorker(workers, ref), options)
 		}
 		if remaining == 0 && page.Notice != nil && (page.Notice.TitleKey == "journey.error_invalid_title" || page.Notice.TitleKey == "journey.required_fields_title") {
 			page.Notice = nil

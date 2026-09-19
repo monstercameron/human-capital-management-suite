@@ -186,3 +186,25 @@ func TestPositionPickerStartsWithTheEmployeesNextRoles(t *testing.T) {
 		t.Fatalf("vacancies before a role is chosen = %v, want the ENG-MGR1 and role-less positions only", got)
 	}
 }
+
+// TestProposalReviewIsLocalizedAndExact: the review dialog printed English
+// labels and en-US money on a German page, and rounded an over-precise entry
+// so the reader confirmed an amount other than the one typed.
+func TestProposalReviewIsLocalizedAndExact(t *testing.T) {
+	jane := findWorker(testWorkers(), "jane-doe")
+	facts := proposalConfirmationLocale("de-DE", jane, testWorkforceOptions(), "ENG-MGR1", "M1", "150000.50", "2026-12-01")
+	copy := productui.ResolveProductLocale("de-DE")
+	labels := map[string]string{}
+	for _, fact := range facts {
+		labels[fact.Label] = fact.Value
+	}
+	pay, ok := labels[copy.Text("journey.action_base")]
+	if !ok || !strings.Contains(pay, "150.000,50") {
+		t.Fatalf("German review facts = %+v, want localized labels and 150.000,50", facts)
+	}
+	for _, fact := range proposalConfirmationLocale("en-US", jane, testWorkforceOptions(), "ENG-MGR1", "M1", "150000.555", "2026-12-01") {
+		if fact.Label == "Base pay" && !strings.Contains(fact.Value, "150000.555") {
+			t.Fatalf("over-precise entry shown as %q, want it exactly as typed", fact.Value)
+		}
+	}
+}

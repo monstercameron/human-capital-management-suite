@@ -1104,6 +1104,8 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 			Submit:         finalBtn,
 			Busy:           busy,
 			BusyLabel:      f.BusyLabel,
+			DismissLabel:   copy.Text("journey.action_cancel_review"),
+			CancelLabel:    copy.Text("journey.action_cancel"),
 		}))
 	default:
 		foot = append(foot, submitBtn,
@@ -2370,6 +2372,7 @@ func actionCard(l live, a Action) ui.Node {
 			Busy:         busy,
 			BusyLabel:    a.BusyLabel,
 			DismissLabel: copy.Text("journey.action_cancel_review"),
+			CancelLabel:  copy.Text("journey.action_cancel"),
 		}))
 	} else {
 		for _, f := range a.Fields {

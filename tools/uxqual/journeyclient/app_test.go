@@ -1466,6 +1466,28 @@ func TestProposalReviewFactsFollowEveryEdit(t *testing.T) {
 	}
 }
 
+// TestOverlongBusinessReasonIsNamedBeforeSubmission: the transport refuses a
+// string over its byte bound before the handler runs, and that refusal
+// read "Enter a clear business reason" to someone who had written a long one.
+func TestOverlongBusinessReasonIsNamedBeforeSubmission(t *testing.T) {
+	h := newHarness(t)
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+	h.app.Submit(ActionPropose, map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NameBase: "98000.00", NameEffective: "2026-12-01",
+		NameReason: strings.Repeat("Promotion rationale. ", 300),
+	})
+	p := h.store.Page()
+	if h.svc.called("ProposePromotion") != 0 {
+		t.Fatal("an over-long reason was sent for the transport to refuse")
+	}
+	reason, ok := fieldByID(p.Proposal.Form.Fields, FieldReason)
+	if !ok || !strings.Contains(reason.Error, "too long") {
+		t.Fatalf("reason field = %+v, want the too-long message", reason)
+	}
+}
+
 func TestLegacyProposalFieldAliasesReceiveSafeErrors(t *testing.T) {
 	cases := map[string]string{
 		"job_code":    FieldJobCode,

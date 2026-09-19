@@ -1195,6 +1195,25 @@ func TestTimelineTonesARefusal(t *testing.T) {
 	}
 }
 
+// TestFailedJourneyHistoryDoesNotClaimTheOutcomeWasRecorded: every terminal
+// route writes a ledger fact, including an invalidated approval. Under a
+// Failed status the history said "Promotion recorded -- the approved
+// promotion outcome was recorded", in success tone.
+func TestFailedJourneyHistoryDoesNotClaimTheOutcomeWasRecorded(t *testing.T) {
+	in := []*journeyv1.TimelineEvent{{Kind: eventLedgerRecorded, Title: "Promotion outcome recorded"}}
+	for _, stage := range []string{stageFailed, stageRejected} {
+		events := endedTimeline("en-US", timelineLocale("en-US", in), stage)
+		if len(events) != 1 || events[0].Title != "Request ended" || events[0].Tone != toneDanger ||
+			strings.Contains(events[0].Detail, "approved") {
+			t.Errorf("%s history = %+v", stage, events)
+		}
+	}
+	events := endedTimeline("en-US", timelineLocale("en-US", in), stageCompleted)
+	if len(events) != 1 || events[0].Title != "Promotion recorded" || events[0].Tone != toneSuccess {
+		t.Errorf("completed history = %+v, want the recorded promotion kept", events)
+	}
+}
+
 func TestTodo_UXAUDIT_006_I18N_RealReviewHistoryTitles(t *testing.T) {
 	for _, tc := range []struct{ locale, finance, manager, system string }{
 		{"de-DE", "Finanzprüfung: zugewiesen", "Prüfung durch Führungskraft: abgeschlossen", "System"},

@@ -453,6 +453,12 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 	}
 	applyProposalCurrency(&form, workerCurrency(findWorker(data.Workers, data.SelectedRef), data.Options))
 	localizeProposalForm(&form, copy, false, nil, nil)
+	listWorker := values[FieldWorker]
+	if listWorker == "" {
+		listWorker = data.SelectedRef
+	}
+	form.Confirmation = draftConfirmation(cfg.Locale, values, findWorker(data.Workers, listWorker), data.Options)
+	form.ConfirmationNote = copy.Text("journey.form_submit_help")
 	p.List = &journey.ListView{
 		Journeys: cards,
 		Groups:   journeySubjectGroups(cards),
@@ -499,6 +505,8 @@ func ProposalPage(cfg Config, data ListData, notice *journey.Notice, values map[
 	}
 	path := selectedPromotionPath(data.Options, worker, values[FieldJobCode], values[FieldGrade])
 	localizeProposalForm(&form, copy, true, path, proposalPayRangeFor(worker, data.Options, path))
+	form.Confirmation = draftConfirmation(cfg.Locale, values, worker, data.Options)
+	form.ConfirmationNote = copy.Text("journey.form_submit_help")
 	p.Proposal = &journey.ProposalView{
 		Subject:         promotionSubject(worker, data.Options, copy),
 		Form:            form,
@@ -1052,8 +1060,8 @@ func promotionPathRuleHelpLocale(path *journeyv1.PromotionPathOption, copy produ
 	if path == nil {
 		return ""
 	}
-	minimum := fractionPercentLabel(path.GetMinimumBaseIncrease())
-	maximum := fractionPercentLabel(path.GetMaximumBaseIncrease())
+	minimum := fractionPercentLabelLocale(copy, path.GetMinimumBaseIncrease())
+	maximum := fractionPercentLabelLocale(copy, path.GetMaximumBaseIncrease())
 	help := copy.Text("journey.form_base_rule_unavailable")
 	if minimum != "" && maximum != "" {
 		help = copy.Text("journey.form_base_rule", map[string]string{"minimum": minimum, "maximum": maximum})
@@ -1075,6 +1083,17 @@ func fractionPercentLabel(fraction string) string {
 		return strings.TrimSpace(fraction)
 	}
 	return percent.String() + "%"
+}
+
+// fractionPercentLabelLocale is fractionPercentLabel with the locale's
+// decimal separator and percent sign ("5,00 %" in German, not "5.00%").
+func fractionPercentLabelLocale(copy productui.LocaleContext, fraction string) string {
+	label := fractionPercentLabel(fraction)
+	number, ok := strings.CutSuffix(label, "%")
+	if !ok || number == "" {
+		return label
+	}
+	return copy.FormatNumber(number, 2) + copy.PercentSign()
 }
 
 func sortedKeys(values map[string]struct{}) []string {
@@ -2463,7 +2482,7 @@ func actionsLocale(locale string, head journey.JourneyCard, approver string, wor
 		// would be inventing a fact.
 		return out
 	}
-	return interventionActions(out, head, withdrawPreview, cancelPreview, repairPreview)
+	return interventionActionsLocale(locale, out, head, withdrawPreview, cancelPreview, repairPreview)
 }
 
 // PROMOUX-013's own reason references (internal/intent/app/journey_
@@ -2621,26 +2640,30 @@ func joinRequirements(items []string) string {
 // makes the disclosure-by-value property checkable: two differently-staged
 // journeys that happen to share a reference render byte-identical text.
 func interventionReasonText(ref string) string {
+	return interventionReasonTextLocale("en-US", ref)
+}
+
+func interventionReasonTextLocale(locale, ref string) string {
+	key := "journey.iv_why_other"
 	switch ref {
 	case reasonAlreadyTerminal:
-		return "This proposal has already reached a terminal outcome. There is nothing left to withdraw, cancel or edit."
+		key = "journey.iv_why_terminal"
 	case reasonAlreadyStarted:
-		return "This proposal has already started its approval workflow. Use Cancel instead of Withdraw."
+		key = "journey.iv_why_started"
 	case reasonNotYetStarted:
-		return "This proposal has not started its approval workflow yet. Use Withdraw instead of Cancel."
+		key = "journey.iv_why_not_started"
 	case reasonAlreadyCommitted:
-		return "The governed execution has already run. This can no longer be cancelled or edited."
+		key = "journey.iv_why_committed"
 	case reasonRepairNotRequired:
-		return "This journey has not asked for a repair."
+		key = "journey.iv_why_repair_not_required"
 	case reasonRepairDoorUnavailable:
-		return "This deployment cannot run a governed repair: it is composed without the repair door."
+		key = "journey.iv_why_repair_door"
 	case reasonRepairAuthorityRequired:
-		return "You do not hold a current grant to authorize a governed repair."
+		key = "journey.iv_why_repair_authority"
 	case reasonRepairPlanRequired:
-		return "You may authorize a governed repair. It runs against an authored, simulated repair plan through the operator repair door, which is not created from this page."
-	default:
-		return "This action is not available for this proposal right now."
+		key = "journey.iv_why_repair_plan"
 	}
+	return productui.ResolveProductLocale(locale).Text(key)
 }
 
 // interventionActions appends PROMOUX-013's Withdraw, Cancel and EditProposal
@@ -2656,36 +2679,47 @@ func interventionReasonText(ref string) string {
 // facts required to identify what will be stopped -- the employee, the
 // change, the effective date -- never depended on that call succeeding.
 func interventionActions(base []journey.Action, head journey.JourneyCard, withdraw, cancel, repair *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
-	href := DetailHref(head.IntentID)
-	facts := actionConfirmation(head)
+	return interventionActionsLocale("en-US", base, head, withdraw, cancel, repair)
+}
 
-	appendOne := func(kind, actionID, label, variant, description string, preview *journeyv1.PreviewJourneyInterventionResponse, reasonField, reasonName string, extraFields []journey.Field) {
+// interventionActionsLocale is interventionActions in the reader's locale.
+// The server's worded consequence preview is English prose, so another
+// locale shows the catalog's own description of the action instead.
+func interventionActionsLocale(locale string, base []journey.Action, head journey.JourneyCard, withdraw, cancel, repair *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
+	copy := productui.ResolveProductLocale(locale)
+	english := copy.Resolved == productui.DefaultProductLocale
+	href := DetailHref(head.IntentID)
+	facts := actionConfirmationLocale(locale, head)
+
+	appendOne := func(kind, actionID, label, variant, description, review, confirm string, preview *journeyv1.PreviewJourneyInterventionResponse, reasonField, reasonName string, extraFields []journey.Field) {
 		reasonRef, available := InterventionAvailability(kind, head.Stage, journeyStarted(head))
 		if !available {
 			base = append(base, journey.Action{
 				ID: actionID, Label: label, Variant: variant, Description: description,
 				Action: href, Hidden: map[string]string{}, Disabled: true,
-				DisabledReason: interventionReasonText(reasonRef),
+				DisabledReason: interventionReasonTextLocale(locale, reasonRef),
 			})
 			return
 		}
 		note := ""
-		if preview != nil {
+		if preview != nil && english {
 			note = preview.GetConsequenceSummary()
 		}
 		if note == "" {
 			note = description
 		}
 		fields := append([]journey.Field{{
-			ID: reasonField, Name: reasonName, Label: "Reason", Kind: kindTextarea, Required: true,
-			Placeholder: "Why is this being done?",
-			Help:        "Required. Retained as evidence on the governed record.",
+			ID: reasonField, Name: reasonName, Label: copy.Text("journey.iv_reason"), Kind: kindTextarea, Required: true,
+			Placeholder: copy.Text("journey.iv_reason_placeholder"),
+			Help:        copy.Text("journey.iv_reason_help"),
 		}}, extraFields...)
 		base = append(base, journey.Action{
 			ID: actionID, Label: label, Variant: variant, Description: description,
 			Action: href, Hidden: map[string]string{}, Fields: fields,
 			Confirmation:     facts,
 			ConfirmationNote: note,
+			ReviewLabel:      review,
+			ConfirmTitle:     confirm,
 		})
 	}
 
@@ -2700,11 +2734,11 @@ func interventionActions(base []journey.Action, head journey.JourneyCard, withdr
 	// healthy journey would add noise without adding an answer.
 	base = repairAction(base, head, repair, href)
 
-	appendOne(ActionWithdraw, ActionWithdraw, "Withdraw", "secondary",
-		"Stops this proposal before any approval has been recorded. No business effect has occurred.",
+	appendOne(ActionWithdraw, ActionWithdraw, copy.Text("journey.iv_withdraw"), "secondary",
+		copy.Text("journey.iv_withdraw_desc"), copy.Text("journey.iv_withdraw_review"), copy.Text("journey.iv_withdraw_confirm"),
 		withdraw, FieldWithdrawReason, NameInterventionReason, nil)
-	appendOne(ActionCancel, ActionCancel, "Request cancellation", "secondary",
-		"Asks the engine to stop at its next safe point. If the safe point has already passed, the promotion completes instead.",
+	appendOne(ActionCancel, ActionCancel, copy.Text("journey.iv_cancel"), "secondary",
+		copy.Text("journey.iv_cancel_desc"), copy.Text("journey.iv_cancel_review"), copy.Text("journey.iv_cancel_confirm"),
 		cancel, FieldCancelReason, NameInterventionReason, nil)
 
 	// EditProposal has no PreviewJourneyIntervention kind of its own (it is
@@ -2721,28 +2755,29 @@ func interventionActions(base []journey.Action, head journey.JourneyCard, withdr
 			editRef = cancelRef
 		}
 		base = append(base, journey.Action{
-			ID: ActionEditProposal, Label: "Edit proposal", Variant: "secondary",
-			Description: "Corrects the target role, base pay, effective date or business reason.",
+			ID: ActionEditProposal, Label: copy.Text("journey.iv_edit"), Variant: "secondary",
+			Description: copy.Text("journey.iv_edit_desc"),
 			Action:      href, Hidden: map[string]string{}, Disabled: true,
-			DisabledReason: interventionReasonText(editRef),
+			DisabledReason: interventionReasonTextLocale(locale, editRef),
 		})
 	} else {
 		base = append(base, journey.Action{
-			ID: ActionEditProposal, Label: "Edit proposal", Variant: "secondary",
-			Description: "Corrects the target role, base pay, effective date or business reason. " +
-				"This cancels the current proposal and creates a corrected successor; any recorded approval no longer applies.",
-			Action: href, Hidden: map[string]string{},
+			ID: ActionEditProposal, Label: copy.Text("journey.iv_edit"), Variant: "secondary",
+			Description: copy.Text("journey.iv_edit_desc") + " " + copy.Text("journey.iv_edit_successor"),
+			Action:      href, Hidden: map[string]string{},
 			Fields: []journey.Field{
-				{ID: FieldEditJobCode, Name: NameEditJobCode, Label: "Target job code", Kind: kindText, Value: head.Edit.JobCode, Required: true},
-				{ID: FieldEditGrade, Name: NameEditGrade, Label: "Target grade", Kind: kindText, Value: head.Edit.Grade, Required: true},
-				{ID: FieldEditBase, Name: NameEditBase, Label: "Proposed base pay", Kind: kindText, Value: head.Edit.Base, Required: true},
-				{ID: FieldEditEffective, Name: NameEditEffective, Label: "Effective date", Kind: kindDate, Value: head.Edit.EffectiveISO, Required: true},
-				{ID: FieldEditBusinessReason, Name: NameEditBusinessReason, Label: "Business reason", Kind: kindTextarea, Required: true},
-				{ID: FieldEditReason, Name: NameEditReason, Label: "Reason for this edit", Kind: kindTextarea, Required: true,
-					Help: "Required. Retained as evidence on the governed record."},
+				{ID: FieldEditJobCode, Name: NameEditJobCode, Label: copy.Text("journey.iv_edit_job"), Kind: kindText, Value: head.Edit.JobCode, Required: true},
+				{ID: FieldEditGrade, Name: NameEditGrade, Label: copy.Text("journey.form_grade"), Kind: kindText, Value: head.Edit.Grade, Required: true},
+				{ID: FieldEditBase, Name: NameEditBase, Label: copy.Text("journey.form_base"), Kind: kindText, Value: head.Edit.Base, Required: true},
+				{ID: FieldEditEffective, Name: NameEditEffective, Label: copy.Text("journey.form_effective"), Kind: kindDate, Value: head.Edit.EffectiveISO, Required: true},
+				{ID: FieldEditBusinessReason, Name: NameEditBusinessReason, Label: copy.Text("journey.form_reason"), Kind: kindTextarea, Required: true},
+				{ID: FieldEditReason, Name: NameEditReason, Label: copy.Text("journey.iv_edit_reason"), Kind: kindTextarea, Required: true,
+					Help: copy.Text("journey.iv_reason_help")},
 			},
 			Confirmation:     facts,
-			ConfirmationNote: "Editing cancels this proposal and creates a corrected successor. Any recorded approval is left with the original and does not carry over.",
+			ConfirmationNote: copy.Text("journey.iv_edit_note"),
+			ReviewLabel:      copy.Text("journey.iv_edit_review"),
+			ConfirmTitle:     copy.Text("journey.iv_edit_confirm"),
 		})
 	}
 	return base
@@ -2780,33 +2815,47 @@ func actionConfirmationLocale(locale string, head journey.JourneyCard) []journey
 // yet (no job code chosen, no worker resolved) simply omits that fact
 // rather than printing an empty or placeholder value.
 func proposalConfirmation(worker *journeyv1.Worker, options *journeyv1.WorkforceOptions, jobCode, grade, base, effective string) []journey.Fact {
-	name, currentJob, currentGrade, currency := "Employee", "", "", ""
+	return proposalConfirmationLocale("en-US", worker, options, jobCode, grade, base, effective)
+}
+
+// proposalConfirmationLocale is proposalConfirmation in the reader's locale,
+// with the labels Approve and Reject already use. An amount entered with
+// more precision than the currency has is shown as typed: rounding it here
+// had the reader confirm "USD 150,000.56" for an entry of 150000.555.
+func proposalConfirmationLocale(locale string, worker *journeyv1.Worker, options *journeyv1.WorkforceOptions, jobCode, grade, base, effective string) []journey.Fact {
+	copy := productui.ResolveProductLocale(locale)
+	employee := copy.Text("journey.action_employee")
+	name, currentJob, currentGrade, currency := employee, "", "", ""
 	if worker != nil {
 		name = nonEmpty(workerName(worker), name)
 		currentJob, currentGrade = worker.GetJobCode(), worker.GetGrade()
 		currency = workerCurrency(worker, options)
 	}
-	facts := []journey.Fact{{Label: "Employee", Value: name}}
+	facts := []journey.Fact{{Label: employee, Value: name}}
 	if placement := headline(currentJob, currentGrade, jobCode, grade); placement != "" {
-		facts = append(facts, journey.Fact{Label: "Placement", Value: placement})
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.action_placement"), Value: placement})
 	}
-	if pay := formatAmount(currency, base); pay != "" {
-		facts = append(facts, journey.Fact{Label: "Base pay", Value: pay})
+	pay := formatAmountLocale(locale, currency, base)
+	if _, frac, _ := strings.Cut(strings.TrimRight(strings.TrimSpace(base), "0"), "."); len(frac) > 2 {
+		pay = strings.TrimSpace(currency + " " + strings.TrimSpace(base))
 	}
-	if date := formatDate(effective); date != "" {
-		facts = append(facts, journey.Fact{Label: "Effective date", Value: date})
+	if pay != "" {
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.action_base"), Value: pay})
+	}
+	if date := formatDateLocale(locale, effective); date != "" {
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.action_effective"), Value: date})
 	}
 	return facts
 }
 
-// draftConfirmation is proposalConfirmation over a proposal form's current
-// values, defaulting the effective date the same way the form does.
-func draftConfirmation(values map[string]string, worker *journeyv1.Worker, options *journeyv1.WorkforceOptions) []journey.Fact {
+// draftConfirmation is proposalConfirmationLocale over a proposal form's
+// current values, defaulting the effective date the same way the form does.
+func draftConfirmation(locale string, values map[string]string, worker *journeyv1.Worker, options *journeyv1.WorkforceOptions) []journey.Fact {
 	effective := values[FieldEffective]
 	if effective == "" {
 		effective = DefaultEffectiveDate(time.Now())
 	}
-	return proposalConfirmation(worker, options, values[FieldJobCode], values[FieldGrade], values[FieldBase], effective)
+	return proposalConfirmationLocale(locale, worker, options, values[FieldJobCode], values[FieldGrade], values[FieldBase], effective)
 }
 
 func hasActionableApproval(items []*journeyv1.WorkItem) bool {
