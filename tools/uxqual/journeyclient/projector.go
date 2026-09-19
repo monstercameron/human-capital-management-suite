@@ -2740,6 +2740,16 @@ func proposalConfirmation(worker *journeyv1.Worker, options *journeyv1.Workforce
 	return facts
 }
 
+// draftConfirmation is proposalConfirmation over a proposal form's current
+// values, defaulting the effective date the same way the form does.
+func draftConfirmation(values map[string]string, worker *journeyv1.Worker, options *journeyv1.WorkforceOptions) []journey.Fact {
+	effective := values[FieldEffective]
+	if effective == "" {
+		effective = DefaultEffectiveDate(time.Now())
+	}
+	return proposalConfirmation(worker, options, values[FieldJobCode], values[FieldGrade], values[FieldBase], effective)
+}
+
 func hasActionableApproval(items []*journeyv1.WorkItem) bool {
 	for _, item := range items {
 		if item == nil || !strings.EqualFold(item.GetKind(), "APPROVAL") {

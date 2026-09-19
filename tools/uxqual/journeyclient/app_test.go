@@ -1430,6 +1430,37 @@ func TestEditingARefusedProposalFieldClearsItsInlineErrorImmediately(t *testing.
 	}
 }
 
+// TestProposalReviewFactsFollowEveryEdit: the review dialog repeats the pay
+// and date about to be submitted. Typing a new amount after the page (or a
+// refusal) was projected left the dialog showing the old amount, so a reader
+// confirmed a figure other than the one the form sent.
+func TestProposalReviewFactsFollowEveryEdit(t *testing.T) {
+	h := newHarness(t)
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+
+	p := h.store.Page()
+	p.OnFieldChange(FieldBase, "97000")
+	p = h.store.Page()
+	p.OnFieldChange(FieldEffective, "2027-01-04")
+	facts := h.store.Page().Proposal.Form.Confirmation
+	var pay, date string
+	for _, fact := range facts {
+		switch fact.Label {
+		case "Base pay":
+			pay = fact.Value
+		case "Effective date":
+			date = fact.Value
+		}
+	}
+	if !strings.Contains(pay, "97,000.00") {
+		t.Errorf("review base pay = %q after typing 97000; facts %+v", pay, facts)
+	}
+	if !strings.Contains(date, "2027") {
+		t.Errorf("review effective date = %q after choosing 2027-01-04; facts %+v", date, facts)
+	}
+}
+
 func TestLegacyProposalFieldAliasesReceiveSafeErrors(t *testing.T) {
 	cases := map[string]string{
 		"job_code":    FieldJobCode,

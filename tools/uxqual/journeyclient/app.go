@@ -1462,6 +1462,11 @@ func (a *App) wire(p journey.Page) journey.Page {
 	p.OnFieldChange = func(fieldID, value string) {
 		if fieldID != FieldJobCode {
 			a.setProposalValue(fieldID, value)
+			if fieldID == FieldGrade {
+				// The grade picks the published path, which sets the pay
+				// range the base-pay help states; re-project so it follows.
+				a.show(a.store.Page().Notice)
+			}
 			return
 		}
 		a.clearProposalFieldError(fieldID)
@@ -1521,12 +1526,17 @@ func (a *App) setProposalValue(fieldID, value string) {
 		delete(a.proposalCorrections, fieldID)
 	}
 	remaining := len(a.proposalErrors)
+	workers, options, routeWorker := a.workers, a.options, a.route.WorkerRef
 	a.mu.Unlock()
 	a.store.Update(func(page *journey.Page) {
 		if page.Values == nil {
 			page.Values = map[string]string{}
 		}
 		page.Values[fieldID] = value
+		// The review dialog repeats the pay, grade and date being submitted,
+		// so it is rebuilt from the same values on every edit. Left as
+		// projected, it showed the amount from before the last edit (or none
+		// at all when the pay was typed after the page loaded).
 		if page.Proposal != nil {
 			for i := range page.Proposal.Form.Fields {
 				if page.Proposal.Form.Fields[i].ID == fieldID {
@@ -1534,6 +1544,7 @@ func (a *App) setProposalValue(fieldID, value string) {
 					page.Proposal.Form.Fields[i].Error = ""
 				}
 			}
+			page.Proposal.Form.Confirmation = draftConfirmation(page.Values, findWorker(workers, routeWorker), options)
 		}
 		if page.List != nil {
 			for i := range page.List.Form.Fields {
@@ -1542,6 +1553,11 @@ func (a *App) setProposalValue(fieldID, value string) {
 					page.List.Form.Fields[i].Error = ""
 				}
 			}
+			ref := page.Values[FieldWorker]
+			if ref == "" {
+				ref = routeWorker
+			}
+			page.List.Form.Confirmation = draftConfirmation(page.Values, findWorker(workers, ref), options)
 		}
 		if remaining == 0 && page.Notice != nil && (page.Notice.TitleKey == "journey.error_invalid_title" || page.Notice.TitleKey == "journey.required_fields_title") {
 			page.Notice = nil

@@ -218,3 +218,18 @@ func TestCardDescriptionsSitUnderTheirTitles(t *testing.T) {
 		}
 	}
 }
+
+// TestFocusRingsUseTheFocusTokens: every keyboard focus ring is drawn in the
+// theme's focus color at its ring width, so a customer's (or high-contrast)
+// focus color reaches every control. Some were hard-coded in the brand accent.
+func TestFocusRingsUseTheFocusTokens(t *testing.T) {
+	for chunk := range strings.SplitSeq(Stylesheet(), "}") {
+		open := strings.Index(chunk, "{")
+		if open < 0 || !strings.Contains(chunk[:open], ":focus-visible") {
+			continue
+		}
+		if body := chunk[open+1:]; strings.Contains(body, "outline:2px solid var(--accent)") {
+			t.Errorf("%s draws its focus ring in the accent, not the focus token", chunk[:open])
+		}
+	}
+}

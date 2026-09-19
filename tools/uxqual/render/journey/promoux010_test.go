@@ -139,6 +139,14 @@ func TestTodo_PROMOUX_010(t *testing.T) {
 		if !strings.Contains(out, `<span class="jn-confirm-open-label">Review and submit</span>`) {
 			t.Fatalf("proposal review trigger lost its supplied label:\n%s", out)
 		}
+		// Inside the review, the heading and the button that sends the
+		// proposal say what they do instead of repeating the trigger.
+		if strings.Count(out, ">Review and submit<") != 1 || strings.Contains(out, "Confirm review and submit") {
+			t.Fatalf("review surface repeated the trigger label:\n%s", out)
+		}
+		if !strings.Contains(out, ">Submit proposal</button>") || !strings.Contains(out, ">Check the proposal before you submit<") {
+			t.Fatalf("review surface lost its submit label or heading:\n%s", out)
+		}
 	})
 
 	t.Run("proposal form without confirmation still submits directly, unchanged from before PROMOUX-010", func(t *testing.T) {
