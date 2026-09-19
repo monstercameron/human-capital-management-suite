@@ -9,6 +9,8 @@ import (
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestOpenWorkCountExcludesTerminalJourneys(t *testing.T) {
@@ -456,5 +458,57 @@ func TestEmployeePhotoURLUsesKnownIdentityAndUnknownFallback(t *testing.T) {
 		if got := employeePhotoURL(test.ref, test.name); got != test.want {
 			t.Errorf("employeePhotoURL(%q, %q) = %q, want %q", test.ref, test.name, got, test.want)
 		}
+	}
+}
+
+// TestFinanceApproverMyWorkLoadsWithoutTheDirectory: a finance approver can
+// see My Work but neither Journeys nor the People directory. The client
+// skipped the journey read (it only asked whether Journeys was visible),
+// failed the whole page on the directory's PermissionDenied, and -- with no
+// directory to resolve the viewer -- left the routed review out of My Work.
+func TestFinanceApproverMyWorkLoadsWithoutTheDirectory(t *testing.T) {
+	if !productui.PageVisible(productui.PageWork, []string{"finance_partner"}) {
+		t.Skip("finance_partner no longer sees My Work; this scenario no longer exists")
+	}
+	state, err := ParseState("/workspace/app/work", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	routed := &journeyv1.Journey{
+		IntentId: "intent-finance", WorkerRef: "worker-amara", WorkerName: "Amara",
+		Stage: journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL, Currency: "USD",
+		CurrentBase: "146000.00", ProposedBase: "170000.00",
+		CurrentWorkItem: &journeyv1.JourneyWorkItemSummary{AssigneePrincipalId: "hc-054-thomas-baker"},
+		Viewer:          &journeyv1.JourneyViewerProjection{Responsibility: journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED},
+	}
+	load := func(principal string) (productui.View, bool) {
+		journeysRead := false
+		view, err := Load(context.Background(), Service{
+			ListJourneys: func(context.Context, *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error) {
+				journeysRead = true
+				return &journeyv1.ListJourneysResponse{Journeys: []*journeyv1.Journey{routed}}, nil
+			},
+			ListWorkers: func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
+				return nil, status.Error(codes.PermissionDenied, "the assigned role does not permit this action on the page feature")
+			},
+		}, Session{Principal: principal, EnforceRoleVisibility: true, Roles: []string{"finance_partner"}}, state)
+		if err != nil {
+			t.Fatalf("My Work failed for %s: %v", principal, err)
+		}
+		return view, journeysRead
+	}
+	view, journeysRead := load("hc-054-thomas-baker")
+	if !journeysRead {
+		t.Fatal("My Work never read the journeys its queue is built from")
+	}
+	if len(view.People) != 0 {
+		t.Fatalf("a denied directory read produced people: %+v", view.People)
+	}
+	if view.Viewer.PersonID != "hc-054-thomas-baker" || len(productui.MyWorkItems(view.Work, view.Viewer)) != 1 {
+		t.Fatalf("the routed approver's queue = viewer %+v, work %+v", view.Viewer, view.Work)
+	}
+	// An account nothing is routed to stays unbound (UXAUDIT-017).
+	if other, _ := load("local-operator"); other.Viewer.PersonID != "" {
+		t.Fatalf("an unrouted account was bound to %q", other.Viewer.PersonID)
 	}
 }

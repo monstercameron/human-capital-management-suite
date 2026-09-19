@@ -145,6 +145,10 @@ func (s *grpcService) CreateWorker(ctx context.Context, in *journeyv1.CreateWork
 	return s.client.CreateWorker(ctx, in)
 }
 
+func (s *grpcService) AddJourneyNote(ctx context.Context, in *journeyv1.AddJourneyNoteRequest) (*journeyv1.AddJourneyNoteResponse, error) {
+	return s.client.AddJourneyNote(ctx, in)
+}
+
 func (s *grpcService) WatchJourney(ctx context.Context, in *journeyv1.WatchJourneyRequest) (WatchStream, error) {
 	stream, err := s.client.WatchJourney(ctx, in)
 	if err != nil {

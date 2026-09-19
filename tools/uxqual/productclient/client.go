@@ -21,6 +21,8 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -346,7 +348,12 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	var reads sync.WaitGroup
 	if !requirements.journeys {
 		// The authorized baseline already supplies shell counts/search records.
-	} else if session.EnforceRoleVisibility && !productui.PageVisible(productui.PageJourneys, session.Roles) {
+	} else if session.EnforceRoleVisibility && !productui.PageVisible(productui.PageJourneys, session.Roles) &&
+		!productui.PageVisible(productui.PageWork, session.Roles) {
+		// The journey list backs My Work as well as Journeys, and the server
+		// admits either page's grant. Skipping it for everyone without the
+		// Journeys page left a finance approver's My Work empty: the review
+		// routed to them never appeared anywhere they could reach.
 		journeysResponse = &journeyv1.ListJourneysResponse{}
 	} else if service.ListJourneys == nil {
 		journeysErr = errors.New("JourneyService.ListJourneys is not connected")
@@ -413,6 +420,14 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		}
 	}
 	reads.Wait()
+	directoryDenied := false
+	if workersErr != nil && status.Code(errors.Unwrap(workersErr)) == codes.PermissionDenied {
+		// A role without the People directory (a finance approver on My
+		// Work) is refused the workforce read by design. That is an empty
+		// directory for this viewer, not a failed page: it fails closed to no
+		// records, and the rest of the page still loads.
+		workersErr, workersResponse, directoryDenied = nil, &journeyv1.ListWorkersResponse{}, true
+	}
 	if roleAccessErr != nil {
 		failures = append(failures, roleAccessErr)
 	}
@@ -483,6 +498,9 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		}
 	}
 	view.Viewer = projectViewerProfile(session, view.People)
+	if directoryDenied {
+		bindViewerToRoutedWork(&view.Viewer, session, view.Work)
+	}
 	photosByWorker := make(map[string]string, len(view.People))
 	for _, person := range view.People {
 		photosByWorker[person.ID] = person.PhotoURL
@@ -617,6 +635,26 @@ func projectViewerProfile(session Session, people []productui.Person) productui.
 		}
 	}
 	return fallback
+}
+
+// bindViewerToRoutedWork binds a viewer the directory could not resolve --
+// because their role may not read it -- to the worker identity the server
+// routed work to. The join is the server's assignee principal against the
+// authenticated principal, both stable identifiers, never a display name.
+// An account no work is routed to (an unbound operator) stays unbound, so
+// UXAUDIT-017's "unbound viewers see no assignments" still holds; without
+// this a finance approver's own review never reached their My Work.
+func bindViewerToRoutedWork(viewer *productui.ViewerProfile, session Session, work []productui.WorkItem) {
+	principal := normalizedIdentity(session.Principal)
+	if viewer == nil || viewer.PersonID != "" || principal == "" {
+		return
+	}
+	for _, item := range work {
+		if normalizedIdentity(item.AssigneeRef) == principal {
+			viewer.PersonID = item.AssigneeRef
+			return
+		}
+	}
 }
 
 func viewerProfileFromPerson(person productui.Person) productui.ViewerProfile {

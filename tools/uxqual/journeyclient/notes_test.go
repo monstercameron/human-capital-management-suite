@@ -65,12 +65,30 @@ func notesHarness(t *testing.T, errs ...error) (*App, *journey.Store, *noteFake)
 	store := journey.NewStore(journey.Page{})
 	app := New(testConfig(), svc, store, func() time.Time { return time.Date(2026, 9, 19, 7, 0, 0, 0, time.UTC) })
 	app.WatchRetry = 0
-	app.Async = func(f func()) { f() }
 	app.Start(context.Background(), DetailHref(base.svc.detail.GetJourney().GetIntentId()))
-	if p := store.Page(); p.Detail == nil || p.Detail.Notes == nil || p.Detail.Notes.Composer == nil {
-		t.Fatalf("detail page has no notes composer: %+v", p.Detail)
-	}
+	waitStore(t, store, "the notes composer", func(p journey.Page) bool {
+		return p.Detail != nil && p.Detail.Notes != nil && p.Detail.Notes.Composer != nil && p.Notice == nil
+	})
 	return app, store, svc
+}
+
+// waitStore polls until the store's page satisfies cond; the client runs
+// its reads and writes asynchronously, as it does in the browser.
+func waitStore(t *testing.T, store *journey.Store, what string, cond func(journey.Page) bool) journey.Page {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if p := store.Page(); cond(p) {
+			return p
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s", what)
+	return journey.Page{}
+}
+
+func composerSettled(p journey.Page) bool {
+	return p.Detail != nil && p.Detail.Notes != nil && p.Detail.Notes.Composer != nil && !p.Detail.Notes.Composer.Busy
 }
 
 func typeNote(store *journey.Store, text string) {
@@ -86,6 +104,9 @@ func TestAddingANoteShowsItClearsTheDraftAndConfirms(t *testing.T) {
 	_, store, svc := notesHarness(t)
 	typeNote(store, "  Budget line confirmed with Q4 plan.  ")
 	submitNote(store)
+	waitStore(t, store, "the added note", func(p journey.Page) bool {
+		return composerSettled(p) && len(p.Detail.Notes.Notes) == 1 && p.Detail.Notes.Composer.Status != ""
+	})
 
 	sent := svc.sent()
 	if len(sent) != 1 || sent[0].GetBody() != "Budget line confirmed with Q4 plan." || sent[0].GetIdempotencyKey() == "" {
@@ -114,8 +135,9 @@ func TestAFailedNoteKeepsTheTextAndRetriesWithTheSameKey(t *testing.T) {
 	_, store, svc := notesHarness(t, status.Error(codes.Unavailable, "connection lost"))
 	typeNote(store, "Manager: aligned with the team plan.")
 	submitNote(store)
-
-	p := store.Page()
+	p := waitStore(t, store, "the inline failure", func(p journey.Page) bool {
+		return composerSettled(p) && p.Detail.Notes.Composer.Field.Error != ""
+	})
 	if p.Values[FieldNoteBody] != "Manager: aligned with the team plan." {
 		t.Fatalf("a failed submission lost the draft: %q", p.Values[FieldNoteBody])
 	}
@@ -123,6 +145,9 @@ func TestAFailedNoteKeepsTheTextAndRetriesWithTheSameKey(t *testing.T) {
 		t.Fatalf("failure not reported inline: %+v", p.Detail.Notes)
 	}
 	submitNote(store)
+	waitStore(t, store, "the retried note", func(p journey.Page) bool {
+		return composerSettled(p) && len(p.Detail.Notes.Notes) == 1
+	})
 	sent := svc.sent()
 	if len(sent) != 2 || sent[0].GetIdempotencyKey() != sent[1].GetIdempotencyKey() {
 		t.Fatalf("a retry of unchanged text used a new key: %+v", sent)
@@ -133,6 +158,9 @@ func TestAFailedNoteKeepsTheTextAndRetriesWithTheSameKey(t *testing.T) {
 
 	typeNote(store, "A different note.")
 	submitNote(store)
+	waitStore(t, store, "the second note", func(p journey.Page) bool {
+		return composerSettled(p) && len(p.Detail.Notes.Notes) == 2
+	})
 	sent = svc.sent()
 	if sent[2].GetIdempotencyKey() == sent[1].GetIdempotencyKey() {
 		t.Fatal("a new note reused the previous note's key")
@@ -187,23 +215,19 @@ func TestADoubleSubmitWhileAddingSendsOneNote(t *testing.T) {
 	app := New(testConfig(), svc, store, time.Now)
 	app.WatchRetry = 0
 	app.Start(context.Background(), DetailHref(base.svc.detail.GetJourney().GetIntentId()))
-	deadline := time.Now().Add(3 * time.Second)
-	for store.Page().Detail == nil && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
+	waitStore(t, store, "the notes composer", func(p journey.Page) bool {
+		return composerSettled(p) && p.Notice == nil
+	})
 	typeNote(store, "One note.")
 	submitNote(store)
-	for !store.Page().Detail.Notes.Composer.Busy && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
-	if !store.Page().Detail.Notes.Composer.Busy {
-		t.Fatal("the composer never showed the note in flight")
-	}
+	waitStore(t, store, "the note in flight", func(p journey.Page) bool {
+		return p.Detail != nil && p.Detail.Notes != nil && p.Detail.Notes.Composer.Busy
+	})
 	submitNote(store)
 	close(svc.release)
-	for len(store.Page().Detail.Notes.Notes) == 0 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
+	waitStore(t, store, "the recorded note", func(p journey.Page) bool {
+		return composerSettled(p) && len(p.Detail.Notes.Notes) == 1
+	})
 	if n := len(svc.sent()); n != 1 {
 		t.Fatalf("a double submit sent %d notes", n)
 	}

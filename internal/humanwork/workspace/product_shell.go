@@ -60,7 +60,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		config.FeaturePermissions = access.features
 	}
 	config.LauncherActions = resolveProductLauncherActions(access.configured, access.permissions)
-	if !access.can(definition.ID, roleaccess.ActionView) {
+	if !access.can(definition.ID, roleaccess.ActionView) && !assignedJourneyDetail(definition.ID, r.URL.Query(), access) {
 		h.writeProblem(w, http.StatusForbidden, "Page unavailable", "Your current role does not grant access to this workspace page.")
 		return
 	}
@@ -157,6 +157,20 @@ func (access productAccess) can(page productui.PageID, action string) bool {
 		return roleaccess.CanFeatureAction(access.permissions, access.features, string(page), featureID, action)
 	}
 	return action == roleaccess.ActionView && productui.PageVisible(page, access.roles)
+}
+
+// assignedJourneyDetail admits one journey's detail to a viewer who has My
+// Work but not the Journeys page, the same pair InspectJourney accepts
+// (journeys/journey_detail or work/assigned_queue). A finance approver's
+// only way to decide the review routed to them is that detail; refusing the
+// route here left "Open live journey" on My Work leading to "Page
+// unavailable". Only the detail is admitted, never the journeys list, and
+// every read and decision on it is still authorized by the RPC.
+func assignedJourneyDetail(page productui.PageID, query map[string][]string, access productAccess) bool {
+	if page != productui.PageJourneys || len(query["journey"]) != 1 || strings.TrimSpace(query["journey"][0]) == "" {
+		return false
+	}
+	return access.can(productui.PageWork, roleaccess.ActionView)
 }
 
 func productShellDocument(config JourneyConfig, bundleBuilt bool) (string, error) {

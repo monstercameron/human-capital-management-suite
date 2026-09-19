@@ -1413,6 +1413,7 @@ func detailView(p Page, v DetailView) ui.Node {
 				outcomeSectionLocale(p.Locale, v.Ledger, v.PendingOutcome),
 			),
 			html.Aside(html.Props{Class: "jn-col jn-rail", Aria: map[string]string{"label": productui.ResolveProductLocale(p.Locale).Text("journey.actions_history")}},
+				notesSectionLocale(l, v.Notes),
 				timelineSectionLocale(p.Locale, v.Timeline),
 			),
 		),

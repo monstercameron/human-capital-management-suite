@@ -1582,6 +1582,7 @@ func DetailPageWithInterventions(
 		PendingOutcome:  pendingOutcomeLocale(cfg.Locale, head.Stage, head.EffectiveDate),
 		Evidence:        detail.GetEvidenceIds(),
 		Timeline:        endedTimeline(cfg.Locale, timelineLocale(cfg.Locale, detail.GetTimeline()), head.Stage),
+		Notes:           notesViewLocale(cfg.Locale, detail.GetNotes(), values[FieldNoteBody], noteComposerState{}, DetailHref(summary.GetIntentId())),
 		Actions:         detailActions,
 		EffectiveWindow: effectiveWindowLocale(cfg.Locale, summary),
 	}

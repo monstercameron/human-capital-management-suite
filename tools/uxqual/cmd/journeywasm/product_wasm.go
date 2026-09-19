@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -131,14 +132,30 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	}
 	journeyApp.NavigateProduct = navigateProduct
 	journeys := &productJourneyBridge{ctx: ctx, app: journeyApp}
+	canViewPage := func(page productui.PageID) bool {
+		if len(cfg.PagePermissions) > 0 {
+			return cfg.CanPageAction(string(page), "view")
+		}
+		return productui.PageVisible(page, cfg.Roles)
+	}
 	for _, definition := range productui.PageDefinitions() {
-		if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction(string(definition.ID), "view") || len(cfg.PagePermissions) == 0 && !productui.PageVisible(definition.ID, cfg.Roles) {
-			continue
+		// A viewer with My Work but not Journeys (a finance approver) reaches
+		// one journey's detail from their queue and nothing else; the server
+		// shell admits the same route (workspace.assignedJourneyDetail).
+		detailOnly := false
+		if !canViewPage(definition.ID) {
+			if definition.ID != productui.PageJourneys || !canViewPage(productui.PageWork) {
+				continue
+			}
+			detailOnly = true
 		}
 		definition := definition
 		productRouter.Register(definition.Route, productRouteComponent, router.Options{
 			Title: definition.Title + " · Human Capital Management Suite",
 			Loader: func(loadCtx context.Context, routeContext router.RouteContext) (router.Attrs, error) {
+				if detailOnly && strings.TrimSpace(routeContext.Query.Get("journey")) == "" {
+					return nil, errors.New(productui.ResolveProductLocale(routeContext.Query.Get("locale")).Text("journey.error_denied_detail"))
+				}
 				navigationDebounce.Cancel()
 				persistPresentation := productHistory != nil && productHistory.ClaimSoftwareNavigation(routeContext.Path, routeContext.Query.Encode())
 				// A route change discards an unsaved preview and reapplies the last

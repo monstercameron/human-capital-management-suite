@@ -135,6 +135,13 @@ type App struct {
 	// a new proposal for someone whose promotion is already in progress
 	// lands on that journey, and loadDetail shows this once when it does.
 	arrivalNotice *journey.Notice
+	// note is the notes composer's state; noteAttempt* hold the idempotency
+	// key minted for one (journey, text) so a retried submission is the
+	// same note (see addNote).
+	note              noteComposerState
+	noteAttemptKey    string
+	noteAttemptIntent string
+	noteAttemptBody   string
 }
 
 // maxReasonBytes mirrors the transport's structural bound on any one string
@@ -565,6 +572,8 @@ func (a *App) Submit(actionID string, values map[string]string) {
 		a.intervene(ctx, generation, route.IntentID, journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL, values[NameInterventionReason])
 	case ActionEditProposal:
 		a.editProposal(ctx, generation, route.IntentID, values)
+	case ActionAddNote:
+		a.addNote(ctx, generation, route.IntentID, values[NameNoteBody])
 	default:
 		// An action id the projection does not emit is a projection bug, and
 		// the reader should see that their click did nothing rather than
@@ -1202,14 +1211,14 @@ func (a *App) intervene(ctx context.Context, generation int, intentID string, ki
 	}
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
-		a.show(refusal("Say why", "A withdrawal or cancellation is retained as evidence on the governed record, so it needs a reason."))
+		a.show(keyedNotice(toneWarning, "journey.iv_need_reason_title", "journey.iv_need_reason_detail"))
 		return
 	}
-	verb := "Withdrawing"
+	busyKey := "journey.iv_busy_withdraw"
 	if kind == journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL {
-		verb = "Requesting cancellation for"
+		busyKey = "journey.iv_busy_cancel"
 	}
-	a.show(busy("", verb+" this proposal."))
+	a.show(busy(busyKey, productui.ResolveProductLocale("").Text(busyKey)))
 	a.runTask(ctx, taskmux.Spec{Key: "journey:intervene:" + intentID, Priority: taskmux.Interactive, Duplicate: taskmux.KeepExisting}, func(ctx context.Context) {
 		resp, err := a.svc.RequestJourneyIntervention(ctx, &journeyv1.RequestJourneyInterventionRequest{
 			IntentId: intentID, Kind: kind, Reason: reason,
@@ -1223,7 +1232,7 @@ func (a *App) intervene(ctx context.Context, generation int, intentID string, ki
 			a.show(NoticeFromError(err))
 			return
 		}
-		a.show(interventionNotice(resp.GetOutcome(), resp.GetRetainedEvidenceRef()))
+		a.show(interventionNotice(kind, resp.GetOutcome(), resp.GetRetainedEvidenceRef()))
 		a.reloadDetail(ctx, generation, intentID)
 	})
 }
@@ -1233,23 +1242,31 @@ func (a *App) intervene(ctx context.Context, generation int, intentID string, ki
 // actually deferred to a safe point that has not been reached yet, which
 // would be exactly RED's own falsification concern restated for this
 // surface.
-func interventionNotice(outcome commonv1.InterventionOutcome, evidenceRef string) *journey.Notice {
-	suffix := ""
-	if evidenceRef != "" {
-		suffix = " Evidence: " + evidenceRef + "."
-	}
+func interventionNotice(kind journeyv1.JourneyInterventionKind, outcome commonv1.InterventionOutcome, evidenceRef string) *journey.Notice {
+	var notice *journey.Notice
 	switch outcome {
 	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_APPLIED:
-		return &journey.Notice{Tone: toneSuccess, Title: "Stopped", Detail: "The proposal was cancelled." + suffix}
+		// A withdrawal and a cancellation are one governed call, but the
+		// reader asked for one of them; "The proposal was cancelled" answered
+		// a withdrawal with the other word.
+		if kind == journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL {
+			notice = keyedNotice(toneSuccess, "journey.iv_cancelled_title", "journey.iv_cancelled_detail")
+		} else {
+			notice = keyedNotice(toneSuccess, "journey.iv_withdrawn_title", "journey.iv_withdrawn_detail")
+		}
 	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_PENDING_SAFE_POINT:
-		return &journey.Notice{Tone: toneInfo, Title: "Cancellation requested", Detail: "The workflow has not reached a safe point yet; nothing has changed. It will be evaluated again as the workflow proceeds." + suffix}
+		notice = keyedNotice(toneInfo, "journey.iv_pending_title", "journey.iv_pending_detail")
 	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_TOO_LATE:
-		return &journey.Notice{Tone: toneWarning, Title: "Too late", Detail: "The business effect already committed before this request reached the engine. This cannot be reversed." + suffix}
+		notice = keyedNotice(toneWarning, "journey.iv_too_late_title", "journey.iv_too_late_detail")
 	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_REPAIR_REQUIRED:
-		return &journey.Notice{Tone: toneDanger, Title: "Repair required", Detail: "The workflow reached neither a clean stop nor a completion. Governed repair is required." + suffix}
+		notice = keyedNotice(toneDanger, "journey.iv_repair_title", "journey.iv_repair_detail")
 	default:
-		return &journey.Notice{Tone: toneWarning, Title: "Outcome unclear", Detail: "The engine did not report a recognized outcome for this request." + suffix}
+		notice = keyedNotice(toneWarning, "journey.iv_unclear_title", "journey.iv_unclear_detail")
 	}
+	// The evidence id is an opaque reference for support, not part of the
+	// sentence: it goes in the notice's closed support disclosure.
+	notice.SupportReference = evidenceRef
+	return notice
 }
 
 // editProposal runs PROMOUX-013's EditProposal: it cancels the original and
@@ -1263,7 +1280,7 @@ func (a *App) editProposal(ctx context.Context, generation int, intentID string,
 	}
 	reason := strings.TrimSpace(values[NameEditReason])
 	if reason == "" {
-		a.show(refusal("Say why", "An edit is retained as evidence on the governed record, so it needs a reason."))
+		a.show(keyedNotice(toneWarning, "journey.iv_need_reason_title", "journey.iv_edit_need_reason_detail"))
 		return
 	}
 	missing := make([]string, 0, 5)
@@ -1455,6 +1472,7 @@ func (a *App) show(notice *journey.Notice) {
 		ProposalErrors: a.proposalErrors,
 	}
 	focusRevision := a.proposalFocusRevision
+	noteState := a.note
 	a.mu.Unlock()
 
 	values := a.store.Values()
@@ -1473,6 +1491,9 @@ func (a *App) show(notice *journey.Notice) {
 	}
 	if len(data.ProposalErrors) > 0 {
 		page.FocusInvalidRevision = focusRevision
+	}
+	if page.Detail != nil && page.Detail.Notes != nil && route.Kind == RouteDetail && detail.GetJourney().GetIntentId() == route.IntentID {
+		page.Detail.Notes = notesViewLocale(cfg.Locale, detail.GetNotes(), values[FieldNoteBody], noteState, DetailHref(route.IntentID))
 	}
 	a.store.Set(a.wire(page))
 }
@@ -1493,6 +1514,10 @@ func (a *App) wire(p journey.Page) journey.Page {
 	// store remains the one controlled-input authority; this small wrapper
 	// only prevents a stale grade from surviving a new job selection.
 	p.OnFieldChange = func(fieldID, value string) {
+		if fieldID == FieldNoteBody {
+			a.editNoteDraft(value)
+			return
+		}
 		if fieldID != FieldJobCode {
 			a.setProposalValue(fieldID, value)
 			if fieldID == FieldGrade {
@@ -1536,6 +1561,9 @@ func (a *App) wire(p journey.Page) journey.Page {
 	if p.List != nil && p.List.People != nil && p.List.People.DirectoryLink.Href != "" && a.NavigateProduct != nil {
 		href := p.List.People.DirectoryLink.Href
 		p.List.People.DirectoryLink.OnNavigate = func() { a.NavigateProduct(href) }
+	}
+	if p.Detail != nil && p.Detail.Notes != nil && p.Detail.Notes.Composer != nil {
+		p.Detail.Notes.Composer.OnSubmit = func(values map[string]string) { a.Submit(ActionAddNote, values) }
 	}
 	if p.Detail != nil && strings.HasPrefix(p.Detail.JourneysLink.Href, "#") {
 		href := p.Detail.JourneysLink.Href

@@ -507,6 +507,45 @@ type DetailView struct {
 	PayBand         *PayBand
 	Budget          *Budget
 	EffectiveWindow *EffectiveWindow
+
+	// Notes is the journey's notes panel; nil renders no panel.
+	Notes *NotesView
+}
+
+// NotesView is the free-standing, append-only notes on one journey and, when
+// the viewer may add one, the composer.
+type NotesView struct {
+	Notes []NoteEntry
+	// Composer is nil when the viewer cannot add notes.
+	Composer *NoteComposer
+}
+
+// NoteEntry is one note as a reader sees it. Every string is already
+// localized and formatted by the client.
+type NoteEntry struct {
+	ID       string
+	Author   string
+	Initials string
+	// Own marks the viewer's own note.
+	Own bool
+	// Stage names the stage the note was written at ("Finance review").
+	Stage string
+	// At is the formatted time; ISO is the machine-readable one for <time>.
+	At   string
+	ISO  string
+	Body string
+}
+
+// NoteComposer is the add-a-note form. Field is the controlled textarea (its
+// Value, Error and label); MaxRunes drives the visible character count.
+type NoteComposer struct {
+	Field    Field
+	MaxRunes int
+	Busy     bool
+	// Status is a transient confirmation ("Note added"), announced politely.
+	Status   string
+	Action   string
+	OnSubmit func(values map[string]string)
 }
 
 // PayBand is the target grade's pay range with the current and proposed

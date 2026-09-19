@@ -59,8 +59,10 @@ func noteNodeLocale(locale string, n NoteEntry) ui.Node {
 	meta := []ui.Node{
 		html.Span(html.Props{Class: "jn-note-author", Dir: "auto"}, html.Text(author)),
 	}
-	if n.Own {
-		meta = append(meta, html.Span(html.Props{Class: "jn-note-own"}, html.Text(copy.Text("journey.note_you"))))
+	// An own note whose author could not be named already reads "You";
+	// a second "You" chip beside it would say the same thing twice.
+	if you := copy.Text("journey.note_you"); n.Own && author != you {
+		meta = append(meta, html.Span(html.Props{Class: "jn-note-own"}, html.Text(you)))
 	}
 	if n.At != "" {
 		timeProps := html.Props{Class: "jn-note-at"}

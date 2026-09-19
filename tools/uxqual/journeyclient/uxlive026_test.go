@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
+	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 )
 
@@ -104,5 +106,48 @@ func TestTodo_UXLIVE_026_Security(t *testing.T) {
 					kind, stage, refFalse, okFalse, refTrue, okTrue)
 			}
 		}
+	}
+}
+
+// TestInterventionActionsFollowTheLocale: Withdraw, Request cancellation and
+// Edit proposal were English on German and Arabic pages, and their review
+// triggers read "withdraw prüfen" -- an English verb inside German copy.
+func TestInterventionActionsFollowTheLocale(t *testing.T) {
+	for _, stage := range []string{stageProposed, stageFinanceApproval, stageCompleted} {
+		head := uxlive026Card(stage, "")
+		if stage != stageProposed {
+			head.InstanceID = "ee2abfa8-f84d-5040-a571-65269faed1f3"
+		}
+		english := map[string]journey.Action{}
+		for _, action := range interventionActions(nil, head, nil, nil, nil) {
+			english[action.ID] = action
+		}
+		for _, locale := range []string{"de-DE", "ar"} {
+			for _, action := range interventionActionsLocale(locale, nil, head, nil, nil, nil) {
+				en := english[action.ID]
+				if action.Label == en.Label || action.Description == en.Description ||
+					(action.Disabled && action.DisabledReason == en.DisabledReason) ||
+					(!action.Disabled && (action.ReviewLabel == "" || action.ReviewLabel == en.ReviewLabel)) {
+					t.Errorf("%s %s action %s is still English: %+v", locale, stage, action.ID, action)
+				}
+			}
+		}
+	}
+}
+
+// TestWithdrawalNoticeSaysWithdrawn: the success notice answered a
+// withdrawal with "The proposal was cancelled. Evidence: <uuid>." -- the other
+// action's word, in English on every locale, with a raw id in the sentence.
+func TestWithdrawalNoticeSaysWithdrawn(t *testing.T) {
+	notice := interventionNotice(journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_WITHDRAW,
+		commonv1.InterventionOutcome_INTERVENTION_OUTCOME_APPLIED, "1f10de0c-2a83-5c32-a401-6cf797662edf")
+	if notice.TitleKey != "journey.iv_withdrawn_title" || strings.Contains(notice.Detail, "1f10de0c") ||
+		notice.SupportReference != "1f10de0c-2a83-5c32-a401-6cf797662edf" {
+		t.Fatalf("withdrawal notice = %+v", notice)
+	}
+	cancel := interventionNotice(journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL,
+		commonv1.InterventionOutcome_INTERVENTION_OUTCOME_APPLIED, "")
+	if cancel.TitleKey != "journey.iv_cancelled_title" {
+		t.Fatalf("cancellation notice = %+v", cancel)
 	}
 }

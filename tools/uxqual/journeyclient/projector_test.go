@@ -1653,11 +1653,12 @@ func TestProposalPageOffersOnlyPublishedNextRolesAndExplainsTheirRules(t *testin
 
 func TestTodo_UXAUDIT_006_PromotionFormLocale(t *testing.T) {
 	cases := []struct {
-		locale, title, role, grade, rule string
+		locale, title, role, grade, rule, minimum, maximum string
 	}{
-		{"en-US", "Promote Omar Reyes", "Next role", "Target grade", "For this role, base pay must increase"},
-		{"de-DE", "Omar Reyes befördern", "Nächste Rolle", "Zielstufe", "Für diese Rolle muss das Grundgehalt"},
-		{"ar", "ترقية Omar Reyes", "الوظيفة التالية", "الدرجة المستهدفة", "يجب أن يرتفع الأجر الأساسي"},
+		{"en-US", "Promote Omar Reyes", "Next role", "Target grade", "For this role, base pay must increase", "5.00%", "15.00%"},
+		// The percentages follow the locale, as the pay amounts beside them do.
+		{"de-DE", "Omar Reyes befördern", "Nächste Rolle", "Zielstufe", "Für diese Rolle muss das Grundgehalt", "5,00 %", "15,00 %"},
+		{"ar", "ترقية Omar Reyes", "الوظيفة التالية", "الدرجة المستهدفة", "يجب أن يرتفع الأجر الأساسي", "٥٫٠٠٪", "١٥٫٠٠٪"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.locale, func(t *testing.T) {
@@ -1670,7 +1671,7 @@ func TestTodo_UXAUDIT_006_PromotionFormLocale(t *testing.T) {
 			role, _ := fieldByID(p.Proposal.Form.Fields, FieldJobCode)
 			grade, _ := fieldByID(p.Proposal.Form.Fields, FieldGrade)
 			base, _ := fieldByID(p.Proposal.Form.Fields, FieldBase)
-			if role.Label != tc.role || grade.Label != tc.grade || !strings.Contains(base.Help, tc.rule) || !strings.Contains(base.Help, "5.00%") || !strings.Contains(base.Help, "15.00%") {
+			if role.Label != tc.role || grade.Label != tc.grade || !strings.Contains(base.Help, tc.rule) || !strings.Contains(base.Help, tc.minimum) || !strings.Contains(base.Help, tc.maximum) {
 				t.Fatalf("localized form = role %q, grade %q, rule %q", role.Label, grade.Label, base.Help)
 			}
 			for _, forbidden := range []string{"promotion-rules@", "professional-benefit-eligibility@", "ladder edge", "⟦"} {
