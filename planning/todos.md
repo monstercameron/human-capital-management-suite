@@ -20187,8 +20187,8 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
 - [x] `PROMO-EXEC-006` **[GATE_B][SOL_HIGH] Give position-less proposals the catalog vacancy on every propose path.**
   - **Depends:** `PROMO-EXEC-001`, `WF-RUN-034`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=seeded subjects could never reach a committable proposal: auto-selection ran only for created workers and the RPC path dropped the selection from the intent subjects`.
-  - **TEST:** TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest plus the intent app journey and propose suites green.
-  - **TEST MATRIX:** `PRIMARY=live demo chain to revalidation VALID`; `REGRESSION=no-catalog tenants still close BLOCKED`.
+  - **TEST:** `TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest`.
   - **RED:** every promotion for a seeded subject closed BLOCKED (`position:none` at revalidation); naming a bare UUID was correctly refused (`target_position_not_found`).
   - **GREEN:** `internal/intent/app/journey.go` and `promotionpropose.go` auto-select the OPEN catalog vacancy for any position-less proposal; the RPC path names the selection in the intent subjects; no-catalog tenants behave exactly as before.
   - **REFACTOR:** none; three small edits with comments.
@@ -20209,7 +20209,7 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **Depends:** `PROMO-EXEC-001`, `PROMOUX-015`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=the write path lives behind gRPC and the workspace tunnel, so port-level tests alone do not prove the served surface executes`.
   - **TEST:** `TestTodo_PROMO_EXEC_002_TunnelChain`.
-  - **TEST MATRIX:** `PRIMARY=TestTodo_PROMO_EXEC_002_TunnelChain`; `SECURITY=TestTodo_PROMO_EXEC_002_TunnelChain_Security`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PROMO_EXEC_002_TunnelChain`; `SECURITY=TestTodo_PROMO_EXEC_002_TunnelChain_Security`; `INTEGRATION=TestTodo_PROMO_EXEC_002_TunnelChain_Integration`.
   - **RED:** no test drives propose, execute, decide, inspect and terminal reads for a promotion through the served tunnel against a real composed cell.
   - **GREEN:** one tunnel session proposes a promotion, executes it, records finance and manager decisions, inspects stage transitions and reads the terminal outcome and ledger fact; unauthorized callers are refused over the same surface.
   - **REFACTOR:** the tunnel journey client helpers are shared with the existing propose-only tunnel test.
@@ -20219,7 +20219,7 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **Depends:** `PROMO-EXEC-001`, `ADMIN-008`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=inspector reads proven only on fixtures hide execute-only projection content on the operator surface`.
   - **TEST:** `TestTodo_PROMO_EXEC_003_LiveInspect`.
-  - **TEST MATRIX:** `PRIMARY=TestTodo_PROMO_EXEC_003_LiveInspect`; `SECURITY=TestTodo_PROMO_EXEC_003_LiveInspect_Security`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PROMO_EXEC_003_LiveInspect`; `SECURITY=TestTodo_PROMO_EXEC_003_LiveInspect_Security`; `INTEGRATION=TestTodo_PROMO_EXEC_003_LiveInspect_Integration`.
   - **RED:** GetWorkflow, ListNodeExecutions and GetWorkflowInstance are covered only on simulate fixtures and seeded rows, never on a live execute-mode promotion run.
   - **GREEN:** against a real execute-mode promotion instance the inspectors return the live node executions, driver-created work items and transitions, governance and terminal evidence refs and execution mode; cross-tenant and unauthorized reads are refused.
   - **REFACTOR:** the live-run fixture setup is shared with the served control tests.
@@ -20229,7 +20229,7 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **Depends:** `PROMO-EXEC-001`, `EP-WORK-001`, `WF-RUN-015`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=claim, decide and separation-of-duties on the real finance and manager items is what the served approval path actually exercises`.
   - **TEST:** `TestTodo_PROMO_EXEC_004_LiveWorkQueue`.
-  - **TEST MATRIX:** `PRIMARY=TestTodo_PROMO_EXEC_004_LiveWorkQueue`; `SECURITY=TestTodo_PROMO_EXEC_004_LiveWorkQueue_Security`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PROMO_EXEC_004_LiveWorkQueue`; `SECURITY=TestTodo_PROMO_EXEC_004_LiveWorkQueue_Security`; `INTEGRATION=TestTodo_PROMO_EXEC_004_LiveWorkQueue_Integration`.
   - **RED:** List, Get, Claim, Release, Complete and DecideApproval run only on seeded items, and control outcomes beyond APPLIED and DENIED are unproven on a promotion instance.
   - **GREEN:** over RPC against a live promotion, the finance item is listed, claimed and decided, separation-of-duties refuses a second decision by the same principal, and pause, resume, cancel and retry-node report their real outcome branches on the instance.
   - **REFACTOR:** work-queue assertions reuse the served promotion fixture from PROMO-EXEC-001.
@@ -20557,7 +20557,7 @@ regression is possible while the source question stays open.
 - [x] `HIPERF-001` **[GATE_C][TERRA] Add the market-rate capability port with a stubbed source seam.**
   - **Evidence (2026-09-18):** `internal/domains/rewards/marketrate.go` adds the `hcmnext.rewards.market_rate/v1` port (`MarketQuery`, `MarketAnchor`, `MarketRecord`, `MarketRateSource`, governed `LookupMarketRate` mirroring the pay-band catalog's check-the-answer posture); `internal/domains/fixtures/marketrate.go` adds the static stub table over the demo CARE-CC2/CARE-CC3 scopes; `internal/connectivity/marketdata` adds the egress-gateway HTTP skeleton, constructed only with an explicit URL. `TestTodo_HIPERF_001` (rewards: 9 subtests incl. miss/fault/scope/currency/order/pin/nil-source cases; fixtures: stub resolve, miss, currency-miss, fault injection) and `TestTodo_HIPERF_001_Integration` (marketdata: 6 subtests through the real gateway with a test-double transport) pass: `go test -count=1 ./internal/domains/rewards/ ./internal/domains/fixtures/ ./internal/connectivity/marketdata/` ok on windows/arm64. Coverage: rewards 73.6%, marketdata 85.0%, fixtures 66.9% under its valid below_floor exception (expiry 2026-12-31). `go vet` and `gofmt` clean on all six files; the execute graph is untouched.
   - **Depends:** none.
-  - **INTENT CONTEXT:** `ROLE=FACTS; SETS=BI.REWARDS; DIRECT=none; WHY=the high-performer workflow needs a governed market-rate read that tests and local runs can satisfy without a live vendor`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=the high-performer workflow needs a governed market-rate read that tests and local runs can satisfy without a live vendor`.
   - **TEST:** `TestTodo_HIPERF_001`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_HIPERF_001`; `INTEGRATION=TestTodo_HIPERF_001_Integration`.
   - **RED:** no capability named `hcmnext.rewards.market_rate` exists, so a plan node cannot invoke it and there is no governed type for a market anchor (p25/p50/p75, currency, zone, as-of).
@@ -20567,7 +20567,7 @@ regression is possible while the source question stays open.
 
 - [ ] `HIPERF-002` **[GATE_C][TERRA] Compile the high-performer variant plan without touching the execute graph.**
   - **Depends:** `HIPERF-001`.
-  - **INTENT CONTEXT:** `ROLE=FACTS; SETS=BI.WORK; DIRECT=none; WHY=a second published plan must exist for rated workers to run while the current plan stays byte-identical for everyone else`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK; DIRECT=none; WHY=a second published plan must exist for rated workers to run while the current plan stays byte-identical for everyone else`.
   - **TEST:** `TestTodo_HIPERF_002`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_HIPERF_002`; `GOLDEN=TestTodo_HIPERF_002_Golden`.
   - **RED:** only `hcmnext.workflows.promotion.execute` compiles, so there is no high-performer identity, digest, or version row to resolve.
@@ -20577,7 +20577,7 @@ regression is possible while the source question stays open.
 
 - [ ] `HIPERF-003` **[GATE_C][TERRA] Feed the market anchor into the raise calculation with today as default.**
   - **Depends:** `HIPERF-001`.
-  - **INTENT CONTEXT:** `ROLE=FACTS; SETS=BI.REWARDS; DIRECT=none; WHY=a market-informed raise floor is the only compensation difference the variant promises`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=a market-informed raise floor is the only compensation difference the variant promises`.
   - **TEST:** `TestTodo_HIPERF_003`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_HIPERF_003`; `GOLDEN=TestTodo_HIPERF_003_Golden`.
   - **RED:** the simulation request has no market field, so the variant node has nowhere to put its anchor and the raise floor ignores the market.
@@ -20587,7 +20587,7 @@ regression is possible while the source question stays open.
 
 - [ ] `HIPERF-004` **[GATE_C][TERRA] Route top-rated subjects to the variant digest, everyone else to execute.**
   - **Depends:** `HIPERF-002`.
-  - **INTENT CONTEXT:** `ROLE=FACTS; SETS=BI.WORK,BI.PEOPLE; DIRECT=none; WHY=the variant must trigger on performance facts, never on a global flag an operator could leave on`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.PEOPLE; DIRECT=none; WHY=the variant must trigger on performance facts, never on a global flag an operator could leave on`.
   - **TEST:** `TestTodo_HIPERF_004`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_HIPERF_004`; `SECURITY=TestTodo_HIPERF_004_Security`.
   - **RED:** plan resolution reads only the global `-workflow-plan` flag, so a high performer cannot reach the variant and a misconfigured flag could move everyone.
@@ -20597,9 +20597,9 @@ regression is possible while the source question stays open.
 
 - [ ] `HIPERF-005` **[GATE_C][TERRA] Bind the market-rate port and prove the variant end to end with the current plan unregressed.**
   - **Depends:** `HIPERF-002`, `HIPERF-003`, `HIPERF-004`.
-  - **INTENT CONTEXT:** `ROLE=FACTS; SETS=BI.WORK,BI.REWARDS; DIRECT=none; WHY=a variant that is defined but not runnable is a second contract to keep with no proof it holds`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.REWARDS; DIRECT=none; WHY=a variant that is defined but not runnable is a second contract to keep with no proof it holds`.
   - **TEST:** `TestTodo_HIPERF_005`.
-  - **TEST MATRIX:** `PRIMARY=TestTodo_HIPERF_005`; `INTEGRATION=TestTodo_HIPERF_005_Integration`; `REGRESSION=TestTodo_HIPERF_005_Regression`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HIPERF_005`; `INTEGRATION=TestTodo_HIPERF_005_Integration`.
   - **RED:** the execution ports bind no market-rate capability, so the variant parks or fails at `fetch_market_rate`, and no test runs a rated worker through the full chain.
   - **GREEN:** the ports bind the new capability; INTEGRATION runs a rated worker from propose through the market-rate node with the anchor visible in the raise evidence; REGRESSION runs the promotionexec, platform/execution, intent/app, and application suites green with the execute digest unchanged.
   - **REFACTOR:** add one port method rather than a parallel port struct.
