@@ -244,7 +244,9 @@ func (c *RepairController) Execute(ctx context.Context, cmd RepairCommand) (ret0
 // and no durable record, sealed over exactly the command's scope so the
 // gateway can require it and the receipt names what was predicted.
 func (c *RepairController) Simulate(ctx context.Context, cmd RepairCommand) (ret0 *operator.Simulation, ret1 execute.RepairStatus, retErr error) {
-	ctx, obsOp := observe.Begin(c.observed(ctx), "workflow.repair.simulate", cmd)
+	// The dry run makes no downstream calls, so the observed scope has no
+	// context to propagate into; only the operation handle is retained.
+	_, obsOp := observe.Begin(c.observed(ctx), "workflow.repair.simulate", cmd)
 	defer func() { observe.DoneWith(obsOp, retErr, ret1) }()
 	if err := cmd.validate(); err != nil {
 		return nil, "", err

@@ -12,7 +12,12 @@ import (
 )
 
 type browserThemeController struct {
-	saved     productui.CustomerTheme
+	saved productui.CustomerTheme
+	// loaded reports whether saved holds the customer's real selection. Until
+	// the first Load it holds only DefaultCustomerTheme -- a placeholder, not
+	// a choice -- and the <html> attributes the server rendered from the
+	// stored theme are the better answer. See Reapply.
+	loaded    bool
 	tenant    string
 	save      func(productui.CustomerTheme, func(error))
 	logoLoad  js.Func
@@ -35,6 +40,30 @@ func newBrowserThemeController(tenant string, save func(productui.CustomerTheme,
 func (c *browserThemeController) Load(theme productui.CustomerTheme) {
 	if c != nil {
 		c.saved = productui.NormalizeCustomerTheme(theme)
+		c.loaded = true
+		c.Apply(c.saved)
+	}
+}
+
+// Reapply restores the last known customer selection, discarding any unsaved
+// preview. Before the first Load it does nothing, and that is the fix for the
+// theme flashing on every page load.
+//
+// The server reads the stored theme and renders it into <html> -- a light
+// workspace arrives with data-hcm-color-mode="light" and first paints light.
+// This controller used to start from DefaultCustomerTheme, whose colour mode
+// is "system", and the boot sequence applied that immediately, overwriting the
+// server's correct answer. On a device set to dark mode "system" resolves to
+// dark, so a light workspace turned dark the moment the client started and
+// only turned light again when the page's data read finished and Load ran.
+// Measured on a warm load that window was 634ms; it is as long as the page's
+// whole projection read, and every in-app link is a full document load, so it
+// happened on every navigation.
+//
+// The server-rendered attributes are the truth until the client has something
+// newer. A client that knows nothing yet has no business replacing them.
+func (c *browserThemeController) Reapply() {
+	if c != nil && c.loaded {
 		c.Apply(c.saved)
 	}
 }
@@ -94,6 +123,7 @@ func (c *browserThemeController) Save(theme productui.CustomerTheme) {
 		return
 	}
 	previousPalette := c.saved.Palette
+	c.loaded = true
 	c.Apply(theme)
 	c.syncEditContext(theme)
 	c.setSaveDisabled(true)

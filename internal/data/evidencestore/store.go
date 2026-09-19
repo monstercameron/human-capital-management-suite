@@ -103,11 +103,28 @@ func (s *Store) RecordInvocation(ctx context.Context, evt capability.InvocationE
 // (internal/workflow/execute.ExecutionEvidence) for the storage tenant the
 // run committed under.
 func (s *Store) RecordExecutionEvidence(ctx context.Context, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (string, error) {
-	return s.insert(ctx, tenantID, Record{
+	return s.insert(ctx, tenantID, executionRecord(kind, instanceID, nodeID, refID, digest, occurredAt))
+}
+
+// RecordExecutionEvidenceTx records the same OBS-024 entry on the caller's
+// transaction, for the workflow driver's in-advance recording
+// (internal/workflow/execute.ExecutionEvidenceTx): the entry commits beside
+// the outcome it describes and rolls back with it. tx must already be scoped
+// to tenantID the way the driver's advance transaction is; this method
+// neither re-scopes nor commits it.
+func (s *Store) RecordExecutionEvidenceTx(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (string, error) {
+	if tx == nil {
+		return "", fmt.Errorf("%w: execution evidence needs the advance transaction", ErrInvalid)
+	}
+	return insertTx(ctx, tx, tenantID, executionRecord(kind, instanceID, nodeID, refID, digest, occurredAt))
+}
+
+func executionRecord(kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) Record {
+	return Record{
 		CapabilityID: executionEvidenceCapabilityID, CapabilityVersion: 1,
 		SubjectRef: instanceID + "|" + nodeID, Decision: kind, ReasonCode: refID + "|" + digest,
 		OccurredAt: occurredAt,
-	})
+	}
 }
 
 // JourneyEvidenceIDs returns, in recording order, the ids of tenant's
@@ -193,6 +210,21 @@ func (s *Store) tx(ctx context.Context, tenantID uuid.UUID, fn func(dbport.Tx) e
 }
 
 func (s *Store) insert(ctx context.Context, tenantID uuid.UUID, r Record) (string, error) {
+	var id string
+	err := s.tx(ctx, tenantID, func(tx dbport.Tx) error {
+		var err error
+		id, err = insertTx(ctx, tx, tenantID, r)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+// insertTx writes r on tx, which the caller owns: it must already be scoped
+// to tenantID, and it is committed or rolled back by the caller, never here.
+func insertTx(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, r Record) (string, error) {
 	if tenantID == uuid.Nil {
 		return "", ErrTenantRequired
 	}
@@ -203,37 +235,31 @@ func (s *Store) insert(ctx context.Context, tenantID uuid.UUID, r Record) (strin
 	r = normalize(r)
 	r.Digest = digestOf(r)
 	r.EvidenceID = evidenceIDPrefix + strings.TrimPrefix(r.Digest, "sha256:")[:24]
-	err := s.tx(ctx, tenantID, func(tx dbport.Tx) error {
-		var deadline any
-		if !r.Deadline.IsZero() {
-			deadline = r.Deadline
-		}
-		inserted, err := tx.Exec(ctx, `INSERT INTO capability_invocation_evidence
-			(tenant_id, evidence_id, capability_id, capability_version, subject_ref, decision, reason_code,
-			 occurred_at, purpose, idempotency_key, deadline, effect_class, record_digest)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-			ON CONFLICT (tenant_id, evidence_id) DO NOTHING`,
-			tenantID, r.EvidenceID, r.CapabilityID, int64(r.CapabilityVersion), r.SubjectRef, r.Decision, r.ReasonCode,
-			r.OccurredAt, r.Purpose, r.IdempotencyKey, deadline, r.EffectClass, r.Digest)
-		if err != nil {
-			return fmt.Errorf("evidencestore: insert evidence: %w", err)
-		}
-		if inserted == 1 {
-			return nil
-		}
-		// A replay of the same decision: the existing row must be this one.
-		var stored string
-		if err := tx.QueryRow(ctx, `SELECT record_digest FROM capability_invocation_evidence WHERE tenant_id = $1 AND evidence_id = $2`,
-			tenantID, r.EvidenceID).Scan(&stored); err != nil {
-			return fmt.Errorf("evidencestore: load replayed evidence: %w", err)
-		}
-		if stored != r.Digest {
-			return fmt.Errorf("%w: %s is already bound to %s", ErrDigestMismatch, r.EvidenceID, stored)
-		}
-		return nil
-	})
+	var deadline any
+	if !r.Deadline.IsZero() {
+		deadline = r.Deadline
+	}
+	inserted, err := tx.Exec(ctx, `INSERT INTO capability_invocation_evidence
+		(tenant_id, evidence_id, capability_id, capability_version, subject_ref, decision, reason_code,
+		 occurred_at, purpose, idempotency_key, deadline, effect_class, record_digest)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		ON CONFLICT (tenant_id, evidence_id) DO NOTHING`,
+		tenantID, r.EvidenceID, r.CapabilityID, int64(r.CapabilityVersion), r.SubjectRef, r.Decision, r.ReasonCode,
+		r.OccurredAt, r.Purpose, r.IdempotencyKey, deadline, r.EffectClass, r.Digest)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("evidencestore: insert evidence: %w", err)
+	}
+	if inserted == 1 {
+		return r.EvidenceID, nil
+	}
+	// A replay of the same decision: the existing row must be this one.
+	var stored string
+	if err := tx.QueryRow(ctx, `SELECT record_digest FROM capability_invocation_evidence WHERE tenant_id = $1 AND evidence_id = $2`,
+		tenantID, r.EvidenceID).Scan(&stored); err != nil {
+		return "", fmt.Errorf("evidencestore: load replayed evidence: %w", err)
+	}
+	if stored != r.Digest {
+		return "", fmt.Errorf("%w: %s is already bound to %s", ErrDigestMismatch, r.EvidenceID, stored)
 	}
 	return r.EvidenceID, nil
 }

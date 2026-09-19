@@ -146,7 +146,7 @@ func (c *Cell) prepareParkedResume(ctx context.Context, kind, instanceID, nodeID
 		return parkedResume{}, err
 	}
 
-	start, intentInstance, intentRecord, err := c.parkedExecutionStart(ctx, tx, tenant, tenantID, instance, what)
+	start, intentInstance, intentRecord, err := c.Service.parkedExecutionStart(ctx, tx, tenant, tenantID, instance, what)
 	if err != nil {
 		return parkedResume{}, err
 	}

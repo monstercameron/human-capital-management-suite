@@ -40,15 +40,20 @@ func VisibleFocusIndicator() FocusIndicator {
 
 func declareJourneyFocusBridge() {
 	declareGlobal(".jn-embedded",
-		gwccss.Custom("jn-focus-color", "var(--hcm-color-focus)"),
-		gwccss.Custom("jn-focus-ring-width", "var(--hcm-focus-ring-width)"),
-		gwccss.Custom("jn-focus-ring-offset", "var(--hcm-focus-ring-offset)"),
 		gwccss.Custom("jn-ring", "0 0 0 var(--hcm-focus-ring-gap) var(--hcm-color-focus)"),
+		// --jn-focus-color is the declared bridge between the product's
+		// protected focus colour and the journey surface, and WEB-019 pins it
+		// as a contract. No rule reads it today -- the ring above names
+		// --hcm-color-focus directly -- so it is a promise the journey sheet
+		// can keep rather than one it currently uses. It stays declared
+		// because the contract is the point; if it is ever retired, WEB-019
+		// is the conversation to have first.
+		gwccss.Custom("jn-focus-color", "var(--hcm-color-focus)"),
 	)
 	declareGlobal(".jn-embedded",
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"),
-			gwccss.Custom("jn-focus-color", "Highlight"),
-			gwccss.Custom("jn-ring", "0 0 0 2px Highlight")),
+			gwccss.Custom("jn-ring", "0 0 0 2px Highlight"),
+			gwccss.Custom("jn-focus-color", "Highlight")),
 	)
 }
 

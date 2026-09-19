@@ -228,7 +228,7 @@ func declarecollectionControlStylesStyles() {
 	declareGlobal(".people-workflow-unavailable-reason",
 		gwccss.Margin(gwccss.Zero),
 		gwccss.Padding(gwccss.Px(8)),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.LineHeight(gwccss.Num(1.45)),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
@@ -237,8 +237,8 @@ func declarecollectionControlStylesStyles() {
 		gwccss.PaddingY(gwccss.Px(10)), gwccss.PaddingX(gwccss.Px(11)),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "none"),
 	)
 	declareGlobal(".people-workflow-option:hover,.people-workflow-option:focus",
@@ -257,8 +257,8 @@ func declarecollectionControlStylesStyles() {
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Px(8)),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("white-space", "nowrap"),
 	)
 	declareGlobal(".page-size-control select",
@@ -318,8 +318,8 @@ func declarenavigationSearchStylesStyles() {
 		gwccss.Raw("margin-top", "3px"),
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "450"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "400"),
 		gwccss.LineHeight(gwccss.Num(1.28)),
 		gwccss.Raw("-webkit-box-orient", "vertical"),
 		gwccss.Raw("-webkit-line-clamp", "2"),
@@ -392,7 +392,7 @@ func declarepeopleSortFilterStylesStyles() {
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
 	declareGlobal(".people-sort.active",
-		gwccss.Raw("font-weight", "750"),
+		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(".people-filter-control",
 		mediaRule(gwccss.MaxW(1120), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(176)), gwccss.Fr(1)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(154)), gwccss.Fr(.9)), gwccss.TrackLen(gwccss.RawLength("auto")))),
@@ -422,7 +422,7 @@ func declarepeopleSortFilterStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Display.Flex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(8)), gwccss.Raw("overflow-x", "auto"), gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(12))),
 	)
 	declareGlobal(".people-sort-label",
-		mediaRule(gwccss.MaxW(760), gwccss.Display.Block, gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "700")),
+		mediaRule(gwccss.MaxW(760), gwccss.Display.Block, gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "700")),
 	)
 	declareGlobal(".people-columns>span",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("flex", "none")),
@@ -471,7 +471,7 @@ func declarepeopleQuickActionStylesStyles() {
 		mediaRule(gwccss.MaxW(1050), gwccss.Display.Flex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(8)), gwccss.Raw("overflow-x", "auto"), gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(12))),
 	)
 	declareGlobal(".people-sort-label",
-		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "700")),
+		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "700")),
 	)
 	declareGlobal(".people-columns>span",
 		mediaRule(gwccss.MaxW(1050), gwccss.Raw("flex", "none")),
@@ -495,7 +495,7 @@ func declarepeopleQuickActionStylesStyles() {
 		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "flex!important"), gwccss.Raw("grid-column", "auto!important"), gwccss.Raw("justify-content", "space-between"), gwccss.Gap(gwccss.Px(18)), gwccss.MinWidth(gwccss.Zero)),
 	)
 	declareGlobal(".people-row>.people-cell:before",
-		mediaRule(gwccss.MaxW(1050), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "650")),
+		mediaRule(gwccss.MaxW(1050), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "600")),
 	)
 	declareGlobal(".people-row-actions",
 		mediaRule(gwccss.MaxW(1050), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1)))),
@@ -938,7 +938,7 @@ func declaredataTableStylesStyles() {
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-weight", "700"),
 		gwccss.Raw("box-shadow", "0 10px 26px color-mix(in srgb,var(--ink) 16%,transparent)"),
 	)
@@ -961,7 +961,7 @@ func declaredataTableStylesStyles() {
 	)
 	declareGlobal(".data-table-scroll.is-busy .data-table-body",
 		gwccss.OpacityNum(gwccss.Num(.64)),
-		gwccss.Raw("transition", "opacity var(--hcm-motion-duration-fast) var(--hcm-motion-easing)"),
+		gwccss.Raw("transition", "opacity var(--hcm-motion-fast) var(--hcm-motion-easing)"),
 	)
 	declareGlobal(":root[data-hcm-motion-preference=\"reduce\"] .data-table-scroll.is-busy .data-table-body,:root[data-hcm-motion-preference=\"limited\"] .data-table-scroll.is-busy .data-table-body",
 		gwccss.Raw("transition", "none"),
@@ -981,7 +981,7 @@ func declaredataTableStylesStyles() {
 		gwccss.Raw("border-collapse", "separate"),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".data-table-head,.data-table .data-table-row",
 		gwccss.Raw("display", "table-row"),
@@ -996,8 +996,8 @@ func declaredataTableStylesStyles() {
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-align", "left"),
 		gwccss.Raw("white-space", "nowrap"),
 		gwccss.Raw("box-shadow", "0 8px 14px color-mix(in srgb,var(--ink) 6%,transparent)"),
@@ -1038,7 +1038,7 @@ func declaredataTableStylesStyles() {
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
 	declareGlobal(".data-table-sort.active",
-		gwccss.Raw("font-weight", "750"),
+		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(".data-table-cell",
 		gwccss.MinWidth(gwccss.Px(110)),
@@ -1126,7 +1126,7 @@ func declaredataTableStylesStyles() {
 		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "flex!important"), gwccss.MinWidth(gwccss.RawLength("0!important")), gwccss.Padding(gwccss.Px(3)), gwccss.Raw("border", "0"), gwccss.Raw("background", "transparent!important"), gwccss.Raw("justify-content", "space-between"), gwccss.Gap(gwccss.Px(18)), gwccss.Raw("text-align", "start")),
 	)
 	declareGlobal(".data-table .data-table-cell:not(.data-table-row-header):not(.people-row-actions):before",
-		mediaRule(gwccss.MaxW(1050), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "650")),
+		mediaRule(gwccss.MaxW(1050), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "600")),
 	)
 	declareGlobal(".data-table .data-table-row-header",
 		mediaRule(gwccss.MaxW(1050), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))), gwccss.Raw("justify-content", "flex-start")),
@@ -1135,7 +1135,7 @@ func declaredataTableStylesStyles() {
 		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "flex!important"), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))), gwccss.Raw("justify-content", "flex-end")),
 	)
 	declareGlobal(".data-table-sort-label",
-		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Raw("padding", "8px 12px 0"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "700")),
+		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Raw("padding", "8px 12px 0"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "700")),
 	)
 	declareGlobal(".data-table .data-table-row",
 		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),

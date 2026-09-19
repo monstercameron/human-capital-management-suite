@@ -367,7 +367,7 @@ func TestEverySectionRendersForEveryFixture(t *testing.T) {
 	detailWants := []string{
 		`id="journey-heading"`, `class="jn-panel jn-hero"`,
 		`id="stages-heading"`, `class="jn-stepper"`,
-		`id="proposal-heading"`, `class="jn-facts"`, `class="jn-table"`,
+		`id="proposal-heading"`, `class="jn-facts"`, `class="jn-table jn-compare"`,
 		`id="findings-heading"`, `class="jn-board"`, `class="jn-checkpill"`,
 		`class="jn-band"`, `class="jn-meter"`, `class="jn-strip"`,
 		`id="workflow-heading"`, `class="jn-workitems"`, `jn-zebra`,

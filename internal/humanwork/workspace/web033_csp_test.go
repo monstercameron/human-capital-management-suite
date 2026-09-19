@@ -275,7 +275,14 @@ func TestTodo_WEB_033_Security(t *testing.T) {
 		}
 	}
 	for name, source := range map[string]string{"workspace": loaderSource, "journey": journeyLoaderSource} {
-		if !strings.Contains(source, `integrity:i||""`) || !strings.Contains(source, "o(s.integrity)") || !strings.Contains(source, "o(a.integrity)") {
+		// UXLIVE-013 routed the executable fetches through k(), which builds
+		// its request options with o() and nothing else, so the SRI pin now
+		// travels as k's argument. The guarantee is the same one: no
+		// executable byte is fetched without both the bearer token and its
+		// integrity.
+		if !strings.Contains(source, `integrity:i||""`) || !strings.Contains(source, "return fetch(u,o(i))") ||
+			!strings.Contains(source, ",s.integrity)") || !strings.Contains(source, ",a.integrity)") ||
+			strings.Contains(source, "fetch(u,{") {
 			t.Errorf("%s loader does not carry authenticated SRI fetches", name)
 		}
 		for _, forbidden := range []string{"eval(", "innerHTML", "http://", "https://"} {

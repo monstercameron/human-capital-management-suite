@@ -529,15 +529,18 @@ func promotionPublishOptions() workflow.Options {
 	}
 	mutating := readOnly("hcmnext.people.promote_worker", "people", "scope:people.write")
 	mutating.Definition.EffectClass = capability.EffectInternalMutation
+	releaseHold := readOnly("hcmnext.rewards.release_compensation_budget", "rewards", "scope:rewards.write")
+	releaseHold.Definition.EffectClass = capability.EffectInternalMutation
 	return workflow.Options{Phase: workflow.PhaseP1B, Capabilities: promotionCapabilities{
-		{ID: "hcmnext.people.explain_worker_state", Version: 1}:        readOnly("hcmnext.people.explain_worker_state", "people", "scope:people.read"),
-		{ID: "hcmnext.rewards.simulate_compensation", Version: 1}:      readOnly("hcmnext.rewards.simulate_compensation", "rewards", "scope:rewards.read"),
-		{ID: "hcmnext.rewards.evaluate_pay_band_position", Version: 1}: readOnly("hcmnext.rewards.evaluate_pay_band_position", "rewards", "scope:rewards.read"),
-		{ID: "internal/governance/revalidate", Version: 1}:             readOnly("internal/governance/revalidate", "governance", "scope:governance.read"),
-		{ID: "hcmnext.people.promote_worker", Version: 1}:              mutating,
-		{ID: "hcmnext.payroll.observe_promotion", Version: 1}:          readOnly("hcmnext.payroll.observe_promotion", "payroll", "scope:observation.read"),
-		{ID: "hcmnext.access.observe_promotion", Version: 1}:           readOnly("hcmnext.access.observe_promotion", "access", "scope:observation.read"),
-		{ID: "hcmnext.reconciliation.observe_promotion", Version: 1}:   readOnly("hcmnext.reconciliation.observe_promotion", "reconciliation", "scope:observation.read"),
+		{ID: "hcmnext.people.explain_worker_state", Version: 1}:         readOnly("hcmnext.people.explain_worker_state", "people", "scope:people.read"),
+		{ID: "hcmnext.rewards.simulate_compensation", Version: 1}:       readOnly("hcmnext.rewards.simulate_compensation", "rewards", "scope:rewards.read"),
+		{ID: "hcmnext.rewards.evaluate_pay_band_position", Version: 1}:  readOnly("hcmnext.rewards.evaluate_pay_band_position", "rewards", "scope:rewards.read"),
+		{ID: "internal/governance/revalidate", Version: 1}:              readOnly("internal/governance/revalidate", "governance", "scope:governance.read"),
+		{ID: "hcmnext.people.promote_worker", Version: 1}:               mutating,
+		{ID: "hcmnext.payroll.observe_promotion", Version: 1}:           readOnly("hcmnext.payroll.observe_promotion", "payroll", "scope:observation.read"),
+		{ID: "hcmnext.access.observe_promotion", Version: 1}:            readOnly("hcmnext.access.observe_promotion", "access", "scope:observation.read"),
+		{ID: "hcmnext.reconciliation.observe_promotion", Version: 1}:    readOnly("hcmnext.reconciliation.observe_promotion", "reconciliation", "scope:observation.read"),
+		{ID: "hcmnext.rewards.release_compensation_budget", Version: 1}: releaseHold,
 	}}
 }
 

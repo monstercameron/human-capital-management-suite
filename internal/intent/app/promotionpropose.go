@@ -399,6 +399,16 @@ func (e *journeyEngine) ProposePromotion(
 	if err := validatePublishedPromotionPath(current, in, baseline); err != nil {
 		return nil, err
 	}
+	// The intent-only contract shares the page form's vacancy selection: a
+	// proposal that names no position is given the catalog vacancy when the
+	// tenant's catalog records one, and stays position-less otherwise.
+	if strings.TrimSpace(in.TargetPositionID) == "" {
+		selected, selectErr := e.selectTargetPosition(ctx, principal, current.orgUnit, strings.TrimSpace(in.TargetJobCode), strings.TrimSpace(in.TargetGrade), baseline.effective)
+		if selectErr != nil {
+			return nil, selectErr
+		}
+		in.TargetPositionID = selected
+	}
 
 	def, ownedErr := e.svc.defs.Resolve(intent.Ref{TypeID: promotion.IntentType, Version: 1})
 	if ownedErr != nil {
@@ -435,7 +445,11 @@ func (e *journeyEngine) ProposePromotion(
 					Kind:                 journeyInitiatorKind(principal.SubjectKind()),
 					IdentityAssuranceRef: principal.EvidenceID(),
 				},
-				Subjects: journeySubjects(subject.Ref.Id, fields["desired_position_id"]),
+				// in.TargetPositionID carries the caller-named position or the
+				// catalog vacancy selected above; the subjects must name the
+				// same position the payload binds, or the approval-time
+				// governance reads a position-less revision.
+				Subjects: journeySubjects(subject.Ref.Id, in.TargetPositionID),
 				Request: &intentsv1.TypedPayload{
 					Schema: &intentsv1.SchemaReference{
 						SchemaId:         def.InputSchema.SchemaID,

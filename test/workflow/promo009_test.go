@@ -38,6 +38,10 @@ func TestTodo_PROMO_009(t *testing.T) {
 	if err != nil || got.Fired != 1 || got.Completed != 1 {
 		t.Fatalf("promotion scheduler Tick = %+v, err=%v; want one fired and one completed dispatch", got, err)
 	}
+	// Reconciliation verified every leg; the run parks on the
+	// acknowledgement gate, and the received attestation runs it to its
+	// COMPLETE terminal.
+	acknowledgeParkedPromotion(t, f, parked.Start.InstanceID, f.fireAt)
 
 	assertPromotion009Trace(t, f, parked.Start.InstanceID, promotion009CompleteDimensions())
 }
@@ -72,6 +76,8 @@ func TestTodo_PROMO_009_Golden(t *testing.T) {
 		{promotionexec.NodeEndExpired, workflow.StepEnd},
 		{promotionexec.NodeObserveAccess, workflow.StepObserve},
 		{promotionexec.NodeObserveReconciliation, workflow.StepObserve},
+		{promotionexec.NodeCompensateHold, workflow.StepCompensate},
+		{promotionexec.NodeAcknowledgeRelease, workflow.StepSignal},
 		{promotionexec.NodeEndComplete, workflow.StepEnd},
 		{promotionexec.NodeEndRepairPlan, workflow.StepEnd},
 	}
@@ -305,6 +311,9 @@ func TestTodo_PROMO_009_Fault(t *testing.T) {
 	if got := countRows(t, f.db, `SELECT count(*) FROM effect_reconciliation_job WHERE tenant_id = $1`, f.tenantID); got != 1 {
 		t.Fatalf("repair jobs = %d, want 1", got)
 	}
+	if got := countRows(t, f.db, `SELECT count(*) FROM workflow_node_execution WHERE tenant_id = $1 AND instance_id = $2 AND node_id = $3 AND status = 'SUCCEEDED'`, f.tenantID, parked.Start.InstanceID, promotionexec.NodeCompensateHold); got != 1 {
+		t.Fatalf("compensate node executions = %d, want 1 SUCCEEDED before the repair terminal", got)
+	}
 }
 
 func TestTodo_PROMO_009_Security(t *testing.T) {
@@ -368,6 +377,7 @@ func assertPromotion009Trace(t *testing.T, f promotionFullFixture, instanceID uu
 		promotionexec.NodeRevalidate: true, promotionexec.NodeStillValid: true,
 		promotionexec.NodeExecutePromotion: true, promotionexec.NodeObservePayroll: true,
 		promotionexec.NodeObserveAccess: true, promotionexec.NodeObserveReconciliation: true,
+		promotionexec.NodeAcknowledgeRelease: true,
 	}
 	if f.behavior.aboveThreshold {
 		expected[promotionexec.NodeApproveFinance] = true
@@ -375,6 +385,10 @@ func assertPromotion009Trace(t *testing.T, f promotionFullFixture, instanceID uu
 	if f.behavior.payroll != "" && f.behavior.payroll != workflow.Outcome("PASS") {
 		delete(expected, promotionexec.NodeObserveAccess)
 		delete(expected, promotionexec.NodeObserveReconciliation)
+		delete(expected, promotionexec.NodeAcknowledgeRelease)
+		// The known-bad observation routes through the bounded correction
+		// before the RepairPlan terminal.
+		expected[promotionexec.NodeCompensateHold] = true
 	}
 	if got := countRows(t, f.db, `SELECT count(*) FROM workflow_node_execution WHERE tenant_id = $1 AND instance_id = $2 AND status = 'SUCCEEDED'`, f.tenantID, instanceID); got != len(expected)+1 {
 		t.Fatalf("successful reference node executions = %d, want %d including terminal", got, len(expected)+1)

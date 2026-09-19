@@ -124,6 +124,10 @@ func TestTodo_WF_RUN_003_ServeRedelivery(t *testing.T) {
 	if err != nil || receipt.Count(wfrecover.SweepRedelivered) != 1 {
 		t.Fatalf("serve recovery sweep = %+v, %v; want one redelivery", receipt, err)
 	}
+	// The redelivered drain parks on the acknowledgement gate; the HR
+	// operator's attestation clears it and the promotion commits exactly
+	// once.
+	h.acknowledgeParkedPromotion(intentID)
 	if err := promoux015CommittedOnce(effectsBefore, h.effects()); err != nil {
 		t.Fatalf("the redelivered drain's commit: %v", err)
 	}
@@ -134,8 +138,11 @@ func TestTodo_WF_RUN_003_ServeRedelivery(t *testing.T) {
 		instanceID.String()).Scan(&state, &holder, &token); err != nil {
 		t.Fatal(err)
 	}
-	if state != "RELEASED" || !strings.HasPrefix(holder, "workload:hcmnext-serve-recovery#") || token != int64(deadToken)+1 {
-		t.Fatalf("instance lease after redelivery = %s/%s/%d, want RELEASED by the sweeper at %d", state, holder, token, deadToken+1)
+	// The lease chain is dead driver, sweeper takeover, then the
+	// acknowledgement's own fenced resume: the final release belongs to the
+	// execution workload two tokens above the dead driver's.
+	if state != "RELEASED" || !strings.HasPrefix(holder, "workload:hcmnext-execution#") || token != int64(deadToken)+2 {
+		t.Fatalf("instance lease after redelivery = %s/%s/%d, want RELEASED by the acknowledgement resume at %d", state, holder, token, deadToken+2)
 	}
 	detail, err := h.client.InspectJourney(h.rpc("admin"), &journeyv1.InspectJourneyRequest{IntentId: intentID})
 	if err != nil {

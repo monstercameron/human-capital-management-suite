@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-const resolveSchemaVersion = 1
-
 var (
 	// ErrResolveRejected is the KNOW-003 seeded-defect sentinel. Uncited,
 	// stale, injected or invalidated knowledge that matches the query must

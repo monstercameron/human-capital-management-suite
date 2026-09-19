@@ -116,6 +116,15 @@ func (e *journeyEngine) ListWorkers(ctx context.Context) ([]workspace.WorkerSumm
 		return nil, workspace.WorkforceOptions{}, err
 	}
 
+	// UXLIVE-011: the governed vacancy list travels with the rest of the
+	// options, on the same read the form already makes. A cell that cannot
+	// read positions returns none, and the form's empty state says so.
+	vacancies, err := e.positionVacancies(ctx, principal)
+	if err != nil {
+		return nil, workspace.WorkforceOptions{}, err
+	}
+	options.PositionVacancies = vacancies
+
 	created, err := e.listCreated(ctx, principal)
 	if err != nil {
 		return nil, workspace.WorkforceOptions{}, err

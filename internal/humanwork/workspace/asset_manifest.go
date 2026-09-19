@@ -75,12 +75,16 @@ type assetIntegrityMetadata struct {
 	ContentType string
 	Integrity   string
 	ETags       map[string]string
+	// SHA256 is the identity representation's digest. A request that names
+	// it is asking for exactly these bytes and can be answered immutably
+	// (UXLIVE-013).
+	SHA256 string
 }
 
 func indexAssetIntegrityManifest(m AssetIntegrityManifest) map[string]assetIntegrityMetadata {
 	index := make(map[string]assetIntegrityMetadata, len(m.Assets))
 	for _, asset := range m.Assets {
-		metadata := assetIntegrityMetadata{ContentType: asset.ContentType, Integrity: asset.Integrity, ETags: make(map[string]string, len(asset.Representations))}
+		metadata := assetIntegrityMetadata{ContentType: asset.ContentType, Integrity: asset.Integrity, SHA256: asset.SHA256, ETags: make(map[string]string, len(asset.Representations))}
 		for _, representation := range asset.Representations {
 			metadata.ETags[representation.Encoding] = `"` + representation.SHA256 + `"`
 		}

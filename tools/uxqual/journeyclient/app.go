@@ -101,6 +101,12 @@ type App struct {
 	// PROMOUX-013's report for that known staleness window.
 	withdrawPreview *journeyv1.PreviewJourneyInterventionResponse
 	cancelPreview   *journeyv1.PreviewJourneyInterventionResponse
+	// repairPreview is UXLIVE-006's governed repair preview, read on the
+	// same load. Unlike the two above it is never "available": the answer a
+	// repair-required journey needs is what the door demands and who may
+	// open it, and that answer only exists on the server, which is why the
+	// page cannot compute it the way it computes withdraw and cancel.
+	repairPreview *journeyv1.PreviewJourneyInterventionResponse
 	// workerErrors are the last CreateWorker refusal's field violations,
 	// keyed by request field name. They are cleared by the next attempt, so
 	// a form never shows an error the reader has already answered.
@@ -699,10 +705,10 @@ func (a *App) loadInterventionPreviews(ctx context.Context, generation int, inte
 		return
 	}
 	var (
-		wg               sync.WaitGroup
-		withdraw, cancel *journeyv1.PreviewJourneyInterventionResponse
+		wg                       sync.WaitGroup
+		withdraw, cancel, repair *journeyv1.PreviewJourneyInterventionResponse
 	)
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		resp, err := a.svc.PreviewJourneyIntervention(ctx, &journeyv1.PreviewJourneyInterventionRequest{
@@ -721,6 +727,15 @@ func (a *App) loadInterventionPreviews(ctx context.Context, generation int, inte
 			cancel = resp
 		}
 	}()
+	go func() {
+		defer wg.Done()
+		resp, err := a.svc.PreviewJourneyIntervention(ctx, &journeyv1.PreviewJourneyInterventionRequest{
+			IntentId: intentID, Kind: journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_REPAIR,
+		})
+		if err == nil {
+			repair = resp
+		}
+	}()
 	wg.Wait()
 	if a.stale(generation) {
 		return
@@ -728,6 +743,7 @@ func (a *App) loadInterventionPreviews(ctx context.Context, generation int, inte
 	a.mu.Lock()
 	a.withdrawPreview = withdraw
 	a.cancelPreview = cancel
+	a.repairPreview = repair
 	a.mu.Unlock()
 }
 
@@ -1396,7 +1412,7 @@ func (a *App) show(notice *journey.Notice) {
 	a.mu.Lock()
 	cfg := a.cfg
 	route, detail := a.route, a.detail
-	withdrawPreview, cancelPreview := a.withdrawPreview, a.cancelPreview
+	withdrawPreview, cancelPreview, repairPreview := a.withdrawPreview, a.cancelPreview, a.repairPreview
 	data := ListData{
 		Journeys:       a.list,
 		Workers:        a.workers,
@@ -1411,7 +1427,7 @@ func (a *App) show(notice *journey.Notice) {
 	values := a.store.Values()
 	var page journey.Page
 	if route.Kind == RouteDetail && detail.GetJourney().GetIntentId() == route.IntentID {
-		page = DetailPageWithInterventions(cfg, detail, notice, values, withdrawPreview, cancelPreview)
+		page = DetailPageWithInterventions(cfg, detail, notice, values, withdrawPreview, cancelPreview, repairPreview)
 	} else if route.Kind == RouteDetail {
 		// The route names a journey whose answer has not arrived (or whose
 		// answer was a refusal). The chrome, the notice and the navigation

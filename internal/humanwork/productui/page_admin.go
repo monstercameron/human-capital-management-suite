@@ -65,10 +65,17 @@ func adminPage(view View) ui.Node {
 		}
 		capabilities = resolved
 	}
+	available := view.Locale.Text("admin.available")
 	cards := make([]CapabilityCardProps, 0, len(capabilities))
 	for _, capability := range capabilities {
+		// The ordinary state is not news. Only a card whose state differs
+		// from available carries a badge (UXLIVE-014).
+		state := capability.state
+		if state == available {
+			state = ""
+		}
 		cards = append(cards, CapabilityCardProps{
-			Title: capability.title, Description: capability.description, State: capability.state, Tone: capability.tone, Availability: capability.availability,
+			Title: capability.title, Description: capability.description, State: state, Tone: capability.tone, Availability: capability.availability,
 			Action: ActionLinkProps{Label: capability.actionLabel, Href: statefulHref(view, capability.page), Navigate: view.Navigate},
 		})
 	}

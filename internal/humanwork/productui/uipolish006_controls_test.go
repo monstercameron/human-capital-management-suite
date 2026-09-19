@@ -37,15 +37,43 @@ func TestTodo_UIPOLISH_006_Accessibility(t *testing.T) {
 	}
 }
 
+// controlTargetPx is the height every inline control in the product now
+// resolves to. The 44px target UIPOLISH-006 established is expressed as a
+// token rather than repeated as a literal, so this reads the token and
+// fails if it were ever set below the minimum -- which grepping for "44px"
+// could not have caught.
+func controlTargetPx(t *testing.T, css string) int {
+	t.Helper()
+	match := regexp.MustCompile(`--hcm-control-height:(\d+)px`).FindStringSubmatch(css)
+	if len(match) != 2 {
+		t.Fatal("the shared control height token is not declared")
+	}
+	px, err := strconv.Atoi(match[1])
+	if err != nil {
+		t.Fatalf("control height token is not a pixel value: %v", err)
+	}
+	if px < 44 {
+		t.Fatalf("the shared control height is %dpx, below the 44px target", px)
+	}
+	return px
+}
+
+// targetHeight matches a declaration that reaches the target, whether it
+// names the pixels or the token that carries them.
+func targetHeight(prop string) string {
+	return prop + `:(?:44px|var\(--hcm-control-height\))`
+}
+
 func TestTodo_UIPOLISH_006_ProductionTargetSize(t *testing.T) {
 	css := Stylesheet()
+	controlTargetPx(t, css)
 	for _, selector := range []string{
 		`.history-sort`, `.studio-back-link`, `.page-size-control select`, `.page-size-apply`,
 		`.organization-view-option`, `.permission-check`, `.ownership-person-disclosure>summary`, `.subnav-link`,
 		`.subnav .nav-link`, `.locale-option`, `.people-pager .button`, `.menu-filter-clear`,
 		`.button.compact`, `.context-switcher-trigger`, `.popover-root>summary`,
 	} {
-		if !regexp.MustCompile(regexp.QuoteMeta(selector) + `\{[^}]*min-height:44px`).MatchString(css) {
+		if !regexp.MustCompile(regexp.QuoteMeta(selector) + `\{[^}]*` + targetHeight("min-height")).MatchString(css) {
 			t.Errorf("%s has no 44px target height", selector)
 		}
 		// A later responsive or more-specific rule must not silently reduce
@@ -61,7 +89,8 @@ func TestTodo_UIPOLISH_006_ProductionTargetSize(t *testing.T) {
 	}
 	for _, selector := range []string{`.history-navigation-button`, `.header-nav-toggle`} {
 		match := regexp.MustCompile(regexp.QuoteMeta(selector) + `\{([^}]*)\}`).FindStringSubmatch(css)
-		if len(match) != 2 || !strings.Contains(match[1], `width:44px`) || !strings.Contains(match[1], `height:44px`) {
+		if len(match) != 2 || !regexp.MustCompile(targetHeight("width")).MatchString(match[1]) ||
+			!regexp.MustCompile(targetHeight("height")).MatchString(match[1]) {
 			t.Errorf("%s has no 44px target", selector)
 		}
 	}
@@ -111,7 +140,7 @@ func TestTodo_UIPOLISH_006_GenericPopoverTargetAndFocus(t *testing.T) {
 		t.Fatalf("generic popover lost its summary trigger: %s", markup)
 	}
 	css := Stylesheet()
-	if !regexp.MustCompile(`\.popover-root>summary\{[^}]*min-height:44px`).MatchString(css) ||
+	if !regexp.MustCompile(`\.popover-root>summary\{[^}]*`+targetHeight("min-height")).MatchString(css) ||
 		!regexp.MustCompile(`:focus-visible\{[^}]*outline:[^;}]+`).MatchString(css) {
 		t.Fatal("generic popover trigger lacks a touch target or visible keyboard focus")
 	}
@@ -156,7 +185,7 @@ func TestTodo_UIPOLISH_006_Regression_OpenDrawerKeepsCloseActionVisible(t *testi
 
 func TestTodo_UIPOLISH_006_Regression_SummaryControlsKeepTargetAndFocus(t *testing.T) {
 	css := Stylesheet()
-	if !strings.Contains(css, `.context-switcher-trigger,.popover-root>summary{min-height:44px;}`) {
+	if !regexp.MustCompile(`\.context-switcher-trigger,\.popover-root>summary\{` + targetHeight("min-height")).MatchString(css) {
 		t.Error("summary controls do not share the 44px target")
 	}
 	focus := regexp.MustCompile(`\.popover-root>summary:focus-visible\{([^}]*)\}`).FindStringSubmatch(css)

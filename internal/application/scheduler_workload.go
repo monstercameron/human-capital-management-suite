@@ -73,7 +73,8 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 	// the queue fence, and the generic dispatcher routes any it reaches first.
 	signals, err := executionscheduler.NewSignalDispatcher(executionscheduler.SignalDispatcherConfig{
 		DB: pool, Resumer: signalResumer(claimTenant.String(), cfg.Tenant, cell.ResumeMatchedSignal),
-		Clock: now, Logger: logger,
+		Expirer: signalExpirer(claimTenant.String(), cfg.Tenant, cell.ResumeExpiredSignal),
+		Clock:   now, Logger: logger,
 	})
 	if err != nil {
 		return bootstrap.Workload{}, err

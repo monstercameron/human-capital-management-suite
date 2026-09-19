@@ -185,6 +185,13 @@ enum InterventionOutcome {
   // cleanly refused; governed repair is required to reach a consistent
   // terminal state.
   INTERVENTION_OUTCOME_REPAIR_REQUIRED = 5;
+  // INTERVENTION_OUTCOME_INDETERMINATE: the governed repair ran and its
+  // admission fence could not establish whether the corrective effect
+  // reached the external system. It is deliberately distinct from APPLIED
+  // and from DENIED: the one thing a reader must not be told here is that
+  // the state is known. It mirrors the REPAIR mode's own
+  // internal/workflow/execute.RepairIndeterminate verdict.
+  INTERVENTION_OUTCOME_INDETERMINATE = 6;
 }
 
 // ErrorCode is the canonical owned error condition. Transport status codes

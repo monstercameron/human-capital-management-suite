@@ -69,6 +69,11 @@ func (r promotionRunner) Run(_ context.Context, req execute.StepRequest) (fronti
 		out.Outcome = workflow.Outcome("PASS")
 	case promotionexec.NodeObserveReconciliation:
 		out.Outcome = r.recon
+	case promotionexec.NodeCompensateHold:
+		// The HoldReleasePort contract names the COMPENSATE route, never a
+		// capability SUCCEEDED: the frontier rejects anything outside the
+		// COMPENSATE vocabulary.
+		out.Outcome = workflow.Outcome("COMPENSATED")
 	case promotionexec.NodeEndComplete, promotionexec.NodeEndRepairPlan, promotionexec.NodeEndRejected,
 		promotionexec.NodeEndInvalidated, promotionexec.NodeEndExpired, promotionexec.NodeEndCancelled,
 		promotionexec.NodeEndBlocked:

@@ -71,7 +71,7 @@ func TestJourneyStagesAreDistinct(t *testing.T) {
 		workspace.JourneyStageWaitingEffectiveDate, workspace.JourneyStageRevalidation,
 		workspace.JourneyStageReapproval, workspace.JourneyStageExecuted,
 		workspace.JourneyStageObservingEffects, workspace.JourneyStageRecorded,
-		workspace.JourneyStageRepairRequired,
+		workspace.JourneyStageRepairRequired, workspace.JourneyStageAwaitingAcknowledgement,
 	} {
 		if stage == "" {
 			t.Error("a stage token is empty")
@@ -81,8 +81,8 @@ func TestJourneyStagesAreDistinct(t *testing.T) {
 		}
 		seen[stage] = true
 	}
-	if len(seen) != 15 {
-		t.Fatalf("declared %d distinct stages, want 15", len(seen))
+	if len(seen) != 16 {
+		t.Fatalf("declared %d distinct stages, want 16", len(seen))
 	}
 }
 
@@ -108,6 +108,10 @@ func (portStub) Execute(context.Context, string) (workspace.JourneyDetail, error
 }
 
 func (portStub) Decide(context.Context, string, workspace.Decision) (workspace.JourneyDetail, error) {
+	return workspace.JourneyDetail{}, nil
+}
+
+func (portStub) Acknowledge(context.Context, string, workspace.Acknowledgement) (workspace.JourneyDetail, error) {
 	return workspace.JourneyDetail{}, nil
 }
 

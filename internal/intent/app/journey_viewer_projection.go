@@ -38,6 +38,11 @@ func journeyStageTransition(stage workspace.JourneyStage) journeyTransition {
 	case workspace.JourneyStageRepairRequired:
 		// Repair is a person's job, but nothing on the journey names whose.
 		return journeyTransition{workspace.JourneyNextStepRepair, "", true}
+	case workspace.JourneyStageAwaitingAcknowledgement:
+		// Recording the verified acknowledgement is a person's job, but
+		// nothing on the journey names whose: the attester is whoever
+		// verifies it, and must not be the initiator.
+		return journeyTransition{workspace.JourneyNextStepAwaitAcknowledgement, "", true}
 	case workspace.JourneyStageWaitingEffectiveDate:
 		return journeyTransition{workspace.JourneyNextStepAwaitEffectiveDate, workspace.JourneyStepOwnerSystem, false}
 	case workspace.JourneyStageRevalidation, workspace.JourneyStageExecuted, workspace.JourneyStageObservingEffects:

@@ -99,7 +99,13 @@ func TestEveryPaletteSupportsWhiteActionAndBrandedNavigationText(t *testing.T) {
 func TestBrandedNavigationAndResponsiveEditorKeepSafetyRules(t *testing.T) {
 	css := Stylesheet()
 	for _, expected := range []string{
-		`:root[data-hcm-navigation="brand"] .sidebar :focus-visible{box-shadow:0 0 0 3px var(--accent-hover);outline-color:#fff;}`,
+		// The outline is --on-brand rather than #fff, which strengthens this
+		// safety rule rather than relaxing it: --on-brand is the ink the
+		// theme has already proved legible against the brand fill this
+		// sidebar is painted with. White is only the right answer while the
+		// brand stays dark; a customer who picks a pale brand would get a
+		// focus ring nobody can see.
+		`:root[data-hcm-navigation="brand"] .sidebar :focus-visible{box-shadow:0 0 0 3px var(--accent-hover);outline-color:var(--on-brand);}`,
 		`@media (max-width:680px){.appearance-brand-fields{grid-template-columns:1fr;}`,
 		`@media (prefers-reduced-motion:reduce)`,
 		`.appearance-status[data-tone="warning"]`,

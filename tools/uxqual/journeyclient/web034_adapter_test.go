@@ -159,6 +159,7 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 	}
 	sort.Strings(got)
 	want := strings.Split(strings.TrimSpace(`
+/hcmnext.journey.v1.JourneyService/AcknowledgeJourney|1|hcmnext.journey.v1.AcknowledgeJourneyRequest|hcmnext.journey.v1.AcknowledgeJourneyResponse
 /hcmnext.journey.v1.JourneyService/CreateWorker|1|hcmnext.journey.v1.CreateWorkerRequest|hcmnext.journey.v1.CreateWorkerResponse
 /hcmnext.journey.v1.JourneyService/DecideJourney|1|hcmnext.journey.v1.DecideJourneyRequest|hcmnext.journey.v1.DecideJourneyResponse
 /hcmnext.journey.v1.JourneyService/EditProposal|1|hcmnext.journey.v1.EditProposalRequest|hcmnext.journey.v1.EditProposalResponse

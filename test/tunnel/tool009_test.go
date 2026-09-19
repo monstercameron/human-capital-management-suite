@@ -184,6 +184,10 @@ func (e *fakeConformanceEngine) Decide(ctx context.Context, intentID string, _ w
 	return e.Inspect(ctx, intentID)
 }
 
+func (e *fakeConformanceEngine) Acknowledge(ctx context.Context, intentID string, _ workspace.Acknowledgement) (workspace.JourneyDetail, error) {
+	return e.Inspect(ctx, intentID)
+}
+
 func (e *fakeConformanceEngine) EditProposal(context.Context, string, uint64, string, string, workspace.EditProposalInput) (workspace.JourneySummary, string, error) {
 	return workspace.JourneySummary{}, "", nil
 }

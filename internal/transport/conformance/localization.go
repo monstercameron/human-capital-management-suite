@@ -51,8 +51,10 @@ func surfaceName(s Surface) string {
 // Required message keys. Every qualified surface renders all of them.
 var messageKeys = []string{"title.home", "action.refresh", "error.unauthorized", "error.stale"}
 
-// catalog holds the qualified strings: surface -> key -> locale.
-var catalog = map[Surface]map[string]map[Locale]Message{}
+// catalog holds the qualified strings: surface -> key -> locale. It is
+// built once by buildCatalog and never mutated afterwards: Label and the
+// digest only read it, so no caller inherits shared mutable state.
+var catalog = buildCatalog()
 
 func messageKeySet() []string {
 	return append([]string(nil), messageKeys...)
@@ -62,7 +64,10 @@ func supportedLocales() []Locale {
 	return []Locale{LocaleEnglish, LocaleSpanish, LocaleFrench}
 }
 
-func init() {
+// buildCatalog assembles the qualified string table. It is pure and
+// deterministic: every surface carries the same keys, and iteration order
+// cannot change the result because each write lands on a distinct key.
+func buildCatalog() map[Surface]map[string]map[Locale]Message {
 	texts := map[string]map[Locale][2]string{
 		"title.home": {
 			LocaleEnglish: {"Home", "Home page"},
@@ -85,6 +90,7 @@ func init() {
 			LocaleFrench:  {"Données périmées", "Les données sont périmées. Actualisez pour la dernière version."},
 		},
 	}
+	catalog := make(map[Surface]map[string]map[Locale]Message, 5)
 	for _, surface := range []Surface{SurfaceSSR, SurfaceBrowser, SurfaceEnhancedBrowser, SurfaceRPC, SurfaceExport} {
 		keys := make(map[string]map[Locale]Message, len(messageKeys))
 		for _, key := range messageKeys {
@@ -96,6 +102,7 @@ func init() {
 		}
 		catalog[surface] = keys
 	}
+	return catalog
 }
 
 // Label returns the message for a surface, key, and locale. Unqualified

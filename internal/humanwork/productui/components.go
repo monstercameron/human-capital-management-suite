@@ -41,6 +41,21 @@ func unavailablePanel(title, detail string) ui.Node {
 	return ui.CreateElement(EmptyState, EmptyStateProps{Title: title, Description: detail, Role: "status"})
 }
 
+// unavailablePanelWithRetry is the same panel with a way to ask again. A
+// page that has just told a reader its data is unavailable used to offer
+// only the sentence "Refresh this page to try again", which costs a full
+// document load and re-fetches the whole bundle (UXLIVE-005). The retry is
+// a software navigation to the page's own address when a live client is
+// mounted, and an ordinary link to it otherwise, so the script-free path
+// still works.
+func unavailablePanelWithRetry(title, detail, retryLabel, href string, navigate func(string)) ui.Node {
+	props := EmptyStateProps{Title: title, Description: detail, Role: "status"}
+	if strings.TrimSpace(retryLabel) != "" && strings.TrimSpace(href) != "" {
+		props.Action = &ActionLinkProps{Label: retryLabel, Href: href, Class: "button secondary", Navigate: navigate}
+	}
+	return ui.CreateElement(EmptyState, props)
+}
+
 func personAvatar(name, label, photoURL, size string) ui.Node {
 	class := "avatar"
 	if size != "" {

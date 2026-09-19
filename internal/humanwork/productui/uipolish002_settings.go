@@ -104,7 +104,7 @@ func uipolish002SettingsStylesheet() string {
 			gwccss.Raw("box-shadow", "inset 0 0 0 1px var(--accent)"),
 		)
 		declareGlobal(".settings-navigation-current",
-			gwccss.FontSize(gwccss.Rem(.75)),
+			gwccss.FontSize(gwccss.Rem(0.75)),
 			gwccss.Raw("font-weight", "700"),
 			gwccss.TextColor(gwccss.Var("accent")),
 		)

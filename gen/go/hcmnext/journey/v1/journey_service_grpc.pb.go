@@ -25,6 +25,7 @@ const (
 	JourneyService_InspectJourney_FullMethodName                 = "/hcmnext.journey.v1.JourneyService/InspectJourney"
 	JourneyService_ExecuteJourney_FullMethodName                 = "/hcmnext.journey.v1.JourneyService/ExecuteJourney"
 	JourneyService_DecideJourney_FullMethodName                  = "/hcmnext.journey.v1.JourneyService/DecideJourney"
+	JourneyService_AcknowledgeJourney_FullMethodName             = "/hcmnext.journey.v1.JourneyService/AcknowledgeJourney"
 	JourneyService_EditProposal_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/EditProposal"
 	JourneyService_PreviewJourneyIntervention_FullMethodName     = "/hcmnext.journey.v1.JourneyService/PreviewJourneyIntervention"
 	JourneyService_RequestJourneyIntervention_FullMethodName     = "/hcmnext.journey.v1.JourneyService/RequestJourneyIntervention"
@@ -162,6 +163,16 @@ type JourneyServiceClient interface {
 	// is not the routed approver is refused PERMISSION_DENIED by the engine,
 	// not by this service.
 	DecideJourney(ctx context.Context, in *DecideJourneyRequest, opts ...grpc.CallOption) (*DecideJourneyResponse, error)
+	// AcknowledgeJourney records the employee's verified promotion
+	// acknowledgement against a journey parked on its acknowledgement gate.
+	// Effect class: governed write through the durable signal store and the
+	// caller-driven execution driver - workspace.JourneyEngine.Acknowledge
+	// receives the correlated signal and resumes the driver from the matched
+	// receipt, which runs the instance to its COMPLETE terminal and records
+	// the one ledger fact the END node raises. The caller is the attester and
+	// must not be the journey's initiator; a journey with no open
+	// acknowledgement wait is refused FAILED_PRECONDITION.
+	AcknowledgeJourney(ctx context.Context, in *AcknowledgeJourneyRequest, opts ...grpc.CallOption) (*AcknowledgeJourneyResponse, error)
 	// EditProposal corrects an unstarted or not-yet-approved promotion
 	// proposal (PROMOUX-013). Effect class: governed write through the intent
 	// service - it is workspace.JourneyEngine.EditProposal, which is
@@ -364,6 +375,16 @@ func (c *journeyServiceClient) DecideJourney(ctx context.Context, in *DecideJour
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DecideJourneyResponse)
 	err := c.cc.Invoke(ctx, JourneyService_DecideJourney_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *journeyServiceClient) AcknowledgeJourney(ctx context.Context, in *AcknowledgeJourneyRequest, opts ...grpc.CallOption) (*AcknowledgeJourneyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AcknowledgeJourneyResponse)
+	err := c.cc.Invoke(ctx, JourneyService_AcknowledgeJourney_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -685,6 +706,16 @@ type JourneyServiceServer interface {
 	// is not the routed approver is refused PERMISSION_DENIED by the engine,
 	// not by this service.
 	DecideJourney(context.Context, *DecideJourneyRequest) (*DecideJourneyResponse, error)
+	// AcknowledgeJourney records the employee's verified promotion
+	// acknowledgement against a journey parked on its acknowledgement gate.
+	// Effect class: governed write through the durable signal store and the
+	// caller-driven execution driver - workspace.JourneyEngine.Acknowledge
+	// receives the correlated signal and resumes the driver from the matched
+	// receipt, which runs the instance to its COMPLETE terminal and records
+	// the one ledger fact the END node raises. The caller is the attester and
+	// must not be the journey's initiator; a journey with no open
+	// acknowledgement wait is refused FAILED_PRECONDITION.
+	AcknowledgeJourney(context.Context, *AcknowledgeJourneyRequest) (*AcknowledgeJourneyResponse, error)
 	// EditProposal corrects an unstarted or not-yet-approved promotion
 	// proposal (PROMOUX-013). Effect class: governed write through the intent
 	// service - it is workspace.JourneyEngine.EditProposal, which is
@@ -850,6 +881,9 @@ func (UnimplementedJourneyServiceServer) ExecuteJourney(context.Context, *Execut
 }
 func (UnimplementedJourneyServiceServer) DecideJourney(context.Context, *DecideJourneyRequest) (*DecideJourneyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DecideJourney not implemented")
+}
+func (UnimplementedJourneyServiceServer) AcknowledgeJourney(context.Context, *AcknowledgeJourneyRequest) (*AcknowledgeJourneyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AcknowledgeJourney not implemented")
 }
 func (UnimplementedJourneyServiceServer) EditProposal(context.Context, *EditProposalRequest) (*EditProposalResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method EditProposal not implemented")
@@ -1033,6 +1067,24 @@ func _JourneyService_DecideJourney_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(JourneyServiceServer).DecideJourney(ctx, req.(*DecideJourneyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _JourneyService_AcknowledgeJourney_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AcknowledgeJourneyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).AcknowledgeJourney(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_AcknowledgeJourney_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).AcknowledgeJourney(ctx, req.(*AcknowledgeJourneyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1402,6 +1454,10 @@ var JourneyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DecideJourney",
 			Handler:    _JourneyService_DecideJourney_Handler,
+		},
+		{
+			MethodName: "AcknowledgeJourney",
+			Handler:    _JourneyService_AcknowledgeJourney_Handler,
 		},
 		{
 			MethodName: "EditProposal",

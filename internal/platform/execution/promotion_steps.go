@@ -40,6 +40,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/aggregates"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotioncommit"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	domaincommit "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/commit"
@@ -145,6 +146,7 @@ func (p *promotionStepPorts) runner() *promotionsteps.Runner {
 		ObservePayroll:        observationPort{ports: p, capabilityID: promotionexec.CapabilityObservePayroll, observe: p.observePayroll},
 		ObserveAccess:         observationPort{ports: p, capabilityID: promotionexec.CapabilityObserveAccess, observe: p.observeAccess},
 		ObserveReconciliation: p,
+		CompensateHold:        p,
 	})
 }
 
@@ -493,6 +495,58 @@ func (p *promotionStepPorts) ExecutePromotion(ctx context.Context, req execute.S
 	return promotionsteps.Artifact{
 		OutputDigest: digestOf("promotion.core_commit/v1", cmd.ProposalDigest, receipt.AssignmentRowID, receipt.OccupancyRowID, receipt.BasePayRowID, receipt.BudgetRowID),
 		Refs:         stepRefs,
+	}, nil
+}
+
+// CompensateHold implements promotionsteps.HoldReleasePort: the bounded
+// automatic correction behind compensate_budget_hold. It releases the unit's
+// compensation-pool hold under the proposal's original idempotency identity,
+// inside the advance transaction, so the release and the node's recorded
+// outcome commit together or not at all. The committed promotion itself is
+// never touched: honest partial completion stands while only the encumbrance
+// is unwound for the RepairPlan that follows.
+//
+// The step reports COMPENSATED whether a hold was open or not. Both leave
+// the same postcondition (no outstanding hold for this proposal); the output
+// digest records which was true, so history never claims a release that did
+// not happen. Like execute_promotion it runs only inside the advance
+// transaction and only for the delegation runtime.Start pinned.
+func (p *promotionStepPorts) ReleaseHold(ctx context.Context, req execute.StepRequest) (ret0 promotionsteps.HoldReleaseResult, retErr error) {
+	ctx, obsOp := observe.Begin(ctx, "workflow.promotion_step_ports.compensate_hold", req)
+	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
+	tx, ok := stepTx(ctx)
+	if !ok {
+		return promotionsteps.HoldReleaseResult{}, fmt.Errorf("platform execution: compensate_budget_hold runs only inside the advance transaction")
+	}
+	proposalDigest := req.Proposal.Revision.MaterialDigest.Digest
+	if strings.TrimSpace(proposalDigest) == "" {
+		return promotionsteps.HoldReleaseResult{}, fmt.Errorf("platform execution: compensate_budget_hold needs the proposal material digest")
+	}
+	intentID, err := uuid.Parse(req.Proposal.Revision.IntentID)
+	if err != nil {
+		return promotionsteps.HoldReleaseResult{}, fmt.Errorf("platform execution: compensate_budget_hold needs a UUID intent identity: %w", err)
+	}
+	call, _, err := p.call(ctx, tx, req)
+	if err != nil {
+		return promotionsteps.HoldReleaseResult{}, err
+	}
+	released, err := promotionbudget.ReleaseForIntent(ctx, tx, req.TenantID, intentID, req.RecordedAt.UTC())
+	if err != nil {
+		return promotionsteps.HoldReleaseResult{}, err
+	}
+	held := "held=false"
+	if released {
+		held = "held=true"
+	}
+	return promotionsteps.HoldReleaseResult{
+		Artifact: promotionsteps.Artifact{
+			OutputDigest: digestOf("promotion.compensation.hold_release/v1", proposalDigest, held, req.RecordedAt.UTC().Format(time.RFC3339Nano)),
+			Refs: runtime.GovernanceRefs{
+				ProposalRef:             proposalDigest,
+				AuthorizationDecisionID: call.Delegation.Subject,
+			},
+		},
+		Status: "COMPENSATED",
 	}, nil
 }
 

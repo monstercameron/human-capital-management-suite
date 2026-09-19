@@ -2,10 +2,22 @@ package execute
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
+
+// ErrEvidenceNotTransactional reports an ExecutionEvidence port that cannot
+// record on the advance transaction. Callers that need the entry committed
+// beside the outcome refuse the advance rather than recording the entry on
+// a second transaction, where it could commit without the outcome or be
+// read before the outcome it describes exists.
+var ErrEvidenceNotTransactional = errors.New("workflow execute: evidence port cannot record on the advance transaction")
 
 // OBS-024's execution-evidence vocabulary: an enumerated, closed set of
 // kinds an ExecutionEvidence entry may name. It is duplicated, rather than
@@ -56,18 +68,49 @@ const (
 //     approver identity or authority-bearing baggage.
 //   - occurredAt is when it happened.
 //
-// The shipped implementation (internal/platform/execution) adapts this
-// port onto [capability.EvidenceSink.RecordInvocation] — the same
-// in-memory sink CAP-002's gateway already writes every invocation/refusal
-// through — so a P1A cell keeps one evidence mechanism, not two (GREEN:
-// "through the existing capability evidence sink mechanism"). That target
-// is in-memory only in P1A (internal/intent/app.MemoryEvidenceSink; no
-// evidence table exists yet), but this interface is itself
-// durable-ready: a later phase's real evidence store implements it (or the
-// capability.EvidenceSink it is adapted from) directly, with no change to
-// any caller here.
+// The served implementation (internal/data/evidencestore over the
+// capability_invocation_evidence table) records every entry durably,
+// tenant-scoped and append-only. Entries are recorded through
+// [ExecutionEvidenceTx] on the advance transaction itself, so an entry
+// commits beside the outcome it describes and rolls back with it; an entry
+// that cannot commit with its outcome is refused, never recorded on a
+// transaction of its own.
 type ExecutionEvidence interface {
 	RecordExecutionEvidence(ctx context.Context, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (evidenceID string, err error)
+}
+
+// ExecutionEvidenceTx is the optional atomic half of [ExecutionEvidence]: a
+// port that records the entry on the caller's transaction instead of opening
+// its own, so the entry commits beside the outcome it describes and rolls
+// back with it. The transaction is the driver's, already scoped to the run's
+// storage tenant; the port must not re-scope it or commit it.
+//
+// A port that cannot join the transaction does not implement this interface,
+// and every in-transaction recording below refuses the advance with
+// [ErrEvidenceNotTransactional] rather than splitting the entry onto a
+// second transaction.
+type ExecutionEvidenceTx interface {
+	RecordExecutionEvidenceTx(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (evidenceID string, err error)
+}
+
+// AdvanceEvidence decides, once an advancement is decided but before its
+// transaction commits, whether an OBS-024 execution-evidence entry is
+// recorded beside it in that same transaction. It reports the entry's kind
+// and refID; the driver supplies tenant, instance, node and digest from the
+// advancement itself, so the entry can never describe a different advance
+// than the one it commits with. A false ok records nothing.
+type AdvanceEvidence func(advanced runtime.AdvanceReceipt) (kind, refID string, ok bool)
+
+// recordTxEvidence records one entry on tx through port, which must be an
+// [ExecutionEvidenceTx]. It is the only way the advance paths below record:
+// an entry that cannot commit with its outcome is refused, never recorded
+// beside it on a transaction of its own.
+func recordTxEvidence(ctx context.Context, tx dbport.Tx, port ExecutionEvidence, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (string, error) {
+	txport, ok := port.(ExecutionEvidenceTx)
+	if !ok {
+		return "", fmt.Errorf("%w: %T", ErrEvidenceNotTransactional, port)
+	}
+	return txport.RecordExecutionEvidenceTx(ctx, tx, tenantID, kind, instanceID, nodeID, refID, digest, occurredAt)
 }
 
 // NoopExecutionEvidence is the default [ExecutionEvidence] a [Driver] uses
@@ -79,5 +122,13 @@ var _ ExecutionEvidence = NoopExecutionEvidence{}
 
 // RecordExecutionEvidence implements ExecutionEvidence.
 func (NoopExecutionEvidence) RecordExecutionEvidence(context.Context, uuid.UUID, string, string, string, string, string, time.Time) (string, error) {
+	return "", nil
+}
+
+var _ ExecutionEvidenceTx = NoopExecutionEvidence{}
+
+// RecordExecutionEvidenceTx implements ExecutionEvidenceTx as the same
+// nothing: there is no entry to join to the transaction.
+func (NoopExecutionEvidence) RecordExecutionEvidenceTx(context.Context, dbport.Tx, uuid.UUID, string, string, string, string, string, time.Time) (string, error) {
 	return "", nil
 }

@@ -36,7 +36,13 @@ func appShellWithHeading(view View, page ui.Node, showHeading bool) ui.Node {
 		showHeading = false
 	} else if view.LoadError != "" {
 		content = html.Div(html.Props{Class: "page-stack"},
-			unavailablePanel(view.Locale.Text("shell.live_unavailable"), view.Locale.Text("shell.load_recovery")),
+			unavailablePanelWithRetry(
+				view.Locale.Text("shell.live_unavailable"),
+				view.Locale.Text("shell.load_recovery"),
+				view.Locale.Text("shell.load_retry"),
+				statefulHref(view, view.Page),
+				view.Navigate,
+			),
 			page,
 		)
 	}
@@ -547,42 +553,6 @@ func currentPageAddressState(view View, collapsed bool) url.Values {
 		routeProfile.AddressValues(values, view)
 	}
 	return values
-}
-
-func setPeopleDirectoryAddressState(values url.Values, view View) {
-	if view.PeopleTeam != "" {
-		values.Set("team", view.PeopleTeam)
-	}
-	if view.PeopleLocation != "" {
-		values.Set("location", view.PeopleLocation)
-	}
-	if view.PeopleSort != "" && view.PeopleSort != peopleSortName {
-		values.Set("sort", view.PeopleSort)
-	}
-	if view.PeopleDirection == peopleSortDescending {
-		values.Set("dir", view.PeopleDirection)
-	}
-}
-
-func setHistoryAddressState(values url.Values, view View) {
-	if view.HistoryQuery != "" {
-		values.Set("history_q", view.HistoryQuery)
-	}
-	if view.HistoryOutcome != "" {
-		values.Set("outcome", view.HistoryOutcome)
-	}
-	if view.HistoryPerson != "" {
-		values.Set("history_person", view.HistoryPerson)
-	}
-	if view.HistoryYear != "" {
-		values.Set("history_year", view.HistoryYear)
-	}
-	if view.HistorySort != "" {
-		values.Set("history_sort", view.HistorySort)
-	}
-	if view.HistoryDirection != "" {
-		values.Set("history_dir", view.HistoryDirection)
-	}
 }
 
 func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {

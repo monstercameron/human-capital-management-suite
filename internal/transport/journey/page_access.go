@@ -49,21 +49,6 @@ func (s *server) requireFeatureAction(ctx context.Context, principal *trust.Prin
 		WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
 }
 
-// requireAnyPageView admits a read that backs more than one page when the
-// caller may view at least one of them, and otherwise refuses exactly as
-// [server.requirePageAction] does.
-func (s *server) requireAnyPageView(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, pageIDs ...string) error {
-	var denied error
-	for _, pageID := range pageIDs {
-		err := s.requirePageAction(ctx, principal, inv, pageID, roleaccess.ActionView)
-		if err == nil {
-			return nil
-		}
-		denied = err
-	}
-	return denied
-}
-
 type featureAccessRequest struct {
 	pageID    string
 	featureID string

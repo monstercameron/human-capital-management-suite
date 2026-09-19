@@ -67,7 +67,7 @@ func TestTodo_WEB_245_Browser(t *testing.T) {
 		"action_launcher.go":       {`drawerEscapeCloses(event.GetKey())`, `event.GetKey() == "ArrowDown"`, `event.GetKey() == "ArrowUp"`, `event.GetKey() == "Enter"`, `usePopoverFocusDismissal("action-launcher"`},
 		"navigation_components.go": {`useDrawerFocusTrap("workspace-navigation", "nav-drawer-trigger"`, "OnKeyDown: onEscape"},
 		"appearance_components.go": {`useDrawerFocusTrap("appearance-preview-dialog", "appearance-preview-open"`, `drawerEscapeCloses(event.GetKey())`},
-		"utility_drawer.go":        {`useDrawerFocusTrap("utility-drawer-dialog", "utility-drawer-trigger"`, `drawerEscapeCloses(event.GetKey())`},
+		"utility_drawer.go":        {`useDrawerFocusTrap("utility-drawer-dialog", "utility-drawer-trigger"`, `drawerEscapeCloses(event.GetKey())`, `usePopoverFocusDismissal("utility-drawer", "utility-drawer-trigger"`},
 		"popover_focus_wasm.go":    {`event.Get("key").String() == "Escape"`, `focusElementByID(doc, triggerID)`},
 		"drawer_focus_wasm.go":     {`args[0].Get("key").String() != "Tab"`, `doc.Call("getElementById", triggerID)`, `drawerFocusableVisible(item)`},
 		"../../../tools/uxqual/cmd/journeywasm/transient_popover_wasm.go": {`case transientPopoverCloseNow:`, `summary.Call("focus")`},

@@ -170,6 +170,7 @@ type fakeEngine struct {
 	inspectErr      error
 	executeErr      error
 	decideErr       error
+	acknowledgeErr  error
 	listWorkersErr  error
 	createWorkerErr error
 	editErr         error
@@ -190,6 +191,7 @@ type fakeEngine struct {
 	lastProposal        workspace.ProposalInput
 	lastIntentID        string
 	lastDecision        workspace.Decision
+	lastAcknowledgement workspace.Acknowledgement
 	lastWorkerInput     workspace.WorkerInput
 	lastEditInput       workspace.EditProposalInput
 	lastEditExpected    uint64
@@ -287,6 +289,17 @@ func (f *fakeEngine) Decide(_ context.Context, intentID string, d workspace.Deci
 	f.lastDecision = d
 	if f.decideErr != nil {
 		return workspace.JourneyDetail{}, f.decideErr
+	}
+	return f.detail, nil
+}
+
+func (f *fakeEngine) Acknowledge(_ context.Context, intentID string, ack workspace.Acknowledgement) (workspace.JourneyDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lastIntentID = intentID
+	f.lastAcknowledgement = ack
+	if f.acknowledgeErr != nil {
+		return workspace.JourneyDetail{}, f.acknowledgeErr
 	}
 	return f.detail, nil
 }

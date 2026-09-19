@@ -166,15 +166,6 @@ const (
 	OfferRescinded OfferStatus = "RESCINDED"
 )
 
-func (s OfferStatus) valid() bool {
-	switch s {
-	case OfferDraft, OfferApproved, OfferSigned, OfferAccepted, OfferRescinded:
-		return true
-	default:
-		return false
-	}
-}
-
 // OfferTerms are the material terms bound by approval: position, salary,
 // start date and offer expiry.
 type OfferTerms struct {

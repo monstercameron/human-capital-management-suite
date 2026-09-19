@@ -220,6 +220,13 @@ func historyOutcomeCategory(status string) string {
 
 // Dates are formatted only for display. Filtering and ordering continue to
 // consume canonical service values, not locale-dependent labels.
+// historyEffectiveDateLabel renders a stored civil date for the viewer.
+//
+// The default locale deliberately keeps the stored ISO form: UIPOLISH-007
+// fixed that (uipolish007_history_localization_test.go asserts it), and the
+// en-US alternative this package's localizer produces is "12/01/2026", an
+// ambiguous form that would be a third date vocabulary rather than one
+// fewer. UXLIVE-016 unified the instants instead and left this row as it is.
 func historyEffectiveDateLabel(locale LocaleContext, value string) string {
 	if locale.normalized().Resolved == DefaultProductLocale {
 		return value

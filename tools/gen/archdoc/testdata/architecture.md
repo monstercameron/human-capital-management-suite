@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 95b3687efbe5ac228e00dfedaff0865822f4042252fa2692930427a7d6144bff
-- Package count: 844
-- Within-module edge count: 2126
+- Source graph: 462baec8e3843adae076c68cde5a365e77046c781337da7f4f5233ec424da67a
+- Package count: 847
+- Within-module edge count: 2149
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -170,6 +170,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/connectivity/mapping`
 - `github.com/monstercameron/human-capital-management-suite/internal/connectivity/mapping/execute`
 - `github.com/monstercameron/human-capital-management-suite/internal/connectivity/mappingprofile`
+- `github.com/monstercameron/human-capital-management-suite/internal/connectivity/marketdata`
 - `github.com/monstercameron/human-capital-management-suite/internal/connectivity/mft`
 - `github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe`
 - `github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe/adapters/postgres`
@@ -202,11 +203,13 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/data/balancestore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/benefitsstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/bitemporal`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/budgetfacts`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/budgetstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/careerstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/cbastore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/commercialstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/committedfacts`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/compfacts`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/configregistry`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/conflictstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/connectivityopstore`
@@ -999,4 +1002,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`edf7c6763529c31e7f09f2a69927425210e62a6bb25d529007eb263b83285b5f`
+`c707709e841d44bb184738723867ffb4a268a2c3f04f7e9459053162c1f1600c`

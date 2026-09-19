@@ -104,6 +104,9 @@ type fakeEvidenceEntry struct {
 	nodeID     string
 	refID      string
 	digest     string
+	// tx is the transaction the entry was recorded on, nil when it was
+	// recorded off-transaction through the legacy port call.
+	tx dbport.Tx
 }
 
 // fakeEvidence is the [ExecutionEvidence] test double every test below
@@ -112,20 +115,32 @@ type fakeEvidenceEntry struct {
 type fakeEvidence struct {
 	mu      sync.Mutex
 	entries []fakeEvidenceEntry
-	// failKind, when non-empty, makes RecordExecutionEvidence fail for that
-	// one kind instead of recording it — OBS-024's negative fixture.
+	// failKind, when non-empty, makes recording fail for that one kind
+	// instead of recording it — OBS-024's negative fixture.
 	failKind string
 }
 
 var _ ExecutionEvidence = (*fakeEvidence)(nil)
 
+var _ ExecutionEvidenceTx = (*fakeEvidence)(nil)
+
 func (f *fakeEvidence) RecordExecutionEvidence(_ context.Context, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, _ time.Time) (string, error) {
+	return f.record(nil, tenantID, kind, instanceID, nodeID, refID, digest)
+}
+
+// RecordExecutionEvidenceTx implements ExecutionEvidenceTx, capturing the
+// transaction so atomicity tests can prove the entry joined the advance.
+func (f *fakeEvidence) RecordExecutionEvidenceTx(_ context.Context, tx dbport.Tx, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, _ time.Time) (string, error) {
+	return f.record(tx, tenantID, kind, instanceID, nodeID, refID, digest)
+}
+
+func (f *fakeEvidence) record(tx dbport.Tx, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.failKind != "" && kind == f.failKind {
 		return "", errors.New("fakeEvidence: injected failure for " + kind)
 	}
-	f.entries = append(f.entries, fakeEvidenceEntry{tenantID: tenantID, kind: kind, instanceID: instanceID, nodeID: nodeID, refID: refID, digest: digest})
+	f.entries = append(f.entries, fakeEvidenceEntry{tenantID: tenantID, kind: kind, instanceID: instanceID, nodeID: nodeID, refID: refID, digest: digest, tx: tx})
 	return "ev:" + kind + ":" + uuid.NewSHA1(uuid.NameSpaceOID, []byte(kind+instanceID+nodeID+refID+digest)).String()[:8], nil
 }
 
@@ -141,12 +156,16 @@ type fakeTerminalWriter struct {
 	mu    sync.Mutex
 	calls int
 	fail  bool
+	// txns captures the transaction each write ran on, so atomicity tests
+	// can prove the terminal write and its evidence shared one transaction.
+	txns []dbport.Tx
 }
 
-func (w *fakeTerminalWriter) Write(context.Context, dbport.Tx, TerminalWriteRequest) (idempotency.ResultIdentity, error) {
+func (w *fakeTerminalWriter) Write(_ context.Context, tx dbport.Tx, _ TerminalWriteRequest) (idempotency.ResultIdentity, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.calls++
+	w.txns = append(w.txns, tx)
 	if w.fail {
 		return idempotency.ResultIdentity{}, errors.New("fakeTerminalWriter: injected write failure")
 	}
@@ -214,6 +233,10 @@ type obsScenario struct {
 	evidence        *fakeEvidence
 	terminal        *fakeTerminalWriter
 	stepRunner      *obsEndRunner
+	// evidenceOverride, when non-nil, replaces evidence as the Driver's
+	// [ExecutionEvidence] port, so a test can drive the scenario through a
+	// port with different transactional support.
+	evidenceOverride ExecutionEvidence
 
 	advanceCalls int
 }
@@ -292,11 +315,15 @@ func proposalRevisionFor(item workitem.WorkItem) intent.ProposalRevision {
 func (s *obsScenario) driver(t *testing.T) *Driver {
 	t.Helper()
 	tx := &memoryTx{}
+	var evidence ExecutionEvidence = s.evidence
+	if s.evidenceOverride != nil {
+		evidence = s.evidenceOverride
+	}
 	d, err := New(Options{
 		DB: oneBeginner{tx}, Steps: s.stepRunner, Items: fakeWorkItemReader{item: s.item},
 		Terminal: s.terminal, Guard: fakeIdempotencyStore{},
 		Retention:       idempotency.RetentionPolicy{Retention: time.Hour, RetryWindow: time.Minute},
-		Instrumentation: s.instrumentation, Evidence: s.evidence,
+		Instrumentation: s.instrumentation, Evidence: evidence,
 		Advance: func(ctx context.Context, ex runtime.Executor, in runtime.AdvanceRequest) (runtime.AdvanceReceipt, error) {
 			s.advanceCalls++
 			if in.Outcome.NodeID == "approve" {

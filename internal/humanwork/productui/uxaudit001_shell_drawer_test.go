@@ -351,7 +351,7 @@ func TestTodo_UXAUDIT_001_Regression(t *testing.T) {
 
 	// Desktop layout: the unscoped base rules this todo never touched.
 	for _, want := range []string{
-		`.topbar{align-items:center;background-color:#fff;border-bottom:1px solid var(--line);display:grid;gap:14px;grid-template-columns:232px minmax(220px,1fr) auto auto auto;min-height:81px;padding-right:24px;position:sticky;top:0;z-index:20;}`,
+		`.topbar{align-items:center;background-color:var(--surface);border-bottom:1px solid var(--line);display:grid;gap:14px;grid-template-columns:232px minmax(220px,1fr) auto auto auto;min-height:81px;padding-right:24px;position:sticky;top:0;z-index:20;}`,
 		`.shell-grid{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:calc(100vh - 81px);}`,
 	} {
 		if !strings.Contains(css, want) {
