@@ -702,6 +702,18 @@ tables:
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: "WORK-010: the full typed approval decision or task submission recorded in the same transaction as the work item's completion, digest-verified against the item's immutable completed_output_digest; one row per completed item (PK (tenant_id, work_item_id)), append-only via forbid_mutation, SELECT/INSERT only."
+  - table: journey_note
+    migration: 00312_journey_note.sql
+    owner_package: internal/intent/app
+    plane: DATA
+    data_role: AGGREGATE
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: "Free-standing notes on one promotion journey: one append-only row per note carrying its author principal, its body (1-2000 characters), the journey stage it was written at and its creation time, so reviewers can hand context between stages and a later reader can see why a promotion went the way it did. A note is not a decision and moves no lifecycle dimension. Append-only via forbid_mutation, SELECT/INSERT only; one row per (tenant, idempotency key) so a retried submission converges."
   - table: journey_worker
     migration: 00023_journey_workforce.sql
     owner_package: internal/data/workforce

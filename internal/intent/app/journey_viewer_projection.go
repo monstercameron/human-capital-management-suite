@@ -4,7 +4,9 @@ import (
 	"sort"
 	"strings"
 
+	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
 )
 
 // journeyTransition is the next transition one journey stage names: the step,
@@ -58,6 +60,34 @@ func journeyStageClosed(stage workspace.JourneyStage) bool {
 	switch stage {
 	case workspace.JourneyStageCompleted, workspace.JourneyStageRejected,
 		workspace.JourneyStageFailed, workspace.JourneyStageRecorded:
+		return true
+	}
+	return false
+}
+
+// requestEndedBeforeExecution reports whether the intent's own request was
+// closed (withdrawn, cancelled, superseded by an edit, rejected or closed).
+// With no workflow instance the stage is otherwise derived from the
+// simulation alone, which still mints a revision for a withdrawn draft: the
+// journey read as PROPOSED forever, kept offering Start and Withdraw, and
+// the client's active-journey redirect sent every new proposal for that
+// employee back to it.
+func requestEndedBeforeExecution(state lifecycle.RequestState) bool {
+	switch state {
+	case lifecycle.RequestCancelled, lifecycle.RequestWithdrawn, lifecycle.RequestSuperseded,
+		lifecycle.RequestRejected, lifecycle.RequestClosed:
+		return true
+	}
+	return false
+}
+
+// requestProtoEndedBeforeExecution is requestEndedBeforeExecution over the
+// wire enum ListJourneys reads.
+func requestProtoEndedBeforeExecution(state intentsv1.RequestState) bool {
+	switch state {
+	case intentsv1.RequestState_REQUEST_STATE_CANCELLED, intentsv1.RequestState_REQUEST_STATE_WITHDRAWN,
+		intentsv1.RequestState_REQUEST_STATE_SUPERSEDED, intentsv1.RequestState_REQUEST_STATE_REJECTED,
+		intentsv1.RequestState_REQUEST_STATE_CLOSED:
 		return true
 	}
 	return false

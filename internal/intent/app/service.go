@@ -410,9 +410,17 @@ func (s *IntentService) loadInstance(ctx context.Context, tenant, intentID strin
 		return intent.Instance{}, IntentRecord{}, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
 			"the operation could not be completed").WithDiagnostic(decodeErr)
 	}
-	// The ledger envelope is the immutable creation fact. Lifecycle and
-	// version are the projection that terminal outcome consumers advance, so a
-	// read merges the current projection back onto that envelope.
+	mergeCurrentProjection(&inst, rec)
+	return inst, rec, nil
+}
+
+// mergeCurrentProjection lays a record's current projection over its decoded
+// envelope. The ledger envelope is the immutable creation fact. Lifecycle and
+// version are the projection that terminal outcome consumers advance, so a
+// read merges the current projection back onto that envelope. ListIntents
+// once skipped this and reported every intent at its creation-time
+// lifecycle, so a withdrawn proposal still listed as open.
+func mergeCurrentProjection(inst *intent.Instance, rec IntentRecord) {
 	inst.Lifecycle = rec.Lifecycle
 	inst.CommitReceiptRef = rec.CommitReceiptRef
 	inst.RepairRef = rec.RepairRef
@@ -423,7 +431,6 @@ func (s *IntentService) loadInstance(ctx context.Context, tenant, intentID strin
 	if !rec.LastTransitionAt.IsZero() {
 		inst.LastTransitionAt = values.NewInstant(rec.LastTransitionAt)
 	}
-	return inst, rec, nil
 }
 
 // notFound is the one visibility answer. It never distinguishes "does not
@@ -773,6 +780,7 @@ func (s *IntentService) ListIntents(ctx context.Context, req *intentsv1.ListInte
 			return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
 				"the operation could not be completed").WithDiagnostic(decodeErr)
 		}
+		mergeCurrentProjection(&inst, rec)
 		msg, convErr := protomap.InstanceToProto(inst)
 		if convErr != nil {
 			return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,

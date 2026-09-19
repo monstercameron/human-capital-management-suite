@@ -533,6 +533,9 @@ func (e *journeyEngine) inspectWithRelationships(
 	}
 
 	detail.Summary.Stage = deriveJourneyStage(summary.ProposalRevisionID, record)
+	if record.instance == nil && requestEndedBeforeExecution(inst.Lifecycle.Request) {
+		detail.Summary.Stage = workspace.JourneyStageFailed
+	}
 	// PROMOUX-012: the same viewer projection the list resolves. The work item
 	// summary is used only for the viewer's own membership; the detail page
 	// reads the work items themselves.
@@ -570,6 +573,12 @@ func (e *journeyEngine) inspectWithRelationships(
 		return workspace.JourneyDetail{}, evErr
 	}
 	detail.EvidenceIDs = evidenceIDs
+	notes, notesErr := readJourneyNotes(ctx, tx, e.svc.tenantUUID(principal.Tenant()), intentID,
+		principal.Subject(), e.assigneeNameResolver(ctx, principal.Tenant()))
+	if notesErr != nil {
+		return workspace.JourneyDetail{}, notesErr
+	}
+	detail.Notes = notes
 	applyJourneyChronology(&detail, record)
 
 	// PROMOUX-014: a journey parked on the effective-date wait explains

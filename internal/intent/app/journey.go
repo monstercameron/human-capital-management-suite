@@ -262,6 +262,9 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 				return nil, recErr
 			}
 			summary.Stage = deriveJourneyStage(summary.ProposalRevisionID, record)
+			if record.instance == nil && requestProtoEndedBeforeExecution(msg.GetLifecycle().GetRequest()) {
+				summary.Stage = workspace.JourneyStageFailed
+			}
 		}
 		if record.instance != nil {
 			summary.InstanceID = record.instance.InstanceID.String()

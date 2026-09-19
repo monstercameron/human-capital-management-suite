@@ -5,9 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
 )
 
 // TestTodo_PROMOUX_012 is the server half of the PRIMARY: the engine resolves
@@ -132,4 +134,26 @@ func TestTodo_PROMOUX_012(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestAClosedRequestWithNoRunIsNotStillProposed: a withdrawn draft has no
+// workflow instance, and its stage was derived from the simulation alone,
+// which still mints a revision -- so it read PROPOSED forever.
+func TestAClosedRequestWithNoRunIsNotStillProposed(t *testing.T) {
+	for _, state := range []lifecycle.RequestState{lifecycle.RequestCancelled, lifecycle.RequestWithdrawn,
+		lifecycle.RequestSuperseded, lifecycle.RequestRejected, lifecycle.RequestClosed} {
+		if !requestEndedBeforeExecution(state) {
+			t.Errorf("request state %v is not treated as ended", state)
+		}
+	}
+	for _, state := range []intentsv1.RequestState{intentsv1.RequestState_REQUEST_STATE_CANCELLED,
+		intentsv1.RequestState_REQUEST_STATE_WITHDRAWN, intentsv1.RequestState_REQUEST_STATE_SUPERSEDED,
+		intentsv1.RequestState_REQUEST_STATE_REJECTED, intentsv1.RequestState_REQUEST_STATE_CLOSED} {
+		if !requestProtoEndedBeforeExecution(state) {
+			t.Errorf("wire request state %v is not treated as ended", state)
+		}
+	}
+	if requestEndedBeforeExecution(lifecycle.RequestDraft) || requestProtoEndedBeforeExecution(intentsv1.RequestState_REQUEST_STATE_SIMULATED) {
+		t.Error("an open request is treated as ended")
+	}
 }

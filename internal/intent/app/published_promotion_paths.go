@@ -22,9 +22,9 @@ import (
 type publishedPromotionPath struct {
 	Option workspace.PromotionPathOption
 	// bounds is the job-architecture edge whose published minimum and maximum
-	// base increase apply. It is nil for a demo ladder edge, which publishes
-	// no bounds: its only published rule is its UPWARD kind, and the gate
-	// enforces exactly that ([allowsBaseIncrease]).
+	// base increase apply. It is nil for a demo ladder edge, whose bounds the
+	// gate reads from the demo ladder itself for the worker's org unit; the
+	// option still carries them so a form can state the range.
 	bounds *fixtures.PromotionPathScope
 }
 
@@ -64,6 +64,11 @@ func publishedPromotionPaths() ([]publishedPromotionPath, error) {
 			SourceJobCode: edge.SourceJobCode, SourceGrade: edge.SourceGrade,
 			TargetJobCode: edge.TargetJobCode, TargetGrade: edge.TargetGrade,
 			TargetTitle: edge.TargetTitle, Kind: "UPWARD",
+			// The ladder gate enforces these bounds for a worker's own org
+			// unit (validatePublishedPromotionPath). Leaving them off the
+			// option left the form saying "no exact range is available"
+			// while the gate refused amounts outside a range it knew.
+			MinimumBaseIncrease: edge.MinimumBaseIncrease, MaximumBaseIncrease: edge.MaximumBaseIncrease,
 		}})
 	}
 	return out, nil

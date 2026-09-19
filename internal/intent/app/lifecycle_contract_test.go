@@ -691,3 +691,37 @@ func TestTodo_EP_INTENT_003_Security(t *testing.T) {
 		t.Fatal("CancelIntent with an empty reason_ref succeeded, want a refusal")
 	}
 }
+
+// TestListIntentsReportsTheCurrentLifecycle: ListIntents decoded each stored
+// envelope -- the immutable creation fact -- without laying the current
+// projection over it, as loadInstance does. A cancelled intent therefore
+// listed at its creation-time lifecycle, and the journeys page kept offering a
+// withdrawn promotion as open.
+func TestListIntentsReportsTheCurrentLifecycle(t *testing.T) {
+	h := newLifecycleHarness(t)
+	ctx := lifecycleCtx(t)
+	const id = "10000000-0000-0000-0000-0000000000a1"
+	h.seed(t, id, lifecycleDims(lifecycle.RequestSubmitted, lifecycle.ExecutionNotPlanned))
+	if _, err := h.Service.CancelIntent(ctx, &intentsv1.CancelIntentRequest{
+		IdempotencyKey: "idem-cancel-list", IntentId: id, ExpectedInstanceVersion: 1, ReasonRef: "reason:withdrawn",
+	}); err != nil {
+		t.Fatalf("CancelIntent: %v", err)
+	}
+	listed, err := h.Service.ListIntents(ctx, &intentsv1.ListIntentsRequest{})
+	if err != nil {
+		t.Fatalf("ListIntents: %v", err)
+	}
+	for _, msg := range listed.GetIntents() {
+		if msg.GetIntentId() != id {
+			continue
+		}
+		if got := msg.GetLifecycle().GetRequest(); got != intentsv1.RequestState_REQUEST_STATE_CANCELLED {
+			t.Fatalf("listed request state = %v, want CANCELLED as InspectIntent reports it", got)
+		}
+		if msg.GetInstanceVersion() < 2 {
+			t.Fatalf("listed instance version = %d, want the post-cancel version", msg.GetInstanceVersion())
+		}
+		return
+	}
+	t.Fatalf("ListIntents did not list %s: %+v", id, listed.GetIntents())
+}
