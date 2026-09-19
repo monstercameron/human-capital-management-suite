@@ -137,7 +137,7 @@ func declareScrollRegionStyles() {
 		gwccss.Raw("overscroll-behavior", "contain"),
 	)
 	declareGlobal(strings.Join(focusVisible, ","),
-		gwccss.Raw("outline", "2px solid var(--accent)"),
+		gwccss.Raw("outline", "var(--hcm-focus-ring-width) solid var(--hcm-color-focus)"),
 		gwccss.OutlineOffset(gwccss.Px(-2)),
 	)
 	declareGlobal(shared,
@@ -241,9 +241,12 @@ func declareScrollRegionStyles() {
 			gwccss.TrackLen(gwccss.RawLength("max-content")),
 		)),
 	)
+	// The button takes the next free cell rather than a fixed column 4. The
+	// person and year selects render only when they can filter something, so
+	// on a profile the row is search, outcome, button -- and a button pinned
+	// to column 4 and pushed to its end sat far from the filters it applies.
 	declareGlobal(".history-filter-controls>.button",
-		mediaRule(gwccss.MinW(1200), gwccss.Raw("grid-column", "4"), gwccss.Raw("justify-self", "end")),
-		mediaRule(gwccss.MinW(1400), gwccss.Raw("grid-column", "auto")),
+		mediaRule(gwccss.MinW(1200), gwccss.Raw("grid-column", "auto"), gwccss.Raw("justify-self", "start")),
 	)
 	// At desktop widths the main page is the sole vertical scroll owner.
 	// This also lets table headers stick to the page scroll rather than an

@@ -47,7 +47,7 @@ func CustomerIdentityStylesheet() string {
 func declareCustomerIdentityStyles() {
 	declareGlobal(".app-shell .wordmark",
 		gwccss.Gap(gwccss.Px(10)),
-		gwccss.Raw("padding-left", "20px"),
+		gwccss.Raw("padding-inline-start", "20px"),
 	)
 	declareGlobal(".app-shell .wordmark:before",
 		gwccss.Display.None,
@@ -230,6 +230,8 @@ func declareAppearanceStyles() {
 		gwccss.PaddingX(gwccss.Px(14)),
 		gwccss.Rounded(gwccss.VarLength("radius")),
 		gwccss.TextColor(gwccss.Var("accent")),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "none"),
 	)
 	declareGlobal(".appearance-section-link:hover,.appearance-section-link:focus-visible",
@@ -267,11 +269,11 @@ func declareAppearanceStyles() {
 		gwccss.Raw("white-space", "nowrap"),
 		gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(10)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-status")),
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".appearance-form",
 		gwccss.Display.Grid,
@@ -288,13 +290,26 @@ func declareAppearanceStyles() {
 		gwccss.PaddingY(gwccss.Px(20)), gwccss.PaddingX(gwccss.Px(22)),
 		gwccss.Raw("border", "0"),
 	)
-	declareGlobal(".appearance-group legend",
+	// A legend renders across its fieldset's top edge, and these fieldsets
+	// are cards: each group's title sat on the card's border with the
+	// padding opening underneath it. Floated, the legend lays out inside the
+	// padding like any other heading; the next element clears it.
+	declareGlobal(".appearance-group>legend",
+		gwccss.Raw("float", "inline-start"),
+		gwccss.W(gwccss.Percent(100)),
 		gwccss.Raw("padding", "0 0 10px"),
 		gwccss.FontSize(gwccss.Rem(1)),
-		gwccss.Raw("font-weight", "700"),
+		gwccss.Raw("font-weight", "600"),
 	)
+	declareGlobal(".appearance-group>legend+*",
+		gwccss.Raw("clear", "both"),
+	)
+	// A group's description is set like every card's description (14px), a
+	// step under the group title rather than level with the page's body copy.
 	declareGlobal(".appearance-group-help",
 		gwccss.Raw("margin", "-6px 0 14px"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("line-height", "1.5"),
 	)
 	declareGlobal(".appearance-choices",
 		gwccss.Display.Grid,
@@ -401,7 +416,7 @@ func declareAppearanceStyles() {
 		gwccss.Raw("align-content", "start"),
 		gwccss.Gap(gwccss.Px(7)),
 		gwccss.PaddingY(gwccss.Px(12)), gwccss.PaddingX(gwccss.Px(9)),
-		gwccss.BorderRight(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Raw("border-inline-end", "1px solid var(--line)"),
 		gwccss.Bg(gwccss.Var("surface")),
 	)
 	declareGlobal(".appearance-preview-nav span",
@@ -527,17 +542,25 @@ func declareAppearanceStyles() {
 	declareGlobal(".appearance-edit-command",
 		mediaRule(gwccss.MaxW(680), gwccss.Display.Grid, gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.Px(40))), gwccss.Gap(gwccss.Px(6))),
 	)
+	// On a phone the three commands share one row and the status sits above
+	// them only when it has something to say. With no changes it repeats what
+	// the disabled Save already shows, and its own row made the sticky bar a
+	// fifth of the screen; it stays in the accessibility tree as the live
+	// region, visually hidden, and returns when the draft is dirty.
 	declareGlobal(".appearance-edit-command .appearance-status",
-		mediaRule(gwccss.MaxW(680), gwccss.Raw("grid-column", "1 / 3"), gwccss.Raw("grid-row", "1"), gwccss.MinHeight(gwccss.Zero)),
+		mediaRule(gwccss.MaxW(680), gwccss.Raw("grid-column", "1 / -1"), gwccss.Raw("grid-row", "1"), gwccss.MinHeight(gwccss.Zero)),
+	)
+	declareGlobal(".appearance-actions-sticky[data-hcm-edit-dirty=false] .appearance-edit-command .appearance-status",
+		mediaRule(gwccss.MaxW(680), gwccss.Position.Absolute, gwccss.W(gwccss.Px(1)), gwccss.H(gwccss.Px(1)), gwccss.Raw("overflow", "hidden"), gwccss.Raw("clip-path", "inset(50%)"), gwccss.Raw("white-space", "nowrap")),
 	)
 	declareGlobal(".appearance-edit-command .appearance-edit-preview",
-		mediaRule(gwccss.MaxW(680), gwccss.Position.Static, gwccss.Raw("grid-column", "3"), gwccss.Raw("grid-row", "1")),
+		mediaRule(gwccss.MaxW(680), gwccss.Position.Static, gwccss.Raw("grid-column", "3"), gwccss.Raw("grid-row", "2")),
 	)
 	declareGlobal(".appearance-edit-command .button.primary",
 		mediaRule(gwccss.MaxW(680), gwccss.Raw("grid-column", "1"), gwccss.Raw("grid-row", "2")),
 	)
 	declareGlobal(".appearance-edit-command .button.secondary:not(.appearance-edit-preview)",
-		mediaRule(gwccss.MaxW(680), gwccss.Raw("grid-column", "2 / 4"), gwccss.Raw("grid-row", "2")),
+		mediaRule(gwccss.MaxW(680), gwccss.Raw("grid-column", "2"), gwccss.Raw("grid-row", "2")),
 	)
 	declareGlobal(".appearance-edit-command .button",
 		mediaRule(gwccss.MaxW(680), gwccss.W(gwccss.Percent(100)), gwccss.MinHeight(gwccss.Px(40)), gwccss.PaddingX(gwccss.Px(7))),
@@ -895,7 +918,7 @@ func declareInteractionMotionStyles() {
 		gwccss.Items.Center,
 		gwccss.H(gwccss.Px(81)),
 		gwccss.MinWidth(gwccss.Zero),
-		gwccss.BorderRight(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Raw("border-inline-end", "1px solid var(--line)"),
 		gwccss.Raw("overflow", "hidden"),
 	)
 	declareGlobal(".brand-cluster .wordmark",
@@ -910,7 +933,7 @@ func declareInteractionMotionStyles() {
 		gwccss.Raw("flex", "none"),
 		gwccss.W(gwccss.Px(44)),
 		gwccss.H(gwccss.Px(44)),
-		gwccss.Raw("margin-right", "8px"),
+		gwccss.Raw("margin-inline-end", "8px"),
 		gwccss.Border(gwccss.Px(1), gwccss.Transparent),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.TextColor(gwccss.Var("muted")),
@@ -921,9 +944,11 @@ func declareInteractionMotionStyles() {
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
+	// Header icons share one size (20px): search, the launcher and the page
+	// utilities beside this toggle are all 20.
 	declareGlobal(".header-nav-toggle .nav-icon",
-		gwccss.W(gwccss.Px(19)),
-		gwccss.H(gwccss.Px(19)),
+		gwccss.W(gwccss.Px(20)),
+		gwccss.H(gwccss.Px(20)),
 	)
 	declareGlobal(".sidebar",
 		gwccss.Raw("padding-top", "14px"),
@@ -1253,8 +1278,8 @@ func declareNavigationEnhancementsStyles() {
 		gwccss.Raw("padding", "13px 13px 5px"),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
-		gwccss.Tracking(gwccss.Ems(.09)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps)"),
 		gwccss.Raw("list-style", "none"),
 		gwccss.Raw("text-transform", "uppercase"),
 	)
@@ -1320,7 +1345,7 @@ func declareNavigationEnhancementsStyles() {
 	declareGlobal(".subnav",
 		gwccss.Raw("display", "grid!important"),
 		gwccss.Gap(gwccss.Px(1)),
-		gwccss.Raw("margin-left", "12px!important"),
+		gwccss.Raw("margin-inline-start", "12px!important"),
 		gwccss.Raw("padding", "2px 0 5px 10px!important"),
 	)
 	declareGlobal(".subnav .nav-link",
@@ -1333,9 +1358,11 @@ func declareNavigationEnhancementsStyles() {
 	declareGlobal(".subnav .nav-label",
 		gwccss.Raw("white-space", "nowrap"),
 	)
+	// A nested item's icon a step under the top level's 20px, on the 4px
+	// grid the icon set is drawn to (17px blurred the 1.8px strokes).
 	declareGlobal(".subnav .nav-icon",
-		gwccss.W(gwccss.Px(17)),
-		gwccss.H(gwccss.Px(17)),
+		gwccss.W(gwccss.Px(16)),
+		gwccss.H(gwccss.Px(16)),
 	)
 	declareGlobal(".nav-empty",
 		gwccss.MarginY(gwccss.Px(8)), gwccss.MarginX(gwccss.Px(5)),
@@ -1375,7 +1402,7 @@ func declareNavigationEnhancementsStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("padding-left", "8px")),
 	)
 	declareGlobal(".subnav",
-		mediaRule(gwccss.MaxW(760), gwccss.Raw("padding-left", "10px!important")),
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("padding-inline-start", "10px!important")),
 	)
 	declareGlobal(".nav-bottom",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("display", "none!important")),

@@ -62,12 +62,15 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 	fields := view.RecordVerdicts[person.ID].Fields
 	silent := len(view.RecordVerdicts) == 0
 	fact := func(facts []ProfileFactProps, label, name, raw string) []ProfileFactProps {
+		// The worker and record identifiers are machine keys, set as code
+		// whenever their value is shown (a withheld value is a sentence).
+		code := raw != "" && (name == "worker_id" || name == "record_id")
 		if silent {
 			status := WorkerFactPresent
 			if raw == "" {
 				status = WorkerFactMissing
 			}
-			return append(facts, ProfileFactProps{Label: label, Value: value(raw), Status: status})
+			return append(facts, ProfileFactProps{Label: label, Value: value(raw), Status: status, Code: code})
 		}
 		field, known := fields[name]
 		if record, hasRecord := view.RecordVerdicts[person.ID]; hasRecord && !record.Disclosable {
@@ -91,7 +94,7 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 				status = WorkerFactMissing
 			}
 		}
-		return append(facts, ProfileFactProps{Label: label, Value: projected.Text, Status: status})
+		return append(facts, ProfileFactProps{Label: label, Value: projected.Text, Status: status, Code: code && status == WorkerFactPresent})
 	}
 	details := profileFactsFromWorkerSection(overview)
 	organization := profileFactsFromWorkerSection(employment)
@@ -100,6 +103,7 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 	personal = fact(personal, text("person.preferred_name"), "preferred_name", person.PreferredName)
 	personal = fact(personal, text("person.worker_id"), "worker_id", person.WorkerID)
 	personal = fact(personal, text("person.worker_ref"), "record_id", person.ID)
+
 	return PersonProfileProps{
 		Hero: PersonHeroProps{
 			Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Label, Role: identity.Role,

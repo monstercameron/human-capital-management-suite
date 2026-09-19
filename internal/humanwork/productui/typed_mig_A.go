@@ -85,8 +85,9 @@ func declarevisualQARefinementsStyles() {
 		gwccss.Raw("padding-block", "10px"),
 		gwccss.Raw("padding-inline", "48px 14px"),
 	)
+	// Square, like every icon: this widened the 18px glyph to 20x18.
 	declareGlobal(".global-search-glyph",
-		gwccss.W(gwccss.Px(20)),
+		gwccss.W(gwccss.Px(18)),
 		gwccss.Raw("text-align", "center"),
 	)
 	declareGlobal(".people-page",
@@ -107,8 +108,14 @@ func declarevisualQARefinementsStyles() {
 			gwccss.Gap(gwccss.RawLength("calc(var(--hcm-space-2) * var(--hcm-density))")),
 		),
 	)
+	// The organization's name stays beside its mark on a tablet. The sidebar
+	// is still 210px wide there, room for two clamped lines; hiding it left a
+	// lone 34px mark in an empty header corner. A collapsed rail hides the name
+	// by its own rule.
+	// At the header's 20px the 87px left beside the mark and toggle split
+	// "Harborcare" mid-word; a step down keeps whole words on two lines.
 	declareGlobal(".brand-logo-slot[data-hcm-brand-logo-state=\"fallback\"] .wordmark-label",
-		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Display.None),
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.FontSize(gwccss.Rem(0.875)), gwccss.Raw("line-height", "1.2"), gwccss.Raw("overflow-wrap", "break-word")),
 	)
 	declareGlobal(".brand-logo-slot[data-hcm-brand-logo-state=\"fallback\"] .wordmark-mark",
 		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Display.Grid, gwccss.Raw("place-items", "center"), gwccss.W(gwccss.Px(34)), gwccss.H(gwccss.Px(34)), gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")), gwccss.Bg(gwccss.Var("accent")), gwccss.TextColor(gwccss.Var("on-brand")), gwccss.FontSize(gwccss.Rem(1)), gwccss.Tracking(gwccss.Zero)),
@@ -260,8 +267,8 @@ func declarestatusPresentationStylesStyles() {
 		gwccss.MinWidth(gwccss.Zero),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
-		gwccss.Tracking(gwccss.Ems(.02)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps)"),
 		gwccss.Raw("text-transform", "uppercase"),
 	)
 	declareGlobal(".status-dimension-value",
@@ -272,8 +279,11 @@ func declarestatusPresentationStylesStyles() {
 	declareGlobal(".status-tone-active .status-dimension-glyph",
 		gwccss.Raw("color", "var(--hcm-color-info,var(--accent))"),
 	)
+	// The theme names this state "success"; --hcm-color-positive was never
+	// defined, so the glyph fell back to the brand accent and ignored a
+	// customer's success color.
 	declareGlobal(".status-tone-positive .status-dimension-glyph",
-		gwccss.Raw("color", "var(--hcm-color-positive,var(--accent))"),
+		gwccss.Raw("color", "var(--hcm-color-success,var(--success))"),
 	)
 	declareGlobal(".status-tone-caution .status-dimension-glyph",
 		gwccss.Raw("color", "var(--hcm-color-warning,var(--warning))"),
@@ -434,8 +444,8 @@ func declareprovenancePresentationStylesStyles() {
 		gwccss.MinWidth(gwccss.Zero),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
-		gwccss.Tracking(gwccss.Ems(.02)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps)"),
 		gwccss.Raw("text-transform", "uppercase"),
 		gwccss.Raw("overflow-wrap", "anywhere"),
 	)
@@ -539,8 +549,16 @@ func declareroleAccessStylesStyles() {
 		gwccss.Raw("flex-wrap", "wrap"),
 		gwccss.Gap(gwccss.Px(16)),
 	)
+	// Section links read as the page's own navigation: accent, the shell's
+	// link weight, underlined on hover like every other in-app link rather
+	// than permanently, which made them look like body-copy references.
 	declareGlobal(".roles-page-jumps a",
 		gwccss.TextColor(gwccss.Var("accent")),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("text-decoration", "none"),
+	)
+	declareGlobal(".roles-page-jumps a:hover",
 		gwccss.Raw("text-decoration", "underline"),
 	)
 	declareGlobal(".roles-access-layout",
@@ -549,14 +567,47 @@ func declareroleAccessStylesStyles() {
 		gwccss.Gap(gwccss.Px(18)),
 		gwccss.Raw("align-items", "start"),
 	)
+	// The shell's disclosure chevron (the journey "technical details" mark)
+	// in place of the browser's triangle, which no other disclosure here uses.
 	declareGlobal(".role-create-disclosure>summary",
+		gwccss.Display.Flex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(10)),
+		gwccss.MinHeight(gwccss.VarLength("hcm-control-height")),
 		gwccss.Raw("cursor", "pointer"),
-		gwccss.Raw("padding", "14px 22px"),
-		gwccss.Raw("font-weight", "700"),
+		gwccss.Raw("padding", "10px 22px"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("list-style", "none"),
 		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
 	)
+	declareGlobal(".role-create-disclosure>summary:hover",
+		gwccss.Raw("background-color", "var(--hcm-hover-surface)"),
+	)
+	// Every disclosure on the roles page carries the same chevron.
+	declareGlobal(roleDisclosureSummaries,
+		gwccss.Raw("list-style", "none"),
+		gwccss.Display.Flex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(10)),
+		// A 44px target like every other disclosure: "Page and action access"
+		// and "Unpublished pages" were 21-24px tall.
+		gwccss.MinHeight(gwccss.VarLength("hcm-control-height")),
+		gwccss.Raw("cursor", "pointer"),
+	)
+	declareGlobal(roleDisclosureSummaries+"::-webkit-details-marker",
+		gwccss.Display.None,
+	)
+	declareGlobal(roleDisclosureSummaries+"::after",
+		gwccss.Raw("content", "\"\""),
+		gwccss.Raw("inline-size", "0.375rem"),
+		gwccss.Raw("block-size", "0.375rem"),
+		gwccss.Raw("border-right", "1.5px solid currentColor"),
+		gwccss.Raw("border-bottom", "1.5px solid currentColor"),
+		gwccss.Raw("transform", "translateY(-0.125rem) rotate(45deg)"),
+		gwccss.Raw("transition", "transform var(--hcm-motion-fast,.15s) ease"),
+	)
+	declareGlobal(":is(.role-create-disclosure,.role-page-access,.role-unpublished-pages,.employee-role-assignment)[open]>summary::after",
+		gwccss.Raw("transform", "translateY(0.0625rem) rotate(-135deg)"),
+	)
 	declareGlobal(".role-create-disclosure>summary:focus-visible",
-		gwccss.Raw("outline", "3px solid var(--hcm-color-focus)"),
+		gwccss.Raw("outline", "var(--hcm-focus-ring-width) solid var(--hcm-color-focus)"),
 		gwccss.Raw("outline-offset", "-3px"),
 	)
 	declareGlobal(".role-catalog,.employee-role-directory",
@@ -589,7 +640,7 @@ func declareroleAccessStylesStyles() {
 		gwccss.Display.None,
 	)
 	declareGlobal(".access-role-card>summary:hover",
-		gwccss.Raw("background-color", "var(--hcm-hover-surface,var(--soft))"),
+		gwccss.Raw("background-color", "var(--hcm-hover-surface)"),
 	)
 	declareGlobal(".access-role-card[open]>summary",
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
@@ -607,13 +658,21 @@ func declareroleAccessStylesStyles() {
 		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("overflow-wrap", "anywhere"),
 	)
+	// The description is read, not scanned: 13px, not the 12px of a label.
 	declareGlobal(".access-role-card summary p",
 		gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),
 		gwccss.Margin(gwccss.Zero),
-		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("line-height", "1.45"),
 	)
+	// "Inspect role" is what the card does when opened, so it is drawn as
+	// the card's action -- accent, link weight -- not as muted body text.
 	declareGlobal(".access-role-expand",
 		gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),
+		gwccss.Raw("margin-top", "2px"),
+		gwccss.TextColor(gwccss.Var("accent")),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".role-definition",
 		gwccss.Raw("padding", "16px 18px"),
@@ -621,6 +680,10 @@ func declareroleAccessStylesStyles() {
 	)
 	declareGlobal(".role-definition h3,.role-definition p",
 		gwccss.Raw("margin", "0 0 10px"),
+	)
+	declareGlobal(".role-definition>p",
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("line-height", "1.5"),
 	)
 	declareGlobal(".role-definition dl",
 		gwccss.Display.Grid,
@@ -669,7 +732,7 @@ func declareroleAccessStylesStyles() {
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
 	declareGlobal(".role-feature-page>summary:hover",
-		gwccss.Raw("background-color", "var(--hcm-hover-surface,var(--soft))"),
+		gwccss.Raw("background-color", "var(--hcm-hover-surface)"),
 	)
 	declareGlobal(".role-feature-page[open]>summary",
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
@@ -683,7 +746,7 @@ func declareroleAccessStylesStyles() {
 	)
 	declareGlobal(".role-feature-table tbody th",
 		gwccss.MinWidth(gwccss.Px(260)),
-		gwccss.Raw("text-align", "left"),
+		gwccss.Raw("text-align", "start"),
 	)
 	declareGlobal(".role-feature-description",
 		gwccss.Display.Block,
@@ -737,12 +800,26 @@ func declareroleAccessStylesStyles() {
 		gwccss.BorderSpacing(gwccss.Zero),
 		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
+	// The roles tables stay tables at every width: they scroll sideways in
+	// their own wrapper. The shared data-table rules turn a narrow table into
+	// a block with a "Sort by" bar, which here detached the header labels
+	// from the columns they name (tablet and phone).
+	declareGlobal(".data-table.role-page-table",
+		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "table")),
+	)
+	declareGlobal(".data-table.role-page-table thead",
+		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "table-header-group"), gwccss.Padding(gwccss.Zero), gwccss.Raw("border-bottom", "0")),
+	)
+	declareGlobal(".data-table.role-page-table .data-table-head",
+		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "table-row!important")),
+	)
 	declareGlobal(".role-page-table th,.role-page-table td",
 		gwccss.PaddingY(gwccss.Px(9)), gwccss.PaddingX(gwccss.Px(10)),
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Raw("text-align", "center"),
 		gwccss.Raw("vertical-align", "middle"),
 	)
+	// Sentence case, as every other data table's header is.
 	declareGlobal(".role-page-table thead th",
 		gwccss.Position.Sticky,
 		gwccss.Top(gwccss.Zero),
@@ -750,17 +827,16 @@ func declareroleAccessStylesStyles() {
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("text-transform", "uppercase"),
-		gwccss.Tracking(gwccss.Ems(.05)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".role-page-table th:first-child",
-		gwccss.Raw("text-align", "left"),
+		gwccss.Raw("text-align", "start"),
 	)
 	declareGlobal(".role-page-table tbody tr:last-child>*",
 		gwccss.Raw("border-bottom", "0"),
 	)
 	declareGlobal(".role-page-table tbody tr:hover",
-		gwccss.Raw("background-color", "var(--hcm-hover-surface,var(--soft))"),
+		gwccss.Raw("background-color", "var(--hcm-hover-surface)"),
 	)
 	declareGlobal(".role-page-table tbody th",
 		gwccss.MinWidth(gwccss.Px(220)),
@@ -884,14 +960,36 @@ func declareroleAccessStylesStyles() {
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
+	// The avatar beside the name and role line, as in the People directory;
+	// stacked above them it doubled every row's height.
 	declareGlobal(".employee-role-identity",
 		gwccss.Display.Grid,
+		gwccss.Raw("grid-template-columns", "auto minmax(0,1fr)"),
+		gwccss.ColumnGap(gwccss.Px(10)), gwccss.RowGap(gwccss.Px(2)),
+		gwccss.Items.Center,
 		gwccss.MinWidth(gwccss.Zero),
+		gwccss.Raw("text-align", "start"),
 	)
+	declareGlobal(".employee-role-identity>.avatar",
+		gwccss.Raw("grid-row", "span 2"),
+	)
+	declareGlobal(".employee-role-identity>strong",
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
+	)
+	declareGlobal(".employee-role-identity>small",
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "400"),
+	)
+	// Up to two lines before it is cut: on one line the team, the part that
+	// tells two people with the same title apart, was the part the ellipsis
+	// took ("Workplace Services Manager - M2 - Workpl...").
 	declareGlobal(".employee-role-identity small",
 		gwccss.Raw("overflow", "hidden"),
-		gwccss.TextOverflowEllipsis(),
-		gwccss.Raw("white-space", "nowrap"),
+		gwccss.Raw("display", "-webkit-box"),
+		gwccss.Raw("-webkit-box-orient", "vertical"),
+		gwccss.Raw("-webkit-line-clamp", "2"),
+		gwccss.Raw("line-clamp", "2"),
 	)
 	declareGlobal(".employee-role-badges",
 		gwccss.Display.Flex,
@@ -955,6 +1053,8 @@ func declareroleAccessStylesStyles() {
 		gwccss.Display.Flex,
 		gwccss.Items.Baseline,
 		gwccss.Gap(gwccss.Px(9)),
+		gwccss.FontSize(gwccss.Rem(1)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".role-visibility-editor>summary code",
 		gwccss.TextColor(gwccss.Var("muted")),
@@ -1018,13 +1118,20 @@ func declareorganizationDisclosureStylesStyles() {
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.Bg(gwccss.Var("surface")),
 	)
+	// No accent bar. The manager style's top rule marks a manager among
+	// reports in the tree; in this list every row is a team, so it drew the
+	// same green bar across all fifteen and the list read as fifteen alerts.
+	// A hover tint says the row opens.
 	declareGlobal(".organization-unit-disclosure>.org-node.manager",
 		gwccss.W(gwccss.Percent(100)),
 		gwccss.Raw("border", "0"),
 		gwccss.Rounded(gwccss.Zero),
-		gwccss.Shadow(gwccss.ShadowInset(gwccss.Zero, gwccss.Px(3), gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
+		gwccss.Raw("box-shadow", "none"),
 		gwccss.Raw("cursor", "pointer"),
 		gwccss.Raw("list-style", "none"),
+	)
+	declareGlobal(".organization-unit-disclosure>.org-node.manager:hover",
+		gwccss.Bg(gwccss.Var("hcm-hover-surface")),
 	)
 	declareGlobal(".organization-unit-disclosure>.org-node.manager::-webkit-details-marker",
 		gwccss.Display.None,
@@ -1072,22 +1179,37 @@ func declareorganizationDisclosureStylesStyles() {
 		gwccss.Gap(gwccss.Px(5)),
 		gwccss.W(gwccss.MinLen(gwccss.Px(440), gwccss.Percent(100))),
 	)
+	// The shell's disclosure chevron, not the browser's triangle.
 	declareGlobal(".ownership-person-disclosure>summary",
 		gwccss.Raw("width", "fit-content"),
+		gwccss.Display.InlineFlex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(8)),
+		gwccss.Raw("list-style", "none"),
 		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.PaddingY(gwccss.Px(5)), gwccss.PaddingX(gwccss.Px(8)),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("cursor", "pointer"),
+	)
+	declareGlobal(".ownership-person-disclosure>summary::-webkit-details-marker",
+		gwccss.Display.None,
+	)
+	declareGlobal(".ownership-person-disclosure>summary::after",
+		gwccss.Raw("content", "\"\""),
+		gwccss.Raw("inline-size", "0.375rem"), gwccss.Raw("block-size", "0.375rem"),
+		gwccss.Raw("border-right", "1.5px solid currentColor"), gwccss.Raw("border-bottom", "1.5px solid currentColor"),
+		gwccss.Raw("transform", "translateY(-0.125rem) rotate(45deg)"),
+	)
+	declareGlobal(".ownership-person-disclosure[open]>summary::after",
+		gwccss.Raw("transform", "translateY(0.0625rem) rotate(-135deg)"),
 	)
 	declareGlobal(".ownership-person-disclosure>summary:hover",
 		gwccss.Bg(gwccss.Var("hcm-hover-surface")),
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
 	declareGlobal(".ownership-person-disclosure>summary:focus-visible",
-		gwccss.Raw("outline", "2px solid var(--accent)"),
+		gwccss.Raw("outline", "var(--hcm-focus-ring-width) solid var(--hcm-color-focus)"),
 		gwccss.Raw("outline-offset", "2px"),
 	)
 	declareGlobal(".ownership-person-details",
@@ -1196,7 +1318,7 @@ func declareorganizationVisibilityStylesStyles() {
 		gwccss.Raw("text-decoration", "none"),
 	)
 	declareGlobal(".organization-visibility-role-link:hover,.organization-visibility-role-link:focus-visible",
-		gwccss.Raw("background-color", "var(--hcm-hover-surface,var(--soft))"),
+		gwccss.Raw("background-color", "var(--hcm-hover-surface)"),
 		gwccss.Raw("text-decoration", "underline"),
 	)
 	declareGlobal(".organization-visibility-intro h2,.organization-visibility-intro p",
@@ -1213,25 +1335,41 @@ func declareorganizationVisibilityStylesStyles() {
 	)
 	declareGlobal(".organization-visibility-form.mode-only .organization-visibility-modes",
 		gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
-		gwccss.Raw("border-right", "0!important"),
+		gwccss.Raw("border-inline-end", "0!important"),
 		gwccss.Raw("border-bottom", "1px solid var(--line)!important"),
 	)
+	// A legend renders on the fieldset's top edge, outside its padding, so
+	// a 22px top padding opened a gap under the question before its choices.
+	// The question is the prompt under the card's title (the role), so it is
+	// set a step below it rather than above it.
 	declareGlobal(".organization-visibility-form fieldset",
 		gwccss.MinWidth(gwccss.Zero),
 		gwccss.Margin(gwccss.Zero),
-		gwccss.Padding(gwccss.Px(22)),
+		gwccss.Raw("padding", "4px 22px 22px"),
 		gwccss.Raw("border", "0"),
 	)
 	declareGlobal(".organization-visibility-form legend",
-		gwccss.Raw("padding", "0 0 14px"),
-		gwccss.FontSize(gwccss.Rem(1)),
-		gwccss.Raw("font-weight", "700"),
+		gwccss.Raw("padding", "16px 0 10px"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
+	)
+	// The preview notice lines up with the fieldsets around it.
+	declareGlobal(".organization-visibility-preview-unavailable",
+		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(2)),
+		gwccss.Raw("padding", "0 22px 18px"),
+	)
+	declareGlobal(".organization-visibility-preview-unavailable>strong",
+		gwccss.FontSize(gwccss.Rem(0.875)),
+	)
+	declareGlobal(".organization-visibility-preview-unavailable>p",
+		gwccss.Margin(gwccss.Zero),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".organization-visibility-modes",
 		gwccss.Display.Grid,
 		gwccss.Raw("align-content", "start"),
 		gwccss.Gap(gwccss.Px(9)),
-		gwccss.Raw("border-right", "1px solid var(--line)!important"),
+		gwccss.Raw("border-inline-end", "1px solid var(--line)!important"),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
 	declareGlobal(".organization-visibility-mode",
@@ -1397,7 +1535,7 @@ func declareorganizationVisibilityStylesStyles() {
 		mediaRule(gwccss.MaxW(900), gwccss.GridCols(gwccss.Fr(1))),
 	)
 	declareGlobal(".organization-visibility-modes",
-		mediaRule(gwccss.MaxW(900), gwccss.Raw("border-right", "0!important"), gwccss.Raw("border-bottom", "1px solid var(--line)!important")),
+		mediaRule(gwccss.MaxW(900), gwccss.Raw("border-inline-end", "0!important"), gwccss.Raw("border-bottom", "1px solid var(--line)!important")),
 	)
 	declareGlobal(".organization-visibility-intro",
 		mediaRule(gwccss.MaxW(620), gwccss.Raw("align-items", "flex-start"), gwccss.FlexDir.Col, gwccss.Padding(gwccss.Px(14))),
@@ -1436,8 +1574,16 @@ func declareworkerIDStylesStyles() {
 		gwccss.Items.Center,
 		gwccss.Raw("justify-content", "space-between"),
 		gwccss.Gap(gwccss.Px(24)),
-		gwccss.PaddingY(gwccss.Px(25)), gwccss.PaddingX(gwccss.Px(27)),
-		gwccss.Raw("background", "linear-gradient(125deg,var(--soft),var(--surface) 70%)"),
+		// The shared hero recipe (person, admin, worker IDs): 26/28 padding,
+		// a 120-degree fade from soft to surface.
+		gwccss.PaddingY(gwccss.Px(26)), gwccss.PaddingX(gwccss.Px(28)),
+		gwccss.Raw("background", "linear-gradient(120deg,var(--soft),var(--surface) 70%)"),
+	)
+	// The hero's back button keeps its one line; the copy beside it takes
+	// the squeeze instead ("<-" and "Admin" wrapped onto two lines).
+	declareGlobal(".worker-id-intro .button",
+		gwccss.Raw("flex", "none"),
+		gwccss.Raw("white-space", "nowrap"),
 	)
 	declareGlobal(".worker-id-intro h2,.worker-id-intro p",
 		gwccss.MarginY(gwccss.Px(3)), gwccss.MarginX(gwccss.Zero),
@@ -1459,8 +1605,12 @@ func declareworkerIDStylesStyles() {
 		gwccss.Raw("margin", "0"),
 		gwccss.Raw("padding", "0"),
 	)
+	// The legend takes the same inset as the fields it names; at the
+	// fieldset's edge it sat 22px left of everything in its section.
 	declareGlobal(".admin-form-section legend",
-		gwccss.Raw("font-weight", "700"),
+		gwccss.Raw("padding", "18px 22px 0"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
 	declareGlobal(".admin-form-section-fields",
@@ -1507,11 +1657,6 @@ func declareworkerIDStylesStyles() {
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
-	declareGlobal(".worker-id-fields input:focus,.worker-id-fields select:focus,.admin-form-section-fields input:focus,.admin-form-section-fields select:focus",
-		gwccss.BorderColor(gwccss.Var("accent")),
-		gwccss.Raw("outline", "2px solid color-mix(in srgb,var(--accent) 20%,transparent)"),
-		gwccss.OutlineOffset(gwccss.Px(1)),
-	)
 	declareGlobal(".worker-id-fields small,.admin-form-section-fields small",
 		gwccss.Raw("font-weight", "400"),
 		gwccss.LineHeight(gwccss.Num(1.35)),
@@ -1535,9 +1680,12 @@ func declareworkerIDStylesStyles() {
 	)
 	declareGlobal(".worker-id-preview h2",
 		gwccss.Raw("margin", "14px 0 3px"),
+		gwccss.FontSize(gwccss.Rem(1.125)),
 	)
 	declareGlobal(".worker-id-preview>p",
 		gwccss.Margin(gwccss.Zero),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("line-height", "1.5"),
 	)
 	declareGlobal(".worker-id-examples",
 		gwccss.Display.Grid,
@@ -1571,13 +1719,14 @@ func declareworkerIDStylesStyles() {
 	declareGlobal(".worker-id-state dt",
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-transform", "uppercase"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps)"),
 	)
 	declareGlobal(".worker-id-state dd",
 		gwccss.Raw("margin", "4px 0 0"),
 		gwccss.FontSize(gwccss.Rem(1.25)),
-		gwccss.Raw("font-weight", "800"),
+		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(".worker-id-layout",
 		mediaRule(gwccss.MaxW(980), gwccss.GridCols(gwccss.Fr(1))),
@@ -1585,9 +1734,11 @@ func declareworkerIDStylesStyles() {
 	declareGlobal(".worker-id-preview",
 		mediaRule(gwccss.MaxW(980), gwccss.Position.Static),
 	)
-	declareGlobal(".worker-id-fields",
-		mediaRule(gwccss.MaxW(980), gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))))),
-	)
+	// The rule sections stack at every width, as they do on a desktop. Put
+	// side by side below 980px, each section's own two-column field grid made
+	// four ~96px columns: helper text wrapped a word per line and the
+	// separator select clipped to "Dash (".
+
 	declareGlobal(".worker-id-intro",
 		mediaRule(gwccss.MaxW(620), gwccss.Raw("align-items", "flex-start"), gwccss.FlexDir.Col),
 	)
@@ -1636,10 +1787,23 @@ func declareorganizationHierarchyStylesStyles() {
 		gwccss.FontSize(gwccss.Rem(1)),
 		gwccss.Raw("font-variant-numeric", "tabular-nums"),
 	)
+	// The scope is written label-first for reading order, but it is drawn
+	// like its neighbours -- value over label -- so the strip reads as three
+	// facts of one kind instead of two facts and a caption.
+	declareGlobal(".organization-summary-scope>span",
+		gwccss.Raw("order", "-1"),
+		gwccss.FontSize(gwccss.Rem(1)),
+		gwccss.Raw("font-weight", "600"),
+	)
+	declareGlobal(".organization-summary-fact strong",
+		gwccss.Raw("font-weight", "600"),
+	)
+	// Labels step back so the values lead: 700 on a muted 12px label competed
+	// with the number it names.
 	declareGlobal(".organization-summary-fact small,.organization-summary-scope small",
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
+		gwccss.Raw("font-weight", "500"),
 	)
 	declareGlobal(".organization-browse-controls",
 		gwccss.Display.Flex,
@@ -1703,25 +1867,37 @@ func declareorganizationHierarchyStylesStyles() {
 		gwccss.Raw("border-color", "color-mix(in srgb,var(--line) 72%,var(--surface-subtle))"),
 		gwccss.Raw("box-shadow", "none"),
 	)
+	// Instructions beside the view toggle, read as plain helper text. The
+	// generic .definition tint boxed them in a panel that stopped short of
+	// the toggle and looked like an unfinished card.
 	declareGlobal(".organization-view-head .definition",
 		gwccss.Raw("flex", "1"),
 		gwccss.Margin(gwccss.Zero),
+		gwccss.Padding(gwccss.Zero),
+		gwccss.Raw("background", "transparent"),
+		gwccss.MaxWidth(gwccss.RawLength("70ch")),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("line-height", "1.5"),
 	)
 	declareGlobal(".organization-view-toggle",
 		gwccss.Display.InlineFlex,
 		gwccss.Raw("flex", "none"),
 		gwccss.Padding(gwccss.Px(3)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.Px(999)),
+		// The control radius, like every other control in the shell; the
+		// options inside take the smaller radius so the corners nest.
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
 	declareGlobal(".organization-view-option",
 		gwccss.MinHeight(gwccss.Px(44)),
-		gwccss.PaddingY(gwccss.Px(7)), gwccss.PaddingX(gwccss.Px(12)),
-		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Display.InlineFlex, gwccss.Items.Center,
+		gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(12)),
+		gwccss.Raw("border", "1px solid transparent"),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-xs")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "none"),
 		gwccss.Raw("white-space", "nowrap"),
 	)
@@ -1753,7 +1929,7 @@ func declareorganizationHierarchyStylesStyles() {
 		gwccss.Bg(gwccss.Var("surface")),
 	)
 	declareGlobal(".ownership-virtual-tree:focus-visible",
-		gwccss.Raw("outline", "2px solid var(--accent)"),
+		gwccss.Raw("outline", "var(--hcm-focus-ring-width) solid var(--hcm-color-focus)"),
 		gwccss.Raw("outline-offset", "2px"),
 	)
 	declareGlobal(".ownership-virtual-row",
@@ -1808,6 +1984,12 @@ func declareorganizationHierarchyStylesStyles() {
 		gwccss.TextColor(gwccss.Var("ink")),
 		gwccss.Raw("text-decoration", "none"),
 	)
+	// A person's name is set the same wherever a person is listed (people
+	// table, role assignments): 14px/600, its details a step under.
+	declareGlobal(".ownership-card .row-main>strong",
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
+	)
 	declareGlobal(".ownership-card:hover",
 		gwccss.BorderColor(gwccss.Var("hcm-hover-border")),
 		gwccss.Bg(gwccss.Var("hcm-hover-surface")),
@@ -1833,22 +2015,47 @@ func declareorganizationHierarchyStylesStyles() {
 		gwccss.Border(gwccss.Px(0), gwccss.Var("line")),
 		gwccss.Bg(gwccss.Transparent),
 	)
+	// "Direct reports" carries a drawn chevron: the text glyph it had (a
+	// down caret, a right angle bracket) sat on the baseline, read as a
+	// subscript and touched the label. Down while the branch is open, toward
+	// the reading end while it is closed; the glyph span is aria-hidden.
+	declareGlobal(".ownership-toggle",
+		gwccss.Gap(gwccss.Px(8)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
+	)
+	declareGlobal(".ownership-toggle>span[aria-hidden=true]",
+		gwccss.Display.None,
+	)
+	declareGlobal(".ownership-toggle::before",
+		gwccss.Raw("content", "\"\""),
+		gwccss.Raw("flex", "none"),
+		gwccss.Raw("inline-size", "0.375rem"), gwccss.Raw("block-size", "0.375rem"),
+		gwccss.Raw("border-right", "1.5px solid currentColor"), gwccss.Raw("border-bottom", "1.5px solid currentColor"),
+		gwccss.Raw("transform", "rotate(-45deg)"),
+	)
+	declareGlobal("[dir=rtl] .ownership-toggle::before",
+		gwccss.Raw("transform", "rotate(135deg)"),
+	)
+	declareGlobal("[aria-expanded=true]>.ownership-toggle::before",
+		gwccss.Raw("transform", "translateY(-0.125rem) rotate(45deg)"),
+	)
 	declareGlobal(".ownership-toggle:hover,.organization-unit-disclosure>summary:hover",
 		gwccss.Bg(gwccss.Var("hcm-hover-surface")),
 	)
 	declareGlobal(".ownership-toggle:focus-visible,.organization-unit-disclosure>summary:focus-visible",
-		gwccss.Raw("outline", "2px solid var(--accent)"), gwccss.Raw("outline-offset", "-3px"),
+		gwccss.Raw("outline", "var(--hcm-focus-ring-width) solid var(--hcm-color-focus)"), gwccss.Raw("outline-offset", "-3px"),
 	)
 	declareGlobal(".ownership-count",
 		gwccss.Display.Grid,
 		gwccss.Raw("place-items", "center"),
 		gwccss.MinWidth(gwccss.Px(25)),
 		gwccss.H(gwccss.Px(25)),
-		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-status")),
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "800"),
+		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(".organization-view-head",
 		mediaRule(gwccss.MaxW(760), gwccss.Items.Stretch, gwccss.FlexDir.Col),
@@ -2019,8 +2226,8 @@ func declareorganizationMetadataStylesStyles() {
 	declareGlobal(".business-metadata-item dt",
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
-		gwccss.Tracking(gwccss.Ems(.035)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps)"),
 		gwccss.Raw("text-transform", "uppercase"),
 	)
 	declareGlobal(".business-metadata-item dd",
@@ -2055,7 +2262,7 @@ func declareorganizationMetadataStylesStyles() {
 	declareGlobal(".business-footprint li",
 		gwccss.PaddingY(gwccss.Px(5)), gwccss.PaddingX(gwccss.Px(9)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-status")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
@@ -2094,3 +2301,5 @@ func declareorganizationMetadataStylesStyles() {
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.Raw("border-inline-start-width", "3px")),
 	)
 }
+
+const roleDisclosureSummaries = ":is(.role-create-disclosure,.role-page-access,.role-unpublished-pages,.employee-role-assignment)>summary"

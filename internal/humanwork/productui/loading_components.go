@@ -47,14 +47,14 @@ type LoadingGeometry struct {
 // fallback for a route that cannot be classified.
 func LoadingProxyGeometry(page PageID) LoadingGeometry {
 	switch page {
-	case PagePeople, PageHistory:
+	case PagePeople, PageHistory, PageOrganization:
 		return LoadingGeometry{Layout: "table", Rows: 8, Columns: 4}
 	case PagePerson, PageMyself:
 		return LoadingGeometry{Layout: "profile", Rows: 10, Columns: 2}
-	case PageOrganization, PageInsights:
+	case PageInsights:
 		return LoadingGeometry{Layout: "analysis", Rows: 13, Columns: 2}
 	case PageHome, PageWork, PageJourneys:
-		return LoadingGeometry{Layout: "work", Rows: 12, Columns: 2}
+		return LoadingGeometry{Layout: "work", Rows: 6, Columns: 1}
 	default:
 		return LoadingGeometry{Layout: "settings", Rows: 11, Columns: 2}
 	}
@@ -169,7 +169,10 @@ func LoadingProxy(props LoadingProxyProps) ui.Node {
 
 func loadingProxyBody(page PageID) ui.Node {
 	switch page {
-	case PagePeople, PageHistory:
+	// Organization is a search field over one list of teams, which is this
+	// shape; it used to borrow Insights' metric cards and chart, none of which
+	// it has.
+	case PagePeople, PageHistory, PageOrganization:
 		return html.Div(html.Props{Class: "loading-table-layout"},
 			loadingToolbar(),
 			loadingPanel("loading-table-panel", loadingTable(7)),
@@ -185,7 +188,7 @@ func loadingProxyBody(page PageID) ui.Node {
 				loadingPanel("", loadingRows(4, false)),
 			),
 		)
-	case PageOrganization, PageInsights:
+	case PageInsights:
 		return html.Div(html.Props{Class: "loading-analysis-layout"},
 			loadingMetrics(3),
 			html.Div(html.Props{Class: "loading-two-column"},
@@ -194,12 +197,13 @@ func loadingProxyBody(page PageID) ui.Node {
 			),
 		)
 	case PageHome, PageWork, PageJourneys:
+		// One column, as Home, My Work and Journeys all render. The proxy used
+		// to reserve a list and a detail panel beside it; no page in this
+		// family has that panel, so every navigation to one opened on a
+		// two-column shape and collapsed to one when the data arrived.
 		return html.Div(html.Props{Class: "loading-work-layout"},
 			loadingToolbar(),
-			html.Div(html.Props{Class: "loading-two-column"},
-				loadingPanel("", loadingRows(6, true)),
-				loadingPanel("loading-detail-proxy", loadingFacts(6)),
-			),
+			loadingPanel("", loadingRows(6, true)),
 		)
 	default:
 		return html.Div(html.Props{Class: "loading-settings-layout"},

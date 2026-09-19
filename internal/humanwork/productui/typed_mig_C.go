@@ -69,6 +69,8 @@ func declareuxReviewRefinementsStyles() {
 	)
 	declareGlobal(".home-continuity-summary>p",
 		gwccss.Raw("margin", "0"), gwccss.Raw("padding", "0 18px 18px"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("line-height", "1.5"),
 	)
 	declareGlobal(".settings-overview-grid",
 		gwccss.Raw("align-items", "start"),
@@ -167,10 +169,10 @@ func declareuxReviewRefinementsStyles() {
 		mediaRule(gwccss.MinW(1191), gwccss.MaxWidth(gwccss.Px(198))),
 	)
 	declareGlobal(".loading-progress",
-		mediaRule(gwccss.MinW(1191), gwccss.Left(gwccss.Px(270))),
+		mediaRule(gwccss.MinW(1191), gwccss.Raw("inset-inline-start", "270px")),
 	)
 	declareGlobal(".app-shell.nav-collapsed .loading-progress",
-		mediaRule(gwccss.MinW(1191), gwccss.Left(gwccss.Px(72))),
+		mediaRule(gwccss.MinW(1191), gwccss.Raw("inset-inline-start", "72px")),
 	)
 	declareGlobal(".history-filter-controls",
 		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
@@ -195,19 +197,19 @@ func loadingLayoutOffsetsStylesheet() string {
 
 func declareloadingLayoutOffsetsStyles() {
 	declareGlobal(".app-shell .loading-progress",
-		gwccss.Left(gwccss.Px(232)),
+		gwccss.Raw("inset-inline-start", "232px"),
 	)
 	declareGlobal(".app-shell.nav-collapsed .loading-progress",
-		gwccss.Left(gwccss.Px(72)),
+		gwccss.Raw("inset-inline-start", "72px"),
 	)
 	declareGlobal(".app-shell .loading-progress",
-		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Left(gwccss.Px(210))),
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Raw("inset-inline-start", "210px")),
 	)
 	declareGlobal(".app-shell.nav-collapsed .loading-progress",
-		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Left(gwccss.Px(72))),
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Raw("inset-inline-start", "72px")),
 	)
 	declareGlobal(".app-shell .loading-progress,.app-shell.nav-collapsed .loading-progress",
-		mediaRule(gwccss.MaxW(760), gwccss.Top(gwccss.Zero), gwccss.Left(gwccss.Zero)),
+		mediaRule(gwccss.MaxW(760), gwccss.Top(gwccss.Zero), gwccss.Raw("inset-inline-start", "0")),
 	)
 }
 
@@ -227,8 +229,8 @@ func declareloadingProxyStylesStyles() {
 		gwccss.Position.Fixed,
 		gwccss.ZIndex(30),
 		gwccss.Top(gwccss.Px(79)),
-		gwccss.Left(gwccss.RawLength("var(--hcm-navigation-width,232px)")),
-		gwccss.Right(gwccss.Zero),
+		gwccss.Raw("inset-inline-start", "var(--hcm-navigation-width,232px)"),
+		gwccss.Raw("inset-inline-end", "0"),
 		gwccss.H(gwccss.Px(3)),
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.Bg(gwccss.Var("surface-muted")),
@@ -294,7 +296,9 @@ func declareloadingProxyStylesStyles() {
 		gwccss.Raw("flex", "none"),
 		gwccss.W(gwccss.Px(88)),
 		gwccss.H(gwccss.Px(27)),
-		gwccss.Rounded(gwccss.Px(999)),
+		// The shape of what it stands in for: statuses and row actions carry
+		// the status radius, not a full pill.
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-status")),
 	)
 	declareGlobal(".loading-avatar",
 		gwccss.Raw("flex", "none"),
@@ -439,11 +443,8 @@ func declareloadingProxyStylesStyles() {
 	declareGlobal(".loading-metrics",
 		mediaRule(gwccss.MaxW(990), gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))))),
 	)
-	declareGlobal(".loading-detail-proxy",
-		mediaRule(gwccss.MaxW(990), gwccss.Display.None),
-	)
 	declareGlobal(".loading-progress",
-		mediaRule(gwccss.MaxW(760), gwccss.Top(gwccss.Zero), gwccss.Left(gwccss.Zero)),
+		mediaRule(gwccss.MaxW(760), gwccss.Top(gwccss.Zero), gwccss.Raw("inset-inline-start", "0")),
 	)
 	declareGlobal(".loading-toolbar",
 		mediaRule(gwccss.MaxW(760), gwccss.Items.Stretch, gwccss.FlexDir.Col),

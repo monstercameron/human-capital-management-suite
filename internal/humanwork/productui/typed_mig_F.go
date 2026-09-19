@@ -55,7 +55,7 @@ func declarehistoryTableStyles() {
 		gwccss.Raw("font-weight", "700"),
 	)
 	declareGlobal(".history-record-heading",
-		gwccss.Raw("text-align", "right"),
+		gwccss.Raw("text-align", "end"),
 	)
 	declareGlobal(".history-change",
 		gwccss.Margin(gwccss.Zero),
@@ -196,8 +196,11 @@ func declareprofileDetailStyles() {
 		gwccss.RowGap(gwccss.Px(5)), gwccss.ColumnGap(gwccss.Px(12)),
 		gwccss.Raw("margin", "0 22px 18px"),
 		gwccss.PaddingY(gwccss.Px(13)), gwccss.PaddingX(gwccss.Px(14)),
-		gwccss.BorderLeft(gwccss.Px(3), gwccss.Var("warning")),
-		gwccss.Rounded(gwccss.RawLength("0 var(--radius) var(--radius) 0")),
+		// Logical edges: the warning rule and the square corners belong to the
+		// leading side, which is the right in Arabic.
+		gwccss.Raw("border-inline-start", "3px solid var(--warning)"),
+		gwccss.Raw("border-start-start-radius", "0"), gwccss.Raw("border-end-start-radius", "0"),
+		gwccss.Raw("border-start-end-radius", "var(--radius)"), gwccss.Raw("border-end-end-radius", "var(--radius)"),
 		gwccss.Bg(gwccss.Var("warning-bg")),
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.8125)),
@@ -303,8 +306,17 @@ func declareworkflowHistoryStyles() {
 		gwccss.Gap(gwccss.Px(5)),
 		gwccss.PaddingY(gwccss.Px(28)), gwccss.PaddingX(gwccss.Px(22)),
 	)
+	// Set like every empty state: a card-level title and a description a
+	// step under it, held to a readable measure.
 	declareGlobal(".history-empty p",
 		gwccss.Margin(gwccss.Zero),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("line-height", "1.5"),
+		gwccss.Raw("text-wrap", "pretty"),
+	)
+	declareGlobal(".history-empty>strong",
+		gwccss.FontSize(gwccss.Rem(1)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".history-row",
 		mediaRule(gwccss.MaxW(980), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("auto")))),
@@ -458,7 +470,9 @@ func declarepersonProfileStyles() {
 		gwccss.Raw("justify-content", "space-between"),
 		gwccss.Gap(gwccss.Px(24)),
 		gwccss.PaddingY(gwccss.Px(26)), gwccss.PaddingX(gwccss.Px(28)),
-		gwccss.Raw("background", "linear-gradient(120deg,var(--soft),#fff 70%)"),
+		// Fades to the surface token, not literal white: in dark mode the
+		// hero ran from dark green into a bright white band.
+		gwccss.Raw("background", "linear-gradient(120deg,var(--soft),var(--surface) 70%)"),
 	)
 	declareGlobal(".person-identity",
 		gwccss.Display.Flex,
@@ -484,8 +498,8 @@ func declarepersonProfileStyles() {
 		gwccss.Display.Block,
 		gwccss.TextColor(gwccss.Var("accent")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
-		gwccss.Raw("font-weight", "700"),
-		gwccss.Tracking(gwccss.Ems(.08)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps)"),
 		gwccss.Raw("text-transform", "uppercase"),
 	)
 	declareGlobal(".person-hero-meta",
@@ -520,8 +534,19 @@ func declarepersonProfileStyles() {
 		gwccss.PaddingY(gwccss.Px(17)), gwccss.PaddingX(gwccss.Px(22)),
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
 	)
+	// The rule between the two columns is on the inline end: a physical
+	// right border sat on the outer edge once the grid mirrored in Arabic.
 	declareGlobal(".profile-fact:nth-child(odd)",
-		gwccss.BorderRight(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Raw("border-inline-end", "1px solid var(--line)"),
+	)
+	// Identifiers read as code: monospace, a step smaller, broken only at
+	// their own hyphens rather than mid-group.
+	declareGlobal(".profile-fact dd.profile-fact-code",
+		gwccss.Raw("font-family", "var(--hcm-font-mono,ui-monospace,SFMono-Regular,Consolas,monospace)"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "500"),
+		gwccss.Raw("overflow-wrap", "break-word"),
+		gwccss.Raw("word-break", "normal"),
 	)
 	declareGlobal(".profile-fact small",
 		gwccss.TextColor(gwccss.Var("muted")),
@@ -653,11 +678,18 @@ func declarepersonProfileStyles() {
 	declareGlobal(".person-hero-meta",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("justify-items", "start")),
 	)
+	// Two columns hold down to 360px: the values are short ("P4",
+	// "SAL-AE3", a date), and one per row made each an 80px band and the
+	// employment card several screens long on a phone. The padding tightens
+	// so both columns keep a readable width.
+	declareGlobal(".profile-fact",
+		mediaRule(gwccss.MaxW(760), gwccss.PaddingY(gwccss.Px(14)), gwccss.PaddingX(gwccss.Px(16))),
+	)
 	declareGlobal(".person-fact-grid",
-		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.Fr(1))),
+		mediaRule(gwccss.MaxW(360), gwccss.GridCols(gwccss.Fr(1))),
 	)
 	declareGlobal(".profile-fact:nth-child(odd)",
-		mediaRule(gwccss.MaxW(760), gwccss.Raw("border-right", "0")),
+		mediaRule(gwccss.MaxW(360), gwccss.Raw("border-inline-end", "0")),
 	)
 	declareGlobal(".workflow-card",
 		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
@@ -817,8 +849,8 @@ func declarecomponentRefinementsStyles() {
 	)
 	declareGlobal(".subnav",
 		gwccss.Raw("margin", "0 0 6px 16px!important"),
-		gwccss.Raw("padding-left", "10px!important"),
-		gwccss.BorderLeft(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Raw("padding-inline-start", "10px!important"),
+		gwccss.Raw("border-inline-start", "1px solid var(--line)"),
 	)
 	declareGlobal(".subnav-link",
 		gwccss.MinHeight(gwccss.Px(44)),
@@ -907,6 +939,20 @@ func declarerefinementsStyles() {
 	declareGlobal(".empty-state h2,.empty-state p",
 		gwccss.Margin(gwccss.Zero),
 	)
+	// An empty state's heading is its card's heading, and sizes like every
+	// other card heading. Without a size of its own it took the section scale
+	// (about 26px here) and on Insights sat nearly as large as the page title.
+	declareGlobal(".empty-state>h2",
+		gwccss.FontSize(gwccss.Rem(1.125)),
+		gwccss.Raw("line-height", "1.3"),
+	)
+	// Its explanation at the description size, as a card's is and as the
+	// journey renderer's empty state is.
+	declareGlobal(".empty-state>h2+p",
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("line-height", "1.5"),
+		gwccss.Raw("text-wrap", "pretty"),
+	)
 	declareGlobal(".studio-page",
 		gwccss.Display.Grid,
 		gwccss.Gap(gwccss.Px(18)),
@@ -924,7 +970,7 @@ func declarerefinementsStyles() {
 		gwccss.Margin(gwccss.Zero),
 		gwccss.PaddingY(gwccss.Px(12)), gwccss.PaddingX(gwccss.Px(16)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
-		gwccss.BorderLeft(gwccss.Px(4), gwccss.Var("accent")),
+		gwccss.Raw("border-inline-start", "4px solid var(--accent)"),
 		gwccss.Rounded(gwccss.VarLength("radius")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("muted")),
@@ -954,7 +1000,7 @@ func declarerefinementsStyles() {
 		gwccss.Display.Flex,
 		gwccss.FlexDir.Col,
 		gwccss.Gap(gwccss.Px(4)),
-		gwccss.BorderRight(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Raw("border-inline-end", "1px solid var(--line)"),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 	)
 	declareGlobal(".studio-nav small",
@@ -975,7 +1021,7 @@ func declarerefinementsStyles() {
 		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".studio-structure",
-		gwccss.BorderRight(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Raw("border-inline-end", "1px solid var(--line)"),
 	)
 	declareGlobal(".studio-section-head",
 		gwccss.Display.Flex,
@@ -1078,7 +1124,7 @@ func declarerefinementsStyles() {
 		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".studio-inspector",
-		gwccss.BorderLeft(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Raw("border-inline-start", "1px solid var(--line)"),
 	)
 	declareGlobal(".studio-inspector h2",
 		gwccss.MarginY(gwccss.Px(3)), gwccss.MarginX(gwccss.Zero),
@@ -1129,7 +1175,7 @@ func declarerefinementsStyles() {
 		mediaRule(gwccss.MaxW(1320), gwccss.GridCols(gwccss.TrackLen(gwccss.Px(150)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(210)), gwccss.Fr(.72)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(330)), gwccss.Fr(1.35)))),
 	)
 	declareGlobal(".studio-inspector",
-		mediaRule(gwccss.MaxW(1320), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(2), gwccss.GridLineAt(-1))), gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")), gwccss.Raw("border-left", "0")),
+		mediaRule(gwccss.MaxW(1320), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(2), gwccss.GridLineAt(-1))), gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")), gwccss.Raw("border-inline-start", "0")),
 	)
 	declareGlobal(".studio-inspector .facts",
 		mediaRule(gwccss.MaxW(1320), gwccss.Display.Grid, gwccss.GridCols(gwccss.Fr(1), gwccss.Fr(1)), gwccss.RowGap(gwccss.Zero), gwccss.ColumnGap(gwccss.Px(20))),
@@ -1156,10 +1202,10 @@ func declarerefinementsStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.Fr(1))),
 	)
 	declareGlobal(".studio-nav",
-		mediaRule(gwccss.MaxW(760), gwccss.Raw("border-right", "0"), gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line"))),
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("border-inline-end", "0"), gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line"))),
 	)
 	declareGlobal(".studio-structure",
-		mediaRule(gwccss.MaxW(760), gwccss.Raw("border-right", "0")),
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("border-inline-end", "0")),
 	)
 	declareGlobal(".studio-actions",
 		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.GridCols(gwccss.Fr(1), gwccss.Fr(1))),
@@ -1190,7 +1236,7 @@ func declareresponsiveGridFixStyles() {
 		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.GridCols(gwccss.Fr(1))),
 	)
 	declareGlobal(".person-context",
-		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Raw("border-left", "0"), gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line"))),
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Raw("border-inline-start", "0"), gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line"))),
 	)
 }
 
@@ -1242,7 +1288,7 @@ func declarecollapsibleNavigationStyles() {
 	declareGlobal(".app-shell.nav-collapsed .wordmark",
 		gwccss.Justify.Center,
 		gwccss.Padding(gwccss.Zero),
-		gwccss.BorderRight(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Raw("border-inline-end", "1px solid var(--line)"),
 	)
 	declareGlobal(".app-shell.nav-collapsed .wordmark:before",
 		gwccss.Display.None,
@@ -1303,7 +1349,7 @@ func declarecollapsibleNavigationStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.Fr(1), gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto")))),
 	)
 	declareGlobal(".app-shell.nav-collapsed .wordmark",
-		mediaRule(gwccss.MaxW(760), gwccss.Raw("justify-content", "flex-start"), gwccss.Raw("padding-left", "16px"), gwccss.Raw("border", "0")),
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("justify-content", "flex-start"), gwccss.Raw("padding-inline-start", "16px"), gwccss.Raw("border", "0")),
 	)
 	declareGlobal(".app-shell.nav-collapsed .wordmark-mark",
 		mediaRule(gwccss.MaxW(760), gwccss.Display.None),

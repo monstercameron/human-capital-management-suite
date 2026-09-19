@@ -91,7 +91,10 @@ func TestTodo_WEB_113_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(builder.String()))
 	got := hex.EncodeToString(digest[:])
-	const want = "444075ef949583fcedb4c96e2dfb8f793500ccbf177d38cbcc493fa3c890a732"
+	// Re-pinned 2026-09-19: hire_date and record_created now read in the
+	// reader's locale (localizedRecordDate) instead of as raw ISO keys; the
+	// names, order and every other value are unchanged.
+	const want = "299166fca6b93f47d69d7785ad94b1dd91ca23973f9c3ee769f2f7cbafe85bd4"
 	if got != want {
 		t.Fatalf("overview digest = %s, want %s", got, want)
 	}

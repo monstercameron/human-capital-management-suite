@@ -50,7 +50,7 @@ func declareActionLauncherStyles() {
 		gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "700"), gwccss.Raw("text-align", "start"),
 		hoverRule(
 			gwccss.Raw("border-color", "var(--hcm-hover-border,var(--accent))"),
-			gwccss.Raw("background", "var(--surface-hover,var(--soft))"),
+			gwccss.Raw("background", "var(--hcm-hover-surface)"),
 			gwccss.TextColor(gwccss.Var("accent")),
 		),
 	)
@@ -90,7 +90,7 @@ func declareActionLauncherStyles() {
 		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.Raw("letter-spacing", ".04em"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps)"),
 		gwccss.Raw("text-transform", "uppercase"),
 	)
 	declareGlobal(".action-launcher-panel,.action-launcher-results-wrap",
@@ -214,6 +214,16 @@ func declareActionLauncherStyles() {
 			gwccss.W(gwccss.RawLength("auto")),
 			gwccss.MaxHeight(gwccss.RawLength("calc(100dvh - 80px)")),
 		),
+	)
+	// Between phone and desktop the header cannot hold the search field and
+	// labelled action buttons: search was squeezed to a 100px box showing
+	// "Se". The actions drop to their icons, as they do on a phone, and search
+	// keeps the room. The trigger's aria-label still names it.
+	declareGlobal(".action-launcher-trigger .action-launcher-label",
+		mediaRule(gwccss.RawMedia("(min-width:431px) and (max-width:1050px)"), gwccss.Display.None),
+	)
+	declareGlobal(".action-launcher-trigger",
+		mediaRule(gwccss.RawMedia("(min-width:431px) and (max-width:1050px)"), gwccss.W(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("justify-content", "center")),
 	)
 	declareGlobal(".action-launcher-trigger",
 		mediaRule(gwccss.MaxW(760), gwccss.MaxWidth(gwccss.Px(190))),

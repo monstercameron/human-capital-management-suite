@@ -93,6 +93,9 @@ type ProfileFactProps struct {
 	Label  string
 	Value  string
 	Status WorkerFactStatus
+	// Code marks a machine identifier (a UUID, a record key): it is set as
+	// code rather than as a bold name, which broke it mid-string.
+	Code bool
 }
 
 // WorkflowLauncherProps owns the workflow search and filtered cards.
@@ -331,8 +334,15 @@ func ProfileFact(props ProfileFactProps) ui.Node {
 	}
 	return html.Div(html.Props{Class: "profile-fact", Data: map[string]string{"fact-status": string(props.Status)}},
 		html.Tag("dt", html.Props{}, ui.Text(props.Label)),
-		html.Tag("dd", html.Props{}, children...),
+		html.Tag("dd", factValueProps(props.Code), children...),
 	)
+}
+
+func factValueProps(code bool) html.Props {
+	if code {
+		return html.Props{Class: "profile-fact-code"}
+	}
+	return html.Props{}
 }
 
 // ActiveWorkflows renders already-open work for this employee before the

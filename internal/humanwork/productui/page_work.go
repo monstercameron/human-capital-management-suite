@@ -378,5 +378,21 @@ func percentage(locale LocaleContext, value string) string {
 	if point := strings.IndexByte(decimal, '.'); point >= 0 {
 		fraction = len(decimal) - point - 1
 	}
-	return locale.FormatNumber(decimal, fraction) + "%"
+	return locale.FormatNumber(decimal, fraction) + percentSuffix(locale)
+}
+
+func percentSuffix(locale LocaleContext) string { return locale.PercentSign() }
+
+// PercentSign is the percent sign as the locale writes it after a number:
+// German sets a no-break space before it ("12,5 %"), Arabic uses its own
+// sign ("١٢٫٥٪"), English attaches the plain sign ("12.5%").
+func (c LocaleContext) PercentSign() string {
+	switch language, _, _ := strings.Cut(c.normalized().Resolved, "-"); language {
+	case "de":
+		return "\u00a0%"
+	case "ar":
+		return "\u066a"
+	default:
+		return "%"
+	}
 }
