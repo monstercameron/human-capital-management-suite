@@ -14572,8 +14572,7 @@
     "test": "TestTodo_HIPERF_005",
     "test_matrix": {
       "INTEGRATION": "TestTodo_HIPERF_005_Integration",
-      "PRIMARY": "TestTodo_HIPERF_005",
-      "REGRESSION": "TestTodo_HIPERF_005_Regression"
+      "PRIMARY": "TestTodo_HIPERF_005"
     },
     "red": "the execution ports bind no market-rate capability, so the variant parks or fails at `fetch_market_rate`, and no test runs a rated worker through the full chain",
     "green": "the ports bind the new capability; INTEGRATION runs a rated worker from propose through the market-rate node with the anchor visible in the raise evidence; REGRESSION runs the promotionexec, platform/execution, intent/app, and application suites green with the execute digest unchanged",
@@ -28732,6 +28731,7 @@
     ],
     "test": "TestTodo_PROMO_EXEC_002_TunnelChain",
     "test_matrix": {
+      "INTEGRATION": "TestTodo_PROMO_EXEC_002_TunnelChain_Integration",
       "PRIMARY": "TestTodo_PROMO_EXEC_002_TunnelChain",
       "SECURITY": "TestTodo_PROMO_EXEC_002_TunnelChain_Security"
     },
@@ -28754,6 +28754,7 @@
     ],
     "test": "TestTodo_PROMO_EXEC_003_LiveInspect",
     "test_matrix": {
+      "INTEGRATION": "TestTodo_PROMO_EXEC_003_LiveInspect_Integration",
       "PRIMARY": "TestTodo_PROMO_EXEC_003_LiveInspect",
       "SECURITY": "TestTodo_PROMO_EXEC_003_LiveInspect_Security"
     },
@@ -28777,6 +28778,7 @@
     ],
     "test": "TestTodo_PROMO_EXEC_004_LiveWorkQueue",
     "test_matrix": {
+      "INTEGRATION": "TestTodo_PROMO_EXEC_004_LiveWorkQueue_Integration",
       "PRIMARY": "TestTodo_PROMO_EXEC_004_LiveWorkQueue",
       "SECURITY": "TestTodo_PROMO_EXEC_004_LiveWorkQueue_Security"
     },
@@ -28820,10 +28822,9 @@
       "PROMO-EXEC-001",
       "WF-RUN-034"
     ],
-    "test": "TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest plus the intent app journey and propose suites green",
+    "test": "TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest",
     "test_matrix": {
-      "PRIMARY": "live demo chain to revalidation VALID",
-      "REGRESSION": "no-catalog tenants still close BLOCKED"
+      "PRIMARY": "TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest"
     },
     "red": "every promotion for a seeded subject closed BLOCKED (`position:none` at revalidation); naming a bare UUID was correctly refused (`target_position_not_found`)",
     "green": "`internal/intent/app/journey.go` and `promotionpropose.go` auto-select the OPEN catalog vacancy for any position-less proposal; the RPC path names the selection in the intent subjects; no-catalog tenants behave exactly as before",
