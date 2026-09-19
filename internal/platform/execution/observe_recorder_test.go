@@ -114,3 +114,32 @@ func TestObserveRecorderWithoutProviderStillLogs(t *testing.T) {
 		t.Error("empty attribute value was recorded")
 	}
 }
+
+// TestObserveRecorderRunCorrelationWinsOverRequest proves an engine line
+// joins the run, not the request that happened to drive it: an operation
+// naming the run's correlation id replaces the request's in the logging
+// context, nested operations inherit it, and request_id still names the
+// request.
+func TestObserveRecorderRunCorrelationWinsOverRequest(t *testing.T) {
+	clock := func() time.Time { return time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC) }
+	_, _, _, logRec := newTestInstrumentation(t, clock)
+	logger := slog.New(logging.NewHandler(logRec, logging.WithService("test-workflow-observe"), logging.WithClock(clock), logging.WithMinLevel(slog.LevelDebug)))
+	rec := NewObserveRecorder(nil, logger, clock)
+	ctx := logging.WithCorrelationID(logging.WithRequestID(context.Background(), "req:approval"), "req:approval")
+
+	outer, op := rec.Start(ctx, "workflow.execute.complete_approval", observe.Attrs{observe.KeyCorrelation: "req:run"})
+	_, inner := rec.Start(outer, "workflow.runtime.instance_transition", nil)
+	inner.End(observe.OutcomeSuccess, nil)
+	op.End(observe.OutcomeSuccess, nil)
+
+	for _, name := range []string{"workflow.execute.complete_approval", "workflow.runtime.instance_transition"} {
+		lines := logRec.LinesNamed(name)
+		if len(lines) != 1 {
+			t.Fatalf("%s: %d lines, want 1", name, len(lines))
+		}
+		attrs, _ := lines[0]["attrs"].(map[string]any)
+		if lines[0]["correlation_id"] != "req:run" || attrs["correlation_id"] != "req:run" || lines[0]["request_id"] != "req:approval" {
+			t.Errorf("%s = %v", name, lines[0])
+		}
+	}
+}

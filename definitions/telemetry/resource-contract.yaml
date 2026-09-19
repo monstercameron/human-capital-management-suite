@@ -170,3 +170,68 @@ attribute_allowlist:
     signals: [span]
     max_cardinality: 16
     description: Closed asynchronous message-kind vocabulary; span context only, never payload, authority, or metric label.
+  - key: provider
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span, metric]
+    max_cardinality: 8
+    description: Closed third-party provider vocabulary (payroll, iam); never a vendor account or tenant identity.
+  - key: provider_operation
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span, metric]
+    max_cardinality: 8
+    description: Closed provider operation vocabulary (deliver, reverse, status, token, callback).
+  - key: outcome_class
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span, metric]
+    max_cardinality: 16
+    description: Stable provider delivery failure class (providerdelivery Class values).
+  - key: result
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span, metric]
+    max_cardinality: 16
+    description: Closed result vocabulary of a provider callback intake or token refresh.
+  - key: to_state
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span, metric]
+    max_cardinality: 4
+    description: Circuit-breaker state entered by a transition (closed, open, half_open).
+  - key: from_state
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span]
+    max_cardinality: 4
+    description: Circuit-breaker state left by a transition; logs and traces only.
+  - key: breaker_state
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span]
+    max_cardinality: 4
+    description: Circuit-breaker state of a provider after a transition; logs and traces only.
+  - key: secret_slot
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span, metric]
+    max_cardinality: 4
+    description: Which configured callback-signing secret verified a receipt (current, previous, other); never the secret.
+  - key: secret_index
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span]
+    max_cardinality: 8
+    description: Small index of the callback-signing secret that verified a receipt; never the secret, never a metric label.
+  - key: retry_delay_ms
+    class: OPERATIONAL_PUBLIC
+    signals: [log, span]
+    max_cardinality: 0
+    description: Scheduled provider retry delay in milliseconds; logs and traces only, never a metric label.
+  - key: attempt
+    class: OPERATIONAL_PUBLIC
+    signals: [log]
+    max_cardinality: 0
+    description: 1-based provider delivery attempt number on log lines (spans carry it as attempt_id); never a metric label.
+  - key: change_ref
+    class: OPERATIONAL_RESTRICTED
+    signals: [log, span]
+    max_cardinality: 0
+    description: Opaque outbox change reference (for example payroll:<uuid>); logs and traces only, never a metric label.
+  - key: event_id
+    class: OPERATIONAL_RESTRICTED
+    signals: [log, span]
+    max_cardinality: 0
+    description: Provider callback event identifier (Webhook-Id); logs and traces only, never a metric label.

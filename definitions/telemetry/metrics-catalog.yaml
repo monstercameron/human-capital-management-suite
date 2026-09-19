@@ -47,3 +47,60 @@ metrics:
     version: 1
     labels: [cell_id, outcome]
     description: Effect-dispatch handler latency; exemplars link sampled observations back to their trace.
+
+  # Third-party provider integration (payroll + IAM hand-off). Event-driven:
+  # not part of DefaultRequiredSignals, so a quiet integration is not a gap.
+  - name: provider.delivery.attempts
+    type: counter
+    unit: "1"
+    version: 1
+    labels: [provider, provider_operation, outcome_class]
+    description: Provider delivery, reversal and status attempts, by outcome class.
+  - name: provider.delivery.duration
+    type: histogram
+    unit: ms
+    version: 1
+    labels: [provider, provider_operation, outcome_class]
+    description: Latency of one provider delivery, reversal or status attempt.
+  - name: provider.delivery.abandoned
+    type: counter
+    unit: "1"
+    version: 1
+    labels: [provider, outcome_class]
+    description: Provider changes abandoned after the retry budget, by the last outcome class.
+  - name: provider.retry.delay
+    type: histogram
+    unit: ms
+    version: 1
+    labels: [provider]
+    description: Delay scheduled before the next provider delivery attempt.
+  - name: provider.breaker.transitions
+    type: counter
+    unit: "1"
+    version: 1
+    labels: [provider, to_state]
+    description: Provider circuit-breaker state transitions, by the state entered.
+  - name: provider.callback.received
+    type: counter
+    unit: "1"
+    version: 1
+    labels: [provider, result]
+    description: Signed provider callbacks received, by intake result.
+  - name: provider.callback.secret_index
+    type: counter
+    unit: "1"
+    version: 1
+    labels: [provider, secret_slot]
+    description: Verified provider callbacks by which signing secret matched (current or previous), for rotation tracking.
+  - name: provider.token.refreshes
+    type: counter
+    unit: "1"
+    version: 1
+    labels: [result]
+    description: OAuth client-credentials token refreshes, by result.
+  - name: provider.wait.near_timeout
+    type: counter
+    unit: "1"
+    version: 1
+    labels: [provider]
+    description: Provider result waits that came close to their timeout before a callback arrived.

@@ -96,12 +96,13 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	if c == nil {
 		return nil, fmt.Errorf("transport cell: application cell is required")
 	}
-	if c.Telemetry != nil {
-		opts = append(opts,
-			grpc.ChainUnaryInterceptor(otelmw.UnaryServerInterceptor(c.Telemetry)),
-			grpc.ChainStreamInterceptor(otelmw.StreamServerInterceptor(c.Telemetry)),
-		)
-	}
+	// Always chained: with no Telemetry provider the interceptors still put
+	// the request and correlation ids into the logging context, so every log
+	// line a call writes carries them; only the span is skipped.
+	opts = append(opts,
+		grpc.ChainUnaryInterceptor(otelmw.UnaryServerInterceptor(c.Telemetry)),
+		grpc.ChainStreamInterceptor(otelmw.StreamServerInterceptor(c.Telemetry)),
+	)
 	srv, err := grpcserver.NewServer(grpcserver.Options{
 		Config: c.Config, Intent: c.Service, Registry: c.Service, ServerOptions: opts,
 	})
@@ -185,9 +186,7 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 	if c == nil {
 		return nil, fmt.Errorf("transport cell: application cell is required")
 	}
-	if c.Telemetry != nil {
-		opts = append(opts, connect.WithInterceptors(otelmw.NewConnectInterceptor(c.Telemetry)))
-	}
+	opts = append(opts, connect.WithInterceptors(otelmw.NewConnectInterceptor(c.Telemetry)))
 	rpc, err := edge.NewHandler(edge.Options{
 		Config: c.Config, Intent: c.Service, Registry: c.Service,
 		Journey: &transportjourney.Dependencies{

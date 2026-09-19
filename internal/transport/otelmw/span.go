@@ -43,6 +43,12 @@ const (
 // propagate into the span and into next unchanged.
 func instrument[T any](ctx context.Context, provider *hcmotel.Provider, procedure string, next func(context.Context) (T, error)) (T, error) {
 	ctx = deriveLoggingContext(ctx)
+	if provider == nil {
+		// No exporter configured (the local-dev default). The request and
+		// correlation ids still belong on every log line the call writes;
+		// only the span is skipped.
+		return next(ctx)
+	}
 	inv, _ := transport.InvocationFromContext(ctx)
 
 	tracer := provider.Tracer(tracerName)

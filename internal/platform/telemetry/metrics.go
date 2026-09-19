@@ -76,15 +76,76 @@ var P1ACellMetrics = []MetricDefinition{
 	},
 }
 
+// ProviderIntegrationMetrics is the versioned catalog for the third-party
+// provider hand-off (payroll and IAM delivery from the outbox, provider
+// callbacks, the OAuth token source and the circuit breaker). Every label is
+// a closed, low-cardinality vocabulary: change refs, correlation ids, event
+// ids and tenants are never metric labels.
+//
+// These are event-driven signals: a cell with no provider traffic
+// legitimately emits none of them, so DefaultRequiredSignals derives its
+// completeness requirement from P1ACellMetrics only and never reports a
+// quiet provider integration as missing telemetry.
+var ProviderIntegrationMetrics = []MetricDefinition{
+	{
+		Name: "provider.delivery.attempts", Type: MetricCounter, Unit: "1", Version: 1,
+		Labels:      []string{"provider", "provider_operation", "outcome_class"},
+		Description: "Provider delivery, reversal and status attempts, by outcome class.",
+	},
+	{
+		Name: "provider.delivery.duration", Type: MetricHistogram, Unit: "ms", Version: 1,
+		Labels:      []string{"provider", "provider_operation", "outcome_class"},
+		Description: "Latency of one provider delivery, reversal or status attempt.",
+	},
+	{
+		Name: "provider.delivery.abandoned", Type: MetricCounter, Unit: "1", Version: 1,
+		Labels:      []string{"provider", "outcome_class"},
+		Description: "Provider changes abandoned after the retry budget, by the last outcome class.",
+	},
+	{
+		Name: "provider.retry.delay", Type: MetricHistogram, Unit: "ms", Version: 1,
+		Labels:      []string{"provider"},
+		Description: "Delay scheduled before the next provider delivery attempt.",
+	},
+	{
+		Name: "provider.breaker.transitions", Type: MetricCounter, Unit: "1", Version: 1,
+		Labels:      []string{"provider", "to_state"},
+		Description: "Provider circuit-breaker state transitions, by the state entered.",
+	},
+	{
+		Name: "provider.callback.received", Type: MetricCounter, Unit: "1", Version: 1,
+		Labels:      []string{"provider", "result"},
+		Description: "Signed provider callbacks received, by intake result.",
+	},
+	{
+		Name: "provider.callback.secret_index", Type: MetricCounter, Unit: "1", Version: 1,
+		Labels:      []string{"provider", "secret_slot"},
+		Description: "Verified provider callbacks by which signing secret matched (current or previous), for rotation tracking.",
+	},
+	{
+		Name: "provider.token.refreshes", Type: MetricCounter, Unit: "1", Version: 1,
+		Labels:      []string{"result"},
+		Description: "OAuth client-credentials token refreshes, by result.",
+	},
+	{
+		Name: "provider.wait.near_timeout", Type: MetricCounter, Unit: "1", Version: 1,
+		Labels:      []string{"provider"},
+		Description: "Provider result waits that came close to their timeout before a callback arrived.",
+	},
+}
+
 // MetricCatalog returns a defensive, fully independent copy of the P1A
-// cell's metric catalog: each entry's Labels slice is copied too, so a
-// caller mutating its own copy can never reach back into P1ACellMetrics's
-// backing array.
+// cell's metric catalog (P1ACellMetrics followed by
+// ProviderIntegrationMetrics): each entry's Labels slice is copied too, so
+// a caller mutating its own copy can never reach back into either
+// catalog's backing array.
 func MetricCatalog() []MetricDefinition {
-	out := make([]MetricDefinition, len(P1ACellMetrics))
-	for i, m := range P1ACellMetrics {
-		m.Labels = append([]string(nil), m.Labels...)
-		out[i] = m
+	out := make([]MetricDefinition, 0, len(P1ACellMetrics)+len(ProviderIntegrationMetrics))
+	for _, catalog := range [][]MetricDefinition{P1ACellMetrics, ProviderIntegrationMetrics} {
+		for _, m := range catalog {
+			m.Labels = append([]string(nil), m.Labels...)
+			out = append(out, m)
+		}
 	}
 	return out
 }
