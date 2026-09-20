@@ -116,7 +116,7 @@ func promotionInput() workspace.ProposalInput {
 		TargetGrade:    "P3",
 		ProposedBase:   "98000.00",
 		EffectiveDate:  "2026-06-01",
-		BusinessReason: "promotion_into_senior_hrbp",
+		BusinessReason: "Promotion into the senior HRBP role",
 	}
 }
 
