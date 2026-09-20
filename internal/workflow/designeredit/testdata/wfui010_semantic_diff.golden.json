@@ -1,0 +1,34 @@
+[
+  {
+    "Kind": "BINDING",
+    "Operation": "UPDATED",
+    "SubjectID": "review",
+    "Field": "person",
+    "Before": "NODE_OUTPUT:start:worker.original",
+    "After": "NODE_OUTPUT:start:worker.updated"
+  },
+  {
+    "Kind": "EDGE",
+    "Operation": "ADDED",
+    "SubjectID": "review",
+    "Field": "DONE",
+    "Before": "",
+    "After": "end"
+  },
+  {
+    "Kind": "NODE",
+    "Operation": "ADDED",
+    "SubjectID": "end",
+    "Field": "",
+    "Before": "",
+    "After": "END"
+  },
+  {
+    "Kind": "PARAMETER",
+    "Operation": "UPDATED",
+    "SubjectID": "start",
+    "Field": "display_name",
+    "Before": "Start",
+    "After": "Begin"
+  }
+]
