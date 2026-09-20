@@ -267,7 +267,12 @@ func (w Writer) Write(ctx context.Context, tx dbport.Tx, cmd promotioncommit.Com
 	if cmd.BasePay.Currency() != compPackage.Currency || cmd.BasePay.Currency() != reservation.Currency {
 		return Receipt{}, fmt.Errorf("%w: pay=%s package=%s reservation=%s", ErrCurrencyMismatch, cmd.BasePay.Currency(), compPackage.Currency, reservation.Currency)
 	}
-	if reservation.Expiry != nil && !reservation.Expiry.After(cmd.RecordedAt) {
+	// The hold is bounded relative to the promotion's effective business
+	// instant.  Comparing it with RecordedAt makes a valid, already-effective
+	// promotion impossible to execute after the hold window, even though the
+	// reservation is being read at that same effective instant and is still the
+	// approved baseline for this commit.
+	if reservation.Expiry != nil && !reservation.Expiry.After(cmd.EffectiveAt) {
 		return Receipt{}, ErrReservationNotHeld
 	}
 
