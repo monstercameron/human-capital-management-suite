@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package hcmnext.workflow.v1;
 
-option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1;workflowv1";
-
+import "google/protobuf/timestamp.proto";
 import "hcmnext/common/v1/common.proto";
 import "hcmnext/workflow/v1/workflow.proto";
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1;workflowv1";
 
 message GetWorkflowRequest {
   hcmnext.common.v1.ScopeContext scope = 1;
@@ -25,6 +26,416 @@ message ListNodeExecutionsRequest {
 message ListNodeExecutionsResponse {
   repeated NodeExecution node_executions = 1;
   hcmnext.common.v1.PageResponse page = 2;
+}
+
+// WorkflowPublicationSummary is the bounded catalog record exposed to an
+// authorized workflow author. Canonical definition bytes and approval
+// evidence remain server-side; the selected graph is returned separately.
+message WorkflowPublicationSummary {
+  string workflow_id = 1;
+  string name = 2;
+  uint32 definition_version = 3;
+  string semantic_version = 4;
+  string compiled_plan_digest = 5;
+  string status = 6;
+  string published_by = 7;
+  google.protobuf.Timestamp published_at = 8;
+}
+
+message ListWorkflowPublicationsRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+}
+
+message ListWorkflowPublicationsResponse {
+  // Exactly one display version is returned for each workflow id: ACTIVE
+  // when one exists, otherwise the newest immutable publication.
+  repeated WorkflowPublicationSummary publications = 1;
+}
+
+message WorkflowViewRoute {
+  string key = 1;
+  string target_id = 2;
+}
+
+message WorkflowViewNode {
+  string id = 1;
+  string label = 2;
+  string step_type = 3;
+  int32 depth = 4;
+  int32 lane = 5;
+  bool start = 6;
+  bool terminal = 7;
+  bool current = 8;
+  int32 attempt = 9;
+  string status = 10;
+  string state = 11;
+  repeated WorkflowViewRoute routes = 12;
+  google.protobuf.Timestamp started_at = 13;
+  google.protobuf.Timestamp completed_at = 14;
+  bool runtime_known = 15;
+  bool runtime_gap = 16;
+}
+
+message WorkflowViewEdge {
+  string id = 1;
+  string from_id = 2;
+  string to_id = 3;
+  string route_key = 4;
+}
+
+message WorkflowDefinitionView {
+  string workflow_id = 1;
+  string name = 2;
+  uint32 definition_version = 3;
+  string semantic_version = 4;
+  string compiled_plan_digest = 5;
+  string publication_status = 6;
+  repeated WorkflowViewNode nodes = 7;
+  repeated WorkflowViewEdge edges = 8;
+  bool has_run = 9;
+  bool run_disclosed = 10;
+  string instance_id = 11;
+  string runtime_status = 12;
+  bool complete = 13;
+  repeated string redactions = 14;
+  repeated string gaps = 15;
+  int32 max_depth = 16;
+  int32 max_lane = 17;
+}
+
+message GetWorkflowDefinitionViewRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  // workflow_id may be omitted when instance_id is supplied; the server then
+  // resolves the exact immutable publication pinned by that instance.
+  string workflow_id = 2;
+  string instance_id = 3;
+}
+
+message GetWorkflowDefinitionViewResponse {
+  WorkflowDefinitionView view = 1;
+}
+
+// CompileWorkflowDraftRequest validates the latest durable revision of one
+// author-owned workflow draft. Callers cannot submit alternate definition
+// bytes at this boundary, so the diagnostic result always describes the
+// revision the server loaded from the tenant-scoped draft store.
+message CompileWorkflowDraftRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+}
+
+message WorkflowDraftDiagnostic {
+  string code = 1;
+  string node_id = 2;
+  string edge_id = 3;
+  string edge_from = 4;
+  string edge_to = 5;
+  string route_key = 6;
+  string field = 7;
+  string ref = 8;
+  string detail = 9;
+}
+
+message WorkflowEffectNodeGroup {
+  string effect_class = 1;
+  repeated string node_ids = 2;
+}
+
+message WorkflowEffectSummary {
+  bool zero_effect = 1;
+  repeated WorkflowEffectNodeGroup nodes_by_class = 2;
+  repeated string effect_keys = 3;
+  repeated string irreversible_node_ids = 4;
+  repeated string allowed_modes = 5;
+}
+
+message WorkflowUnwindStep {
+  string node_id = 1;
+  string effect_class = 2;
+  string behavior = 3;
+  string compensation_ref = 4;
+}
+
+message WorkflowUnwindSummary {
+  bool complete = 1;
+  repeated WorkflowUnwindStep steps = 2;
+}
+
+message CompileWorkflowDraftResponse {
+  string draft_id = 1;
+  uint64 revision = 2;
+  bool valid = 3;
+  string compiled_plan_digest = 4;
+  repeated WorkflowDraftDiagnostic diagnostics = 5;
+  WorkflowEffectSummary effects = 6;
+  WorkflowUnwindSummary unwind = 7;
+}
+
+message ListWorkflowBlocksRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+}
+
+message WorkflowPaletteEntry {
+  string id = 1;
+  uint32 version = 2;
+  string name = 3;
+  string kind = 4;
+  string domain = 5;
+  string description = 6;
+  string effect_class = 7;
+  string reversal = 8;
+  string status = 9;
+  string step_type = 10;
+}
+
+message ListWorkflowBlocksResponse {
+  repeated WorkflowPaletteEntry entries = 1;
+}
+
+// WorkflowDraftView is the bounded authoring projection. Canonical document
+// bytes remain server-side; the browser receives only graph identities and
+// the presentation groups needed to edit the draft.
+message WorkflowDraftView {
+  string draft_id = 1;
+  string workflow_id = 2;
+  string name = 3;
+  string base_version_digest = 4;
+  uint64 revision = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  repeated WorkflowDraftNode nodes = 7;
+  repeated WorkflowDraftEdge edges = 8;
+  repeated WorkflowDraftGroup groups = 9;
+  // The immutable publication identity this draft will receive. Autosave
+  // revision changes do not change this release identity.
+  string semantic_version = 10;
+  // Graph and content identity are projected from the same stored canonical
+  // definition. They let every client render the exact draft topology and
+  // verify whether an imported successor still matches its immutable base.
+  string start_node_id = 11;
+  string definition_digest = 12;
+  string base_definition_digest = 13;
+  bool matches_base_definition = 14;
+  // The current server-admitted template for this workflow, when one exists.
+  // This is separate from the immutable base because an executable template
+  // may legitimately be the source of a newer successor definition.
+  string template_definition_digest = 15;
+  bool matches_template_definition = 16;
+  string template_id = 17;
+  uint32 template_version = 18;
+  repeated WorkflowTemplateOverlay overlays = 19;
+  // Durable time-travel state. revision remains monotonic even when the
+  // history cursor moves backward or forward.
+  bool can_undo = 20;
+  bool can_redo = 21;
+  uint64 history_position = 22;
+  uint64 history_length = 23;
+  string history_label = 24;
+  repeated WorkflowDraftSemanticChange semantic_changes = 25;
+  // AUTO means the server supplied topology has no authored coordinates and
+  // the shared deterministic layered layout is in force.
+  string layout_mode = 26;
+}
+
+message WorkflowDraftSemanticChange {
+  string kind = 1;
+  string operation = 2;
+  string subject_id = 3;
+  string field = 4;
+  string before = 5;
+  string after = 6;
+}
+
+message WorkflowDraftNode {
+  string id = 1;
+  string step_type = 2;
+  string group_id = 3;
+  string label = 4;
+  bool locked = 5;
+  string lock_kind = 6;
+  repeated WorkflowDraftParameter parameters = 7;
+  repeated WorkflowDraftOutcome outcomes = 8;
+  repeated WorkflowDraftBinding bindings = 9;
+}
+
+message WorkflowDraftOutcome {
+  string route_key = 1;
+  repeated string target_node_ids = 2;
+}
+
+message WorkflowDraftBindingCandidate {
+  string source_node_id = 1;
+  string source_path = 2;
+  string value_type = 3;
+}
+
+message WorkflowDraftBinding {
+  string target_path = 1;
+  string target_type = 2;
+  string source_kind = 3;
+  string source_node_id = 4;
+  string source_path = 5;
+  repeated WorkflowDraftBindingCandidate candidates = 6;
+}
+
+message WorkflowDraftParameter {
+  string id = 1;
+  string label = 2;
+  string kind = 3;
+  string value = 4;
+  bool required = 5;
+  int64 minimum = 6;
+  int64 maximum = 7;
+  repeated string options = 8;
+}
+
+message WorkflowTemplateOverlay {
+  string operation = 1;
+  string target_node_id = 2;
+  string entry_id = 3;
+  uint32 entry_version = 4;
+  string reason = 5;
+}
+
+message WorkflowDraftEdge {
+  string from_id = 1;
+  string to_id = 2;
+  string route_key = 3;
+}
+
+message WorkflowDraftGroup {
+  string id = 1;
+  string name = 2;
+  string entry_id = 3;
+  uint32 entry_version = 4;
+  bool collapsed = 5;
+  repeated string node_ids = 6;
+}
+
+message CreateWorkflowDraftRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string workflow_id = 2;
+  string name = 3;
+  // An optional exact template identity resolved from the tenant-filtered
+  // registry. Supplying one component without the other is invalid.
+  string template_id = 4;
+  uint32 template_version = 5;
+  // Canonical SemVer 2.0.0 without a leading "v". New workflow families
+  // default to 0.1.0; replacements must be strictly newer than their base.
+  string semantic_version = 6;
+  // Empty for a new workflow family. A replacement pins the exact immutable
+  // publication it is based on; the server validates workflow and version.
+  string base_version_digest = 7;
+}
+
+message GetWorkflowDraftRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+}
+
+message InsertWorkflowPaletteEntryRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  string entry_id = 4;
+  uint32 entry_version = 5;
+}
+
+message CreateWorkflowDraftResponse {
+  WorkflowDraftView draft = 1;
+  repeated string inserted_node_ids = 2;
+  string group_id = 3;
+}
+
+message InsertWorkflowPaletteEntryResponse {
+  WorkflowDraftView draft = 1;
+  repeated string inserted_node_ids = 2;
+  string group_id = 3;
+}
+
+message UpdateWorkflowDraftNodeRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  string node_id = 4;
+  map<string, string> values = 5;
+}
+
+message UpdateWorkflowDraftNodeResponse {
+  WorkflowDraftView draft = 1;
+}
+
+message SetWorkflowDraftOutcomeRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  string from_node_id = 4;
+  string route_key = 5;
+  string to_node_id = 6;
+}
+
+message SetWorkflowDraftOutcomeResponse {
+  WorkflowDraftView draft = 1;
+}
+
+message BindWorkflowDraftInputRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  string target_node_id = 4;
+  string target_path = 5;
+  string source_node_id = 6;
+  string source_path = 7;
+}
+
+message BindWorkflowDraftInputResponse {
+  WorkflowDraftView draft = 1;
+}
+
+message MoveWorkflowDraftNodeRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  string node_id = 4;
+  // Closed values: EARLIER or LATER. Execution routes are never inferred
+  // from this presentation-order command.
+  string direction = 5;
+}
+
+message MoveWorkflowDraftNodeResponse {
+  WorkflowDraftView draft = 1;
+}
+
+message NavigateWorkflowDraftHistoryRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  // Closed values: UNDO or REDO.
+  string direction = 4;
+}
+
+message NavigateWorkflowDraftHistoryResponse {
+  WorkflowDraftView draft = 1;
+}
+
+message ApplyWorkflowTemplateOverlayRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  string operation = 4;
+  string target_node_id = 5;
+  string entry_id = 6;
+  uint32 entry_version = 7;
+  string reason = 8;
+}
+
+message ApplyWorkflowTemplateOverlayResponse {
+  WorkflowDraftView draft = 1;
+  repeated string inserted_node_ids = 2;
+  string group_id = 3;
+}
+
+message GetWorkflowDraftResponse {
+  WorkflowDraftView draft = 1;
 }
 
 // WorkflowControlOutcome is the governed result of a workflow control
@@ -125,6 +536,47 @@ message RetryNodeResponse {
 // and performs no transition. Governance refusals return a receipt whose
 // outcome is DENIED, TOO_LATE or REPAIR_REQUIRED rather than an error.
 service WorkflowService {
+  // Authorized catalog for the read-only workflow designer.
+  rpc ListWorkflowPublications(ListWorkflowPublicationsRequest) returns (ListWorkflowPublicationsResponse);
+  // Renders one immutable publication and, when instance_id is supplied,
+  // overlays the authorized inspector projection for that exact run.
+  rpc GetWorkflowDefinitionView(GetWorkflowDefinitionViewRequest) returns (GetWorkflowDefinitionViewResponse);
+  // Compiles the caller's latest stored draft through the publication
+  // compiler and returns graph-addressable diagnostics plus effect/unwind
+  // summaries. Capability resolution is intersected with the tenant allow
+  // list before the global registry is consulted.
+  rpc CompileWorkflowDraft(CompileWorkflowDraftRequest) returns (CompileWorkflowDraftResponse);
+  // Lists the closed-kernel blocks and only those registry-backed blocks,
+  // fragments, and templates admitted by the caller tenant's allow list.
+  rpc ListWorkflowBlocks(ListWorkflowBlocksRequest) returns (ListWorkflowBlocksResponse);
+  // Creates an author-owned durable draft, optionally from one exact
+  // authorized template. Tenant and author are always taken from trusted
+  // request context.
+  rpc CreateWorkflowDraft(CreateWorkflowDraftRequest) returns (CreateWorkflowDraftResponse);
+  // Restores one author-owned durable draft without exposing document bytes.
+  rpc GetWorkflowDraft(GetWorkflowDraftRequest) returns (GetWorkflowDraftResponse);
+  // Inserts one exact server-resolved block, fragment, or template under an
+  // optimistic revision fence. Fragments retain their collapsible group.
+  rpc InsertWorkflowPaletteEntry(InsertWorkflowPaletteEntryRequest) returns (InsertWorkflowPaletteEntryResponse);
+  // Applies a typed, server-validated parameter form to one node under the
+  // same optimistic revision fence as every other draft command.
+  rpc UpdateWorkflowDraftNode(UpdateWorkflowDraftNodeRequest) returns (UpdateWorkflowDraftNodeResponse);
+  // Connects one compiler-declared outcome port to a draft node. Ordinary
+  // outcomes replace their continuation while declared fan-out ports append.
+  rpc SetWorkflowDraftOutcome(SetWorkflowDraftOutcomeRequest) returns (SetWorkflowDraftOutcomeResponse);
+  // Binds one typed input to an assignable output from a node that strictly
+  // dominates the target according to the workflow compiler's graph model.
+  rpc BindWorkflowDraftInput(BindWorkflowDraftInputRequest) returns (BindWorkflowDraftInputResponse);
+  // Moves a node one position in the shared graph/outline presentation order.
+  // Edges remain the only execution-flow authority.
+  rpc MoveWorkflowDraftNode(MoveWorkflowDraftNodeRequest) returns (MoveWorkflowDraftNodeResponse);
+  // Restores the adjacent durable snapshot while advancing the optimistic
+  // draft revision. Every authoring surface, including agents, shares this
+  // same artifact and history.
+  rpc NavigateWorkflowDraftHistory(NavigateWorkflowDraftHistoryRequest) returns (NavigateWorkflowDraftHistoryResponse);
+  // Records an add, justified omission, or justified replacement overlay.
+  // Mandatory template phases are immutable through this operation.
+  rpc ApplyWorkflowTemplateOverlay(ApplyWorkflowTemplateOverlayRequest) returns (ApplyWorkflowTemplateOverlayResponse);
   // P1A disposition: IMPLEMENT. Authorized runtime/business/completion
   // dimensions read (read-only inspector).
   rpc GetWorkflow(GetWorkflowRequest) returns (GetWorkflowResponse);
