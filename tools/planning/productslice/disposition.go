@@ -18,29 +18,24 @@ type ProductDisposition string
 // Disposition is the concise spelling used by callers.
 type Disposition = ProductDisposition
 
+// The default_disposition vocabulary is the closed six-value set
+// planning/specs/default-product-slice-alignment.md defines:
+// CORE_REQUIRED, DOMAIN_PACK_DEFAULT, AVAILABLE_NOT_ENABLED,
+// CUSTOMER_DEFINED, DEFERRED and PROHIBITED (REV-081-01 retired
+// the older CORE, OPTIONAL, EXCLUDED and PARTNER_ONLY codes,
+// which never matched the contract).
 const (
-	DispositionCore        ProductDisposition = "CORE"
-	DispositionOptional    ProductDisposition = "OPTIONAL"
-	DispositionDeferred    ProductDisposition = "DEFERRED"
-	DispositionExcluded    ProductDisposition = "EXCLUDED"
-	DispositionPartnerOnly ProductDisposition = "PARTNER_ONLY"
-
-	CORE         = DispositionCore
-	OPTIONAL     = DispositionOptional
-	DEFERRED     = DispositionDeferred
-	EXCLUDED     = DispositionExcluded
-	PARTNER_ONLY = DispositionPartnerOnly
-
-	ProductDispositionCore        = DispositionCore
-	ProductDispositionOptional    = DispositionOptional
-	ProductDispositionDeferred    = DispositionDeferred
-	ProductDispositionExcluded    = DispositionExcluded
-	ProductDispositionPartnerOnly = DispositionPartnerOnly
+	DispositionCoreRequired        ProductDisposition = "CORE_REQUIRED"
+	DispositionDomainPackDefault   ProductDisposition = "DOMAIN_PACK_DEFAULT"
+	DispositionAvailableNotEnabled ProductDisposition = "AVAILABLE_NOT_ENABLED"
+	DispositionCustomerDefined     ProductDisposition = "CUSTOMER_DEFINED"
+	DispositionDeferred            ProductDisposition = "DEFERRED"
+	DispositionProhibited          ProductDisposition = "PROHIBITED"
 )
 
 func (d ProductDisposition) Valid() bool {
 	switch d {
-	case DispositionCore, DispositionOptional, DispositionDeferred, DispositionExcluded, DispositionPartnerOnly:
+	case DispositionCoreRequired, DispositionDomainPackDefault, DispositionAvailableNotEnabled, DispositionCustomerDefined, DispositionDeferred, DispositionProhibited:
 		return true
 	default:
 		return false
@@ -79,11 +74,12 @@ func (d DispositionDefinition) Canonical() []byte {
 }
 
 var defaultDispositionDefinitions = []DispositionDefinition{
-	{Code: DispositionCore, Definition: "Included in the default product and supported as a first-class capability."},
-	{Code: DispositionOptional, Definition: "Supported but not required for the default product experience."},
-	{Code: DispositionDeferred, Definition: "Explicitly postponed from the default product release."},
-	{Code: DispositionExcluded, Definition: "Not included in the default product scope."},
-	{Code: DispositionPartnerOnly, Definition: "Delivered through a governed partner integration or channel."},
+	{Code: DispositionCoreRequired, Definition: "Required for every supported installation."},
+	{Code: DispositionDomainPackDefault, Definition: "Installed and enabled with an admitted domain pack."},
+	{Code: DispositionAvailableNotEnabled, Definition: "Shipped but requires explicit customer activation."},
+	{Code: DispositionCustomerDefined, Definition: "Governed customer configuration using platform parts."},
+	{Code: DispositionDeferred, Definition: "Not present in a production release."},
+	{Code: DispositionProhibited, Definition: "Not present in a production release."},
 }
 
 // DefaultProductDispositionVocabulary returns a detached copy in canonical
@@ -112,9 +108,9 @@ func dispositionVocabularyCanonical() []byte {
 }
 
 // DefaultDispositionVocabularyDigest is the checked-in golden identity of
-// the five-entry vocabulary. It changes only when the vocabulary or its
+// the six-entry spec vocabulary. It changes only when the vocabulary or its
 // contract text changes.
-const DefaultDispositionVocabularyDigest = "sha256:cf94ee5a46bd738db34a9a37206d5058f555c7cac02196b3cd273879d1323f92"
+const DefaultDispositionVocabularyDigest = "sha256:fec4134a620f0818e1c6896be98ba27bc89acc240e891f9166a3457a0c398946"
 
 // DefaultProductDispositionVocabularyDigest is the descriptive alias used by
 // registry and evidence consumers.
