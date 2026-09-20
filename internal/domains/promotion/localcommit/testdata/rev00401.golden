@@ -1,0 +1,4 @@
+COMPENSATION_CURRENCY_MISMATCH|rewards.compensation
+EMPLOYMENT_ASSIGNMENT_OVERLAP|people.assignment
+MANAGER_CYCLE|org.manager_relationship
+POSITION_OVER_CAPACITY|position.occupancy

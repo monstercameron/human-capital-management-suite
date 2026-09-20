@@ -90,16 +90,31 @@ func TestDemoBandsPriceEveryDemoRole(t *testing.T) {
 	if len(edges) == 0 {
 		t.Fatal("the demo company publishes no ladder edge; the test proves nothing about targets")
 	}
+	// Every zone a seeded holder of the source works in must price the
+	// target. An edge whose source nobody holds is a catalog-only rung
+	// (internal/data/demoworkforce's catalogOnly): the company publishes it
+	// so a promotion has somewhere to go, and a target job with open
+	// vacancies needs no incumbent. Those edges are priced against every
+	// zone instead, because anybody promoted into the rung could work in
+	// any of them.
+	priced := 0
 	for _, edge := range edges {
 		zones := holderZones[edge.SourceJobCode+"/"+edge.SourceGrade]
 		if len(zones) == 0 {
-			t.Errorf("edge %s/%s -> %s/%s has no seeded source holder", edge.SourceJobCode, edge.SourceGrade, edge.TargetJobCode, edge.TargetGrade)
+			zones = map[string]string{}
+			for _, zone := range demoworkforce.PayZones() {
+				zones[zone] = "USD"
+			}
 		}
 		for zone, currency := range zones {
+			priced++
 			if _, err := lookupDemoBand(t, catalog, edge.TargetJobCode, edge.TargetGrade, zone, currency, asOf); err != nil {
 				t.Errorf("edge %s/%s -> %s/%s in %s: %v", edge.SourceJobCode, edge.SourceGrade, edge.TargetJobCode, edge.TargetGrade, zone, err)
 			}
 		}
+	}
+	if priced == 0 {
+		t.Fatal("no ladder target was priced at all; the assertion above would pass vacuously")
 	}
 }
 

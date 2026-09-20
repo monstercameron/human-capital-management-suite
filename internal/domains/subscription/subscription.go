@@ -34,14 +34,22 @@ var (
 type EventKind string
 
 const (
-	EventWorkerCreated       EventKind = "WORKER_CREATED"
-	EventWorkerChanged       EventKind = "WORKER_CHANGED"
-	EventEmploymentChanged   EventKind = "EMPLOYMENT_CHANGED"
-	EventAssignmentChanged   EventKind = "ASSIGNMENT_CHANGED"
-	EventOrganizationChanged EventKind = "ORGANIZATION_CHANGED"
-	EventCompensationChanged EventKind = "COMPENSATION_CHANGED"
-	EventApplicationRevoked  EventKind = "PARTNER_APPLICATION_REVOKED"
+	EventWorkerCreated         EventKind = "WORKER_CREATED"
+	EventWorkerChanged         EventKind = "WORKER_CHANGED"
+	EventEmploymentChanged     EventKind = "EMPLOYMENT_CHANGED"
+	EventAssignmentChanged     EventKind = "ASSIGNMENT_CHANGED"
+	EventOrganizationChanged   EventKind = "ORGANIZATION_CHANGED"
+	EventCompensationChanged   EventKind = "COMPENSATION_CHANGED"
+	EventApplicationRevoked    EventKind = "PARTNER_APPLICATION_REVOKED"
+	EventCustomObjectCreated   EventKind = "CUSTOM_OBJECT_CREATED"
+	EventCustomObjectChanged   EventKind = "CUSTOM_OBJECT_CHANGED"
+	EventCustomObjectCorrected EventKind = "CUSTOM_OBJECT_CORRECTED"
+	EventCustomObjectRetired   EventKind = "CUSTOM_OBJECT_RETIRED"
 )
+
+// CustomObjectKindField is the sole non-payload selector exposed by the
+// custom-object event bridge. Values enter matching only through DigestValue.
+const CustomObjectKindField = "custom_object.kind"
 
 // Compatibility aliases keep the vocabulary readable at common call sites;
 // they do not add values to the closed set.
@@ -55,7 +63,8 @@ func (k EventKind) Valid() bool {
 	switch k {
 	case EventWorkerCreated, EventWorkerChanged, EventEmploymentChanged,
 		EventAssignmentChanged, EventOrganizationChanged, EventCompensationChanged,
-		EventApplicationRevoked:
+		EventApplicationRevoked, EventCustomObjectCreated, EventCustomObjectChanged,
+		EventCustomObjectCorrected, EventCustomObjectRetired:
 		return true
 	default:
 		return false
@@ -382,6 +391,35 @@ func DigestValue(value string) string {
 	_, _ = h.Write([]byte("hcmnext.domains.subscription.filter-value/v1\x00"))
 	_, _ = h.Write([]byte(value))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// CustomObjectEventDigest projects a custom-object outbox entry into the
+// payload-free subscription contract. Tenant and object-kind scoping are
+// bound into the event digest, while the filterable kind is itself digested.
+func CustomObjectEventDigest(tenantScope, objectKind string, eventKind EventKind, payloadDigest string) (EventDigest, error) {
+	if strings.TrimSpace(tenantScope) == "" || tenantScope != strings.TrimSpace(tenantScope) ||
+		strings.TrimSpace(objectKind) == "" || objectKind != strings.TrimSpace(objectKind) ||
+		strings.TrimSpace(payloadDigest) == "" || payloadDigest != strings.TrimSpace(payloadDigest) {
+		return EventDigest{}, ErrInvalidEventDigest
+	}
+	switch eventKind {
+	case EventCustomObjectCreated, EventCustomObjectChanged, EventCustomObjectCorrected, EventCustomObjectRetired:
+	default:
+		return EventDigest{}, ErrInvalidEventKind
+	}
+	h := sha256.New()
+	for _, part := range []string{"hcmnext.domains.subscription.custom-object-event/v1", tenantScope, objectKind, string(eventKind), payloadDigest} {
+		_, _ = h.Write([]byte(part))
+		_, _ = h.Write([]byte{0})
+	}
+	return EventDigest{
+		TenantScope: tenantScope,
+		Kind:        eventKind,
+		Digest:      "sha256:" + hex.EncodeToString(h.Sum(nil)),
+		FieldDigests: map[string]string{
+			CustomObjectKindField: DigestValue(objectKind),
+		},
+	}, nil
 }
 
 // SubscriptionMatch identifies a matched active revision without exposing an

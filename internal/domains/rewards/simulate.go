@@ -423,6 +423,10 @@ type SimulateCompensationInput struct {
 	// Band, when set, is evaluated against the proposed annualized base.
 	Band *BandQuery
 	FX   *PinnedFXConversion
+	// Market, when set, floors the raise at the max of the band floor and
+	// the market anchor (HIPERF-003). Nil means no market floor; a nil
+	// Market encodes as absent, so pre-market goldens stay byte-identical.
+	Market *MarketAnchorInput
 }
 
 // PinnedFXConversion contains the immutable conversion inputs selected by the
@@ -529,6 +533,19 @@ func (in SimulateCompensationInput) Validate() error {
 				in.Band.Currency, in.Proposed.BaseAmount().Currency())
 		}
 	}
+	if in.Market != nil {
+		comparison := in.Proposed.BaseAmount().Currency()
+		if in.FX != nil {
+			comparison = in.FX.TargetCurrency
+		}
+		if in.Market.SourceVersion == "" {
+			return fmt.Errorf("%w: market anchor names no source version", ErrSimulationInputInvalid)
+		}
+		if in.Market.Currency == "" || in.Market.Currency != comparison {
+			return fmt.Errorf("%w: market anchor %s, comparison %s", ErrCurrencyMismatch,
+				in.Market.Currency, comparison)
+		}
+	}
 	return nil
 }
 
@@ -549,6 +566,16 @@ func (in SimulateCompensationInput) Digest() (string, error) {
 		Bool("band?", in.Band != nil)
 	if in.Band != nil {
 		w.Value("band", *in.Band)
+	}
+	if in.Market != nil {
+		// The digest covers the defaulted anchor: an explicit as-of and a
+		// defaulted one mean the same market position. Nothing is written
+		// when the market is absent, so pre-market digests are unchanged.
+		raw := in.Market.withDefaultAsOf(in.EffectiveDate).Canonical()
+		if raw == nil {
+			return "", fmt.Errorf("%w: market anchor is invalid", ErrMarketAnchorInvalid)
+		}
+		w.Bool("market?", true).Field("market", raw)
 	}
 	if in.FX != nil {
 		pinned, err := in.FX.canonical()
@@ -626,6 +653,9 @@ type SimulateCompensationResult struct {
 	Proposed Projection
 	Delta    Delta
 	Band     BandResult
+	// Market is the market-informed raise floor section. Nil when the
+	// request carried no anchor; nil encodes as absent.
+	Market *MarketResult
 
 	Assumptions []Assumption
 
@@ -660,8 +690,17 @@ func (r SimulateCompensationResult) canonicalBody() ([]byte, error) {
 		Value("current", r.Current).
 		Value("proposed", r.Proposed).
 		Value("delta", r.Delta).
-		Value("band", r.Band).
-		Count("assumptions", len(r.Assumptions))
+		Value("band", r.Band)
+	if r.Market != nil {
+		// Nothing is written when the market is absent, so pre-market
+		// result bytes are unchanged.
+		raw := r.Market.Canonical()
+		if raw == nil {
+			return nil, fmt.Errorf("%w: market result is incoherent", ErrMarketAnchorInvalid)
+		}
+		w.Bool("market?", true).Field("market", raw)
+	}
+	w.Count("assumptions", len(r.Assumptions))
 	for _, a := range r.Assumptions {
 		w.String("assumption.key", a.Key).
 			String("assumption.value", a.Value).
@@ -883,6 +922,51 @@ func SimulateCompensation(ctx context.Context, catalog PayBandCatalog, in Simula
 		}
 	}
 
+	var market *MarketResult
+	if in.Market != nil {
+		comparison := in.Proposed.BaseAmount().Currency()
+		if in.FX != nil {
+			comparison = in.FX.TargetCurrency
+		}
+		anchor, err := in.Market.resolve(in.EffectiveDate, comparison)
+		if err != nil {
+			return SimulateCompensationResult{}, err
+		}
+		var bandFloor values.Money
+		bandKnown := false
+		if band.State == BandResultEvaluated {
+			// The evaluation above already resolved this band against the
+			// same query; re-reading its minimum is a second governed read
+			// of the same answer, never a new decision.
+			record, lerr := catalog.LookupBand(ctx, *in.Band)
+			if lerr != nil {
+				return SimulateCompensationResult{}, fmt.Errorf("%w: market band floor re-read: %w", ErrCatalogFailed, lerr)
+			}
+			bandFloor, bandKnown = record.Band.Minimum, true
+		}
+		floor, err := marketFloor(anchor, bandFloor, bandKnown)
+		if err != nil {
+			return SimulateCompensationResult{}, err
+		}
+		market = &MarketResult{
+			Anchor:         anchor,
+			Currency:       comparison,
+			SourceVersion:  in.Market.SourceVersion,
+			RaiseFloor:     floor,
+			BandFloor:      bandFloor,
+			BandFloorKnown: bandKnown,
+		}
+		reason := "market p25 " + anchor.P25.String() + " from " + in.Market.SourceVersion
+		if bandKnown {
+			reason = "max of band floor " + bandFloor.String() + " and " + reason
+		}
+		assumptions = append(assumptions, Assumption{
+			Key:    "market.raise_floor",
+			Value:  floor.String(),
+			Reason: reason,
+		})
+	}
+
 	result := SimulateCompensationResult{
 		IntentType:                 SimulateCompensationIntentType,
 		IntentVersion:              SimulateCompensationIntentVersion,
@@ -893,6 +977,7 @@ func SimulateCompensation(ctx context.Context, catalog PayBandCatalog, in Simula
 		Proposed:                   proposed,
 		Delta:                      delta,
 		Band:                       band,
+		Market:                     market,
 		Assumptions:                assumptions,
 		RulePackVersion:            CompensationRulePackVersion,
 		AnnualizationVersion:       in.Annualization.Version,
@@ -917,6 +1002,9 @@ func SimulateCompensation(ctx context.Context, catalog PayBandCatalog, in Simula
 	if catalogVersion != "" {
 		controls = append(controls, evidence.ControlVersion{Name: "pay_band_catalog", Version: catalogVersion})
 		controls = append(controls, evidence.ControlVersion{Name: "pay_band_rule_pack", Version: BandRulePackVersion})
+	}
+	if market != nil {
+		controls = append(controls, evidence.ControlVersion{Name: "market_rate_source", Version: market.SourceVersion})
 	}
 	receipt, err := evidence.NewZeroEffectReceipt(
 		result.IntentType, result.IntentVersion,

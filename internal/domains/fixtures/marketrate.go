@@ -29,6 +29,7 @@ type staticMarketAnchor struct {
 var stubMarketAnchors = []staticMarketAnchor{
 	{scope: payband.Scope{JobCode: "CARE-CC2", Grade: "P2", PayZone: "US-EAST"}, currency: "USD", p25: "62000.00", p50: "70000.00", p75: "78000.00", asOf: "2026-01-01"},
 	{scope: payband.Scope{JobCode: "CARE-CC3", Grade: "P3", PayZone: "US-EAST"}, currency: "USD", p25: "74000.00", p50: "83000.00", p75: "92000.00", asOf: "2026-01-01"},
+	{scope: payband.Scope{JobCode: "OPS-HRBP3", Grade: "P3", PayZone: "US-EAST"}, currency: "USD", p25: "104000.00", p50: "112000.00", p75: "120000.00", asOf: "2026-01-01"},
 }
 
 // MemoryMarketRateCatalog is an in-memory rewards.MarketRateSource over the

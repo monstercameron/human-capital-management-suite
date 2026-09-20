@@ -6,6 +6,7 @@ package learning
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -35,21 +36,26 @@ func ValidateRenewalRequest(req RenewalRequest) error {
 }
 
 // ExpireCredentials expires every credential past its date as of the
-// trusted instant, warning once per credential. Repeat passes emit
-// nothing new.
+// trusted instant, warning once per credential. Each credential is
+// authorized and handled under its own Tenant: a caller scoped to one tenant
+// can never sweep another, and a foreign credential fails loudly instead of
+// being silently skipped. Repeat passes emit nothing new.
 func (r *Registry) ExpireCredentials(caller Caller, now time.Time) ([]Credential, error) {
 	if now.IsZero() {
 		return nil, errors.New("learning: trusted instant is required")
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if err := r.authorize(caller, "tenant-acme"); err != nil {
-		return nil, err
+	ids := make([]string, 0, len(r.credentials))
+	for id := range r.credentials {
+		ids = append(ids, id)
 	}
+	sort.Strings(ids)
 	expired := []Credential{}
-	for _, cred := range r.credentials {
-		if cred.Tenant != "tenant-acme" {
-			continue
+	for _, id := range ids {
+		cred := r.credentials[id]
+		if err := r.authorize(caller, cred.Tenant); err != nil {
+			return nil, err
 		}
 		if now.Before(cred.ExpiresAt) {
 			continue

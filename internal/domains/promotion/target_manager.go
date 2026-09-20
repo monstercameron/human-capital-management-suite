@@ -32,6 +32,7 @@ package promotion
 // Position capability.
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -246,11 +247,22 @@ func evaluateTargetManagerSelection(ctx context.Context, req PreflightRequest) (
 	// disclosed but its Manager field ruled DENY) is functionally the same
 	// blindness for this purpose -- either way this caller cannot verify
 	// anything about the candidate's own reporting line.
+	//
+	// The walk is bounded by the selection's own ChainDepth, not by one hop:
+	// org.ResolveManagerRelationships refuses a chain that continues past
+	// its declared depth, so a one-hop bound failed for every candidate who
+	// has a manager of their own (REV-091-02 found this once the review page
+	// evaluated real reporting lines). A chain too deep or already looping
+	// above the candidate cannot be certified, which is the unresolved
+	// finding, never a contract failure and never "safe".
 	visibility, err := org.ResolveManagerRelationships(ctx, req.ManagerFacts, org.ManagerResolutionRequest{
 		Tenant: req.Tenant, Worker: sel.Reference, AsOf: sel.AsOf, KnownAt: sel.KnownAt,
-		MaxDepth: 1, Authorize: sel.Authorize,
+		MaxDepth: sel.ChainDepth, Authorize: sel.Authorize,
 	})
-	if err != nil {
+	switch {
+	case errors.Is(err, org.ErrDepthExceeded), errors.Is(err, org.ErrRelationshipCycle):
+		return []Finding{managerChainUnresolvedFinding()}, ManagementImpact{}, nil
+	case err != nil:
 		return nil, ManagementImpact{}, fmt.Errorf("promotion: resolve target manager visibility: %w", err)
 	}
 	if visibility.Direct != nil &&
