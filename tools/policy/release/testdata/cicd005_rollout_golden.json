@@ -41,8 +41,8 @@
       "stage": "full",
       "status": "FENCED",
       "evaluated_at": "2026-09-12T13:00:00Z",
-      "manifest_digest": "4df981a0070de3c20c2b506f62343d9fafff5b675468f2e58fcc5f774ae87594",
-      "digest": "532cab964fa6ea70371a6bb716f0fff3ea2a98f737c9624007e66fe4b34c9e31"
+      "manifest_digest": "d811a942400f694b7a00aadf3dae976200d5b1e76ed50753fe40b7b06cffd451",
+      "digest": "ad72b098e4c89113da960e7c1b12b3764b682fb36ffbd29f72af2e19fc3dd64c"
     },
     {
       "sequence": 6,

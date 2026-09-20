@@ -24,7 +24,7 @@ func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "release: command is required: bundle or verify")
+		fmt.Fprintln(stderr, "release: command is required: bundle, verify, admit, rollout or decide")
 		return 2
 	}
 	switch args[0] {
@@ -32,8 +32,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runBundle(args[1:], stdout, stderr)
 	case "verify":
 		return runVerify(args[1:], stdout, stderr)
+	case "admit":
+		return runAdmit(args[1:], stdout, stderr)
+	case "rollout":
+		return runRollout(args[1:], stdout, stderr)
+	case "decide":
+		return runDecide(args[1:], stdout, stderr)
 	default:
-		fmt.Fprintf(stderr, "release: unknown command %q (want bundle or verify)\n", args[0])
+		fmt.Fprintf(stderr, "release: unknown command %q (want bundle, verify, admit, rollout or decide)\n", args[0])
 		return 2
 	}
 }
@@ -51,8 +57,10 @@ func runBundle(args []string, stdout, stderr io.Writer) int {
 	key := fs.String("key", release.DefaultKeyPath, "Ed25519 signing key fixture")
 	binaries := stringListFlag{}
 	policies := stringListFlag{}
+	gates := stringListFlag{}
 	fs.Var(&binaries, "binary", "built binary as name=path (repeatable)")
 	fs.Var(&policies, "policy", "policy report as name=path (repeatable)")
+	fs.Var(&gates, "gate", "product-slice gate evidence as gate=digest (repeatable, all eight gates required)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -70,16 +78,22 @@ func runBundle(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "release: %v\n", err)
 		return 2
 	}
+	gateEvidence, err := parseGates(gates)
+	if err != nil {
+		fmt.Fprintf(stderr, "release: %v\n", err)
+		return 2
+	}
 	manifest, err := release.Build(*root, release.Options{
-		Out:             *out,
-		Version:         *version,
-		VersionFile:     *versionFile,
-		Binaries:        inputs,
-		SBOMPath:        *sbom,
-		ProvenancePath:  *provenance,
-		P1AEvidencePath: *p1a,
-		PolicyReports:   policyReports,
-		KeyPath:         *key,
+		Out:                 *out,
+		Version:             *version,
+		VersionFile:         *versionFile,
+		Binaries:            inputs,
+		SBOMPath:            *sbom,
+		ProvenancePath:      *provenance,
+		P1AEvidencePath:     *p1a,
+		PolicyReports:       policyReports,
+		ProductGateEvidence: gateEvidence,
+		KeyPath:             *key,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "release: %v\n", err)
@@ -151,6 +165,23 @@ func parsePolicies(values []string) (map[string]string, error) {
 			return nil, fmt.Errorf("duplicate policy report %q", name)
 		}
 		result[name] = path
+	}
+	return result, nil
+}
+
+func parseGates(values []string) (map[string]string, error) {
+	result := make(map[string]string, len(values))
+	for _, value := range values {
+		name, digest, ok := strings.Cut(value, "=")
+		name = strings.TrimSpace(name)
+		digest = strings.TrimSpace(digest)
+		if !ok || name == "" || digest == "" {
+			return nil, fmt.Errorf("gate %q must use gate=digest", value)
+		}
+		if _, dup := result[name]; dup {
+			return nil, fmt.Errorf("duplicate product-gate evidence %q", name)
+		}
+		result[name] = digest
 	}
 	return result, nil
 }

@@ -1,0 +1,3 @@
+duplicate=absent
+live=reachable
+served=./cmd/hcmnext,./cmd/worker
