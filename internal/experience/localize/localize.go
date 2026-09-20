@@ -288,7 +288,17 @@ func formatDecimal(locale, in string, fraction int, _ bool) (string, error) {
 	return out, nil
 }
 
-func canonicalLocale(s string) string { return strings.ReplaceAll(strings.TrimSpace(s), "_", "-") }
+// canonicalLocale is on the hot path: Resolve calls it for the context and
+// for every fallback candidate of every rendered label. The underscore form
+// is rare, so the scan-and-return path avoids the allocation and the
+// strings.Count/Replace pair that showed up in client CPU profiles.
+func canonicalLocale(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.IndexByte(s, '_') < 0 {
+		return s
+	}
+	return strings.ReplaceAll(s, "_", "-")
+}
 func clone(m map[string]string) map[string]string {
 	if m == nil {
 		return nil
