@@ -168,11 +168,17 @@ func TestTodo_WF_COMP_006_OperatorRelease(t *testing.T) {
 		t.Fatalf("list = %d %q", code, out)
 	}
 
-	if code, out, stderr := run("bootstrap-dev"); code != 0 || strings.Count(out, "ACTIVE\t") != 2 {
-		t.Fatalf("bootstrap-dev: exit %d, stdout %q, stderr %q; want both shipped versions ACTIVE", code, out, stderr)
+	// Three shipped versions: the prototype and promotion execute 1.1.0 end
+	// ACTIVE; execute 1.0.0 is activated and then superseded by 1.1.0, so it
+	// stands QUARANTINED while still serving its pinned instances.
+	if code, out, stderr := run("bootstrap-dev"); code != 0 || strings.Count(out, "ACTIVE\t") != 2 ||
+		!strings.Contains(out, promotionexec.WorkflowID+"\t"+promotionexec.SemanticVersion+"\tACTIVE\t") ||
+		!strings.Contains(out, promotionexec.WorkflowID+"\t"+promotionexec.SemanticVersionV1_0+"\tQUARANTINED\t") {
+		t.Fatalf("bootstrap-dev: exit %d, stdout %q, stderr %q; want the prototype and execute 1.1.0 ACTIVE, execute 1.0.0 superseded", code, out, stderr)
 	}
-	if active, found, err := store.GetActiveForWorkflow(promotionexec.WorkflowID); err != nil || !found || active.Approvals[0].ApprovedBy != platformexecution.DevReleaseApprover {
-		t.Fatalf("bootstrapped execute version = %+v (%v, %v)", active, found, err)
+	if active, found, err := store.GetActiveForWorkflow(promotionexec.WorkflowID); err != nil || !found ||
+		active.SemanticVersion != promotionexec.SemanticVersion || active.Approvals[0].ApprovedBy != platformexecution.DevReleaseApprover {
+		t.Fatalf("bootstrapped execute version = %+v (%v, %v), want 1.1.0", active, found, err)
 	}
 }
 
