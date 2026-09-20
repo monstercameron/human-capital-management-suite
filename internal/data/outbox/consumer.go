@@ -51,6 +51,13 @@ type Consumer struct {
 	retryAccount *RetryAccount
 	retrySpec    func(Record) admission.ProvisionSpec
 	retryFailure func(Record, error) admission.FailureClass
+	// includeSchemas, when includeSet, restricts Poll to rows whose
+	// schema_ref is listed (WithSchemaRefs); excludeSchemas removes rows
+	// whose schema_ref is listed (WithoutSchemaRefs). Both are copied at
+	// option time, so the caller's slices are never aliased.
+	includeSet     bool
+	includeSchemas []string
+	excludeSchemas []string
 }
 
 // ConsumerOption configures a Consumer.
@@ -96,6 +103,27 @@ func WithRetryAccounting(account *RetryAccount, spec func(Record) admission.Prov
 	}
 }
 
+// WithSchemaRefs restricts Poll to messages whose schema reference is one of
+// refs, so a provider-delivery role claims only the schemas it delivers.
+// Repeated use accumulates. Calling it with no refs is an explicit empty
+// allow-list: Poll then claims nothing, rather than silently everything.
+func WithSchemaRefs(refs ...string) ConsumerOption {
+	return func(c *Consumer) {
+		c.includeSet = true
+		c.includeSchemas = append(c.includeSchemas, refs...)
+	}
+}
+
+// WithoutSchemaRefs makes Poll skip messages whose schema reference is one of
+// refs, so a legacy sweep never claims schemas another role owns. Repeated
+// use accumulates; combined with [WithSchemaRefs], a row must be included
+// and not excluded.
+func WithoutSchemaRefs(refs ...string) ConsumerOption {
+	return func(c *Consumer) {
+		c.excludeSchemas = append(c.excludeSchemas, refs...)
+	}
+}
+
 // NewConsumer builds a Consumer over a connection or pool that can open
 // transactions.
 func NewConsumer(db Beginner, opts ...ConsumerOption) *Consumer {
@@ -119,7 +147,26 @@ func (c *Consumer) validate() error {
 	if c.now == nil {
 		return fmt.Errorf("outbox: clock is required")
 	}
+	for _, ref := range c.includeSchemas {
+		if ref == "" {
+			return fmt.Errorf("outbox: schema filter has an empty schema reference")
+		}
+	}
+	for _, ref := range c.excludeSchemas {
+		if ref == "" {
+			return fmt.Errorf("outbox: schema filter has an empty schema reference")
+		}
+	}
 	return nil
+}
+
+// schemaFilterArgs returns the Poll arguments for the schema filters. The
+// slices are never nil: a NULL array would make "= ANY" NULL and silently
+// drop every row.
+func (c *Consumer) schemaFilterArgs() (bool, []string, []string) {
+	include := append([]string{}, c.includeSchemas...)
+	exclude := append([]string{}, c.excludeSchemas...)
+	return c.includeSet, include, exclude
 }
 
 // Poll claims up to the batch size of due messages for tenant: PENDING
@@ -149,6 +196,7 @@ func (c *Consumer) Poll(ctx context.Context, tenant uuid.UUID) ([]Record, error)
 	}()
 
 	now := c.now()
+	includeSet, include, exclude := c.schemaFilterArgs()
 
 	rows, err := tx.Query(ctx, `
 		SELECT outbox_id FROM outbox
@@ -157,6 +205,8 @@ func (c *Consumer) Poll(ctx context.Context, tenant uuid.UUID) ([]Record, error)
 		    (status = $2 AND available_at <= $3)
 			OR (status = $4 AND lease_until <= $5)
 		  )
+		  AND (NOT $7::boolean OR schema_ref = ANY($8::text[]))
+		  AND NOT (schema_ref = ANY($9::text[]))
 		ORDER BY
 		  CASE criticality
 		    WHEN 'P0' THEN 0
@@ -169,7 +219,7 @@ func (c *Consumer) Poll(ctx context.Context, tenant uuid.UUID) ([]Record, error)
 		  available_at, ordering_key, created_at, outbox_id
 		FOR UPDATE SKIP LOCKED
 		LIMIT $6`,
-		tenant, StatusPending, now, StatusInFlight, now, c.batchSize)
+		tenant, StatusPending, now, StatusInFlight, now, c.batchSize, includeSet, include, exclude)
 	if err != nil {
 		return nil, fmt.Errorf("outbox: poll: select: %w", err)
 	}
@@ -305,7 +355,7 @@ func (c *Consumer) Fail(ctx context.Context, tenant uuid.UUID, outboxID uuid.UUI
 	if cause == nil {
 		return fmt.Errorf("outbox: fail %s: cause is required", outboxID)
 	}
-	return c.failRow(ctx, tenant, outboxID, uuid.Nil, false, cause)
+	return c.failRow(ctx, tenant, outboxID, uuid.Nil, false, cause, failSettle{})
 }
 
 // FailLease is the fenced form of Fail.
@@ -316,18 +366,64 @@ func (c *Consumer) FailLease(ctx context.Context, tenant, outboxID, token uuid.U
 	if cause == nil {
 		return fmt.Errorf("outbox: fail %s: cause is required", outboxID)
 	}
-	return c.failRow(ctx, tenant, outboxID, token, true, cause)
+	return c.failRow(ctx, tenant, outboxID, token, true, cause, failSettle{})
 }
 
-// failRow settles one failed claim inside a single transaction: it reads
-// the row locked, applies the max-attempts policy, and returns it to
-// PENDING — or parks it ABANDONED once exhausted. Anything but a matching
-// live claim (missing row, wrong status, or, when fenced, a foreign or
-// expired lease) is [ErrLeaseFence].
-func (c *Consumer) failRow(ctx context.Context, tenant, outboxID, token uuid.UUID, fenced bool, cause error) error {
-	tx, err := c.db.Begin(ctx)
+// FailAfter is [Consumer.FailLease] with a backoff: the same lease fence,
+// attempts accounting, retry accounting and ABANDONED-on-exhaustion rule,
+// but a message returned to PENDING becomes available at retryAt instead of
+// immediately, so Poll does not re-claim it before then. A retryAt at or
+// before the consumer's clock behaves exactly like FailLease; the zero time
+// is rejected as a caller bug.
+func (c *Consumer) FailAfter(ctx context.Context, tenant, outboxID, token uuid.UUID, cause error, retryAt time.Time) error {
+	if token == uuid.Nil {
+		return fmt.Errorf("outbox: fail %s: lease token is required", outboxID)
+	}
+	if cause == nil {
+		return fmt.Errorf("outbox: fail %s: cause is required", outboxID)
+	}
+	if retryAt.IsZero() {
+		return fmt.Errorf("outbox: fail %s: retry time is required", outboxID)
+	}
+	return c.failRow(ctx, tenant, outboxID, token, true, cause, failSettle{retryAt: retryAt})
+}
+
+// Abandon parks a claimed message ABANDONED immediately with cause as its
+// last error, regardless of remaining attempts and without consuming a retry
+// token: it is for permanent rejections (the provider refused the payload),
+// where retrying cannot succeed. It is fenced by the lease token exactly like
+// [Consumer.FailLease].
+func (c *Consumer) Abandon(ctx context.Context, tenant, outboxID, token uuid.UUID, cause error) error {
+	if token == uuid.Nil {
+		return fmt.Errorf("outbox: abandon %s: lease token is required", outboxID)
+	}
+	if cause == nil {
+		return fmt.Errorf("outbox: abandon %s: cause is required", outboxID)
+	}
+	return c.failRow(ctx, tenant, outboxID, token, true, cause, failSettle{abandon: true})
+}
+
+// Defer releases a claimed message back to PENDING, available at retryAt,
+// WITHOUT consuming a delivery attempt: the attempt Poll counted when it
+// claimed the row is given back, no retry token is consumed, and the
+// max-attempts rule is not applied. It is for deliveries that were never
+// tried because the provider is known to be unhealthy (its circuit breaker
+// is open) — the provider's health is not the message's fault. reason is
+// recorded as the row's last_error ("deferred: <reason>") so an operator can
+// see why a PENDING row is waiting. Fenced like [Consumer.FailLease].
+func (c *Consumer) Defer(ctx context.Context, tenant, outboxID, token uuid.UUID, retryAt time.Time, reason string) error {
+	if token == uuid.Nil {
+		return fmt.Errorf("outbox: defer %s: lease token is required", outboxID)
+	}
+	if retryAt.IsZero() {
+		return fmt.Errorf("outbox: defer %s: retry time is required", outboxID)
+	}
+	if reason == "" {
+		return fmt.Errorf("outbox: defer %s: reason is required", outboxID)
+	}
+	tx, now, _, _, err := c.lockClaim(ctx, "defer", tenant, outboxID, token, true)
 	if err != nil {
-		return fmt.Errorf("outbox: fail %s: begin: %w", outboxID, err)
+		return err
 	}
 	committed := false
 	defer func() {
@@ -335,32 +431,105 @@ func (c *Consumer) failRow(ctx context.Context, tenant, outboxID, token uuid.UUI
 			_ = tx.Rollback(ctx)
 		}
 	}()
-	now := c.now()
-	var attempts int
+	affected, err := tx.Exec(ctx, `
+		UPDATE outbox SET status = $3, attempts = GREATEST(attempts - 1, 0), last_error = $4,
+			available_at = $5, updated_at = $6, lease_token = NULL, lease_until = NULL
+		WHERE tenant_id = $1 AND outbox_id = $2 AND status = $7`,
+		tenant, outboxID, StatusPending, "deferred: "+reason, laterOf(retryAt, now), now, StatusInFlight)
+	if err != nil {
+		return fmt.Errorf("outbox: defer %s: %w", outboxID, err)
+	}
+	if affected != 1 {
+		return fmt.Errorf("outbox: defer %s: %w", outboxID, ErrLeaseFence)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("outbox: defer %s: commit: %w", outboxID, err)
+	}
+	committed = true
+	return nil
+}
+
+// failSettle selects how failRow settles a failed claim. The zero value is
+// Fail's behavior: PENDING, available immediately.
+type failSettle struct {
+	// retryAt, when non-zero, is when a message returned to PENDING becomes
+	// available again (never earlier than the consumer's clock).
+	retryAt time.Time
+	// abandon parks the message ABANDONED regardless of attempts and skips
+	// retry accounting (a permanent rejection is not a retry).
+	abandon bool
+}
+
+func laterOf(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
+
+// lockClaim opens the settle transaction and locks the claim row. It returns
+// [ErrLeaseFence] for anything but a matching live claim (missing row, wrong
+// status, or, when fenced, a foreign or expired lease). On success the
+// caller owns tx and must commit or roll it back; on error tx is already
+// rolled back.
+func (c *Consumer) lockClaim(ctx context.Context, op string, tenant, outboxID, token uuid.UUID, fenced bool) (tx dbport.Tx, now time.Time, attempts int, logicalOperationID *string, err error) {
+	tx, err = c.db.Begin(ctx)
+	if err != nil {
+		return nil, time.Time{}, 0, nil, fmt.Errorf("outbox: %s %s: begin: %w", op, outboxID, err)
+	}
+	fail := func(e error) (dbport.Tx, time.Time, int, *string, error) {
+		_ = tx.Rollback(ctx)
+		return nil, time.Time{}, 0, nil, e
+	}
+	now = c.now()
 	var status string
 	var leaseToken *uuid.UUID
 	var leaseUntil *time.Time
-	var logicalOperationID *string
 	err = tx.QueryRow(ctx, `
 		SELECT attempts, status, lease_token, lease_until, logical_operation_id FROM outbox
 		WHERE tenant_id = $1 AND outbox_id = $2 FOR UPDATE`,
 		tenant, outboxID).Scan(&attempts, &status, &leaseToken, &leaseUntil, &logicalOperationID)
 	if err != nil {
 		if errors.Is(err, dbport.ErrNoRows) {
-			return fmt.Errorf("outbox: fail %s: %w", outboxID, ErrLeaseFence)
+			return fail(fmt.Errorf("outbox: %s %s: %w", op, outboxID, ErrLeaseFence))
 		}
-		return fmt.Errorf("outbox: fail %s: read: %w", outboxID, err)
+		return fail(fmt.Errorf("outbox: %s %s: read: %w", op, outboxID, err))
 	}
 	if status != StatusInFlight {
-		return fmt.Errorf("outbox: fail %s: %w", outboxID, ErrLeaseFence)
+		return fail(fmt.Errorf("outbox: %s %s: %w", op, outboxID, ErrLeaseFence))
 	}
 	if fenced {
 		if leaseToken == nil || *leaseToken != token || leaseUntil == nil || !leaseUntil.After(now) {
-			return fmt.Errorf("outbox: fail %s: %w", outboxID, ErrLeaseFence)
+			return fail(fmt.Errorf("outbox: %s %s: %w", op, outboxID, ErrLeaseFence))
 		}
 	}
+	return tx, now, attempts, logicalOperationID, nil
+}
+
+// failRow settles one failed claim inside a single transaction: it reads
+// the row locked, applies the max-attempts policy, and returns it to
+// PENDING — or parks it ABANDONED once exhausted (or immediately, for
+// settle.abandon). Anything but a matching live claim (missing row, wrong
+// status, or, when fenced, a foreign or expired lease) is [ErrLeaseFence].
+// Fail, FailLease, FailAfter and Abandon all go through here so their
+// fencing and accounting cannot drift apart.
+func (c *Consumer) failRow(ctx context.Context, tenant, outboxID, token uuid.UUID, fenced bool, cause error, settle failSettle) error {
+	op := "fail"
+	if settle.abandon {
+		op = "abandon"
+	}
+	tx, now, attempts, logicalOperationID, err := c.lockClaim(ctx, op, tenant, outboxID, token, fenced)
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback(ctx)
+		}
+	}()
 	target := StatusPending
-	if c.maxAttempts > 0 && attempts >= c.maxAttempts {
+	if settle.abandon || (c.maxAttempts > 0 && attempts >= c.maxAttempts) {
 		target = StatusAbandoned
 	}
 	if c.retryAccount != nil && c.retrySpec != nil && target != StatusAbandoned {
@@ -384,26 +553,30 @@ func (c *Consumer) failRow(ctx context.Context, tenant, outboxID, token uuid.UUI
 			Attempt:            attempts,
 		})
 		if rErr != nil {
-			return fmt.Errorf("outbox: fail %s: retry accounting: %w", outboxID, rErr)
+			return fmt.Errorf("outbox: %s %s: retry accounting: %w", op, outboxID, rErr)
 		}
 		if receipt.Disposition != admission.RetryAllowed {
 			target = StatusAbandoned
 			cause = fmt.Errorf("%w: %s", cause, receipt.Reason)
 		}
 	}
+	availableAt := now
+	if target == StatusPending && !settle.retryAt.IsZero() {
+		availableAt = laterOf(settle.retryAt, now)
+	}
 	affected, err := tx.Exec(ctx, `
-		UPDATE outbox SET status = $3, last_error = $4, available_at = $5, updated_at = $5,
+		UPDATE outbox SET status = $3, last_error = $4, available_at = $5, updated_at = $6,
 			lease_token = NULL, lease_until = NULL
-		WHERE tenant_id = $1 AND outbox_id = $2 AND status = $6`,
-		tenant, outboxID, target, cause.Error(), now, StatusInFlight)
+		WHERE tenant_id = $1 AND outbox_id = $2 AND status = $7`,
+		tenant, outboxID, target, cause.Error(), availableAt, now, StatusInFlight)
 	if err != nil {
-		return fmt.Errorf("outbox: fail %s: %w", outboxID, err)
+		return fmt.Errorf("outbox: %s %s: %w", op, outboxID, err)
 	}
 	if affected != 1 {
-		return fmt.Errorf("outbox: fail %s: %w", outboxID, ErrLeaseFence)
+		return fmt.Errorf("outbox: %s %s: %w", op, outboxID, ErrLeaseFence)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("outbox: fail %s: commit: %w", outboxID, err)
+		return fmt.Errorf("outbox: %s %s: commit: %w", op, outboxID, err)
 	}
 	committed = true
 	return nil
