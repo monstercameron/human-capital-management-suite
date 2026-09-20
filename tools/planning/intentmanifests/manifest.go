@@ -159,6 +159,13 @@ func ValidateIntentManifestYAML(descriptors []IntentDescriptor) error {
 		if d.ConformanceOnly && d.IntentTypeID != "hcmnext.people.change_manager" {
 			return fmt.Errorf("%s: only change_manager may be conformance-only", key)
 		}
+
+		// change_manager must keep its conformance-only marker: it is the
+		// single row exempt from draft delivery, so silently unmarking it
+		// would promote a conformance fixture into the draft set.
+		if d.IntentTypeID == "hcmnext.people.change_manager" && !d.ConformanceOnly {
+			return fmt.Errorf("%s: change_manager must stay conformance-only", key)
+		}
 	}
 
 	// Verify all expected IDs are present.
