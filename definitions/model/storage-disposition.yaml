@@ -161,6 +161,12 @@ migrationfiles:
   - 00310_operator_bypass_obligation.sql
   - 00311_wfrun016_repair_execution_record.sql
   - 00312_journey_note.sql
+  - 00313_integration_provider_receipt.sql
+  - 00314_workflow_designer_draft.sql
+  - 00315_workflow_semantic_version_identity.sql
+  - 00316_journey_worker_employment_facts.sql
+  - 00317_promotion_path_edge.sql
+  - 00318_workflow_designer_history.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

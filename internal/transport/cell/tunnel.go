@@ -14,6 +14,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 )
 
@@ -97,7 +98,7 @@ const tunnelMaxConnectionsPerClient = 8
 // The tunnel is discovered the way it is reached: by the page shell that
 // hands its URL to the client (workspace.PathJourney's config island).
 func NewEdgeHandlerWithTunnel(c *app.Cell, grpcServer *grpc.Server, opts ...connect.HandlerOption) (http.Handler, error) {
-	return NewEdgeHandlerWithTunnelAndDependencies(c, grpcServer, nil, nil, nil, nil, opts...)
+	return NewEdgeHandlerWithTunnelAndDependencies(c, grpcServer, nil, nil, nil, nil, transporthumanwork.WritePorts{}, opts...)
 }
 
 // NewEdgeHandlerWithTunnelAndDependencies is [NewEdgeHandlerWithTunnel] with
@@ -106,12 +107,12 @@ func NewEdgeHandlerWithTunnel(c *app.Cell, grpcServer *grpc.Server, opts ...conn
 func NewEdgeHandlerWithTunnelAndDependencies(
 	c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowInstanceReader,
 	workQueue app.WorkItemQueueReader,
-	operationStore transportoperations.Store, cursorKey []byte, opts ...connect.HandlerOption,
+	operationStore transportoperations.Store, cursorKey []byte, workWrites transporthumanwork.WritePorts, opts ...connect.HandlerOption,
 ) (http.Handler, error) {
 	if grpcServer == nil {
 		return nil, fmt.Errorf("transport cell: a gRPC server is required to mount the tunnel")
 	}
-	return buildEdgeHandlerWithDependencies(c, grpcServer, instances, workQueue, operationStore, cursorKey, opts...)
+	return buildEdgeHandlerWithDependencies(c, grpcServer, instances, workQueue, operationStore, cursorKey, workWrites, opts...)
 }
 
 // newTunnelHandler builds the bridge handler for one composed cell.

@@ -16,15 +16,17 @@ import (
 // [roleaccess.PageJourneyDiagnostics] all deny -- because diagnostics
 // authority never existed before this todo, so there is no prior behavior a
 // permissive rolling-upgrade default would need to preserve. The two
-// administrative roles are checked directly against the admitted
-// credential, mirroring requireRoleAdministrator elsewhere in this package,
-// so an administrator is authorized even on a tenant whose RoleAccess store
-// has not yet been (re)bootstrapped with the new page id.
+// administrative roles are read from the server-side role set, mirroring
+// requireRoleAdministrator elsewhere in this package: a revoked
+// administrator whose durable assignment no longer holds the role is
+// refused, while an administrator with no durable assignment still resolves
+// through the admitted credential roles.
 func (s *server) diagnosticsAuthorized(ctx context.Context, principal *trust.Principal) bool {
 	if principal == nil {
 		return false
 	}
-	if principal.HasRole("hcm_admin") || principal.HasRole("comp_admin") {
+	roles := s.effectiveRoles(ctx, principal)
+	if isAdministratorRoleSet(roles) {
 		return true
 	}
 	if s.deps.RoleAccess == nil {
@@ -34,7 +36,6 @@ func (s *server) diagnosticsAuthorized(ctx context.Context, principal *trust.Pri
 	if err != nil {
 		return false
 	}
-	roles := roleaccess.AssignedRoles(snapshot, principal.Subject(), principal.Roles())
-	permissions := roleaccess.EffectivePagePermissions(snapshot, roles)
+	permissions := roleaccess.EffectivePagePermissions(snapshot, roleaccess.AssignedRoles(snapshot, principal.Subject(), roles))
 	return roleaccess.CanPageAction(permissions, roleaccess.PageJourneyDiagnostics, roleaccess.ActionView)
 }

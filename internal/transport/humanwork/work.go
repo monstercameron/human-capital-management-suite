@@ -165,6 +165,19 @@ type Decisions interface {
 		now time.Time, meta workitem.TransitionMeta) (workitem.WorkItem, error)
 }
 
+// WritePorts bundles the write ports the application root composes behind
+// ClaimWorkItem, ReleaseWorkItem, CompleteWorkItem and DecideApproval. The
+// transport package only threads an already-composed bundle into the server;
+// it never builds one (see internal/transport/cell). Any port left nil
+// keeps its stub-era behavior: the method answers UNAVAILABLE rather than
+// acting without its driver.
+type WritePorts struct {
+	Claims      Claims
+	Completions Completions
+	Decisions   Decisions
+	Idempotency *endpoint.Coordinator
+}
+
 type Dependencies struct {
 	Queue     Reader
 	Claims    Claims

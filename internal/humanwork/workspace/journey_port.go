@@ -458,6 +458,10 @@ type JourneyDetail struct {
 	// Notes are the journey's free-standing notes, oldest first (see
 	// [JourneyNoteEngine]).
 	Notes []JourneyNote
+
+	// Review is the reporting-line impact and compensation guardrail a
+	// reviewer checks (REV-091-02); nil when the engine produced none.
+	Review *JourneyPromotionReview
 }
 
 // Decision is the approver's answer.
@@ -647,6 +651,29 @@ type WorkerSummary struct {
 	Location   string
 	PayZone    string
 
+	// The employment facts the worker object page shows beside the
+	// placement. EmploymentType is REGULAR or FIXED_TERM, TimeType FULL_TIME
+	// or PART_TIME, WorkArrangement ON_SITE, HYBRID or REMOTE; Company,
+	// BusinessUnit and CostCenter are recorded names and codes.
+	//
+	// They are empty on a corpus worker, which asserts no such facts, and
+	// that emptiness is itself the answer: the object page reports the field
+	// as unreported rather than inventing one.
+	EmploymentType  string
+	TimeType        string
+	Company         string
+	BusinessUnit    string
+	CostCenter      string
+	WorkArrangement string
+	// LifecycleStatus and WorkerType are the journey_worker
+	// vocabulary tokens for this worker (ACTIVE, TERMINATED or
+	// ON_LEAVE; EMPLOYEE, CONTRACTOR, INTERN or TEMPORARY),
+	// empty on a corpus worker, which asserts neither. The
+	// listing row is their authority; consumers interpret them
+	// through the shared productui vocabulary, never ad hoc.
+	LifecycleStatus string
+	WorkerType      string
+
 	// BasePay, Currency and BonusTarget are the declared compensation
 	// baseline the promotion simulation reads for this worker. They are
 	// empty on a corpus worker, whose baseline comes from the ported legacy
@@ -654,6 +681,11 @@ type WorkerSummary struct {
 	BasePay     string
 	Currency    string
 	BonusTarget string
+	// PayBasis is the basis that baseline is stated on (ANNUAL_SALARY or
+	// HOURLY_RATE). It is part of the compensation disclosure, not separate
+	// from it: a basis disclosed beside a withheld amount would still narrow
+	// the amount.
+	PayBasis string
 
 	// HireDate is ISO-8601 (YYYY-MM-DD).
 	HireDate string

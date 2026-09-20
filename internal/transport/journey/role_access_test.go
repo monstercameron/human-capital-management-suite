@@ -97,6 +97,7 @@ func TestPageActionPermissionDeniesMutationBeforeEngineAndAllowsReadOnlyReports(
 	}
 
 	spy.snapshot.PagePermissions = append(spy.snapshot.PagePermissions, roleaccess.PagePermission{RoleID: "intent_author", PageID: "journeys", View: true, Create: true})
+	spy.snapshot.FeaturePermissions = append(spy.snapshot.FeaturePermissions, roleaccess.FeaturePermission{RoleID: "intent_author", PageID: "journeys", FeatureID: "promotion_request", View: true, Create: true})
 	_, err = client.ProposeJourney(testContext(t), &journeyv1.ProposeJourneyRequest{})
 	if status.Code(err) != codes.Unavailable {
 		t.Fatalf("create-enabled role ProposeJourney code = %v, want downstream Unavailable; err=%v", status.Code(err), err)

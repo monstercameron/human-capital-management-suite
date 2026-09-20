@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -34,6 +35,10 @@ type Dependencies struct {
 	Preferences preferences.Store
 	RoleAccess  roleaccess.Store
 	WorkerIDs   workerids.Store
+	// Invalidations is the committed-transition hub
+	// WatchPromotionInvalidations subscribes to (REV-091-03). Nil answers
+	// that stream UNAVAILABLE.
+	Invalidations InvalidationSource
 	// PollInterval is how often WatchJourney re-reads the engine looking for
 	// a change. Zero or negative means [defaultWatchPollInterval].
 	//
@@ -100,6 +105,12 @@ type server struct {
 	journeyv1.UnimplementedJourneyServiceServer
 
 	deps Dependencies
+
+	// roleMu guards roleCache, the server's short-TTL durable role cache
+	// (RBAC-RT-002). It lives on the server value that owns it, never in
+	// a package-level registry.
+	roleMu    sync.Mutex
+	roleCache *roleaccess.Resolver
 }
 
 // Register adds hcmnext.journey.v1.JourneyService to srv. srv must already
@@ -278,6 +289,7 @@ var knownInputReasons = map[string]bool{
 	workspace.JourneyNoteReasonKeyInvalid:         true,
 	workspace.JourneyNoteReasonKeyReused:          true,
 	workspace.JourneyNoteReasonLimit:              true,
+	workspace.JourneyReasonNotProse:               true,
 }
 
 // engine returns the configured port, or a typed UNAVAILABLE when the
@@ -323,6 +335,9 @@ func (s *server) ListJourneys(ctx context.Context, _ *journeyv1.ListJourneysRequ
 	for _, summary := range summaries {
 		resp.Journeys = append(resp.Journeys, toJourney(summary, diagAuthorized))
 	}
+	// UXLIVE-027: the one authorized population summary, over exactly the
+	// journeys above, so no page recounts or re-filters the collection.
+	resp.Population = toPopulation(workspace.SummarizeJourneys(summaries, s.deps.nowFunc()()))
 	return resp, nil
 }
 
@@ -599,15 +614,16 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "list_workers")
 	}
-	workers, options, err = s.visibleWorkforce(ctx, principal, workers, options)
+	// The complete listing stays available as the reporting-line source for
+	// per-subject field disclosure; visibleWorkforce only filters rows.
+	visible, options, err := s.visibleWorkforce(ctx, principal, workers, options)
 	if err != nil {
 		return nil, preferenceError(err, principal, inv.RequestID(), "load_organization_visibility")
 	}
-	resp := &journeyv1.ListWorkersResponse{Options: toWorkforceOptions(options)}
-	for _, w := range workers {
-		resp.Workers = append(resp.Workers, toWorker(w))
-	}
-	return resp, nil
+	return &journeyv1.ListWorkersResponse{
+		Options: toWorkforceOptions(options),
+		Workers: s.authorizeWorkers(ctx, principal, workers, visible),
+	}, nil
 }
 
 // CreateWorker forwards to workspace.JourneyEngine.CreateWorker, which records
@@ -630,5 +646,5 @@ func (s *server) CreateWorker(ctx context.Context, req *journeyv1.CreateWorkerRe
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "create_worker")
 	}
-	return &journeyv1.CreateWorkerResponse{Worker: toWorker(worker)}, nil
+	return &journeyv1.CreateWorkerResponse{Worker: s.authorizeWorker(ctx, principal, worker)}, nil
 }

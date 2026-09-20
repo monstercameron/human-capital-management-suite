@@ -78,7 +78,7 @@ func (s *server) SaveTenantAppearance(ctx context.Context, req *journeyv1.SaveTe
 	if err := s.requirePageAction(ctx, principal, inv, "appearance", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if !principal.HasRole("comp_admin") {
+	if !s.hasEffectiveRole(ctx, principal, "comp_admin") {
 		return nil, envelope.New(envelope.CodePermissionDenied, "journey.preferences.appearance.role_required", "organization appearance requires the compensation administrator role").
 			WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
 	}
@@ -107,7 +107,7 @@ func (s *server) SaveOrganizationVisibility(ctx context.Context, req *journeyv1.
 	if err := s.requirePageAction(ctx, principal, inv, "organization-visibility", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if !principal.HasRole("comp_admin") {
+	if !s.hasEffectiveRole(ctx, principal, "comp_admin") {
 		return nil, envelope.New(envelope.CodePermissionDenied, "journey.preferences.organization_visibility.role_required", "organization visibility requires the compensation administrator role").
 			WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
 	}
@@ -155,7 +155,8 @@ func toUserPreferences(value preferences.User) *journeyv1.UserPreferences {
 	}
 	return &journeyv1.UserPreferences{Version: value.Version, Locale: value.Locale, NavCollapsed: value.NavCollapsed,
 		Accessibility:    &journeyv1.AccessibilityPreferences{TextSize: value.Accessibility.TextSize, Contrast: value.Accessibility.Contrast, Motion: value.Accessibility.Motion, Links: value.Accessibility.Links},
-		NavigationGroups: value.NavigationGroups, FavoritePages: value.FavoritePages, Tables: tables, WorkflowUses: value.WorkflowUses}
+		NavigationGroups: value.NavigationGroups, FavoritePages: value.FavoritePages, Tables: tables, WorkflowUses: value.WorkflowUses,
+		Density: value.Density}
 }
 
 func fromUserPreferences(value *journeyv1.UserPreferences) preferences.User {
@@ -169,7 +170,7 @@ func fromUserPreferences(value *journeyv1.UserPreferences) preferences.User {
 		}
 	}
 	access := value.GetAccessibility()
-	result := preferences.User{Version: value.GetVersion(), Locale: value.GetLocale(), NavCollapsed: value.GetNavCollapsed(), NavigationGroups: value.GetNavigationGroups(), FavoritePages: value.GetFavoritePages(), Tables: tables, WorkflowUses: value.GetWorkflowUses()}
+	result := preferences.User{Version: value.GetVersion(), Locale: value.GetLocale(), NavCollapsed: value.GetNavCollapsed(), NavigationGroups: value.GetNavigationGroups(), FavoritePages: value.GetFavoritePages(), Tables: tables, WorkflowUses: value.GetWorkflowUses(), Density: value.GetDensity()}
 	if access != nil {
 		result.Accessibility = preferences.Accessibility{TextSize: access.GetTextSize(), Contrast: access.GetContrast(), Motion: access.GetMotion(), Links: access.GetLinks()}
 	}

@@ -519,7 +519,7 @@ func TestJourneyServicePublishesTwentyUnaryMethodsAndOneServerStream(t *testing.
 		"GetProductPreferences": true, "SaveUserPreferences": true,
 		"SaveTenantAppearance": true, "SaveOrganizationVisibility": true, "RecordWorkflowUse": true,
 		"GetRoleAccess": true, "SaveAccessRole": true, "SaveWorkerRoleAssignment": true, "SaveRoleOrganizationVisibility": true, "SaveRolePagePermission": true, "SaveRoleFeaturePermission": true,
-		"GetWorkerIDPolicy": true, "SaveWorkerIDPolicy": true,
+		"GetWorkerIDPolicy": true, "SaveWorkerIDPolicy": true, "PreviewRoleAccess": true,
 	}
 	if len(desc.Methods) != len(wantUnary) {
 		names := make([]string, 0, len(desc.Methods))
@@ -538,8 +538,14 @@ func TestJourneyServicePublishesTwentyUnaryMethodsAndOneServerStream(t *testing.
 		t.Fatalf("missing unary methods: %v", wantUnary)
 	}
 
-	if len(desc.Streams) != 1 {
-		t.Fatalf("service publishes %d streaming methods, want exactly 1: %+v", len(desc.Streams), desc.Streams)
+	// REV-091-03 adds WatchPromotionInvalidations beside WatchJourney.
+	if len(desc.Streams) != 2 {
+		t.Fatalf("service publishes %d streaming methods, want exactly 2: %+v", len(desc.Streams), desc.Streams)
+	}
+	for _, stream := range desc.Streams[1:] {
+		if stream.StreamName != "WatchPromotionInvalidations" || !stream.ServerStreams || stream.ClientStreams {
+			t.Fatalf("unexpected second streaming method %+v, want the server stream WatchPromotionInvalidations", stream)
+		}
 	}
 	watch := desc.Streams[0]
 	if watch.StreamName != "WatchJourney" {

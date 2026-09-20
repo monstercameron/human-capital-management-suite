@@ -11,9 +11,8 @@ import (
 
 // requirePageAction enforces the same durable page/action grant advertised by
 // the product shell. Page IDs and actions are supplied by the handler, never
-// by wire input. A nil store or an empty permission table is the deliberate
-// rolling-upgrade compatibility path; once policy exists, failures close the
-// mutation rather than falling back to credential roles.
+// by wire input. Missing permission data denies rather than falling back to
+// credential roles.
 func (s *server) requirePageAction(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, pageID, action string) error {
 	featureID := "actions"
 	if action == roleaccess.ActionView {
@@ -23,28 +22,30 @@ func (s *server) requirePageAction(ctx context.Context, principal *trust.Princip
 }
 
 // requireFeatureAction enforces a feature grant beneath the page boundary.
-// Existing deployments with no feature rows retain page-only behavior during
-// rolling upgrade; once any feature policy exists, missing grants deny.
+// Missing permission data denies: an unconfigured store, an empty page
+// permission table, or a page grant without its feature rows all refuse.
+// There is no page-only fallback; bootstrap seeds every tenant's default
+// page and feature rows so legitimate grants keep working.
 func (s *server) requireFeatureAction(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, pageID, featureID, action string) error {
 	if s.deps.RoleAccess == nil {
-		return nil
+		return featureAccessDenied(principal, inv)
 	}
 	snapshot, err := s.deps.RoleAccess.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
 	if err != nil {
 		return roleAccessError(err, principal, inv.RequestID(), "authorize_page_action")
 	}
-	if len(snapshot.PagePermissions) == 0 {
-		return nil
-	}
 	roles := roleaccess.AssignedRoles(snapshot, principal.Subject(), principal.Roles())
 	permissions := roleaccess.EffectivePagePermissions(snapshot, roles)
-	if len(snapshot.FeaturePermissions) == 0 && roleaccess.CanPageAction(permissions, pageID, action) {
-		return nil
-	}
 	features := roleaccess.EffectiveFeaturePermissions(snapshot, roles)
 	if roleaccess.CanFeatureAction(permissions, features, pageID, featureID, action) {
 		return nil
 	}
+	return featureAccessDenied(principal, inv)
+}
+
+// featureAccessDenied refuses a page/feature action with no grant behind it,
+// including the fail-closed answer for an unconfigured role-access store.
+func featureAccessDenied(principal *trust.Principal, inv *transport.Invocation) error {
 	return envelope.New(envelope.CodePermissionDenied, "journey.feature_action.denied", "the assigned role does not permit this action on the page feature").
 		WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
 }

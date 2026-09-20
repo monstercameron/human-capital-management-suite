@@ -70,6 +70,14 @@ type Options struct {
 	// an opaque ID and the handler selects the credential from this immutable
 	// server-owned collection. Empty preserves the pasted-token fallback.
 	DevPersonas []DevPersona
+	// DevDirectory supplies the seeded demo org chart the dev-only sign-in
+	// page offers, so a tester can pick exactly the employee they need
+	// (dev_directory.go, login_directory.go). Nil renders no directory at
+	// all, which is what a production-shaped composition supplies: this is a
+	// narrow, separately stubbable port precisely so the sign-in page - which
+	// runs before any credential exists - never reads workforce data through
+	// the Cell.
+	DevDirectory DevDirectory
 	// Journey is the live engine the Promotion journey page reads and acts
 	// through (journey_port.go). Nil means the journey routes answer that
 	// execution is not composed on this cell.
@@ -108,8 +116,12 @@ type Handler struct {
 	// devBrowserLogin mirrors Options.DevBrowserLogin.
 	devBrowserLogin bool
 	devPersonas     map[string]DevPersona
-	roleAccess      roleaccess.Store
-	preferences     preferences.Store
+	// directory mirrors Options.DevDirectory. It is read only by the
+	// dev-only sign-in page, and only when devBrowserLogin registered that
+	// route at all.
+	directory   DevDirectory
+	roleAccess  roleaccess.Store
+	preferences preferences.Store
 	// publicScheme and publicAuthority are Options.PublicOrigin resolved:
 	// its scheme and its sanitized host[:port]. Empty means the shell
 	// derives both from each request.
@@ -174,6 +186,15 @@ func NewHandler(opts Options) (*Handler, error) {
 			personas[persona.ID] = persona
 		}
 	}
+	// The directory is a dev-only affordance of the dev-only sign-in page.
+	// Refusing it outright when the browser login is off means the surface
+	// cannot exist on a production-shaped cell even if a composition supplies
+	// one by mistake, rather than merely going unrendered because no route
+	// happens to reach it.
+	directory := opts.DevDirectory
+	if !opts.DevBrowserLogin {
+		directory = nil
+	}
 	publicScheme, publicAuthority, err := parsePublicOrigin(opts.PublicOrigin)
 	if err != nil {
 		return nil, err
@@ -191,6 +212,7 @@ func NewHandler(opts Options) (*Handler, error) {
 		assetManifestETag: `"` + assetManifestDigest + `"`,
 		devBrowserLogin:   opts.DevBrowserLogin,
 		devPersonas:       personas,
+		directory:         directory,
 		roleAccess:        opts.RoleAccess,
 		preferences:       opts.Preferences,
 		publicScheme:      publicScheme,
@@ -574,9 +596,11 @@ const maxLoginFormBytes = 8 << 10
 const paramLoginToken = "token"
 const paramLoginPersona = "persona"
 
-// serveLoginForm renders the plain, accessible sign-in form.
+// serveLoginForm renders the plain, accessible sign-in form. The employee
+// search is a native GET, so its whole state is the request's own query.
 func (h *Handler) serveLoginForm(w http.ResponseWriter, r *http.Request) {
-	h.writeLoginPage(w, http.StatusOK, "")
+	query := r.URL.Query()
+	h.writeLoginPageQuery(w, http.StatusOK, "", query.Get(paramDirectoryQuery), query.Get(paramDirectoryRole))
 }
 
 // serveLoginSubmit verifies a pasted credential with the same trust.Verifier
@@ -699,6 +723,14 @@ func normalizeBearerInput(raw string) string {
 // writeLoginPage renders the sign-in form, optionally over a refusal banner.
 // It never includes the value that was submitted.
 func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem string) {
+	h.writeLoginPageQuery(w, status, problem, "", "")
+}
+
+// writeLoginPageQuery is writeLoginPage with the employee directory's two
+// filters. A refusal re-renders the page with neither set: the submitted
+// persona is never echoed, and neither is anything else the failed request
+// carried.
+func (h *Handler) writeLoginPageQuery(w http.ResponseWriter, status int, problem, directoryQuery, directoryRole string) {
 	var banner string
 	if problem != "" {
 		banner = `<div class="status-banner" data-status="failed" role="alert">` + html.EscapeString(problem) + ` <a href="#credential-sign-in">Use a bearer credential</a></div>`
@@ -741,8 +773,9 @@ func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem stri
 <div class="login-brand"><span class="login-mark" aria-hidden="true">H</span><strong>HarborCare</strong></div>
 <p class="persona-access">Local development</p><h1>Choose a workspace persona</h1>
 <p class="login-intro">Each persona starts a signed server session with different permissions. Production deployments use the configured enterprise identity provider.</p>
-<div class="persona-grid">` + personaForms.String() + `</div>
-` + banner + credentialForm + `
+<h2 id="quick-pick-heading">Quick picks</h2><p class="login-intro">The fixed identities the reference promotion is wired to: a proposer, a manager approver, a finance approver, and the employee.</p>
+<div class="persona-grid" role="group" aria-labelledby="quick-pick-heading">` + personaForms.String() + `</div>
+` + banner + h.loginDirectorySection(directoryQuery, directoryRole) + credentialForm + `
 </section></main>
 </body>
 </html>
@@ -856,21 +889,65 @@ func (h *Handler) loginPersonaCopy(persona DevPersona) (string, string) {
 		return "Workspace member", "Access is temporarily unavailable. Try again later."
 	}
 	labels := admittedDestinationLabelsForAccess(access)
-	title := "Workspace member"
-	if access.can(productui.PageAdmin, roleaccess.ActionView) {
-		title = "HCM administrator"
-	} else if access.can(productui.PagePeople, roleaccess.ActionView) {
-		title = "Hiring manager"
-	} else if access.can(productui.PageMyself, roleaccess.ActionView) {
-		title = "Individual contributor"
-	}
+	title := personaAccessTitle(access)
 	if len(labels) == 0 {
 		return title, "No workspace product area beyond Help and Settings is available to this role yet."
 	}
-	if title == "Individual contributor" && access.can(productui.PageMyself, roleaccess.ActionView) {
+	switch title {
+	case "Individual contributor":
 		return title, "View your employment profile. Reaches " + joinWithAnd(labels) + "."
+	case "Finance partner":
+		return title, "Decide the finance approvals routed to you. Reaches " + joinWithAnd(labels) + "."
+	case "HR partner":
+		return title, "Support your assigned units and the workers in them. Reaches " + joinWithAnd(labels) + "."
 	}
 	return title, "Reaches " + joinWithAnd(labels) + "."
+}
+
+// personaAccessTitle names what a resolved credential IS, in one phrase.
+//
+// Capability alone cannot name it. The ladder used to be purely
+// capability-shaped - Admin, else People, else Myself - and a finance partner
+// (no Admin, no People, yes Myself) fell through to "Individual contributor",
+// rendering the same label and the same "View your employment profile" copy as
+// a worker_self persona holding a strictly smaller credential. Two different
+// authorizations read as the same thing, which is the defect UXAUDIT-014
+// named in different clothes. An HR partner would have collided the same way
+// with "Hiring manager".
+//
+// So a role whose whole point is a distinct job names itself - but only when
+// the resolved policy still admits the destination that name implies. The
+// label is therefore never a claim the credential cannot back: an HR partner
+// whose tenant has revoked People, or a finance partner without My Work,
+// falls through to the capability ladder rather than keeping a title it can
+// no longer act on. Role hints still add no grants; they only choose among
+// names for grants access already holds.
+//
+// Roles come from access, not from the signed credential directly, so a
+// durable per-worker assignment that narrows a broad token narrows the label
+// with it (TestTodo_UXAUDIT_014_Security_DurablePolicy).
+func personaAccessTitle(access productAccess) string {
+	holds := func(role string) bool {
+		for _, held := range access.roles {
+			if held == role {
+				return true
+			}
+		}
+		return false
+	}
+	switch {
+	case access.can(productui.PageAdmin, roleaccess.ActionView):
+		return "HCM administrator"
+	case holds("hr_partner") && access.can(productui.PagePeople, roleaccess.ActionView):
+		return "HR partner"
+	case holds("finance_partner") && access.can(productui.PageWork, roleaccess.ActionView):
+		return "Finance partner"
+	case access.can(productui.PagePeople, roleaccess.ActionView):
+		return "Hiring manager"
+	case access.can(productui.PageMyself, roleaccess.ActionView):
+		return "Individual contributor"
+	}
+	return "Workspace member"
 }
 
 // admittedDestinationLabelsForAccess uses the same resolved tenant permission

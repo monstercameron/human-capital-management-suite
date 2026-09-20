@@ -25,8 +25,8 @@ func TestRegisterInstallsNoInterceptorOfItsOwn(t *testing.T) {
 	if !ok {
 		t.Fatalf("Register did not add hcmnext.journey.v1.JourneyService; server serves %v", keys(info))
 	}
-	if len(svc.Methods) != 27 {
-		t.Fatalf("the registered service exposes %d methods, want 27", len(svc.Methods))
+	if len(svc.Methods) != 29 {
+		t.Fatalf("the registered service exposes %d methods, want 29", len(svc.Methods))
 	}
 	// grpc.ServiceInfo lists unary and streaming methods together, so the
 	// count above says nothing about cardinality; this says WatchJourney

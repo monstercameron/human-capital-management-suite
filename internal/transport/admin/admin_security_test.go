@@ -88,17 +88,22 @@ func TestTodo_ADMIN_001_Security(t *testing.T) {
 		}
 	})
 
-	t.Run("AdminService publishes exactly its six declared read-only methods", func(t *testing.T) {
+	t.Run("AdminService publishes only its declared operator methods", func(t *testing.T) {
 		desc := adminv1.AdminService_ServiceDesc
-		if len(desc.Methods) != 6 {
-			t.Fatalf("service publishes %d methods, want exactly 6: %v", len(desc.Methods), methodNames(desc))
+		want := map[string]bool{
+			"ListIntents": true, "GetReleaseManifest": true, "ListCapabilityProfiles": true,
+			"ExplainTransaction": true, "GetWorkerState": true, "GetWorkflowInstance": true,
+			"ListLedgerEvents": true, "GetChainVerification": true, "SimulateAuthorization": true,
+			"ConfigInspect": true, "ConfigTest": true, "ConfigRedrive": true,
+			"ConfigReconcile": true, "ConfigDiff": true, "ConfigSimulate": true,
+			"ConfigPromote": true, "ConfigRollback": true,
 		}
-		wantMutating := []string{"Create", "Submit", "Cancel", "Supersede", "Update", "Delete", "Execute", "Approve", "Reject"}
+		if len(desc.Methods) != len(want) {
+			t.Fatalf("service publishes %d methods, want exactly %d: %v", len(desc.Methods), len(want), methodNames(desc))
+		}
 		for _, m := range desc.Methods {
-			for _, prefix := range wantMutating {
-				if strings.HasPrefix(m.MethodName, prefix) {
-					t.Fatalf("method %s looks mutating (prefix %q); AdminService may only read, simulate or explain", m.MethodName, prefix)
-				}
+			if !want[m.MethodName] {
+				t.Fatalf("unexpected operator method %s is published", m.MethodName)
 			}
 		}
 	})

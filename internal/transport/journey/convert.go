@@ -473,6 +473,7 @@ func toDetail(d workspace.JourneyDetail, diagAuthorized bool) *journeyv1.Journey
 	for _, n := range d.Notes {
 		out.Notes = append(out.Notes, toJourneyNote(n))
 	}
+	out.PromotionReview = toPromotionReview(d.Review)
 	out.DetailDigest = detailDigest(out)
 	return out
 }
@@ -549,9 +550,18 @@ func toWorker(w workspace.WorkerSummary) *journeyv1.Worker {
 		PositionId:          w.PositionID,
 		Location:            w.Location,
 		PayZone:             w.PayZone,
+		EmploymentType:      w.EmploymentType,
+		TimeType:            w.TimeType,
+		Company:             w.Company,
+		BusinessUnit:        w.BusinessUnit,
+		CostCenter:          w.CostCenter,
+		WorkArrangement:     w.WorkArrangement,
 		BasePay:             w.BasePay,
 		Currency:            w.Currency,
 		BonusTarget:         w.BonusTarget,
+		PayBasis:            w.PayBasis,
+		LifecycleStatus:     w.LifecycleStatus,
+		WorkerType:          w.WorkerType,
 		HireDate:            w.HireDate,
 		Source:              w.Source,
 		CreatedAt:           toTimestamp(w.CreatedAt),
@@ -595,9 +605,18 @@ func fromWorker(w *journeyv1.Worker) workspace.WorkerSummary {
 		PositionID:         w.GetPositionId(),
 		Location:           w.GetLocation(),
 		PayZone:            w.GetPayZone(),
+		EmploymentType:     w.GetEmploymentType(),
+		TimeType:           w.GetTimeType(),
+		Company:            w.GetCompany(),
+		BusinessUnit:       w.GetBusinessUnit(),
+		CostCenter:         w.GetCostCenter(),
+		WorkArrangement:    w.GetWorkArrangement(),
 		BasePay:            w.GetBasePay(),
 		Currency:           w.GetCurrency(),
 		BonusTarget:        w.GetBonusTarget(),
+		PayBasis:           w.GetPayBasis(),
+		LifecycleStatus:    w.GetLifecycleStatus(),
+		WorkerType:         w.GetWorkerType(),
 		HireDate:           w.GetHireDate(),
 		Source:             w.GetSource(),
 		CreatedAt:          fromTimestamp(w.GetCreatedAt()),
