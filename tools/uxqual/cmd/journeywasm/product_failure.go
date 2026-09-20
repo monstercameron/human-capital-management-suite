@@ -5,10 +5,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
-// productFailureKey marks route data whose read failed on a page covered by
-// the async-region failure contract (REV-090-01).
-const productFailureKey = "product-failure"
-
 // productLoadErrorMessage is the older page-level failure copy, kept for the
 // pages that still degrade through View.LoadError.
 const productLoadErrorMessage = "We couldn't load this page. Try again."
@@ -40,9 +36,6 @@ var productRouteRetry func()
 // focus back where the reader can act: the Retry control if the read failed
 // again, otherwise the page heading.
 var productRetryFocusPending bool
-
-// productRetryFocusSelector is where focus goes after a Retry settles.
-const productRetryFocusSelector = ".async-region-retry, " + productPageFocusSelector
 
 // retryProductRoute is the Retry control's action.
 func retryProductRoute() {

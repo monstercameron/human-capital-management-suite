@@ -9,38 +9,7 @@ import (
 	adminv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/config"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/config/promotion"
-	"github.com/monstercameron/human-capital-management-suite/internal/transport"
-	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
-	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
-
-func configPromotions(principal *trust.Principal, inv *transport.Invocation, reg *promotion.Registry) (*promotion.Registry, *envelope.Error) {
-	if reg == nil {
-		return nil, envelope.New(envelope.CodeUnavailable,
-			"admin.config_promotions_unconfigured",
-			"the config promotion registry is not configured").
-			WithCorrelation(inv.RequestID()).
-			WithEvidence(envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"})
-	}
-	return reg, nil
-}
-
-func configError(principal *trust.Principal, inv *transport.Invocation, err error) error {
-	base := envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"}
-	switch {
-	case errors.Is(err, promotion.ErrNotFound):
-		return envelope.New(envelope.CodeNotFound, "admin.config_package_not_found", "no promotion package with that id").
-			WithCorrelation(inv.RequestID()).WithEvidence(base)
-	case errors.Is(err, promotion.ErrInvalidPackage):
-		return envelope.New(envelope.CodeInvalidArgument, "admin.config_package_invalid", err.Error()).
-			WithCorrelation(inv.RequestID()).WithEvidence(base)
-	case errors.Is(err, promotion.ErrInvalidTransition) || errors.Is(err, promotion.ErrNotSimulated) || errors.Is(err, promotion.ErrStale):
-		return envelope.New(envelope.CodeFailedPrecondition, "admin.config_transition_denied", err.Error()).
-			WithCorrelation(inv.RequestID()).WithEvidence(base)
-	default:
-		return envelope.Coerce(err)
-	}
-}
 
 func configDependencyKind(name string) (config.DependencyKind, error) {
 	switch name {

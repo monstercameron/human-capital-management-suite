@@ -125,7 +125,7 @@ func (h *harness) lines(t *testing.T) []logLine {
 func attr(attrs []attribute.KeyValue, key string) (string, bool) {
 	for _, kv := range attrs {
 		if string(kv.Key) == key {
-			return kv.Value.Emit(), true
+			return kv.Value.String(), true
 		}
 	}
 	return "", false
@@ -385,7 +385,7 @@ func TestLogsNeverCarrySecretsOrBodies(t *testing.T) {
 	}
 	for _, sp := range h.flushSpans(t) {
 		for _, kv := range sp.Attributes {
-			if strings.Contains(kv.Value.Emit(), secret) {
+			if strings.Contains(kv.Value.String(), secret) {
 				t.Fatalf("span attribute %s leaked a secret", kv.Key)
 			}
 		}

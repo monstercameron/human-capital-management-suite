@@ -196,16 +196,14 @@ func (r *batchJobRunner) RunOnce(ctx context.Context, req BatchJobRequest) (Batc
 		report.Checkpoints = append(report.Checkpoints, checkpoint)
 	}
 	if err := r.inTenantTx(ctx, req.TenantID, func(tx dbport.Tx) error {
-		completed, err := (jobs.RunStore{}).Complete(ctx, tx, req.TenantID, runID, run.Version, now)
-		if err != nil {
+		if _, err := (jobs.RunStore{}).Complete(ctx, tx, req.TenantID, runID, run.Version, now); err != nil {
 			return fmt.Errorf("worker: batch complete run: %w", err)
 		}
 		loaded, err := (jobs.RunStore{}).Load(ctx, tx, req.TenantID, runID)
 		if err != nil {
 			return fmt.Errorf("worker: batch load run: %w", err)
 		}
-		completed = loaded
-		report.Run = completed
+		report.Run = loaded
 		return nil
 	}); err != nil {
 		return report, err

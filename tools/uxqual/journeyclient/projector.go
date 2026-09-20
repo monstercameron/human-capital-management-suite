@@ -2803,10 +2803,6 @@ func interventionActionsLocale(locale string, base []journey.Action, head journe
 	return base
 }
 
-func actionConfirmation(head journey.JourneyCard) []journey.Fact {
-	return actionConfirmationLocale("en-US", head)
-}
-
 func actionConfirmationLocale(locale string, head journey.JourneyCard) []journey.Fact {
 	copy := productui.ResolveProductLocale(locale)
 	facts := []journey.Fact{{Label: copy.Text("journey.action_employee"), Value: nonEmpty(head.WorkerName, copy.Text("journey.action_employee"))}}

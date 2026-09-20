@@ -27,7 +27,7 @@ func TestNormalizeJourneyNoteRefusesWithTypedReasons(t *testing.T) {
 		{"too long", JourneyNoteInput{Body: strings.Repeat("é", MaxJourneyNoteRunes+1), IdempotencyKey: "k"}, "body", JourneyNoteReasonTooLong},
 		{"control", JourneyNoteInput{Body: "ok\x00no", IdempotencyKey: "k"}, "body", JourneyNoteReasonInvalidText},
 		{"escape", JourneyNoteInput{Body: "ok\x1b[31mred", IdempotencyKey: "k"}, "body", JourneyNoteReasonInvalidText},
-		{"bidi override", JourneyNoteInput{Body: "approve ‮evorppa", IdempotencyKey: "k"}, "body", JourneyNoteReasonInvalidText},
+		{"bidi override", JourneyNoteInput{Body: "approve \u202eevorppa", IdempotencyKey: "k"}, "body", JourneyNoteReasonInvalidText},
 		{"invalid utf-8", JourneyNoteInput{Body: "bad \xff", IdempotencyKey: "k"}, "body", JourneyNoteReasonInvalidText},
 		{"no key", JourneyNoteInput{Body: "fine"}, "idempotency_key", JourneyNoteReasonKeyInvalid},
 		{"long key", JourneyNoteInput{Body: "fine", IdempotencyKey: strings.Repeat("k", MaxJourneyNoteKeyRunes+1)}, "idempotency_key", JourneyNoteReasonKeyInvalid},

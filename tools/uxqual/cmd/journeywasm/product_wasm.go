@@ -21,7 +21,14 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/taskmux"
 )
 
-const productPathPrefix = "/workspace/app/"
+const (
+	productPathPrefix = "/workspace/app/"
+	// productFailureKey marks route data whose read failed on a page covered
+	// by the async-region failure contract (REV-090-01).
+	productFailureKey = "product-failure"
+	// productRetryFocusSelector is where focus goes after a Retry settles.
+	productRetryFocusSelector = ".async-region-retry, " + productPageFocusSelector
+)
 
 const productViewKey = "product-view"
 const productJourneyStoreKey = "product-journey-store"

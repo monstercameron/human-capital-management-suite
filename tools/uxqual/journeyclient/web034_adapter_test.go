@@ -755,10 +755,12 @@ func (*web034ConcurrentConn) NewStream(context.Context, *grpc.StreamDesc, string
 
 func TestTodo_WEB_034_Latency(t *testing.T) {
 	budget := latencygate.Budget{Name: "browser RPC adapter boundary", P95: 2 * time.Millisecond, Warmups: 3, Samples: 25}
+	conn := &web034Conn{}
+	adapter := NewRPCAdapter(conn, web034Config("latency"))
+	request := &journeyv1.ListJourneysRequest{}
+	response := &journeyv1.ListJourneysResponse{}
 	result, err := latencygate.Measure(budget, func() error {
-		conn := &web034Conn{}
-		adapter := NewRPCAdapter(conn, web034Config("latency"))
-		return adapter.Invoke(context.Background(), journeyv1.JourneyService_ListJourneys_FullMethodName, &journeyv1.ListJourneysRequest{}, &journeyv1.ListJourneysResponse{})
+		return adapter.Invoke(context.Background(), journeyv1.JourneyService_ListJourneys_FullMethodName, request, response)
 	})
 	if err != nil {
 		t.Fatal(err)

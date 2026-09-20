@@ -76,14 +76,6 @@ func chunkReject(field, state, version, reason string) error {
 	return &ChunkRejection{Field: field, State: state, Version: version, Reason: reason}
 }
 
-// hostile keeps its name and shape for compatibility: it is the shared
-// default detector with the error suppressed for boolean call sites. New
-// code should prefer DetectInstructionTaint, which surfaces failures.
-func hostile(text string) bool {
-	hit, _ := DetectInstructionTaint(text)
-	return hit
-}
-
 // PublishChunk validates and freezes one RAG derivative. It is pure: chunks
 // are values, and publication persists nothing by itself. Instruction-taint
 // screening runs the shared default detector; use PublishChunkWithDetector

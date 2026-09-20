@@ -78,10 +78,6 @@ func rev040Principal() intent.PrincipalReference {
 	}
 }
 
-func rev040Schema(name string) intent.SchemaRef {
-	return intent.SchemaRef{SchemaID: name, Version: 1, ProtobufFullName: name}
-}
-
 // rev040ProposalSpec mirrors the valid promotion proposal the intent package
 // tests mint: one planned write with its authority decision and baseline, a
 // bound child intent, a reservation, the required approval, the revalidation
