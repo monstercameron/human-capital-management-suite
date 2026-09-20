@@ -129,6 +129,18 @@ func (r Reader) PositionRevisionAt(ctx context.Context, q position.PositionQuery
 		return position.PositionRevision{}, false, fmt.Errorf("positionfacts: current legal entity: %w", err)
 	}
 
+	return buildRevision(q.Position, entityID, jobPosition, orgUnit, job, legalEntity)
+}
+
+// buildRevision projects the four resolved aggregate rows onto the disclosed
+// revision. It is shared with the batched reader (batch.go) so one set of
+// rows can only ever produce one revision, whether they were read one
+// position at a time or a whole directory at once.
+func buildRevision(
+	ref values.EntityRef, entityID uuid.UUID,
+	jobPosition aggregates.JobPosition, orgUnit aggregates.OrganizationUnit,
+	job aggregates.Job, legalEntity aggregates.LegalEntity,
+) (position.PositionRevision, bool, error) {
 	lifecycle := position.Lifecycle(jobPosition.LifecycleState)
 	if !lifecycle.Valid() {
 		return position.PositionRevision{}, false, fmt.Errorf(
@@ -160,7 +172,7 @@ func (r Reader) PositionRevisionAt(ctx context.Context, q position.PositionQuery
 	}
 
 	return position.PositionRevision{
-		Position:    q.Position,
+		Position:    ref,
 		Revision:    revision,
 		Effective:   effective,
 		Lifecycle:   lifecycle,

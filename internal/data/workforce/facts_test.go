@@ -336,3 +336,34 @@ func TestDefaultCalendarIsTheDesignPartnerCalendar(t *testing.T) {
 		t.Fatalf("DefaultCalendar = %+v, want the P1A design-partner calendar", workforce.DefaultCalendar)
 	}
 }
+
+// TestFactsPopulatedReportsWhatTheCellCanSee proves the reader-level probe:
+// a cell with no database or no tenant mapping answers false rather than
+// failing, and a mapped tenant answers what its rows say.
+func TestFactsPopulatedReportsWhatTheCellCanSee(t *testing.T) {
+	ctx := context.Background()
+	if populated, err := (workforce.Facts{}).Populated(ctx, factsTenant); err != nil || populated {
+		t.Fatalf("a cell with no database = %t, %v; want false, nil", populated, err)
+	}
+
+	db := pgtest.New(t)
+	tenant := insertTenant(t, db, "workforce-facts-populated")
+	facts := workforce.NewFacts(db.Conn, func(values.TenantId) uuid.UUID { return tenant })
+	if populated, err := facts.Populated(ctx, factsTenant); err != nil || populated {
+		t.Fatalf("an empty tenant = %t, %v; want false, nil", populated, err)
+	}
+
+	conn := appConn(t, db)
+	inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
+		_, err := (workforce.Store{}).Create(ctx, tx, newRow(tenant, "facts-populated"))
+		return err
+	})
+	if populated, err := facts.Populated(ctx, factsTenant); err != nil || !populated {
+		t.Fatalf("a tenant with one created worker = %t, %v; want true, nil", populated, err)
+	}
+
+	unmapped := workforce.NewFacts(db.Conn, func(values.TenantId) uuid.UUID { return uuid.Nil })
+	if populated, err := unmapped.Populated(ctx, factsTenant); err != nil || populated {
+		t.Fatalf("a tenant with no physical mapping = %t, %v; want false, nil", populated, err)
+	}
+}

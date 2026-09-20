@@ -63,6 +63,9 @@ func sameSeedIdentity(have, want workforce.WorkerRow) bool {
 		have.LegalName == want.LegalName && have.PreferredName == want.PreferredName && have.WorkerNumber == want.WorkerNumber &&
 		have.WorkerType == want.WorkerType && have.LifecycleStatus == want.LifecycleStatus && have.PayBasis == want.PayBasis &&
 		have.JobCode == want.JobCode && have.JobTitle == want.JobTitle && have.Grade == want.Grade && have.OrgUnit == want.OrgUnit && have.PositionID == want.PositionID &&
-		have.Location == want.Location && have.PayZone == want.PayZone && have.ManagerRelationshipRef == want.ManagerRelationshipRef &&
+		have.Location == want.Location && have.PayZone == want.PayZone && have.FTE == want.FTE && have.ManagerRelationshipRef == want.ManagerRelationshipRef &&
+		have.EmploymentType == want.EmploymentType && have.TimeType == want.TimeType &&
+		have.Company == want.Company && have.BusinessUnit == want.BusinessUnit &&
+		have.CostCenter == want.CostCenter && have.WorkArrangement == want.WorkArrangement &&
 		have.ProfilePhotoOriginalRef == want.ProfilePhotoOriginalRef && have.ProfilePhotoProxyRef == want.ProfilePhotoProxyRef
 }

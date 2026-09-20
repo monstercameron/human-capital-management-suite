@@ -365,3 +365,55 @@ func TestStoreRowsAreAppendOnly(t *testing.T) {
 		}
 	}
 }
+
+// TestStorePopulatedAnswersOneBitPerTenant proves the population probe the
+// journey's worker resolution decides on: false for a tenant that has created
+// nobody, true once it has, and never true because some other tenant has.
+func TestStorePopulatedAnswersOneBitPerTenant(t *testing.T) {
+	db := pgtest.New(t)
+	tenant := insertTenant(t, db, "workforce-populated-a")
+	other := insertTenant(t, db, "workforce-populated-b")
+	conn := appConn(t, db)
+	ctx := context.Background()
+
+	inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
+		populated, err := (workforce.Store{}).Populated(ctx, tx, tenant)
+		if err != nil {
+			return err
+		}
+		if populated {
+			t.Error("a tenant that has created nobody reports a population")
+		}
+		return nil
+	})
+
+	inTenantTx(t, conn, other, func(tx dbport.Tx) error {
+		_, err := (workforce.Store{}).Create(ctx, tx, newRow(other, "populated-elsewhere"))
+		return err
+	})
+	inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
+		populated, err := (workforce.Store{}).Populated(ctx, tx, tenant)
+		if err != nil {
+			return err
+		}
+		if populated {
+			t.Error("another tenant's worker made this tenant look populated")
+		}
+		return nil
+	})
+
+	inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
+		_, err := (workforce.Store{}).Create(ctx, tx, newRow(tenant, "populated-here"))
+		return err
+	})
+	inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
+		populated, err := (workforce.Store{}).Populated(ctx, tx, tenant)
+		if err != nil {
+			return err
+		}
+		if !populated {
+			t.Error("a tenant with a created worker reports no population")
+		}
+		return nil
+	})
+}

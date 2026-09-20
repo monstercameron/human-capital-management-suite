@@ -35,6 +35,8 @@ const columns = `tenant_id, worker_id, worker_key,
 	employment_id, assignment_id,
 	job_code, COALESCE(job_title, ''), grade, org_unit, position_id, location, pay_zone,
 	fte::text, manager_relationship_ref,
+	COALESCE(employment_type, ''), COALESCE(time_type, ''),
+	COALESCE(company, ''), COALESCE(business_unit, ''), COALESCE(cost_center, ''), COALESCE(work_arrangement, ''),
 	COALESCE(profile_photo_original_ref, ''), COALESCE(profile_photo_proxy_ref, ''),
 	hire_date, effective_from,
 	base_pay::text, currency, pay_basis, bonus_target::text,
@@ -73,15 +75,17 @@ func (s Store) Create(ctx context.Context, ex Executor, in WorkerRow) (WorkerRow
 			employment_id, assignment_id,
 			job_code, job_title, grade, org_unit, position_id, location, pay_zone,
 			fte, manager_relationship_ref,
+			employment_type, time_type, company, business_unit, cost_center, work_arrangement,
 			profile_photo_original_ref, profile_photo_proxy_ref,
 			hire_date, effective_from,
 			base_pay, currency, pay_basis, bonus_target,
 			revision_stream, revision_sequence, known_at, recorded_at,
 			created_by, source)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-			$18::text::numeric, $19, $20, $21, $22::text::date, $23::text::date,
-			$24::text::numeric, $25, $26, $27::text::numeric,
-			$28, $29, $30, $31, $32, $33)
+			$18::text::numeric, $19, $20, $21, $22, $23, $24, $25, $26, $27,
+			$28::text::date, $29::text::date,
+			$30::text::numeric, $31, $32, $33::text::numeric,
+			$34, $35, $36, $37, $38, $39)
 		ON CONFLICT DO NOTHING
 		RETURNING `+columns,
 		in.TenantID, in.WorkerID, in.WorkerKey,
@@ -89,7 +93,10 @@ func (s Store) Create(ctx context.Context, ex Executor, in WorkerRow) (WorkerRow
 		in.WorkerType, in.LifecycleStatus,
 		in.EmploymentID, in.AssignmentID,
 		in.JobCode, nullableString(in.JobTitle), in.Grade, in.OrgUnit, in.PositionID, in.Location, in.PayZone,
-		in.FTE, in.ManagerRelationshipRef, nullableString(in.ProfilePhotoOriginalRef), nullableString(in.ProfilePhotoProxyRef),
+		in.FTE, in.ManagerRelationshipRef,
+		nullableString(in.EmploymentType), nullableString(in.TimeType),
+		nullableString(in.Company), nullableString(in.BusinessUnit), nullableString(in.CostCenter), nullableString(in.WorkArrangement),
+		nullableString(in.ProfilePhotoOriginalRef), nullableString(in.ProfilePhotoProxyRef),
 		in.HireDate, in.EffectiveFrom,
 		in.BasePay, in.Currency, in.PayBasis, in.BonusTarget,
 		in.RevisionStream, int64(in.RevisionSequence), in.KnownAt.UTC(), in.RecordedAt.UTC(),
@@ -134,6 +141,23 @@ func (s Store) List(ctx context.Context, ex Executor, tenantID uuid.UUID) ([]Wor
 		return nil, fmt.Errorf("workforce: list workers: %w", err)
 	}
 	return out, nil
+}
+
+// Populated reports whether the tenant has created anybody at all.
+//
+// It exists because "does this tenant have people of its own" is a different
+// question from "list them": the journey's worker resolution has to know
+// whether the release's fixed corpus is this tenant's population or merely a
+// fallback for a tenant that has none, and asking it by listing every row
+// would read a whole workforce to learn one bit.
+func (s Store) Populated(ctx context.Context, ex Executor, tenantID uuid.UUID) (bool, error) {
+	var populated bool
+	err := ex.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM journey_worker WHERE tenant_id = $1)`, tenantID).Scan(&populated)
+	if err != nil {
+		return false, fmt.Errorf("workforce: read whether the tenant has a population: %w", err)
+	}
+	return populated, nil
 }
 
 // Get returns one worker by its worker_key or its worker_id text, reporting
@@ -184,7 +208,10 @@ func scanWorker(src scanner) (WorkerRow, error) {
 		&w.WorkerType, &w.LifecycleStatus,
 		&w.EmploymentID, &w.AssignmentID,
 		&w.JobCode, &w.JobTitle, &w.Grade, &w.OrgUnit, &w.PositionID, &w.Location, &w.PayZone,
-		&w.FTE, &w.ManagerRelationshipRef, &w.ProfilePhotoOriginalRef, &w.ProfilePhotoProxyRef,
+		&w.FTE, &w.ManagerRelationshipRef,
+		&w.EmploymentType, &w.TimeType,
+		&w.Company, &w.BusinessUnit, &w.CostCenter, &w.WorkArrangement,
+		&w.ProfilePhotoOriginalRef, &w.ProfilePhotoProxyRef,
 		&hire, &effective,
 		&w.BasePay, &w.Currency, &w.PayBasis, &w.BonusTarget,
 		&w.RevisionStream, &sequence, &w.KnownAt, &w.RecordedAt,

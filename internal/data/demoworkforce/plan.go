@@ -143,12 +143,21 @@ func Plan(tenant uuid.UUID) ([]Employee, error) {
 		}
 		for position := 0; position < group.Count; position++ {
 			index := staffIndex + 1
-			role := group.Roles[position%len(group.Roles)]
+			role := staffRoleAt(group.Roles, position)
 			key := fmt.Sprintf("hc-%03d-%s-%s", index, slug(givenNames[staffIndex]), slug(familyNames[staffIndex]))
 			if position == 0 {
 				firstByUnit[group.Code] = key
 			}
 			location := locations[(staffIndex+position)%len(locations)]
+			businessUnit, err := businessUnitFor(group.Code)
+			if err != nil {
+				return nil, err
+			}
+			costCenter, err := costCenterFor(group.Code)
+			if err != nil {
+				return nil, err
+			}
+			fte := fteFor(key)
 			hireYear := 2016 + staffIndex%10
 			hireMonth := 1 + staffIndex%12
 			hireDay := 1 + staffIndex%27
@@ -164,8 +173,11 @@ func Plan(tenant uuid.UUID) ([]Employee, error) {
 					TenantID: tenant, WorkerID: deterministicID("worker", key), WorkerKey: key,
 					LegalName: givenNames[staffIndex] + " " + familyNames[staffIndex], PreferredName: givenNames[staffIndex], WorkerNumber: fmt.Sprintf("HC-%05d", 21000+index),
 					WorkerType: "employee", LifecycleStatus: "active", EmploymentID: fmt.Sprintf("hc-emp-%05d", index), AssignmentID: fmt.Sprintf("hc-asg-%05d", index),
-					JobCode: role.Code, JobTitle: role.Title, Grade: role.Grade, OrgUnit: group.Code, PositionID: fmt.Sprintf("HC-POS-%05d", index), Location: location.Name, PayZone: location.Zone, FTE: "1.0000",
-					HireDate: fmt.Sprintf("%04d-%02d-%02d", hireYear, hireMonth, hireDay), EffectiveFrom: "2026-01-01", BasePay: role.BasePay, Currency: "USD", PayBasis: "ANNUAL_SALARY", BonusTarget: role.BonusTarget,
+					JobCode: role.Code, JobTitle: role.Title, Grade: role.Grade, OrgUnit: group.Code, PositionID: fmt.Sprintf("HC-POS-%05d", index), Location: location.Name, PayZone: location.Zone, FTE: fte,
+					EmploymentType: employmentTypeFor(key), TimeType: timeTypeFor(fte),
+					Company: HarborCare.LegalEntity, BusinessUnit: businessUnit, CostCenter: costCenter,
+					WorkArrangement: workArrangementFor(group.Code, location.Name),
+					HireDate:        fmt.Sprintf("%04d-%02d-%02d", hireYear, hireMonth, hireDay), EffectiveFrom: "2026-01-01", BasePay: role.BasePay, Currency: "USD", PayBasis: "ANNUAL_SALARY", BonusTarget: role.BonusTarget,
 					RevisionStream: "people.worker." + key, RevisionSequence: 1, KnownAt: recordedAt.Add(time.Duration(staffIndex) * time.Minute), RecordedAt: recordedAt.Add(time.Duration(staffIndex) * time.Minute), CreatedBy: "hcmnext.demo-seed", Source: workforce.SourceCreated,
 					ProfilePhotoOriginalRef: originalRef, ProfilePhotoProxyRef: proxyRef,
 				},
@@ -200,6 +212,32 @@ func Plan(tenant uuid.UUID) ([]Employee, error) {
 		employees[index].Row.ManagerRelationshipRef = manager
 	}
 	return employees, nil
+}
+
+// staffRoleAt picks the role one position in a unit is staffed with.
+//
+// Position 0 is the unit's leader, and only position 0. The remaining roles
+// cycle among themselves, so a unit whose headcount exceeds its role list
+// repeats an individual-contributor title rather than re-issuing the
+// leadership one.
+//
+// The plain `position % len(roles)` this replaces wrapped back onto index 0,
+// which gave nine of the fifteen staffed units a second director or manager
+// carrying the same title as the first -- and, because the unit's manager is
+// whoever holds position 0, that second director then reported to somebody
+// holding their own job. "Nia Brooks, Director of Clinical Operations,
+// reports to Mei Chen, Director of Clinical Operations" is not a record a
+// reader can make sense of.
+//
+// For a unit whose headcount fits its role list this is exactly the previous
+// mapping: position p in [1, len(roles)-1] still resolves to roles[p]. Only
+// the positions that used to wrap move, so the job-code catalog, the pay
+// bands derived from it and the promotion ladder built on it are unchanged.
+func staffRoleAt(roles []Role, position int) Role {
+	if position <= 0 || len(roles) < 2 {
+		return roles[0]
+	}
+	return roles[1+(position-1)%(len(roles)-1)]
 }
 
 func deterministicID(kind, key string) uuid.UUID {

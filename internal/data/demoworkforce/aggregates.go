@@ -55,7 +55,15 @@ var harborCareEffective = time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 // VacanciesPerTarget is how many OPEN positions the catalog records for each
 // ladder target in an organization unit.
-const VacanciesPerTarget = 2
+//
+// One. Two identical requisitions for the same job in the same unit and the
+// same location gave the propose form two rows a person cannot choose
+// between -- same title, same unit, same office, nothing to tell them apart
+// -- which reads as a duplicate-data defect rather than as two seats. A
+// company that genuinely had two would distinguish them; this catalog does
+// not, so it publishes one, and a second worker reaching for the same seat is
+// told it has no capacity, which is the truth.
+const VacanciesPerTarget = 1
 
 // BudgetPoolType, BudgetPoolOwner and BudgetPoolPeriod describe the
 // compensation pool every organization unit's promotions reserve against.
@@ -457,7 +465,13 @@ func ensureJob(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, code, grade,
 	if strings.TrimSpace(title) == "" {
 		title = code
 	}
-	job, err := aggregates.NewJob(tenant, id, CatalogEffectiveFrom, nil, recorded, code, title, "", grade, "EXEMPT")
+	// The family and the FLSA status are properties of the job, so they are
+	// looked up from the job code rather than passed in: every caller that
+	// records a job would otherwise have to carry the same table, and a
+	// caller that forgot would silently classify a coordinator as exempt --
+	// which is exactly what a hard-coded "EXEMPT" here used to do to all 47
+	// codes at once.
+	job, err := aggregates.NewJob(tenant, id, CatalogEffectiveFrom, nil, recorded, code, title, JobFamilyFor(code), grade, JobExemptStatusFor(code))
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("demoworkforce: job %s/%s: %w", code, grade, err)
 	}
