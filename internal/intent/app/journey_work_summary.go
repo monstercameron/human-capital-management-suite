@@ -99,9 +99,17 @@ func membershipToken(m workitem.Membership) string {
 // resolver for one list page. A principal names a worker only through a stable
 // identity join -- an exact corpus worker id or key, or a created worker the
 // cell's locator resolves -- never by guessing from the principal string.
+//
+// PROMOUX-015: the corpus half answers only for a tenant that has no
+// population of its own, matching ListWorkers and the cell's worker locator.
+// A tenant with its own people would otherwise see a work item attributed to
+// somebody its directory does not offer. Whether the tenant is populated is
+// read at most once per page, and only when a corpus name actually matched --
+// which on a tenant with its own people it never does.
 func (e *journeyEngine) assigneeNameResolver(ctx context.Context, tenant values.TenantId) func(string) string {
 	memo := map[string]string{}
 	lookups := 0
+	corpusServes, corpusDecided := false, false
 	return func(principalID string) string {
 		principalID = strings.TrimSpace(principalID)
 		if principalID == "" {
@@ -114,7 +122,16 @@ func (e *journeyEngine) assigneeNameResolver(ctx context.Context, tenant values.
 			return ""
 		}
 		lookups++
-		resolved := corpusWorkerDisplayName(principalID)
+		resolved := ""
+		if name := corpusWorkerDisplayName(principalID); name != "" {
+			if !corpusDecided {
+				populated, err := e.tenantHasPopulation(ctx, tenant)
+				corpusServes, corpusDecided = err == nil && !populated, true
+			}
+			if corpusServes {
+				resolved = name
+			}
+		}
 		if resolved == "" && e.locate != nil {
 			if location, found, err := e.locate(ctx, tenant, principalID); err == nil && found && location.Created != nil {
 				resolved = location.Created.DisplayName()

@@ -3,16 +3,21 @@ package app
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/fakeincumbent"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/bandfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/committedfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/orgfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/positionfacts"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionladder"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowdraftstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
@@ -23,6 +28,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/journeyinvalidation"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/definitions"
@@ -35,6 +41,10 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/manifest"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	workflowcore "github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/designeredit"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/designerpalette"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/draftcompile"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 
@@ -62,6 +72,10 @@ type CellConfig struct {
 	MaxDeadline time.Duration
 	// Logger receives one structured record per completed request.
 	Logger transport.Logger
+	// EventLogger receives the journey engine's business-level events (one
+	// structured line per proposal, decision, intervention, note). Nil logs
+	// none.
+	EventLogger *slog.Logger
 	// Inputs resolves the governed reads a P1A intent needs. Nil means
 	// [NewFixtureInputs], and then Workers and Bands default to the same
 	// corpus.
@@ -109,6 +123,11 @@ type CellConfig struct {
 	// DevPersonas are immutable server-issued identities for the explicitly
 	// enabled local browser login surface.
 	DevPersonas []workspace.DevPersona
+	// DevDirectory is the dev-only seeded employee directory that same
+	// sign-in surface offers. Nil in every production composition, and
+	// carried here for the same reason as DevBrowserLogin: this package
+	// states the decision, internal/transport/cell hands it to the workspace.
+	DevDirectory workspace.DevDirectory
 	// PublicOrigin is the canonical http(s) origin ("scheme://host[:port]")
 	// this cell is publicly reached at, in the form the composition root's
 	// own validation produced. Empty means the cell is reached directly: its
@@ -228,6 +247,14 @@ type CellConfig struct {
 	// database at all, and the journey engine needs one to read back what the
 	// driver wrote. Nil leaves [Cell.Journey] nil.
 	ExecutionDB dbport.Beginner
+	// WorkflowCapabilityPolicy is the tenant-owned capability allow list used
+	// by workflow draft compilation. Nil denies every capability reference;
+	// the global registry is never treated as a tenant grant.
+	WorkflowCapabilityPolicy draftcompile.CapabilityPolicy
+	// WorkflowPaletteExtensions are already-admitted fragment and template
+	// registry projections. Production composition supplies them from the
+	// extension registry; callers receive cloned values through the palette.
+	WorkflowPaletteExtensions []designerpalette.Entry
 	// ExecutionFacts optionally supplies a composition-time fact source for
 	// execution. Production compositions leave this nil so NewCell derives
 	// DurableProposalFacts from ExecutionDB; an explicit source is useful for
@@ -254,6 +281,22 @@ type CellConfig struct {
 	// the same PromotionExecutionConfig). Nil refuses every promotion-class
 	// approval decision rather than approving on routed facts alone.
 	ApprovalAuthority ApprovalAuthoritySource
+	// PromotionPlan names the promotion workflow this cell executes
+	// (PromotionPlanExecute or PromotionPlanPrototype). It is threaded to
+	// the service for rating-driven routing; empty never routes to the
+	// high-performer variant.
+	PromotionPlan string
+	// PerformanceRatings resolves a promotion subject's calibrated rating
+	// for high-performer routing. Nil leaves every start on the plan's own
+	// digest.
+	PerformanceRatings CalibratedRatingLookup
+	// HighPerformerVariantDigest is the compiled high-performer variant
+	// digest a top-band subject's start pins. Empty pins nothing.
+	HighPerformerVariantDigest string
+	// MarketRateSource is the market-rate source the variant's
+	// fetch_market_rate node reads through the promotion step services.
+	// Nil fails the fetch closed.
+	MarketRateSource rewards.MarketRateSource
 }
 
 // Cell is one composed P1A application cell: the registries, the governed
@@ -303,6 +346,9 @@ type Cell struct {
 	Preferences preferences.Store
 	RoleAccess  roleaccess.Store
 	WorkerIDs   workerids.Store
+	// MarketRateSource is the market-rate source the variant's
+	// fetch_market_rate node reads through the promotion step services.
+	MarketRateSource rewards.MarketRateSource
 
 	// Journey is the live Promotion-journey engine the workspace's journey
 	// page reads and acts through. It is non-nil only on a cell composed with
@@ -312,12 +358,30 @@ type Cell struct {
 	// internal/humanwork/workspace.Options unchanged, and the page reports
 	// workspace.ErrJourneyUnavailable from its own nil check.
 	Journey workspace.JourneyEngine
+	// JourneyInvalidations is REV-091-03's hub of committed promotion
+	// transitions, fed by Journey after each commit and read per viewer by
+	// the journey transport's WatchPromotionInvalidations stream. Nil exactly
+	// when Journey is nil.
+	JourneyInvalidations *journeyinvalidation.Hub
 
 	// WorkflowControl and WorkflowTenantIDs are EP-WF-002's governed workflow
 	// controls. Both are nil on a cell composed without an execution database
 	// and tenant mapping; the workflow transport then refuses every control.
 	WorkflowControl   *workflowcontrol.Controller
 	WorkflowTenantIDs workflowcontrol.TenantIDs
+	// WorkflowVersions is the immutable publication registry shared by the
+	// runtime and the read-only workflow designer. It remains the narrow
+	// workflow/version port; transport receives it only through its catalog
+	// reader interface and never imports the durable adapter.
+	WorkflowVersions workflowversion.Store
+	// WorkflowDrafts is the mutable tenant-scoped authoring store and
+	// WorkflowDraftCompiler is the publication compiler projection used by
+	// WorkflowService. Both are nil without a durable execution database and
+	// tenant mapping.
+	WorkflowDrafts         *workflowdraftstore.Store
+	WorkflowDraftCompiler  *draftcompile.Compiler
+	WorkflowPalette        *designerpalette.Catalog
+	WorkflowDraftAuthoring *designeredit.Service
 
 	// WorkflowRepair is WF-RUN-016's governed RepairPlan execution: the same
 	// operator gateway, JIT authority, dual control, simulation and journaled
@@ -364,6 +428,7 @@ type Cell struct {
 	// read through [Cell.DevBrowserLogin].
 	devBrowserLogin bool
 	devPersonas     []workspace.DevPersona
+	devDirectory    workspace.DevDirectory
 	// publicOrigin records the deployment's declared public origin. Same
 	// reasoning as workspaceEnabled: fixed at composition, read through
 	// [Cell.PublicOrigin].
@@ -470,7 +535,24 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 			fixtureBacked.BindPinnedManager(PinnedManagerFromRevisions(cfg.ExecutionDB, cfg.TenantUUID))
 		}
 	}
-
+	// The pay-band catalog is read from the tenant's own compensation_band
+	// rows whenever this cell has a database and a tenant mapping, with the
+	// composed catalog above as the fallback for a scope the tenant records
+	// no band for. Before this the served catalog answered exclusively from a
+	// process-local map: a band seeded into the database was never read, and
+	// a tenant could not revise the ranges its own workers are judged
+	// against. Bound in one place so the resolver, the review ports and every
+	// simulation price a promotion through the same catalog.
+	if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
+		bands = bandfacts.Catalog{
+			DB: cfg.ExecutionDB, TenantUUID: cfg.TenantUUID,
+			CatalogVersion: demoworkforce.PayBandPolicyVersion, Blocking: true,
+			Source: "hcmnext.compensation", Fallback: bands,
+		}
+		if fixtureBacked != nil {
+			fixtureBacked.BindBands(bands)
+		}
+	}
 	// PROMOUX-005: the same condition as positionReader above. Without an
 	// execution database and a tenant mapping there is no journey_worker
 	// table this cell could walk a reporting chain over, and managerFacts
@@ -561,6 +643,10 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 		// caller presented. A cell composed without that database has nowhere
 		// to read those facts from and cannot start an execution.
 		ExecutionFacts: executionFactsForConfig(cfg),
+
+		PromotionPlan:              cfg.PromotionPlan,
+		PerformanceRatings:         cfg.PerformanceRatings,
+		HighPerformerVariantDigest: cfg.HighPerformerVariantDigest,
 		// OBS-024: GATE_REFUSED/GATE_ADMITTED land on the same evidence sink
 		// as every CAP-002 invocation/refusal, so Cell.Evidence reads both
 		// back from one place.
@@ -595,21 +681,63 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	// typed-nil interface would defeat the page's own nil check, so the field
 	// is left at its zero value rather than assigned a nil *journeyEngine.
 	var journey workspace.JourneyEngine
+	var journeyInvalidations *journeyinvalidation.Hub
 	if cfg.Executor != nil && cfg.ExecutionDB != nil {
 		engine := newJourneyEngine(svc, cfg.ExecutionDB, cfg.ExecutionApprover, cfg.Now, locateWorker, cfg.WorkerIDs)
 		engine.recorder = cfg.WorkflowRecorder
+		engine.events = cfg.EventLogger
 		engine.authority = cfg.ApprovalAuthority
 		// UXLIVE-011: the same reader the propose path's own target-position
 		// check uses, plus the directory it cannot list on its own.
 		engine.positionReader = positionReader
 		if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
 			engine.positions = positionfacts.Reader{DB: cfg.ExecutionDB, TenantUUID: cfg.TenantUUID}
+			// The published career ladder is the tenant's own rows
+			// (migration 00317) wherever they exist, so the options a client
+			// is offered, the gate that admits a proposal and the vacancy
+			// catalog all read one source the tenant can see.
+			engine.ladder = &promotionLadderSource{
+				reader: promotionladder.Reader{DB: cfg.ExecutionDB, TenantUUID: cfg.TenantUUID},
+				now:    engine.now,
+			}
 		}
+		// REV-091-03: committed transitions feed this cell's invalidation
+		// hub, which the journey transport's WatchPromotionInvalidations
+		// stream reads per viewer. The hub keeps wall-clock time, not
+		// cfg.Now: it judges credential expiry the way admission does, and a
+		// pinned or advanced business clock must not revoke a live stream.
+		journeyInvalidations = journeyinvalidation.NewHub(journeyinvalidation.Options{})
+		engine.invalidations = journeyInvalidations
 		journey = engine
 	}
 	workflowControl, workflowTenantIDs, err := composeWorkflowControl(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now, cfg.WorkflowRecorder)
 	if err != nil {
 		return nil, err
+	}
+	var workflowDrafts *workflowdraftstore.Store
+	var workflowDraftCompiler *draftcompile.Compiler
+	workflowPalette := &designerpalette.Catalog{
+		Capabilities: caps,
+		Policy:       cfg.WorkflowCapabilityPolicy,
+		Extensions:   append([]designerpalette.Entry(nil), cfg.WorkflowPaletteExtensions...),
+	}
+	if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
+		workflowDrafts = workflowdraftstore.New(cfg.ExecutionDB, cfg.TenantUUID)
+		workflowDraftCompiler = &draftcompile.Compiler{
+			Options: workflowcore.Options{Phase: workflowcore.PhaseP1B, Capabilities: caps},
+			Policy:  cfg.WorkflowCapabilityPolicy,
+		}
+	}
+	var workflowDraftAuthoring *designeredit.Service
+	if workflowDrafts != nil {
+		ids := cfg.IDs
+		if ids == nil {
+			ids = intent.UUIDv7Source
+		}
+		workflowDraftAuthoring = &designeredit.Service{
+			Store: workflowDraftStoreAdapter{store: workflowDrafts}, Catalog: workflowPalette,
+			NewID: ids, Now: cfg.Now,
+		}
 	}
 	// The repair door takes its own receipt journal seam; nil is the same
 	// in-process journal composeWorkflowControl uses today.
@@ -625,21 +753,30 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if engine, ok := journey.(*journeyEngine); ok {
 		engine.repair = workflowRepair
 		engine.repairAuthority = repairAuthority
+		// REV-091-02: the review reads the same catalog and org reader the
+		// promotion capability and the workspace preflight use.
+		engine.review = journeyReviewPorts{bands: bands, managerFacts: managerFacts}
 	}
 
 	cell := &Cell{
-		Journey:           journey,
-		WorkflowControl:   workflowControl,
-		WorkflowTenantIDs: workflowTenantIDs,
-		WorkflowRepair:    workflowRepair,
-		WorkerIDs:         cfg.WorkerIDs,
-		locateWorker:      locateWorker,
-		positionReader:    positionReader,
-		managerFacts:      managerFacts,
+		Journey:                journey,
+		WorkflowControl:        workflowControl,
+		WorkflowTenantIDs:      workflowTenantIDs,
+		WorkflowVersions:       cfg.ExecutionVersions,
+		WorkflowDrafts:         workflowDrafts,
+		WorkflowDraftCompiler:  workflowDraftCompiler,
+		WorkflowPalette:        workflowPalette,
+		WorkflowDraftAuthoring: workflowDraftAuthoring,
+		WorkflowRepair:         workflowRepair,
+		WorkerIDs:              cfg.WorkerIDs,
+		locateWorker:           locateWorker,
+		positionReader:         positionReader,
+		managerFacts:           managerFacts,
 
 		workspaceEnabled: workspaceEnabled,
 		devBrowserLogin:  cfg.DevBrowserLogin,
 		devPersonas:      append([]workspace.DevPersona(nil), cfg.DevPersonas...),
+		devDirectory:     cfg.DevDirectory,
 		publicOrigin:     cfg.PublicOrigin,
 
 		Service:      svc,
@@ -659,6 +796,8 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 		Telemetry:    cfg.Telemetry,
 		Preferences:  cfg.Preferences,
 		RoleAccess:   cfg.RoleAccess,
+
+		MarketRateSource: cfg.MarketRateSource,
 		Config: transport.Config{
 			Verifier:    cfg.Verifier,
 			Audience:    cfg.Audience,
@@ -678,6 +817,7 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 			return nil, fmt.Errorf("app: bind the promotion step services: %w", err)
 		}
 	}
+	cell.JourneyInvalidations = journeyInvalidations
 	return cell, nil
 }
 
@@ -809,6 +949,12 @@ func (c *Cell) DevBrowserLogin() bool { return c.devBrowserLogin }
 func (c *Cell) DevPersonas() []workspace.DevPersona {
 	return append([]workspace.DevPersona(nil), c.devPersonas...)
 }
+
+// DevDirectory returns the local-development employee directory composed for
+// the workspace sign-in page, or nil. Production compositions leave it nil,
+// and the workspace handler additionally refuses it when the dev browser
+// login is off, so the surface cannot exist without both decisions.
+func (c *Cell) DevDirectory() workspace.DevDirectory { return c.devDirectory }
 
 // PublicOrigin reports the public origin the cell was composed with, or the
 // empty string when the deployment reaches the cell directly.

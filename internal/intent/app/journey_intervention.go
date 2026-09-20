@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -164,7 +165,11 @@ func (e *journeyEngine) loadPromotionJourney(ctx context.Context, intentID strin
 // doc comment for why it is Cancel-then-repropose rather than Supersede.
 func (e *journeyEngine) EditProposal(
 	ctx context.Context, intentID string, expectedInstanceVersion uint64, idempotencyKey, reason string, in workspace.EditProposalInput,
-) (workspace.JourneySummary, string, error) {
+) (successor workspace.JourneySummary, superseded string, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.proposal_edited", intentID, retErr, slog.String("successor_intent_id", successor.IntentID))
+		e.publishCommitted(ctx, retErr, intentID, successor.IntentID)
+	}()
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return workspace.JourneySummary{}, "", err
@@ -379,7 +384,14 @@ func interventionOutcomeFromDisposition(d intent.CancellationDisposition) worksp
 // refuses before any row is written.
 func (e *journeyEngine) RequestIntervention(
 	ctx context.Context, intentID string, req workspace.JourneyInterventionRequest,
-) (workspace.JourneyInterventionResult, error) {
+) (result workspace.JourneyInterventionResult, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.intervention", intentID, retErr,
+			slog.String("kind", string(req.Kind)), slog.String("disposition", string(result.Outcome)))
+		if interventionChanged(result.Outcome) {
+			e.publishCommitted(ctx, retErr, intentID)
+		}
+	}()
 	principal, principalErr := journeyPrincipal(ctx)
 	if principalErr != nil {
 		return workspace.JourneyInterventionResult{}, principalErr

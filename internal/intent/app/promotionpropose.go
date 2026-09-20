@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"strconv"
 	"strings"
@@ -233,7 +234,7 @@ func validatePromotionPropose(req *journeyv1.ProposePromotionRequest) error {
 	if _, err := parsePromotionEffectiveDate(values["effective_date"]); err != nil {
 		return journeyInputError("effective_date", "is not an ISO-8601 date (YYYY-MM-DD)")
 	}
-	return nil
+	return workspace.ValidateBusinessReason("reason", values["reason"])
 }
 
 // parsePromotionEffectiveDate is the one date parse this contract performs,
@@ -341,7 +342,12 @@ func promotionProposeIdempotencyKey(clientRequestID string) string {
 // this contract exists to prevent.
 func (e *journeyEngine) ProposePromotion(
 	ctx context.Context, req *journeyv1.ProposePromotionRequest,
-) (*journeyv1.ProposePromotionResponse, error) {
+) (resp *journeyv1.ProposePromotionResponse, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.proposed", resp.GetIntentId(), retErr,
+			slog.String("target_job_code", req.GetDesiredJobCode()), slog.String("target_grade", req.GetDesiredGrade()))
+		e.publishCommitted(ctx, retErr, resp.GetIntentId())
+	}()
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return nil, err
@@ -396,7 +402,11 @@ func (e *journeyEngine) ProposePromotion(
 	if err != nil {
 		return nil, err
 	}
-	if err := validatePublishedPromotionPath(current, in, baseline); err != nil {
+	ladder, err := e.ladderEdges(ctx, principal.Tenant())
+	if err != nil {
+		return nil, err
+	}
+	if err := validatePublishedPromotionPathFrom(ladder, current, in, baseline); err != nil {
 		return nil, err
 	}
 	// The intent-only contract shares the page form's vacancy selection: a

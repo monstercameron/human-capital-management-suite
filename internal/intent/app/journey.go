@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -60,7 +61,10 @@ const journeyListPageSize int32 = 200
 
 // journeyEngine implements [workspace.JourneyEngine] over one composed cell.
 type journeyEngine struct {
-	svc *IntentService
+	// events receives the business-level journey events (journey_events.go);
+	// nil logs none.
+	events *slog.Logger
+	svc    *IntentService
 	// db is the pool the durable execution record is read through and the
 	// approval WorkItem is claimed and completed in. Every statement runs
 	// inside a tenant-scoped transaction.
@@ -94,6 +98,15 @@ type journeyEngine struct {
 	// repair" -- never as "no repair is needed".
 	repair          *workflowcontrol.RepairController
 	repairAuthority workflowcontrol.AuthorityResolver
+	// ladder reads the tenant's own published promotion ladder
+	// (promotion_ladder_source.go). Nil on a cell with no execution
+	// database, which publishes the authored ladder instead.
+	ladder *promotionLadderSource
+	// invalidations receives every committed promotion transition
+	// (REV-091-03, journey_invalidation.go); nil publishes none.
+	invalidations InvalidationPublisher
+	// review holds REV-091-02's review ports (journey_review.go).
+	review journeyReviewPorts
 }
 
 var _ workspace.JourneyEngine = (*journeyEngine)(nil)
@@ -134,6 +147,13 @@ func newJourneyEngine(
 // is ErrJourneyUnknown, "this cell cannot execute at all" is
 // ErrJourneyUnavailable, and "this intent has nothing executable right now" is
 // ErrJourneyStage. Anything else travels as the owned error.
+//
+// reasonNoActiveWorkflowVersion is deliberately absent from the mapping. It is
+// neither a stage nor "this cell cannot execute at all"; it is a release an
+// operator has not performed, and mapping it onto ErrJourneyUnavailable is
+// exactly what made the page tell the reader to retry something retrying can
+// never fix. Unmapped, the owned refusal travels intact to the transport,
+// which returns it as it stands.
 func journeyError(err error) error {
 	if err == nil {
 		return nil
@@ -222,6 +242,19 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	// REV-090-02: every listed promotion's durable record, resolved for the
+	// whole page in a fixed number of statements rather than per journey.
+	promotionIDs := make([]string, 0, len(all))
+	for _, msg := range all {
+		if msg.GetDefinition().GetIntentTypeId() == promotion.IntentType {
+			promotionIDs = append(promotionIDs, msg.GetIntentId())
+		}
+	}
+	entries, recErr := e.readJourneyListRecords(ctx, tx, principal, promotionIDs)
+	if recErr != nil {
+		return nil, recErr
+	}
+
 	out := make([]workspace.JourneySummary, 0, len(all))
 	// UXAUDIT-017: one clock reading and one bounded name resolver for the
 	// whole page; the work item summary itself reuses record.items below.
@@ -246,23 +279,25 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 			out = append(out, unreadable)
 			continue
 		}
-		materialDigest, record, executed, recErr := e.readExecutedRecordForIntent(ctx, tx, principal, summary.IntentID)
-		if recErr != nil {
-			return nil, recErr
-		}
-		if executed {
-			summary.MaterialDigest = materialDigest
+		entry := entries[normalizedIntentID(summary.IntentID)]
+		record := entry.record
+		if record.instance != nil {
+			// Executed: the pinned proposal and the recorded runtime decide,
+			// never today's rules.
+			summary.MaterialDigest = entry.materialDigest
 			summary.Stage = deriveJourneyStage("stored-proposal", record)
 		} else {
-			artifact, _ := e.resimulate(ctx, msg.GetIntentId())
-			summary.ProposalRevisionID = artifact.GetProposalRevisionId()
-			summary.MaterialDigest = artifact.GetMaterialProposalDigest().GetDigest()
-			record, recErr = e.readRecord(ctx, tx, principal, summary.MaterialDigest)
-			if recErr != nil {
-				return nil, recErr
+			// Never executed: what Propose durably recorded -- the
+			// materialized revision and the READY simulation bound to it --
+			// decides PROPOSED versus BLOCKED. No re-simulation.
+			summary.ProposalRevisionID = entry.proposalRevisionID
+			summary.MaterialDigest = entry.materialDigest
+			stageKey := entry.proposalRevisionID
+			if stageKey == "" && entry.materialDigest != "" {
+				stageKey = "stored-proposal"
 			}
-			summary.Stage = deriveJourneyStage(summary.ProposalRevisionID, record)
-			if record.instance == nil && requestProtoEndedBeforeExecution(msg.GetLifecycle().GetRequest()) {
+			summary.Stage = deriveJourneyStage(stageKey, record)
+			if requestProtoEndedBeforeExecution(msg.GetLifecycle().GetRequest()) {
 				summary.Stage = workspace.JourneyStageFailed
 			}
 		}
@@ -430,18 +465,6 @@ func applyDurableJourneyTime(summary *workspace.JourneySummary, record journeyRe
 	summary.UpdatedAt = latest
 }
 
-// resimulate re-runs the read-only simulation for one intent and returns the
-// artifact. A refusal is reported as an empty artifact rather than an error:
-// a journey whose simulation no longer produces an executable plan is a
-// BLOCKED row on the list, not a failed page.
-func (e *journeyEngine) resimulate(ctx context.Context, intentID string) (*intentsv1.SimulationArtifact, error) {
-	simulated, err := e.resimulateDetailedWithRelationships(ctx, intentID, nil)
-	if err != nil {
-		return nil, err
-	}
-	return simulated.Artifact, nil
-}
-
 func (e *journeyEngine) resimulateDetailed(ctx context.Context, intentID string) (simulationResult, error) {
 	return e.resimulateDetailedWithRelationships(ctx, intentID, nil)
 }
@@ -492,7 +515,12 @@ func (e *journeyEngine) resimulateDetailedWithRelationships(
 // the declared compensation baseline, the annualization and the budget
 // authority come from the corpus internal/domains/promotion itself certifies
 // -- never from the form.
-func (e *journeyEngine) Propose(ctx context.Context, in workspace.ProposalInput) (workspace.JourneySummary, error) {
+func (e *journeyEngine) Propose(ctx context.Context, in workspace.ProposalInput) (proposed workspace.JourneySummary, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.proposed", proposed.IntentID, retErr,
+			slog.String("target_job_code", in.TargetJobCode), slog.String("target_grade", in.TargetGrade), slog.String("stage", string(proposed.Stage)))
+		e.publishCommitted(ctx, retErr, proposed.IntentID)
+	}()
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return workspace.JourneySummary{}, err
@@ -540,7 +568,11 @@ func (e *journeyEngine) Propose(ctx context.Context, in workspace.ProposalInput)
 	if err != nil {
 		return workspace.JourneySummary{}, err
 	}
-	if err := validatePublishedPromotionPath(current, in, baseline); err != nil {
+	ladder, err := e.ladderEdges(ctx, principal.Tenant())
+	if err != nil {
+		return workspace.JourneySummary{}, err
+	}
+	if err := validatePublishedPromotionPathFrom(ladder, current, in, baseline); err != nil {
 		return workspace.JourneySummary{}, err
 	}
 	// A proposal that names no position is given the catalog vacancy when
@@ -714,7 +746,9 @@ func validateProposalInput(in workspace.ProposalInput) error {
 	if _, err := values.ParseLocalDate(strings.TrimSpace(in.EffectiveDate)); err != nil {
 		return journeyInputError("effective_date", "is not an ISO-8601 date (YYYY-MM-DD)")
 	}
-	return nil
+	// REV-095-02: an approver reads this as a sentence; a machine token is
+	// refused here, before any intent is recorded.
+	return workspace.ValidateBusinessReason("business_reason", in.BusinessReason)
 }
 
 // validatePublishedPromotionPath is the server-side ladder gate. Client
@@ -724,7 +758,17 @@ func validateProposalInput(in workspace.ProposalInput) error {
 // PROMOUX-015: the edges are [publishedPromotionPaths], the same list
 // ListWorkers publishes.
 func validatePublishedPromotionPath(current journeyCurrent, in workspace.ProposalInput, baseline journeyBaselineFacts) error {
-	paths, err := publishedPromotionPaths()
+	return validatePublishedPromotionPathFrom(demoworkforce.PromotionPaths(), current, in, baseline)
+}
+
+// validatePublishedPromotionPathFrom is the same gate against a given company
+// ladder. The served propose paths pass the tenant's own published ladder, so
+// the list a client was offered and the list admission reads stay one source
+// even when that source is the database rather than the binary.
+func validatePublishedPromotionPathFrom(
+	ladder []demoworkforce.PromotionPathEdge, current journeyCurrent, in workspace.ProposalInput, baseline journeyBaselineFacts,
+) error {
+	paths, err := publishedPromotionPathsFrom(ladder)
 	if err != nil {
 		return err
 	}
@@ -753,10 +797,10 @@ func validatePublishedPromotionPath(current journeyCurrent, in workspace.Proposa
 		}
 		break // Worker proposals are checked against their demo ladder bounds below.
 	}
-	// The workforce options publish the demo company's deterministic ladder in
-	// addition to the fixed conformance corpus. Admission must read that same
-	// source, or the UI offers a next role the server always rejects.
-	for _, edge := range demoworkforce.PromotionPaths() {
+	// The workforce options publish the demo company's ladder in addition to
+	// the fixed conformance corpus. Admission must read that same source, or
+	// the UI offers a next role the server always rejects.
+	for _, edge := range ladder {
 		if edge.OrgUnit != current.orgUnit || edge.SourceJobCode != current.jobCode ||
 			edge.SourceGrade != current.grade || edge.TargetJobCode != strings.TrimSpace(in.TargetJobCode) ||
 			edge.TargetGrade != strings.TrimSpace(in.TargetGrade) {

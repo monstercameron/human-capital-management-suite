@@ -101,7 +101,7 @@ func promoux012Propose(t *testing.T, engine workspace.JourneyEngine, ctx context
 	t.Helper()
 	proposed, err := engine.Propose(ctx, workspace.ProposalInput{
 		WorkerRef: worker, TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
-		ProposedBase: "98000.00", EffectiveDate: effective, BusinessReason: "promoux012_fixture",
+		ProposedBase: "98000.00", EffectiveDate: effective, BusinessReason: "promoux012 fixture",
 	})
 	if err != nil {
 		t.Fatalf("Propose(%s, %s): %v", worker, effective, err)

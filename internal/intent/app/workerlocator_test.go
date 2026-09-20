@@ -3,9 +3,13 @@ package app
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/workforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -139,5 +143,103 @@ func TestWorkspaceWorkerStillResolvesTheCorpus(t *testing.T) {
 	}
 	if _, ok := workspaceWorker("lena-01a0694b"); ok {
 		t.Fatal("workspaceWorker claimed a created worker key it cannot resolve")
+	}
+}
+
+// TestLayeredLocatorServesTheCorpusOnlyToATenantWithNoPopulation is
+// PROMOUX-015's resolution rule, the other half of ListWorkers' own: a tenant
+// with people of its own resolves only those people, while a tenant that has
+// created nobody still resolves the release's fixed corpus.
+//
+// The permissive identifier case survives both ways round, because a caller
+// holding a raw worker id must still resolve whatever the tenant's population
+// looks like.
+func TestLayeredLocatorServesTheCorpusOnlyToATenantWithNoPopulation(t *testing.T) {
+	ctx := context.Background()
+	db := pgtest.New(t)
+	tenantID := uuid.New()
+	db.Exec(t, `
+		INSERT INTO tenant (tenant_id, tenant_key, cell_id, display_name, status, effective_from)
+		VALUES ($1, $2, 'cell-local', 'worker locator tenant', 'ACTIVE', timestamptz '2026-01-01T00:00:00Z')`,
+		tenantID, "worker-locator-"+tenantID.String()[:8])
+	locate := newWorkerLocator(db.Conn, func(values.TenantId) uuid.UUID { return tenantID })
+
+	corpusRef, err := fixtures.WorkerRef("omar-reyes")
+	if err != nil {
+		t.Fatalf("fixtures.WorkerRef: %v", err)
+	}
+	unknownID := uuid.NewString()
+
+	// An empty tenant: the corpus is this cell's population.
+	got, ok, err := locate(ctx, fixtures.Tenant, "omar-reyes")
+	if err != nil || !ok || got.Key != "omar-reyes" {
+		t.Fatalf("an empty tenant resolved the corpus key as %+v (ok=%v err=%v)", got, ok, err)
+	}
+	if got, ok, err := locate(ctx, fixtures.Tenant, corpusRef.Id); err != nil || !ok || got.Key != "omar-reyes" {
+		t.Fatalf("an empty tenant resolved the corpus id as %+v (ok=%v err=%v)", got, ok, err)
+	}
+
+	// Give the tenant one worker of its own.
+	created := workerLocatorRow(tenantID)
+	locatorInsert(t, db, tenantID, created)
+
+	if got, ok, err := locate(ctx, fixtures.Tenant, created.WorkerKey); err != nil || !ok || got.Created == nil {
+		t.Fatalf("the tenant's own worker resolved as %+v (ok=%v err=%v)", got, ok, err)
+	}
+	if got, ok, err := locate(ctx, fixtures.Tenant, "omar-reyes"); ok || err != nil {
+		t.Fatalf("a populated tenant resolved the corpus key %+v (ok=%v err=%v); the directory does not offer that person",
+			got, ok, err)
+	}
+	// A corpus entity id is still a well-formed worker identifier, so the
+	// permissive case answers it -- but as a bare reference this cell has not
+	// been told about, never as the corpus worker's own key.
+	got, ok, err = locate(ctx, fixtures.Tenant, corpusRef.Id)
+	if err != nil || !ok {
+		t.Fatalf("a populated tenant refused a well-formed identifier (ok=%v err=%v)", ok, err)
+	}
+	if got.Key == "omar-reyes" {
+		t.Errorf("a populated tenant resolved %s to the corpus worker's key", corpusRef.Id)
+	}
+	if got, ok, err := locate(ctx, fixtures.Tenant, unknownID); err != nil || !ok || got.Key != unknownID {
+		t.Fatalf("a populated tenant resolved an unknown identifier as %+v (ok=%v err=%v)", got, ok, err)
+	}
+	if _, ok, err := locate(ctx, fixtures.Tenant, "not a reference at all"); ok || err != nil {
+		t.Fatalf("a populated tenant resolved a typo (ok=%v err=%v)", ok, err)
+	}
+}
+
+// workerLocatorRow is one durable worker for the tenant under test.
+func workerLocatorRow(tenantID uuid.UUID) workforce.WorkerRow {
+	recorded := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
+	id := uuid.New()
+	return workforce.WorkerRow{
+		TenantID: tenantID, WorkerID: id, WorkerKey: "locator-" + id.String()[:8],
+		LegalName: "Locator Worker", PreferredName: "Locator", WorkerNumber: "W-LOC-1",
+		WorkerType: "employee", LifecycleStatus: "active", EmploymentID: "emp_loc", AssignmentID: "asg_loc",
+		JobCode: "OPS-HRBP2", JobTitle: "People Partner", Grade: "P2", OrgUnit: "people-ops",
+		PositionID: "POS-LOC-1", Location: "Boston, MA", PayZone: "US-EAST", FTE: "1.0000",
+		HireDate: "2021-04-05", EffectiveFrom: "2021-04-05", BasePay: "90000.00", Currency: "USD",
+		PayBasis: "ANNUAL_SALARY", BonusTarget: "0.0500", ManagerRelationshipRef: "rel_mgr_loc",
+		RevisionStream: "people.worker." + id.String(), RevisionSequence: 1,
+		KnownAt: recorded, RecordedAt: recorded, CreatedBy: "test", Source: workforce.SourceCreated,
+	}
+}
+
+func locatorInsert(t *testing.T, db *pgtest.DB, tenantID uuid.UUID, row workforce.WorkerRow) {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := db.Conn.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+		t.Fatalf("scope tenant: %v", err)
+	}
+	if _, err := (workforce.Store{}).Create(ctx, tx, row); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("commit: %v", err)
 	}
 }

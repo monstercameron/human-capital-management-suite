@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -96,22 +97,32 @@ const (
 
 // ListWorkers implements [workspace.JourneyEngine].
 //
-// The two populations are concatenated rather than merged: created workers
-// first, newest first (which is the order the store already returns), then the
-// corpus in its own declared order. That ordering is the one a person expects
-// -- what I just made is at the top -- and it is stable, because neither half
-// is sorted by anything a concurrent write could change.
+// The release's fixed corpus is a fallback, not an addition. A tenant with a
+// durable population of its own is served exactly that population, newest
+// first, which is the order the store already returns and is stable because
+// nothing sorts it by anything a concurrent write could change.
 //
-// A cell with no execution database has no created population at all, and
-// reports the corpus alone rather than failing: the worker list is a read, and
-// a read that refused because a write path is missing would make the corpus
-// unusable on exactly the cells that only ever read.
+// It used to be an addition, and that was a defect: the seeded demo tenant's
+// directory showed sixty-four people -- its sixty real employees plus four
+// corpus workers who exist in no table of that tenant, cannot be promoted end
+// to end, and counted toward every total, search and launcher list. A person
+// the product offers has to be a person the product has.
+//
+// A cell with no execution database, or a tenant that has created nobody,
+// still gets the corpus rather than an empty page or a failure: the worker
+// list is a read, and a read that answered "nobody works here" because a
+// write path is missing would make the corpus unusable on exactly the cells
+// that only ever read.
 func (e *journeyEngine) ListWorkers(ctx context.Context) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return nil, workspace.WorkforceOptions{}, err
 	}
-	options, err := workforceOptions()
+	ladder, err := e.ladderEdges(ctx, principal.Tenant())
+	if err != nil {
+		return nil, workspace.WorkforceOptions{}, err
+	}
+	options, err := workforceOptionsFrom(ladder)
 	if err != nil {
 		return nil, workspace.WorkforceOptions{}, err
 	}
@@ -129,11 +140,14 @@ func (e *journeyEngine) ListWorkers(ctx context.Context) ([]workspace.WorkerSumm
 	if err != nil {
 		return nil, workspace.WorkforceOptions{}, err
 	}
+	if len(created) > 0 {
+		return created, options, nil
+	}
 	corpus, err := corpusWorkers()
 	if err != nil {
 		return nil, workspace.WorkforceOptions{}, err
 	}
-	return append(created, corpus...), options, nil
+	return corpus, options, nil
 }
 
 // listCreated reads the tenant's own durable population, or nothing when this
@@ -148,23 +162,33 @@ func (e *journeyEngine) listCreated(ctx context.Context, principal *trust.Princi
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	rows, err := (workforce.Store{}).List(ctx, tx, e.svc.tenantUUID(principal.Tenant()))
+	tenantID := e.svc.tenantUUID(principal.Tenant())
+	rows, err := (workforce.Store{}).List(ctx, tx, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("app: journey: list created workers: %w", err)
 	}
-	tenantID := e.svc.tenantUUID(principal.Tenant())
 	at := e.now().UTC()
+	// WF-RUN-034: a worker whose promotion has committed is listed with the
+	// placement and pay the aggregates now record, not the one journey_worker
+	// froze when they were created.
+	//
+	// PROMOUX-015: resolved for the whole page at once. One placement per
+	// worker meant five sequential single-row reads each, so a sixty-worker
+	// tenant spent three hundred round trips inside this transaction before
+	// the list could be projected; committedfacts.CurrentPlacements answers
+	// the identical question in six statements for any population size.
+	workerIDs := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		workerIDs = append(workerIDs, row.WorkerID)
+	}
+	committed, err := committedfacts.CurrentPlacements(ctx, tx, tenantID, workerIDs, at)
+	if err != nil {
+		return nil, fmt.Errorf("app: journey: read the committed placement: %w", err)
+	}
 	out := make([]workspace.WorkerSummary, 0, len(rows))
 	for _, row := range rows {
-		// WF-RUN-034: a worker whose promotion has committed is listed with
-		// the placement and pay the aggregates now record, not the one
-		// journey_worker froze when they were created.
-		committed, found, committedErr := committedfacts.CurrentPlacement(ctx, tx, tenantID, row.WorkerID, at)
-		if committedErr != nil {
-			return nil, fmt.Errorf("app: journey: read the committed placement: %w", committedErr)
-		}
-		if found {
-			row = withCommittedPlacement(row, committed)
+		if placement, found := committed[row.WorkerID]; found {
+			row = withCommittedPlacement(row, placement)
 		}
 		out = append(out, createdWorkerSummary(row))
 	}
@@ -206,9 +230,18 @@ func createdWorkerSummary(row workforce.WorkerRow) workspace.WorkerSummary {
 		PositionID:      row.PositionID,
 		Location:        row.Location,
 		PayZone:         row.PayZone,
+		EmploymentType:  row.EmploymentType,
+		TimeType:        row.TimeType,
+		LifecycleStatus: row.LifecycleStatus,
+		WorkerType:      row.WorkerType,
+		Company:         row.Company,
+		BusinessUnit:    row.BusinessUnit,
+		CostCenter:      row.CostCenter,
+		WorkArrangement: row.WorkArrangement,
 		BasePay:         row.BasePay,
 		Currency:        row.Currency,
 		BonusTarget:     row.BonusTarget,
+		PayBasis:        row.PayBasis,
 		HireDate:        row.HireDate,
 		ManagerRef:      row.ManagerRelationshipRef,
 		ProfilePhotoURL: row.ProfilePhotoProxyRef,
@@ -304,6 +337,13 @@ func corpusCompensationBaselines() (map[string]journeyBaselineFacts, error) {
 // offering the ones that demonstrably exist is better than offering a free
 // text field that looks like a choice.
 func workforceOptions() (workspace.WorkforceOptions, error) {
+	return workforceOptionsFrom(demoworkforce.PromotionPaths())
+}
+
+// workforceOptionsFrom derives the same options against a given company
+// ladder, which is how a served surface publishes the tenant's own stored
+// ladder rather than the compiled-in one.
+func workforceOptionsFrom(ladder []demoworkforce.PromotionPathEdge) (workspace.WorkforceOptions, error) {
 	scopes, err := fixtures.BandScopes()
 	if err != nil {
 		return workspace.WorkforceOptions{}, fmt.Errorf("app: journey: read the pay band catalog: %w", err)
@@ -312,7 +352,7 @@ func workforceOptions() (workspace.WorkforceOptions, error) {
 	if err != nil {
 		return workspace.WorkforceOptions{}, fmt.Errorf("app: journey: read the worker corpus: %w", err)
 	}
-	paths, err := publishedPromotionPaths()
+	paths, err := publishedPromotionPathsFrom(ladder)
 	if err != nil {
 		return workspace.WorkforceOptions{}, err
 	}
@@ -354,7 +394,7 @@ func workforceOptions() (workspace.WorkforceOptions, error) {
 	if declared := currencies.sorted(); len(declared) == 1 {
 		options.Currency = declared[0]
 	}
-	appendDemoWorkforcePlacements(&options)
+	appendDemoWorkforcePlacements(&options, ladder)
 	return options, nil
 }
 
@@ -381,8 +421,7 @@ func workforceOptions() (workspace.WorkforceOptions, error) {
 // adding one more fixed, non-secret demo catalog does not introduce a new
 // category of cross-tenant leakage. A tenant-scoped job architecture is a
 // larger, separate change.
-func appendDemoWorkforcePlacements(options *workspace.WorkforceOptions) {
-	edges := demoworkforce.PromotionPaths()
+func appendDemoWorkforcePlacements(options *workspace.WorkforceOptions, edges []demoworkforce.PromotionPathEdge) {
 	if len(edges) == 0 {
 		return
 	}
@@ -485,7 +524,10 @@ func (s stringSet) sorted() []string {
 // The decision is recorded on the cell's own evidence sink either way, under
 // [workforceCapabilityID], so an admitted creation and a refused one both
 // appear in the one chronology Cell.Evidence reads back.
-func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInput) (workspace.WorkerSummary, error) {
+func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInput) (created workspace.WorkerSummary, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.worker_created", "", retErr, slog.String("worker_ref", created.WorkerRef))
+	}()
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return workspace.WorkerSummary{}, err
@@ -505,7 +547,11 @@ func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInp
 			"%w: this cell was composed with no execution database", workspace.ErrJourneyUnavailable)
 	}
 
-	options, err := workforceOptions()
+	ladder, err := e.ladderEdges(ctx, principal.Tenant())
+	if err != nil {
+		return workspace.WorkerSummary{}, err
+	}
+	options, err := workforceOptionsFrom(ladder)
 	if err != nil {
 		return workspace.WorkerSummary{}, err
 	}

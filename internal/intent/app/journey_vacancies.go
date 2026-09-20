@@ -78,6 +78,11 @@ func (e *journeyEngine) positionVacancies(ctx context.Context, principal *trust.
 		return nil, fmt.Errorf("app: journey: position directory: %w", err)
 	}
 
+	reader, err := preloadPositionRevisions(ctx, e.positionReader, tenant, asOf, rows)
+	if err != nil {
+		return nil, err
+	}
+
 	out := make([]workspace.PositionVacancyOption, 0, len(rows))
 	for _, row := range rows {
 		// One call per row, each carrying only that row's own occupancy.
@@ -85,7 +90,7 @@ func (e *journeyEngine) positionVacancies(ctx context.Context, principal *trust.
 		// would make every position look as full as the busiest one --
 		// which would hide real vacancies rather than disclose false ones,
 		// but is wrong either way.
-		candidates, err := positionpicker.ResolveCandidates(ctx, e.positionReader, positionpicker.Request{
+		candidates, err := positionpicker.ResolveCandidates(ctx, reader, positionpicker.Request{
 			Tenant:    tenant,
 			AsOf:      asOf,
 			Directory: []positionpicker.DirectoryEntry{{Position: row.Position, Title: row.Title, Organization: row.Organization, Location: row.Location}},
@@ -109,6 +114,54 @@ func (e *journeyEngine) positionVacancies(ctx context.Context, principal *trust.
 		}
 	}
 	return out, nil
+}
+
+// PositionRevisionPreloader is the additional capability a
+// [position.PositionFacts] may offer: resolving a whole set of positions at
+// one coordinate in one transaction, and answering from that set afterwards.
+// internal/data/positionfacts.Reader implements it.
+//
+// It is declared here rather than widened onto position.PositionFacts because
+// every other holder of that port asks about exactly one position -- a
+// proposal's preflight, a resubmission check -- and only a list surface has a
+// set to resolve.
+type PositionRevisionPreloader interface {
+	RevisionsAt(ctx context.Context, tenant values.TenantId, asOf position.AsOf, positions []values.EntityRef) (position.PositionFacts, error)
+}
+
+// preloadPositionRevisions resolves every directory row's revision up front
+// when the cell's reader can do it, and otherwise hands back the reader
+// unchanged.
+//
+// This is the whole of UXLIVE-011's cost: positionpicker.ResolveCandidates
+// resolves each candidate's revision twice (position.CheckCompatibility and
+// position.CalculateCapacity each ask), and a Reader answers each of those in
+// its own transaction, so the demo tenant's hundred and sixty positions cost
+// three hundred and twenty transactions on every read of the propose form.
+// Preloading makes it one, and changes no verdict: the preloaded reader
+// replays exactly what the per-position reader would have answered, refusals
+// included, and defers anything outside the set to the reader itself.
+//
+// A reader that does not offer the capability -- every test double in this
+// package -- keeps the per-position path, so the seam adds no behaviour of
+// its own.
+func preloadPositionRevisions(
+	ctx context.Context, reader position.PositionFacts, tenant values.TenantId,
+	asOf position.AsOf, rows []positionfacts.DirectoryRow,
+) (position.PositionFacts, error) {
+	preloader, capable := reader.(PositionRevisionPreloader)
+	if !capable || len(rows) == 0 {
+		return reader, nil
+	}
+	refs := make([]values.EntityRef, 0, len(rows))
+	for _, row := range rows {
+		refs = append(refs, row.Position)
+	}
+	preloaded, err := preloader.RevisionsAt(ctx, tenant, asOf, refs)
+	if err != nil {
+		return nil, fmt.Errorf("app: journey: preload position revisions: %w", err)
+	}
+	return preloaded, nil
 }
 
 // vacancyEndISO renders the disclosed vacancy end as a plain date, or empty

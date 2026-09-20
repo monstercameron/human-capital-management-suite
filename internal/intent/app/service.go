@@ -143,6 +143,21 @@ type Options struct {
 	// internal/workflow/runtime.Start requires both durable fact ports. A
 	// composition that can read the facts must set this.
 	ExecutionFacts ExecutionFacts
+	// PromotionPlan names the promotion workflow this cell executes:
+	// PromotionPlanExecute runs the executable graph, anything else (zero
+	// included) is the prototype posture and never routes to the
+	// high-performer variant (HIPERF-004). [NewCell] threads the
+	// composition root's plan flag through; a cell composed without one
+	// never pins the variant.
+	PromotionPlan string
+	// PerformanceRatings resolves a promotion subject's calibrated rating
+	// for high-performer routing. Nil leaves every start on the plan's own
+	// digest: with no rating source no subject can prove the top band.
+	PerformanceRatings CalibratedRatingLookup
+	// HighPerformerVariantDigest is the compiled high-performer variant
+	// digest a top-band subject's start pins (HIPERF-005). Empty pins
+	// nothing: the resolver serves the plan's own digest.
+	HighPerformerVariantDigest string
 	// Evidence is where [IntentService.ExecuteIntent] records its
 	// OBS-024 GATE_REFUSED/GATE_ADMITTED evidence, through the same
 	// capability evidence sink mechanism CAP-002's gateway already writes
@@ -202,7 +217,13 @@ type IntentService struct {
 	executionResolver  runtime.WorkflowResolver
 	executionVersions  workflowversion.Store
 	executionCellID    string
-	tenantUUID         func(values.TenantId) uuid.UUID
+	// executionPlan, performanceRatings and highPerformerVariantDigest are
+	// HIPERF-004/005's rating-driven routing: only a top-band subject under
+	// the execute plan pins the variant digest (see highPerformerPin).
+	executionPlan              string
+	performanceRatings         CalibratedRatingLookup
+	highPerformerVariantDigest string
+	tenantUUID                 func(values.TenantId) uuid.UUID
 	// executionFacts is WF-RUN-027's durable approval/supersession reader.
 	// Nil makes [IntentService.executionStart] produce a request that
 	// runtime.Start refuses because no durable facts source is available.
@@ -267,14 +288,18 @@ func NewIntentService(opts Options) (*IntentService, error) {
 		executionResolver:  opts.ExecutionResolver,
 		executionVersions:  opts.ExecutionVersions,
 		executionCellID:    opts.ExecutionCellID,
-		tenantUUID:         opts.TenantUUID,
-		executionFacts:     opts.ExecutionFacts,
-		evidence:           opts.Evidence,
-		legalEvidence:      opts.LegalEvidence,
-		idempotency:        opts.Idempotency,
-		safePoints:         opts.SafePoints,
-		workflowCancel:     opts.WorkflowCancellation,
-		releaseAdmission:   opts.AdmissionRelease,
+
+		executionPlan:              opts.PromotionPlan,
+		performanceRatings:         opts.PerformanceRatings,
+		highPerformerVariantDigest: opts.HighPerformerVariantDigest,
+		tenantUUID:                 opts.TenantUUID,
+		executionFacts:             opts.ExecutionFacts,
+		evidence:                   opts.Evidence,
+		legalEvidence:              opts.LegalEvidence,
+		idempotency:                opts.Idempotency,
+		safePoints:                 opts.SafePoints,
+		workflowCancel:             opts.WorkflowCancellation,
+		releaseAdmission:           opts.AdmissionRelease,
 	}
 	if svc.ids == nil {
 		svc.ids = intent.UUIDv7Source

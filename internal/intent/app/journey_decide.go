@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -60,7 +61,11 @@ const (
 // one thing the page needs and the RPC does not have: a stage guard, so
 // pressing Execute twice reports a refusal rather than silently replaying the
 // driver's idempotent start.
-func (e *journeyEngine) Execute(ctx context.Context, intentID string) (workspace.JourneyDetail, error) {
+func (e *journeyEngine) Execute(ctx context.Context, intentID string) (detail workspace.JourneyDetail, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.workflow_started", intentID, retErr, slog.String("stage", string(detail.Summary.Stage)))
+		e.publishCommitted(ctx, retErr, intentID)
+	}()
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return workspace.JourneyDetail{}, err
@@ -259,7 +264,12 @@ func (e *journeyEngine) instanceIn(
 // work_item_decision body and the intent_decision row all name the caller.
 // The execution role gates EXECUTE only: holding it never makes a non-member
 // an approver, and lacking it never stops the routed approver.
-func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace.Decision) (workspace.JourneyDetail, error) {
+func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace.Decision) (detail workspace.JourneyDetail, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.decision_recorded", intentID, retErr,
+			slog.Bool("approve", d.Approve), slog.String("stage", string(detail.Summary.Stage)))
+		e.publishCommitted(ctx, retErr, intentID)
+	}()
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return workspace.JourneyDetail{}, err
@@ -344,7 +354,7 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 		}
 	} else if done.needsResume() {
 		result, resumeErr := e.svc.executor.Resume(ctx, ExecutionResumeRequest{
-			Start:                   start,
+			Start:                   pinnedStart(start, done.instance),
 			InstanceID:              done.instance.InstanceID,
 			ExpectedInstanceVersion: done.instance.InstanceVersion,
 			WorkItem:                done.item,
@@ -496,6 +506,8 @@ func (e *journeyEngine) completeApproval(
 		return decidedApproval{}, fmt.Errorf(
 			"%w: this promotion has not been executed yet", workspace.ErrJourneyStage)
 	}
+	// Every continuation below advances the plan this instance pinned.
+	start = pinnedStart(start, instance)
 	tenantID := e.svc.tenantUUID(principal.Tenant())
 	store := workitem.Store{}
 	items, err := store.ListForInstance(ctx, tx, tenantID, instance.InstanceID)

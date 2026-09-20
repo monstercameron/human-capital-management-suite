@@ -331,7 +331,11 @@ func journeyStageForNode(nodeID string) (workspace.JourneyStage, bool) {
 		return journeyStageReapproval, true
 	case promotionexec.NodeExecutePromotion:
 		return journeyStageExecuted, true
-	case promotionexec.NodeObservePayroll, promotionexec.NodeObserveAccess, promotionexec.NodeObserveReconciliation:
+	case promotionexec.NodeAwaitPayrollConfirmation, promotionexec.NodeObservePayroll,
+		promotionexec.NodeAwaitAccessConfirmation, promotionexec.NodeObserveAccess, promotionexec.NodeObserveReconciliation:
+		// The 1.1.0 provider waits sit between the core commit and its
+		// observations: the change is committed and its effects are being
+		// confirmed.
 		return journeyStageObservingEffects, true
 	case promotionexec.NodeAcknowledgeRelease:
 		return workspace.JourneyStageAwaitingAcknowledgement, true
@@ -579,6 +583,10 @@ func (e *journeyEngine) inspectWithRelationships(
 		return workspace.JourneyDetail{}, notesErr
 	}
 	detail.Notes = notes
+	// REV-091-02: the reviewer's reporting-line impact and compensation
+	// guardrail, under this viewer's own authorization.
+	detail.Review = e.journeyPromotionReview(ctx, principal, purposeOf(principal, inv), msg,
+		summary.Worker, inst.CreatedAt, relationships)
 	applyJourneyChronology(&detail, record)
 
 	// PROMOUX-014: a journey parked on the effective-date wait explains

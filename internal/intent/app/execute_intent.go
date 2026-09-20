@@ -60,8 +60,20 @@ const (
 	// cell still cannot run because it was not composed with the
 	// driver-side wiring EXECUTE needs.
 	reasonExecutionUnavailable = "workflow.execution_unavailable"
+	// reasonNoActiveWorkflowVersion reports a start refused because no
+	// published version of the workflow has been approved and activated in
+	// this cell's registry (runtime.VERSION_NOT_ACTIVE). It is deliberately
+	// not reasonExecutionUnavailable: that one says "this cell cannot execute
+	// at all", travels as a retryable UNAVAILABLE and tells the reader to try
+	// again, which this condition never resolves. Nothing the caller does to
+	// the journey changes it; an operator releases a version.
+	reasonNoActiveWorkflowVersion = "workflow.no_active_version"
 
 	ruleExecutionAuthorityGate = "release.p1b_execution_authority_gate"
+	// ruleWorkflowVersionRelease names the governed release the refusal above
+	// is waiting on, so an operator reading the refusal knows which control it
+	// points at rather than which component failed.
+	ruleWorkflowVersionRelease = "release.workflow_version_activation"
 )
 
 // ExecuteIntent runs the caller-driven workflow driver for an intent whose
@@ -152,6 +164,12 @@ func (s *IntentService) ExecuteIntent(ctx context.Context, req *intentsv1.Execut
 	start, ownedErr := s.executionStart(inst, artifact, req.GetApproval().GetApprovalRef(), *simulated.Revision)
 	if ownedErr != nil {
 		return nil, ownedErr
+	}
+	// HIPERF-004/005: a top-band subject under the execute plan pins the
+	// high-performer variant digest; everyone else carries no pin and the
+	// resolver serves the plan's own digest.
+	if pin := s.highPerformerPin(ctx, inst.Tenant, employmentSubject(inst.Subjects)); pin != "" {
+		start.PinnedCompiledPlanDigest = pin
 	}
 	// WF-RUN-034: the instance's later steps act as this verified principal,
 	// re-authorized against current policy at each invocation.
@@ -246,6 +264,15 @@ func (s *IntentService) executionStart(
 		CorrelationID:       inst.CorrelationID,
 		CreatedAt:           s.clock().Time(),
 	}, nil
+}
+
+// pinnedStart binds start to the compiled plan instance pinned, so a
+// resolver serving more than one version of the workflow continues the
+// instance on the exact version it started on (a 1.0.0 promotion keeps
+// resuming on 1.0.0 after 1.1.0 is activated). A new start carries no pin.
+func pinnedStart(start runtime.StartRequest, instance runtime.Instance) runtime.StartRequest {
+	start.PinnedCompiledPlanDigest = instance.CompiledPlanHash
+	return start
 }
 
 // recordGateEvidence records one OBS-024 GATE_REFUSED/GATE_ADMITTED entry
@@ -367,11 +394,22 @@ func executionError(err error) *envelope.Error {
 				"this proposal revision has been superseded and may no longer be executed",
 				ruleExecutionAuthorityGate).
 			WithDiagnostic(err)
-	// No ACTIVE workflow version (or none resolvable) is this cell's
-	// configuration, not the proposal's stage: nothing the caller does to the
-	// journey changes it. Reported as the generic domain refusal, the page
-	// told the reader the action was "not available at this stage".
-	case runtime.CodeVersionNotActive, runtime.CodeVersionResolutionFailed, runtime.CodeWorkflowResolutionFailed:
+	// No ACTIVE workflow version is a release that has not happened, not a
+	// stage and not a transient fault: the published version is a DRAFT until
+	// an operator approves and activates it. It gets its own reason so the
+	// reader is told what is actually wrong instead of being invited to retry
+	// something retrying can never fix.
+	case runtime.CodeVersionNotActive:
+		return envelope.New(envelope.CodeFailedPrecondition, reasonNoActiveWorkflowVersion,
+			"no published workflow version is active for this tenant").
+			WithRetryable(false).
+			WithViolation("workflow_version",
+				"no published version of this workflow has been approved and activated",
+				ruleWorkflowVersionRelease).
+			WithDiagnostic(err)
+	// A version that exists but does not resolve is this cell's configuration
+	// rather than a missing release, and stays on the generic refusal.
+	case runtime.CodeVersionResolutionFailed, runtime.CodeWorkflowResolutionFailed:
 		return executionUnavailable().WithDiagnostic(err)
 	case runtime.CodeMutableProposal, runtime.CodeApprovalBindingMismatch:
 		return envelope.New(envelope.CodeFailedPrecondition, reasonStaleProposal,

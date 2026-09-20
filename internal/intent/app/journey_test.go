@@ -26,7 +26,7 @@ func journeyProposalFixture() workspace.ProposalInput {
 		TargetPositionID: "POS-HRBP-301",
 		ProposedBase:     "98000.00",
 		EffectiveDate:    "2026-06-01",
-		BusinessReason:   "promotion_into_senior_hrbp",
+		BusinessReason:   "Promotion into the senior HRBP role",
 	}
 }
 
@@ -355,7 +355,7 @@ func TestJourneyRequestPayloadCarriesTheGovernedAndCorpusFacts(t *testing.T) {
 		t.Fatalf("decodeStruct: %v", err)
 	}
 	// The manager's own fields.
-	if got := optionalStr(payload, "business_reason"); got != "promotion_into_senior_hrbp" {
+	if got := optionalStr(payload, "business_reason"); got != "Promotion into the senior HRBP role" {
 		t.Errorf("business_reason = %q", got)
 	}
 	target, err := fieldsOf(payload, "target")
@@ -448,7 +448,7 @@ func TestJourneySummaryFromProtoDerivesBothSidesOfTheChange(t *testing.T) {
 	if summary.EffectiveDate != "2026-06-01" {
 		t.Errorf("EffectiveDate = %q", summary.EffectiveDate)
 	}
-	if summary.BusinessReason != "promotion_into_senior_hrbp" {
+	if summary.BusinessReason != "Promotion into the senior HRBP role" {
 		t.Errorf("BusinessReason = %q", summary.BusinessReason)
 	}
 	// The stage and the execution identifiers are never derived from the

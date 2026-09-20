@@ -27,7 +27,7 @@ func promotionProposeFixture() *journeyv1.ProposePromotionRequest {
 		DesiredBasePay:          "98000.00",
 		DesiredPayCurrency:      "USD",
 		EffectiveDate:           "2026-06-01",
-		Reason:                  "promotion_into_senior_hrbp",
+		Reason:                  "Promotion into the senior HRBP role",
 		ExpectedSubjectRevision: PromotionSubjectRevision("omar-reyes"),
 		ClientRequestId:         "req-0191f3c4-1",
 	}
@@ -252,7 +252,7 @@ func TestTodo_PROMO_007_Security(t *testing.T) {
 // is not a checkable statement. A deliberate change to the contract's field
 // set, field order or encoding changes this value, and changing it is the
 // point at which somebody has to say why.
-const promotionProposeGoldenDigest = "sha256:23386b0b8aee1f7cf2c995feacfcc2ec3c19cb1ec8ec00d92b07669b51697b8e"
+const promotionProposeGoldenDigest = "sha256:a91ab493861db4df3398fe926fa4ad85cb2c6f120ff3328d56653cf2c4af8419"
 
 // TestTodo_PROMO_007_Golden pins the canonical request digest and the
 // properties that make it worth pinning.

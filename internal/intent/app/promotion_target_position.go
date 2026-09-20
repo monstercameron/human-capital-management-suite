@@ -5,7 +5,7 @@ package app
 // A promotion commits into a target position (the commit model requires one
 // and an occupancy row for it). A proposal that names no position is given
 // one here, deterministically: the first OPEN catalog position for the target
-// job in the worker's own organization unit with capacity left, disclosed as
+// job in the organization unit that job belongs to, with capacity left, as
 // the same picker-issued revision reference PROMOUX-004 checks, so the
 // Position domain still re-derives existence, compatibility and vacancy at
 // preflight. In-place reclassification is out of scope.
@@ -55,17 +55,30 @@ func (e *journeyEngine) selectTargetPosition(ctx context.Context, principal *tru
 	}
 	tenantID := e.svc.tenantUUID(principal.Tenant())
 	businessAt := time.Date(int(effective.Year()), effective.Month(), int(effective.Day()), 0, 0, 0, 0, time.UTC)
+	// The seat is looked for where the TARGET job belongs, not where the
+	// worker currently sits: a promotion out of engineering into product
+	// takes a product seat. orgUnit is the fallback for a job neither
+	// catalog places, which is the one case where the only recorded seats
+	// are the ones the ladder opened beside the source.
+	corpusHome, err := corpusJobUnits()
+	if err != nil {
+		return "", err
+	}
+	targetUnit := vacancyUnitFor(jobCode, corpusHome)
+	if targetUnit == "" {
+		targetUnit = orgUnit
+	}
 	tx, err := e.beginTenant(ctx, principal)
 	if err != nil {
 		return "", err
 	}
-	vacancy, selectErr := demoworkforce.SelectVacancy(ctx, tx, tenantID, orgUnit, jobCode, grade, businessAt)
+	vacancy, selectErr := demoworkforce.SelectVacancy(ctx, tx, tenantID, targetUnit, jobCode, grade, businessAt)
 	_ = tx.Rollback(ctx)
 	switch {
 	case errors.Is(selectErr, demoworkforce.ErrNoCatalogVacancy):
 		return "", nil
 	case errors.Is(selectErr, demoworkforce.ErrNoVacancy):
-		return "", journeyInputError("target_job_code", "no open position for this job has capacity in the worker's organization unit")
+		return "", journeyInputError("target_job_code", "no open position for this job has capacity in the organization unit it belongs to")
 	case selectErr != nil:
 		return "", fmt.Errorf("app: journey: select the target position: %w", selectErr)
 	}

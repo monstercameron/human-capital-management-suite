@@ -167,5 +167,11 @@ func (c *Cell) consumeParkedResume(ctx context.Context, kind string, prepared pa
 	if err := c.Service.consumeExecutionResult(ctx, prepared.intentInstance, def, prepared.intentRecord, result); err != nil {
 		return ExecutionResult{}, err
 	}
+	// REV-091-03: the resumed run and its intent projection have committed.
+	if engine, ok := c.Journey.(*journeyEngine); ok {
+		if tenant, ok := resumeTenant(ctx); ok {
+			engine.publishTenantCommitted(ctx, values.TenantId(tenant), prepared.intentRecord.IntentID)
+		}
+	}
 	return result, nil
 }

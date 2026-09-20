@@ -97,12 +97,23 @@ func TestTodo_PROMOUX_001_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixtures.Workers: %v", err)
 	}
-	// The RED clause's "64 seeded workers": this release's ListWorkers
-	// concatenates the fixed corpus onto every tenant's own durable
-	// population (see corpusWorkers' own doc comment), so the total visible
-	// census for this tenant is the corpus plus this seed.
-	if got, want := len(rows)+len(corpus), 64; got != want {
-		t.Fatalf("total workforce census (corpus + demo seed) = %d, want %d", got, want)
+	// The RED clause's "64 seeded workers" was the defect, not the contract:
+	// ListWorkers used to concatenate the fixed corpus onto every tenant's
+	// own durable population, so this tenant's census read sixty-four when
+	// sixty people exist. The corpus is a fallback now (see ListWorkers), so
+	// the visible census for a seeded tenant is exactly its own seed, and
+	// none of its worker keys is a corpus one.
+	if got, want := len(rows), demoworkforce.NewWorkerCount; got != want {
+		t.Fatalf("demo seed census = %d, want %d", got, want)
+	}
+	corpusKeys := map[string]bool{}
+	for _, profile := range corpus {
+		corpusKeys[profile.Key] = true
+	}
+	for _, row := range rows {
+		if corpusKeys[row.WorkerKey] {
+			t.Errorf("the demo seed carries the corpus key %q", row.WorkerKey)
+		}
 	}
 
 	options, err := workforceOptions()

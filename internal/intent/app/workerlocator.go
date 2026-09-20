@@ -72,23 +72,10 @@ func locateCorpusWorker(tenant values.TenantId, ref string) (WorkerLocation, boo
 	if ref == "" {
 		return WorkerLocation{}, false, nil
 	}
-	profiles, err := fixtures.Workers()
-	if err != nil {
-		return WorkerLocation{}, false, fmt.Errorf("app: read the worker corpus: %w", err)
+	if location, ok, err := locateCorpusWorkerExact(tenant, ref); err != nil || ok {
+		return location, ok, err
 	}
-	for _, p := range profiles {
-		if p.Key == ref || p.ID == ref {
-			return WorkerLocation{
-				Ref: values.EntityRef{Tenant: tenant, Kind: people.KindWorker, Id: p.ID},
-				Key: p.Key,
-			}, true, nil
-		}
-	}
-	candidate := values.EntityRef{Tenant: tenant, Kind: people.KindWorker, Id: ref}
-	if candidate.Validate() != nil {
-		return WorkerLocation{}, false, nil
-	}
-	return WorkerLocation{Ref: candidate, Key: ref}, true, nil
+	return locateIdentifier(tenant, ref)
 }
 
 // newWorkerLocator layers the tenant's created population behind the corpus.
@@ -113,8 +100,32 @@ func newWorkerLocator(db dbport.Beginner, tenantUUID func(values.TenantId) uuid.
 		// asked first -- but only for an exact key or id match. Its permissive
 		// fallback is deferred to the end, because a created worker's key
 		// would otherwise never get the chance to resolve.
-		if location, ok, err := locateCorpusWorkerExact(tenant, ref); err != nil || ok {
-			return location, ok, err
+		//
+		// PROMOUX-015: and only for a tenant that has no population of its
+		// own. ListWorkers serves the corpus as a fallback rather than as an
+		// addition, and a reference that resolved to somebody the directory
+		// does not offer would put the two halves of this cell back out of
+		// step -- a person nobody can pick but every form accepts. The
+		// population is read only when the reference really is a corpus one,
+		// which on a tenant with its own people it never is, so this costs
+		// nothing on the paths that matter.
+		corpusLocation, isCorpus, err := locateCorpusWorkerExact(tenant, ref)
+		if err != nil {
+			return WorkerLocation{}, false, err
+		}
+		if isCorpus {
+			populated, popErr := created.Populated(ctx, tenant)
+			if popErr != nil {
+				return WorkerLocation{}, false, fmt.Errorf("app: read whether %s has a population of its own: %w", tenant, popErr)
+			}
+			if !populated {
+				return corpusLocation, true, nil
+			}
+			// A populated tenant serves only its own people. The reference
+			// still falls through to the durable lookup and then to the
+			// permissive identifier fallback, so a raw entity id resolves
+			// exactly as it always did -- but this cell no longer names
+			// somebody its own directory does not offer.
 		}
 		row, found, err := created.Lookup(ctx, tenant, ref)
 		if err != nil {
@@ -130,8 +141,36 @@ func newWorkerLocator(db dbport.Beginner, tenantUUID func(values.TenantId) uuid.
 				Created: &row,
 			}, true, nil
 		}
-		return locateCorpusWorker(tenant, ref)
+		// The corpus has already been ruled out for this reference -- either
+		// it is not a corpus one, or this tenant has its own people -- so
+		// only the permissive identifier case is left.
+		return locateIdentifier(tenant, ref)
 	}
+}
+
+// tenantHasPopulation reports whether this cell can see a durable population
+// for the tenant. A cell that cannot read one at all answers false, which is
+// the same answer an empty tenant gives: in both cases the release's fixed
+// corpus is what this cell has to serve.
+func (e *journeyEngine) tenantHasPopulation(ctx context.Context, tenant values.TenantId) (bool, error) {
+	if e == nil || e.db == nil || e.svc == nil || e.svc.tenantUUID == nil {
+		return false, nil
+	}
+	return workforce.NewFacts(e.db, e.svc.tenantUUID).Populated(ctx, tenant)
+}
+
+// locateIdentifier is [locateCorpusWorker]'s trailing permissive case on its
+// own: a reference that is a well-formed worker identifier resolves to it,
+// and anything else resolves to nothing.
+//
+// It is reached when the corpus has already been ruled out for this tenant,
+// so re-running the corpus match would be the one thing that must not happen.
+func locateIdentifier(tenant values.TenantId, ref string) (WorkerLocation, bool, error) {
+	candidate := values.EntityRef{Tenant: tenant, Kind: people.KindWorker, Id: ref}
+	if candidate.Validate() != nil {
+		return WorkerLocation{}, false, nil
+	}
+	return WorkerLocation{Ref: candidate, Key: ref}, true, nil
 }
 
 // locateCorpusWorkerExact is [locateCorpusWorker] without its permissive

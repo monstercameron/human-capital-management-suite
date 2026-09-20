@@ -150,5 +150,5 @@ func (s *IntentService) parkedExecutionStart(
 	if startErr != nil {
 		return runtime.StartRequest{}, intent.Instance{}, IntentRecord{}, startErr
 	}
-	return start, intentInstance, intentRecord, nil
+	return pinnedStart(start, instance), intentInstance, intentRecord, nil
 }

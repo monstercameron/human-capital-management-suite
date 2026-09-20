@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/signals"
@@ -66,7 +67,11 @@ type acknowledgementPayload struct {
 // guard: only an OPEN acknowledgement subscription is receivable, so a
 // journey that never parked, already completed, or already settled its wait
 // is refused before any write.
-func (e *journeyEngine) Acknowledge(ctx context.Context, intentID string, ack workspace.Acknowledgement) (workspace.JourneyDetail, error) {
+func (e *journeyEngine) Acknowledge(ctx context.Context, intentID string, ack workspace.Acknowledgement) (detail workspace.JourneyDetail, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.acknowledged", intentID, retErr, slog.String("stage", string(detail.Summary.Stage)))
+		e.publishCommitted(ctx, retErr, intentID)
+	}()
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return workspace.JourneyDetail{}, err

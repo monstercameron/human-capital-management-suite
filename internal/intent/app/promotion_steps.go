@@ -82,6 +82,11 @@ type PromotionStepServices struct {
 	svc          *IntentService
 	roleAccess   roleaccess.Store
 	requiredRole string
+	// marketRates is the market-rate source the variant's fetch_market_rate
+	// node reads through [PromotionStepServices.FetchMarketRate], bound by
+	// [PromotionStepServices.SetMarketRateSource]. Nil fails the fetch
+	// closed; nothing is fabricated in the meantime.
+	marketRates rewards.MarketRateSource
 	// reads is the gateway over the four read-only graph capabilities the
 	// bootstrap table does not publish (revalidation and the observations).
 	// It shares the cell's evidence sink and clock, so its decisions land in
@@ -120,6 +125,7 @@ func NewPromotionStepServices(cell *Cell) (*PromotionStepServices, error) {
 	return &PromotionStepServices{
 		svc: svc, roleAccess: cell.RoleAccess, requiredRole: svc.executionAuthority.RequiredRole,
 		reads: capability.NewGateway(registry, cell.Evidence, capability.WithClock(now)), now: now,
+		marketRates: cell.MarketRateSource,
 	}, nil
 }
 
