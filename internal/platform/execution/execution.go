@@ -38,6 +38,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/logging"
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
 	transactioncommit "github.com/monstercameron/human-capital-management-suite/internal/transaction/commit"
@@ -182,6 +183,12 @@ type PromotionExecutionConfig struct {
 	// durably approved under before activation. It must differ from the
 	// publisher. Empty means [defaultVersionApprover].
 	VersionApprover string
+	// ProviderReceipts reads the payroll and identity providers'
+	// confirmations the 1.1.0 plan's observations judge after each
+	// provider-confirmation wait. Nil fails every 1.1.0 payroll and access
+	// observation closed (fact provider.reader=unconfigured); a 1.0.0
+	// instance never reads it.
+	ProviderReceipts promotionsteps.ProviderReceiptReader
 }
 
 // poisonWorkOwner is who is accountable for QuarantinedWork the served driver
@@ -324,6 +331,10 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	if err != nil {
 		return nil, fmt.Errorf("platform execution: compile the promotion execute workflow: %w", err)
 	}
+	executePlanV1_0, err := promotionexec.CompileV1_0()
+	if err != nil {
+		return nil, fmt.Errorf("platform execution: compile the frozen promotion execute workflow 1.0.0: %w", err)
+	}
 	versions, err := composeVersions(cfg, clock())
 	if err != nil {
 		return nil, err
@@ -340,7 +351,7 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	// its gateway-invoking services after composing the cell.
 	steps := &promotionStepPorts{
 		db: cfg.DB, cellID: cfg.CellID, authorityDigest: cfg.AuthorityDigest,
-		planDigest: selectedPlan.Digest(), clock: clock,
+		planDigest: selectedPlan.Digest(), clock: clock, receipts: cfg.ProviderReceipts,
 	}
 	if steps.cellID == "" {
 		steps.cellID = "cell-local"
@@ -351,6 +362,9 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		Pin:        version.Pin{CompiledPlanDigest: selectedPlan.Digest()},
 		Plan:       selectedPlan,
 	}}}
+	if selected == PLAN_EXECUTE {
+		resolver = promotionExecuteResolver(executePlan, executePlanV1_0)
+	}
 
 	// OBS-023: no spans/logs at all unless a composition root supplies a
 	// Telemetry provider — exactly the same opt-in shape CellConfig.Telemetry
@@ -364,6 +378,11 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		}
 		instrumentation = NewOTelInstrumentation(cfg.Telemetry, logger, clock)
 		recorder = NewObserveRecorder(cfg.Telemetry, logger, clock)
+	} else if cfg.Logger != nil {
+		// No exporter (the local-dev default) but a log sink: the engine's
+		// per-operation lines still belong in the log, correlated with the
+		// run; only spans need a provider.
+		recorder = NewObserveRecorder(nil, cfg.Logger, clock)
 	}
 
 	// OBS-024: this driver's own three evidence kinds
@@ -459,13 +478,39 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	}, nil
 }
 
+// promotionExecuteResolver serves both shipped versions of the executable
+// promotion side by side: a request continuing an instance pinned to the
+// frozen 1.0.0 plan resolves that plan, and every other request -- every new
+// start, and every continuation of a 1.1.0 instance -- resolves 1.1.0. A
+// continuation pinned to any other digest matches no entry and is refused.
+func promotionExecuteResolver(current, v1_0 *workflow.CompiledWorkflow) effects.PolicyResolver {
+	currentDigest, v1Digest := current.Digest(), v1_0.Digest()
+	return effects.PolicyResolver{Entries: []effects.PolicyEntry{
+		{
+			WorkflowID: v1_0.WorkflowID,
+			Pin:        version.Pin{CompiledPlanDigest: v1Digest},
+			Plan:       v1_0,
+			Match: func(req runtime.StartRequest) bool {
+				return req.PinnedCompiledPlanDigest == v1Digest
+			},
+		},
+		{
+			WorkflowID: current.WorkflowID,
+			Pin:        version.Pin{CompiledPlanDigest: currentDigest},
+			Plan:       current,
+			Match: func(req runtime.StartRequest) bool {
+				return req.PinnedCompiledPlanDigest == "" || req.PinnedCompiledPlanDigest == currentDigest
+			},
+		},
+	}}
+}
+
 // promotionPublishDefinition is the publication form of the landed execute
 // definition. promotionexec.Compile applies these two compiler projections
 // internally; version.Publish recompiles from a definition, so the
 // composition root supplies the same immutable projection and capability
 // manifests at the publication boundary.
-func promotionPublishDefinition() workflow.Definition {
-	def := promotionexec.Definition()
+func promotionPublishDefinition(def workflow.Definition) workflow.Definition {
 	def.DeclaredModes = []workflow.ExecutionMode{workflow.ModeExecute}
 	def.Nodes = append([]workflow.Node(nil), def.Nodes...)
 	types := make(map[string]workflow.StepType, len(def.Nodes))

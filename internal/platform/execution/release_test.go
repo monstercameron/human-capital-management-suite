@@ -55,6 +55,37 @@ func TestTodo_WF_COMP_006_ShippedFixtures(t *testing.T) {
 			}
 		}
 	}
+	// The two shipped execute versions: each passes its own versioned
+	// fixtures, and the @v1 fixtures (frozen 1.0.0) fail on 1.1.0 and the @v2
+	// fixtures fail on 1.0.0.
+	published, err := PublishShippedVersions(version.NewRegistry(), releaseAt)
+	if err != nil || len(published) != 3 {
+		t.Fatalf("PublishShippedVersions = %d versions, %v; want prototype plus execute 1.0.0 and 1.1.0", len(published), err)
+	}
+	v1, v11 := published[1], published[2]
+	if v1.SemanticVersion != promotionexec.SemanticVersionV1_0 || v11.SemanticVersion != promotionexec.SemanticVersion || v11.CompiledPlanDigest != execute.CompiledPlanDigest {
+		t.Fatalf("execute versions = %s/%s, want %s then %s", v1.SemanticVersion, v11.SemanticVersion, promotionexec.SemanticVersionV1_0, promotionexec.SemanticVersion)
+	}
+	frozen, _ := promotionexec.CompileV1_0()
+	if v1.CompiledPlanDigest != frozen.Digest() {
+		t.Fatalf("execute 1.0.0 published as %s, want the frozen %s", v1.CompiledPlanDigest, frozen.Digest())
+	}
+	for _, pair := range []struct {
+		own, other version.CompiledVersion
+		ownOnly    []string
+	}{
+		{v1, v11, []string{FixtureExecuteCompile, FixtureExecuteGraph}},
+		{v11, v1, []string{FixtureExecuteCompileV1_1, FixtureExecuteGraphV1_1}},
+	} {
+		if report := releasefixture.Run(suite, pair.own, "runner:test", releaseAt); !report.Passed() {
+			t.Fatalf("execute %s fixtures = %+v, want every declared fixture to pass", pair.own.SemanticVersion, report.Results)
+		}
+		for _, ref := range pair.ownOnly {
+			if err := suite[ref](pair.other); err == nil {
+				t.Errorf("fixture %s passed on execute %s", ref, pair.other.SemanticVersion)
+			}
+		}
+	}
 	changed := approval
 	changed.CanonicalPlanBytes = []byte("{}\n")
 	if err := suite[FixtureApprovalCompile](changed); err == nil {
@@ -164,10 +195,24 @@ func TestTodo_WF_COMP_006_BootstrapDev(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BootstrapDevVersions: %v", err)
 	}
-	for _, v := range out {
-		if v.Status != version.StatusActive || v.Approvals[0].ApprovedBy != DevReleaseApprover {
-			t.Fatalf("%s bootstrapped to %s by %+v", v.WorkflowID, v.Status, v.Approvals)
+	// The prototype and promotion execute 1.1.0 end ACTIVE; the frozen
+	// promotion execute 1.0.0 was activated first and then superseded, so it
+	// stands QUARANTINED by supersession, still serving its pinned instances.
+	if len(out) != 3 {
+		t.Fatalf("bootstrap returned %d versions, want prototype, execute 1.0.0 and 1.1.0", len(out))
+	}
+	wantStatus := []version.ActivationStatus{version.StatusActive, version.StatusQuarantined, version.StatusActive}
+	wantSemver := []string{"1.0.0", promotionexec.SemanticVersionV1_0, promotionexec.SemanticVersion}
+	for i, v := range out {
+		if v.Status != wantStatus[i] || v.SemanticVersion != wantSemver[i] || v.Approvals[0].ApprovedBy != DevReleaseApprover {
+			t.Fatalf("%s %s bootstrapped to %s by %+v, want %s", v.WorkflowID, v.SemanticVersion, v.Status, v.Approvals, wantStatus[i])
 		}
+	}
+	if !out[1].QuarantinedBySupersession() {
+		t.Fatalf("execute 1.0.0 = %+v, want quarantined by the 1.1.0 supersession", out[1].Approvals)
+	}
+	if active, found, err := store.GetActiveForWorkflow(promotionexec.WorkflowID); err != nil || !found || active.SemanticVersion != promotionexec.SemanticVersion {
+		t.Fatalf("active promotion execute = %s (found %t, %v), want %s", active.SemanticVersion, found, err, promotionexec.SemanticVersion)
 	}
 	counts := func() (n int) {
 		t.Helper()
@@ -176,8 +221,10 @@ func TestTodo_WF_COMP_006_BootstrapDev(t *testing.T) {
 		}
 		return n
 	}
-	if n := counts(); n != 4 {
-		t.Fatalf("bootstrap wrote %d approvals with reports plus transitions, want 2 + 2", n)
+	// Three approvals with reports; four transitions: prototype ACTIVE,
+	// execute 1.0.0 ACTIVE, 1.0.0 QUARANTINED by supersession, 1.1.0 ACTIVE.
+	if n := counts(); n != 7 {
+		t.Fatalf("bootstrap wrote %d approvals with reports plus transitions, want 3 + 4", n)
 	}
 	quarantined := out[0]
 	if _, err := store.Quarantine(ctx, workflowversionstore.QuarantineDeclaration{

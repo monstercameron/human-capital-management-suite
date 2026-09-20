@@ -447,7 +447,7 @@ func (a executeDriverAdapter) recordApprovalGovernance(ctx context.Context, req 
 	}
 	if _, err := a.steps.RecordApprovalGovernance(ctx, ex, governanceInputs{
 		tenantID: tenantID, instanceID: instanceID, proposal: req.Start.Proposal,
-		planDigest: a.steps.planDigest, standing: standing,
+		planDigest: a.steps.pinnedPlanDigest(req.Start), standing: standing,
 	}, nodeID, req.WorkItemID, promotionterminalDecisions{
 		ApprovalIDs: recorded.ApprovalIDs, TaskIDs: recorded.TaskIDs,
 	}, recordedAt); err != nil {

@@ -244,6 +244,8 @@ func (r *Runner) HandlesNode(nodeID string) bool {
 		promotionexec.NodeExecutePromotion,
 		promotionexec.NodeCompensateHold,
 		promotionexec.NodeAcknowledgeRelease,
+		promotionexec.NodeAwaitPayrollConfirmation,
+		promotionexec.NodeAwaitAccessConfirmation,
 		promotionexec.NodeObservePayroll,
 		promotionexec.NodeObserveAccess,
 		promotionexec.NodeObserveReconciliation,
@@ -403,7 +405,7 @@ func (r *Runner) Run(ctx context.Context, req execute.StepRequest) (ret0 frontie
 			if errors.Is(err, errOutputDigestMissing) {
 				return failed(req, FailureBadOutput)
 			}
-			return failed(req, FailurePort)
+			return failedWithCause(req, FailurePort, err)
 		}
 		return capabilityResult(req, artifact, nil)
 
@@ -438,7 +440,9 @@ func (r *Runner) Run(ctx context.Context, req execute.StepRequest) (ret0 frontie
 		route := observationRoute(req.Node)
 		return frontier.NodeOutcome{NodeID: req.Node.ID, Outcome: route, OutputDigest: result.OutputDigest}, result.Refs, nil
 
-	case promotionexec.NodeAcknowledgeRelease:
+	case promotionexec.NodeAcknowledgeRelease,
+		promotionexec.NodeAwaitPayrollConfirmation,
+		promotionexec.NodeAwaitAccessConfirmation:
 		if err := requireType(req, workflow.StepSignal); err != nil {
 			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
 		}
@@ -446,7 +450,10 @@ func (r *Runner) Run(ctx context.Context, req execute.StepRequest) (ret0 frontie
 		// execute driver's continuation sink opens the durable subscription
 		// through the composed SignalSubscriptions adapter and resumes this
 		// node from its matched receipt; an unconfigured cell fails the
-		// advancement closed instead of completing.
+		// advancement closed instead of completing. The 1.1.0 provider
+		// waits park the same way: their resumed SUCCEEDED is not the
+		// provider's verdict, the observation after each wait judges the
+		// provider's receipt (ProviderReceiptReader).
 		return frontier.NodeOutcome{NodeID: req.Node.ID, Await: frontier.AwaitSignal, AwaitRef: req.Node.ID}, runtime.GovernanceRefs{}, nil
 
 	case promotionexec.NodeCompensateHold:
@@ -526,6 +533,22 @@ func capabilityResult(req execute.StepRequest, artifact Artifact, err error) (fr
 
 func failed(req execute.StepRequest, class string) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
 	return frontier.NodeOutcome{NodeID: req.Node.ID, Failed: true, ErrorClass: class}, runtime.GovernanceRefs{}, nil
+}
+
+// failedWithCause keeps the stable failure class while retaining the
+// operation's concrete cause on the durable node execution.  A class alone
+// turns every commit problem into an unqueryable PORT_FAILURE, which leaves a
+// repair operator unable to distinguish authorization, resolution, baseline,
+// or participant failures.
+func failedWithCause(req execute.StepRequest, class string, cause error) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
+	message := strings.TrimSpace(cause.Error())
+	if len(message) > 512 {
+		message = message[:512]
+	}
+	if message == "" {
+		return failed(req, class)
+	}
+	return frontier.NodeOutcome{NodeID: req.Node.ID, Failed: true, ErrorClass: class + ": " + message}, runtime.GovernanceRefs{}, nil
 }
 
 func approvalAwait(req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {

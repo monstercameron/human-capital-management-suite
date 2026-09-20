@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -356,4 +357,18 @@ func (r *Registry) Active(environment string) (Record, bool) {
 		return Record{}, false
 	}
 	return cloneRecord(rec), true
+}
+
+// List returns every stored record in id order. It backs operator inspection:
+// the registry is the only inventory of promotion state, so listing it is
+// how an operator discovers what may be simulated, approved or rolled back.
+func (r *Registry) List() []Record {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]Record, 0, len(r.records))
+	for _, rec := range r.records {
+		out = append(out, cloneRecord(rec))
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Package.ID < out[j].Package.ID })
+	return out
 }

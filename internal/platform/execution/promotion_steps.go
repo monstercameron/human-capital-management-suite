@@ -97,6 +97,9 @@ type promotionStepPorts struct {
 	planDigest string
 	// clock stamps the governance records and revalidation results.
 	clock func() time.Time
+	// receipts reads the providers' confirmations a plan with provider
+	// waits (1.1.0) observes; nil fails those observations closed.
+	receipts promotionsteps.ProviderReceiptReader
 
 	mu       sync.RWMutex
 	services PromotionStepServices
@@ -119,6 +122,26 @@ func (p *PromotionExecution) BindStepServices(services PromotionStepServices) er
 	}
 	p.steps.services = services
 	return nil
+}
+
+// planDigestOf is the compiled plan a step runs against: the request's own
+// pinned plan when it carries one (a 1.0.0 instance keeps its 1.0.0 digest
+// after 1.1.0 is activated), otherwise the plan new starts receive.
+func (p *promotionStepPorts) planDigestOf(plan *workflow.CompiledWorkflow) string {
+	if plan != nil {
+		return plan.Digest()
+	}
+	return p.planDigest
+}
+
+// pinnedPlanDigest is the plan a continuation of an existing instance is
+// bound to: the digest its start request pinned, otherwise the plan new
+// starts receive.
+func (p *promotionStepPorts) pinnedPlanDigest(start runtime.StartRequest) string {
+	if start.PinnedCompiledPlanDigest != "" {
+		return start.PinnedCompiledPlanDigest
+	}
+	return p.planDigest
 }
 
 func (p *promotionStepPorts) bound() PromotionStepServices {
@@ -332,12 +355,12 @@ func (p *promotionStepPorts) evaluateRevalidation(ctx context.Context, req execu
 		out.sourced = append(out.sourced, "governance.record="+record.Historical.Decision.Digest, "governance.state="+string(record.Historical.Decision.State))
 		facts, err := p.governanceFacts(ctx, tx, governanceInputs{
 			tenantID: req.TenantID, instanceID: req.InstanceID, proposal: req.Proposal,
-			planDigest: p.planDigest, standing: standing,
+			planDigest: p.planDigestOf(req.Plan), standing: standing,
 		})
 		if err != nil {
 			return err
 		}
-		result, err := revalidate.Revalidate(p.instant, record.Historical, facts, p.planDigest)
+		result, err := revalidate.Revalidate(p.instant, record.Historical, facts, p.planDigestOf(req.Plan))
 		if err != nil {
 			out.sourced = append(out.sourced, "revalidation.refused="+err.Error())
 			return nil
@@ -587,8 +610,13 @@ func outboxHolds(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, effectID
 // sync leg is enqueued. internal/data/payrollstore records pay runs, not a
 // worker's pay revision, so it cannot reflect a single promotion and is not
 // read.
+//
+// On a plan with provider waits (1.1.0) the payroll provider's receipt for
+// payroll:<proposal revision> must also say APPLIED with the committed
+// amount, currency and effective date; a 1.0.0 instance keeps the local-only
+// check.
 func (p *promotionStepPorts) observePayroll(ctx context.Context, req execute.StepRequest) (observation, error) {
-	return p.observed(ctx, req, payrollObservation)
+	return p.observed(ctx, req, p.providerChecked(req, payrollObservation, promotionsteps.PayrollChangeRef, payrollReceiptMatches))
 }
 
 func payrollObservation(ctx context.Context, tx dbport.Tx, cmd domaincommit.Command) (observation, error) {
@@ -618,8 +646,86 @@ func payrollObservation(ctx context.Context, tx dbport.Tx, cmd domaincommit.Comm
 // observeAccess reports OBSERVED only when the assignment projection access
 // provisioning reads shows the target job and grade at the effective date
 // and the IAM sync leg is enqueued.
+//
+// On a plan with provider waits (1.1.0) the identity provider's receipt for
+// iam:<proposal revision> must also say GRANTED with the committed job code
+// and grade.
 func (p *promotionStepPorts) observeAccess(ctx context.Context, req execute.StepRequest) (observation, error) {
-	return p.observed(ctx, req, accessObservation)
+	return p.observed(ctx, req, p.providerChecked(req, accessObservation, promotionsteps.AccessChangeRef, accessReceiptMatches))
+}
+
+// localCheck is one local-store observation of the committed command.
+type localCheck func(context.Context, dbport.Tx, domaincommit.Command) (observation, error)
+
+// providerChecked wraps a local observation with the provider's receipt when
+// the request's pinned plan waits on the provider. The local facts are kept;
+// the receipt's outcome is added as provider.outcome=<x>, and the observation
+// holds only when both the local state and the receipt do. A missing reader,
+// a missing receipt, a REJECTED receipt or one that disagrees with the
+// committed command observes FAIL: a provider wait never passes silently.
+func (p *promotionStepPorts) providerChecked(req execute.StepRequest, local localCheck, changeRef func(string) string, matches func(promotionsteps.ProviderReceipt, domaincommit.Command) bool) localCheck {
+	if !promotionexec.HasProviderWaits(req.Plan) {
+		return local
+	}
+	return func(ctx context.Context, tx dbport.Tx, cmd domaincommit.Command) (observation, error) {
+		out, err := local(ctx, tx, cmd)
+		if err != nil {
+			return out, err
+		}
+		return providerObservation(ctx, tx, p.receipts, cmd, out, changeRef(cmd.ProposalRevisionID), matches)
+	}
+}
+
+// providerObservation folds the provider's latest receipt for changeRef into
+// the local observation.
+func providerObservation(ctx context.Context, tx dbport.Tx, reader promotionsteps.ProviderReceiptReader, cmd domaincommit.Command, local observation, changeRef string, matches func(promotionsteps.ProviderReceipt, domaincommit.Command) bool) (observation, error) {
+	out := observation{status: promotionsteps.ObservationFailed, facts: append([]string(nil), local.facts...)}
+	if reader == nil {
+		out.facts = append(out.facts, "provider.reader=unconfigured")
+		return out, nil
+	}
+	tenantID, err := uuid.Parse(cmd.TenantID)
+	if err != nil {
+		out.facts = append(out.facts, "provider.outcome=UNREADABLE")
+		return out, nil
+	}
+	receipt, found, err := reader.LatestForChange(ctx, tx, tenantID, changeRef)
+	if err != nil {
+		return observation{}, fmt.Errorf("platform execution: read the provider receipt for %s: %w", changeRef, err)
+	}
+	if !found {
+		out.facts = append(out.facts, "provider.outcome=MISSING")
+		return out, nil
+	}
+	agrees := matches(receipt, cmd)
+	out.facts = append(out.facts, "provider.outcome="+receipt.Outcome, fmt.Sprintf("provider.receipt.matches=%t", agrees))
+	if agrees && local.status == promotionsteps.ObservationObserved {
+		out.status = promotionsteps.ObservationObserved
+	}
+	return out, nil
+}
+
+// payrollReceiptMatches reports whether the payroll provider applied exactly
+// the committed pay: APPLIED with the same amount (compared as a decimal),
+// currency and effective date.
+func payrollReceiptMatches(receipt promotionsteps.ProviderReceipt, cmd domaincommit.Command) bool {
+	if receipt.Outcome != promotionsteps.ProviderOutcomeApplied {
+		return false
+	}
+	amount, err := values.NewDecimal(receipt.Details[promotionsteps.ProviderDetailAmount], 4, values.RoundingExactRequired)
+	if err != nil || amount.Cmp(cmd.BasePay.Amount()) != 0 {
+		return false
+	}
+	return receipt.Details[promotionsteps.ProviderDetailCurrency] == cmd.BasePay.Currency() &&
+		receipt.Details[promotionsteps.ProviderDetailEffectiveDate] == cmd.EffectiveAt.UTC().Format(time.DateOnly)
+}
+
+// accessReceiptMatches reports whether the identity provider granted exactly
+// the committed placement: GRANTED with the same job code and grade.
+func accessReceiptMatches(receipt promotionsteps.ProviderReceipt, cmd domaincommit.Command) bool {
+	return receipt.Outcome == promotionsteps.ProviderOutcomeGranted &&
+		receipt.Details[promotionsteps.ProviderDetailJobCode] == cmd.TargetJobCode &&
+		receipt.Details[promotionsteps.ProviderDetailGrade] == cmd.TargetGrade
 }
 
 func accessObservation(ctx context.Context, tx dbport.Tx, cmd domaincommit.Command) (observation, error) {
