@@ -37,7 +37,7 @@
 
 version: 1
 module: github.com/monstercameron/human-capital-management-suite
-source: migrations/00001_platform_control.sql .. migrations/00281_medical_leave_return_to_work.sql
+source: migrations/00001_platform_control.sql .. migrations/00317_promotion_path_edge.sql
 
 disposition: >-
   Every row is either PERMANENT (an append-only historical or evidentiary
@@ -1655,6 +1655,52 @@ tables:
     rebuild_source: null
     notes: >-
       DB-014: a versioned field-mapping profile pinned to a connector definition version and a transformation digest.
+  - table: integration_provider_receipt
+    migration: 00313_integration_provider_receipt.sql
+    owner_package: internal/data/providerreceipts
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: "Signed provider RESULT callbacks (payroll APPLIED/REJECTED/REVERSED, IAM GRANTED/REJECTED/REVOKED), platform-recorded provider delivery rejections and provider status-poll reads (origin webhook | delivery_rejection | status_poll): one append-only row per (tenant, provider, event id) carrying the change_ref and correlation_key it answers, the outcome, the decoded payload, the sha256 digest of the exact signed bytes and, for webhooks, the index of the rotating signing secret that verified it, so a redelivery with the same digest converges and one with a different digest is refused as a conflict. An undo (REVERSED/REVOKED) is its own row and never replaces the settle row it undoes. Append-only via forbid_mutation, SELECT/INSERT only."
+  - table: workflow_designer_draft
+    migration: 00314_workflow_designer_draft.sql
+    owner_package: internal/data/workflowdraftstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-UI-003: mutable, tenant-isolated workflow-designer autosaves carrying
+      the author, base compiled-version digest, optimistic revision, exact
+      draft document and explicit expiry. Abandoned rows are purged after
+      expiry. This table is operational recovery state and is deliberately
+      separate from immutable workflow_compiled_version publication history.
+  - table: workflow_designer_draft_history
+    migration: 00318_workflow_designer_history.sql
+    owner_package: internal/data/workflowdraftstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-UI-010: tenant-isolated workflow-designer snapshots behind the
+      monotonic draft revision. An ordinary edit appends a snapshot and an
+      edit after undo deletes the abandoned redo branch; draft expiry cascades
+      deletion of the operational history. Raw documents remain
+      server-side and only semantic change rows reach the product UI.
   - table: integration_receipt
     migration: 00031_integration_messaging_document_metadata.sql
     owner_package: internal/data/integrationmeta
@@ -5653,3 +5699,20 @@ tables:
       before the workflow resumes. GOVERN-003 revalidation recomposes the
       stored inputs at the effective date and refuses a record that does not
       reproduce its own digest. SELECT/INSERT only; forbid_mutation trigger.
+
+  - table: promotion_path_edge
+    migration: 00317_promotion_path_edge.sql
+    owner_package: internal/data/promotionladder
+    plane: DATA
+    data_role: AGGREGATE
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      The tenant's published career ladder: one immutable, effective-dated
+      edge per (source profile, target profile), carrying the display
+      projections the catalog publishes and the base-increase guardrails the
+      ladder gate enforces. Append-only; a revision supersedes, never edits.

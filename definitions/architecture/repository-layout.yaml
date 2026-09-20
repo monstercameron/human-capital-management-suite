@@ -130,10 +130,10 @@ internal_package_roots:
     phase: P1A
     description: Repositories, projections, outbox and other serving/distribution stores (port/adapter).
   - name: humanwork
-    owner: connectivity
-    layer: connectivity
-    phase: deferred
-    description: Human messaging (email/SMS/inbox/push/Slack/Teams); deferred beyond P1A scope.
+    owner: experience-and-transport
+    layer: transport
+    phase: P1A
+    description: Production Go/WASM user interface (workspace shell, productui pages and components, uicomponents); the served surface in the README "Review the production frontend" section.
   - name: connectivity
     owner: connectivity
     layer: connectivity

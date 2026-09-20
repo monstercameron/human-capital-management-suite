@@ -3,9 +3,12 @@
 This directory is the SchemaFlux source for governed semantic intent metadata.
 Protobuf remains authoritative for wire request/result types. These YAML files
 are intended to relate those types to capabilities, governance, evidence,
-reliability, and execution semantics. The deterministic HCM SchemaFlux adapter,
-descriptor resolver and Go/documentation emitter do not yet exist in this
-repository; these files are not currently compiled contracts.
+reliability, and execution semantics. The deterministic HCM SchemaFlux tooling
+lives in `tools/gen/schemaflux`: `LoadDefinitions` loads these files, the
+generator emits the Go registry (`RegistrySource`), catalog Markdown
+(`CatalogMarkdown`) and fixtures JSON (`FixturesJSON`), and
+`CrossCheckCompiled` checks the compiled output against
+`internal/intent/definitions`.
 
 Rules:
 

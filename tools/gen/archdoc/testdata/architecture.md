@@ -24,7 +24,7 @@ Generated from the checked-in architecture manifests and the current Go package 
 | transaction | `internal/transaction` | transaction-and-conflict | P1B | Transaction plan/participants/prepare/commit/receipt and conflict analysis (port/adapter). |
 | data | `internal/ledger` | data-and-ledger | P1A | Append-only ledger event truth (port/adapter). |
 | data | `internal/data` | data-and-ledger | P1A | Repositories, projections, outbox and other serving/distribution stores (port/adapter). |
-| connectivity | `internal/humanwork` | connectivity | deferred | Human messaging (email/SMS/inbox/push/Slack/Teams); deferred beyond P1A scope. |
+| transport | `internal/humanwork` | experience-and-transport | P1A | Production Go/WASM user interface (workspace shell, productui pages and components, uicomponents); the served surface in the README "Review the production frontend" section. |
 | connectivity | `internal/connectivity` | connectivity | P1A | System integration connectors, APIs, webhooks, files, government gateways. |
 | trust | `internal/trust` | governance-and-trust | P1A | Identity/session/federation/workload-identity primitives. |
 | operations | `internal/operations` | operations-and-assurance | P1A | Telemetry, SLOs, reconciliation, incidents, integrity, DR overlays. |
@@ -1040,4 +1040,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`24e178cb08a585b8827dfc3b4e0c65108ca2daa1c7e91ba421011ef42eeb5dac`
+`b7ecfa58708393cb69b2556847b858a9f489e2cdabf4d76c6ac6d0aa3585d660`

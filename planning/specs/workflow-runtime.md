@@ -79,6 +79,12 @@ seventeen-name vocabulary. Read them through the table above; this
 specification is the normative boundary and the retired names are not added
 back without a scope exchange.
 
+Growth beyond Phase 1 does not add node types either. Campaigns, per-event
+children, deadlines computed from run data, forms, messages, documents and
+vendor round-trips are expressed as attributes of the existing primitives,
+registry entries, or fragments; see
+[Extensibility: Closed Kernel, Open Registries](#extensibility-closed-kernel-open-registries).
+
 ### Build or adopt
 
 The Phase 1 runtime is a PostgreSQL-backed Go scheduler implementing only the
@@ -1157,6 +1163,115 @@ The runtime contract defines:
 
 Phase 1 may implement this with PostgreSQL-backed durable timers and queues plus Go workers. A Kafka-class bus or dedicated orchestration product is not required until measured throughput, isolation, or operational evidence justifies it.
 
+## Extensibility: Closed Kernel, Open Registries
+
+Status: Gate C contract (todos `WF-EXT-001`–`WF-EXT-026`, recorded in the
+[execution plan](../execution-plan.md#recorded-placement-workflow-engine-extensibility-2026-09-19)).
+It is written so that many workflows, and later customer variants, are built
+from blocks without new engine code, while the kernel stays small enough to
+prove.
+
+### Where the kernel stands
+
+The graph model, compiler, digest, version registry, leases, timers and the
+pure step semantics are workflow-agnostic. Everything that turns a compiled
+plan into running work is still Promotion code: step dispatch is a switch on
+Promotion node ids, the durable path never resolves `CompiledMapping` values
+(only `SIMULATE` does), DECISION predicates are named Go functions, capability
+manifests for the executable plan are synthesized in code, the terminal writer
+and revalidation types are Promotion types, and the served plan is chosen by a
+two-value flag. Adding a second executable workflow today means copying about
+six layers. `WF-EXT-001`–`WF-EXT-008` remove those couplings before anything
+else is built on top.
+
+### Principle
+
+```text
+CLOSED KERNEL                         OPEN REGISTRIES
+13 primitives, compiler proofs,       capabilities, fragments/templates,
+durable runtime, plan IR schema       reducers, expression functions,
+                                      trigger sources, forms,
+changes only by scope exchange        connector bindings
+
+                                      versioned, digest-pinned, resolved at
+                                      compile time, each entry ships its own
+                                      conformance fixtures as data
+```
+
+A kernel change needs a scope exchange and a plan-schema version. A registry
+entry needs only its own manifest, review and fixtures. Nothing in a registry
+can weaken a compiler proof: effect classes, idempotency, safe points,
+governance and mandatory phases are checked on the expanded plan, never on the
+template or fragment that produced it.
+
+### Six mechanisms
+
+No new node type is introduced. Every gap found in the 2026-09-19 review of
+twenty HR workflows maps onto one of these:
+
+| Mechanism            | Extends                              | Covers                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Spawn sources        | `SUBWORKFLOW`                        | `STATIC` (one pinned child), `COLLECTION` (bounded for-each over a typed list), `EVENT` (one child per accepted correlated event, capped), `POPULATION` (frozen population snapshot, partitioned, resumable, idempotent per item). Covers onboarding tasks, per-application recruiting runs, intermittent-leave episodes, campaigns such as merit and open enrollment |
+| Reducing joins       | `JOIN`                               | Registered pure reducers (count, sum, distribution, set) fold child outputs; the parent may read a partial aggregate while children run. Rollup approval is an `APPROVAL` whose subject is an aggregate; hierarchical rollup is nested spawn per organization level                                                                                                   |
+| Time expressions     | `WAIT`, `TASK`, `APPROVAL`, `SIGNAL` | One `TimeExpr` (anchor from run data, offset, calendar reference, optional statute reference from a rule pack) wherever a time or deadline appears; a deadline outcome route plus a declared default payload expresses non-response                                                                                                                                   |
+| Typed specs          | `TASK`, `SIGNAL`, `APPROVAL`         | `TASK`: `form_ref`, subject set (multi-subject worksheets, calibration sessions), assurance level (step-up). `SIGNAL`: correlation keys taken from node outputs, multi-accept mode feeding `EVENT` spawn. `APPROVAL`: requirement reference and aggregate subject; attestation re-entry already exists as invalidators plus a declared cycle                          |
+| Run access policy    | instance                             | Classification plus a participant wall applied to context, inspector, timeline and audit, for cases and medical data                                                                                                                                                                                                                                                  |
+| Extension registries | compiler                             | The open registries above, with one manifest contract                                                                                                                                                                                                                                                                                                                 |
+
+Declared cycles with a guard already express bounded repeat-until. Tasks added
+at runtime belong to the case kernel; the engine offers only a bounded task
+pool that admits additions from an allow-listed catalog, up to a declared
+maximum.
+
+### Fragments, not primitives
+
+These recur across most workflows and are published fragments over
+capabilities:
+
+```text
+notify            messaging.send (+ optional release gate DECISION/WAIT)
+document          documents.render -> documents.request_signature -> SIGNAL
+vendor round-trip dispatch CAPABILITY -> correlated SIGNAL (timeout)
+                  -> bounded OBSERVE poll fallback -> quarantine on SLA breach
+obligation tail   END emits typed obligations to a tracker; triggers start
+                  follow-up runs (continuation coverage, equipment recovery)
+set cutover       POPULATION spawn -> JOIN(all prepared) -> commit phase;
+                  set-level COMPENSATE across children on abort
+```
+
+Templates are archetype spines with typed parameters and slots; variants are
+overlays using the `workflowexpansion` delta semantics (`Add`,
+`Omit(reason)`, `Replace(reason)`), which refuse dropping governance,
+revalidation, reconciliation or closure. Expansion happens at compile time
+into a flat `WorkflowDefinition`; the runtime never interprets a template. The
+compiled plan records provenance: template digest, parameters and overlay
+digest.
+
+### Compatibility commitments
+
+- Every compiled plan carries its IR schema version; the runtime executes all
+  supported versions, and a new attribute is a version bump, never a silent
+  semantic change for pinned runs. Moving a run between versions stays with
+  the existing safe-point migration.
+- The Protobuf `WorkflowDefinition` becomes a lossless mirror of the Go
+  definition and the stored authoring form (protojson), so editors, agents and
+  tenants author the same artifact. Layout and presentation metadata are
+  outside the digest.
+- Release fixtures are data. A new workflow, fragment or registry entry
+  declares its fixtures without editing a Go fixture map.
+- Plans are resolved from the version registry by tenant, intent type and a
+  declared match predicate, not by process flags.
+
+### Domain capabilities behind the blocks
+
+The engine calls capabilities; it does not own their meaning. The review found
+about thirty capabilities with no Go implementation yet (`WF-CAP-001`–`WF-CAP-019`).
+Each is a semantic contract whose implementation resolves per tenant as
+`NATIVE`, `DELEGATED` (an incumbent or vendor computes; the platform dispatches
+and observes) or rule-pack parameterized, as defined in the
+[capability registry contract](capability-registry-and-lifecycle.md#authority-classes-and-connector-bindings).
+Statutory timing is always rule-pack data, never code.
+
 ## Go-Only Implementation Shape
 
 ```text
@@ -1202,6 +1317,8 @@ GoWebComponents consumes task, inspector, simulation, and intervention capabilit
 | Pure-node `REPLAY`, `SHADOW`, live migration             | **OUT**                    | **DESIGN / CONFORMANCE ONLY**         |
 | Customer-authored compensation and arbitrary loops       | **OUT**                    | **OUT**                               |
 | Adopted durable-execution library                        | n/a                        | Decided by the build-or-adopt gate    |
+| Workflow registration and capability-keyed dispatch      | **OUT**                    | **IMPLEMENT** (`WF-EXT-001`–`002`)    |
+| Extensibility mechanisms, registries, fragments          | **OUT**                    | **OUT** (Gate C, `WF-EXT-003`–`026`)  |
 
 ## Phase 1 Acceptance Contract
 

@@ -140,3 +140,203 @@ which replicates the CI gate exactly.
   same log file), applied all 311 migrations and seeded
   `harborcare-demo`. The old development rows are gone; this is a clean
   seed.
+
+## Follow-up, 2026-09-19 (journey notes, provider integrations, logging)
+
+Committed on the local branch `operations/promo-exec-provider-integrations`
+in area groups. Nothing was pushed. No todo was ticked in this round; the
+work below has no registry rows of its own yet.
+
+What landed:
+
+- Journey notes: the engine side of free-standing, append-only notes on a
+  promotion journey (`internal/intent/app/journey_notes.go`; the table and
+  transport spine landed in the earlier checkpoint), idempotent by key, with
+  note focus handling in the WASM client. Verified live in the served UI.
+- Two third-party provider simulators run as plain processes
+  (`tools/integrationsim/cmd/payrollsim`, API-key auth; `.../iamsim`, OAuth2
+  client-credentials token then bearer API), with signed result callbacks,
+  reversal, key rotation and scenario control. They started under `cmd/`; the
+  decomposition gate counts every `cmd/` directory as a production process
+  needing a reviewed decision, so they moved under `tools/`, which is what
+  they are, and the two layout waivers were dropped.
+- Provider delivery pieces: stdlib OAuth2 client-credentials client
+  (`oauthcc`), full-jitter exponential backoff with Retry-After as a floor
+  and a circuit breaker (`retrypolicy`), payroll/access delivery
+  (`providerdelivery`), receipt verification (`providerreceipt`) and
+  provider-call telemetry with header propagation (`providertelemetry`).
+  The receipt store (`internal/data/providerreceipts`,
+  `migrations/00313_integration_provider_receipt.sql`) and the outbox
+  consumer's `FailAfter`/`Defer`/`Abandon` retry outcomes land with them.
+- Promotion workflow 1.1.0 adds the payroll and access confirmation waits
+  after the commit; 1.0 stays servable for pinned in-flight runs.
+- Logging: one business event per journey operation (`journey.proposed`,
+  `journey.workflow_started`, `journey.decision_recorded`, and so on), whose
+  top-level `correlation_id` is the intent's; request ids now reach every log
+  line even when no OTel exporter is configured.
+
+Defects found by the live UI log run and fixed:
+
+- The request-path execution engine built its log recorder only when an OTel
+  provider was configured, so on local dev no engine line was written for
+  starting a workflow or completing an approval. It now builds the recorder
+  whenever a logger exists; spans still need the provider.
+- Engine lines written during an approval carried the approval request's id
+  as the top-level `correlation_id` and the run's id only in `attrs`. The
+  run's id now wins; `request_id` still names the request. Unit-tested and
+  seen live on a fresh run (start and finance approval lines join the
+  proposal's correlation id).
+- `TestTodo_WF_RUN_016_Integration` still expected the 1.0 graph (payroll
+  failure ending straight in `REPAIR_REQUIRED`); it now confirms the payroll
+  wait first, like its sibling test.
+
+Verified: targeted suites for every touched package, including
+`internal/application` (428s), `internal/platform/execution`,
+`internal/intent/app`, `internal/platform/sandbox` and `test/workflow`;
+the full hook on each commit. A live run for Caleb went from proposal
+through both approvals, the effective-date timer and the commit to the
+payroll confirmation wait with every step logged under one correlation id.
+
+Left partial:
+
+- The worker role that delivers the outbox rows to the simulators, and the
+  receipt intake endpoints that record confirmations and resume the waits,
+  are not wired. A live 1.1.0 run therefore parks on the payroll wait until
+  its timeout.
+- `tools/quality` has three failures outside this change (the Windows
+  unlinkat exit in `TOOL_013`, the `oidckit` rootless-directory check, and
+  `LIB_020`'s x/text ownership list naming productui and i18n packages).
+
+## Follow-up, 2026-09-19 (UI/UX backlog)
+
+Scope: every open UI/UX item, meaning `UXLIVE-027`..`UXLIVE-033` and the review-gap items against the UX sections (`REV-090-01/02`, `REV-091-01..03`, `REV-092-01`, `REV-093-01`, `REV-095-01..05`). Seven parallel lanes implemented them. Each change was then checked on a served build of the current tree with headless Chromium at 1280 and 390 px, in light and dark and in en-US, de-DE and ar, with interaction scripts for typing, scroll restoration, dialog validation and focus return (`.artifacts/uxcheck/`).
+
+Defects the unit tests did not catch and the live pass did:
+
+- The 9-versus-0 disagreement between Journeys and Insights came from the saved My Work tab being applied to every page's journey list, not from the summary maths.
+- The WASM client started importing `internal/humanwork/workspace`. Its package-level stylesheet hashes then ran in the browser and wrote a runtime `<style>` through GWC's DOM sink, which CSP blocked about 12,500 times per load. The shared predicate moved to the leaf package `reasontext`, and a test now pins the WASM dependency boundary.
+- The confirm dialog's slide-in keyframes end at `transform:none`, which cancelled its centring. The fields and actions sat below the fold at 1280×800.
+- Unkeyed page-frame and title-block children re-mounted the heading when a page resolved and on sort. That dropped focus to `<body>` and reset scroll.
+- A lane's `\2192` went through a shell heredoc and became a 0x11 control byte, which rendered as a box on phones.
+- An in-place `buf generate` (another session) deleted `gen/go/hcmnext/model`. It was regenerated byte-identical with `modelgen`.
+
+Not this work, and left to the owning sessions:
+
+- `test/bootstrap/epwork001_test.go` no longer compiles against the new `WritePorts` constructor parameter.
+- RBAC-RT's fail-closed `requireFeatureAction` makes two `journeyclient` integration tests (`PROMOUX_007_Integration`, `REV_091_01_Integration`) run without a role-access store and get denied.
+
+## Follow-up, 2026-09-19 (workflow designer Promotion parity)
+
+`WF-UI-005` is complete. The registry-backed palette is tenant-filtered before projection and presents authorized blocks, fragments and templates in searchable domain groups with effect and reversal metadata. Fragment insertion persists one collapsible group, and optimistic revisions prevent lost edits.
+
+The Promotion authoring template now uses the exact canonical `promotionexec.Definition()` rather than a hand-maintained facsimile. Its durable document bytes, start node, 25 nodes, 72 routed outcomes, semantic version successor and payroll/access signal sources are covered by tests. The transport projects both the draft definition digest and the admitted template digest; the client validates those values and only then labels the draft an exact executable-template match.
+
+The focused `WF-UI-005` suites reported `ok` across the palette, edit service, application composition, workflow and edge transports, product UI, product client and Go/WASM controller. The Windows toolchain subsequently refused to unlink some completed test executables, which is the repository's documented cleanup-only condition. In the Codex browser, the real Go/WASM editor showed the 25-step/72-route Promotion graph and equivalent outline; searching for `Promotion` reduced the palette to the governed template and review fragment, and expanding the fragment exposed its grouped insertion action plus `Pure`/`No Effect` badges.
+
+## Follow-up, 2026-09-19 (immutable successor parity and typed refinement)
+
+The live immutable-version test found that `Create newer version` established the correct SemVer and base digest but initialized an empty draft. The fix does not trust a workflow ID or name: server-only palette metadata binds the canonical Promotion source template to the exact compiled-plan digest it produces, and successor creation hydrates that template only when the selected publication carries the same digest. The transport regression test compares the stored successor bytes with `promotionexec.Definition()` byte-for-byte, recompiles those stored bytes, and proves the resulting plan digest is the publication's digest.
+
+The real Go/WASM product was restarted against a fresh migrated PostgreSQL database and tested through the Codex browser. From the read-only published 1.1.0 view, creating version 1.1.2 opened a revision-1 draft with 25 steps, 72 routed outcomes, both provider-confirmation waits and `Exact match to executable template`. The earlier empty-draft behavior no longer reproduced.
+
+`WF-UI-006` is also complete. Typed signal edits, invalid-value rejection, optimistic revision changes, reason-gated omit/replace overlays, mandatory-phase locks and author-before-mutation checks are covered in the edit, transport, product, client and WASM suites. Live testing changed the payroll acknowledgement label and timeout, observed the exact-match badge become changed, restored the canonical values and exact status, verified that a manager-approval control stayed locked even after entering a reason, and confirmed URL-backed node selection across reload. Desktop, 390px and 320px visual passes kept the inspector usable without clipped controls.
+
+Verification: the scoped `WF-UI-005`/`WF-UI-006` package matrix reported `ok` for `designeredit`, `designerpalette`, `application`, workflow transport, product UI, product client and the Go/WASM controller. `go vet` for those packages, `buf lint` and `buf build` all passed. One combined test command returned nonzero only after every package reported `ok`, when Windows refused to unlink a completed test executable; the focused successor regression then passed cleanly on its own.
+
+## Follow-up, 2026-09-19 (compiler-owned outcome and data links)
+
+`WF-UI-007` is complete. A node's outcome ports and input bindings are now distinct authoring surfaces backed by distinct draft commands. Outcome routes come from the definition and update under the same optimistic fence as other edits. Binding choices come from a workflow-core authoring query that reuses graph analysis, strict dominators and value-type assignability, so the browser cannot offer a source the compiler would reject and the edit kernel independently enforces the same rule.
+
+The contract crosses the full production path: protobuf and generated bindings, role-gated Connect handlers, edge procedure registration, product client validation, serialized Go/WASM mutations and accessible native forms. The reusable labeled-control component now exposes its class hook; the inspector stacks labels and controls cleanly and uses only governed radius and warning tokens. Focused core, edit, transport, product, client and controller tests, `go vet`, `buf lint` and `buf build` all pass. The broader package sweep surfaced only existing failures outside this change: the `WF-UI-004` transport golden, fail-closed role-visibility matrices and two journey-client denial expectations.
+
+The live product check used the canonical Promotion successor (version 1.1.2). It changed `Raise Threshold / ABOVE_THRESHOLD` from Finance to Manager and back, then changed `Band Position` from `Evaluate Band.band_position` to the compatible simulation output and back. The final durable draft is revision 5, again reports 25 steps, 72 routed outcomes and `Exact match to executable template`. A keyboard-only no-op submit preserved that revision. Desktop, 390px and 320px inspection plus temporary light-mode and restored system/dark-mode checks found no clipped controls after the responsive refinement.
+
+## Follow-up, 2026-09-19 (accessible outline authoring parity)
+
+`WF-UI-009` is complete. Both the desktop graph and semantic outline now emit the same configure and move commands against one server-owned draft. Moving changes presentation order only; execution edges remain authoritative. The new command is revision-fenced and role-gated across protobuf, Connect transport, cell/edge registration, product client and the serialized Go/WASM authoring controller. Exact named primary, browser and property tests cover stale and invalid commands, boundary no-ops, round-trip digest/order restoration, native keyboard controls, localized copy, theme tokens and the 320px layout.
+
+The live Codex-browser pass found and fixed two defects that an in-memory test had hidden. PostgreSQL jsonb normalizes the stored document, so byte comparison made the first otherwise-identical edit invent a revision; the edit kernel now compares the canonical definition identity and the regression compacts the fixture before submitting it. An identical reload also left the imperatively written `Saving workflow changes…` text mounted because the virtual tree did not change; successful workflow-loader completion now clears the live region and authoring fence. Parameter, outcome and binding no-op submissions all remain at revision 6, clear `aria-busy`, and preserve the canonical Promotion's 25 steps, 72 routes and exact-template badge.
+
+Keyboard-only testing created a separate 0.1.0 draft, inserted `Task`, advanced it from revision 1 to 2 and selected the same inserted node in the graph, outline and inspector. Desktop inspection kept the existing product pattern; at 320×700 the graph yields to the semantic outline, move controls stack below labels, long names remain intact, and logical properties preserve RTL behavior. The visible single-node summary was also corrected from `1 steps` to localized singular copy. The focused eight-package matrix reported `ok` throughout, `go vet` passed, and both `buf lint` and `buf build` were clean; the aggregate Go command ended nonzero only when Windows refused to unlink an already-passed executable, the documented cleanup-only condition.
+
+## Follow-up, 2026-09-19/20 (UI/UX backlog, front-end performance, company data and the dev sign-in page)
+
+Three rounds ran in this session, coordinated from one integrator session with parallel Opus lanes. Nothing from any of the three is committed: HEAD is still 36043e8e, the seven prepared commit groups are blocked, and the reason is recorded at the end of this entry.
+
+### Round 1 - the open UI/UX backlog (19 todos)
+
+`UXLIVE-027`..`UXLIVE-033`, `REV-090-01/02`, `REV-091-01..03`, `REV-092-01`, `REV-093-01` and `REV-095-01..05` are implemented, verified live and ticked with evidence in `planning/todos.md`. Four lanes built them; every change was then checked on a served build at 1280 and 390 px, light and dark, in en-US, de-DE and ar, with interaction scripts for typing, scroll restoration, dialog validation and focus return.
+
+What the live pass caught that the unit tests had not:
+
+- The Journeys-versus-Insights disagreement (nine requests against zero) came from the saved My Work tab narrowing the journey list on every page, not from the summary arithmetic.
+- The WASM client began importing `internal/humanwork/workspace`; its package-level stylesheet hashes then ran in the browser and wrote a runtime style element that CSP blocked about 12,500 times per page load. The shared predicate moved to the leaf package `internal/humanwork/reasontext`, and `TestWasmClientDoesNotLinkServerPackages` now pins the boundary.
+- The edit-proposal confirm dialog rendered off screen at 1280x800 because its slide-in keyframes end at `transform: none`, which cancelled the centring; its fields and both buttons were unreachable.
+- Unkeyed page-frame and title-block children re-mounted the heading on resolve and on sort, dropping focus to body and resetting scroll.
+- A CSS escape written through a shell heredoc became a 0x11 control byte and rendered as a box glyph on phones.
+
+### Round 2 - front-end performance, measured before and after
+
+Baseline on the served build (median of three runs, headless Chromium): cold load to settled content 4.8-6.0 s, WASM 8.7 MB compressed and 43.5 MB decoded, page switches 0.5-1.7 s, worst search keystroke 456 ms, People sort 1392 ms, cold-load total blocking time 1353 ms.
+
+CPU profiling (Chrome DevTools Protocol, self and inclusive time by Go function) found one dominant cause: on every header render the action launcher built an entry for all 64 directory rows, and for each entry `actionLauncherItemPolicy` rebuilt that entire list again to find the matching row. The work grew with the square of the population, and while typing in global search it accounted for 2.5 s of 3.4 s. `authorizedActionLauncherItems` now builds the canonical list once per call and indexes it by ID.
+
+After that plus three smaller fixes (memoized per-locale catalog coverage, a fast path in `canonicalLocale`, fast paths in `statefulHref` and `authorizedFavoritePages`): worst search keystroke 140 ms, People sort 391 ms, cold-load blocking time 406 ms, dialog open 231 ms. `personActionLauncherItems` went from 2580 ms to 78 ms in the search profile.
+
+Also fixed: the local rebuild script omitted the `-ldflags=-s -w` the official builder uses (`tools/uxqual/cmd/journeywasm/main_native.go:95`), so every asset rebuilt during the session carried debug information (43.8 MB raw versus 42.1 MB stripped).
+
+Still open on performance: the 42 MB WASM bundle itself, which is what makes a cold load slow. Two data segments account for about 10 MB; `twiggy top` on the unstripped binary is the tool that shows them, and the investigation stopped there. The catalog-coverage memo first used a package-level `sync.Map`, which the composition-root gate correctly rejects as shared mutable state; it is now an immutable map of per-locale `sync.OnceValue` closures.
+
+### Round 3 - company-wide data and the dev sign-in page
+
+Four lanes plus two follow-up rounds. What the demo tenant now carries, verified by querying a database seeded from scratch:
+
+| Data                        | Before                                  | After                                                                       |
+| --------------------------- | --------------------------------------- | --------------------------------------------------------------------------- |
+| Employment facts per person | seven fields hard-coded empty in the UI | all seven stored and rendered                                               |
+| Pay bands in the database   | none (188 specs in a Go map)            | 220 rows, and the served catalog reads them                                 |
+| Promotion targets           | one per job, computed in Go             | 143 edges in `promotion_path_edge`, every non-executive job has two or more |
+| Job architecture            | never written                           | 19 families, 44 levels, 44 grades, 55 profiles                              |
+| Performance ratings         | none                                    | 10 cycles, 360 reviews, 30 calibration sessions, 120 final ratings          |
+| Payroll                     | none                                    | 12 runs across three periods with frozen populations                        |
+| Per-worker role assignments | none                                    | 60 role sets, 99 assignments                                                |
+| Job family and FLSA         | empty and EXEMPT for all 47 jobs        | 16 families, FLSA drawn on duties                                           |
+| Open vacancies              | 162, many in unrelated units            | 44, one per published target, each in its job's home unit                   |
+
+`REV-096-01` is ticked: a `performancestore` adapter resolves a subject's most recently finalized closed cycle into a validated `FinalCalibratedRating`, bound in the serve composition, so the high-performer plan variant is reachable in a served cell for the first time.
+
+The dev sign-in page now renders the whole organization: all 60 employees are signable with a role bundle derived from their job, with an employee search that also matches role labels, a role filter, and a server-rendered collapsible org tree. The page has no JavaScript (its CSP is `default-src 'none'` with one style hash), so the tree uses native `details` disclosure and plain GET forms.
+
+Defects found by driving the product rather than reading lane reports:
+
+- Every promotion priced against a database band was refused: the new band reader published bounds at the column's scale-4 precision and the evaluator refuses a scale-2 amount in a scale-4 band. All 54 demo paths failed; corpus paths masked it by falling back to the in-memory catalog.
+- Promotion targets were implausible - a Senior Product Designer was offered Director of Clinical Operations and Director of Quality and Safety. Cross-function edges were ranked by pay gap alone; they now require same family, same unit, a declared adjacent discipline in the same division, or a division vice-presidency from M4 upward.
+- Vacancies opened in the unit of every job that pointed at them, so Director of Product seats existed inside Engineering Platform; 44 of 103 scopes were wrong. A seat now follows its job's home unit.
+- The seed cycled a unit's role list, so any unit with more people than roles re-issued the leader's title to a later hire who then reported to the original holder; nine units were affected.
+- A fresh local-dev database cannot run any workflow until `hcmnext workflow-version bootstrap-dev` is run by hand: the engine refuses with `VERSION_NOT_ACTIVE` and the UI shows only "Service temporarily unavailable", which retrying can never fix.
+
+### Where this stops, and what is left
+
+Two lanes were stopped mid-task on request. Neither left broken code: `go vet` is clean across `internal/application`, `internal/intent/app`, `internal/data/...`, `internal/humanwork/...` and `tools/uxqual/...`, and no probe files remain.
+
+- **Workforce read performance and the phantom corpus.** `ListWorkers` resolves each worker's placement with a per-worker `committedfacts.CurrentPlacement` call and validates each vacancy in its own transaction; `TestTodo_PROMOUX_015_Performance` measures p95 2.45 s against a 750 ms budget. The lane had begun batching both and had reached the assignee-name resolver in `journey_work_summary.go`. The same task carries the second defect: `ListWorkers` unconditionally appends the release's fixed four-worker corpus to the tenant's own population, so the seeded demo shows 64 people - the 60 real employees plus four who exist in no table. The corpus should be a fallback for cells with no durable population, not an addition.
+- **Workflow activation on a fresh database** (make the local-dev serve perform the same approve-and-activate bootstrap the subcommand performs, idempotently, gated exactly like the workforce seed), **an honest refusal for `VERSION_NOT_ACTIVE`**, and the **`worker_access_role_set` collision**: the seeder writes a version-1 role set for every planned worker, and `TestTodo_WF_RUN_034_Security` then calls `SaveAssignment` with no expected version and fails with `roleaccess: stale version`.
+
+Smaller open items: a Senior Registered Nurse's only steps are two directorships (there is no charge-nurse rung); `LEG-CMP3 -> PPL-HRBP4` ranks ahead of `PPL-DIR` because it is one grade step rather than four; and `REV-027-01` is only partly satisfied - the demo seed is a real call site for `payrollstore` and `performancestore`, but about 37 other stores remain importer-less.
+
+### Not this work, and blocking the commits
+
+The tree cannot pass the pre-commit hook while three other sessions' in-flight changes are red:
+
+- The RBAC fail-closed change (`requireFeatureAction` denies when permission data is missing) breaks roughly 170 existing tests across `internal/humanwork/productui`, `internal/transport/journey` and `internal/humanwork/workspace`. It also breaks self-service in the running product: `Myself` fetches the signed-in person's own record through the directory RPC, which is gated on People access, so three of the four quick-pick personas cannot see their own profile and a finance approver's work queue is empty. The durable bundle and the credential roles are identical for those personas, so the seeded role data is not the cause.
+- The workflow-designer session's edits to `internal/humanwork/productui` and `internal/transport/workflow` leave those packages intermittently uncompilable, and `buf generate` (which has `clean: true` over `gen/go`) twice deleted `gen/go/hcmnext/model/model_generated.go`; it was regenerated byte-identically with `modelgen` both times.
+- EP-WORK added a `WritePorts` parameter to the cell constructors without updating `test/bootstrap`, which fails the whole-tree `go vet` the hook runs first.
+
+Seven commit groups are prepared (`data`, `connectivity`, `workflow`, `api`, `domain`, `ui`, `docs`) with messages written, excluding 104 files belonging to other sessions. `planning/todos.md` carries 20 ticks with evidence, the registry is regenerated, `definitions/storage/storage-disposition.yaml` has the `promotion_path_edge` row and its source range corrected to 00317, the generated storage manifest and archdoc are regenerated, and `planning/test_coverage_root.md` has rows for every new file.
+
+### Environment notes for whoever picks this up
+
+- Verification ran against a scratch database `hcm_next_ux` on the shared dev PostgreSQL, created and dropped with `.artifacts/uxcheck/mkdb.exe`, so the seed could be rebuilt from scratch without disturbing the other sessions' `hcm_next`. `%LOCALAPPDATA%/hcm-next/uxcheck-serve.ps1` points at it with `-migrate=true`; the preview entry is `hcm-uxcheck` on port 8096.
+- The seeders verify existing rows rather than overwrite them, and `journey_worker` is append-only, so any change to the plan requires recreating the database rather than re-running the seed.
+- `.artifacts/uxcheck/` holds the verification tooling (`rebuild.sh` with a build lock and the stripped-binary flags, `shots.mjs`, `probe.mjs`, `propose.mjs`, `runjourney.mjs`, `loginshot.mjs`, `q.exe`, `mkdb.exe`). It was deleted once mid-session by an over-broad temp sweep and recreated; sweeps should stay inside `.artifacts/tmp`.
+- Two resource traps recurred: orphaned embedded PostgreSQL instances (44 at one point, which is what makes the latency gates fail) and the Go build cache reaching 96 GB. Trimming cache entries untouched for 12 hours freed 57 GB.

@@ -342,6 +342,34 @@ or deferred. No new subsystem becomes mandatory merely because its long-term
 contract is `DEFINED`. If no equivalent scope can be removed, the gate must be
 re-estimated and explicitly reapproved.
 
+### Recorded placement: workflow engine extensibility (2026-09-19)
+
+Scope: the plan to let many workflows, and later tenant variants, be assembled
+from building blocks. The engine side is `WF-EXT-001`–`WF-EXT-026` and the
+missing domain capabilities are `WF-CAP-001`–`WF-CAP-019`, both in
+[the backlog](todos.md#77-workflow-engine-extensibility-and-building-blocks-2026-09-19).
+The contract is in
+[the workflow kernel spec](specs/workflow-runtime.md#extensibility-closed-kernel-open-registries).
+
+- **Inside Gate B, no exchange needed:** `WF-EXT-001` and `WF-EXT-002`. They
+  fix the budget-hold compensation defect and replace the two-plan Promotion
+  switch with workflow registrations. That work is already forced by the
+  open `PROMO-EXEC-007` and `HIPERF-002`/`HIPERF-004` items, and adds no new
+  subsystem.
+- **Gate C:** `WF-EXT-003`–`WF-EXT-026` and every `WF-CAP-*` item. None is a
+  Gate A or Gate B acceptance requirement. Pulling any of them into Gate B
+  needs the Scope-Exchange Rule fields above, which have not been filled in.
+  The first candidates are `WF-EXT-004`–`WF-EXT-008`, which let a second
+  workflow family execute without new engine code.
+- **The Phase 1 non-goals below still hold.** At Gate C, forms, bulk
+  communication, e-signature and population work come back as registry
+  entries, fragments and spawn sources on the existing kernel. They do not
+  return as separate platforms.
+- **No new regulatory engine.** Regulated calculation stays delegated to the
+  incumbent or vendor through the capability registry's `DELEGATED` class.
+  This keeps the non-goal "general regulatory calculation or government
+  filing engines".
+
 ## Explicit Non-Goals
 
 - Full payroll, tax, benefits, timekeeping, recruiting, talent, or workforce-access products

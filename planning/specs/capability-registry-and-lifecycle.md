@@ -92,6 +92,48 @@ versions fail closed. Deprecation does not stop existing pinned workflows until
 their declared support window; retirement requires dependency/adoption proof or
 an approved migration.
 
+## Authority Classes and Connector Bindings
+
+A capability is a semantic contract; who performs it is resolved per tenant.
+The product is an overlay on incumbent systems in its first stages, so many
+operations a workflow needs are computed by a payroll provider, carrier,
+screening vendor or government service, not by this platform. One contract
+serves both cases, which is how authority can later move from an incumbent to
+a native domain without changing any workflow:
+
+```text
+NATIVE        the owning Go domain computes and commits
+              (hire commit, assignment revision, absence commit,
+               adverse-impact analysis, retro period resolution)
+
+DELEGATED     an incumbent or vendor computes; the platform dispatches,
+              correlates the callback, observes and reconciles
+              (final pay and tax, benefit continuation administration,
+               carrier enrollment feeds, background screening,
+               employment eligibility verification)
+
+RULE-PACK     timing and thresholds come from a signed legal rule pack,
+PARAMETERIZED never from code (mass-layoff notice, release consideration
+              and revocation periods, leave notices, final-pay deadlines)
+```
+
+- The authority class is a manifest extension. Its first consumer is the
+  workflow compiler, which needs it to decide whether a node commits or
+  dispatches and observes.
+- The `ImplementationBinding` resolves through the tenant's `SourceAuthority`
+  for the field, population and jurisdiction.
+- A `DELEGATED` binding names a connector-binding registry entry. That entry
+  declares the dispatch operation, callback correlation, polling fallback, SLA
+  and quarantine policy (`WF-EXT-022`).
+- A delegated capability never fabricates the result it is waiting for.
+  Until the external system answers, the run reports the obligation as open.
+
+Registration covers every package that exposes a callable operation, not only
+`internal/domains`. The messaging and document planes (`internal/messaging`,
+`internal/documents`) publish `messaging.*` and `documents.*` capabilities so
+the notify and document fragments can bind to them (`WF-EXT-015`). The
+capability bundles still missing are tracked as `WF-CAP-001`–`WF-CAP-019`.
+
 ## Security, Failure, and Evidence
 
 Domain owner proposes semantic/effect metadata; schema/security/privacy/operations
