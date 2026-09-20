@@ -1,0 +1,2 @@
+pilot restore drill v1 id=drill-operator-1 dest=recovery-cell-1 status=READY rpo=4m0s rto=2m0s production_effects=false digest=sha256:d8cef19592c7961f71ce4f466009b2d3c5d93bfe6a87ac79a594ffc411aea118
+tombstones=1 holds=1 timers=3 signals=2 frontier_nodes=5 outbox_entries=7 idempotency_keys=11
