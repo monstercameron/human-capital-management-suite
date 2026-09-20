@@ -14,12 +14,15 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/signals"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/wire/digest"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	datalogger "github.com/monstercameron/human-capital-management-suite/internal/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/messaging"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/reconcile"
+	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
@@ -27,6 +30,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
+	stepSignal "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/signal"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -131,15 +135,32 @@ func newPromotionWaitingFixture(t *testing.T, key string, completedApproval bool
 	return f
 }
 
+// newPromotionFixtureV1_0 is [newPromotionFixture] on the frozen 1.0.0 plan,
+// whose core commit routes straight to the payroll observation. The runtime
+// mechanics tests (WF-RUN-003 redelivery, WF-RUN-006 retry, WF-RUN-007 poison
+// work, WF-RUN-037 leg settlement) exercise that observation directly after
+// the commit with drivers composed without signal ports; 1.0.0 is still a
+// served version, and the 1.1.0 provider waits are driven by the conformance
+// scenarios below and by test/workflow.
+func newPromotionFixtureV1_0(t *testing.T, key string) promotionFixture {
+	f := newPromotionFixtureOn(t, key, promotionexec.CompileV1_0)
+	preparePromotionAt(t, f, 8)
+	return f
+}
+
 func newPromotionFixtureBase(t *testing.T, key string) promotionFixture {
+	return newPromotionFixtureOn(t, key, promotionexec.Compile)
+}
+
+func newPromotionFixtureOn(t *testing.T, key string, compile func(...workflow.Definition) (*workflow.CompiledWorkflow, error)) promotionFixture {
 	t.Helper()
 	db := pgtest.New(t)
 	at := time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
 	tenantID := uuid.New()
 	db.Exec(t, `INSERT INTO tenant (tenant_id, tenant_key, cell_id, display_name, status, effective_from) VALUES ($1,$2,'cell-local',$3,'ACTIVE',$4)`, tenantID, "promotion-conformance-"+key, key, at.Add(-time.Hour))
-	plan, err := promotionexec.Compile()
+	plan, err := compile()
 	if err != nil {
-		t.Fatalf("promotionexec.Compile: %v", err)
+		t.Fatalf("compile the promotion plan: %v", err)
 	}
 	intentID, revisionID := "intent:promotion:"+key, "proposal:promotion:"+key+":1"
 	proposal := intent.ProposalRevision{
@@ -225,11 +246,69 @@ func newPromotionDriver(t *testing.T, f promotionFixture, runner promotionRunner
 		t.Fatal(err)
 	}
 	terminal := &effects.LedgerTerminalWriter{Appender: datalogger.NewAppender(registry), ProjectionName: "promotion_conformance_outcome", SourceRef: "hcmnext:test:promotion-conformance"}
-	driver, err := execute.New(execute.Options{DB: f.conn, Steps: runner, Terminal: terminal, Repair: repair, Guard: idempotency.PostgresStore{}, Retention: idempotency.RetentionPolicy{Retention: 72 * time.Hour, RetryWindow: 6 * time.Hour}, Clock: func() time.Time { return f.at }})
+	// Promotion 1.1.0 parks on the providers' confirmations after the core
+	// commit through the production durable subscription adapter, exactly as
+	// the served composition does.
+	driver, err := execute.New(execute.Options{DB: f.conn, Steps: runner, Terminal: terminal, Repair: repair, Guard: idempotency.PostgresStore{}, Retention: idempotency.RetentionPolicy{Retention: 72 * time.Hour, RetryWindow: 6 * time.Hour}, Clock: func() time.Time { return f.at },
+		Signals: platformexecution.SignalSubscriptions{}, SignalReader: platformexecution.SignalSubscriptions{}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return driver
+}
+
+// acceptingProviderVerifier stands in for a provider's signature check: the
+// conformance scenarios prove the park/receive/resume mechanics.
+type acceptingProviderVerifier struct{}
+
+func (acceptingProviderVerifier) Verify(stepSignal.Signal) error { return nil }
+
+// confirmProviderWait receives the provider's confirmation against the run's
+// open 1.1.0 wait on node (correlated on the proposal revision, accepted only
+// from source) and resumes the driver from the matched receipt. The resumed
+// wait always succeeds; the observation after it judges the provider.
+func confirmProviderWait(t *testing.T, f promotionFixture, driver *execute.Driver, instanceID uuid.UUID, node, source string) execute.Result {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := f.conn.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := tenancy.WithTenant(ctx, tx, f.tenantID); err != nil {
+		t.Fatal(err)
+	}
+	revision := f.start.Proposal.Revision.ProposalRevisionID
+	sub, err := (signals.Store{}).OpenSubscriptionForCorrelation(ctx, tx, f.tenantID, node, revision)
+	if err != nil {
+		t.Fatalf("open %s wait: %v", node, err)
+	}
+	receipt, err := (signals.Store{}).Receive(ctx, tx, signals.ReceiveRequest{
+		Signal: stepSignal.Signal{
+			Tenant: values.TenantId(f.tenantID.String()), Source: source,
+			EventType: sub.EventType, SchemaRef: sub.ExpectedSchemaRef,
+			CorrelationKey: sub.CorrelationKey, CorrelationValue: sub.CorrelationValue,
+			IdempotencyKey: "test:" + node + ":" + revision,
+			Payload:        []byte(`{"proposal_revision_id":"` + revision + `"}`),
+			ReceivedAt:     values.NewInstant(f.at),
+		},
+		ReceivedAt: f.at,
+	}, acceptingProviderVerifier{})
+	if err != nil {
+		t.Fatalf("receive the %s confirmation: %v", node, err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	current := instance(t, f, instanceID)
+	result, err := driver.ResumeSignal(ctx, execute.ResumeSignalRequest{
+		Start: f.start, InstanceID: instanceID, ExpectedInstanceVersion: current.InstanceVersion,
+		SignalID: receipt.SignalID, SubscriptionID: sub.ID, RecordedAt: f.at,
+	})
+	if err != nil {
+		t.Fatalf("ResumeSignal(%s): %v", node, err)
+	}
+	return result
 }
 
 func instance(t *testing.T, f promotionFixture, id uuid.UUID) runtime.Instance {
@@ -255,10 +334,18 @@ func instance(t *testing.T, f promotionFixture, id uuid.UUID) runtime.Instance {
 func TestPromotionCoreCommitSurvivesAPermanentDownstreamFailure(t *testing.T) {
 	f := newPromotionFixture(t, "scenario-07")
 	repair := &repairRequester{}
-	result, err := newPromotionDriver(t, f, promotionRunner{payroll: "FAIL"}, repair).Execute(context.Background(), execute.ExecuteRequest{Start: f.start})
+	driver := newPromotionDriver(t, f, promotionRunner{payroll: "FAIL"}, repair)
+	parked, err := driver.Execute(context.Background(), execute.ExecuteRequest{Start: f.start})
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The committed run parks on the payroll provider's confirmation (1.1.0);
+	// the confirmation resumes it into the observation that reports FAIL.
+	if parked.Status != execute.StatusParked {
+		t.Fatalf("status = %s, want PARKED on the payroll confirmation", parked.Status)
+	}
+	result := confirmProviderWait(t, f, driver, parked.Start.InstanceID, promotionexec.NodeAwaitPayrollConfirmation, "hcmnext.integrations.payroll")
+	result.Start = parked.Start
 	if result.Status != execute.StatusComplete {
 		t.Fatalf("status = %s, want COMPLETE", result.Status)
 	}
@@ -285,9 +372,18 @@ func TestPromotionCoreCommitSurvivesAPermanentDownstreamFailure(t *testing.T) {
 // degraded derived-observation route leaves the committed core fact intact.
 func TestAnalyticsUnavailabilityDoesNotBlockTheBusinessTransaction(t *testing.T) {
 	f := newPromotionFixture(t, "scenario-12")
-	result, err := newPromotionDriver(t, f, promotionRunner{payroll: "PASS", recon: "PARTIAL"}, &repairRequester{}).Execute(context.Background(), execute.ExecuteRequest{Start: f.start})
+	driver := newPromotionDriver(t, f, promotionRunner{payroll: "PASS", recon: "PARTIAL"}, &repairRequester{})
+	result, err := driver.Execute(context.Background(), execute.ExecuteRequest{Start: f.start})
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Both providers confirm (1.1.0) before reconciliation degrades.
+	instanceID := result.Start.InstanceID
+	if parked := confirmProviderWait(t, f, driver, instanceID, promotionexec.NodeAwaitPayrollConfirmation, "hcmnext.integrations.payroll"); parked.Status != execute.StatusParked {
+		t.Fatalf("after the payroll confirmation status = %s, want PARKED on the access confirmation", parked.Status)
+	}
+	if done := confirmProviderWait(t, f, driver, instanceID, promotionexec.NodeAwaitAccessConfirmation, "hcmnext.integrations.iam"); done.Status != execute.StatusComplete {
+		t.Fatalf("after the access confirmation status = %s, want COMPLETE", done.Status)
 	}
 	got := instance(t, f, result.Start.InstanceID)
 	if got.RuntimeStatus != runtime.InstanceRepairRequired || got.CompletionDimensions.ExecutionState != "REPAIR_REQUIRED" || got.CompletionDimensions.ConsistencyState != "DEGRADED" {

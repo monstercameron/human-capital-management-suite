@@ -388,7 +388,7 @@ func validateApprovalCompletionRequest(ctx context.Context, req ApprovalCompleti
 	if err != nil {
 		return runtime.WorkflowSelection{}, time.Time{}, fmt.Errorf("workflow execute: resolve approval version: %w", err)
 	}
-	if published.Status != version.StatusActive || published.CompiledPlanDigest != selection.Plan.Digest() {
+	if !servesPinnedInstance(req.Start, published, selection) {
 		return runtime.WorkflowSelection{}, time.Time{}, invalid("approval plan is not the exact active published version")
 	}
 	return selection, at, nil

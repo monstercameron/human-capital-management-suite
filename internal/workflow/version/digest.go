@@ -45,6 +45,14 @@ func computeDefinitionDigest(def workflow.Definition) string {
 	return canonicalDigest(definitionDigestProfile, def)
 }
 
+// DefinitionDigest returns the canonical content identity used by published
+// versions for a source workflow definition. Draft authoring uses the same
+// function so an imported template can prove byte-for-byte semantic parity
+// with the immutable definition it is replacing.
+func DefinitionDigest(def workflow.Definition) string {
+	return computeDefinitionDigest(def)
+}
+
 // recordIdentity is the subset of CompiledVersion content this package
 // digests. Status is excluded for the reason CompiledVersion.Digest
 // documents: it is governed lifecycle bookkeeping on a fixed artifact, not

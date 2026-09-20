@@ -207,7 +207,7 @@ func parkOnTransientFailure(t *testing.T, f promotionFixture, driver *execute.Dr
 // the fired timer runs attempt 2 through to completion exactly once.
 func TestTodo_WF_RUN_006_Integration(t *testing.T) {
 	ctx := context.Background()
-	f := newPromotionFixture(t, "wfrun006-transient")
+	f := newPromotionFixtureV1_0(t, "wfrun006-transient")
 	runner := newRetryRunner("TRANSIENT")
 	provisioner := admission.NewProvisioner()
 	driver := retryDriver(t, f, f.conn, runner, nodeRetryPolicy(provisioner, observationBackoff()), nil)
@@ -270,7 +270,7 @@ func TestTodo_WF_RUN_006_IntegrationTerminal(t *testing.T) {
 		{name: "deadline", classes: []string{"TRANSIENT"}, backoff: short, runs: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := newPromotionFixture(t, "wfrun006-"+tc.name)
+			f := newPromotionFixtureV1_0(t, "wfrun006-"+tc.name)
 			runner := newRetryRunner(tc.classes...)
 			driver := retryDriver(t, f, f.conn, runner, nodeRetryPolicy(admission.NewProvisioner(), tc.backoff), nil)
 			result, err := driver.Execute(context.Background(), execute.ExecuteRequest{Start: f.start})
@@ -283,7 +283,7 @@ func TestTodo_WF_RUN_006_IntegrationTerminal(t *testing.T) {
 
 	t.Run("attempts exhausted", func(t *testing.T) {
 		ctx := context.Background()
-		f := newPromotionFixture(t, "wfrun006-exhausted")
+		f := newPromotionFixtureV1_0(t, "wfrun006-exhausted")
 		runner := newRetryRunner("TRANSIENT", "TIMEOUT")
 		driver := retryDriver(t, f, f.conn, runner, nodeRetryPolicy(admission.NewProvisioner(), observationBackoff()), nil)
 		inst, row := parkOnTransientFailure(t, f, driver, runner)
@@ -371,7 +371,7 @@ func TestTodo_WF_RUN_006_IntegrationPoison(t *testing.T) {
 func TestTodo_WF_RUN_006_IntegrationImmediate(t *testing.T) {
 	backoff := observationBackoff()
 	backoff.Immediate = true
-	f := newPromotionFixture(t, "wfrun006-immediate")
+	f := newPromotionFixtureV1_0(t, "wfrun006-immediate")
 	runner := newRetryRunner("TIMEOUT", "TIMEOUT", "TIMEOUT")
 	result, err := retryDriver(t, f, f.conn, runner, nodeRetryPolicy(admission.NewProvisioner(), backoff), nil).
 		Execute(context.Background(), execute.ExecuteRequest{Start: f.start})
@@ -391,7 +391,7 @@ func TestTodo_WF_RUN_006_IntegrationImmediate(t *testing.T) {
 // drivers on six connections at once: exactly one resume succeeds, exactly one
 // attempt 2 exists and the node runs attempt 2 exactly once.
 func TestTodo_WF_RUN_006_IntegrationRace(t *testing.T) {
-	f := newPromotionFixture(t, "wfrun006-race")
+	f := newPromotionFixtureV1_0(t, "wfrun006-race")
 	runner := newRetryRunner("TRANSIENT")
 	policy := nodeRetryPolicy(admission.NewProvisioner(), observationBackoff())
 	inst, row := parkOnTransientFailure(t, f, retryDriver(t, f, f.conn, runner, policy, nil), runner)

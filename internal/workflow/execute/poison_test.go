@@ -44,7 +44,9 @@ func (r poisonRunner) Run(ctx context.Context, req execute.StepRequest) (frontie
 func newPoisonFixture(t *testing.T, key string) promotionFixture {
 	t.Helper()
 	f := newPromotionFixtureBase(t, key)
-	def := promotionexec.Definition()
+	// The frozen 1.0.0 graph: the payroll observation directly after the core
+	// commit (see newPromotionFixtureV1_0).
+	def := promotionexec.DefinitionV1_0()
 	found := false
 	for i := range def.Nodes {
 		if def.Nodes[i].ID == promotionexec.NodeObservePayroll {

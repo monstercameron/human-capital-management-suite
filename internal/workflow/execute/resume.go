@@ -146,8 +146,9 @@ func validateResumeConfig(ctx context.Context, req ResumeRequest, items WorkItem
 	return resolvePinnedPlan(ctx, req.Start, "resume")
 }
 
-// resolvePinnedPlan resolves the exact ACTIVE published version a resume must
-// advance against, and refuses anything that is not it. It is shared by
+// resolvePinnedPlan resolves the exact published version a resume must
+// advance against -- the ACTIVE one, or the superseded one the instance
+// pinned ([servesPinnedInstance]) -- and refuses anything that is not it. It is shared by
 // [Driver.Resume] and [Driver.ResumeTimer] so that "which plan may a parked
 // instance advance on" is answered in one place rather than two.
 func resolvePinnedPlan(ctx context.Context, start runtime.StartRequest, what string) (runtime.WorkflowSelection, error) {
@@ -168,10 +169,28 @@ func resolvePinnedPlan(ctx context.Context, start runtime.StartRequest, what str
 	if err != nil {
 		return runtime.WorkflowSelection{}, fmt.Errorf("workflow execute: resolve %s version: %w", what, err)
 	}
-	if published.Status != version.StatusActive || published.CompiledPlanDigest != selection.Plan.Digest() {
+	if !servesPinnedInstance(start, published, selection) {
 		return runtime.WorkflowSelection{}, invalid("%s plan is not the exact active published version", what)
 	}
 	return selection, nil
+}
+
+// servesPinnedInstance reports whether a live instance may keep advancing on
+// published: the version is ACTIVE and is the resolver's plan, or it is the
+// exact version the instance pinned ([runtime.StartRequest.PinnedCompiledPlanDigest])
+// and is QUARANTINED only because a later activation superseded it. A
+// governed quarantine is not a supersession and is refused here; its
+// live-instance disposition (PAUSE, BLOCK, CONTINUE) is enforced in the
+// advance transaction by applyQuarantine.
+func servesPinnedInstance(start runtime.StartRequest, published version.CompiledVersion, selection runtime.WorkflowSelection) bool {
+	if published.CompiledPlanDigest != selection.Plan.Digest() {
+		return false
+	}
+	if published.Status == version.StatusActive {
+		return true
+	}
+	return start.PinnedCompiledPlanDigest != "" && start.PinnedCompiledPlanDigest == published.CompiledPlanDigest &&
+		published.QuarantinedBySupersession()
 }
 
 // checkWorkItemDrift compares the durable row [WorkItemReader] loaded --

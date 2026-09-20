@@ -70,6 +70,14 @@ func TestPromotionCompiledPlanPinsEverySection(t *testing.T) {
 		t.Fatalf("plan policies = %q/%q/%q/%q, want all four pinned",
 			plan.FailurePolicyRef, plan.CancellationPolicyRef, plan.RetentionPolicyRef, plan.MigrationPolicyRef)
 	}
+	// The two provider waits are pure suspensions with their own repair
+	// route and a close window, pinned in the same digest.
+	for _, id := range []string{NodeAwaitPayrollConfirmation, NodeAwaitAccessConfirmation} {
+		node, ok := plan.Node(id)
+		if !ok || node.Type != workflow.StepSignal || node.Signal == nil || node.Signal.CloseAfterSeconds == 0 || node.EffectClass.IsWrite() {
+			t.Fatalf("provider wait %s = %+v, want a pure SIGNAL with a close window", id, node)
+		}
+	}
 	// No PARALLEL node and no external mutation: the absent concurrency
 	// section is the documented steady state, not a missing analysis.
 	if plan.Concurrency != nil {

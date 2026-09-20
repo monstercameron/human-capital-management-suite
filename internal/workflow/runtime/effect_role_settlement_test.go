@@ -22,7 +22,9 @@ const settlementLeg = "projection_leg"
 // leg of role after the authoritative core.
 func rolePlan(t *testing.T, role workflow.EffectRole) *workflow.CompiledWorkflow {
 	t.Helper()
-	def := promotionexec.Definition()
+	// The frozen 1.0.0 graph, where the core routes straight to the payroll
+	// observation the leg is inserted before.
+	def := promotionexec.DefinitionV1_0()
 	var core workflow.Node
 	for _, n := range def.Nodes {
 		if n.ID == promotionexec.NodeExecutePromotion {

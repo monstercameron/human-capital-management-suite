@@ -176,7 +176,9 @@ type redeliveryHarness struct {
 
 func newRedeliveryHarness(t *testing.T, key string) redeliveryHarness {
 	t.Helper()
-	f := newPromotionFixture(t, key)
+	// The frozen 1.0.0 graph: the drain after the core commit dispatches the
+	// READY payroll observation (see newPromotionFixtureV1_0).
+	f := newPromotionFixtureV1_0(t, key)
 	f.db.Exec(t, `INSERT INTO payload_schema (tenant_id, schema_ref, schema_id, schema_version, message_full_name, wire_format, canonicalization_profile)
 		VALUES ($1, $2, 'hcmnext.test.wfrun003.effect', 1, 'hcmnext.test.wfrun003.effect', 'PROTOBUF', 'LEDGER_EVENT')`, f.tenantID, wfrun003EffectSchema)
 	h := redeliveryHarness{f: f, crash: &atomic.Bool{}, performs: &atomic.Int32{}, clock: &atomic.Pointer[time.Time]{}}

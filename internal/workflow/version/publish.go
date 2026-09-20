@@ -1,6 +1,8 @@
 package version
 
 import (
+	"strings"
+
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 )
 
@@ -12,8 +14,10 @@ import (
 //   - a plan whose digest does not match recompiling def under opts — the
 //     plan and the definition must be provably the same publication, never
 //     two artifacts a caller merely asserts belong together;
-//   - a meta with no PublishedAt (this package has no clock) or no
-//     SemanticVersion.
+//   - a meta with no PublishedAt (this package has no clock) or no canonical
+//     SemVer 2.0.0 SemanticVersion;
+//   - changed content whose semantic version does not advance the workflow
+//     family, or existing content being relabeled with a different version.
 //
 // Publishing the same compiled plan twice is idempotent: if store already
 // holds a record for plan.Digest(), Publish returns that existing record
@@ -33,6 +37,10 @@ func Publish(store Store, def workflow.Definition, plan *workflow.CompiledWorkfl
 		return CompiledVersion{}, refuse(CodeMissingSemanticVersion, def.WorkflowID,
 			"publish meta carries no semantic version")
 	}
+	if err := ValidateSemanticVersion(meta.SemanticVersion); err != nil {
+		return CompiledVersion{}, wrap(CodeInvalidSemanticVersion, def.WorkflowID, err,
+			"publish meta carries an invalid semantic version")
+	}
 
 	recompiled, err := workflow.Compile(def, opts)
 	if err != nil {
@@ -48,7 +56,33 @@ func Publish(store Store, def workflow.Definition, plan *workflow.CompiledWorkfl
 	if existing, found, err := store.GetByDigest(plan.Digest()); err != nil {
 		return CompiledVersion{}, err
 	} else if found {
+		if existing.WorkflowID != def.WorkflowID || existing.SemanticVersion != meta.SemanticVersion {
+			return CompiledVersion{}, refuse(CodeSemanticVersionConflict, def.WorkflowID,
+				"compiled content is already published as %s@%s and cannot be relabeled as %s@%s",
+				existing.WorkflowID, existing.SemanticVersion, def.WorkflowID, meta.SemanticVersion)
+		}
 		return existing, nil
+	}
+	versions, err := store.List(def.WorkflowID)
+	if err != nil {
+		return CompiledVersion{}, err
+	}
+	for _, existing := range versions {
+		order, compareErr := CompareSemanticVersions(meta.SemanticVersion, existing.SemanticVersion)
+		if compareErr != nil {
+			return CompiledVersion{}, wrap(CodeInvalidSemanticVersion, def.WorkflowID, compareErr,
+				"cannot compare candidate version %s with published version %s", meta.SemanticVersion, existing.SemanticVersion)
+		}
+		if order == 0 {
+			return CompiledVersion{}, refuse(CodeSemanticVersionConflict, def.WorkflowID,
+				"semantic version %s does not have distinct precedence from published version %s with compiled-plan digest %s",
+				meta.SemanticVersion, existing.SemanticVersion, existing.CompiledPlanDigest)
+		}
+		if order < 0 {
+			return CompiledVersion{}, refuse(CodeVersionNotNewer, def.WorkflowID,
+				"version %s cannot follow published version %s; changed content must advance the workflow family",
+				meta.SemanticVersion, existing.SemanticVersion)
+		}
 	}
 
 	planBytes, err := canonicalPlanBytes(plan)
@@ -92,8 +126,9 @@ func Publish(store Store, def workflow.Definition, plan *workflow.CompiledWorkfl
 //   - an unresolved dependency (a version this one declares [PublishMeta.DependsOn]
 //     is not currently active for its workflow);
 //   - reactivating a RETIRED version, which is not reversible;
-//   - a competing active version, unless evidence.SupersedeActive is true, in
-//     which case the current active version is quarantined first.
+//   - a competing active version, unless evidence.SupersedeActive is true and
+//     the candidate semantic version is strictly newer, in which case the
+//     current active version is quarantined first.
 func Activate(store Store, planDigest string, evidence ActivationEvidence) (CompiledVersion, error) {
 	if store == nil {
 		return CompiledVersion{}, refuse(CodeInvalidRecord, "", "no store supplied")
@@ -140,10 +175,20 @@ func Activate(store Store, planDigest string, evidence ActivationEvidence) (Comp
 				"version %s is already active for %s; supersede it explicitly to activate %s",
 				current.CompiledPlanDigest, v.WorkflowID, planDigest)
 		}
+		order, compareErr := CompareSemanticVersions(v.SemanticVersion, current.SemanticVersion)
+		if compareErr != nil {
+			return CompiledVersion{}, wrap(CodeInvalidSemanticVersion, v.WorkflowID, compareErr,
+				"cannot compare replacement version %s with active version %s", v.SemanticVersion, current.SemanticVersion)
+		}
+		if order <= 0 {
+			return CompiledVersion{}, refuse(CodeVersionNotNewer, v.WorkflowID,
+				"version %s cannot replace active version %s; a replacement must be strictly newer",
+				v.SemanticVersion, current.SemanticVersion)
+		}
 		quarantined := current.withStatus(StatusQuarantined, &ApprovalRecord{
 			ApprovedBy: evidence.ApprovedBy,
 			Authority:  evidence.Authority,
-			Reason:     "superseded by activation of " + planDigest,
+			Reason:     SupersededReasonPrefix + planDigest,
 			ApprovedAt: evidence.ApprovedAt,
 			Result:     StatusQuarantined,
 		})
@@ -163,6 +208,24 @@ func Activate(store Store, planDigest string, evidence ActivationEvidence) (Comp
 		return CompiledVersion{}, err
 	}
 	return activated, nil
+}
+
+// SupersededReasonPrefix opens the reason [Activate] records when it
+// quarantines the version a superseding activation replaces.
+const SupersededReasonPrefix = "superseded by activation of "
+
+// QuarantinedBySupersession reports whether v is QUARANTINED only because a
+// later version superseded it ([Activate] with SupersedeActive), as opposed
+// to a governed [Quarantine] of its own: its latest approval record is the
+// supersession. Such a version is out of new starts but remains the exact
+// plan its live instances pinned; a governed quarantine is enforced on them
+// (the runtime's live-instance disposition) instead.
+func (v CompiledVersion) QuarantinedBySupersession() bool {
+	if v.Status != StatusQuarantined || len(v.Approvals) == 0 {
+		return false
+	}
+	last := v.Approvals[len(v.Approvals)-1]
+	return last.Result == StatusQuarantined && strings.HasPrefix(last.Reason, SupersededReasonPrefix)
 }
 
 // Quarantine pulls an ACTIVE version from new starts. It is reversible only
@@ -231,6 +294,12 @@ func Resolve(store Store, workflowID string, pin Pin) (CompiledVersion, error) {
 	if pin.CompiledPlanDigest == "" && pin.SemanticVersion == "" {
 		return CompiledVersion{}, refuse(CodeInvalidPin, workflowID,
 			"pin names neither a compiled-plan digest nor a semantic version")
+	}
+	if pin.CompiledPlanDigest == "" {
+		if err := ValidateSemanticVersion(pin.SemanticVersion); err != nil {
+			return CompiledVersion{}, wrap(CodeInvalidPin, workflowID, err,
+				"pin carries an invalid semantic version")
+		}
 	}
 
 	if pin.CompiledPlanDigest != "" {

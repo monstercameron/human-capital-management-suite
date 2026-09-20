@@ -307,6 +307,15 @@ func TestTodo_WF_COMP_006(t *testing.T) {
 		if superseded.Status != version.StatusQuarantined {
 			t.Fatalf("superseded version status = %s, want QUARANTINED", superseded.Status)
 		}
+		if !superseded.QuarantinedBySupersession() || activated.QuarantinedBySupersession() {
+			t.Fatalf("supersession = %t/%t, want only the superseded version quarantined by supersession",
+				superseded.QuarantinedBySupersession(), activated.QuarantinedBySupersession())
+		}
+		// A governed quarantine of its own is not a supersession.
+		governed, err := version.Quarantine(store, v2.CompiledPlanDigest, "defect found", "principal:release-manager", "role:change-governance", validEvidence(v2))
+		if err != nil || governed.Status != version.StatusQuarantined || governed.QuarantinedBySupersession() {
+			t.Fatalf("governed quarantine = %s supersession=%t, %v; want a quarantine that is not a supersession", governed.Status, governed.QuarantinedBySupersession(), err)
+		}
 	})
 
 	t.Run("REFACTOR_returned_value_never_aliases_the_store", func(t *testing.T) {

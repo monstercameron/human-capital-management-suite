@@ -54,8 +54,9 @@ type ApprovalRecord struct {
 // carries no digest and no status: [Publish] mints both, so a caller cannot
 // hand this package a manufactured identity.
 type PublishMeta struct {
-	// SemanticVersion is the human-facing version identity, e.g. "1.4.0".
-	// Required: [Publish] refuses an empty value.
+	// SemanticVersion is the human-facing SemVer 2.0.0 identity, e.g. "1.4.0".
+	// It is canonical and has no leading "v". [Publish] refuses empty or
+	// malformed values.
 	SemanticVersion string
 	// PublishedAt is the moment of publication. Required and never defaulted
 	// to "now" — this package has no clock of its own.
@@ -165,6 +166,10 @@ func (v CompiledVersion) Digest() string { return v.digest }
 // Verify recomputes the record's digest from its current content and reports
 // whether it still matches the digest minted at publication.
 func (v CompiledVersion) Verify() error {
+	if err := ValidateSemanticVersion(v.SemanticVersion); err != nil {
+		return wrap(CodeInvalidSemanticVersion, v.WorkflowID, err,
+			"compiled version carries an invalid semantic version")
+	}
 	got := computeRecordDigest(v)
 	if got != v.digest {
 		return refuse(CodeRecordMutated, v.WorkflowID,
