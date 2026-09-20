@@ -20541,6 +20541,221 @@ These are findings from a browser pass over the served workspace (`hcmnext serve
   - **REFACTOR:** keep one availability function shared by `internal/intent/app` and `tools/uxqual/journeyclient` and give it the run facts both already hold, rather than widening the stage vocabulary.
   - **Refs:** [governed edit paths](#70-promotion-workflow-live-audit-remediation), `internal/intent/app`, `tools/uxqual/journeyclient`.
 
+### September 19 follow-up browser findings
+
+These findings come from a second Codex-browser pass over the served Go/WASM workspace at desktop and 390 px widths. The pass covered Home, People, Organization, Insights, Journeys, one Promotion detail, My Work, Myself, Settings, Appearance and Roles & access, plus the global search and action launcher. They are regressions or unfinished acceptance clauses not closed by the earlier evidence above; completion requires a fresh live check against the same server-backed views, not a mock-only fixture.
+
+- [x] `UXLIVE-027` **[P0][SOL_HIGH] Make Journeys, Insights and Home agree on the authorized workflow population.**
+  - **Evidence (2026-09-19):** the 9-versus-0 split had a concrete cause: the saved My Work tab narrowed the journey list on every page, so Home, Insights, History and the person page saw only the viewer's tracked requests while Journeys used its own list. The tab now applies only on My Work (`productclient/client.go`, `productui/provider.go`), and one server-computed `JourneyPopulationSummary` (total, active, closed, needs-action, exceptions, stage counts, latest update) rides on `ListJourneysResponse.population` (`workspace/journey_population.go`, `transport/journey/population.go`); Home and Insights read it instead of recounting, and empty copy requires a zero server total. Live: Journeys 9, Insights 9/6/3, Home 6 in progress, 3 with a problem, 3 closed, each count drilling into the same population. Tests `TestTodo_UXLIVE_027`, `_Regression`, `_PersonPage` (`go test ./tools/uxqual/productclient/`), `_Integration`, `_Security` (`go test -run UXLIVE_027 ./internal/transport/journey/`), `_Browser` (`go test -run UXLIVE_027 ./internal/humanwork/productui/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** `UXAUDIT-015`, `UXAUDIT-018`, `UXLIVE-015`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ANALYTICS,BI.WORK; DIRECT=none; WHY=an analytics page that reports no journeys while the tracker lists nine destroys confidence in every summary the product presents`.
+  - **TEST:** `TestTodo_UXLIVE_027`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_027`; `INTEGRATION=TestTodo_UXLIVE_027_Integration`; `BROWSER=TestTodo_UXLIVE_027_Browser`; `SECURITY=TestTodo_UXLIVE_027_Security`; `REGRESSION=TestTodo_UXLIVE_027_Regression`.
+  - **RED:** in the same Rafael session and tenant, Journeys visibly lists nine promotion requests while Insights renders `No journeys to summarize in your view` and `0 visible promotion journeys`; Home also presents no in-progress work. No page explains a narrower time, ownership or authorization scope that would make those values compatible.
+  - **GREEN:** the three pages consume one authorization-filtered journey-summary projection or explicitly name and test their different scopes; for one unchanged session, each total reconciles to the underlying visible journey set and drill-down links reproduce the population counted; empty copy is impossible when its own authorized source is non-empty.
+  - **REFACTOR:** compute totals, status buckets and freshness once on the server and project page-specific slices; no frontend page recounts or independently filters the collection.
+  - **Refs:** [Home continuity](#69-live-product-ux-audit-remediation), [honest Insights summary](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `internal/humanwork/workspace`, `tools/uxqual/productclient`.
+
+- [x] `UXLIVE-028` **[P0][TERRA] Apply deliberate scroll restoration to software-routed page changes.**
+  - **Evidence (2026-09-19):** the history router owns one scroll policy keyed by history entry and page/record identity (`journeywasm/product_scroll_policy.go`, `product_scroll_wasm.go`); `main-content` no longer restores on its own. Live defects found and fixed: unkeyed page-frame and title-block children re-mounted the heading on resolve and on sort (`productui/shell.go`, `header_identity.go`, `stable_keys.go`), and a late re-render could drop focus to body (`keepRouteFocus`). Live: People scrolled to 900 then a person opens at top with focus on `H1#page-title`; Back restores 900; a Team sort keeps 600. Tests `TestTodo_UXLIVE_028`, `_Regression`, `_Accessibility`, `_Accessibility_FocusSurvivesLateCommit`, `_Browser`, `TestShellChildrenAreKeyedSoRefreshDoesNotRemount` (`go test ./tools/uxqual/cmd/journeywasm/`, and under node with `GOOS=js GOARCH=wasm go test -exec wasm_exec_node ./tools/uxqual/cmd/journeywasm/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** `WEB-243`, `UXLIVE-025`, `UXAUDIT-024`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a newly opened resource must start at its identity rather than inheriting an unrelated page's reading position`.
+  - **TEST:** `TestTodo_UXLIVE_028`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_028`; `BROWSER=TestTodo_UXLIVE_028_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_028_Accessibility`; `REGRESSION=TestTodo_UXLIVE_028_Regression`.
+  - **RED:** navigating through People, Organization, Insights and Myself with the software router can preserve the main content scroll offset from the previous page, so the destination opens below its title and primary context; the fixed navigation remains in place, which makes the missing page start look like absent content rather than retained position.
+  - **GREEN:** a forward navigation to a different page or resource scrolls the main content owner to its start and places focus or the route announcement at the new page identity; browser Back and Forward restore the saved position for that history entry; query-only changes such as table sort, pagination, filters and overlay state retain the relevant local position instead of jumping to the top.
+  - **REFACTOR:** the history router owns one route-state scroll policy keyed by canonical resource identity; pages do not call `scrollTo` independently.
+  - **Refs:** [software routing](#66-production-frontend-and-governed-page-composition), [explicit scroll owner](#71-live-visual-design-and-interaction-polish), `tools/uxqual/cmd/journeywasm`, `internal/humanwork/productui`.
+
+- [x] `UXLIVE-029` **[P0][SOL_HIGH] Preserve every global-search keystroke across debounced asynchronous results.**
+  - **Evidence (2026-09-19):** the global search input is uncontrolled after its mount seed, so no response can write the field; `productui/global_search_controller.go` keeps typed text, a generation counter and results apart and accepts results only for the current generation and query, behind the 250 ms `ui.UseDebounced`. Live: typing `Amara` at 15 ms/key keeps `Amara` (4 results); typing `x` and two Backspaces leaves `Amar`. Tests `TestTodo_UXLIVE_029`, `_Regression`, `_Race`, `_Performance`, `_Browser` (`go test -run UXLIVE_029 ./internal/humanwork/productui/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** `WEB-041`, `WEB-244`, `UXAUDIT-024`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.PEOPLE; DIRECT=none; WHY=search cannot be trusted if a response rerender silently edits the query the user is still typing`.
+  - **TEST:** `TestTodo_UXLIVE_029`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_029`; `BROWSER=TestTodo_UXLIVE_029_Browser`; `RACE=TestTodo_UXLIVE_029_Race`; `PERFORMANCE=TestTodo_UXLIVE_029_Performance`; `REGRESSION=TestTodo_UXLIVE_029_Regression`.
+  - **RED:** entering `Amara` quickly in global search rendered the controlled value as `Amaa` after the debounced results update, even though fuzzy matching still returned Amara; both the visible field and accessibility value had lost the character.
+  - **GREEN:** the local edit buffer is authoritative while typing; a response may update only results for the exact query generation that requested it and can never replace the field value, selection or composition state; rapid typing, deletion, IME composition and out-of-order responses preserve the exact query, with the 250 ms debounce and interaction-latency budget intact.
+  - **REFACTOR:** the shared search controller owns query state, generation fencing and result state separately; the server projection never round-trips the editable value back into the control.
+  - **Refs:** [global search](#66-production-frontend-and-governed-page-composition), `internal/humanwork/productui`, `tools/uxqual/productclient`, `tools/uxqual/cmd/journeywasm`.
+
+- [x] `UXLIVE-030` **[GATE_C][TERRA] Give a populated Home an operational summary rather than an empty canvas.**
+  - **Evidence (2026-09-19):** a populated Home now shows Needs your attention, a Current activity summary grouped as Your work / Requests you can see / People you can see (every number a link to exactly its population), Requests with problems, Recent requests and Recently completed, each row titled `Promotion for <name>` with one status and a labelled product date; empty cards are hidden and the all-empty state stays the UXSCAN-004 composition. On narrow screens the attention card comes first, then the summary. Counts use the locale's digits. Tests `TestTodo_UXLIVE_030`, `_Browser`, `_Accessibility`, `_Regression`, `_RowPresentation`, `_LocalizedDigits` (`go test -run UXLIVE_030 ./internal/humanwork/productui/`), `_Integration` (`go test -run UXLIVE_030 ./tools/uxqual/productclient/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** `UXAUDIT-015`, `UXSCAN-004`, `UXLIVE-018`, `UXLIVE-027`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK,BI.PEOPLE; DIRECT=none; WHY=the landing page should answer what needs attention and what changed without forcing an operator to open every tracker`.
+  - **TEST:** `TestTodo_UXLIVE_030`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_030`; `INTEGRATION=TestTodo_UXLIVE_030_Integration`; `BROWSER=TestTodo_UXLIVE_030_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_030_Accessibility`; `REGRESSION=TestTodo_UXLIVE_030_Regression`.
+  - **RED:** for the admin persona Home shows only `Start a request` and `No work in progress` followed by a large unused canvas while Journeys contains nine visible promotion requests; it surfaces neither recent journeys nor blocked, failed or approval work and therefore misrepresents an active workspace as quiet.
+  - **GREEN:** a populated Home uses the reconciled authorized summary to show a bounded attention queue, recent or tracked journeys, exceptions and a small workforce snapshot appropriate to the viewer; every number drills into the exact filtered population it counts; the true all-empty state remains the compact action-led composition from `UXSCAN-004`.
+  - **REFACTOR:** compose existing work tabs, journey summaries and workforce metrics into the Home floorplan; do not create a Home-only count or duplicate card implementation.
+  - **Refs:** [Home floorplan](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `internal/humanwork/workspace`.
+
+- [x] `UXLIVE-031` **[GATE_C][TERRA] Finish the Journeys tracker's filtering, sorting and grouping contract.**
+  - **Evidence (2026-09-19):** Journeys has search (person, request reference), status, updated-from/to, order and grouping, all in the canonical URL (`journey_q`, `journey_status`, `journey_from`, `journey_to`, `journey_sort`, `journey_group`), an explicit `N of M requests` status and its own empty result with Clear. Selects and dates apply on change and search after a 350 ms pause; on phones the filters sit behind a `Filters (N)` disclosure. Live: `?journey_status=closed` shows 1 of 9, Back restores 9 with the controls reset. Filtering is presentation over the server-authorized list only. Tests `TestTodo_UXLIVE_031`, `_Regression`, `_Integration`, `_Performance` (2000 requests under 100 ms) (`go test ./tools/uxqual/journeyclient/`), `_Browser`, `_Accessibility` (`go test ./tools/uxqual/render/journey/`), `_Security` (`go test ./tools/uxqual/productclient/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** `UXAUDIT-017`, `UXLIVE-010`, `WEB-246`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.REWARDS; DIRECT=none; WHY=a lifecycle tracker that cannot narrow a growing request set makes the user visually inspect every card to find one case`.
+  - **TEST:** `TestTodo_UXLIVE_031`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_031`; `INTEGRATION=TestTodo_UXLIVE_031_Integration`; `BROWSER=TestTodo_UXLIVE_031_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_031_Accessibility`; `PERFORMANCE=TestTodo_UXLIVE_031_Performance`; `REGRESSION=TestTodo_UXLIVE_031_Regression`.
+  - **RED:** the live Journeys page groups cards by person but exposes no page-level search, status/person/date filter, sort or group control; `UXLIVE-010` added short references but its own evidence records that the filter/sort half of its GREEN clause remains open.
+  - **GREEN:** authorized users can search by person and request reference, filter by status and relevant date range, sort by recency and choose a useful grouping; state is encoded in the canonical URL, result count and empty result are explicit, Back restores the previous selection, and a large fixture stays within the list-interaction latency budget.
+  - **REFACTOR:** reuse History and People query/filter primitives and the route-state profile; do not add a tracker-specific parser or client-side authorization filter.
+  - **Refs:** [Journeys versus My Work](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/journeyclient`, `tools/uxqual/productclient`.
+
+- [x] `UXLIVE-032` **[GATE_C][TERRA] Separate a journey's person, request reference and status in the card hierarchy.**
+  - **Evidence (2026-09-19):** cards use the typed `productui.ObjectIdentity` slots: heading `Promotion for Amara`, `Request 8CF888` as copyable, `dir=ltr`, non-wrapping metadata, status once (chip `aria-hidden`, state carried in the heading link's accessible name), with de-DE and ar copy. Tests `TestTodo_UXLIVE_032`, `_Golden`, `_Browser`, `_Accessibility`, `_I18N`, `_Regression` (`go test ./tools/uxqual/render/journey/ ./internal/humanwork/productui/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** `UXLIVE-010`, `UIPOLISH-001`, `UIPOLISH-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.REWARDS; DIRECT=none; WHY=a stable reference is useful only when it remains visibly distinct from the person's name and does not damage narrow layouts`.
+  - **TEST:** `TestTodo_UXLIVE_032`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_032`; `GOLDEN=TestTodo_UXLIVE_032_Golden`; `BROWSER=TestTodo_UXLIVE_032_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_032_Accessibility`; `I18N=TestTodo_UXLIVE_032_I18N`; `REGRESSION=TestTodo_UXLIVE_032_Regression`.
+  - **RED:** headings such as `Amara8CF888 — Open request` visually glue the six-character reference to the person's name, and at 390 px the final reference character can wrap onto its own line; the status is then repeated as a chip without improving the heading's hierarchy.
+  - **GREEN:** the primary heading uses a human task label such as `Promotion for Amara`; `Request 8CF888` is distinct, copyable secondary metadata; status appears once in the visual hierarchy while the accessible name still identifies person, request and state; the composition does not split the short reference at 320 px, 390 px, 200% zoom, German or RTL Arabic.
+  - **REFACTOR:** extend the shared object/card identity header with typed primary, reference and status slots instead of concatenating display strings.
+  - **Refs:** [journey tracker identity](#69-live-product-ux-audit-remediation), `tools/uxqual/render/journey`, `internal/humanwork/productui`.
+
+- [x] `UXLIVE-033` **[GATE_C][SOL_HIGH] Present the People row's real workflow state instead of a blanket Unavailable control.**
+  - **Evidence (2026-09-19):** one projection (`productui/person_workflow_projection.go`) feeds the People row, the person launcher and the global launcher, and every row carries exactly one control: `Open promotion` straight to that journey, `Start promotion` for one eligible workflow, the shared menu for several, or quiet `No workflow to start` with an info button naming the reason; unauthorized viewers get one identical withheld shape. Live: six rows open their journey, Aya starts one, rows are one height at 1280 and 390. Tests `TestTodo_UXLIVE_033`, `_Integration`, `_Browser`, `_Accessibility`, `_Security`, `_Regression` (`go test -run UXLIVE_033 ./internal/humanwork/productui/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** `PROMOUX-001`, `UXLIVE-021`, `UXLIVE-023`, `UXAUDIT-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.WORK,BI.REWARDS; DIRECT=none; WHY=a directory action should help the user continue an existing request or understand the next useful step without leaking an authorization or eligibility rule`.
+  - **TEST:** `TestTodo_UXLIVE_033`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_033`; `INTEGRATION=TestTodo_UXLIVE_033_Integration`; `BROWSER=TestTodo_UXLIVE_033_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_033_Accessibility`; `SECURITY=TestTodo_UXLIVE_033_Security`; `REGRESSION=TestTodo_UXLIVE_033_Regression`.
+  - **RED:** most visible People rows end in the prominent label `Unavailable`; a worker with an active promotion does not make `Open active promotion` the obvious continuation, and an eligible worker with one authorized workflow still requires opening a generic menu. The repeated failure-looking controls dominate the directory scan.
+  - **GREEN:** an active request produces a direct `Open active promotion` action, one eligible authorized workflow may be offered directly, multiple workflows use the shared menu, and a genuinely unavailable row uses quiet explanatory treatment with an authorized remediation where one exists; unauthorized viewers receive the same non-disclosing shape and wording across hidden eligibility reasons.
+  - **REFACTOR:** one server-resolved person-workflow action projection feeds the People row, person launcher and global action launcher; the renderer chooses direct versus menu presentation without re-deciding eligibility or authority.
+  - **Refs:** [People workflow actions](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `internal/humanwork/workspace`, `tools/uxqual/productclient`.
+
+### September 19 promotion-workflow UX review follow-up
+
+These findings come from a task-oriented Codex-browser review of the live promotion path: Journeys to employee selection, a new Aya proposal, the pre-submit review, and representative manager-approval, blocked, rejected, failed, waiting-for-effective-date and downstream-check states. The reviewer deliberately did not submit a new proposal. Existing work remains authoritative where it already covers the symptom: route scroll restoration is `UXLIVE-028`, tracker filtering is `UXLIVE-031`, card identity hierarchy is `UXLIVE-032`, and People-row workflow affordances are `UXLIVE-033`. Items whose answer needs evidence before implementation are explicitly titled **RESEARCH**; their GREEN clause produces a reviewed decision and executable acceptance fixtures, not production behavior.
+
+- [ ] `UXLIVE-034` **[GATE_C][SOL_HIGH] RESEARCH — Select an error-prevention and confirmation pattern for material promotion proposals.**
+  - **Depends:** `PROMOUX-005`, `PROMOUX-006`, `PROMOUX-007`, `WEB-029`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS,BI.WORK; DIRECT=none; WHY=a material compensation change needs an evidence-backed review pattern before the product commits to field validation, confirmation density and warning behavior`.
+  - **TEST:** `TestTodo_UXLIVE_034`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_034`; `GOLDEN=TestTodo_UXLIVE_034_Golden`; `ACCESSIBILITY=TestTodo_UXLIVE_034_Accessibility`; `SECURITY=TestTodo_UXLIVE_034_Security`; `CONFORMANCE=TestTodo_UXLIVE_034_Conformance`.
+  - **RED:** the current flow permits `Review and submit` with `USD 0.00` and an empty required business reason, then presents an enabled submit action in a sparse modal; there is no recorded product decision for when validation runs, which warnings block, what a reviewer must compare or how sensitive facts are disclosed.
+  - **GREEN:** research compares at least three established enterprise transaction-review patterns and tests them against promotion scenarios (ordinary, above-band, budget-shortfall, missing required values, changed/stale baseline and masked compensation); a reviewed decision recorded in this todo's Evidence names the chosen progressive-disclosure, validation-timing, warning-severity, confirmation-content, mobile and assistive-technology contract; executable golden fixtures encode that contract without submitting a promotion.
+  - **REFACTOR:** the research output defines one reusable material-change review contract for promotion and later compensation workflows; it must not prescribe page-local modal markup or move business validation into the browser.
+  - **Refs:** [guided proposal collection](#66-production-frontend-and-governed-page-composition), [promotion live audit](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/render/journey`, `tools/uxqual/forms`.
+
+- [ ] `UXLIVE-035` **[GATE_C][SOL_HIGH] RESEARCH — Establish the journey detail's status, progress and intervention hierarchy.**
+  - **Depends:** `UXAUDIT-016`, `UXLIVE-002`, `UXLIVE-026`, `PROMOUX-013`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.REWARDS; DIRECT=none; WHY=the page must prioritize understanding and the next safe action without letting destructive or unavailable interventions dominate the record`.
+  - **TEST:** `TestTodo_UXLIVE_035`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_035`; `GOLDEN=TestTodo_UXLIVE_035_Golden`; `ACCESSIBILITY=TestTodo_UXLIVE_035_Accessibility`; `I18N=TestTodo_UXLIVE_035_I18N`; `CONFORMANCE=TestTodo_UXLIVE_035_Conformance`.
+  - **RED:** every journey detail places three tall intervention cards before the stage tracker; waiting and terminal requests devote the first viewport to disabled Withdraw, Cancel and Edit controls, while the status explanation, current stage and authoritative outcome are below the fold.
+  - **GREEN:** research evaluates status-first, task-first and audit-first enterprise workflow layouts against proposer, approver, auditor and support personas; the reviewed decision recorded in this todo's Evidence defines the first-viewport hierarchy, primary versus secondary intervention rules, terminal-state treatment, responsive order and focus order; golden fixtures cover active, blocked, waiting, rejected, failed and recorded states.
+  - **REFACTOR:** the decision maps to shared journey-section and action-priority contracts; it does not create status-specific page forks or weaken server-owned intervention authority.
+  - **Refs:** [approval progress presentation](#66-production-frontend-and-governed-page-composition), [governed edit paths](#70-promotion-workflow-live-audit-remediation), `tools/uxqual/render/journey`, `tools/uxqual/journeyclient`.
+
+- [ ] `UXLIVE-036` **[P0][SOL_HIGH] Stop invalid promotion proposals before review and expose accessible field errors.**
+  - **Depends:** `UXLIVE-034`, `UXLIVE-004`, `PROMOUX-007`, `WEB-029`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS,BI.WORK; DIRECT=none; WHY=review cannot be a substitute for required-field and exact-money validation, and a user must be led to every problem before a material request can be submitted`.
+  - **TEST:** `TestTodo_UXLIVE_036`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_036`; `BROWSER=TestTodo_UXLIVE_036_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_036_Accessibility`; `INTEGRATION=TestTodo_UXLIVE_036_Integration`; `SECURITY=TestTodo_UXLIVE_036_Security`; `REGRESSION=TestTodo_UXLIVE_036_Regression`.
+  - **RED:** selecting a role and position while leaving proposed base pay at `USD 0.00` and business reason empty still opens the review dialog with an enabled `Submit proposal`; the visible Cancel and Submit buttons have no accessible names in the live accessibility tree.
+  - **GREEN:** the review action is unavailable until locally knowable required constraints pass; an attempted invalid review renders a summary plus inline messages, sets `aria-invalid` and `aria-describedby`, focuses the first invalid field and announces the error count; server refusals map through the same presentation contract; every review-dialog control has a stable accessible name and keyboard/focus behavior; no client check is treated as authority and the server still refuses forged invalid submissions.
+  - **REFACTOR:** reuse the shared validation summary, field-error and modal-focus primitives for propose and edit; one typed refusal mapper serves SSR and Go/WASM paths.
+  - **Refs:** [progressive enhancement](#66-production-frontend-and-governed-page-composition), `internal/humanwork/productui`, `tools/uxqual/forms`, `tools/uxqual/render/journey`, `tools/uxqual/journeyclient`.
+
+- [ ] `UXLIVE-037` **[P0][SOL_HIGH] Make the promotion review a complete, decision-grade transaction summary.**
+  - **Depends:** `UXLIVE-034`, `UXLIVE-036`, `PROMOUX-005`, `PROMOUX-006`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS,BI.PEOPLE,BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=the final confirmation must show the facts whose durable effects and approvals the user is authorizing`.
+  - **TEST:** `TestTodo_UXLIVE_037`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_037`; `GOLDEN=TestTodo_UXLIVE_037_Golden`; `BROWSER=TestTodo_UXLIVE_037_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_037_Accessibility`; `I18N=TestTodo_UXLIVE_037_I18N`; `SECURITY=TestTodo_UXLIVE_037_Security`; `REGRESSION=TestTodo_UXLIVE_037_Regression`.
+  - **RED:** the live review modal shows only employee, role/grade transition and effective date; it omits target position, current and proposed base pay, exact and percentage delta, business reason, warnings and expected approval path even though those facts determine the transaction.
+  - **GREEN:** review presents an authorization-filtered current-versus-proposed summary covering employee, role and grade, human position identity, organization and manager changes, exact currency/period base pay and delta, effective date, complete business reason, material warnings and the next approval owners or withheld equivalent; submit names the effect, the summary remains usable at 320 px and 200% zoom, and masked viewers never recover hidden facts from markup or accessible text.
+  - **REFACTOR:** wire the existing `PromotionReview` and `CompensationGuardrailCard` projections into the production path and derive review facts from the canonical proposal candidate; do not recalculate compensation or authority in the renderer.
+  - **Refs:** [promotion review](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui/promotion_review.go`, `internal/humanwork/productui/compensation_guardrail.go`, `tools/uxqual/render/journey`.
+
+- [ ] `UXLIVE-038` **[P0][TERRA] Make target-position choices distinguishable and decisionable.**
+  - **Depends:** `PROMOUX-002`, `WEB-122`, `UXLIVE-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORKFORCE,BI.PEOPLE; DIRECT=none; WHY=two authorized vacancies that look identical cannot be chosen intentionally and invite a materially wrong placement`.
+  - **TEST:** `TestTodo_UXLIVE_038`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_038`; `INTEGRATION=TestTodo_UXLIVE_038_Integration`; `GOLDEN=TestTodo_UXLIVE_038_Golden`; `BROWSER=TestTodo_UXLIVE_038_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_038_Accessibility`; `SECURITY=TestTodo_UXLIVE_038_Security`; `REGRESSION=TestTodo_UXLIVE_038_Regression`.
+  - **RED:** Aya's proposal offers two radio choices that both read `Senior Data Engineer / Data & Analytics / Boston, MA / Open now — Available`; there is no visible position code, manager, reporting line, headcount type or other authorized discriminator.
+  - **GREEN:** each option has a stable human label and only the authorized differentiating facts needed to choose it (position code or short id, manager/reporting context, location, headcount type and availability as applicable); genuinely indistinguishable duplicates are consolidated or explicitly explained; radio names, descriptions and selected state remain clear to assistive technology and in narrow layouts; selecting one binds its exact revision without trusting display text.
+  - **REFACTOR:** extend the shared authorized vacancy projection and option-card component; do not perform a second position lookup or expose hidden workforce facts in the browser.
+  - **Refs:** [position and vacancy selection](#66-production-frontend-and-governed-page-composition), `internal/humanwork/productui`, `internal/humanwork/workspace`, `tools/uxqual/productclient`.
+
+- [ ] `UXLIVE-039` **[P0][SOL_HIGH] Replace the zero-money default with safe exact-compensation entry.**
+  - **Depends:** `PROMOUX-006`, `COMP-001`, `UXLIVE-036`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS; DIRECT=none; WHY=zero is a valid exact monetary value in some domains but an unsafe fabricated proposal value when the user has not chosen compensation`.
+  - **TEST:** `TestTodo_UXLIVE_039`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_039`; `PROPERTY=TestTodo_UXLIVE_039_Property`; `INTEGRATION=TestTodo_UXLIVE_039_Integration`; `BROWSER=TestTodo_UXLIVE_039_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_039_Accessibility`; `I18N=TestTodo_UXLIVE_039_I18N`; `SECURITY=TestTodo_UXLIVE_039_Security`; `REGRESSION=TestTodo_UXLIVE_039_Regression`.
+  - **RED:** after the next role supplies a current salary and permitted band, Proposed base pay visibly defaults to `USD 0.00`; the screen makes a system-created zero look like a deliberate proposal and allows it to reach review.
+  - **GREEN:** untouched compensation is represented as absent, never as floating point or an invented zero; the chosen product rule from `UXLIVE-034` either requires an explicit exact-money value or offers a clearly labelled suggestion derived by the compensation authority; currency and period stay attached, localized entry canonicalizes exactly, the live delta and band position update without becoming authority, and zero/out-of-range/ambiguous input cannot reach review.
+  - **REFACTOR:** use the shared exact-money input and canonical decimal contract; suggestions come from the authorized compensation projection and remain distinguishable from user-confirmed values.
+  - **Refs:** [money and quantity domain](#22-money-quantities-compensation-and-payroll), [compensation guardrails](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/forms`.
+
+- [ ] `UXLIVE-040` **[GATE_C][TERRA] Preserve promotion intent when choosing an employee.**
+  - **Depends:** `UXLIVE-033`, `PROMOUX-001`, `WEB-243`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORK; DIRECT=none; WHY=an action that says choose an employee to promote should enter a promotion-scoped selection task rather than drop the user into an unrelated directory state`.
+  - **TEST:** `TestTodo_UXLIVE_040`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_040`; `INTEGRATION=TestTodo_UXLIVE_040_Integration`; `BROWSER=TestTodo_UXLIVE_040_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_040_Accessibility`; `SECURITY=TestTodo_UXLIVE_040_Security`; `REGRESSION=TestTodo_UXLIVE_040_Regression`.
+  - **RED:** `Choose an employee to promote` navigates to the ordinary People directory without promotion eligibility enabled, so all 64 people appear, most rows end in `Unavailable`, and the user must discover and apply `Promotion eligible only` before continuing; the link also drops the current locale from its URL.
+  - **GREEN:** the action opens a promotion-scoped, authorization-filtered employee selection state with eligibility already applied and clearly removable; result count, reason-neutral unavailable treatment, active-request continuation, search and Back behavior remain coherent; the canonical route preserves locale and other durable user preferences without encoding hidden eligibility facts; selecting a worker continues directly to that worker's proposal.
+  - **REFACTOR:** encode task context through the shared route-state and person-workflow projection, reusing the People table rather than creating a second employee directory or filtering unauthorized rows in the client.
+  - **Refs:** [software routing](#66-production-frontend-and-governed-page-composition), [People workflow actions](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `UXLIVE-041` **[P0][SOL_HIGH] Explain blocked, rejected and failed promotions from authoritative outcome evidence.**
+  - **Depends:** `UXLIVE-001`, `UXLIVE-002`, `PROMOUX-012`, `PROMOUX-016`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.REWARDS; DIRECT=none; WHY=a terminal or blocked label without the cause and next safe step prevents recovery and makes the audit record appear internally inconsistent`.
+  - **TEST:** `TestTodo_UXLIVE_041`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_041`; `INTEGRATION=TestTodo_UXLIVE_041_Integration`; `GOLDEN=TestTodo_UXLIVE_041_Golden`; `BROWSER=TestTodo_UXLIVE_041_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_041_Accessibility`; `SECURITY=TestTodo_UXLIVE_041_Security`; `CONFORMANCE=TestTodo_UXLIVE_041_Conformance`; `REGRESSION=TestTodo_UXLIVE_041_Regression`.
+  - **RED:** a rejected request shows both approvals completed and says only that effective-date checks need attention; a failed request says to review its checks even though its only displayed check is informational; the blocked banner names only the band maximum while the same record also contains a budget shortfall.
+  - **GREEN:** every blocked or terminal non-success state has one authoritative, localized reason summary derived from durable finding/outcome evidence, identifies the stage that stopped, distinguishes all contributing blocking findings from supplemental information and states the next permitted remediation or that none exists; the stage tracker, banner, outcome panel, history and list card cannot disagree; unauthorized details are withheld without changing the outer status shape.
+  - **REFACTOR:** one outcome-reason projection consumes typed engine findings and terminal evidence for cards, detail and history; renderers do not infer causes from status strings or parse human messages.
+  - **Refs:** [execution status dimensions](#66-production-frontend-and-governed-page-composition), [promotion diagnostics](#70-promotion-workflow-live-audit-remediation), `internal/intent/app`, `tools/uxqual/journeyclient`, `tools/uxqual/render/journey`.
+
+- [ ] `UXLIVE-042` **[P0][SOL_HIGH] Make downstream-effect progress truthful, observable and time-bounded.**
+  - **Depends:** `PROMOUX-016`, `WF-RUN-019`, `UXLIVE-002`, `UXLIVE-041`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.OPERATIONS; DIRECT=none; WHY=after approvals and the effective date, a user needs to know which final check is running, whether the system is healthy and when intervention becomes appropriate`.
+  - **TEST:** `TestTodo_UXLIVE_042`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_042`; `INTEGRATION=TestTodo_UXLIVE_042_Integration`; `BROWSER=TestTodo_UXLIVE_042_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_042_Accessibility`; `FAULT=TestTodo_UXLIVE_042_Fault`; `RECOVERY=TestTodo_UXLIVE_042_Recovery`; `REGRESSION=TestTodo_UXLIVE_042_Regression`.
+  - **RED:** Caleb is at `Checking downstream effects` with Proposal, Finance, Manager and Effective date complete and Recorded current, but `What happens next` says to complete remaining reviews; the page names no active final check, freshness, retry or threshold for concern.
+  - **GREEN:** the page derives its next-step sentence from the current durable node/effect state, names the active downstream phase in business language, shows last progress and the next automatic action or bounded expectation, and changes to delayed/retrying/repair-required only from authoritative runtime evidence; a completed approval is never described as remaining; live-region updates are concise and do not continuously announce polling.
+  - **REFACTOR:** project a typed progress summary from the workflow inspector and reuse it on journey detail, card and My Work; presentation does not poll provider internals or fabricate an ETA.
+  - **Refs:** [workflow inspector](specs/workflow-runtime.md), [approval progress presentation](#66-production-frontend-and-governed-page-composition), `internal/intent/app`, `tools/uxqual/journeyclient`, `tools/uxqual/render/journey`.
+
+- [ ] `UXLIVE-043` **[GATE_C][TERRA] Implement the researched status-first journey detail composition.**
+  - **Depends:** `UXLIVE-035`, `UXLIVE-041`, `UXLIVE-042`, `UXLIVE-026`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.REWARDS; DIRECT=none; WHY=the detail's visual and focus hierarchy should answer status, progress and next action before presenting rare interventions`.
+  - **TEST:** `TestTodo_UXLIVE_043`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_043`; `GOLDEN=TestTodo_UXLIVE_043_Golden`; `BROWSER=TestTodo_UXLIVE_043_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_043_Accessibility`; `I18N=TestTodo_UXLIVE_043_I18N`; `REGRESSION=TestTodo_UXLIVE_043_Regression`.
+  - **RED:** active, waiting and terminal details render the same three-card Actions block before Stages; disabled actions and engine-oriented explanations occupy most of the first viewport while the current stage and outcome require scrolling.
+  - **GREEN:** the page follows `UXLIVE-035`'s reviewed hierarchy; status, authoritative explanation, stage progress and the single useful next action appear first; destructive or rare interventions live in a clearly labelled secondary disclosure; terminal journeys omit irrelevant disabled cards and expose an outcome-appropriate follow-up; DOM/focus order matches visual order at desktop, 320/390 px, 200% zoom, German and RTL Arabic.
+  - **REFACTOR:** compose shared status-summary, stage-tracker, primary-action and intervention-menu components from server-resolved facts; do not duplicate per-status layouts or client-side availability rules.
+  - **Refs:** [journey detail floorplan](#69-live-product-ux-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/render/journey`.
+
+- [ ] `UXLIVE-044` **[GATE_C][TERRA] Carry a human position identity from selection through review and history.**
+  - **Depends:** `UXLIVE-003`, `UXLIVE-037`, `UXLIVE-038`, `POSITION-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=an opaque UUID proves identity to a machine but does not let a proposer, reviewer or auditor recognize the chosen position`.
+  - **TEST:** `TestTodo_UXLIVE_044`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_044`; `INTEGRATION=TestTodo_UXLIVE_044_Integration`; `GOLDEN=TestTodo_UXLIVE_044_Golden`; `BROWSER=TestTodo_UXLIVE_044_Browser`; `SECURITY=TestTodo_UXLIVE_044_Security`; `REGRESSION=TestTodo_UXLIVE_044_Regression`.
+  - **RED:** the picker shows a human title, but journey comparison renders only UUIDs such as `70ae5423-59a9-55ba-abf3-00f495284b09`; `UXLIVE-003` removed the encoded revision token but its evidence explicitly records that the position title is still not carried by the proposal.
+  - **GREEN:** the governed proposal binds the exact position revision and an immutable display snapshot sufficient to identify what the user chose; picker, review, journey comparison, history and exported evidence show the same authorized title plus stable short code/id; rename or later vacancy change does not rewrite the historical decision; unresolved or withheld identities render explicit safe states and never fall back to raw revision tokens outside diagnostics.
+  - **REFACTOR:** define one position-identity value and authorized resolver at the workforce boundary; display snapshots support audit history while current live facts remain separately labelled.
+  - **Refs:** [position domain](specs/position-domain.md), [promotion proposal](reference-workflows/promote-into-management.md), `internal/humanwork/productui`, `internal/intent/app`, `tools/uxqual/journeyclient`.
+
+- [ ] `UXLIVE-045` **[GATE_C][TERRA] Use outcome-specific journey-card actions and progressive technical detail.**
+  - **Depends:** `UXLIVE-031`, `UXLIVE-032`, `UXLIVE-041`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.REWARDS; DIRECT=none; WHY=card actions should communicate whether the user is continuing work, tracking progress or reviewing a finished decision`.
+  - **TEST:** `TestTodo_UXLIVE_045`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_045`; `GOLDEN=TestTodo_UXLIVE_045_Golden`; `BROWSER=TestTodo_UXLIVE_045_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_045_Accessibility`; `I18N=TestTodo_UXLIVE_045_I18N`; `REGRESSION=TestTodo_UXLIVE_045_Regression`.
+  - **RED:** every card uses `Open request`, including rejected and failed outcomes, and every card repeats a `Technical details` disclosure whether or not it helps the current task; next-step language is absent on terminal cards and generic on downstream processing.
+  - **GREEN:** card action copy follows the authorized task state (`Review decision`, `Correct proposal`, `Complete approval`, `Track request` or equivalent from the shared vocabulary); the one next useful step is visible where one exists; implementation identifiers and diagnostics are absent from the default scan and available only through an authorized secondary path; accessible names include person, short reference, status and action without duplicating visible phrases.
+  - **REFACTOR:** derive action label and next-step text from the same task/outcome projection used by detail and My Work; one shared diagnostics disclosure component owns technical metadata.
+  - **Refs:** [journey tracker identity](#69-live-product-ux-audit-remediation), [promotion diagnostics](#70-promotion-workflow-live-audit-remediation), `internal/humanwork/productui`, `tools/uxqual/render/journey`.
+
+- [ ] `UXLIVE-046` **[P0][SOL_HIGH] Gate release on the complete promotion experience across success and recovery states.**
+  - **Depends:** `UXLIVE-028`, `UXLIVE-031`, `UXLIVE-032`, `UXLIVE-033`, `UXLIVE-036`, `UXLIVE-037`, `UXLIVE-038`, `UXLIVE-039`, `UXLIVE-040`, `UXLIVE-041`, `UXLIVE-042`, `UXLIVE-043`, `UXLIVE-044`, `UXLIVE-045`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=isolated component tests cannot prove that a user can find, propose, review, track, recover and understand one promotion end to end`.
+  - **TEST:** `TestTodo_UXLIVE_046`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UXLIVE_046`; `INTEGRATION=TestTodo_UXLIVE_046_Integration`; `BROWSER=TestTodo_UXLIVE_046_Browser`; `ACCESSIBILITY=TestTodo_UXLIVE_046_Accessibility`; `I18N=TestTodo_UXLIVE_046_I18N`; `SECURITY=TestTodo_UXLIVE_046_Security`; `PERFORMANCE=TestTodo_UXLIVE_046_Performance`; `RECOVERY=TestTodo_UXLIVE_046_Recovery`; `REGRESSION=TestTodo_UXLIVE_046_Regression`.
+  - **RED:** the individual promotion surfaces can each render while the real task still admits invalid review, loses task context, presents indistinguishable positions, contradicts runtime state or strands a user at a terminal result; no one gate traverses these seams with production components and a real store.
+  - **GREEN:** against embedded PostgreSQL and the production Go/WASM client, persona-qualified scenarios cover promotion-scoped employee selection, exact-money entry, review, submit, finance and manager approval, effective-date waiting, downstream recording, completed outcome, blocked correction, rejection, failure and recovery; each asserts durable effects, authorized disclosure, focus/keyboard behavior, localized copy, route/scroll continuity, duplicate-submit fencing and the interaction-latency budget; desktop plus 390 px and 320 px live checks in light and dark are recorded in Evidence.
+  - **REFACTOR:** reuse one seeded promotion-experience harness and shared page objects/projections; the gate observes public behavior and durable evidence rather than implementation-specific DOM structure or mock-only state.
+  - **Refs:** [promotion reference workflow](reference-workflows/promote-into-management.md), [production frontend](specs/production-frontend-and-page-composition.md), `test/workspace`, `test/workflow`, `internal/humanwork/productui`, `tools/uxqual`.
+
 ## 75. High-performer promotion variant with market-rate step
 
 Secondary enhanced promotion workflow for high performers. It is a variant
@@ -20565,7 +20780,8 @@ regression is possible while the source question stays open.
   - **REFACTOR:** keep one source interface with two backends rather than a flag-threaded client.
   - **Refs:** `internal/domains/rewards`, `internal/platform/execution/promotionsteps`.
 
-- [ ] `HIPERF-002` **[GATE_C][TERRA] Compile the high-performer variant plan without touching the execute graph.**
+- [x] `HIPERF-002` **[GATE_C][TERRA] Compile the high-performer variant plan without touching the execute graph.**
+  - **Evidence (2026-09-19):** `TestTodo_HIPERF_002`, `TestTodo_HIPERF_002_Golden` in `internal/workflow/promotionhiperf`; `go test -count=1 -run 'TestTodo_HIPERF_002' ./internal/workflow/promotionhiperf/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
   - **Depends:** `HIPERF-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK; DIRECT=none; WHY=a second published plan must exist for rated workers to run while the current plan stays byte-identical for everyone else`.
   - **TEST:** `TestTodo_HIPERF_002`.
@@ -20575,7 +20791,8 @@ regression is possible while the source question stays open.
   - **REFACTOR:** share the node builders with promotionexec rather than copying the graph.
   - **Refs:** `internal/workflow/promotionexec`, `internal/platform/execution`.
 
-- [ ] `HIPERF-003` **[GATE_C][TERRA] Feed the market anchor into the raise calculation with today as default.**
+- [x] `HIPERF-003` **[GATE_C][TERRA] Feed the market anchor into the raise calculation with today as default.**
+  - **Evidence (2026-09-19):** `TestTodo_HIPERF_003` family plus `TestTodo_HIPERF_003_Golden` in `internal/domains/rewards`; `go test -count=1 -run 'TestTodo_HIPERF_003' ./internal/domains/rewards/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
   - **Depends:** `HIPERF-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=a market-informed raise floor is the only compensation difference the variant promises`.
   - **TEST:** `TestTodo_HIPERF_003`.
@@ -20585,7 +20802,8 @@ regression is possible while the source question stays open.
   - **REFACTOR:** keep the anchor optional on the existing request rather than a second simulation entrypoint.
   - **Refs:** `internal/domains/rewards`, `internal/platform/execution/promotionsteps`.
 
-- [ ] `HIPERF-004` **[GATE_C][TERRA] Route top-rated subjects to the variant digest, everyone else to execute.**
+- [x] `HIPERF-004` **[GATE_C][TERRA] Route top-rated subjects to the variant digest, everyone else to execute.**
+  - **Evidence (2026-09-19):** `TestTodo_HIPERF_004`, `TestTodo_HIPERF_004_Security` in `internal/intent/app`; `go test -count=1 -run 'TestTodo_HIPERF_004' ./internal/intent/app/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
   - **Depends:** `HIPERF-002`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.PEOPLE; DIRECT=none; WHY=the variant must trigger on performance facts, never on a global flag an operator could leave on`.
   - **TEST:** `TestTodo_HIPERF_004`.
@@ -20595,7 +20813,8 @@ regression is possible while the source question stays open.
   - **REFACTOR:** put the eligibility predicate next to the plan resolver, not in the journey body.
   - **Refs:** `internal/intent/app`, `internal/platform/execution`, `internal/domains/performance`.
 
-- [ ] `HIPERF-005` **[GATE_C][TERRA] Bind the market-rate port and prove the variant end to end with the current plan unregressed.**
+- [x] `HIPERF-005` **[GATE_C][TERRA] Bind the market-rate port and prove the variant end to end with the current plan unregressed.**
+  - **Evidence (2026-09-19):** `TestTodo_HIPERF_005`, `TestTodo_HIPERF_005_Integration` in `internal/intent/app`; `go test -count=1 -run 'TestTodo_HIPERF_005' ./internal/intent/app/` PASS on windows/arm64 (Go 1.26.3); lane-reported promotionexec/platform-execution/intent-app regression suites green; branch operations/promo-exec-provider-integrations.
   - **Depends:** `HIPERF-002`, `HIPERF-003`, `HIPERF-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.REWARDS; DIRECT=none; WHY=a variant that is defined but not runnable is a second contract to keep with no proof it holds`.
   - **TEST:** `TestTodo_HIPERF_005`.
@@ -20604,3 +20823,4781 @@ regression is possible while the source question stays open.
   - **GREEN:** the ports bind the new capability; INTEGRATION runs a rated worker from propose through the market-rate node with the anchor visible in the raise evidence; REGRESSION runs the promotionexec, platform/execution, intent/app, and application suites green with the execute digest unchanged.
   - **REFACTOR:** add one port method rather than a parallel port struct.
   - **Refs:** `internal/platform/execution/promotionsteps`, `internal/application`, `internal/intent/app`.
+
+## 76. Documentation accuracy review findings (2026-09-19)
+
+These come from a read-only review on 2026-09-19 of `README.md`, `AGENTS.md`, `CLAUDE.md`, `CHANGELOG.md`, the `.claude/` agent documents and the subdirectory READMEs, with every claim checked against the source. Each item is a statement that is false or stale today, not a style preference. `DOCFIX-001`, `DOCFIX-004` and `DOCFIX-005` need an owner decision on which side is right before GREEN; the rest correct the document to match the code. A checkbox requires the corrected text and a check that fails if the same drift returns.
+
+- [x] `DOCFIX-001` **[GATE_C][LUNA] Resolve the README license statement against the MIT LICENSE file.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_001`, `TestTodo_DOCFIX_001_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=a repository that states two different licenses gives no reliable grant to anyone reading it`.
+  - **TEST:** `TestTodo_DOCFIX_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_001`; `GOLDEN=TestTodo_DOCFIX_001_Golden`.
+  - **RED:** `README.md:852` says the repository is "private and unlicensed for external use unless a separate license grant says otherwise", while the root `LICENSE` is an MIT grant (Copyright (c) 2026 Earl Cameron).
+  - **GREEN:** the owner decides which is intended; either the README License section names the MIT license and links `LICENSE`, or `LICENSE` is removed/replaced and the README statement stands. PRIMARY asserts the README License section and the `LICENSE` file agree.
+  - **REFACTOR:** the README License section points at `LICENSE` instead of restating terms.
+  - **Refs:** `README.md`, `LICENSE`.
+
+- [x] `DOCFIX-002` **[GATE_C][LUNA] Stop the README claiming Protobuf generation is unpinned.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_002`, `TestTodo_DOCFIX_002_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=a contributor told generation is unpinned will hand-write or re-derive what buf.gen.yaml already produces`.
+  - **TEST:** `TestTodo_DOCFIX_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_002`; `GOLDEN=TestTodo_DOCFIX_002_Golden`.
+  - **RED:** `README.md:41` says `schema/proto` has "generation toolchain not yet pinned" and `README.md:831-834` says there is "no pinned root Protobuf/SchemaFlux generation command"; `buf.gen.yaml` pins `protoc-gen-go` and `protoc-gen-go-grpc` through `go.mod` `tool` directives and `gen/go/hcmnext/*` is checked in.
+  - **GREEN:** both passages describe the pinned `buf generate` path, the `gen/go` output and its checked-in policy, and state separately what SchemaFlux does and does not generate (see `DOCFIX-003`); PRIMARY fails if the README calls generation unpinned while `buf.gen.yaml` pins it.
+  - **REFACTOR:** one "Generating contracts" paragraph replaces the two conflicting passages.
+  - **Refs:** `README.md`, `buf.gen.yaml`, `go.mod`, `gen/go`.
+
+- [x] `DOCFIX-003` **[GATE_C][LUNA] Correct the SchemaFlux business-intent README's claim that its compiler tooling does not exist.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_003`, `TestTodo_DOCFIX_003_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the directory README tells readers its YAML is uncompiled when a tested loader, emitter and cross-check consume it`.
+  - **TEST:** `TestTodo_DOCFIX_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_003`; `GOLDEN=TestTodo_DOCFIX_003_Golden`.
+  - **RED:** `schema/schemaflux/business_intents/v1/README.md:6-8` says the "adapter, descriptor resolver and Go/documentation emitter do not yet exist"; `tools/gen/schemaflux` has `LoadDefinitions` (`loader.go`), the Go-registry/markdown/fixture emitter (`generate.go`) and `CrossCheckCompiled` (`crosscheck.go`) against `internal/intent/definitions`, evidenced `OK` in `definitions/planning/gates/p1a-evidence-report.md`.
+  - **GREEN:** the README names `tools/gen/schemaflux` as the consumer, states what it emits and what it cross-checks, and keeps the (still true) statement that Protobuf is authoritative for wire types; PRIMARY fails if the README denies a tool that the package exports.
+  - **REFACTOR:** none beyond the text.
+  - **Refs:** `schema/schemaflux/business_intents/v1/README.md`, `tools/gen/schemaflux`, `internal/intent/definitions`.
+
+- [x] `DOCFIX-004` **[GATE_C][LUNA] Reconcile the AGENTS.md push/PR steps with the settings that deny `git push`.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_004`, `TestTodo_DOCFIX_004_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); resolved to the scoped-allowance branch (settings deny main/master/force/delete, AGENTS.md pushes topic branches only); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=an agent following the delivery loop as written reaches a step its own permissions forbid`.
+  - **TEST:** `TestTodo_DOCFIX_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_004`; `GOLDEN=TestTodo_DOCFIX_004_Golden`.
+  - **RED:** `AGENTS.md:99` ("Push the topic branch and open a PR") and `AGENTS.md:117` ("Push only topic branches, only to open or update a PR") instruct a push, while `.claude/settings.json:34` denies `Bash(git push:*)` without exception and `AGENTS.md:22` itself says pushes are denied.
+  - **GREEN:** the owner decides who pushes; either the delivery loop says the agent stops at a committed topic branch and the human pushes and opens the PR, or the deny rule gains a scoped topic-branch allowance. PRIMARY asserts the AGENTS.md push steps and the settings deny list agree.
+  - **REFACTOR:** state the push rule once in Git discipline and reference it from the delivery loop.
+  - **Refs:** `AGENTS.md`, `.claude/settings.json`.
+
+- [x] `DOCFIX-005` **[GATE_C][LUNA] Re-describe `internal/humanwork` in the layout manifest and regenerate the README table.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_005`, `TestTodo_DOCFIX_005_Golden` in `tools/planning/docfix` plus `go test -count=1 ./tools/gen/librarystrategy/` PASS on windows/arm64 (Go 1.26.3); manifest row is transport/P1A/experience-and-transport with the Production Go/WASM description and the README region matches; branch operations/promo-exec-provider-integrations.
+  - **Depends:** `LIB-015`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the generated package table calls the package that serves the production frontend a deferred messaging root`.
+  - **TEST:** `TestTodo_DOCFIX_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_005`; `GOLDEN=TestTodo_DOCFIX_005_Golden`.
+  - **RED:** `definitions/architecture/repository-layout.yaml:132-136` declares `humanwork` as `phase: deferred`, "Human messaging (email/SMS/inbox/push/Slack/Teams); deferred beyond P1A scope", and the generated README region prints `internal/humanwork [connectivity; deferred; owner=connectivity]`; the package now holds `workspace`, `productui` and `uicomponents`, the served workspace the README's "Review the production frontend" section runs.
+  - **GREEN:** the owner confirms the plane, phase and owner for `humanwork` (or splits the workspace/product UI into their own declared root); the manifest says so, `tools/gen/librarystrategy` regenerates the README region, and `TestReadmeLibraryStrategyMatchesManifest` stays green.
+  - **REFACTOR:** none beyond the manifest entry.
+  - **Refs:** `definitions/architecture/repository-layout.yaml`, `tools/gen/librarystrategy`, `internal/humanwork`, `README.md`.
+
+- [x] `DOCFIX-006` **[GATE_C][LUNA] Document every root command, including `hcmctl` and `scheduler`.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_006`, `TestTodo_DOCFIX_006_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=a reader running the prototype from the README never learns two of the processes it ships`.
+  - **TEST:** `TestTodo_DOCFIX_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_006`; `GOLDEN=TestTodo_DOCFIX_006_Golden`.
+  - **RED:** `README.md:765` says "The four root commands are `hcmnext`, `migrate`, `projector` and `worker`"; `cmd/` holds seven: those four plus `frontenddev` (documented elsewhere in the README), `hcmctl` (the SVC-011/ADMIN-001 operator CLI) and `scheduler` (the SVC-004 workflow-frontier role), neither of which the README mentions.
+  - **GREEN:** the README lists all seven with one line each and shows how to run `scheduler` beside `projector` and `worker`; PRIMARY fails when a `cmd/*` directory is missing from the README command list.
+  - **REFACTOR:** drive the list from the approved process set in `definitions/architecture/repository-layout.yaml` rather than a hand count.
+  - **Refs:** `README.md`, `cmd/`, `definitions/architecture/repository-layout.yaml`.
+
+- [x] `DOCFIX-007` **[GATE_C][LUNA] List every gate the pre-commit hook actually runs in AGENTS.md.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_007`, `TestTodo_DOCFIX_007_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=an agent auditing a hook failure against AGENTS.md cannot find the gate that failed`.
+  - **TEST:** `TestTodo_DOCFIX_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_007`; `GOLDEN=TestTodo_DOCFIX_007_Golden`.
+  - **RED:** `AGENTS.md:39` names the drift, API, substrate-coverage, engine-coverage and race-policy gates, nested-module tests and build, but `npm run test:all` (run by `.husky/pre-commit`) also runs `typecheck` and `check:decomposition`.
+  - **GREEN:** AGENTS.md names every step `test:all` runs; PRIMARY fails when a `test:all` step is absent from the AGENTS.md gate description.
+  - **REFACTOR:** none beyond the text.
+  - **Refs:** `AGENTS.md`, `package.json`, `.husky/pre-commit`.
+
+- [x] `DOCFIX-008` **[GATE_C][LUNA] Name `npm run check:go` as the Go format gate instead of bare `gofmt -l`.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_008`, `TestTodo_DOCFIX_008_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=running the documented command does not reproduce what the gate checks`.
+  - **TEST:** `TestTodo_DOCFIX_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_008`; `GOLDEN=TestTodo_DOCFIX_008_Golden`.
+  - **RED:** `AGENTS.md:32` lists the format gate as `npm run format:check`, `gofmt -l`; the gate never runs bare `gofmt -l` — `npm run check:go` (`scripts/check-go-style.mjs`) chunks the file list under the Windows argv limit and also covers `src/blocks/go`.
+  - **GREEN:** the row names `npm run check:go` for the Go half; PRIMARY fails if the AGENTS.md gate table names a command that no `package.json` script or hook runs.
+  - **REFACTOR:** none beyond the text.
+  - **Refs:** `AGENTS.md`, `scripts/check-go-style.mjs`, `package.json`.
+
+- [x] `DOCFIX-009` **[GATE_C][LUNA] Make the productui README's source-ownership section describe the package that exists.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_009`, `TestTodo_DOCFIX_009_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=a section that reads as a complete map but covers a dozen of roughly four hundred files sends readers to the wrong place`.
+  - **TEST:** `TestTodo_DOCFIX_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_009`; `GOLDEN=TestTodo_DOCFIX_009_Golden`.
+  - **RED:** `internal/humanwork/productui/README.md:32-43` lists 12 files and the rule "one feature surface per `page_*.go` file"; the package holds about 400 files, including production files outside both (`widget.go`, `navigation_components.go`, `action_launcher.go`, `data_table.go`, `history_navigation.go`, `typed_mig_A.go`–`typed_mig_F.go`).
+  - **GREEN:** the section describes ownership by file family (pages, shared components, navigation, tables, typed migrations, theme) and says it is not exhaustive; PRIMARY fails when a file named in the README does not exist.
+  - **REFACTOR:** none beyond the text.
+  - **Refs:** `internal/humanwork/productui/README.md`, `internal/humanwork/productui`.
+
+- [x] `DOCFIX-010` **[GATE_C][LUNA] Stop `infra/README.md` describing assets the directory does not hold.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_010`, `TestTodo_DOCFIX_010_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the README promises container and environment assets and a V0 demo that exist nowhere in the repository`.
+  - **TEST:** `TestTodo_DOCFIX_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_010`; `GOLDEN=TestTodo_DOCFIX_010_Golden`.
+  - **RED:** `infra/README.md` calls the directory the home for container and environment assets and says "The V0 demo currently expects local Postgres plus the Node API and Go block runner"; `infra/` contains only the README, the repository has no compose file or Dockerfile, and "V0" appears in no other planning or agent document.
+  - **GREEN:** the README states the directory is reserved and empty, and points local setup at the README "Run the prototype locally" section (Go cell plus PostgreSQL) rather than the legacy Node API; PRIMARY fails when the README names an asset the directory lacks.
+  - **REFACTOR:** none beyond the text.
+  - **Refs:** `infra/README.md`, `README.md`.
+
+- [x] `DOCFIX-011` **[GATE_C][LUNA] Fix the README diagram broken by the product-name rename.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_011`, `TestTodo_DOCFIX_011_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the core architecture diagram no longer lines up, so its three effect targets read as one run-on label`.
+  - **TEST:** `TestTodo_DOCFIX_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_011`; `GOLDEN=TestTodo_DOCFIX_011_Golden`.
+  - **RED:** `README.md:96` reads `Human Capital Management Suite state     External systems    Human interaction`, which overruns the three branch columns drawn at lines 94-98; the rename from HCM Next also left the long name inside other fixed-width diagrams while code, env vars and `SourceAuthority` still say `hcmnext` / `HCMNEXT_*` / `HCM_NEXT`.
+  - **GREEN:** diagrams use a short label that fits the columns, and the README says once that `hcmnext` / `HCMNEXT_*` / `HCM_NEXT` are the code-level names of the product; GOLDEN pins the diagram block.
+  - **REFACTOR:** none beyond the text.
+  - **Refs:** `README.md`.
+
+- [x] `DOCFIX-012` **[GATE_C][LUNA] Put the database prerequisite before the schema setup commands and remove the duplicate block.**
+  - **Evidence (2026-09-19):** `TestTodo_DOCFIX_012`, `TestTodo_DOCFIX_012_Golden` in `tools/planning/docfix`; `go test -count=1 ./tools/planning/docfix/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=a reader runs schema setup before learning the database must already exist`.
+  - **TEST:** `TestTodo_DOCFIX_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DOCFIX_012`; `GOLDEN=TestTodo_DOCFIX_012_Golden`.
+  - **RED:** the schema setup and `seed -tenant=harborcare-demo` command block appears twice (`README.md:731` and `README.md:770`), and the requirement that the `hcm_next` database exist before schema setup is a run-on paragraph at `README.md:774`, after the commands that need it.
+  - **GREEN:** the local-run section states the prerequisite first, shows the setup block once and links to it from the frontend section; PRIMARY fails when the setup block appears more than once.
+  - **REFACTOR:** none beyond the text.
+  - **Refs:** `README.md`.
+
+## 77. Workflow engine extensibility and building blocks (2026-09-19)
+
+This section turns the 2026-09-19 review into work. The review decomposed twenty HR workflows step by step against the repository: new hire, promotion, compensation change, manager change and transfer, time off, termination, personal data change, life-event enrollment, timesheets, requisitions, merit cycle, performance calibration, reduction in force, reorganization conversion, international mobility, intermittent protected leave with accommodation, retroactive payroll correction, open enrollment, HR case investigation, and recruit-to-onboard.
+
+Its conclusion: the graph model, compiler and durable runtime are workflow-agnostic, but step dispatch, dataflow, plan selection and the UI are Promotion code. Together with the building blocks below, that is what keeps every workflow except Promotion from running.
+
+The contract is [Extensibility: Closed Kernel, Open Registries](specs/workflow-runtime.md#extensibility-closed-kernel-open-registries):
+
+- no new node type;
+- six mechanisms on existing primitives;
+- open registries;
+- fragments for notify, document, vendor round-trip, obligation tail and set cutover.
+
+Capability authority classes are defined in the [capability registry contract](specs/capability-registry-and-lifecycle.md#authority-classes-and-connector-bindings).
+
+Placement is recorded in the [execution plan](execution-plan.md#recorded-placement-workflow-engine-extensibility-2026-09-19): `WF-EXT-001`–`002` sit inside Gate B, everything else is Gate C.
+
+`WF-EXT-*` items are engine work. `WF-CAP-*` items are capability bundles with no Go implementation today, so registration alone cannot close them. Each `WF-CAP-*` item names its authority class and the workflows it unblocks.
+
+### Engine: decouple the executable path from Promotion
+
+- [ ] `WF-EXT-001` **[GATE_B][SOL_HIGH] Run the budget-hold compensation inside the advance transaction it requires.**
+  - **Depends:** `WF-RUN-037`, `PROMO-EXEC-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.REWARDS,BI.WORK; DIRECT=none; WHY=a served promotion whose downstream observation fails can never release its budget hold, so the compensation route is dead code in production`.
+  - **TEST:** `TestTodo_WF_EXT_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_001`; `INTEGRATION=TestTodo_WF_EXT_001_Integration`; `FAULT=TestTodo_WF_EXT_001_Fault`.
+  - **RED:** `promotionStepRunner.RunsInTransaction` (`internal/platform/execution/promotion_steps.go:774`) claims only `execute_promotion`, while `promotionStepPorts.ReleaseHold` (`promotion_steps.go:517-519`) refuses to run without the step transaction, so `compensate_budget_hold` fails every time it is reached on the served path; unit tests call the port directly and never exercise the driver path.
+  - **GREEN:** the driver runs `compensate_budget_hold` inside the advance transaction; INTEGRATION drives a served promotion through a failed payroll observation and asserts the hold is released exactly once and the run reaches `end_repair_plan`; FAULT kills the process mid-compensation and asserts the release is not duplicated on resume.
+  - **REFACTOR:** derive the transactional claim from the compiled node's effect role (`WF-EXT-002`) instead of a node-id list.
+  - **Refs:** `internal/platform/execution/promotion_steps.go`, `internal/workflow/execute/driver.go`, `internal/platform/execution/promotionsteps`.
+
+- [ ] `WF-EXT-002` **[GATE_B][SOL_HIGH] Replace the two-plan Promotion switch with workflow registrations and capability-keyed dispatch.**
+  - **Depends:** `WF-EXT-001`, `WF-RUN-040`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=a second executable workflow today means copying about six Promotion layers, and the high-performer variant is about to force the first copy`.
+  - **TEST:** `TestTodo_WF_EXT_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_002`; `GOLDEN=TestTodo_WF_EXT_002_Golden`; `INTEGRATION=TestTodo_WF_EXT_002_Integration`.
+  - **RED:** `NewPromotionExecution` hard-selects `PLAN_PROTOTYPE` or `PLAN_EXECUTE` from the `-workflow-plan` flag; `promotionsteps.Runner.Run` switches on `promotionexec.Node*` ids; `ExecutionAuthority.AdmittedIntentTypes` is fixed to the promotion intent; `promotionWorkItems` switches on promotion approval nodes; `PublishShippedVersions` lists two plans by hand.
+  - **GREEN:** execution composes a list of `WorkflowRegistration{Definition, Match, StepHandlers keyed by capability id, ApprovalRequirementCompilers, AdmittedIntentTypes}`; the policy resolver carries one entry per registration; `RunsInTransaction` is derived from `EffectRole`; GOLDEN proves the prototype and execute plan digests are byte-identical; INTEGRATION serves both registrations from one cell and the high-performer variant lands as a third registration, not a copied package.
+  - **REFACTOR:** delete the per-plan branches in `execution.go` and `release.go` once both plans run through registrations.
+  - **Refs:** `internal/platform/execution/execution.go`, `internal/platform/execution/release.go`, `internal/application/execution.go`, `internal/workflow/execute/effects/resolver.go`.
+
+- [ ] `WF-EXT-003` **[GATE_C][SOL_LOW] Move route aliases and the SIMULATE projection from Promotion helpers into the compiler.**
+  - **Depends:** `WF-EXT-002`, `WF-COMP-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=every new workflow would otherwise re-implement canonicalEdges and compilerDefinition by hand`.
+  - **TEST:** `TestTodo_WF_EXT_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_003`; `GOLDEN=TestTodo_WF_EXT_003_Golden`.
+  - **RED:** `promotionexec.canonicalEdges` rewrites business outcome aliases (FIRED, REAPPROVED, WITHDRAWN, CONSISTENT) and `compilerDefinition` downgrades effect nodes for SIMULATE by special-casing node ids; no other definition can reuse either.
+  - **GREEN:** a node declares outcome aliases and a mode overlay; the compiler canonicalizes aliases and derives the SIMULATE projection from declared effect classes; GOLDEN proves the Promotion plan digests are unchanged.
+  - **REFACTOR:** remove the Promotion helpers and the duplicated `fromInput`/`terminalNode` builders from the conformance families in favour of one shared builder package.
+  - **Refs:** `internal/workflow/promotionexec/definition.go`, `internal/workflow/compile.go`, `internal/workflow/conformance`.
+
+- [ ] `WF-EXT-004` **[GATE_C][SOL_HIGH] Persist typed node outputs and resolve compiled mappings on the durable path.**
+  - **Depends:** `WF-EXT-002`, `WF-RUN-035`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=without a data plane every executable node must re-derive its inputs from the proposal, which no workflow but Promotion can do`.
+  - **TEST:** `TestTodo_WF_EXT_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_004`; `RECOVERY=TestTodo_WF_EXT_004_Recovery`; `PROPERTY=TestTodo_WF_EXT_004_Property`.
+  - **RED:** `frontier.NodeOutcome` records only an output digest, `CompiledMapping` values are resolved only inside `internal/workflow/simulate`, and the Promotion adapters rebuild every input from `req.Proposal.Revision`.
+  - **GREEN:** each node's typed output is stored as an immutable artifact bound to its attempt; the driver resolves `WORKFLOW_INPUT`, `NODE_OUTPUT`, `CONTEXT` and `CONSTANT` mappings before dispatch; RECOVERY proves a resumed run reads the same artifacts; PROPERTY proves a mapping never reads an output from a node that does not dominate it.
+  - **REFACTOR:** share one mapping resolver between `simulate` and the durable path.
+  - **Refs:** `internal/workflow/runtime`, `internal/workflow/simulate`, `internal/workflow/mapping.go`, `internal/workflow/frontier`.
+
+- [ ] `WF-EXT-005` **[GATE_C][SOL_HIGH] Execute CAPABILITY and OBSERVE nodes through the capability gateway with registry manifests.**
+  - **Depends:** `WF-EXT-004`, `BIND-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=blocks are only reusable if any workflow node can call any registered capability without a bespoke port`.
+  - **TEST:** `TestTodo_WF_EXT_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_005`; `INTEGRATION=TestTodo_WF_EXT_005_Integration`; `SECURITY=TestTodo_WF_EXT_005_Security`.
+  - **RED:** no generic CAPABILITY runner calls `capability.Gateway.Invoke`; the executable plan's manifests are synthesized in `promotionexec.staticCapabilities`; seven Promotion-only records bypass the registry.
+  - **GREEN:** a generic runner invokes the gateway with the node's resolved mapping as the typed request and stores the typed response; manifests come from the registry; SECURITY proves a node cannot invoke a capability outside its compiled authorization scope.
+  - **REFACTOR:** register the seven Promotion-only records as real capabilities and delete `staticCapabilities`.
+  - **Refs:** `internal/capability/gateway.go`, `internal/workflow/promotionexec/definition.go`, `internal/intent/app/capabilities.go`.
+
+- [ ] `WF-EXT-006` **[GATE_C][SOL_HIGH] Evaluate DECISION and TRANSFORM nodes from published rules and transformation IR.**
+  - **Depends:** `WF-EXT-004`, `XFORM-008`, `RULE-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=routing and data shaping must be declared data, not a named Go predicate per workflow`.
+  - **TEST:** `TestTodo_WF_EXT_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_006`; `PROPERTY=TestTodo_WF_EXT_006_Property`; `GOLDEN=TestTodo_WF_EXT_006_Golden`.
+  - **RED:** `DecisionRoute.Predicate` is a name backed by Go, `simulate.RulesDecisions` refuses any rule but the promotion threshold, `PromotionTransforms` handles only `transforms.promotion.build_proposal`, and nothing resolves a `RuleRef` from the definition store.
+  - **GREEN:** DECISION resolves its `RuleRef` to a published decision table or bounded expression and routes on the typed result with a trace; TRANSFORM executes the referenced XFORM program; PROPERTY proves evaluation is deterministic over pinned inputs; the promotion threshold runs through the same path.
+  - **REFACTOR:** retire the promotion-only simulate evaluators.
+  - **Refs:** `internal/engines/rules`, `internal/engines/transformation`, `internal/workflow/simulate/decisions.go`, `internal/workflow/definition.go`.
+
+- [ ] `WF-EXT-007` **[GATE_C][SOL_HIGH] Remove Promotion types from the runtime start, revalidation, conflict and terminal contracts.**
+  - **Depends:** `WF-EXT-005`, `WF-EXT-006`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=runtime.Start requires a promotion proposal and advance embeds PromotionRevalidation, so no other workflow can start or revalidate`.
+  - **TEST:** `TestTodo_WF_EXT_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_007`; `INTEGRATION=TestTodo_WF_EXT_007_Integration`; `RECOVERY=TestTodo_WF_EXT_007_Recovery`.
+  - **RED:** `ProposalBinding.Revision` is required at start, `AdvanceRequest.Revalidation` is `*PromotionRevalidation`, conflict kinds are a promotion enum, `LedgerTerminalWriter` writes only the promotion outcome schema and a driver accepts exactly one terminal writer.
+  - **GREEN:** a start carries a typed start source (proposal, trigger or parent run); revalidation and conflict keys are declared per workflow and evaluated generically; terminal business writes are bound per registration and terminal code; Promotion behaviour and ledger output are unchanged.
+  - **REFACTOR:** move the promotion revalidation rules into the Promotion registration.
+  - **Refs:** `internal/workflow/runtime/start.go`, `internal/workflow/runtime/advance.go`, `internal/workflow/runtime/boundary.go`, `internal/workflow/execute/effects/terminal.go`.
+
+- [ ] `WF-EXT-008` **[GATE_C][SOL_HIGH] Store definitions as data and resolve the active plan from the version registry; prove it with Manager Change.**
+  - **Depends:** `WF-EXT-003`, `WF-EXT-007`.
+  - **INTENT CONTEXT:** `ROLE=COMPOSITE; SETS=BI.WORKFORCE,BI.PEOPLE; DIRECT=none; WHY=a new workflow must be publishable without a Go release, and Manager Change is the second workflow family the plans require before generalizing`.
+  - **TEST:** `TestTodo_WF_EXT_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_008`; `INTEGRATION=TestTodo_WF_EXT_008_Integration`; `GOLDEN=TestTodo_WF_EXT_008_Golden`.
+  - **RED:** definitions are Go literals, `definition_version` holds no workflows, the resolver holds in-memory plans rather than rehydrating `CanonicalPlanBytes`, release fixtures are Go closures in `ShippedFixtures`, and Manager Change exists only as a simulate fixture.
+  - **GREEN:** workflow definitions are stored in `definition_version`, compiled at publish, and resolved at start by tenant, intent type and match predicate from the ACTIVE version; fixtures are declared as data; INTEGRATION executes Manager Change end to end on the served cell with no new engine Go, only its domain capability and a stored definition.
+  - **REFACTOR:** remove the `-workflow-plan` flag.
+  - **Refs:** the `definition_version` tenant definition store, `internal/data/workflowversionstore`, `internal/workflow/loader.go`, `planning/reference-workflows/manager-change.md`.
+
+### Engine: compatibility and registries
+
+- [ ] `WF-EXT-009` **[GATE_C][SOL_HIGH] Version the compiled-plan IR schema and execute every supported version.**
+  - **Depends:** `WF-EXT-008`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=every later mechanism adds plan attributes, and pinned in-flight runs must keep their original meaning`.
+  - **TEST:** `TestTodo_WF_EXT_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_009`; `GOLDEN=TestTodo_WF_EXT_009_Golden`; `RECOVERY=TestTodo_WF_EXT_009_Recovery`; `FAULT=TestTodo_WF_EXT_009_Fault`.
+  - **RED:** a compiled plan records a compiler version but no IR schema version, so adding an attribute would silently change how stored plans decode.
+  - **GREEN:** plans carry an IR schema version inside the digest; the runtime decodes and executes each supported version; an unknown version fails closed; RECOVERY resumes a run pinned to the prior version after an upgrade.
+  - **REFACTOR:** one decoder table keyed by schema version.
+  - **Refs:** `internal/workflow/digest.go`, `internal/workflow/version`, `internal/workflow/migrate`.
+
+- [ ] `WF-EXT-010` **[GATE_C][SOL_LOW] Make the Protobuf workflow definition a lossless mirror and the stored authoring form.**
+  - **Depends:** `WF-EXT-009`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=editors, agents and tenants must author one canonical artifact rather than Go literals`.
+  - **TEST:** `TestTodo_WF_EXT_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_010`; `PROPERTY=TestTodo_WF_EXT_010_Property`.
+  - **RED:** `schema/proto/hcmnext/workflow/v1/workflow.proto` carries only string refs and no mappings or typed specs, so it cannot round-trip a `workflow.Definition`.
+  - **GREEN:** the proto carries every definition field; PROPERTY proves Go definition to proto to Go is identity and yields the same digest; layout and presentation metadata are stored outside the digest.
+  - **REFACTOR:** the strict JSON loader reads protojson.
+  - **Refs:** `schema/proto/hcmnext/workflow/v1/workflow.proto`, `internal/workflow/loader.go`.
+
+- [ ] `WF-EXT-011` **[GATE_C][SOL_HIGH] Define one extension-registry contract for blocks, fragments, reducers, functions, triggers, forms and bindings.**
+  - **Depends:** `WF-EXT-009`, `LIB-013`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the kernel stays closed only if every extension point has the same versioned, digest-pinned, fixture-proven admission path`.
+  - **TEST:** `TestTodo_WF_EXT_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_011`; `GOLDEN=TestTodo_WF_EXT_011_Golden`; `CONFORMANCE=TestTodo_WF_EXT_011_Conformance`.
+  - **RED:** each extension kind would otherwise invent its own manifest, versioning and test hook; no rule stops an entry from weakening an effect class or safe point.
+  - **GREEN:** one registry manifest (identity, version, kind, owner, digest, dependencies, fixtures as data, review record) is resolved at compile time and pinned in the plan; CONFORMANCE runs every entry's fixtures; an entry that would weaken a compiler proof is refused.
+  - **REFACTOR:** the capability registry manifest core becomes one kind of this contract.
+  - **Refs:** [extensibility contract](specs/workflow-runtime.md#extensibility-closed-kernel-open-registries), `internal/capability`, `definitions/architecture/prohibited-frameworks.yaml`.
+
+### Engine: human interaction blocks (unlocks the ten common workflows)
+
+- [ ] `WF-EXT-012` **[GATE_C][SOL_HIGH] Add one time-expression model with deadline routes and declared defaults.**
+  - **Depends:** `WF-EXT-006`, `MODEL-005`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=statutory and business deadlines are relative to run data (start date plus three business days, fifteen days after request), and a WAIT can only take a fixed instant`.
+  - **TEST:** `TestTodo_WF_EXT_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_012`; `PROPERTY=TestTodo_WF_EXT_012_Property`; `RECOVERY=TestTodo_WF_EXT_012_Recovery`.
+  - **RED:** `steps/wait` wakes only at an instant or local date fixed in the definition, `humanwork.Deadline` takes absolute instants, and no node can apply a default when a deadline passes without a response.
+  - **GREEN:** a `TimeExpr` (anchor mapping, offset, calendar ref, optional rule-pack statute ref) is accepted by WAIT, TASK, APPROVAL and SIGNAL; a deadline outcome route with a declared default payload expresses non-response; PROPERTY covers business-day arithmetic across calendars; RECOVERY proves the resolved instant is stable after restart.
+  - **REFACTOR:** one resolver used by timers and SLA escalation.
+  - **Refs:** `internal/workflow/steps/wait`, `internal/humanwork`, `internal/governance/legal`.
+
+- [ ] `WF-EXT-013` **[GATE_C][SOL_HIGH] Bind TASK to a form registry with subject sets and assurance levels.**
+  - **Depends:** `WF-EXT-011`, `FORM-005`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=nine of the twenty reviewed workflows cannot collect their input, and FORM-001..003 were retired as Promotion-only`.
+  - **TEST:** `TestTodo_WF_EXT_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_013`; `BROWSER=TestTodo_WF_EXT_013_Browser`; `SECURITY=TestTodo_WF_EXT_013_Security`.
+  - **RED:** `CompiledTaskNode.FormDefinition` is a dangling reference, the task renderer shows one fixed control, TASK semantics in the executable graph sit in untyped `Metadata`, and there is no step-up requirement or multi-subject task.
+  - **GREEN:** a typed TASK spec carries `form_ref`, a subject set and an assurance level; forms are registry entries validated against the node's output type; BROWSER renders a registered form with no new page code; SECURITY proves a step-up task cannot complete without fresh re-authentication and hidden fields never reach the browser.
+  - **REFACTOR:** move the executable graph's assignee and alias metadata into the typed spec.
+  - **Refs:** [form registry](specs/human-work-forms-and-rules.md#form-registry-gate-c), `internal/workflow/steps/task`, `internal/forms`.
+
+- [ ] `WF-EXT-014` **[GATE_C][SOL_HIGH] Give SIGNAL typed correlation from node outputs and a multi-accept mode.**
+  - **Depends:** `WF-EXT-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=vendor callbacks correlate on ids returned by an earlier node, and intermittent absences or applications arrive many times within one run`.
+  - **TEST:** `TestTodo_WF_EXT_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_014`; `PROPERTY=TestTodo_WF_EXT_014_Property`; `RECOVERY=TestTodo_WF_EXT_014_Recovery`.
+  - **RED:** SIGNAL correlates only on keys fixed at compile time and accepts a single event by design (only a first ACCEPTED schedules a continuation).
+  - **GREEN:** correlation keys may map from node outputs; a multi-accept mode admits up to a declared cap or until a close condition and hands each accepted event to `EVENT` spawn (`WF-EXT-019`); PROPERTY proves duplicates are idempotent; RECOVERY proves no event is lost across restart.
+  - **REFACTOR:** none beyond the spec.
+  - **Refs:** `internal/workflow/steps/signal`, `internal/workflow/execute/signals.go`.
+
+- [ ] `WF-EXT-015` **[GATE_C][SOL_LOW] Publish messaging and document capabilities and the notify and document fragments.**
+  - **Depends:** `WF-EXT-005`, `DOC-TEMPLATE-001`.
+  - **INTENT CONTEXT:** `ROLE=EMITTER; SETS=BI.DOCUMENTS,BI.EXPERIENCE; DIRECT=none; WHY=about fifteen of twenty workflows send notices and nine generate letters or collect signatures, and neither plane is reachable from a node`.
+  - **TEST:** `TestTodo_WF_EXT_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_015`; `INTEGRATION=TestTodo_WF_EXT_015_Integration`; `GOLDEN=TestTodo_WF_EXT_015_Golden`.
+  - **RED:** `internal/messaging` and `internal/documents` expose no registered capability, `DOCUMENT` is retired as a node type, and the promotion reference scenario that holds a team notice until release has no block to run it.
+  - **GREEN:** `messaging.send`, `documents.render` and `documents.request_signature` are registered; the notify fragment (optional release gate) and document fragment (render, request signature, correlated SIGNAL) expand at compile time; INTEGRATION sends a gated notice and collects a signature in a served run.
+  - **REFACTOR:** SIMULATE suppresses both fragments through their declared effect classes, not special cases.
+  - **Refs:** `internal/messaging`, `internal/documents`, [capability registration scope](specs/capability-registry-and-lifecycle.md#authority-classes-and-connector-bindings).
+
+- [ ] `WF-EXT-016` **[GATE_C][SOL_LOW] Add a versioned expression function library with list, interval and business-day functions.**
+  - **Depends:** `WF-EXT-006`, `WF-EXT-011`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=time-off blackout, overlap and notice rules cannot be expressed without collection and date-interval operators`.
+  - **TEST:** `TestTodo_WF_EXT_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_016`; `PROPERTY=TestTodo_WF_EXT_016_Property`; `FUZZ=TestTodo_WF_EXT_016_Fuzz`.
+  - **RED:** the bounded expression IR has a list type but no membership, interval-overlap or business-day functions, and named functions are compiled in rather than registered.
+  - **GREEN:** functions are registry entries with a signature, cost and version; list membership, interval overlap and business-day difference against a pinned calendar are published; FUZZ proves cost limits hold; clock and I/O remain unavailable.
+  - **REFACTOR:** existing built-ins become library version 1.
+  - **Refs:** `internal/engines/rules`, [expression subset](specs/human-work-forms-and-rules.md#expression-subset).
+
+### Engine: composition, UI and long-running work (unlocks the complex workflows)
+
+- [ ] `WF-EXT-017` **[GATE_C][SOL_HIGH] Compile fragments and templates into flat definitions with recorded provenance.**
+  - **Depends:** `WF-EXT-011`, `WF-DISC-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=workflow variants such as the high performer path should be overlays on one template, not copied graphs`.
+  - **TEST:** `TestTodo_WF_EXT_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_017`; `GOLDEN=TestTodo_WF_EXT_017_Golden`; `PROPERTY=TestTodo_WF_EXT_017_Property`.
+  - **RED:** each definition package re-implements its builders, `workflowexpansion` produces a responsibility graph from prose rather than a `workflow.Definition`, and there is no parameterized fragment or overlay.
+  - **GREEN:** templates are archetype spines with typed parameters and slots; overlays apply `Add`, `Omit(reason)` and `Replace(reason)` and refuse dropping governance, revalidation, reconciliation or closure; expansion yields a flat definition compiled as usual with template digest, parameters and overlay digest in the plan; Promotion, the high performer variant and Manager Change are re-expressed as template instances; PROPERTY proves expansion is deterministic.
+  - **REFACTOR:** share the mandatory-phase rules with `workflowexpansion`.
+  - **Refs:** `tools/planning/workflowexpansion`, `planning/workflows/_shared/workflow-archetypes.md`, `internal/workflow/promotionexec`.
+
+- [ ] `WF-EXT-018` **[GATE_C][SOL_HIGH] Render journeys and tasks for any workflow from definition metadata.**
+  - **Depends:** `WF-EXT-013`, `WEB-129`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=the journey contract carries promotion fields and a promotion stage enum, so a second workflow cannot appear in My Work or the journey view`.
+  - **TEST:** `TestTodo_WF_EXT_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_018`; `BROWSER=TestTodo_WF_EXT_018_Browser`; `GOLDEN=TestTodo_WF_EXT_018_Golden`.
+  - **RED:** `journey_service.proto` has `ProposePromotion`, `current_base`/`proposed_base` and a `JourneyStage` enum of promotion stages; `journey_inspect.go` maps promotionexec node ids to stages.
+  - **GREEN:** stages and labels come from node presentation metadata; the journey carries subject, typed summary and string stages; BROWSER shows a Manager Change run in My Work and the journey view with no new page code; Promotion output is unchanged.
+  - **REFACTOR:** retire the promotion stage mapping.
+  - **Refs:** `schema/proto/hcmnext/journey/v1/journey_service.proto`, `internal/intent/app/journey_inspect.go`, `tools/uxqual/journeyclient`.
+
+- [ ] `WF-EXT-019` **[GATE_C][SOL_HIGH] Serve SUBWORKFLOW, PARALLEL and JOIN with static, collection, event and population spawn sources.**
+  - **Depends:** `WF-EXT-007`, `WF-EXT-014`, `WF-STEP-007`, `WF-STEP-008`, `WF-STEP-009`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=onboarding, per-application recruiting, intermittent leave episodes and every campaign need child runs, and the structural primitives are design-only`.
+  - **TEST:** `TestTodo_WF_EXT_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_019`; `RECOVERY=TestTodo_WF_EXT_019_Recovery`; `RACE=TestTodo_WF_EXT_019_Race`; `PROPERTY=TestTodo_WF_EXT_019_Property`.
+  - **RED:** `internal/workflow/parallel` and `steps/subworkflow` exist but no served plan uses them, and fan-out is fixed at compile time.
+  - **GREEN:** SUBWORKFLOW accepts `STATIC`, `COLLECTION` (bounded list), `EVENT` (one child per accepted signal, capped) and `POPULATION` sources; children are pinned, scope-attenuated and keep independent truth; RACE proves concurrent child completions advance the parent once; RECOVERY resumes a half-spawned set without duplicates.
+  - **REFACTOR:** one spawn planner for all four sources.
+  - **Refs:** `internal/workflow/steps/subworkflow`, `internal/workflow/parallel`, [spawn sources](specs/workflow-runtime.md#six-mechanisms).
+
+- [ ] `WF-EXT-020` **[GATE_C][SOL_HIGH] Fold child outputs through registered reducers and approve over aggregates.**
+  - **Depends:** `WF-EXT-019`, `WF-STEP-018`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.REWARDS,BI.TALENT; DIRECT=none; WHY=merit rollups and calibration distributions need totals over many children and an approval of the aggregate, not of one subject`.
+  - **TEST:** `TestTodo_WF_EXT_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_020`; `PROPERTY=TestTodo_WF_EXT_020_Property`; `RACE=TestTodo_WF_EXT_020_Race`.
+  - **RED:** JOIN completion policies decide only when the join fires; no reducer produces a typed aggregate and an approval requirement always names one subject.
+  - **GREEN:** JOIN applies registered pure reducers (count, sum, distribution, set) to child outputs, exposes partial aggregates while children run, and an APPROVAL may take the aggregate as its subject with per-level send-back; PROPERTY proves reducers are order-independent.
+  - **REFACTOR:** quorum becomes a reducer.
+  - **Refs:** `internal/workflow/steps/approval`, `internal/workflow/frontier`.
+
+- [ ] `WF-EXT-021` **[GATE_C][SOL_HIGH] Run population campaigns with dry-run, partitioned commit and set-level compensation.**
+  - **Depends:** `WF-EXT-020`, `INTENT-019`, `CYCLE-001`, `POP-005`.
+  - **INTENT CONTEXT:** `ROLE=COMPOSITE; SETS=BI.ALL; DIRECT=none; WHY=merit, calibration, open enrollment, reduction in force and reorganization conversion each own thousands of child runs, and bulk work is still deferred`.
+  - **TEST:** `TestTodo_WF_EXT_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_021`; `FAULT=TestTodo_WF_EXT_021_Fault`; `RECOVERY=TestTodo_WF_EXT_021_Recovery`; `BENCHMARK=TestTodo_WF_EXT_021_Benchmark`.
+  - **RED:** `engines/cycle`, `engines/population` and the bulk ChangeRequest compiler are libraries only; SIMULATE runs one instance; there is no all-prepared barrier or rollback across a set of committed children.
+  - **GREEN:** a campaign parent binds a cycle and a frozen population, spawns partitioned idempotent children, supports a population dry-run, gates commit on an all-prepared JOIN, compensates the set on abort, and reports partial completion honestly; BENCHMARK sizes a 10,000-child campaign against tenant fairness budgets; FAULT and RECOVERY cover a crash mid-cutover.
+  - **REFACTOR:** reuse the scheduler's bulk throttling and fair scheduling.
+  - **Refs:** `internal/engines/cycle`, `internal/engines/population`, [runtime scheduling contract](specs/workflow-runtime.md#runtime-scheduling-and-resource-contract).
+
+- [ ] `WF-EXT-022` **[GATE_C][SOL_HIGH] Add connector bindings and the vendor round-trip fragment.**
+  - **Depends:** `WF-EXT-014`, `WF-EXT-011`, `INTG-013`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTEGRATION,BI.ALL; DIRECT=none; WHY=screening, eligibility verification, carrier, relocation and payroll provider steps dispatch work and wait days or months for a correlated answer`.
+  - **TEST:** `TestTodo_WF_EXT_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_022`; `INTEGRATION=TestTodo_WF_EXT_022_Integration`; `FAULT=TestTodo_WF_EXT_022_Fault`.
+  - **RED:** connector dispatch and webhook intake exist as libraries, nothing correlates a vendor callback to a waiting SIGNAL, and no binding declares a polling fallback, SLA or quarantine.
+  - **GREEN:** a connector-binding registry entry declares dispatch, callback correlation, bounded polling fallback, SLA and quarantine; the vendor round-trip fragment expands to dispatch CAPABILITY, correlated SIGNAL and bounded OBSERVE; INTEGRATION completes a round trip against a simulator; FAULT proves a lost callback falls back to polling and then quarantine, never a fabricated result.
+  - **REFACTOR:** DELEGATED capabilities resolve through these bindings.
+  - **Refs:** `internal/connectivity`, [authority classes](specs/capability-registry-and-lifecycle.md#authority-classes-and-connector-bindings).
+
+- [ ] `WF-EXT-023` **[GATE_C][SOL_LOW] Start runs from dates, schedules, events and post-completion obligations.**
+  - **Depends:** `WF-EXT-007`, `WF-EXT-012`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TRIGGERS,BI.ALL; DIRECT=none; WHY=period close, window open, offer acceptance and continuation coverage after termination all start work without a human proposal`.
+  - **TEST:** `TestTodo_WF_EXT_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_023`; `RECOVERY=TestTodo_WF_EXT_023_Recovery`; `PROPERTY=TestTodo_WF_EXT_023_Property`.
+  - **RED:** every run must start from an intent proposal; END cannot hand open obligations to anything that later starts a follow-up run.
+  - **GREEN:** trigger sources are registry entries (date, schedule, typed event, obligation); END emits typed open obligations to a tracker that can start a follow-up run; PROPERTY proves a trigger fires at most once per key; RECOVERY proves missed triggers fire after downtime.
+  - **REFACTOR:** the event-to-intent library becomes one trigger source.
+  - **Refs:** `internal/workflow/runtime/start.go`, `internal/platform/execution/scheduler`.
+
+- [ ] `WF-EXT-024` **[GATE_C][SOL_HIGH] Scope each run's context, timeline and audit with a run access policy.**
+  - **Depends:** `WF-EXT-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.CASES,BI.PRIVACY; DIRECT=none; WHY=investigations and medical leave data must be visible only to named participants, and today only work items are walled`.
+  - **TEST:** `TestTodo_WF_EXT_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_024`; `SECURITY=TestTodo_WF_EXT_024_Security`; `PROPERTY=TestTodo_WF_EXT_024_Property`.
+  - **RED:** a definition carries only a definition-wide maximum classification; the inspector, timeline and audit of a run are visible to anyone with the workflow read scope.
+  - **GREEN:** a run carries a classification and participant wall applied to context reads, inspector, timeline, notes and audit; SECURITY proves a non-participant with broad read scope sees nothing; PROPERTY proves the wall only narrows as the run proceeds.
+  - **REFACTOR:** work-item walls derive from the run policy.
+  - **Refs:** `internal/workflow/runtime`, `internal/humanwork`, `internal/domains/hrcase`.
+
+- [ ] `WF-EXT-025` **[GATE_C][SOL_LOW] Offer a bounded runtime task pool for case work without adding case semantics to the graph.**
+  - **Depends:** `WF-EXT-013`, `WF-EXT-024`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.CASES; DIRECT=none; WHY=investigators add interviews and evidence requests as a case unfolds, which a compiled graph cannot predict`.
+  - **TEST:** `TestTodo_WF_EXT_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_025`; `SECURITY=TestTodo_WF_EXT_025_Security`.
+  - **RED:** every task must exist in the compiled plan and the case kernel is deferred.
+  - **GREEN:** a node may declare a task pool that admits runtime-added tasks from an allow-listed catalog up to a declared maximum, each with a typed output and audit; SECURITY proves an unlisted task kind or an over-cap addition is refused; the pool cannot add effects.
+  - **REFACTOR:** none; the case kernel keeps case semantics.
+  - **Refs:** `internal/domains/hrcase`, `internal/workflow/steps/task`.
+
+- [ ] `WF-EXT-026` **[GATE_C][SOL_HIGH] Let tenants publish signed overlays on product templates.**
+  - **Depends:** `WF-EXT-017`, `WF-EXT-010`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TENANT,BI.ALL; DIRECT=none; WHY=customers need their own approval steps, notices and thresholds without a product release, and without weakening mandatory controls`.
+  - **TEST:** `TestTodo_WF_EXT_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_026`; `GOLDEN=TestTodo_WF_EXT_026_Golden`; `SECURITY=TestTodo_WF_EXT_026_Security`.
+  - **RED:** workflow variation requires Go code and a release; no tenant-owned definition namespace, overlay lifecycle or inheritance exists for workflows.
+  - **GREEN:** a tenant overlay moves DRAFT, VALIDATED, REVIEWED, PUBLISHED, ACTIVE with separation of duties and signing modeled on rule packs; inheritance runs enterprise, company, legal entity with lineage; publish requires passing simulation fixtures; SECURITY proves an overlay cannot omit mandatory phases, author compensation, add unbounded loops or call a capability outside the tenant allow list.
+  - **REFACTOR:** reuse the rule-pack release and signing code.
+  - **Refs:** [legal rule packs](specs/legal-rule-packs-and-state-configuration.md), `internal/customobject`, `planning/plan.md`.
+
+### Capabilities: native lifecycle operations
+
+- [ ] `WF-CAP-001` **[GATE_C][TERRA] Commit a hire as one transaction and match or create the person.**
+  - **Depends:** `WF-EXT-005`, `MODEL-022`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PEOPLE,BI.LIFECYCLE; DIRECT=none; WHY=NATIVE: new hire and recruit-to-onboard have no operation that creates the person, worker, employment, assignment, first pay package and position occupancy together`.
+  - **TEST:** `TestTodo_WF_CAP_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_001`; `INTEGRATION=TestTodo_WF_CAP_001_Integration`; `PROPERTY=TestTodo_WF_CAP_001_Property`.
+  - **RED:** `journeyEngine.CreateWorker` inserts a worker row directly outside any workflow, and identity resolution does exact external-id linkage only.
+  - **GREEN:** `people.commit_hire` writes all six records in one transaction plan; `people.resolve_or_create_person` matches deterministically and never merges on a probabilistic score; PROPERTY proves a rehire never duplicates a person.
+  - **REFACTOR:** route `CreateWorker` through the capability.
+  - **Refs:** `internal/domains/people`, `internal/domains/workerlifecycle`, `planning/workflows/lifecycle/recruit-hire-onboard.md`.
+
+- [ ] `WF-CAP-002` **[GATE_C][TERRA] Revise assignments generically and end employment.**
+  - **Depends:** `WF-EXT-005`, `PEOPLE-004`, `ORG-003`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PEOPLE,BI.WORKFORCE,BI.LIFECYCLE; DIRECT=none; WHY=NATIVE: transfer, manager change and termination have no general assignment or employment-end mutation`.
+  - **TEST:** `TestTodo_WF_CAP_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_002`; `PROPERTY=TestTodo_WF_CAP_002_Property`.
+  - **RED:** the only assignment mutation is the promotion mutation, and nothing ends an employment or vacates its position.
+  - **GREEN:** `people.revise_assignment` changes organization, location, cost center, job and FTE as an effective-dated revision; `people.end_employment` ends employment and vacates occupancy; PROPERTY proves revisions never overlap in effective time.
+  - **REFACTOR:** the promotion mutation becomes a caller of the generic revision.
+  - **Refs:** `internal/domains/people`, `internal/domains/org`.
+
+- [ ] `WF-CAP-003` **[GATE_C][TERRA] Plan revocation of everything a worker holds.**
+  - **Depends:** `WF-EXT-005`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ACCESS,BI.LIFECYCLE; DIRECT=none; WHY=NATIVE plan with delegated execution: termination must revoke sessions, credentials, entitlements and badges in order, and the access domain only requests and decides`.
+  - **TEST:** `TestTodo_WF_CAP_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_003`; `SECURITY=TestTodo_WF_CAP_003_Security`; `INTEGRATION=TestTodo_WF_CAP_003_Integration`.
+  - **RED:** there is no enumeration of a worker's holdings and no ordered revocation plan.
+  - **GREEN:** `access.plan_revoke_all` enumerates holdings and emits an ordered revocation plan whose steps dispatch through connector bindings; SECURITY proves no holding is omitted.
+  - **REFACTOR:** reuse the entitlement drift reconciler for verification.
+  - **Refs:** `internal/domains/access`.
+
+- [ ] `WF-CAP-004` **[GATE_C][TERRA] Commit and cancel ordinary absences and advise on team coverage.**
+  - **Depends:** `WF-EXT-005`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=NATIVE: the time-off page is a placeholder because only protected leave can commit`.
+  - **TEST:** `TestTodo_WF_CAP_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_004`; `PROPERTY=TestTodo_WF_CAP_004_Property`.
+  - **RED:** `leave` commits protected leave only, `leave/request.go` only composes a request, and nothing computes team absence overlap.
+  - **GREEN:** `absence.commit` posts the absence and balance debit, `absence.cancel` restores it, `absence.team_coverage` reports overlap at the caller's permitted granularity; PROPERTY proves commit then cancel restores the balance exactly.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/balance`, `internal/domains/availability`, `internal/domains/leave`.
+
+- [ ] `WF-CAP-005` **[GATE_C][TERRA] Extend protected leave with lookback eligibility, rolling periods, intermittent draws and certification rules.**
+  - **Depends:** `WF-CAP-004`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.REGULATORY; DIRECT=none; WHY=NATIVE with rule-pack timing: intermittent protected leave needs hours worked over a twelve-month lookback, a rolling entitlement year and a draw per episode`.
+  - **TEST:** `TestTodo_WF_CAP_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_005`; `PROPERTY=TestTodo_WF_CAP_005_Property`; `GOLDEN=TestTodo_WF_CAP_005_Golden`.
+  - **RED:** eligibility reads caller-supplied facts, `balance.PeriodKind` has no rolling kind, the balance posts only at leave start, and certification due dates and recertification rules are absent.
+  - **GREEN:** an hours-of-service provider aggregates worked time over a lookback; a rolling-backward period kind exists; each intermittent episode draws hours; certification due dates and recertification triggers come from rule packs; GOLDEN pins the federal rule pack results.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/leave`, `internal/domains/balance`, `planning/workflows/leave/leave-return-to-work.md`.
+
+- [ ] `WF-CAP-006` **[GATE_C][TERRA] Model the accommodation interactive process.**
+  - **Depends:** `WF-CAP-005`, `WF-EXT-024`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.PRIVACY; DIRECT=none; WHY=NATIVE: return-to-work only emits a follow-up accommodation intent and there is no domain to receive it`.
+  - **TEST:** `TestTodo_WF_CAP_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_006`; `SECURITY=TestTodo_WF_CAP_006_Security`.
+  - **RED:** no accommodation domain package or capability exists.
+  - **GREEN:** request, dialogue record, options considered, decision and periodic review are typed records behind capabilities, with medical detail held under a run access policy; SECURITY proves a manager sees the accommodation, not the diagnosis.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/leave/readiness.go`.
+
+- [ ] `WF-CAP-007` **[GATE_C][TERRA] Decide timecard authority and add a timecard aggregate with submit and lock.**
+  - **Depends:** `WF-EXT-005`, `ATTEST-008`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.PAYROLL; DIRECT=none; WHY=NATIVE or DELEGATED per tenant: timesheet approval cannot run because the timecard is declared externally mastered and has no aggregate`.
+  - **TEST:** `TestTodo_WF_CAP_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_007`; `PROPERTY=TestTodo_WF_CAP_007_Property`.
+  - **RED:** `internal/intent/model/deferred` marks Timecard as externally mastered and no aggregate sums punches or locks a period.
+  - **GREEN:** the timecard authority class is recorded per tenant; natively it aggregates punches with totals and supports submit, attest, approve and lock, and an edit after attestation invalidates the other party's attestation; PROPERTY proves totals equal the punch sum.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/attendance`, `internal/domains/clock`, `internal/intent/model/deferred`.
+
+- [ ] `WF-CAP-008` **[GATE_C][TERRA] Preview cross-domain consequences of a personal data change.**
+  - **Depends:** `WF-EXT-005`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PEOPLE,BI.PAYROLL,BI.REWARDS; DIRECT=none; WHY=NATIVE: an address change can move tax withholding, benefit networks and leave eligibility and nothing previews that before commit`.
+  - **TEST:** `TestTodo_WF_CAP_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_008`; `GOLDEN=TestTodo_WF_CAP_008_Golden`.
+  - **RED:** only promotion has a simulation; there is no generic consequence preview.
+  - **GREEN:** `people.preview_change_impact` returns typed consequences from jurisdiction, benefits and leave for a proposed revision without effects.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/location`, `internal/domains/taxprofile`, `internal/domains/benefits`.
+
+- [ ] `WF-CAP-009` **[GATE_C][TERRA] Add workforce-action analyses: reduction selection, adverse impact and pay equity.**
+  - **Depends:** `WF-EXT-005`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS,BI.REGULATORY,BI.REWARDS; DIRECT=none; WHY=NATIVE: reduction in force and merit cycles cannot be approved without selection ranking and disparity analysis, and no code exists`.
+  - **TEST:** `TestTodo_WF_CAP_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_009`; `GOLDEN=TestTodo_WF_CAP_009_Golden`; `PROPERTY=TestTodo_WF_CAP_009_Property`.
+  - **RED:** no selection, ranking, four-fifths or age-band analysis, or pay-equity analysis exists.
+  - **GREEN:** selection ranks a decisional unit by declared criteria; adverse-impact analysis reports four-fifths and age-band results; pay-equity analysis reports gaps by cohort; outputs are privileged, explainable evidence.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/scenario`, `internal/domains/merit`.
+
+- [ ] `WF-CAP-010` **[GATE_C][TERRA] Calculate severance under a declared plan.**
+  - **Depends:** `WF-EXT-005`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.LIFECYCLE; DIRECT=none; WHY=NATIVE: severance is employer policy and termination and reduction in force have no calculation`.
+  - **TEST:** `TestTodo_WF_CAP_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_010`; `GOLDEN=TestTodo_WF_CAP_010_Golden`.
+  - **RED:** no severance calculation exists.
+  - **GREEN:** `rewards.calculate_severance` applies a published severance plan (tenure, pay basis, caps) in exact decimals with an explanation.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/rewards`.
+
+- [ ] `WF-CAP-011` **[GATE_C][TERRA] Publish statutory notice and deadline rule packs for workforce actions.**
+  - **Depends:** `WF-EXT-012`, `LEGAL-008`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REGULATORY; DIRECT=none; WHY=RULE_PACK: mass-layoff notice, release consideration and revocation, leave notices, screening waits, eligibility verification deadlines and final-pay deadlines must be data per jurisdiction`.
+  - **TEST:** `TestTodo_WF_CAP_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_011`; `GOLDEN=TestTodo_WF_CAP_011_Golden`.
+  - **RED:** only a mini-WARN threshold exists; there is no rolling site aggregation, release disclosure obligation or deadline for these actions.
+  - **GREEN:** rule packs publish the timing and thresholds; `regulatory.aggregate_layoff_window` computes rolling site counts; `regulatory.release_disclosure` lists the decisional unit; each deadline resolves as a statute reference usable by `TimeExpr`.
+  - **REFACTOR:** none.
+  - **Refs:** [legal rule packs](specs/legal-rule-packs-and-state-configuration.md), `internal/governance/legal`.
+
+- [ ] `WF-CAP-012` **[GATE_C][TERRA] Resolve which closed payroll periods a retroactive change affects.**
+  - **Depends:** `WF-EXT-005`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=NATIVE resolver with delegated recalculation: a back-dated change must name the periods and runs to correct before the payroll system recalculates`.
+  - **TEST:** `TestTodo_WF_CAP_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_012`; `PROPERTY=TestTodo_WF_CAP_012_Property`.
+  - **RED:** corrections operate on one run; nothing enumerates the periods an effective-dated change touches.
+  - **GREEN:** `payroll.resolve_retro_periods` returns the affected periods and runs with the fact versions effective and known in each; PROPERTY proves no affected period is omitted.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/payroll/correction`.
+
+- [ ] `WF-CAP-013` **[GATE_C][TERRA] Default elections for enrollment non-responders.**
+  - **Depends:** `WF-EXT-012`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=NATIVE: open enrollment and life events must apply a governed default when the window closes without an election`.
+  - **TEST:** `TestTodo_WF_CAP_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_013`; `GOLDEN=TestTodo_WF_CAP_013_Golden`.
+  - **RED:** no default or passive election logic exists.
+  - **GREEN:** `benefits.apply_default_election` applies the plan's declared default (roll over, waive, or core coverage) with evidence of the missed window.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/benefits`.
+
+- [ ] `WF-CAP-014` **[GATE_C][TERRA] Reassign in-flight work when the org change removes an approver.**
+  - **Depends:** `WF-CAP-002`, `WORK-004`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.WORKFORCE; DIRECT=none; WHY=NATIVE: after a manager change, approvals addressed to the old manager stall`.
+  - **TEST:** `TestTodo_WF_CAP_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_014`; `PROPERTY=TestTodo_WF_CAP_014_Property`.
+  - **RED:** work reassignment exists for unavailable principals but nothing triggers it from an org change.
+  - **GREEN:** a committed manager change re-resolves the approver of open work items that depended on the old relationship and records the reassignment; PROPERTY proves no item is left addressed to a principal without authority.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/workitem`, `internal/domains/org`.
+
+### Capabilities: delegated to incumbents and vendors
+
+- [ ] `WF-CAP-015` **[GATE_C][TERRA] Bind payroll provider operations: final pay, retro tax, off-cycle payment, enrollment and entity cutover.**
+  - **Depends:** `WF-EXT-022`, `WF-CAP-012`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL,BI.INTEGRATION; DIRECT=none; WHY=DELEGATED: termination, retro correction, hire and reorganization need payroll results the incumbent computes, and the platform must not become a payroll engine`.
+  - **TEST:** `TestTodo_WF_CAP_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_015`; `INTEGRATION=TestTodo_WF_CAP_015_Integration`; `FAULT=TestTodo_WF_CAP_015_Fault`; `RECOVERY=TestTodo_WF_CAP_015_Recovery`.
+  - **RED:** there is no capability contract for final pay, retro tax with wage bases and year-to-date, off-cycle payment acknowledgement, pay-group enrollment, year-to-date transfer on entity cutover, or corrected wage filings.
+  - **GREEN:** each is a DELEGATED capability contract bound to the payroll provider adapter through a connector binding; results are observed and reconciled; FAULT proves a missing provider answer leaves an open obligation, never a computed substitute.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity`, `internal/domains/payroll`.
+
+- [ ] `WF-CAP-016` **[GATE_C][TERRA] Bind benefits administration: continuation coverage, insurability evidence and carrier enrollment feeds.**
+  - **Depends:** `WF-EXT-022`, `WF-CAP-013`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.INTEGRATION; DIRECT=none; WHY=DELEGATED: termination, life events and open enrollment depend on continuation administration, insurer decisions and carrier files`.
+  - **TEST:** `TestTodo_WF_CAP_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_016`; `INTEGRATION=TestTodo_WF_CAP_016_Integration`; `GOLDEN=TestTodo_WF_CAP_016_Golden`.
+  - **RED:** only inbound carrier reconciliation exists; no continuation, insurability evidence or outbound enrollment feed.
+  - **GREEN:** continuation coverage events, insurability evidence round trips and outbound enrollment files are DELEGATED contracts over connector bindings; GOLDEN pins a generated enrollment file.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/benefits`, `internal/connectivity`.
+
+- [ ] `WF-CAP-017` **[GATE_C][TERRA] Bind recruiting vendors: job boards, background screening and employment eligibility verification.**
+  - **Depends:** `WF-EXT-022`, `WF-CAP-011`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING,BI.INTEGRATION,BI.REGULATORY; DIRECT=none; WHY=DELEGATED with rule-pack timing: recruit-to-onboard cannot post jobs, screen candidates or verify eligibility`.
+  - **TEST:** `TestTodo_WF_CAP_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_017`; `INTEGRATION=TestTodo_WF_CAP_017_Integration`; `SECURITY=TestTodo_WF_CAP_017_Security`.
+  - **RED:** the requisition lifecycle has no posting, screening or verification capability.
+  - **GREEN:** posting, screening with the pre-adverse and final adverse action sequence, and eligibility verification with its tentative-nonconfirmation branch are DELEGATED contracts over connector bindings with rule-pack deadlines; SECURITY proves screening reports stay in a restricted compartment.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/recruiting`, `internal/connectivity`.
+
+- [ ] `WF-CAP-018` **[GATE_C][TERRA] Bind mobility tax services: shadow payroll, tax equalization and gross-up.**
+  - **Depends:** `WF-EXT-022`, `WF-EXT-023`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.MOBILITY,BI.PAYROLL; DIRECT=none; WHY=DELEGATED: international mobility needs recurring host-country and equalization results that tax providers compute`.
+  - **TEST:** `TestTodo_WF_CAP_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_018`; `INTEGRATION=TestTodo_WF_CAP_018_Integration`.
+  - **RED:** no shadow payroll, hypothetical tax, equalization settlement or gross-up contract exists.
+  - **GREEN:** each is a DELEGATED contract; recurring hypothetical tax runs from a schedule trigger; the annual settlement is observed and reconciled.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/mobility`.
+
+- [ ] `WF-CAP-019` **[GATE_C][TERRA] Ship production connectors for the delegated capabilities.**
+  - **Depends:** `WF-EXT-022`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION,BI.ACCESS,BI.PAYROLL; DIRECT=none; WHY=DELEGATED: the connectivity plane has simulators only, so every delegated capability stops at the first real system`.
+  - **TEST:** `TestTodo_WF_CAP_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CAP_019`; `INTEGRATION=TestTodo_WF_CAP_019_Integration`; `SECURITY=TestTodo_WF_CAP_019_Security`.
+  - **RED:** `internal/connectivity` offers only simulators for identity, payroll and file transfer.
+  - **GREEN:** connector bindings exist for identity provisioning, badge, bank verification, benefit carriers, job boards, screening vendors, the payroll provider, e-signature and outbound file transfer, each proven against a vendor sandbox or recorded contract; SECURITY proves credentials come from the secret store and never reach logs.
+  - **REFACTOR:** one binding contract shared by all connectors.
+  - **Refs:** `internal/connectivity`, [authority classes](specs/capability-registry-and-lifecycle.md#authority-classes-and-connector-bindings).
+
+## 78. Visual workflow designer, test lab and partial reversal (2026-09-19)
+
+These come from a read-only analysis on 2026-09-19 of the designer surface, non-committing test modes and cancellation behaviour, building on §77. Three findings drive them.
+
+**No designer foundation exists.**
+
+- There is no node-graph editor plan, code or GoWebComponents primitive.
+- The legacy system had authoring APIs but never an editor.
+- The specs require: a keyboard alternative for every drag, 320px reflow, no customer code, and no generic visual builder in Gate A/B.
+
+**Test runs cannot exercise real workflows.**
+
+- `SIMULATE` refuses any plan containing a write instead of recording it.
+- Nothing compiles or simulates a draft.
+- The simulator grants itself every declared scope and reads only canned Promotion fixtures.
+
+**Cancellation decides but never acts.**
+
+- `COMPENSATION_REQUIRED` leaves an instance in `CANCELLING` with no exit.
+- `steps/compensate` and the `CancelGoverned` compensator have no production caller.
+- Reversibility is declared twice, with contradictory values.
+- One verdict covers a whole run.
+- The budget hold leaks on the direct cancel path.
+
+Storage never deletes business facts. Tables in the PERMANENT class (`definition_version`, `proposal_revision`, `ledger_event`, `external_observation`) are guarded by `forbid_mutation`. So a reversal always appends compensating or correcting facts and never removes history. Designer drafts and test evidence must stay out of PERMANENT tables. Erasure of personal data is a separate governed deletion workflow, not a cancellation mechanism.
+
+Defaults recorded here pending owner review:
+
+- The generic graph canvas is a reusable GoWebComponents package that hcm-next consumes.
+- Live-data test runs are a per-tenant policy that is off by default; sandbox copies are the default test data.
+- `WF-REV-001`–`005`, `010`, `011`, `013` and `014` fix the executable Promotion path and sit in Gate B.
+- Everything else is Gate C, consistent with §77.
+
+### Partial reversal: make the executable Promotion path correct
+
+- [ ] `WF-REV-001` **[GATE_B][SOL_HIGH] Discharge a compensation obligation so a cancelling run can finish.**
+  - **Depends:** `WF-RUN-010`, `WF-EXT-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=a run whose cancellation needs compensation enters CANCELLING and nothing ever moves it to CANCELLED or REPAIR_REQUIRED`.
+  - **TEST:** `TestTodo_WF_REV_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_001`; `RECOVERY=TestTodo_WF_REV_001_Recovery`; `FAULT=TestTodo_WF_REV_001_Fault`; `INTEGRATION=TestTodo_WF_REV_001_Integration`.
+  - **RED:** `internal/workflow/cancellation` records `COMPENSATION_REQUIRED` with its `compensation_refs` and sets the instance to `CANCELLING`; the only legal exits are `CANCELLED` and `REPAIR_REQUIRED` and no component takes either.
+  - **GREEN:** a cancellation driver reads the recorded obligation, runs each compensation as its own durable node execution in reverse commit order, observes each result, and moves the instance to `CANCELLED` when every compensation succeeds or `REPAIR_REQUIRED` naming the remaining effects; RECOVERY resumes a half-discharged obligation without repeating a finished compensation; FAULT proves a failed compensation lands in `REPAIR_REQUIRED`, never back in `CANCELLING`.
+  - **REFACTOR:** the driver reuses the execute driver's lease and fencing rather than a second loop.
+  - **Refs:** `internal/workflow/cancellation`, `internal/workflow/cancel.go`, [cancellation contract](specs/workflow-runtime.md#pause-cancellation-and-propagation).
+
+- [ ] `WF-REV-002` **[GATE_B][SOL_HIGH] Wire the compensate executor and the governed cancel compensator into the served path.**
+  - **Depends:** `WF-REV-001`, `TX-008`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=a complete compensation executor exists but only a golden manifest references it, so no compensation has ever run in production`.
+  - **TEST:** `TestTodo_WF_REV_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_002`; `INTEGRATION=TestTodo_WF_REV_002_Integration`; `GOLDEN=TestTodo_WF_REV_002_Golden`.
+  - **RED:** `internal/workflow/steps/compensate` (strategies CORRECTION, SUPERSEDING_REVISION, REPAIR_PLAN, IRREVERSIBLE) and `execute.Driver.CancelGoverned` with its `Compensator` callback have no production caller.
+  - **GREEN:** the served cell composes the compensate executor for COMPENSATE nodes and for cancellation-driven compensation, and passes it as the governed cancel compensator; INTEGRATION cancels a served promotion at each safe point and asserts the ledger carries one compensation event per reversed effect, each naming the event it counters.
+  - **REFACTOR:** one executor instance serves both paths.
+  - **Refs:** `internal/workflow/steps/compensate`, `internal/workflow/execute`, `internal/transaction/cancel`.
+
+- [ ] `WF-REV-003` **[GATE_B][SOL_HIGH] Make one reversibility declaration the source for proposals, plans and cancellation.**
+  - **Depends:** `WF-REV-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.REWARDS,BI.WORK; DIRECT=none; WHY=the promotion proposal tells approvers the change is reversible while the workflow node declares it irreversible, and cancellation reads only the node`.
+  - **TEST:** `TestTodo_WF_REV_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_003`; `PROPERTY=TestTodo_WF_REV_003_Property`; `GOLDEN=TestTodo_WF_REV_003_Golden`.
+  - **RED:** `intent.PlannedEffect.Reversibility` is filled by the promotion simulators with references such as `people.assignment.supersede` that resolve to nothing; `execute_promotion` has no `CompensationRef` and classifies as `IRREVERSIBLE`; `EffectRecord.Reversible` is never set from a compiled plan, so the `REVERTED` branch is unreachable.
+  - **GREEN:** proposal effect items, the compiled node's cancel class and `EffectRecord.Reversible` all derive from the same declaration; PROPERTY proves the proposal and the cancellation verdict can never disagree for any plan; GOLDEN pins the promotion effect items.
+  - **REFACTOR:** delete the per-simulator reversibility strings.
+  - **Refs:** `internal/workflow/cancel_semantics.go`, `internal/intent`, `internal/domains/promotion`.
+
+- [ ] `WF-REV-004` **[GATE_B][TERRA] Release the promotion budget hold on every cancel path.**
+  - **Depends:** `WF-EXT-001`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=a promotion cancelled through CancelIntent rather than the journey screen keeps its compensation budget reserved`.
+  - **TEST:** `TestTodo_WF_REV_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_004`; `INTEGRATION=TestTodo_WF_REV_004_Integration`.
+  - **RED:** the hold reserved at proposal time is released only by the journey path's best-effort `releasePromotionWindow`; the kernel `CancelIntent` path's admission release frees only `promotionguard`.
+  - **GREEN:** every cancel path releases the hold exactly once through the same release capability; INTEGRATION cancels through each path and asserts the remaining budget.
+  - **REFACTOR:** remove the best-effort journey-only release.
+  - **Refs:** `internal/intent/app/journey_candidates.go`, `internal/intent/app/workflow_cancellation.go`, `internal/domains/budget`.
+
+- [ ] `WF-REV-005` **[GATE_B][SOL_HIGH] Decide cancellation per effect and observe unknown effects before deciding.**
+  - **Depends:** `WF-REV-001`, `WF-REV-003`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=one irreversible or unconfirmed effect today decides the whole run, so reversible effects beside it are never undone`.
+  - **TEST:** `TestTodo_WF_REV_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_005`; `PROPERTY=TestTodo_WF_REV_005_Property`; `FAULT=TestTodo_WF_REV_005_Fault`.
+  - **RED:** `DecideCancellation` folds all effects into one verdict with precedence ambiguous over irreversible over compensable, and an in-flight or unconfirmed effect sends the whole run to `REPAIR_REQUIRED` without observing it.
+  - **GREEN:** cancellation first observes every unconfirmed effect (bounded), then records a verdict per effect (compensate, keep and correct, keep irreversible, unresolved) and an overall disposition derived from them; PROPERTY proves every committed effect receives exactly one verdict; FAULT proves an observation timeout leaves only that effect unresolved.
+  - **REFACTOR:** the run-level verdict becomes a pure summary of per-effect verdicts.
+  - **Refs:** `internal/workflow/cancel.go`, `internal/workflow/cancellation`.
+
+- [ ] `WF-REV-010` **[GATE_B][SOL_HIGH] Close an effect's idempotency scope when it is compensated.**
+  - **Depends:** `WF-REV-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=idempotency records are permanent, so retrying a reversed step with its old key would replay the reversed result instead of performing the step again`.
+  - **TEST:** `TestTodo_WF_REV_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_010`; `PROPERTY=TestTodo_WF_REV_010_Property`.
+  - **RED:** nothing marks an idempotency record as compensated; a re-execution with the original key returns the original terminal response.
+  - **GREEN:** compensation closes the original key's scope with a reference to the compensating event; a re-execution must mint a new semantic effect scope; replay of the closed key returns the compensated state, never the original result.
+  - **REFACTOR:** none.
+  - **Refs:** [idempotency lifecycle](specs/platform-foundation-gap-closure.md), `internal/workflow/steps/compensate`.
+
+- [ ] `WF-REV-011` **[GATE_B][SOL_HIGH] Prove every projection rebuilds to the same state after a reversal.**
+  - **Depends:** `WF-REV-002`, `STORE-001`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=storage never deletes, so a reversal is only correct if every rebuildable view folds compensation and correction facts the same way live and on rebuild`.
+  - **TEST:** `TestTodo_WF_REV_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_011`; `CONFORMANCE=TestTodo_WF_REV_011_Conformance`; `RECOVERY=TestTodo_WF_REV_011_Recovery`.
+  - **RED:** no test rebuilds a REBUILDABLE table after a compensation or correction event and compares it with the live projection.
+  - **GREEN:** for each REBUILDABLE table in the storage-disposition registry touched by a reversible effect, CONFORMANCE applies a commit, then its compensation or correction, then rebuilds from the ledger and asserts equality with the live projection; a projection that ignores compensation fails.
+  - **REFACTOR:** one shared rebuild-and-compare harness.
+  - **Refs:** `definitions/storage/storage-disposition.yaml`, `internal/data/ledger`.
+
+- [ ] `WF-REV-013` **[GATE_B][SOL_LOW] Make every outbox consumer handle compensating events idempotently.**
+  - **Depends:** `WF-REV-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=published events cannot be withdrawn, so downstream consumers only ever learn of a reversal through a compensating event`.
+  - **TEST:** `TestTodo_WF_REV_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_013`; `PROPERTY=TestTodo_WF_REV_013_Property`.
+  - **RED:** outbox consumers are proven idempotent for original events only; no test delivers a compensating event, or delivers it twice or before its original.
+  - **GREEN:** each consumer applies a compensating event exactly once and holds an out-of-order compensation until its original arrives; PROPERTY covers duplicate and reordered delivery.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/outbox`, `internal/platform/execution`.
+
+- [x] `WF-REV-014` **[GATE_B][SOL_HIGH] Audit ledger payloads for personal data that storage could never erase.**
+  - **Evidence (2026-09-19):** `TestTodo_WF_REV_014`, `TestTodo_WF_REV_014_Golden`, `TestTodo_WF_REV_014_Security` in `tools/policy/storeprivacy`; `go test -count=1 ./tools/policy/storeprivacy/` PASS on windows/arm64 (Go 1.26.3); checker classifies PERMANENT-table fields and pins the inline-personal inventory; branch operations/promo-exec-provider-integrations.
+  - **Depends:** `STORE-001`, `PRIV-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.ALL; DIRECT=none; WHY=append-only tables block deletion and no table uses field-level encryption, so personal data inside an immutable payload would survive any erasure request, including for reversed records`.
+  - **TEST:** `TestTodo_WF_REV_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_014`; `GOLDEN=TestTodo_WF_REV_014_Golden`; `SECURITY=TestTodo_WF_REV_014_Security`.
+  - **RED:** the storage-disposition registry marks every table `PLATFORM_MANAGED` encryption, and no check lists which PERMANENT tables carry personal fields in their payloads.
+  - **GREEN:** a checker classifies every field written to a PERMANENT table and fails when a personal field is stored inline rather than as a payload-vault reference; GOLDEN pins the inventory; the current findings are recorded with an owner.
+  - **REFACTOR:** none.
+  - **Refs:** `definitions/storage/storage-disposition.yaml`, [secure deletion](specs/platform-foundation-gap-closure.md), `internal/data/ledger`.
+
+### Partial reversal: derive reversal behaviour from blocks
+
+- [ ] `WF-REV-006` **[GATE_C][SOL_HIGH] Declare a reversal contract in each block manifest.**
+  - **Depends:** `WF-EXT-011`, `WF-EXT-012`, `WF-REV-003`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=authors compose workflows from blocks and may not write compensation, so how a step is undone must come from the block itself`.
+  - **TEST:** `TestTodo_WF_REV_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_006`; `GOLDEN=TestTodo_WF_REV_006_Golden`; `PROPERTY=TestTodo_WF_REV_006_Property`.
+  - **RED:** `capability.Definition` has no inverse capability, reversibility class, reversal window or reversal idempotency; `CORRECTABLE_ONLY` exists nowhere.
+  - **GREEN:** the manifest declares a reversibility class (`REVERSIBLE`, `COMPENSABLE`, `CORRECTABLE_ONLY`, `IRREVERSIBLE`), a type-checked inverse capability, a reversal window as a `TimeExpr`, the after-window strategy (correction intent or human decision), a reversal kind (`VOID` when nothing downstream consumed the effect, `FORWARD_CORRECTION` when something did), and the reversal's own idempotency and observation; PROPERTY proves an inverse's request type is assignable from the target's response.
+  - **REFACTOR:** node `CompensationRef` becomes derived from the manifest.
+  - **Refs:** `internal/capability/types.go`, [capability registry contract](specs/capability-registry-and-lifecycle.md).
+
+- [ ] `WF-REV-007` **[GATE_C][SOL_HIGH] Compile an unwind plan for every safe point and reject writes without a reversal contract.**
+  - **Depends:** `WF-REV-006`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=the spec already requires irreversible effects to declare cancellation behaviour, but only the failure route is checked and CancellationPolicyRef is never evaluated`.
+  - **TEST:** `TestTodo_WF_REV_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_007`; `GOLDEN=TestTodo_WF_REV_007_Golden`; `PROPERTY=TestTodo_WF_REV_007_Property`.
+  - **RED:** the compiler accepts a write node with no compensation or cancellation behaviour, and no plan records what cancelling at a given point would undo.
+  - **GREEN:** the compiled plan carries, for each safe point, the effects committed by then and their reverse-dependency unwind order with atomic regions grouped; a write block without a reversal contract is a compile error; PROPERTY proves unwind order is the reverse of a valid commit order.
+  - **REFACTOR:** the cancellation driver executes the compiled unwind plan instead of deriving order at run time.
+  - **Refs:** `internal/workflow/compile.go`, `internal/workflow/effects.go`, [compiler pipeline](specs/workflow-runtime.md#compiler-and-publication-pipeline).
+
+- [ ] `WF-REV-008` **[GATE_C][TERRA] Route effects that cannot be undone to a human decision block.**
+  - **Depends:** `WF-REV-005`, `WF-EXT-013`, `WF-EXT-023`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.WORK; DIRECT=none; WHY=pay already released or a notice already sent can only be corrected or accepted, and today such effects just end in repair with no one asked`.
+  - **TEST:** `TestTodo_WF_REV_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_008`; `INTEGRATION=TestTodo_WF_REV_008_Integration`.
+  - **RED:** irreversible or out-of-window effects produce `CANNOT_CANCEL` or `REPAIR_REQUIRED`; nothing proposes a correction or records an accepted residual.
+  - **GREEN:** a published decision fragment presents each remaining effect with its options (start a correction intent, record a waiver with authority, accept as residual) and records the decision and any open obligation; INTEGRATION cancels after an irreversible step and follows each option.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork`, `internal/domains/repair`.
+
+- [ ] `WF-REV-009` **[GATE_C][SOL_LOW] Show what a partially reversed run undid, kept and left open.**
+  - **Depends:** `WF-REV-005`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=after a partial reversal the five lifecycle dimensions cannot say which effects were undone, so operators read decision-row reasons`.
+  - **TEST:** `TestTodo_WF_REV_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_009`; `GOLDEN=TestTodo_WF_REV_009_Golden`.
+  - **RED:** a run in `CANCELLING` leaves the intent at `CANCELLATION_PENDING`, and which effects were reversed or remain appears only in cancellation reasons.
+  - **GREEN:** a settlement projection lists each effect as reversed, corrected, kept or unresolved with its reason and evidence; the intent reports `BusinessState=NOT_ACHIEVED` with a consistency state derived from the settlement; no lifecycle dimension is added.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/runtime/effect_role_settlement.go`, `internal/intent`.
+
+- [ ] `WF-REV-012` **[GATE_C][TERRA] Apply uniqueness only to active records so reversed records never block a redo.**
+  - **Depends:** `WF-CAP-001`, `WF-REV-002`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PEOPLE,BI.LIFECYCLE; DIRECT=none; WHY=a reversed hire leaves its person and worker records in place, and a later rehire must reuse the person rather than collide`.
+  - **TEST:** `TestTodo_WF_REV_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_012`; `PROPERTY=TestTodo_WF_REV_012_Property`; `FAULT=TestTodo_WF_REV_012_Fault`; `RECOVERY=TestTodo_WF_REV_012_Recovery`.
+  - **RED:** no rule states that uniqueness applies to active records only, and nothing proves a redo after reversal resolves to the reversed person.
+  - **GREEN:** uniqueness constraints cover active records; a hire after a reversed hire resolves to the same person through match-or-create; PROPERTY proves no sequence of hire, reverse and rehire creates two active records for one person.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/people`, `migrations`.
+
+- [ ] `WF-REV-015` **[GATE_C][SOL_HIGH] Hold personal data behind per-subject keys so erasure reaches reversed records.**
+  - **Depends:** `WF-REV-014`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.ALL; DIRECT=none; WHY=a cancelled hire's candidate may later request erasure, and append-only history can only honour that if the payload is destroyable apart from the fact that it existed`.
+  - **TEST:** `TestTodo_WF_REV_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_015`; `SECURITY=TestTodo_WF_REV_015_Security`; `GOLDEN=TestTodo_WF_REV_015_Golden`.
+  - **RED:** the `FIELD_LEVEL` encryption class is reserved and unused, so no subject's personal data can be crypto-shredded.
+  - **GREEN:** personal fields flagged by `WF-REV-014` move to payload-vault references encrypted under per-subject keys; destroying a key leaves the original and reversal facts as minimal tombstones; SECURITY proves the destroyed payload is unrecoverable from the ledger, projections and backups after the backup-expiry date.
+  - **REFACTOR:** the storage-disposition registry records `FIELD_LEVEL` for affected tables in the same change.
+  - **Refs:** [secure deletion](specs/platform-foundation-gap-closure.md), `definitions/storage/storage-disposition.yaml`.
+
+- [ ] `WF-REV-016` **[GATE_C][TERRA] Publish the inverse capabilities the promotion effect items name.**
+  - **Depends:** `WF-REV-006`, `WF-CAP-002`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PEOPLE,BI.REWARDS; DIRECT=none; WHY=promotion effect items point at inverse operations that resolve to nothing, so a committed promotion can only be fixed by hand`.
+  - **TEST:** `TestTodo_WF_REV_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_REV_016`; `INTEGRATION=TestTodo_WF_REV_016_Integration`.
+  - **RED:** `people.assignment.supersede` and the compensation-revision inverses are referenced but not registered.
+  - **GREEN:** the inverse capabilities exist with reversal contracts; within the window a committed promotion is voided, after it the promotion is corrected forward; INTEGRATION cancels after commit on both sides of the window.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/people`, `internal/domains/compensation`, `internal/domains/promotion`.
+
+### Designer: canvas, drafts and authoring
+
+- [x] `WF-UI-001` **[GATE_C][SOL_HIGH] Build a reusable graph canvas package in GoWebComponents.**
+  - **Depends:** `WEB-245`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=no GoWebComponents primitive supports a node graph and the product rule is Go only with no hand-written script`.
+  - **TEST:** `TestTodo_WF_UI_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_001`; `BROWSER=TestTodo_WF_UI_001_Browser`; `BENCHMARK=TestTodo_WF_UI_001_Benchmark`.
+  - **RED:** GoWebComponents v5.0.1 has SVG, pointer and wheel hooks and pan/pinch math, but no viewport, node, edge, port, hit-testing, selection, marquee, snapping, minimap, layout or keyboard graph pattern, no pointer-capture helper, and its SVG namespace table omits `text`.
+  - **GREEN:** a canvas package renders HTML nodes in one transformed container with an SVG edge layer, supports pan, zoom, ports, selection, marquee, snapping and a minimap, runs layered auto-layout off the UI thread, and moves nodes by direct DOM transform during a drag, writing state once on drop; BROWSER drags, connects and pans in a real browser; BENCHMARK holds frame time with 300 nodes.
+  - **REFACTOR:** the package carries no workflow semantics.
+  - **Refs:** GoWebComponents `ui`, `anim`, `compute`, `timetravel` packages; `internal/humanwork/productui`.
+  - **Evidence (2026-09-19):** GoWebComponents v5 `graphcanvas` now supplies workflow-neutral graph, viewport, port, edge, hit-test, marquee, snap, minimap, semantic node-button, keyboard, direct-DOM drag and deterministic layered-layout primitives plus a dedicated Go/WASM worker adapter. `TestTodo_WF_UI_001`, `TestTodo_WF_UI_001_Browser`, `TestTodo_WF_UI_001_Benchmark` and the package suites pass with `go test -count=1 -run '^TestTodo_WF_UI_001' ./graphcanvas/`; `go vet ./graphcanvas/` and a `GOOS=js GOARCH=wasm go test -c` compile pass. `BenchmarkTodo_WF_UI_001_Benchmark` measured 300-node layout at 0.77–1.03 ms/op across three runs. Codex-browser inspection of the Go/WASM demo at desktop, 390 px and 320 px, in light and dark themes, verified snapped drag, port connection, marquee selection, keyboard node movement, pan, zoom and worker-backed auto-layout; a clean worker run produced no warning or error diagnostics.
+
+- [x] `WF-UI-002` **[GATE_C][TERRA] Show published workflows and live runs as a read-only graph with an outline.**
+  - **Depends:** `WF-UI-001`, `WF-EXT-010`, `WF-RUN-019`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=no one can see a workflow's shape today, and a viewer is the low-risk first step before editing`.
+  - **TEST:** `TestTodo_WF_UI_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_002`; `BROWSER=TestTodo_WF_UI_002_Browser`; `GOLDEN=TestTodo_WF_UI_002_Golden`.
+  - **RED:** no page renders a workflow graph, and the run inspector projection has no product importer.
+  - **GREEN:** a page renders any published definition as a graph and an equivalent outline, and overlays a live run's node states from the inspector projection; BROWSER covers desktop and 320px, where the outline is primary.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/inspect`, `internal/humanwork/productui/web242_page_modules.go`.
+  - **Evidence (2026-09-19):** the role-gated Workflow editor at `/workspace/app/admin/workflows` lists active immutable publications from `WorkflowService`, resolves an exact pinned definition for a selected live run, validates it against the inspector projection, and renders the same authorized nodes and routes as a desktop graph plus an always-present semantic outline. Redacted and incomplete run evidence fails closed without inventing node state. `TestTodo_WF_UI_002`, `_Browser`, `_Golden`, transport security/golden, catalog determinism, RPC boundary, route-ownership, localization, theme, malformed-evidence and live-overlay tests pass across `internal/workflow/version`, `internal/humanwork/workflowview`, `internal/humanwork/productui`, `internal/experience/roleaccess`, `internal/transport/workflow`, `tools/uxqual/journeyclient` and `tools/uxqual/productclient`. Codex-browser inspection verified the real Go/WASM page at desktop and 320 px: both shipped workflows load, the desktop graph and outline agree, the narrow layout removes the graph in favor of the outline, and the Workflow editor remains discoverable in navigation. The narrow action icon and button were tightened after the visual pass.
+
+- [x] `WF-UI-003` **[GATE_C][SOL_LOW] Keep designer drafts in a mutable, purgeable draft store.**
+  - **Depends:** `WF-EXT-010`, `STORE-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=definition_version is append-only and trigger-guarded, so saving drafts there would make every autosave permanent history`.
+  - **TEST:** `TestTodo_WF_UI_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_003`; `RECOVERY=TestTodo_WF_UI_003_Recovery`; `FAULT=TestTodo_WF_UI_003_Fault`.
+  - **RED:** no draft store exists; the only definition table is PERMANENT.
+  - **GREEN:** drafts and autosaves live in an OPERATIONAL table registered in the storage-disposition registry, with author, base version and expiry; only publish writes `definition_version`; abandoned drafts are purged; RECOVERY restores an interrupted edit session.
+  - **REFACTOR:** none.
+  - **Refs:** `definitions/storage/storage-disposition.yaml`, `migrations`.
+  - **Evidence (2026-09-19):** migration `00314_workflow_designer_draft.sql` creates the mutable tenant-isolated OPERATIONAL draft table with author, base-version digest, optimistic revision and expiry; `internal/data/workflowdraftstore` keeps autosave/recovery/purge separate from immutable `workflow_compiled_version` publication. `TestTodo_WF_UI_003`, `_Recovery`, `_Fault` and `_TenantIsolation` pass under embedded PostgreSQL with `go test -count=1 ./internal/data/workflowdraftstore/`; `go test -count=1 ./tools/policy/tableinventory/ ./tools/policy/storeprivacy/ ./tools/policy/dispositioncoverage/` and `go vet ./internal/data/workflowdraftstore/` pass. The broader store-boundary suite remains red on its pre-existing `internal/data/safetystore/conformance_store.go` allow-list drift and reported no workflow-draft finding.
+
+- [x] `WF-UI-004` **[GATE_C][SOL_HIGH] Compile and validate a draft through an API that maps diagnostics to nodes and edges.**
+  - **Depends:** `WF-UI-003`, `WF-EXT-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=the designer must use the same compiler that publishes, or a workflow could look valid and fail at release`.
+  - **TEST:** `TestTodo_WF_UI_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_004`; `SECURITY=TestTodo_WF_UI_004_Security`; `GOLDEN=TestTodo_WF_UI_004_Golden`.
+  - **RED:** no service accepts a definition payload; the workflow service offers only get, list, pause, resume, cancel and retry.
+  - **GREEN:** a service compiles a stored draft with the publish compiler and returns diagnostics keyed by node and edge id plus the derived effect and unwind summary; SECURITY proves an author can reference only capabilities in the tenant allow list.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/compile.go`, `schema/proto/hcmnext/workflow/v1`.
+  - **Evidence (2026-09-19):** `WorkflowService.CompileWorkflowDraft` loads the latest tenant-scoped durable revision, refuses non-authors without disclosing the draft, invokes the same `workflow.Compile` entry point used by publication, and returns stable node/edge-addressable diagnostics with effect and conservative unwind summaries over both gRPC and Connect. Capability resolution is fail-closed and intersects the immutable registry with an injected tenant allow-list policy before lookup. `TestTodo_WF_UI_004`, `_Security`, `_Golden`, `_TransportCompilesStoredRevision`, `_TransportSecurity`, and `_TransportGolden` pass across `internal/workflow/draftcompile` and `internal/transport/workflow`; cell/edge compile checks, `buf lint`, `buf build`, and scoped `go vet` pass. The generated-contract idempotency test reached only the known Windows `go tool` executable-cleanup refusal; regeneration with the same pinned protoc plugin versions completed successfully.
+
+- [x] `WF-UI-005` **[GATE_C][TERRA] Offer a block palette from the registry filtered by the tenant allow list.**
+  - **Depends:** `WF-UI-001`, `WF-EXT-011`, `WF-EXT-017`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=authors start from standard blocks, fragments and templates and must only see what the tenant may use`.
+  - **TEST:** `TestTodo_WF_UI_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_005`; `BROWSER=TestTodo_WF_UI_005_Browser`; `SECURITY=TestTodo_WF_UI_005_Security`.
+  - **RED:** no palette exists and the registry has no designer-facing listing.
+  - **GREEN:** the palette lists blocks, fragments and templates by domain with search, effect and reversal badges; fragments insert as collapsible groups; SECURITY proves entries outside the allow list never appear.
+  - **REFACTOR:** none.
+  - **Refs:** [extension registries](specs/workflow-runtime.md#extensibility-closed-kernel-open-registries).
+  - **Evidence (2026-09-19):** the tenant-scoped designer palette projects authorized blocks, fragments and templates by domain with search plus effect and reversal badges; denied capabilities never enter the projection, fragments insert as durable collapsible groups, stale revisions abort, and the Go/WASM controller serializes edits without remounting the editor. The governed Promotion template is the canonical `promotionexec.Definition()` itself: the stored draft bytes, start node, 25 nodes, 72 outcome routes, two provider-signal waits and definition digest are proven identical to the executable graph, while the UI independently verifies the server-issued template digest before displaying `Exact match to executable template`. The immutable-successor path is bound to the template's compiled-plan digest: creating version `1.1.2` from published `1.1.0` hydrates the canonical source bytes, and compiling those stored bytes reproduces the published plan digest rather than creating an empty or merely same-named draft. `TestTodo_WF_UI_005`, `_Browser`, `_Security`, the durable-edit, transport, controller, product-client and exact-template parity tests pass across `internal/workflow/designerpalette`, `internal/workflow/designeredit`, `internal/application`, `internal/transport/workflow`, `internal/transport/edge`, `internal/humanwork/productui`, `tools/uxqual/productclient` and `tools/uxqual/cmd/journeywasm` (each package reported `ok`; Windows subsequently refused only test-binary cleanup). Codex-browser inspection of the real Go/WASM editor verified the exact 25-step/72-route Promotion draft, tenant catalog grouping, dynamic `Promotion` search, effect/reversal metadata and the expanded collapsible fragment; a fresh published-successor draft also opened at revision 1 with the exact-match badge.
+
+- [x] `WF-UI-006` **[GATE_C][TERRA] Refine a block through typed parameter forms and template overlays.**
+  - **Depends:** `WF-UI-005`, `WF-EXT-013`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=matching business needs means setting block parameters within bounds and adjusting templates without removing mandatory controls`.
+  - **TEST:** `TestTodo_WF_UI_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_006`; `BROWSER=TestTodo_WF_UI_006_Browser`; `PROPERTY=TestTodo_WF_UI_006_Property`.
+  - **RED:** no inspector edits block parameters or template overlays.
+  - **GREEN:** the node inspector renders the block's parameter schema as a typed form; template changes are recorded as add, omit with reason and replace with reason; governance, revalidation, reconciliation and closure show as locked; PROPERTY proves no inspector action yields a draft that drops a mandatory phase.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/workflowexpansion`, `internal/humanwork/productui/binding_inspector.go`.
+  - **Evidence (2026-09-19):** the shared node inspector projects string, integer and enumerated parameters from the durable definition, validates and autosaves them with optimistic revisions, and renders add/omit/replace template overlays through one controlled component. Omit/replace require a nonblank audit reason before their controls enable; governance, revalidation, reconciliation and closure nodes remain locked at both the UI and edit-kernel boundaries, and property coverage proves every attempted locked-node omission leaves the stored bytes and revision unchanged. Selected-node identity is URL-backed, so refresh/revalidation does not remount the inspector onto another node. `TestTodo_WF_UI_006`, `_Browser`, `_Property`, transport security, product inspector/locales, product-client claim validation, controller serialization and selected-node reload tests pass across `internal/workflow/designeredit`, `internal/transport/workflow`, `internal/humanwork/productui`, `tools/uxqual/productclient` and `tools/uxqual/cmd/journeywasm`. Live Codex-browser checks changed the payroll signal label and timeout (`259200` to `7200`), observed revision/parity move from exact to changed, restored the canonical values and exact status, proved reason gating and the locked manager-approval refusal, reloaded the selected signal node, and visually verified the inspector at desktop, 390px and 320px widths.
+
+- [x] `WF-UI-007` **[GATE_C][TERRA] Link nodes by outcome paths and bind data only from preceding outputs.**
+  - **Depends:** `WF-UI-004`, `WF-UI-006`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=control flow and dataflow are different links, and an author must not be able to bind to a value that may not exist yet`.
+  - **TEST:** `TestTodo_WF_UI_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_007`; `BROWSER=TestTodo_WF_UI_007_Browser`; `PROPERTY=TestTodo_WF_UI_007_Property`.
+  - **RED:** there is no way to draw an outcome edge or pick a typed input source.
+  - **GREEN:** outcome ports (for example APPROVED, REJECTED, TIMED_OUT) connect to next nodes on the canvas; the data-binding picker offers only outputs of nodes that dominate the target, filtered by type assignability; PROPERTY proves the picker never offers a binding the compiler would reject.
+  - **REFACTOR:** the picker reuses the compiler's dominance and assignability functions.
+  - **Refs:** `internal/workflow/mapping.go`, `internal/workflow/graph.go`.
+  - **Evidence (2026-09-19):** the node inspector now separates outcome routing from typed data binding. Outcome forms project every compiler-declared route and update its continuation under the draft's optimistic revision fence; binding forms show only assignable outputs from strict dominators, using the compiler-owned `analyzeGraph`, `strictDominators` and `ValueType.AssignableTo` semantics rather than a UI approximation. The edit kernel, Connect transport, product client and Go/WASM controller reject stale revisions, undeclared routes, non-dominating sources, mismatched types and duplicate claims, while no-op submissions preserve the revision. `TestTodo_WF_UI_007`, `_Browser`, `_Property`, transport, controller and product-client suites pass with `go vet`, `buf lint` and `buf build`. In the real Codex browser, the Promotion 1.1.2 successor rerouted `ABOVE_THRESHOLD`, restored it to Finance, rebound `band_position`, restored it to `Evaluate Band.band_position`, and returned to revision 5 with the exact executable-template badge; keyboard submission, desktop/light/dark and 390px/320px checks kept the 25-step/72-route draft usable without clipping.
+
+- [ ] `WF-UI-008` **[GATE_C][TERRA] Link blocks to internal and external resources by version.**
+  - **Depends:** `WF-UI-006`, `WF-EXT-022`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.INTEGRATION; DIRECT=none; WHY=blocks depend on capabilities, rules, forms, templates, custom objects and connector bindings that authors need to find, open and version`.
+  - **TEST:** `TestTodo_WF_UI_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_008`; `BROWSER=TestTodo_WF_UI_008_Browser`; `INTEGRATION=TestTodo_WF_UI_008_Integration`.
+  - **RED:** a node's references are opaque strings with no way to inspect, create or update them.
+  - **GREEN:** resource chips show each referenced capability, rule table, form, document or message template, custom object and connector binding with its pinned version; a chip opens the resource, starts a draft of a new resource, or flags that a newer version exists; INTEGRATION resolves a connector-binding chip against a simulator.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/capability`, `internal/connectivity`, `internal/customobject`.
+
+- [x] `WF-UI-009` **[GATE_C][TERRA] Provide an accessible outline editor equivalent to the canvas.**
+  - **Depends:** `WF-UI-007`, `WEB-245`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the frontend spec requires a keyboard alternative to every drag and reflow at 320px, which a canvas alone cannot give`.
+  - **TEST:** `TestTodo_WF_UI_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_009`; `BROWSER=TestTodo_WF_UI_009_Browser`; `PROPERTY=TestTodo_WF_UI_009_Property`.
+  - **RED:** no non-canvas way to author a graph exists.
+  - **GREEN:** an outline editor adds, moves, connects, binds and configures nodes by keyboard and screen reader over the same draft; BROWSER passes at 320px; PROPERTY proves any draft built in either view is identical when opened in the other.
+  - **REFACTOR:** canvas and outline share one edit-command model.
+  - **Refs:** [page composition spec](specs/production-frontend-and-page-composition.md), `internal/humanwork/productui/outline_editor.go`.
+  - **Evidence (2026-09-19):** the draft graph and semantic outline now expose the same native configure and move commands over one durable, optimistic edit model. `MoveWorkflowDraftNode` crosses protobuf, role-gated Connect transport, edge routing, product client, serialized Go/WASM controller and the edit kernel; moving a node changes only authoring presentation order, and the property suite proves a later/earlier round trip restores the exact definition digest and order. The named `TestTodo_WF_UI_009`, `_Browser` and `_Property` tests cover revision fencing, typed refusals, boundary idempotence, shared commands, keyboard order, localization, theming and narrow-layout rules. The live Codex-browser pass used the exact 25-step/72-route Promotion draft: keyboard movement and restoration preserved executable parity, configure/connect/bind actions remained accessible, and repeated no-op submissions stayed at revision 6 after PostgreSQL jsonb round trips. A separate blank draft was created and `Task` added entirely by keyboard, advancing revision 1 to 2 and selecting the inserted node in both views. Desktop and 320×700 inspection verified the outline-first narrow layout, logical-direction styling, stacked move controls and intact long labels; the one-step summary was refined to localized singular copy. The focused eight-package test matrix reported every package `ok`; `go vet`, `buf lint` and `buf build` passed. The combined Go command's only nonzero tail was the repository-documented Windows refusal to unlink an already-passed test executable.
+
+- [ ] `WF-UI-010` **[GATE_C][SOL_LOW] Add version diff, undo and redo, and auto-layout for imported drafts.**
+  - **Depends:** `WF-UI-007`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=reviewers must see what changed, authors must undo safely, and agent or imported drafts arrive without positions`.
+  - **TEST:** `TestTodo_WF_UI_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_010`; `BROWSER=TestTodo_WF_UI_010_Browser`; `GOLDEN=TestTodo_WF_UI_010_Golden`.
+  - **RED:** no semantic diff, undo history or layout exists for workflow drafts.
+  - **GREEN:** a semantic diff between versions lists node, edge, binding and parameter changes; undo and redo cover every edit command; a draft without positions is laid out automatically; agents author through the same draft artifact.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui`, GoWebComponents `timetravel`.
+
+- [ ] `WF-UI-011` **[GATE_C][TERRA] Show each block's reversal behaviour and the unwind plan at any node.**
+  - **Depends:** `WF-REV-007`, `WF-UI-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=authors must see what cancelling at each point would undo, correct or leave open before publishing`.
+  - **TEST:** `TestTodo_WF_UI_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_011`; `BROWSER=TestTodo_WF_UI_011_Browser`; `GOLDEN=TestTodo_WF_UI_011_Golden`.
+  - **RED:** nothing surfaces reversibility or a cancellation outcome in any UI.
+  - **GREEN:** each block shows its reversibility class and window; selecting a node overlays the compiled unwind plan for cancelling there, marking effects to void, correct forward or route to a human decision.
+  - **REFACTOR:** none.
+  - **Refs:** [compiler pipeline](specs/workflow-runtime.md#compiler-and-publication-pipeline).
+
+- [ ] `WF-UI-012` **[GATE_C][TERRA] Render reversed steps as history with their reason.**
+  - **Depends:** `WF-REV-009`, `WF-EXT-018`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=storage keeps every fact, so the UI must show a reversed step as reversed rather than hide it or present it as current`.
+  - **TEST:** `TestTodo_WF_UI_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_012`; `BROWSER=TestTodo_WF_UI_012_Browser`.
+  - **RED:** run and journey views have no reversed state.
+  - **GREEN:** run history, journey and inspector show reversed effects marked as reversed with the reason, time and reversing run; current-state views exclude them; accessible text matches visible text.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/journeyclient`, `internal/humanwork/productui`.
+
+- [ ] `WF-UI-013` **[GATE_C][SOL_HIGH] Publish from the designer with fixtures and separation of duties.**
+  - **Depends:** `WF-TEST-009`, `WF-EXT-026`, `WF-COMP-006`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL,BI.TENANT; DIRECT=none; WHY=a designed workflow reaches production only through the same governed release as a shipped one`.
+  - **TEST:** `TestTodo_WF_UI_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_UI_013`; `SECURITY=TestTodo_WF_UI_013_Security`; `GOLDEN=TestTodo_WF_UI_013_Golden`.
+  - **RED:** workflow release runs only from the command line against shipped plans.
+  - **GREEN:** the designer submits a draft for review; a different principal approves after the saved fixtures pass; activation follows the existing release steps; SECURITY proves the author cannot approve their own draft.
+  - **REFACTOR:** none.
+  - **Refs:** `cmd/hcmnext/workflowversion.go`, `internal/workflow/releasefixture`.
+
+### Test lab: run drafts without committing
+
+- [ ] `WF-TEST-001` **[GATE_C][SOL_HIGH] Record writes during simulation instead of refusing the plan.**
+  - **Depends:** `WF-EXT-003`, `WF-EXT-005`, `INTENT-023`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=SIMULATE refuses any plan containing a write, so no realistic workflow can be tested without committing`.
+  - **TEST:** `TestTodo_WF_TEST_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_001`; `SECURITY=TestTodo_WF_TEST_001_Security`; `PROPERTY=TestTodo_WF_TEST_001_Property`.
+  - **RED:** `simulate.Admit` rejects a plan with any write node, and Promotion simulates only because two nodes are relabelled read-only by hand.
+  - **GREEN:** test runs execute under an execution contract with a zero effect ceiling whose recording profile captures each would-be write, message and external call as a typed record with its preview; SECURITY proves no test run can reach a live write path; PROPERTY proves the ledger, outbox and connectors are unchanged after any test run.
+  - **REFACTOR:** remove the Promotion relabelling.
+  - **Refs:** `internal/workflow/simulate/run.go`, `internal/intent/executionmode.go`.
+
+- [ ] `WF-TEST-002` **[GATE_C][SOL_HIGH] Authorize test-run reads for real and keep their evidence in an expiring store.**
+  - **Depends:** `WF-TEST-001`, `WF-EXT-024`, `STORE-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.PRIVACY; DIRECT=none; WHY=the simulator grants itself every declared scope and keeps evidence in memory, and test evidence must never become permanent history`.
+  - **TEST:** `TestTodo_WF_TEST_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_002`; `SECURITY=TestTodo_WF_TEST_002_Security`; `GOLDEN=TestTodo_WF_TEST_002_Golden`.
+  - **RED:** `ScopeAuthorizer` allows whatever a node declares, the invocation sink is in memory, and no retention class fits test evidence.
+  - **GREEN:** test runs use the author's real principal with purpose `workflow.test` and real authorization; their evidence is stored under a new expiring retention class registered in the storage-disposition registry and purged on expiry; SECURITY proves a test run cannot read what the author could not read directly.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/simulate`, `definitions/storage/storage-disposition.yaml`.
+
+- [ ] `WF-TEST-003` **[GATE_C][TERRA] Provide named fake-data profiles and block sample responses.**
+  - **Depends:** `WF-TEST-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=only the Promotion fixture environment exists, so a new workflow has no data to run against`.
+  - **TEST:** `TestTodo_WF_TEST_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_003`; `GOLDEN=TestTodo_WF_TEST_003_Golden`.
+  - **RED:** fake data exists only as hand-written per-family conformance environments and the Promotion fixture corpus.
+  - **GREEN:** fixture profiles are named, versioned datasets generated from the demo seed and conformance environments; each block may declare sample responses per outcome; a test run binds a profile and the author picks outcomes per node for what-if branches.
+  - **REFACTOR:** conformance families load from profiles.
+  - **Refs:** `internal/workflow/conformance`, `internal/domains/fixtures`, the HarborCare demo seed.
+
+- [ ] `WF-TEST-004` **[GATE_C][SOL_HIGH] Allow live-data test runs only under an explicit tenant policy.**
+  - **Depends:** `WF-TEST-002`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.TENANT; DIRECT=none; WHY=testing against real records exposes personal data and must be a deliberate, audited tenant choice rather than a default`.
+  - **TEST:** `TestTodo_WF_TEST_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_004`; `SECURITY=TestTodo_WF_TEST_004_Security`; `GOLDEN=TestTodo_WF_TEST_004_Golden`.
+  - **RED:** no policy governs whether a test run may read live tenant data.
+  - **GREEN:** a tenant policy, off by default, enables live-read test runs for named roles; when off, live-like testing uses a sandbox copy; when on, personal fields are masked unless the author holds the unmasking right, every read is audited with purpose `workflow.test`, and all writes are recorded, never performed.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/platform/sandbox`, [secure deletion](specs/platform-foundation-gap-closure.md).
+
+- [ ] `WF-TEST-005` **[GATE_C][SOL_HIGH] Step through a test run with breakpoints and node inspection.**
+  - **Depends:** `WF-TEST-001`, `WF-EXT-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL,BI.EXPERIENCE; DIRECT=none; WHY=authors debug by pausing at a node, reading its inputs and outputs, and rerunning after a change`.
+  - **TEST:** `TestTodo_WF_TEST_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_005`; `BROWSER=TestTodo_WF_TEST_005_Browser`; `PROPERTY=TestTodo_WF_TEST_005_Property`.
+  - **RED:** the simulator runs to completion with no pause, step or per-node output view.
+  - **GREEN:** a test run pauses at breakpoints, steps node by node, shows each node's resolved inputs, outputs, route and recorded effects on the canvas, and reruns from a chosen node after an edit; PROPERTY proves stepping yields the same result as an uninterrupted run.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/simulate`, `internal/workflow/inspect`.
+
+- [ ] `WF-TEST-006` **[GATE_C][SOL_LOW] Fast-forward time in test runs.**
+  - **Depends:** `WF-TEST-001`, `WF-EXT-012`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=effective-date waits and statutory deadlines span days or months and must be testable in seconds`.
+  - **TEST:** `TestTodo_WF_TEST_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_006`; `PROPERTY=TestTodo_WF_TEST_006_Property`.
+  - **RED:** WAIT is refused in simulation and no virtual timer queue exists.
+  - **GREEN:** test runs use a virtual clock with a timer queue; the author jumps to the next timer or a chosen instant and deadline routes fire as in production; PROPERTY proves the fired order matches real-time order.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/timer`, `internal/workflow/steps/wait`.
+
+- [ ] `WF-TEST-007` **[GATE_C][TERRA] Role-play approvals and tasks and inject signals and vendor callbacks.**
+  - **Depends:** `WF-TEST-001`, `WF-EXT-014`, `SANDBOX-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.WORK; DIRECT=none; WHY=approvals, tasks and external callbacks block every realistic path, and a test run has no one to act on them`.
+  - **TEST:** `TestTodo_WF_TEST_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_007`; `SECURITY=TestTodo_WF_TEST_007_Security`.
+  - **RED:** simulation records approvals as would-await with no one able to act, and SIGNAL is refused.
+  - **GREEN:** in a test run the author acts as the routed approver or task owner and injects correlated signals or vendor callbacks with chosen payloads; SECURITY proves role-play exists only inside a test run and never grants authority outside it.
+  - **REFACTOR:** reuse the sandbox's scoped approver credential.
+  - **Refs:** `internal/platform/sandbox`, `internal/workflow/steps/signal`.
+
+- [ ] `WF-TEST-008` **[GATE_C][SOL_HIGH] Test cancellation at any step and watch the unwind plan run.**
+  - **Depends:** `WF-REV-007`, `WF-TEST-005`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=partial reversal is only reliable if every cancellation point can be exercised before publish`.
+  - **TEST:** `TestTodo_WF_TEST_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_008`; `CONFORMANCE=TestTodo_WF_TEST_008_Conformance`; `PROPERTY=TestTodo_WF_TEST_008_Property`.
+  - **RED:** the simulator has no cancel path.
+  - **GREEN:** the author cancels a test run at any node; the recorded compensations, corrections and human-decision prompts follow the compiled unwind plan; CONFORMANCE runs cancel-at-every-safe-point for each fixture; PROPERTY proves the recorded settlement matches the plan.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/simulate`, `internal/workflow/cancellation`.
+
+- [ ] `WF-TEST-009` **[GATE_C][SOL_LOW] Save test runs as release fixtures.**
+  - **Depends:** `WF-TEST-003`, `WF-EXT-008`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=release fixtures are Go closures today, so what an author proves in the designer cannot gate publication`.
+  - **TEST:** `TestTodo_WF_TEST_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_009`; `CONFORMANCE=TestTodo_WF_TEST_009_Conformance`; `GOLDEN=TestTodo_WF_TEST_009_Golden`.
+  - **RED:** `ShippedFixtures` maps fixture refs to Go functions and no test run can be captured.
+  - **GREEN:** a saved test run (profile, chosen outcomes, role-play actions, clock moves, cancel point, expected result digest) becomes a data fixture attached to the draft; publication requires its fixtures to pass against the exact compiled digest.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/releasefixture`, `internal/platform/execution/release.go`.
+
+- [ ] `WF-TEST-010` **[GATE_C][SOL_HIGH] Execute a draft end to end in a sandbox tenant and verify sandbox resets purge.**
+  - **Depends:** `WF-TEST-007`, `SANDBOX-001`, `CONN-RT-006`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.INTEGRATION; DIRECT=none; WHY=timers, vendor round-trips and signatures need a real durable run, and sandbox data must be disposable rather than permanent history`.
+  - **TEST:** `TestTodo_WF_TEST_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_TEST_010`; `INTEGRATION=TestTodo_WF_TEST_010_Integration`; `SECURITY=TestTodo_WF_TEST_010_Security`.
+  - **RED:** the sandbox runs only the Promotion proof, and no test checks whether a sandbox reset removes data or appends over it.
+  - **GREEN:** the designer runs a draft durably in the tenant's sandbox with fenced connectors and emulators; a reset removes the sandbox tenant's rows through the tenant deletion path and proves it; SECURITY proves no sandbox effect crosses the fence.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/platform/sandbox`, `internal/connectivity`.
+
+## 79. Tenant-defined and linked external data in workflows (2026-09-19)
+
+These come from a read-only check on 2026-09-19 of how workflow blocks could consume data a tenant defines for itself or keeps in its own linked database. The review builds on §77 and §78.
+
+What exists:
+
+- The workflow type system (`internal/workflow/valuetype.go`) has ten kinds plus nullability, branded identity and typed list elements, and no untyped map.
+- Node outputs are declared typed fields.
+- Mappings read only workflow input, node output, context or constants, and whole-result wildcards are rejected.
+- Context reads declare purpose, maximum classification, maximum age, pinning and missing-value behaviour.
+
+The gaps:
+
+- A schema reference must name a Protobuf descriptor, and tenant custom-object definitions have none, so a workflow cannot name a tenant-defined type.
+- Workflow variables are stored at runtime but are not a mapping source.
+- The custom-object packages (`internal/customobject`, `internal/domains/custom`, `internal/data/customstore`) are imported only by each other, and their generated capabilities are not registered.
+- Nothing models a linked external document store.
+
+The principle is unchanged from the kernel. Dynamic data enters a workflow as typed, version-pinned, classified and governed values, never as untyped maps or silent run-time lookups. Tenant data enters through read capabilities that obey the context rules, not through new mapping kinds. No tenant ever causes DDL.
+
+The linked document store is assumed to be the tenant's own database, attached as an externally mastered system through a connector. The platform does not host a second storage engine; tenant-defined documents inside the platform use the custom-object model on PostgreSQL. All items are Gate C.
+
+### Enablement: make custom data real in the runtime
+
+- [ ] `WF-DATA-001` **[GATE_C][SOL_HIGH] Serve custom objects from the running cell with tenant isolation and vault-held restricted fields.**
+  - **Depends:** `WF-EXT-005`, `WF-REV-015`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.ALL; DIRECT=none; WHY=custom object definitions, records and generated capabilities exist only as libraries that no running code imports`.
+  - **TEST:** `TestTodo_WF_DATA_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_001`; `INTEGRATION=TestTodo_WF_DATA_001_Integration`; `SECURITY=TestTodo_WF_DATA_001_Security`; `FAULT=TestTodo_WF_DATA_001_Fault`; `RECOVERY=TestTodo_WF_DATA_001_Recovery`.
+  - **RED:** `internal/data/customstore` and `internal/domains/custom` have no non-test importer outside themselves; `custom_record_revision.field_values` holds every value in plain jsonb under platform-managed encryption.
+  - **GREEN:** the served cell composes the custom-object store and domain; a tenant can publish a definition and write, read and supersede records through governed calls; fields classified restricted are written as payload-vault references under per-subject keys; SECURITY proves one tenant can never read or reference another tenant's definitions or records and that a restricted field is unreadable without its grant.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/customstore`, `internal/domains/custom`, `internal/customobject`, `migrations/00086_custom.sql`.
+
+- [ ] `WF-DATA-002` **[GATE_C][SOL_HIGH] Attach tenant custom fields to core HR and organizational entities without altering core tables.**
+  - **Depends:** `WF-DATA-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.PEOPLE,BI.WORKFORCE,BI.TENANT; DIRECT=none; WHY=clients need their own fields on people, workers, employments, assignments, positions, organization units, legal entities, locations and cost centers, and core tables must never gain per-tenant columns`.
+  - **TEST:** `TestTodo_WF_DATA_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_002`; `PROPERTY=TestTodo_WF_DATA_002_Property`; `SECURITY=TestTodo_WF_DATA_002_Security`; `FAULT=TestTodo_WF_DATA_002_Fault`; `RECOVERY=TestTodo_WF_DATA_002_Recovery`.
+  - **RED:** no core entity can carry a tenant-defined field; custom records relate only to other custom kinds.
+  - **GREEN:** a tenant publishes an extension definition bound to a core entity kind; extension records are effective-dated revisions keyed by the core entity reference; platform field names and namespaces cannot be shadowed; PROPERTY proves an extension record never outlives or predates its entity's effective interval; SECURITY proves extension fields default to hidden until a role is granted them.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/custom`, `internal/domains/people`, `migrations/00011_people_aggregates.sql`, `migrations/00012_organization_aggregates.sql`.
+
+### Engine: bring tenant types into the typed data plane
+
+- [ ] `WF-DATA-003` **[GATE_C][SOL_HIGH] Compile published custom-object and document types into pinned schema-registry entries.**
+  - **Depends:** `WF-DATA-001`, `WF-EXT-011`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.TENANT; DIRECT=none; WHY=a workflow schema reference must name a Protobuf descriptor and tenant-defined types have none, so no block can accept or return tenant data`.
+  - **TEST:** `TestTodo_WF_DATA_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_003`; `GOLDEN=TestTodo_WF_DATA_003_Golden`; `PROPERTY=TestTodo_WF_DATA_003_Property`.
+  - **RED:** `internal/workflow/references.go` refuses a SCHEMA reference without a descriptor, and nothing derives one from a custom definition.
+  - **GREEN:** publishing a custom-object definition or registering an external document type yields a schema-registry entry with a generated descriptor under the tenant namespace, pinned by definition version; the existing MESSAGE kind and typed-path checks accept it unchanged; PROPERTY proves the same definition always yields the same descriptor and digest; GOLDEN pins a generated descriptor.
+  - **REFACTOR:** the custom-object compiler emits the descriptor rather than a second schema format.
+  - **Refs:** `internal/workflow/references.go`, `internal/workflow/valuetype.go`, `internal/customobject/schema.go`.
+
+- [ ] `WF-DATA-004` **[GATE_C][SOL_HIGH] Carry classification in field types and reject flows to less-protected destinations at compile time.**
+  - **Depends:** `WF-DATA-003`, `WF-EXT-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.PRIVACY; DIRECT=none; WHY=tenant fields carry their own sensitivity, and a composed workflow must not be able to route a restricted value into a message, document, external system or log`.
+  - **TEST:** `TestTodo_WF_DATA_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_004`; `SECURITY=TestTodo_WF_DATA_004_Security`; `PROPERTY=TestTodo_WF_DATA_004_Property`.
+  - **RED:** classification is checked only on context reads through `ContextRequirement.MaximumClassification`; node outputs and mappings carry no classification.
+  - **GREEN:** every field type carries its classification; each capability input, message template slot, document binding and connector request declares the highest classification it accepts; the compiler rejects any mapping whose source is more restricted than its destination unless an explicit, reviewed declassification is referenced; PROPERTY proves no compiled plan contains such a flow.
+  - **REFACTOR:** context-read checks reuse the same comparison.
+  - **Refs:** `internal/workflow/mapping.go`, `internal/workflow/definition.go`, [classification spec](specs/data-classification-and-dlp.md).
+
+- [ ] `WF-DATA-005` **[GATE_C][SOL_LOW] Add duration, rate and typed reference kinds to the workflow type system.**
+  - **Depends:** `WF-DATA-003`, `WF-EXT-009`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=tenant fields and linked documents need durations, percentages and links to entities, which today can only be approximated with strings or ad hoc brands`.
+  - **TEST:** `TestTodo_WF_DATA_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_005`; `PROPERTY=TestTodo_WF_DATA_005_Property`; `GOLDEN=TestTodo_WF_DATA_005_Golden`.
+  - **RED:** the type system has no DURATION, RATE or REFERENCE kind.
+  - **GREEN:** DURATION, RATE (exact decimal percentage) and REFERENCE (target entity kind, including a tenant custom kind) are added under a new plan IR schema version; assignability rejects a reference to one kind flowing into another; there is still no untyped map; PROPERTY covers assignability; plans on the prior IR version are unchanged.
+  - **REFACTOR:** existing identity brands become REFERENCE kinds where they name entities.
+  - **Refs:** `internal/workflow/valuetype.go`.
+
+- [ ] `WF-DATA-006` **[GATE_C][SOL_LOW] Let nodes read workflow variables as a mapping source.**
+  - **Depends:** `WF-EXT-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=counters, accumulated decisions and loop state already have revision storage but no node can read them`.
+  - **TEST:** `TestTodo_WF_DATA_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_006`; `PROPERTY=TestTodo_WF_DATA_006_Property`; `RECOVERY=TestTodo_WF_DATA_006_Recovery`.
+  - **RED:** `SourceKind` offers workflow input, node output, context and constant only, while `internal/workflow/runtime/variable_revision.go` stores variable revisions no mapping can reach.
+  - **GREEN:** a `VARIABLE` source reads the variable revision current at the node's attempt, typed by the definition's variables schema; writes stay explicit revisions with writer and reason; PROPERTY proves a read never observes a revision written after its attempt began; RECOVERY proves resumed reads see the same revision.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/definition.go`, `internal/workflow/runtime/variable_revision.go`.
+
+- [ ] `WF-DATA-007` **[GATE_C][SOL_HIGH] Read tenant data, reference data and configuration only through governed read capabilities.**
+  - **Depends:** `WF-DATA-003`, `WF-EXT-005`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.TENANT; DIRECT=none; WHY=dynamic data must enter a workflow with purpose, classification, freshness and missing-value rules, and every such read must be audited`.
+  - **TEST:** `TestTodo_WF_DATA_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_007`; `SECURITY=TestTodo_WF_DATA_007_Security`; `PROPERTY=TestTodo_WF_DATA_007_Property`.
+  - **RED:** no capability reads a custom record, a reference-data value, a tenant configuration value or a rule-pack parameter for a workflow node.
+  - **GREEN:** `custom.read_record`, `custom.query_records`, `refdata.resolve` and `config.read_value` are read-only capabilities whose requests carry the node's declared purpose, maximum classification, maximum age and missing-value behaviour; responses are typed by the pinned schema; SECURITY proves a read cannot return a field above the declared classification; PROPERTY proves a missing or stale value always takes the declared behaviour, never a zero value.
+  - **REFACTOR:** existing context-kind reads move behind the same contract.
+  - **Refs:** `internal/workflow/definition.go`, `internal/capability`, `internal/domains/custom`.
+
+- [ ] `WF-DATA-008` **[GATE_C][SOL_HIGH] Register generated custom-object capabilities under the tenant namespace.**
+  - **Depends:** `WF-DATA-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.ALL; DIRECT=none; WHY=each published custom type should become create, update, read and query blocks without a product release, and today its generated manifest is never registered`.
+  - **TEST:** `TestTodo_WF_DATA_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_008`; `SECURITY=TestTodo_WF_DATA_008_Security`; `INTEGRATION=TestTodo_WF_DATA_008_Integration`.
+  - **RED:** `internal/domains/custom/capabilities.go` generates a manifest that no registry loads.
+  - **GREEN:** publishing a custom type registers its create, update, read and query capabilities in the tenant-owned namespace with request and response typed by the pinned schema and effect classes declared by the manifest; writes carry idempotency keys and a reversal contract; SECURITY proves a tenant capability cannot be invoked by another tenant or shadow a platform capability; INTEGRATION runs a workflow that creates and reads a custom record.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/custom/capabilities.go`, `internal/capability`, [capability registry contract](specs/capability-registry-and-lifecycle.md).
+
+- [ ] `WF-DATA-009` **[GATE_C][SOL_HIGH] Classify custom-type changes and block breaking changes until pinned dependents are handled.**
+  - **Depends:** `WF-DATA-003`, `WF-EXT-008`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TENANT,BI.ALL; DIRECT=none; WHY=a tenant editing its own type must not silently break the workflows, forms, rules and running instances that depend on it`.
+  - **TEST:** `TestTodo_WF_DATA_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_009`; `GOLDEN=TestTodo_WF_DATA_009_Golden`; `PROPERTY=TestTodo_WF_DATA_009_Property`.
+  - **RED:** custom types version and retire, but no check lists the workflows, forms, rules or instances pinned to a version before a new one is published.
+  - **GREEN:** publishing a new version classifies the change as compatible or breaking, lists every dependent definition and running instance on the old version, and refuses a breaking publication until each dependent is re-pinned, re-published or explicitly left on the old version; running instances keep their pinned version; PROPERTY proves a compatible change never invalidates a compiled plan.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/custom/versioning.go`, `internal/workflow/version`.
+
+### Engine: use tenant data in logic, collections, forms and the designer
+
+- [ ] `WF-DATA-010` **[GATE_C][SOL_LOW] Let decision tables and expressions reference typed paths into tenant types.**
+  - **Depends:** `WF-DATA-004`, `WF-EXT-006`, `WF-EXT-016`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.TENANT; DIRECT=none; WHY=clients route work on their own fields, and a rule over a tenant field must be type-checked and classification-checked like any other`.
+  - **TEST:** `TestTodo_WF_DATA_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_010`; `PROPERTY=TestTodo_WF_DATA_010_Property`.
+  - **RED:** decision tables and expressions resolve only platform-typed inputs.
+  - **GREEN:** rule inputs may name typed paths into pinned tenant types; the rule compiler checks existence, type and classification against the pinned version; PROPERTY proves a rule compiled against a version rejects any input from a different version.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/engines/rules`.
+
+- [ ] `WF-DATA-011` **[GATE_C][SOL_LOW] Spawn child runs over lists held in tenant records and linked documents.**
+  - **Depends:** `WF-DATA-007`, `WF-EXT-019`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.TENANT; DIRECT=none; WHY=workflows such as for-each-certification or for-each-asset iterate over collections the tenant defines`.
+  - **TEST:** `TestTodo_WF_DATA_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_011`; `RECOVERY=TestTodo_WF_DATA_011_Recovery`.
+  - **RED:** collection spawn is specified over platform-typed lists only.
+  - **GREEN:** a COLLECTION spawn may take a typed list read from a custom record or linked document, bounded by the declared cap, with the list snapshot pinned at spawn time; RECOVERY proves a resumed spawn uses the same snapshot.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/steps/subworkflow`.
+
+- [ ] `WF-DATA-012` **[GATE_C][TERRA] Generate a default form from a tenant type.**
+  - **Depends:** `WF-DATA-003`, `WF-EXT-013`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.TENANT; DIRECT=none; WHY=collecting a tenant type's values should not require hand-building a form for every field`.
+  - **TEST:** `TestTodo_WF_DATA_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_012`; `BROWSER=TestTodo_WF_DATA_012_Browser`; `GOLDEN=TestTodo_WF_DATA_012_Golden`.
+  - **RED:** forms can bind only hand-authored definitions.
+  - **GREEN:** publishing a tenant type can generate a draft form registry entry using bounded question primitives, required and validation rules from the type, and hidden fields for anything the author's role cannot see; the draft is editable and published through the normal lifecycle.
+  - **REFACTOR:** none.
+  - **Refs:** [form registry](specs/human-work-forms-and-rules.md#form-registry-gate-c).
+
+- [ ] `WF-DATA-013` **[GATE_C][TERRA] Show tenant blocks and tenant fields in the designer palette and binding picker.**
+  - **Depends:** `WF-DATA-008`, `WF-UI-005`, `WF-UI-007`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.TENANT; DIRECT=none; WHY=authors must be able to find and bind their own types exactly as they do platform types`.
+  - **TEST:** `TestTodo_WF_DATA_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_013`; `BROWSER=TestTodo_WF_DATA_013_Browser`; `SECURITY=TestTodo_WF_DATA_013_Security`.
+  - **RED:** the palette and binding picker list platform entries only.
+  - **GREEN:** tenant custom-object blocks appear in the palette under the tenant's namespace; the binding picker browses tenant fields with type and classification badges; SECURITY proves fields the author may not see are never listed.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui`.
+
+- [ ] `WF-DATA-014` **[GATE_C][SOL_LOW] Restrict filtering and sorting on tenant fields to declared indexed fields within a quota.**
+  - **Depends:** `WF-DATA-007`, `WF-DATA-019`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.OPERATIONS; DIRECT=none; WHY=unbounded queries over tenant jsonb fields would let one tenant degrade the shared database`.
+  - **TEST:** `TestTodo_WF_DATA_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_014`; `BENCHMARK=TestTodo_WF_DATA_014_Benchmark`.
+  - **RED:** nothing limits which custom fields a query may filter or sort on, or how many indexes a tenant may create.
+  - **GREEN:** tenants declare searchable fields within a per-tenant quota of objects, fields, record size and indexes; declared fields are served from the generic typed field index (`WF-DATA-019`) and the platform never creates a per-tenant index; `custom.query_records` rejects filters or sorts on undeclared fields; BENCHMARK holds query latency at the quota limit.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/customstore`, `internal/domains/custom/search.go`.
+
+### Enablement: linked external document stores
+
+- [ ] `WF-DATA-015` **[GATE_C][SOL_HIGH] Connect a tenant's own data source through a hardened connector with a first MongoDB adapter.**
+  - **Depends:** `WF-EXT-022`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTEGRATION,BI.TENANT; DIRECT=none; WHY=clients keep their own document databases, and linking one must not leak credentials, cross tenants or pull a second storage engine into the platform core`.
+  - **TEST:** `TestTodo_WF_DATA_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_015`; `INTEGRATION=TestTodo_WF_DATA_015_Integration`; `SECURITY=TestTodo_WF_DATA_015_Security`.
+  - **RED:** there is no tenant data-source connector and no MongoDB client in the module.
+  - **GREEN:** a tenant data-source connector contract supports multiple adapters; the MongoDB adapter lives only in a connectivity adapter package, passes dependency license and vulnerability admission, and is refused by the import firewall anywhere else; connection strings come from the secret store and never reach logs; TLS is required; traffic goes through the egress allow list; each tenant's connections are isolated; the recommended database user is read-only with writes limited to declared collections; SECURITY proves a tenant's connector cannot reach another tenant's source.
+  - **REFACTOR:** the adapter reuses the connector-binding contract rather than a bespoke client.
+  - **Refs:** `internal/connectivity`, `definitions/architecture/dependency-admission.yaml`, `definitions/architecture/prohibited-frameworks.yaml`.
+
+- [ ] `WF-DATA-016` **[GATE_C][SOL_HIGH] Register external document types and query them only through a bounded query builder.**
+  - **Depends:** `WF-DATA-015`, `WF-DATA-003`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTEGRATION,BI.TENANT,BI.PRIVACY; DIRECT=none; WHY=documents from a client database are untrusted input, and client-supplied queries or server-side script operators would open an injection path`.
+  - **TEST:** `TestTodo_WF_DATA_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_016`; `SECURITY=TestTodo_WF_DATA_016_Security`; `FUZZ=TestTodo_WF_DATA_016_Fuzz`.
+  - **RED:** no document type can be registered and nothing constrains queries to an external document store.
+  - **GREEN:** a tenant registers a document type (collection, bounded schema, classification for every readable field, declared indexed fields); every document read is validated against it, undeclared fields are dropped and invalid documents are quarantined with a reason; queries are built only from equality and range predicates on declared indexed fields with result-size and time limits; script-executing operators are never emitted; FUZZ proves no input produces an operator outside the allowed set.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity`, [classification spec](specs/data-classification-and-dlp.md).
+
+- [ ] `WF-DATA-017` **[GATE_C][SOL_HIGH] Read, write and react to linked documents from workflows without copying them wholesale.**
+  - **Depends:** `WF-DATA-016`, `WF-EXT-023`, `WF-REV-006`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTEGRATION,BI.TENANT; DIRECT=none; WHY=workflows need a client's documents as inputs, outputs and triggers while the client database stays the system that owns them`.
+  - **TEST:** `TestTodo_WF_DATA_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_017`; `INTEGRATION=TestTodo_WF_DATA_017_Integration`; `FAULT=TestTodo_WF_DATA_017_Fault`.
+  - **RED:** no capability reads or writes an external document, nothing links an HR entity to one, and no change in an external store can start a run.
+  - **GREEN:** `tenantstore.read_document` (read-only, typed by the registered document type) and `tenantstore.write_document` (external mutation with idempotency key, reversal contract, then observation and reconciliation) are registered; HR entities link to documents through scoped external identifiers; reads are read-through with a short cache and stored digest, not bulk replication; change events become a trigger source; the deletion plan covers cached copies and notifies the tenant; FAULT proves an unavailable source yields a typed unavailable result that the workflow waits on or escalates, never a fabricated value.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity`, [authority classes](specs/capability-registry-and-lifecycle.md#authority-classes-and-connector-bindings), [secure deletion](specs/platform-foundation-gap-closure.md).
+
+### Metamodel primitives: let tenants build systems, not only store records
+
+The contract is [Tenant data models at scale](data/models/modeling-conventions.md#tenant-data-models-at-scale). Today a tenant can store typed records and link them. These items add the generic primitives that let those records form a system: derived values, inheritance along any path, rollups, constraints, lifecycles, record access rules, automation, generated screens and packages. They also add the storage, propagation and isolation work that keeps this fast and stable for very large tenants. Product features are built on the same primitives.
+
+- [ ] `WF-DATA-018` **[GATE_C][SOL_HIGH] Compile tenant definitions and packages into a checked dependency graph.**
+  - **Depends:** `WF-DATA-003`, `WF-DATA-009`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TENANT,BI.ALL; DIRECT=none; WHY=derived values, resolutions, rollups, constraints and lifecycles depend on each other, and one bad definition must be refused at publish rather than discovered as a runaway computation in production`.
+  - **TEST:** `TestTodo_WF_DATA_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_018`; `GOLDEN=TestTodo_WF_DATA_018_Golden`; `PROPERTY=TestTodo_WF_DATA_018_Property`.
+  - **RED:** custom definitions are validated one field at a time; nothing analyses dependencies between definitions or their cost.
+  - **GREEN:** publishing a definition or package compiles a dependency graph across derived fields, resolutions, rollups, constraints and lifecycles, pinned by version and digest; publication is refused for cycles, expressions or paths over their cost bounds, hierarchies without a depth limit, and any rollup or resolution whose worst-case fan-out exceeds tenant limits unless declared asynchronous; PROPERTY proves the same inputs always compile to the same digest.
+  - **REFACTOR:** platform-defined types compile through the same path.
+  - **Refs:** [tenant data models](data/models/modeling-conventions.md#tenant-data-models-at-scale), `internal/customobject`, `internal/domains/custom`.
+
+- [ ] `WF-DATA-019` **[GATE_C][SOL_HIGH] Store tenant records for very large tenants without per-tenant DDL.**
+  - **Depends:** `WF-DATA-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.OPERATIONS; DIRECT=none; WHY=a single jsonb revision table with per-tenant indexes would either need tenant DDL or collapse under millions of records`.
+  - **TEST:** `TestTodo_WF_DATA_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_019`; `BENCHMARK=TestTodo_WF_DATA_019_Benchmark`; `RECOVERY=TestTodo_WF_DATA_019_Recovery`; `FAULT=TestTodo_WF_DATA_019_Fault`.
+  - **RED:** `custom_record_revision` is one unpartitioned table, current state is derived by scanning revisions, and searchable fields have no index that avoids tenant DDL.
+  - **GREEN:** revisions are hash-partitioned by tenant; a rebuildable current-state projection and a generic typed field index (field key plus text, number, date or reference value and effective interval, under shared indexes) serve reads and searches; every new table is registered in the storage-disposition registry; a tenant can be placed on its own partition or cell without schema change; BENCHMARK holds read and search latency at the large-company fixture size; RECOVERY rebuilds both projections from the ledger.
+  - **REFACTOR:** `custom.query_records` reads only the projections.
+  - **Refs:** `migrations/00086_custom.sql`, `migrations/00005_ledger.sql`, `definitions/storage/storage-disposition.yaml`.
+
+- [ ] `WF-DATA-020` **[GATE_C][SOL_HIGH] Maintain effective-dated closure tables for every hierarchy, platform or tenant defined.**
+  - **Depends:** `WF-DATA-002`, `WF-DATA-018`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORKFORCE,BI.TENANT; DIRECT=none; WHY=inheritance, rollups and relationship-based access all need fast ancestor queries at a point in time, across several hierarchies at once`.
+  - **TEST:** `TestTodo_WF_DATA_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_020`; `PROPERTY=TestTodo_WF_DATA_020_Property`; `BENCHMARK=TestTodo_WF_DATA_020_Benchmark`; `RECOVERY=TestTodo_WF_DATA_020_Recovery`; `FAULT=TestTodo_WF_DATA_020_Fault`.
+  - **RED:** `organization_unit` holds one parent pointer, the planned reporting, legal, financial, matrix and project hierarchies have no physical table, and a tenant self-link has no ancestor index.
+  - **GREEN:** each hierarchy (organization reporting, legal, financial, location, and any tenant self-link) is a declared relationship type whose effective-dated closure rows are maintained incrementally from ledger events with a declared depth limit; ancestor and descendant queries answer at any effective and known time; PROPERTY proves closure rows always equal the transitive closure of the edges; BENCHMARK re-parents a 2,000-unit subtree within the propagation budget.
+  - **REFACTOR:** manager-chain reads use the closure rather than walking parents.
+  - **Refs:** `migrations/00012_organization_aggregates.sql`, `internal/data/orgfacts`, `internal/domains/custom`.
+
+- [ ] `WF-DATA-021` **[GATE_C][SOL_LOW] Compute derived fields from bounded expressions.**
+  - **Depends:** `WF-DATA-018`, `WF-EXT-016`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.ALL; DIRECT=none; WHY=flags, scores and eligibility values should be declared once on the type rather than recomputed in every workflow`.
+  - **TEST:** `TestTodo_WF_DATA_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_021`; `PROPERTY=TestTodo_WF_DATA_021_Property`; `FUZZ=TestTodo_WF_DATA_021_Fuzz`.
+  - **RED:** custom types have no derived fields.
+  - **GREEN:** a derived field is a bounded expression over the record's own fields, computed and stored on write, or over linked records, maintained by the propagation engine; its classification is at least the most restrictive input; FUZZ proves cost limits hold for any expression; PROPERTY proves recomputation from the ledger yields the stored value.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/engines/rules`, `internal/domains/custom`.
+
+- [ ] `WF-DATA-022` **[GATE_C][SOL_HIGH] Resolve values along any relationship path under a declared policy with an explanation.**
+  - **Depends:** `WF-DATA-020`, `WF-DATA-027`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.WORKFORCE; DIRECT=none; WHY=org cascades, location defaults and policy inheritance are one generic mechanism and must not be built as separate features`.
+  - **TEST:** `TestTodo_WF_DATA_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_022`; `PROPERTY=TestTodo_WF_DATA_022_Property`; `GOLDEN=TestTodo_WF_DATA_022_Golden`; `BENCHMARK=TestTodo_WF_DATA_022_Benchmark`.
+  - **RED:** a value set on one record never applies to anything below it in a hierarchy.
+  - **GREEN:** an attribute declares its path (one or more hierarchies), policy (nearest wins, minimum, maximum, accumulate, locked), which levels may override and which roles may set it; precedence between hierarchies is declared and an undecided conflict resolves to `AMBIGUOUS`, never last-write-wins; attributes that restrict access follow security accumulation and cannot be loosened below a parent; every resolved value reports its source, what it overrode and any refused override; results are served from a rebuildable projection with a watermark; PROPERTY proves a locked value is never overridden.
+  - **REFACTOR:** none.
+  - **Refs:** [inheritance and overrides](specs/platform-architecture-catalog.md), [tenant data models](data/models/modeling-conventions.md#tenant-data-models-at-scale).
+
+- [ ] `WF-DATA-023` **[GATE_C][SOL_HIGH] Roll up related records through registered reducers as incremental projections.**
+  - **Depends:** `WF-DATA-020`, `WF-DATA-027`, `WF-EXT-020`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.ANALYTICS; DIRECT=none; WHY=headcounts, budget consumption and completion rates over thousands of related records must be current without scanning them on every read`.
+  - **TEST:** `TestTodo_WF_DATA_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_023`; `PROPERTY=TestTodo_WF_DATA_023_Property`; `BENCHMARK=TestTodo_WF_DATA_023_Benchmark`; `RECOVERY=TestTodo_WF_DATA_023_Recovery`.
+  - **RED:** no custom type can aggregate over related records.
+  - **GREEN:** a rollup names a relationship path, a filter and a registered reducer (count, sum, minimum, maximum, distribution, set); values are maintained incrementally from record and hierarchy events with a watermark; the aggregate's classification follows the reducer's declared rule, so an aggregate may be less restricted than its rows only through an approved declassification; PROPERTY proves incremental and full recomputation agree.
+  - **REFACTOR:** workflow join reducers and record rollups share the reducer registry.
+  - **Refs:** `internal/workflow/frontier`, `internal/data/projection`.
+
+- [ ] `WF-DATA-024` **[GATE_C][SOL_LOW] Enforce conditional, scoped-uniqueness and cross-record constraints at commit.**
+  - **Depends:** `WF-DATA-018`, `WF-DATA-019`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.ALL; DIRECT=none; WHY=tenant systems need data-quality rules beyond single-field validation, enforced without code`.
+  - **TEST:** `TestTodo_WF_DATA_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_024`; `PROPERTY=TestTodo_WF_DATA_024_Property`; `RACE=TestTodo_WF_DATA_024_Race`.
+  - **RED:** only per-field validation exists.
+  - **GREEN:** a type declares required-if rules, uniqueness within a scope (for example one active record per worker and kind) and bounded cross-record rules; they are checked in the writing transaction using the typed field index; RACE proves two concurrent writes cannot both violate a uniqueness rule.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/custom`, `internal/data/customstore`.
+
+- [ ] `WF-DATA-025` **[GATE_C][SOL_HIGH] Give tenant types declared lifecycles with guarded transitions that can start workflows.**
+  - **Depends:** `WF-DATA-018`, `WF-DATA-026`, `WF-EXT-023`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.WORK; DIRECT=none; WHY=request, custody and tracking systems are defined by their states and who may move a record between them`.
+  - **TEST:** `TestTodo_WF_DATA_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_025`; `PROPERTY=TestTodo_WF_DATA_025_Property`; `SECURITY=TestTodo_WF_DATA_025_Security`.
+  - **RED:** custom records have only create, update and supersede operations with no state model.
+  - **GREEN:** a type declares states and transitions, each guarded by roles, access rules and bounded rules, optionally requiring an approval or starting a pinned workflow; a transition is a governed operation with evidence; PROPERTY proves no record reaches a state through an undeclared transition; SECURITY proves a guard cannot be bypassed through the generic update operation.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/custom/lifecycle.go`.
+
+- [ ] `WF-DATA-026` **[GATE_C][SOL_HIGH] Apply record-level access rules by owner, scope and relationship.**
+  - **Depends:** `WF-DATA-020`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.PRIVACY; DIRECT=none; WHY=field-level grants alone cannot express who may see which records, such as a manager seeing only their own organization's records`.
+  - **TEST:** `TestTodo_WF_DATA_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_026`; `SECURITY=TestTodo_WF_DATA_026_Security`; `PROPERTY=TestTodo_WF_DATA_026_Property`; `BENCHMARK=TestTodo_WF_DATA_026_Benchmark`.
+  - **RED:** custom records carry field classification only; nothing restricts which records a principal may read or change.
+  - **GREEN:** a type declares record rules by owner, organization or other scope, and relationship (for example manager of the owner, resolved through the closure tables); rules combine with platform policy under security accumulation; list and search results are filtered before paging; SECURITY proves no query, rollup or export returns a record the principal may not read; BENCHMARK holds filtered search latency at fixture size.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/governance`, `internal/domains/custom/search.go`.
+
+- [ ] `WF-DATA-027` **[GATE_C][SOL_HIGH] Propagate fan-out changes asynchronously with watermarks instead of inside the writing transaction.**
+  - **Depends:** `WF-DATA-019`, `WF-DATA-020`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.OPERATIONS; DIRECT=none; WHY=a value set at the root of a large tree or a reorg of a division can touch hundreds of thousands of derived rows and must not block or time out the write`.
+  - **TEST:** `TestTodo_WF_DATA_027`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_027`; `RECOVERY=TestTodo_WF_DATA_027_Recovery`; `FAULT=TestTodo_WF_DATA_027_Fault`; `BENCHMARK=TestTodo_WF_DATA_027_Benchmark`.
+  - **RED:** projections advance synchronously in the commit or through the reconciler sweep, with no bounded, resumable propagation for fan-out.
+  - **GREEN:** the write commits one fact; a propagation job computes affected subjects from the closure and dependency graph, updates resolved-value, rollup and derived projections in throttled, resumable batches under the tenant budget, reports progress, can be paused, and advances each projection's watermark; readers declare a maximum age or required watermark; RECOVERY resumes after a crash without double-applying; BENCHMARK propagates a root change to 500,000 subjects within the declared SLO without starving other tenants.
+  - **REFACTOR:** reuse the projection barrier and reconciler.
+  - **Refs:** `internal/data/projection`, `cmd/projector`, `internal/workflow/definition.go`.
+
+- [ ] `WF-DATA-028` **[GATE_C][SOL_LOW] Backfill new derived fields, rollups and indexes before anything can use them.**
+  - **Depends:** `WF-DATA-027`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.OPERATIONS; DIRECT=none; WHY=a newly published field over millions of existing records is empty until computed, and a workflow reading it early would decide on missing data`.
+  - **TEST:** `TestTodo_WF_DATA_028`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_028`; `RECOVERY=TestTodo_WF_DATA_028_Recovery`; `FAULT=TestTodo_WF_DATA_028_Fault`.
+  - **RED:** nothing marks a new derived value as not yet computed.
+  - **GREEN:** publishing a derived field, rollup, resolution or searchable field starts a resumable, throttled backfill; the element is `BACKFILLING` until complete and then `READY`; the workflow compiler, screens and queries refuse an element that is not `READY`; FAULT proves an interrupted backfill resumes rather than restarting.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/projection`.
+
+- [ ] `WF-DATA-029` **[GATE_C][SOL_HIGH] Start workflows from record events with coalescing, rate limits and a mass-impact guard.**
+  - **Depends:** `WF-DATA-027`, `WF-EXT-023`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.TRIGGERS; DIRECT=none; WHY=one reorg can change tens of thousands of resolved values, and each change must not silently start its own workflow`.
+  - **TEST:** `TestTodo_WF_DATA_029`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_029`; `PROPERTY=TestTodo_WF_DATA_029_Property`; `FAULT=TestTodo_WF_DATA_029_Fault`.
+  - **RED:** record mutations emit outbox events that no trigger consumes, and nothing limits how many runs a single change may start.
+  - **GREEN:** triggers subscribe to record, lifecycle-transition and resolved-value change events; bursts are coalesced per subject and trigger; each tenant has a trigger rate limit; a change whose preview would start more runs than the tenant threshold requires explicit confirmation; a circuit breaker suspends a trigger that exceeds its budget; PROPERTY proves each subject starts at most one run per coalescing window.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/custom/lifecycle.go`, `internal/data/outbox`.
+
+- [ ] `WF-DATA-030` **[GATE_C][TERRA] Generate list, detail and report pages from tenant types.**
+  - **Depends:** `WF-DATA-026`, `WF-DATA-012`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.TENANT; DIRECT=none; WHY=a tenant system is unusable without screens, and the frontend spec prohibits client code`.
+  - **TEST:** `TestTodo_WF_DATA_030`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_030`; `BROWSER=TestTodo_WF_DATA_030_Browser`; `SECURITY=TestTodo_WF_DATA_030_Security`.
+  - **RED:** a custom type has no page.
+  - **GREEN:** list, detail and governed report pages are generated from a type's schema, lifecycle, rollups and access rules, with layout arranged but not coded by the tenant; lists page server-side through the typed field index; BROWSER covers desktop and 320px; SECURITY proves hidden fields and records never reach the browser.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui`, [page composition spec](specs/production-frontend-and-page-composition.md).
+
+- [ ] `WF-DATA-031` **[GATE_C][SOL_LOW] Add sequences, reference-data pick lists and attachments to tenant types.**
+  - **Depends:** `WF-DATA-018`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.DOCUMENTS; DIRECT=none; WHY=everyday systems need record numbers, controlled value lists and supporting files`.
+  - **TEST:** `TestTodo_WF_DATA_031`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_031`; `PROPERTY=TestTodo_WF_DATA_031_Property`; `RACE=TestTodo_WF_DATA_031_Race`.
+  - **RED:** custom fields cannot draw numbers from a sequence, choose from a governed value list or hold a file.
+  - **GREEN:** a field may be a tenant sequence with a format, a reference to a governed reference-data set, or an attachment stored as a document artifact with classification and malware inspection; RACE proves sequence values are never duplicated under concurrency.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/documents`, `internal/domains/custom`.
+
+- [ ] `WF-DATA-032` **[GATE_C][SOL_HIGH] Bundle types, rules, lifecycles, workflows, forms and pages into versioned, installable packages.**
+  - **Depends:** `WF-DATA-018`, `WF-EXT-026`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TENANT,BI.ALL; DIRECT=none; WHY=a system built from primitives must be reusable across subsidiaries and clients and upgradable without breaking the tenant's own changes`.
+  - **TEST:** `TestTodo_WF_DATA_032`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_032`; `GOLDEN=TestTodo_WF_DATA_032_Golden`; `PROPERTY=TestTodo_WF_DATA_032_Property`; `RECOVERY=TestTodo_WF_DATA_032_Recovery`.
+  - **RED:** each definition is published on its own and there is no unit of install, upgrade or sharing.
+  - **GREEN:** a package declares its contents, dependencies and version; install and upgrade compile the whole package, preserve tenant overlays and refuse an upgrade that would break a tenant dependency; packages can be inherited across company scopes under the directional-sharing rules; PROPERTY proves installing the same package version twice is idempotent.
+  - **REFACTOR:** none.
+  - **Refs:** [inheritance and overrides](specs/platform-architecture-catalog.md).
+
+- [ ] `WF-DATA-033` **[GATE_C][SOL_HIGH] Enforce per-tenant budgets, quarantine misbehaving definitions and publish data-model SLOs.**
+  - **Depends:** `WF-DATA-027`, `WF-DATA-029`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TENANT,BI.OPERATIONS; DIRECT=none; WHY=on shared infrastructure one tenant's model must never degrade another's, and operators need to see which definition is responsible`.
+  - **TEST:** `TestTodo_WF_DATA_033`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_033`; `GOLDEN=TestTodo_WF_DATA_033_Golden`; `FAULT=TestTodo_WF_DATA_033_Fault`; `BENCHMARK=TestTodo_WF_DATA_033_Benchmark`.
+  - **RED:** there are no per-tenant limits on expression evaluation, propagation throughput or trigger rate, and no data-model metrics.
+  - **GREEN:** a limits registry sets per-tenant budgets for objects, fields, record size, indexed fields, hierarchy depth, expression cost, propagation throughput and trigger rate; a definition that repeatedly breaches them is quarantined while pinned consumers keep their prior version; projection lag, propagation backlog, resolution latency and trigger rate are exported per tenant and definition with SLO alerts; BENCHMARK proves a tenant at its limits does not move another tenant's latency beyond its SLO.
+  - **REFACTOR:** none.
+  - **Refs:** [runtime scheduling contract](specs/workflow-runtime.md#runtime-scheduling-and-resource-contract), `internal/operations`.
+
+- [ ] `WF-DATA-034` **[GATE_C][SOL_LOW] Add a large-company fixture and make it a release benchmark.**
+  - **Depends:** `WF-DATA-019`, `WF-DATA-020`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=flexibility claims mean nothing unless measured at the scale of the largest target customers`.
+  - **TEST:** `TestTodo_WF_DATA_034`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_034`; `CONFORMANCE=TestTodo_WF_DATA_034_Conformance`; `BENCHMARK=TestTodo_WF_DATA_034_Benchmark`.
+  - **RED:** the demo seed holds 60 workers and about 22 units; no benchmark runs at enterprise scale.
+  - **GREEN:** a generated, deterministic fixture holds at least 500,000 workers, 20,000 organization units, five hierarchies and 5,000,000 custom records; benchmarks for record reads, searches, resolution, rollups, propagation and workflow reads of tenant data run against it with recorded thresholds; a regression beyond threshold fails the release check.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/demoworkforce`, `internal/data/pgtest`.
+
+- [ ] `WF-DATA-035` **[GATE_C][SOL_HIGH] Ship three product features as metadata packages with no feature-specific Go code.**
+  - **Depends:** `WF-DATA-022`, `WF-DATA-023`, `WF-DATA-025`, `WF-DATA-029`, `WF-DATA-032`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL,BI.TENANT; DIRECT=none; WHY=the primitives are sufficient only if the product itself can build real features from them, which is the same bar a client faces`.
+  - **TEST:** `TestTodo_WF_DATA_035`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_035`; `CONFORMANCE=TestTodo_WF_DATA_035_Conformance`; `INTEGRATION=TestTodo_WF_DATA_035_Integration`; `BENCHMARK=TestTodo_WF_DATA_035_Benchmark`.
+  - **RED:** no product feature is expressed purely as tenant metadata.
+  - **GREEN:** organization cascading attributes, asset custody, and training requirements with expiry and renewal ship as packages built only from the metamodel primitives and workflow blocks; CONFORMANCE fails if any of them needs feature-specific Go code; BENCHMARK runs each on the large-company fixture; any missing primitive found here becomes its own item rather than a workaround.
+  - **REFACTOR:** none.
+  - **Refs:** [tenant data models](data/models/modeling-conventions.md#tenant-data-models-at-scale).
+
+### Tenant parameters: typed key-value settings, including secrets, referenced by workflows
+
+Tenants need their own named settings that workflows can reference. Examples are endpoints, account identifiers, thresholds, feature switches and credentials. `internal/platform/config` already models typed entries (string, int, bool, float, duration, list, map and secret reference, where a secret entry carries only a fingerprint), a semantic diff, a signed promotion lifecycle, and revalidation of paused work after a configuration change. Only its own tests import it, it allows floats for values that may be money, and it allows untyped maps, which the workflow type system forbids. A secret is one parameter type with stricter rules, not a separate system.
+
+- [ ] `WF-DATA-036` **[GATE_C][SOL_HIGH] Define tenant parameters as typed, classified, consumer-restricted keys on the existing config model.**
+  - **Depends:** `WF-DATA-003`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.ALL; DIRECT=none; WHY=tenants need named settings that workflows can reference, and the config model that could hold them is unwired and admits floats and untyped maps`.
+  - **TEST:** `TestTodo_WF_DATA_036`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_036`; `GOLDEN=TestTodo_WF_DATA_036_Golden`; `PROPERTY=TestTodo_WF_DATA_036_Property`.
+  - **RED:** `internal/platform/config` has no non-test importer outside its own packages, its kinds include `FLOAT` and an untyped `MAP`, and nothing declares who may read an entry.
+  - **GREEN:** a parameter definition declares a namespaced key, a type from the workflow type system (money and rates as exact decimals, maps only with a declared record type), classification, owner, default, whether it is required, whether it is high impact, and an allowed-consumers list of workflows, packages or capabilities; definitions are served from the running cell; PROPERTY proves a definition can never be read as a different type.
+  - **REFACTOR:** the config entry kinds map onto the workflow type system instead of keeping a parallel set.
+  - **Refs:** `internal/platform/config/snapshot.go`, `internal/platform/config/promotion`.
+
+- [ ] `WF-DATA-037` **[GATE_C][SOL_LOW] Set parameter values per scope and per environment as append-only revisions.**
+  - **Depends:** `WF-DATA-036`, `WF-DATA-022`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT; DIRECT=none; WHY=subsidiaries and organizations need their own values, and test runs must never use production values`.
+  - **TEST:** `TestTodo_WF_DATA_037`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_037`; `PROPERTY=TestTodo_WF_DATA_037_Property`; `SECURITY=TestTodo_WF_DATA_037_Security`.
+  - **RED:** configuration entries have no scope hierarchy or environment dimension.
+  - **GREEN:** values are set at tenant, company, legal entity or organization scope and resolved through path resolution with overrides and locking; sandbox and production values are separate; every change is a revision with author and reason; SECURITY proves a sandbox run never resolves a production value.
+  - **REFACTOR:** none.
+  - **Refs:** [tenant data models](data/models/modeling-conventions.md#tenant-data-models-at-scale).
+
+- [ ] `WF-DATA-038` **[GATE_C][SOL_HIGH] Reference parameters from workflows with declared binding modes and compile-time checks.**
+  - **Depends:** `WF-DATA-037`, `WF-DATA-004`, `WF-DATA-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.TENANT; DIRECT=none; WHY=authors must choose whether a value is fixed with the workflow version, fixed per run, or read live, and a routing decision must never change because a setting changed mid-run`.
+  - **TEST:** `TestTodo_WF_DATA_038`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_038`; `PROPERTY=TestTodo_WF_DATA_038_Property`; `GOLDEN=TestTodo_WF_DATA_038_Golden`.
+  - **RED:** no mapping source reads a tenant parameter.
+  - **GREEN:** a `PARAMETER` mapping source supports `PINNED_AT_PUBLISH` (value included in the plan digest), `PINNED_AT_START` (resolved once per run) and `LIVE` (read through `config.read_value` within a declared maximum age); the compiler checks the key exists, the type is assignable, the workflow is an allowed consumer and classification flow holds; a DECISION may not bind a `LIVE` parameter; PROPERTY proves a pinned run reads the same value after the parameter changes.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/definition.go`, `internal/workflow/mapping.go`.
+
+- [ ] `WF-DATA-039` **[GATE_C][SOL_HIGH] Manage secrets as write-only parameters bound to their destinations and resolved only at the outbound call.**
+  - **Depends:** `WF-DATA-038`, `WF-EXT-022`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY,BI.INTEGRATION,BI.TENANT; DIRECT=none; WHY=customers must add their own API keys for their systems without any workflow, author, log or screen ever holding the secret value`.
+  - **TEST:** `TestTodo_WF_DATA_039`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_039`; `SECURITY=TestTodo_WF_DATA_039_Security`; `INTEGRATION=TestTodo_WF_DATA_039_Integration`; `FUZZ=TestTodo_WF_DATA_039_Fuzz`.
+  - **RED:** `internal/trust/secrets` resolves references under grants and `internal/trust/outbound` uses it, but a tenant cannot add, rotate or revoke its own secret, and no workflow type or compiler rule restricts where a secret reference may flow.
+  - **GREEN:** a tenant adds, rotates and revokes secrets through a write-only path that afterwards shows only name, fingerprint and dates; a secret parameter is a secret-reference type that the compiler allows only in a connector binding's credential slot; each secret is bound to declared connectors and hosts and refused anywhere else; resolution happens only at the outbound call after the grant check and the value never enters run context, node outputs, ledger, inspector, designer, test evidence or logs; the roles that set secrets are distinct from workflow authors; every resolution is audited; revocation fails dependent connectors closed; FUZZ proves no mapping path yields the secret value.
+  - **REFACTOR:** connector connections take their credential from the same parameter.
+  - **Refs:** `internal/trust/secrets`, `internal/trust/outbound`, `internal/data/integrationmeta/store.go`.
+
+- [ ] `WF-DATA-040` **[GATE_C][SOL_LOW] Govern parameter changes with permissions, approval, impact preview and revalidation.**
+  - **Depends:** `WF-DATA-038`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TENANT; DIRECT=none; WHY=changing a threshold or endpoint silently changes how every workflow using it behaves`.
+  - **TEST:** `TestTodo_WF_DATA_040`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_040`; `GOLDEN=TestTodo_WF_DATA_040_Golden`; `SECURITY=TestTodo_WF_DATA_040_Security`.
+  - **RED:** configuration changes have a semantic diff and a promotion lifecycle, but no per-key permission, approval rule or list of affected workflows.
+  - **GREEN:** each key declares who may change it; high-impact keys require approval by a different principal; a change shows the workflows, packages and running instances that read the key and which binding mode they use; paused and waiting runs are revalidated through the existing revalidation package; undoing a change is a new revision; SECURITY proves an author cannot approve their own high-impact change.
+  - **REFACTOR:** reuse `internal/platform/config/revalidation`.
+  - **Refs:** `internal/platform/config/revalidation`, `internal/platform/config/promotion`.
+
+- [ ] `WF-DATA-041` **[GATE_C][TERRA] Expose parameters in the admin console, the designer and the test lab.**
+  - **Depends:** `WF-DATA-040`, `WF-UI-007`, `WF-TEST-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.TENANT; DIRECT=none; WHY=administrators set values, authors bind them, and testers must override them for one run without touching real settings`.
+  - **TEST:** `TestTodo_WF_DATA_041`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_041`; `BROWSER=TestTodo_WF_DATA_041_Browser`; `SECURITY=TestTodo_WF_DATA_041_Security`.
+  - **RED:** no screen lists, sets or binds tenant parameters.
+  - **GREEN:** the admin console lists parameters by scope and environment with their effective value and its source; the binding picker lists parameters the workflow may consume with type, classification and scope badges; a test run can override any parameter for that run only and fixture profiles can carry parameter sets; SECURITY proves secret values never appear on any screen.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui`.
+
+- [ ] `WF-DATA-042` **[GATE_C][SOL_LOW] Treat parameter values as inert data within tenant limits.**
+  - **Depends:** `WF-DATA-036`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.SECURITY; DIRECT=none; WHY=a value placed in a header, address or message must never be interpreted as code or markup, and one tenant must not exhaust shared storage`.
+  - **TEST:** `TestTodo_WF_DATA_042`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_DATA_042`; `FUZZ=TestTodo_WF_DATA_042_Fuzz`; `SECURITY=TestTodo_WF_DATA_042_Security`.
+  - **RED:** nothing states how parameter values are encoded where they are used or limits their number and size.
+  - **GREEN:** values are never evaluated as expressions, templates or code; every consumer encodes them for its context (address, header, message template, query parameter); per-tenant limits bound key count and value size; FUZZ proves no value alters the structure of a request or message it is placed in.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity`, `internal/messaging`.
+
+## 80. Runtime RBAC enforcement (2026-09-19)
+
+These come from a read-only review on 2026-09-19 of roles, qualifiers, permissions and access, and from the runtime suite `TestRBACRuntime` (`internal/application/rbac_runtime_integration_test.go`). The suite boots the real served cell and calls it as purpose-built users bound to new workers with explicit manager relationships.
+
+The specs describe a complete model: role templates, qualified role bindings, relationship roles, six enforcement layers, obligations, delegation, separation of duties and explainable decisions. The running system does not apply it consistently. The gaps:
+
+- Authorization decisions happen in four places: the `trust/authz` policy table, database page and feature permissions, token-only `HasRole` checks, and caller-supplied capability scopes.
+- Roles, organization scope and delegation references are trusted from the token.
+- Durable role assignments override token roles for page checks but not for data or administration checks.
+- Organization scope is compared as a string.
+- Relationship roles other than manager have no data source.
+- Worker responses return fields without field-level authorization.
+
+The suite records each case that currently fails in its known-gaps map against one of the items below. When an item lands, its cases must pass and be removed from the map, and the ratchet fails if a closed gap is left listed.
+
+Items `RBAC-RT-001`–`006`, `009` and `010` are Gate B, because they correct access to data the running cell already serves. `RBAC-RT-007`, `008` and `011`–`014` are Gate C.
+
+- [x] `RBAC-RT-001` **[GATE_B][SOL_HIGH] Authorize every field of every worker response and fail closed.**
+  - **Evidence (2026-09-19):** `TestTodo_RBAC_RT_001`, `TestTodo_RBAC_RT_001_Security`, `TestTodo_RBAC_RT_001_Integration` in `internal/transport/journey`; `go test -count=1 -run 'TestTodo_RBAC_RT_001' ./internal/transport/journey/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** `TRUST-010`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.PEOPLE,BI.REWARDS,BI.PRIVACY; DIRECT=none; WHY=the directory filters which workers a caller sees but then returns pay, names and managers for every visible row, and the UI masking layer passes raw values when the server sends no verdict`.
+  - **TEST:** `TestTodo_RBAC_RT_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_001`; `SECURITY=TestTodo_RBAC_RT_001_Security`; `INTEGRATION=TestTodo_RBAC_RT_001_Integration`.
+  - **RED:** `JourneyService.ListWorkers` (`internal/transport/journey/server.go`) applies row visibility, then `toWorker` (`convert.go`) copies base pay, bonus target, legal name and manager for every visible row; `productui` renders masks only from `RecordVerdicts`, which no production code sets; the runtime suite (cases C-03, C-04) shows a manager receiving pay for a same-unit colleague outside her reporting line and for her own manager.
+  - **GREEN:** every RPC returning worker data resolves field rulings through the policy decision point per subject and omits or masks unauthorized fields before serialization; the product UI treats a missing verdict as hidden, never as shown; the suite's directory-field cases pass.
+  - **REFACTOR:** one serialization helper applies rulings for all worker-bearing responses.
+  - **Refs:** `internal/transport/journey`, `internal/trust/authz`, `internal/humanwork/productui/field_disposition.go`.
+
+- [x] `RBAC-RT-002` **[GATE_B][SOL_HIGH] Make durable role assignments govern every check instead of token roles.**
+  - **Evidence (2026-09-19):** `TestTodo_RBAC_RT_002`, `TestTodo_RBAC_RT_002_Security`, `TestTodo_RBAC_RT_002_Integration` in `internal/transport/journey`; `go test -count=1 -run 'TestTodo_RBAC_RT_002' ./internal/transport/journey/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** `RBAC-RT-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.SECURITY; DIRECT=none; WHY=removing a role in the database hides pages but data access and administration continue until the token expires`.
+  - **TEST:** `TestTodo_RBAC_RT_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_002`; `SECURITY=TestTodo_RBAC_RT_002_Security`; `INTEGRATION=TestTodo_RBAC_RT_002_Integration`.
+  - **RED:** `roleaccess.AssignedRoles` replaces token roles for page and feature checks, while `authz.Enforce`, manager-chain facts and every `HasRole` gate read token roles; the suite's revoked user (token administrator, durable self-service) is refused the role-administration writes but still reads role administration through `GetRoleAccess` (case F-01).
+  - **GREEN:** the principal's effective roles are resolved on the server from durable assignments for every check, with a short cache invalidated on assignment change; token role claims are ignored for authorization; the suite's revocation cases pass.
+  - **REFACTOR:** remove direct `HasRole` calls in favour of the resolved role set.
+  - **Refs:** `internal/experience/roleaccess`, `internal/transport/journey/role_access.go`, `internal/intent/app/manager_chain_facts.go`.
+
+- [ ] `RBAC-RT-003` **[GATE_B][SOL_HIGH] Authorize intent reads and actions by subject and relationship, not tenant alone.**
+  - **Depends:** `RBAC-RT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=any principal in a tenant can read, list, submit or cancel any intent, including proposals carrying pay`.
+  - **TEST:** `TestTodo_RBAC_RT_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_003`; `SECURITY=TestTodo_RBAC_RT_003_Security`; `INTEGRATION=TestTodo_RBAC_RT_003_Integration`.
+  - **RED:** `IntentService.GetIntent`, `ListIntents`, `ListIntentTimeline`, `CreateIntent`, `Submit` and `Cancel` check authentication and tenant only; the suite shows workers and a principal with no roles reading, listing and following the timeline of a promotion intent about a colleague, and an unrelated manager seeing that journey in `ListJourneys` (cases G-02, G-03, G-05, G-06, G-08, G-09, G-11, K-04, K-05, K-06, F-08).
+  - **GREEN:** reads require the caller to be the initiator, a participant, in the subject's management chain, or hold a role granting the intent's data domain; lists are filtered before paging; actions require the capability for that intent type; the suite's intent cases pass.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/intent`, `internal/intent/app`.
+
+- [ ] `RBAC-RT-004` **[GATE_B][SOL_HIGH] Install authorization hooks on the Work and Workflow services.**
+  - **Depends:** `RBAC-RT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORK; DIRECT=none; WHY=both services are composed with a nil authorize hook, so only item visibility rules and tenant matching stand between an outsider and workflow internals`.
+  - **TEST:** `TestTodo_RBAC_RT_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_004`; `SECURITY=TestTodo_RBAC_RT_004_Security`; `INTEGRATION=TestTodo_RBAC_RT_004_Integration`.
+  - **RED:** the composition passes a nil `Authorize` to the Work and Workflow services, which therefore allow every authenticated call before their own visibility checks; the suite shows a principal with no roles receiving an empty work-item page rather than a refusal (case K-07), while outsiders are correctly refused individual items.
+  - **GREEN:** both services authorize each call through the policy decision point by capability and scope; workflow reads require participation, supervision of the subject, or an operator role; the suite's outsider cases pass.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/humanwork`, `internal/transport/workflow`, `internal/transport/cell/cell.go`.
+
+- [ ] `RBAC-RT-005` **[GATE_B][SOL_LOW] Replace the two conflicting diagnostics gates with one disclosure rule.**
+  - **Depends:** `RBAC-RT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS; DIRECT=none; WHY=journey inspection admits auditors but not operators while the diagnostics check admits operators but not auditors`.
+  - **TEST:** `TestTodo_RBAC_RT_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_005`; `SECURITY=TestTodo_RBAC_RT_005_Security`; `INTEGRATION=TestTodo_RBAC_RT_005_Integration`.
+  - **RED:** `internal/intent/app/journey_inspect.go` and `internal/transport/journey/diagnostics_access.go` decide diagnostics disclosure with different role lists; the suite shows `hcm_admin` and `auditor` refused journey inspection entirely (cases H-04, H-06).
+  - **GREEN:** one rule, resolved from durable roles and page grants, decides diagnostics disclosure everywhere; the suite's diagnostics cases pass.
+  - **REFACTOR:** delete the duplicated role list.
+  - **Refs:** `internal/intent/app/journey_inspect.go`, `internal/transport/journey/diagnostics_access.go`.
+
+- [ ] `RBAC-RT-006` **[GATE_B][SOL_LOW] Make page and feature gates fail closed when permission data is missing.**
+  - **Depends:** `RBAC-RT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a missing role store or an empty permission table currently allows the action`.
+  - **TEST:** `TestTodo_RBAC_RT_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_006`; `SECURITY=TestTodo_RBAC_RT_006_Security`; `INTEGRATION=TestTodo_RBAC_RT_006_Integration`.
+  - **RED:** `requireFeatureAction` allows when the role-access store is nil or has no page permissions, and falls back to page-level checks when feature rows are absent; the product UI falls back to hardcoded audiences; the suite's page cases pass today only because bootstrap seeds the tables.
+  - **GREEN:** an absent store, table or row denies; bootstrap always seeds defaults; the hardcoded audience fallback is removed; the suite's page cases pass.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/journey/page_access.go`, `internal/humanwork/productui/web242_page_modules.go`.
+
+- [x] `RBAC-RT-009` **[GATE_B][SOL_LOW] Derive operator and administrator authority from durable bindings.**
+  - **Evidence (2026-09-19):** `TestTodo_RBAC_RT_009` family in `internal/operations/admin` and `internal/transport/journey`; `go test -count=1 -run 'TestTodo_RBAC_RT_009' ./internal/operations/admin/ ./internal/transport/journey/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** `RBAC-RT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS,BI.SECURITY; DIRECT=none; WHY=administration and operator services accept a role string from the token, and the operator gets full field disclosure`.
+  - **TEST:** `TestTodo_RBAC_RT_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_009`; `SECURITY=TestTodo_RBAC_RT_009_Security`; `INTEGRATION=TestTodo_RBAC_RT_009_Integration`.
+  - **RED:** `AdminService` checks `HasRole("hcmnext.trust.role.operator")` on the token, and the `hcm_admin` and `comp_admin` shortcuts in the journey transport bypass durable assignments.
+  - **GREEN:** administrator and operator authority come from durable, reviewable bindings with separation of duties; operator field disclosure follows the policy table rather than an unconditional grant; the suite's administration cases pass.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/operations/admin/policy.go`, `internal/transport/journey/role_access.go`.
+
+- [ ] `RBAC-RT-010` **[GATE_B][SOL_HIGH] Carry only identity in the token and stop minting authority outside the issuer.**
+  - **Depends:** `RBAC-RT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY; DIRECT=none; WHY=tenant, roles, organization scope, purposes, assurance and delegation references are accepted from a self-signed token and the operator tool mints high-assurance tokens with any roles`.
+  - **TEST:** `TestTodo_RBAC_RT_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_010`; `SECURITY=TestTodo_RBAC_RT_010_Security`; `INTEGRATION=TestTodo_RBAC_RT_010_Integration`.
+  - **RED:** `trust.Claims` carries roles, organization scope, purposes, assurance and delegation references that every check trusts; `internal/transport/admin/hcmctl/mint.go` issues `Assurance: high` tokens with caller-chosen roles and never consults the JIT grant store; the suite shows a token naming another tenant admitted by this cell for `ListWorkers` and `GetRoleAccess` (cases A-03, A-05), with row-level security confining it to that tenant's data.
+  - **GREEN:** the token carries subject, tenant, session and authenticated assurance only; roles, scopes, purposes and delegations are resolved on the server; elevated operator access is issued only through JIT grants with approval; development minting is refused outside the local development profile; the suite's authentication cases pass.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/trust/hmactoken.go`, `internal/transport/admin/hcmctl/mint.go`, `internal/trust/jit`.
+
+- [ ] `RBAC-RT-007` **[GATE_C][SOL_HIGH] Resolve relationship roles from effective-dated relationship data.**
+  - **Depends:** `RBAC-RT-002`, `WF-DATA-020`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=HR partner, finance partner for a cost center and legal approver have no data source, the finance partner is one principal per deployment, and manager-of reads a row with no history`.
+  - **TEST:** `TestTodo_RBAC_RT_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_007`; `PROPERTY=TestTodo_RBAC_RT_007_Property`; `INTEGRATION=TestTodo_RBAC_RT_007_Integration`.
+  - **RED:** the approval expression's relationship terms compile but are never resolved in production; the suite shows an `hr_partner` receiving pay through unit visibility without any HR-partner relationship (case C-12); the only directory is in memory and ignores the effective instant; routing uses a configured finance principal.
+  - **GREEN:** a PostgreSQL directory resolves manager-of, manager chain, HR partner for an organization, finance partner for a cost center and legal approver for a legal entity from effective-dated relationship rows at the proposal's effective time; approval routing and data scoping both use it; PROPERTY proves a relationship ending before the effective time never grants authority.
+  - **REFACTOR:** retire the configured finance-partner principal.
+  - **Refs:** `internal/humanwork/directory.go`, `internal/platform/execution/approver_routing.go`.
+
+- [ ] `RBAC-RT-008` **[GATE_C][SOL_HIGH] Validate organization scope and enforce organization closure in data decisions.**
+  - **Depends:** `RBAC-RT-010`, `WF-DATA-020`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORKFORCE,BI.SECURITY; DIRECT=none; WHY=organization scope is an unvalidated string compared for equality and the policy engine's organization closure is never supplied`.
+  - **TEST:** `TestTodo_RBAC_RT_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_008`; `PROPERTY=TestTodo_RBAC_RT_008_Property`; `INTEGRATION=TestTodo_RBAC_RT_008_Integration`; `SECURITY=TestTodo_RBAC_RT_008_Security`.
+  - **RED:** `authorizeRead` passes no principal organization or organization edges, and no check validates that a scope names a real organization; the suite shows a payroll manager limited to its own unit instead of its organization boundary (case C-14).
+  - **GREEN:** a scope is a validated reference to an organization unit resolved on the server; data decisions receive the effective-dated closure; PROPERTY proves a subject outside the scope's descendants is never in scope.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/trust/authz/tenant.go`, `internal/intent/app/authorization.go`.
+
+- [ ] `RBAC-RT-011` **[GATE_C][SOL_HIGH] Store role templates and qualified role bindings, including position-held roles.**
+  - **Depends:** `RBAC-RT-002`, `RBAC-RT-008`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY,BI.WORKFORCE; DIRECT=none; WHY=the specified role binding with a scope qualifier and effective interval has no entity, table or evaluator, and role assignments carry no validity window`.
+  - **TEST:** `TestTodo_RBAC_RT_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_011`; `PROPERTY=TestTodo_RBAC_RT_011_Property`; `SECURITY=TestTodo_RBAC_RT_011_Security`; `FAULT=TestTodo_RBAC_RT_011_Fault`; `RECOVERY=TestTodo_RBAC_RT_011_Recovery`.
+  - **RED:** roles are a flat tenant catalog with unversioned, undated assignments; qualifiers exist only as an opaque organization-scope string.
+  - **GREEN:** versioned role templates declare capabilities, data domains, field sets and risk; role bindings attach a template to a principal or a position with a qualifier (self, direct reports, manager chain, organization subtree, legal entity, location, cost center, population, workflow instance, tenant), an effective interval and provenance; a position-held role follows its incumbent through job changes; PROPERTY proves a binding outside its interval never grants authority.
+  - **REFACTOR:** the page and feature permission tables become projections of role templates.
+  - **Refs:** [organization scope and authorization](specs/organization-scope-and-authz.md), `internal/experience/roleaccess`.
+
+- [ ] `RBAC-RT-012` **[GATE_C][SOL_HIGH] Define populations as static or rule-based groups usable as qualifiers.**
+  - **Depends:** `RBAC-RT-011`, `WF-DATA-019`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY,BI.WORKFORCE; DIRECT=none; WHY=security groups such as all nurses in one state need membership that follows the data rather than a manually maintained list`.
+  - **TEST:** `TestTodo_RBAC_RT_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_012`; `PROPERTY=TestTodo_RBAC_RT_012_Property`; `BENCHMARK=TestTodo_RBAC_RT_012_Benchmark`.
+  - **RED:** no population or security-group entity exists.
+  - **GREEN:** a population is a static member list or a bounded rule over worker, assignment and custom fields, evaluated at an effective time through the typed field index and closure tables; bindings may qualify by population; membership changes emit events; BENCHMARK evaluates a population of 100,000 within budget.
+  - **REFACTOR:** none.
+  - **Refs:** [tenant data models](data/models/modeling-conventions.md#tenant-data-models-at-scale).
+
+- [ ] `RBAC-RT-013` **[GATE_C][SOL_HIGH] Route every enforcement point through one policy decision point, including delegation, JIT and break glass.**
+  - **Depends:** `RBAC-RT-011`, `RBAC-RT-012`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.SECURITY; DIRECT=none; WHY=delegation, break glass and the simulator exist as evaluators nothing calls, and four decision systems disagree`.
+  - **TEST:** `TestTodo_RBAC_RT_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_013`; `SECURITY=TestTodo_RBAC_RT_013_Security`; `PROPERTY=TestTodo_RBAC_RT_013_Property`; `INTEGRATION=TestTodo_RBAC_RT_013_Integration`.
+  - **RED:** `trust.EvaluateDelegation`, `breakglass.Open` and the authorization simulator have no production caller; capability scopes are supplied by the caller.
+  - **GREEN:** the capability gateway, transports, repositories and serialization call one decision point that composes role bindings, relationships, populations, delegation (intersected with the delegator's current authority), JIT and break glass, and returns obligations; decisions for sensitive domains are recorded; the simulator and view-as use the same point and cannot grant authority; PROPERTY proves a delegate never exceeds the delegator.
+  - **REFACTOR:** remove the page-permission, ad hoc and scope-string evaluators.
+  - **Refs:** `internal/trust/authz`, `internal/trust/delegation.go`, `internal/trust/breakglass`, `internal/capability/gateway.go`.
+
+- [ ] `RBAC-RT-014` **[GATE_C][TERRA] Manage roles, bindings and populations in one administration surface with effective-access preview.**
+  - **Depends:** `RBAC-RT-013`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=the role editor and the policy engine are separate models, and administrators cannot see what a change grants before making it`.
+  - **TEST:** `TestTodo_RBAC_RT_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_014`; `BROWSER=TestTodo_RBAC_RT_014_Browser`; `SECURITY=TestTodo_RBAC_RT_014_Security`.
+  - **RED:** role editing writes page and feature grants that the data policy never reads, and no screen shows the effective access a change would produce.
+  - **GREEN:** one surface edits role templates, bindings with qualifiers and populations; every change shows gained and lost access, separation-of-duties conflicts and affected principals before approval; changes to high-risk roles require a second approver; SECURITY proves an administrator cannot grant authority they do not hold unless the role is delegable.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui`, [production frontend spec](specs/production-frontend-and-page-composition.md).
+
+### Page visibility and per-page permissions
+
+These come from a read-only review on 2026-09-19 of page visibility and per-page create, read, update and delete permissions against `WEB-241`, `WEB-242`, `UXAUDIT-009` and `UXAUDIT-010`.
+
+The model is in place and served:
+
+- `internal/experience/roleaccess` defines roles, assignments, page permissions with independent view, create, update and delete, and feature permissions that narrow them.
+- Migrations 00238, 00239 and 00290 store them.
+- `internal/transport/journey/page_access.go` enforces them on the journey, work, people, settings and administration calls.
+- The workspace shell gates every route from the stored rows.
+
+The gaps:
+
+- Several paths fail open.
+- Some calls are ungated.
+- Deactivated roles keep their access.
+- Role administration follows login roles rather than stored grants.
+- Permission rows drift apart.
+- The UI and the server disagree.
+- Nothing records who changed a permission.
+
+The effective-access preview and bulk assignment that `UXAUDIT-009` and `UXAUDIT-010` promised were never delivered on the server.
+
+The runtime suite `TestRBACRuntime` carries a case for each item, recorded as a known gap until the item lands.
+
+- [ ] `RBAC-RT-015` **[GATE_B][SOL_HIGH] Make every page and feature check fail closed and bootstrap every tenant.**
+  - **Depends:** `RBAC-RT-006`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=a tenant without permission rows is allowed every checked call while the shell refuses every page, and the first feature row saved silently changes how every page is judged`.
+  - **TEST:** `TestTodo_RBAC_RT_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_015`; `SECURITY=TestTodo_RBAC_RT_015_Security`; `INTEGRATION=TestTodo_RBAC_RT_015_Integration`.
+  - **RED:** `requireFeatureAction` allows when the store is nil or the tenant has no page rows and falls back to page-only checks while the tenant has no feature rows; `Bootstrap` runs only for the configured tenant; with no stored assignment the token's roles are used.
+  - **GREEN:** a missing store, table, row or assignment denies; every tenant is bootstrapped with default roles, pages and features when it is provisioned; whether a page is judged at feature level is decided per page from its registry features, never from whether the tenant has any feature rows.
+  - **REFACTOR:** remove the page-only fallback.
+  - **Refs:** `internal/transport/journey/page_access.go`, `internal/data/roleaccessstore`, `internal/application/serve.go`.
+
+- [ ] `RBAC-RT-016` **[GATE_B][SOL_HIGH] Gate every served call by page, feature and action and prove none is missed.**
+  - **Depends:** `RBAC-RT-015`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=a stream, several reads and a write bypass the page model, and nothing detects a new call added without a gate`.
+  - **TEST:** `TestTodo_RBAC_RT_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_016`; `SECURITY=TestTodo_RBAC_RT_016_Security`; `INTEGRATION=TestTodo_RBAC_RT_016_Integration`.
+  - **RED:** `WatchJourney`, `GetRoleAccess`, `GetProductPreferences`, `GetWorkerIDPolicy` and `RecordWorkflowUse` carry no page or feature check; `AddJourneyNote` writes under a view grant; no call maps to the delete action.
+  - **GREEN:** a declarative table maps every served call to its page, feature and action, including reads and deletes; transports enforce from the table; a test enumerates every registered service method and fails when one has no entry.
+  - **REFACTOR:** replace per-handler gate calls with the table.
+  - **Refs:** `internal/transport/journey`, `internal/transport/cell/cell.go`.
+
+- [ ] `RBAC-RT-017` **[GATE_B][SOL_LOW] Grant nothing through inactive roles and protect system roles.**
+  - **Depends:** `RBAC-RT-015`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY; DIRECT=none; WHY=deactivating a role leaves its page, feature and visibility grants in force, and any role administrator can rename or deactivate built-in roles`.
+  - **TEST:** `TestTodo_RBAC_RT_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_017`; `SECURITY=TestTodo_RBAC_RT_017_Security`; `INTEGRATION=TestTodo_RBAC_RT_017_Integration`.
+  - **RED:** `EffectivePagePermissions`, `EffectiveFeaturePermissions` and the visibility policies ignore `Role.Active`; `SaveRole` accepts renaming or deactivating a system role.
+  - **GREEN:** an inactive role contributes no grant anywhere; system roles cannot be renamed, deactivated or stripped of the grants their built-in duties need; the suite's inactive-role cases pass.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/experience/roleaccess/roleaccess.go`, `internal/data/roleaccessstore/store.go`.
+
+- [ ] `RBAC-RT-018` **[GATE_B][SOL_HIGH] Derive role-administration authority from stored grants and block self-escalation and lockout.**
+  - **Depends:** `RBAC-RT-002`, `RBAC-RT-017`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY; DIRECT=none; WHY=role administration follows two login roles, so a role granted the roles page cannot administer, while an administrator can grant themselves anything or remove the last administrator`.
+  - **TEST:** `TestTodo_RBAC_RT_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_018`; `SECURITY=TestTodo_RBAC_RT_018_Security`; `INTEGRATION=TestTodo_RBAC_RT_018_Integration`.
+  - **RED:** `requireRoleAdministrator` requires `hcm_admin` or `comp_admin` in the token; a custom role granted the roles page receives the editor but is refused on save; nothing refuses an assignment to the caller's own worker or a change that leaves no principal able to administer roles.
+  - **GREEN:** role administration requires the stored `roles` page and `roles/feature_access` grants; a principal cannot change their own assignment or grant a role holding permissions they do not hold themselves; a change that would leave no active administrator is refused; the suite's role-administration cases pass.
+  - **REFACTOR:** remove `requireRoleAdministrator`'s token check.
+  - **Refs:** `internal/transport/journey/role_access.go`, `internal/experience/roleaccess`.
+
+- [ ] `RBAC-RT-019` **[GATE_B][SOL_LOW] Keep page and feature permission rows consistent as grants change.**
+  - **Depends:** `RBAC-RT-015`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a page granted after bootstrap has no feature rows and so stays unusable, revoking a page leaves its feature rows behind, and the editor cannot manage features on most pages`.
+  - **TEST:** `TestTodo_RBAC_RT_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_019`; `PROPERTY=TestTodo_RBAC_RT_019_Property`; `INTEGRATION=TestTodo_RBAC_RT_019_Integration`.
+  - **RED:** `SaveRolePagePermission` writes only the page row; feature rows exist only where bootstrap created them; the feature editor renders only for published pages the role can already view.
+  - **GREEN:** granting a page creates its default feature rows within the page grant and each feature's ceiling; revoking a page action removes or narrows its feature rows in the same transaction; the editor manages features for every registered page; PROPERTY proves no feature row ever exceeds its page row.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/roleaccessstore/store.go`, `internal/humanwork/productui/role_feature_permissions.go`.
+
+- [ ] `RBAC-RT-020` **[GATE_B][TERRA] Make navigation, page controls and page data agree with the server decision.**
+  - **Depends:** `RBAC-RT-016`, `RBAC-RT-019`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=users see pages whose data is refused, menu entries that return 403, and controls keyed to feature identifiers the server does not check`.
+  - **TEST:** `TestTodo_RBAC_RT_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_020`; `BROWSER=TestTodo_RBAC_RT_020_Browser`; `INTEGRATION=TestTodo_RBAC_RT_020_Integration`.
+  - **RED:** the self-service pages are granted to `worker_self` and `finance_partner` but call `ListWorkers`, which refuses them; navigation ignores feature rows, so a page with its content feature revoked is listed then refused; the UI checks `people/workflow_actions` while the server checks `journeys/promotion_request`; the journey-diagnostics page has no feature rows and is hidden once feature checks apply.
+  - **GREEN:** navigation and the shell use one decision; every control is keyed to the same page, feature and action the server enforces; default grants give each granted page the scoped data it needs, such as a self-service user seeing only their own record; every declared feature is either enforced or removed.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui`, `internal/humanwork/workspace/product_shell.go`, `internal/experience/roleaccess`.
+
+- [ ] `RBAC-RT-021` **[GATE_B][SOL_LOW] Record every permission change as an append-only revision.**
+  - **Depends:** `RBAC-RT-018`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY; DIRECT=none; WHY=permission changes overwrite the last editor and leave no history, so access cannot be audited or reconstructed`.
+  - **TEST:** `TestTodo_RBAC_RT_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_021`; `GOLDEN=TestTodo_RBAC_RT_021_Golden`; `INTEGRATION=TestTodo_RBAC_RT_021_Integration`; `FAULT=TestTodo_RBAC_RT_021_Fault`; `RECOVERY=TestTodo_RBAC_RT_021_Recovery`.
+  - **RED:** role, assignment, page, feature and visibility saves update rows in place with `updated_by` and write no ledger, evidence or outbox record.
+  - **GREEN:** every change appends a revision with author, reason, before and after, and emits a ledger event in the same transaction; the effective permission set at any past time can be reconstructed; new tables are registered in the storage-disposition registry.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/roleaccessstore`, `migrations/00238_role_access_control.sql`, `definitions/storage/storage-disposition.yaml`.
+
+- [ ] `RBAC-RT-022` **[GATE_C][TERRA] Preview effective access and assign roles in bulk with per-worker results.**
+  - **Depends:** `RBAC-RT-021`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=UXAUDIT-009 and UXAUDIT-010 promised an effective-access preview and bulk assignment, and neither exists on the server`.
+  - **TEST:** `TestTodo_RBAC_RT_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_022`; `BROWSER=TestTodo_RBAC_RT_022_Browser`; `SECURITY=TestTodo_RBAC_RT_022_Security`; `INTEGRATION=TestTodo_RBAC_RT_022_Integration`.
+  - **RED:** no call returns the pages, features, actions and records a role, assignment or proposed change grants or removes; `workerRoleAssignmentEditorWithSelection` is always called without selection.
+  - **GREEN:** a preview call returns gained and lost pages, features, actions and visible records for a role, an assignment or a proposed change, evaluated against representative workers; bulk assignment applies to a selected population and reports per-worker success or refusal; SECURITY proves the preview never discloses records the administrator could not see.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/page_roles.go`, `internal/transport/journey/role_access.go`.
+
+- [ ] `RBAC-RT-023` **[GATE_C][SOL_HIGH] Govern high-risk permission changes with approval, step-up and rollback.**
+  - **Depends:** `RBAC-RT-021`, `RBAC-RT-022`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY; DIRECT=none; WHY=granting administration or sensitive-data pages takes effect on one person's save with no second check`.
+  - **TEST:** `TestTodo_RBAC_RT_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_023`; `SECURITY=TestTodo_RBAC_RT_023_Security`; `GOLDEN=TestTodo_RBAC_RT_023_Golden`; `FAULT=TestTodo_RBAC_RT_023_Fault`; `RECOVERY=TestTodo_RBAC_RT_023_Recovery`.
+  - **RED:** every permission save applies immediately without review.
+  - **GREEN:** changes to roles or pages marked high risk are proposals that take effect only after a different principal approves, with step-up for the approver; separation-of-duties conflicts are shown before approval; undoing a change is a new approved revision.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/trust/sod`, [production frontend spec](specs/production-frontend-and-page-composition.md).
+
+- [ ] `RBAC-RT-024` **[GATE_C][SOL_HIGH] Qualify page and feature grants by scope and time and support explicit denies.**
+  - **Depends:** `RBAC-RT-011`, `RBAC-RT-012`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=page grants are tenant-wide and permanent, so a subsidiary administrator cannot be limited to their own organization or a temporary grant expire`.
+  - **TEST:** `TestTodo_RBAC_RT_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_024`; `PROPERTY=TestTodo_RBAC_RT_024_Property`; `SECURITY=TestTodo_RBAC_RT_024_Security`.
+  - **RED:** page and feature permissions are keyed by tenant, role and page only, with no qualifier, effective interval or deny.
+  - **GREEN:** page and feature grants carry the role binding's qualifier and effective interval; explicit denies override grants from other roles; PROPERTY proves an expired grant or a matching deny never allows.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/experience/roleaccess`.
+
+- [ ] `RBAC-RT-025` **[GATE_C][SOL_HIGH] Fold page and feature grants into role templates with a page-to-data consistency check.**
+  - **Depends:** `RBAC-RT-024`, `RBAC-RT-013`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=page grants and data policy are separate models, so a role can reach a page whose data it is refused or reach data through a call whose page it cannot see`.
+  - **TEST:** `TestTodo_RBAC_RT_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_025`; `PROPERTY=TestTodo_RBAC_RT_025_Property`; `GOLDEN=TestTodo_RBAC_RT_025_Golden`; `SECURITY=TestTodo_RBAC_RT_025_Security`.
+  - **RED:** page and feature grants live in role-access tables that the data policy never reads.
+  - **GREEN:** a role template declares its pages, features and actions alongside capabilities and data domains; publishing a template refuses a page whose declared data calls the template cannot make; page and feature tables become projections of templates.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/experience/roleaccess`, `internal/trust/authz/policy.go`.
+
+- [ ] `RBAC-RT-026` **[GATE_C][TERRA] Register tenant-defined pages and features into the permission model.**
+  - **Depends:** `RBAC-RT-025`, `WF-DATA-030`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.TENANT; DIRECT=none; WHY=the page registry is fixed code, so generated pages and packages have no way to declare features or be granted to roles`.
+  - **TEST:** `TestTodo_RBAC_RT_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_RBAC_RT_026`; `SECURITY=TestTodo_RBAC_RT_026_Security`; `BROWSER=TestTodo_RBAC_RT_026_Browser`.
+  - **RED:** `productFeatureCatalog` is built only from the compiled page registry.
+  - **GREEN:** generated pages and installed packages register pages and features with action ceilings under the tenant namespace; they are granted and enforced exactly like product pages; SECURITY proves a tenant page cannot declare a ceiling beyond what its data calls allow.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/serve.go`, `internal/humanwork/productui/web242_page_modules.go`.
+
+## 81. Section review gap register (2026-09-19)
+
+These come from a 100-round review on 2026-09-19. Each round took one section or subsection of this backlog, checked the implementation against its items, and recorded two kinds of finding: gaps where an item exists but the code is missing or contradicts it (RED starts with `GAP:`), and missing features the backlog never covered but that fit the overall plan (RED starts with `NEW:`). Each round has its own subsection. Items are Gate C unless they correct a defect in something the running cell already serves.
+
+### R001. §0 Backlog governance and traceability
+
+Checked GOV-001 through GOV-030 (`planning/todos.md:270-594`). Every referenced `tools/planning/*` package exists on disk (`atomicity`, `authoritygate`, `boundarytests`, `coveragematrix`, `corpus`, `deferredimports`, `depthvocab`, `evidence`, `intentcoverage`, `intentmanifests`, `manifest`, `obligations`, `oraclespecificity`, `oraclestrength`, `plancontradiction`, `progress`, `riskbinding`, `scopeexchange`, `tddcontract`, `terminology`, `todogovernance`, `todoregistry`, `traceability`, `controlcrosswalk`, `wedge`), and named `TestTodo_GOV_0xx*` functions exist in the matching `_test.go` files. This is library/CLI-only tooling (no product runtime binary applies), gated into CI only indirectly: `.github/workflows/tests.yml` never invokes `plancheck`, `todogovernance`, or any `tools/planning/cmd/*` governance binary; the `covergate -all` step just runs each package's own `go test`, which proves the checker logic against fixtures and allowlists, not that the live backlog currently satisfies the rule. That gap is compounded by two concrete, self-documented contradictions inside the unit: (1) the section's own P1A scope disposition explicitly defers "coverage-matrix, traceability-graph and manifest-compiler" work to P1B, yet GOV-011, GOV-024, GOV-026 and GOV-027 (exactly those categories) are ticked complete with post-disposition evidence and no recorded `GOV-006` scope-exchange approval; (2) GOV-017 is ticked `[x]` while its own only Evidence line states the live command "remains non-green with 1,094 findings; cannot close until those red-first evidence and oracle defects are repaired" (the sibling item GOV-016, just outside this unit at line 6989, shows the identical pattern with 6,202 unresolved findings). The most important finding is the scope-disposition violation, because it shows the backlog's own governance apparatus was not applied to itself.
+
+- [x] `REV-001-01` **[GATE_C][TERRA] Reconcile GOV backlog completions against the section's own P1A scope disposition.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_001_01`, `TestTodo_REV_001_01_Golden` in `tools/planning/scopefidelity`; `go test -count=1 ./tools/planning/scopefidelity/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=prevent the backlog from silently exceeding its own signed scope disposition`.
+  - **TEST:** `TestTodo_REV_001_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_001_01`; `GOLDEN=TestTodo_REV_001_01_Golden`.
+  - **RED:** GAP: `planning/todos.md:272` states "Coverage-matrix, traceability-graph and manifest-compiler items are DEFERRED until P1B" and restricts P1A to `GOV-001`-`GOV-004`, `GOV-006`, `GOV-009`, `GOV-025` only, yet `GOV-011` (coverage matrix, `planning/todos.md:385-394`, evidence dated 2026-09-03), `GOV-024` (corpus graph, `planning/todos.md:518-527`, evidence 2026-09-05) and `GOV-026`/`GOV-027` (intent coverage / gap compiler, `planning/todos.md:540-560`, evidence 2026-09-05 and 2026-09-09) are all ticked complete after the disposition date with no `GOV-006` scope-exchange record found in `planning/todos.md` or `definitions/planning/*`.
+  - **GREEN:** for each GOV item outside the authorized P1A set, either a signed scope-exchange record (per `GOV-006`'s own contract: owner, schedule impact, acceptance evidence, displaced scope) admits it into P1A, or the item is re-marked `P1B`/`DEFERRED` in the Markdown and its TodoContract fields so `plancheck scopeexchange` and the depth-vocabulary checker report zero undocumented P1A completions against the disposition.
+  - **REFACTOR:** none.
+  - **Refs:** `planning/todos.md:272`, `planning/todos.md:385-394`, `planning/todos.md:518-527`, `planning/todos.md:540-560`, `tools/planning/scopeexchange`, `tools/planning/coveragematrix`, `tools/planning/corpus`.
+
+- [x] `REV-001-02` **[GATE_C][LUNA] Resolve GOV-017's ticked status against its own non-green live-command evidence.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_001_02`, `TestTodo_REV_001_02_Golden` in `tools/planning/scopefidelity`; `go test -count=1 ./tools/planning/scopefidelity/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=stop a governance checker from being marked done while it reports itself unrepaired`.
+  - **TEST:** `TestTodo_REV_001_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_001_02`; `GOLDEN=TestTodo_REV_001_02_Golden`.
+  - **RED:** GAP: `GOV-017` (`planning/todos.md:440`) is ticked `[x]` "Enforce explicit TDD structure and red-first evidence for every todo," but its only Evidence line (`planning/todos.md:450`, dated 2026-09-03) states the live `tddcontract`/`plancheck` run "remains non-green with 1,094 findings; cannot close until those red-first evidence and oracle defects are repaired," and no later Evidence line supersedes that statement even though dependents `GOV-018`, `GOV-021`, `GOV-027` and `GOV-028` were completed afterward on top of it.
+  - **GREEN:** either the 1,094 findings are repaired and a fresh dated Evidence line (commit digest, toolchain, command, result per `GOV-008`) records a green live run of the `tddcontract` checker over the current backlog, or `GOV-017` is unticked/re-scoped and its dependents are re-reviewed for whether they relied on a fully compliant TDD-contract corpus.
+  - **REFACTOR:** none.
+  - **Refs:** `planning/todos.md:440-451`, `tools/planning/tddcontract`, `tools/planning/cmd/plancheck`.
+
+- [x] `REV-001-03` **[GATE_C][TERRA] Wire the GOV backlog-governance checkers into a CI-blocking gate over the live repository.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_001_03`, `TestTodo_REV_001_03_Golden` in `tools/planning/scopefidelity`; `go test -count=1 ./tools/planning/scopefidelity/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=make backlog governance violations block merges instead of only living in prose evidence`.
+  - **TEST:** `TestTodo_REV_001_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_001_03`; `GOLDEN=TestTodo_REV_001_03_Golden`.
+  - **RED:** NEW: `.github/workflows/tests.yml` has zero references to `plancheck`, `todogovernance` or any `tools/planning/cmd/*` binary; the only CI step touching these packages is `go run ./tools/quality/covergate/cmd/covergate -root . -all` (`.github/workflows/tests.yml:212-213`), which runs each package's fixture-based `go test`, not a scan of the live backlog, so a self-admitted non-green finding such as `GOV-017`'s 1,094 findings or `GOV-016`'s 6,202 findings never fails a build.
+  - **GREEN:** a CI step invokes the `plancheck`/`todogovernance` suite against the checked-out `planning/todos.md` and specs, failing the job on any un-allowlisted governance violation while treating entries in `definitions/planning/known-defects.yaml` as the only accepted exceptions, following the same wiring path already recorded as an open follow-up for `docintegrity` under `DOC-001` (`planning/todos.md:7002`).
+  - **REFACTOR:** share the CI step's allowlist-loading and reporting code between the `plancheck` and `docintegrity` gates instead of duplicating it.
+  - **Refs:** `.github/workflows/tests.yml`, `tools/planning/cmd/plancheck/main.go`, `tools/planning/cmd/todogovernance`, `planning/todos.md:7002`.
+
+### R002. Design partner, wedge and commercial proof
+
+Checked all 15 `WEDGE-*` items (lines 598-765). Every named PRIMARY and `TestTodo_WEDGE_*` test exists (`tools/planning/wedge/wedge_test.go`, `internal/operations/wedge/wedge_test.go`, `tools/planning/gateevidence/gatea_contracts_test.go`, `gateb_contracts_test.go`), all three packages build clean, and `WEDGE-014`/`WEDGE-015` use real ed25519 signing (`gatea_contracts.go:968 SignGateADecision`, `gateb_contracts.go:230 SignGateBDecision`) rather than a stub. `PILOT-001`'s `Depends` correctly names `WEDGE-015`, so the cross-reference in its evidence text holds. The most important gap: unlike every sibling gate this section's evidence text is patterned on (`SELECT-001`, `SELECT-002`, `THREAT-001`, `COMMERCIAL-001`, `CUSTOMER-001`), which each ship a `tools/planning/cmd/*` binary and a live artifact under `definitions/planning/gates/*.yaml`, the entire `WEDGE-001`..`WEDGE-015` chain — partner manifest, baseline, native-capability assessment, field manifest, topology, adoption metric, cost evidence, thresholds, exit plan, approval, fixtures, promotion story, paid-use evidence, and both Gate A and Gate B decisions — has no CLI and no persisted artifact anywhere in the repo. `go list -deps` confirms none of `tools/planning/wedge`, `tools/planning/gateevidence`, or `internal/operations/wedge` is reachable from any `cmd/` binary. The "one signed manifest" and "one signed decision" the evidence text claims exist only inside `go test`, built from hardcoded `PLACEHOLDER_*` fixtures (e.g. `wedge.go:697`); there is no way today to actually run a Gate A or Gate B decision against real design-partner evidence.
+
+- [x] `REV-002-01` **[GATE_C][SOL_LOW] Add a CLI that compiles, signs and persists a real Gate A and Gate B wedge decision record.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_002_01` family in `tools/planning/cmd/wedge`; `go test -count=1 ./tools/planning/cmd/wedge/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=let a human actually execute the tested Gate A and Gate B wedge decisions against real evidence instead of only Go test fixtures`.
+  - **TEST:** `TestTodo_REV_002_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_002_01`; `GOLDEN=TestTodo_REV_002_01_Golden`; `FAULT=TestTodo_REV_002_01_Fault`; `CONFORMANCE=TestTodo_REV_002_01_Conformance`.
+  - **RED:** GAP against ticked `WEDGE-014` and `WEDGE-015`: `EvaluateGateADecision`/`EvaluateGateBDecision` and every `PartnerManifest`/`Baseline`/`NativeCapabilityAssessment`/`PilotFieldManifest`/topology/adoption/cost/threshold/exit/approval/fixture/story/paid-use type in `tools/planning/wedge` and `tools/planning/gateevidence` are exercised only by unit tests against hardcoded `PLACEHOLDER_*` values (`tools/planning/wedge/wedge.go:697`); no `tools/planning/cmd/*` binary and no `definitions/planning/gates/*.yaml` artifact exists for any of them, unlike `SELECT-001`, `THREAT-001`, `COMMERCIAL-001` and `CUSTOMER-001`, which each have both.
+  - **GREEN:** a `tools/planning/cmd/wedge` (or `gatedecision`) binary reads a real partner-manifest/evidence YAML tree, calls the existing pure evaluators, writes a signed `definitions/planning/gates/wedge-*.yaml` decision record, and re-verifies its own signature and digest on load.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/wedge/wedge.go`, `tools/planning/gateevidence/gatea_contracts.go`, `tools/planning/gateevidence/gateb_contracts.go`, `tools/planning/cmd/pilotcommercial/main.go` (pattern to follow).
+
+- [x] `REV-002-02` **[GATE_C][TERRA] Require a second independent design partner before treating Gate A/B PROCEED as repeatable commercial proof.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_002_02`, `TestTodo_REV_002_02_Golden` in `tools/planning/wedge`; `go test -count=1 ./tools/planning/wedge/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COMMERCIAL; DIRECT=none; WHY=stop one customer feasibility result from being read as proof the wedge generalizes to the target market`.
+  - **TEST:** `TestTodo_REV_002_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_002_02`; `GOLDEN=TestTodo_REV_002_02_Golden`.
+  - **RED:** NEW: nothing in `WEDGE-001`..`WEDGE-015`, `PILOT-001` or `COMMERCIAL-001` requires evidence from more than one partner manifest/topology before a `PROCEED` decision is used to justify a repeatable ICP claim; every manifest, baseline and decision type in `tools/planning/wedge` is scoped to exactly one `PartnerManifestRef`. The plan's own reuse discipline elsewhere (`planning/plan.md:1532`: a subsystem is promoted only after "a second domain proves reuse") is not applied to the commercial claim itself.
+  - **GREEN:** a `CommercialProofDecision` type requires at least two distinct, independently signed partner manifests with `PROCEED`/`CONDITIONAL_GO` Gate A or B decisions sharing the same qualified problem class before it returns `MARKET_PROOF`; a single partner yields `SINGLE_CUSTOMER_ONLY` and blocks any repeatable-ICP claim.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/wedge/wedge.go`, [commercial hypotheses](plan.md#125-commercial-architecture-hypotheses), [Gate A qualification](execution-plan.md#gate-a--paid-design-partner-observation).
+
+### R003. §2 Go-only repository, toolchain and contract generation
+
+Checked TOOL-001 through TOOL-020 and TOOL-026 (lines 769-1005 of `planning/todos.md`): all are ticked, all named tests exist (`TestGoWorkspacePolicy`, `TestGeneratorLockRejectsFloatingVersion`, `TestSchemaFluxOfflineFixture`, `TestContractCompatibility`, `TestGeneratedClientParity`, `TestGRPCBridgeUnaryParity`, `TestTodo_TOOL_009/011/012/013/016/018/019/020`, `TestEnvironmentIsolation`, `TestSweepStaleRuntimesRemovesOnlyOldDeadRuntimes`, `TestReleaseContainsNoLegacyRuntime`, `TestSBOMCompleteness`), and the CI-facing checks (race-coverage policy, dependency admission, API compatibility) are genuinely invoked from `.github/workflows/tests.yml`, not just present as unit tests. `go.mod` confirms the single-module, pinned-Go-1.26.3 layout TOOL-001 requires, with no `go.work`. The one substantive gap: TOOL-007's own evidence promised a follow-up ("delete the superseded hand-written `internal/transport/edge/client.go`") that was never done, and the generated client it was meant to replace (`internal/transport/clients`) is dead code — imported by nothing outside its own test files — while the hand-written client remains what the doc comments still describe as the live implementation. A second, narrower issue: TOOL-020's rolling-upgrade protocol package is not imported by any `cmd/*` binary or adapter anywhere in the tree, so its GREEN criterion ("old/new binaries interoperate") is unproven outside the isolated package tests.
+
+- [ ] `REV-003-01` **[GATE_C][TERRA] Delete the superseded hand-written edge client or make the generated capability clients the callers actually use.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=remove duplicate client implementations that drift out of sync with the canonical contract`.
+  - **TEST:** `TestTodo_REV_003_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_003_01`; `GOLDEN=TestTodo_REV_003_01_Golden`; `INTEGRATION=TestTodo_REV_003_01_Integration`.
+  - **RED:** GAP against `TOOL-007` (ticked 2026-09-03): its own evidence states "Follow-up: delete the superseded hand-written `internal/transport/edge/client.go`"; that file still exists (139 lines, `package edge`) and its doc comment still claims it is hand-written "because the repository's generation toolchain... does not include a connect generator" -- the opposite of TOOL-007's claimed resolution. `grep -rln "transport/clients\"" --include=*.go .` shows the generated package in `internal/transport/clients` is imported only by its own `harness_test.go`/`proto006_test.go`/`tool007_test.go`; `grep -rln "NewIntentClient\|NewRegistryClient"` shows no production caller of either client anywhere in the tree.
+  - **GREEN:** exactly one `IntentClient`/`RegistryClient` implementation exists in the tree; it is either the generated one (with the hand-written duplicate deleted) or the plan is amended to record why both are kept, and `tools/gen/clients`'s drift check (`TestGeneratedClientsCurrent`) covers whichever one is canonical.
+  - **REFACTOR:** fold any caller-side convenience helpers from the deleted file into the surviving package so no behavior is lost.
+  - **Refs:** `internal/transport/edge/client.go`, `internal/transport/clients/intent_client.go`, `internal/transport/clients/registry_client.go`, `tools/gen/clients/write.go`.
+
+- [ ] `REV-003-02` **[GATE_C][TERRA] Wire the schema/binary rolling-upgrade protocol into an actual adapter or binary before treating TOOL-020 as more than a protocol proof.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=prove the rolling upgrade protocol against a real journal and binary rather than only its pure package tests`.
+  - **TEST:** `TestTodo_REV_003_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_003_02`; `INTEGRATION=TestTodo_REV_003_02_Integration`; `RECOVERY=TestTodo_REV_003_02_Recovery`; `FAULT=TestTodo_REV_003_02_Fault`.
+  - **RED:** GAP against `TOOL-020` (ticked, evidence 2026-09-15): `grep -rln "platform/schemaupgrade" --include=*.go .` returns zero non-test files -- `internal/platform/schemaupgrade` is imported by no `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler`, or `cmd/migrate` code (`go list -deps` of all four confirms none reach the package). TOOL-020's own GREEN text ("old/new binaries interoperate through the declared window; rollback restores service without history mutation or duplicate effect") is unproven against any durable journal or running binary; its latest evidence concedes this ("adapters persist the journal and multi-binary deployment interop remains an adapter-conformance concern") but no todo item owns that follow-up work.
+  - **GREEN:** at least one adapter (e.g. `cmd/migrate` or a worker-side upgrade coordinator) persists the schemaupgrade journal durably and drives a real version transition end to end, with the recovery/fault suites exercising process-kill-and-resume against that adapter rather than only the in-memory protocol type.
+  - **REFACTOR:** keep the pure protocol package side-effect-free; put persistence and process wiring in a new adapter package under `internal/platform` or `internal/data`.
+  - **Refs:** `internal/platform/schemaupgrade`, [rolling upgrade](plan.md#gate-b-acceptance--limited-write-authority), `planning/todos.md#L994-L1005`.
+
+### R004. §3 Canonical values, schemas, registries and model coverage
+
+Checked all 30 `MODEL-*` items (lines 1517-1853: canonical identifiers, presence, decimal/time primitives, canonical envelope/digest, the fourteen-definition registry, entity/aggregate/relationship/lifecycle registries, schema and reference-data release, provenance/authority/identity, classification/quality, transaction invariants, records/retention/legal-hold/deletion, artifact storage, coverage report). All named packages exist and build (`go build` clean); most named `TestTodo_MODEL_*`/`FuzzTodo_MODEL_*` functions were found by grep and the sampled ones are wired into `cmd/hcmnext` and `cmd/worker` via `go list -deps`. Two of six deeply-sampled items have real problems. First, `MODEL-025`'s committed transaction-invariant checker declares and implements five invariant codes (manager cycle, employment/assignment overlap, position over-capacity, currency mismatch, cross-tenant reference) in `internal/domains/promotion/localcommit/localcommit.go`, but `localcommit_test.go` — the only test file in the package, and the one holding `TestTodo_MODEL_025` — exercises only the cross-tenant case; the other four detection paths have zero test coverage anywhere in the repo, contradicting the item's own RED clause. Second, `internal/governance/records` (MODEL-026 retention, MODEL-028 verified deletion, plus the related `RECORDS-COPY-001`/`RECORDS-HOLD-001`/`PRIV-004` outside this section) and `internal/governance/legalhold` (MODEL-027) are well-tested libraries with zero non-test importers anywhere in the repository — not one `cmd/*` binary, workflow, or scheduled job calls them, so retention disposition, legal holds and verified deletion are unreachable from any running process despite being ticked `[x]` at Gate B/Gate C. A minor, non-ticketed note: the MODEL-006/MODEL-007 evidence lines cite `internal/kernel/canonical` and `internal/kernel/digest`, which no longer exist; the code lives at `internal/engines/wire/canonical` and `internal/engines/wire/digest` (confirmed present, building, and passing) — stale evidence text, not a functional gap.
+
+- [x] `REV-004-01` **[GATE_B][SOL_HIGH] Add missing invariant tests for manager cycle, assignment overlap, position capacity and currency mismatch in the promotion commit checker.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_004_01` family in `internal/domains/promotion/localcommit`; `go test -count=1 ./internal/domains/promotion/localcommit/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=close a verified test coverage gap in the committed promotion transaction invariant checker`.
+  - **TEST:** `TestTodo_REV_004_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_004_01`; `GOLDEN=TestTodo_REV_004_01_Golden`; `PROPERTY=TestTodo_REV_004_01_Property`; `MUTATION=TestTodo_REV_004_01_Mutation`.
+  - **RED:** GAP against `MODEL-025`: `internal/domains/promotion/localcommit/localcommit.go` defines `InvariantManagerCycle`, `InvariantEmploymentAssignment`, `InvariantPositionCapacity` and `InvariantCurrencyMismatch` (lines 291-351) but a repo-wide grep for those identifiers in any `_test.go` file returns nothing outside their own declaration; only `InvariantCrossTenantReference` is exercised by `localcommit_test.go`, so four of the five vectors MODEL-025's own RED clause promises are unverified.
+  - **GREEN:** `localcommit_test.go` gains one fixture per remaining invariant (a manager chain that cycles back to the promoted worker, an assignment interval not covered by employment, a position pushed over capacity, and mismatched compensation/budget currencies) that each abort commit with the matching `InvariantFinding` and no authoritative append, mirroring the existing cross-tenant case.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/promotion/localcommit/localcommit.go`, `internal/domains/promotion/localcommit/localcommit_test.go`, [transaction plan](specs/transaction-plan-and-commit-coordinator.md).
+
+- [ ] `REV-004-02` **[GATE_C][SOL_HIGH] Wire governed retention, legal-hold and verified-deletion into a running service entry point.**
+  - **Depends:** `MODEL-026`, `MODEL-027`, `MODEL-028`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.ALL; DIRECT=none; WHY=give privacy deletion and retention obligations an operational entry point instead of leaving them library only`.
+  - **TEST:** `TestTodo_REV_004_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_004_02`; `GOLDEN=TestTodo_REV_004_02_Golden`; `SECURITY=TestTodo_REV_004_02_Security`; `INTEGRATION=TestTodo_REV_004_02_Integration`; `RECOVERY=TestTodo_REV_004_02_Recovery`.
+  - **RED:** GAP against `MODEL-026`, `MODEL-027`, `MODEL-028` (all ticked): `grep -rl "governance/records\"" --include=*.go` and the same for `"governance/legalhold\""` across `internal/` and `cmd/` return zero matches outside the packages' own test files, and `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` never lists either package; retention disposition, legal-hold enforcement and `ExecuteDeletion` are therefore unreachable from every binary the platform ships.
+  - **GREEN:** at least one running cell (an admin/HRIS endpoint, a scheduled disposition job, or the workflow runtime) calls `records.ExecuteDeletion`/legal-hold evaluation on a real request path, with an integration test that starts from an HTTP or scheduler entry point and asserts a certificate/finding is produced and persisted, not just that the library function returns correctly under unit test.
+  - **REFACTOR:** the wiring is a thin adapter; no change to the existing evaluator/certificate logic.
+  - **Refs:** `internal/governance/records/deletion.go`, `internal/governance/records/restore.go`, `internal/governance/legalhold`, [records management](specs/records-management-and-disposition.md), [foundation gap closure](specs/platform-foundation-gap-closure.md).
+
+### R007. §6 BusinessIntent, capabilities, governance and transaction integrity
+
+Checked CAP-001..003, INTENT-001..025, REPLAN-001..004, GOVERN-001..003, CONFLICT-001..003, APPROVAL-001..003 and TX-001..010 (lines 2762-3355): every referenced package/file exists and every named `TestTodo_*` function exists (sampled `CAP-001/002/003`, `INTENT-002/003/016/023`, `TX-004/006`, `CONFLICT-001/002` deeply; skimmed the rest). `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` confirms `internal/capability`, `internal/intent`, `internal/intent/approval`, `internal/intent/eventpolicy`, `internal/governance(/decision|/revalidate)`, `internal/transaction/{conflict,plan,commit,coordinator,idempotency,cancel}` and `internal/humanwork` are wired into running binaries, matching their ticks. The gap is a cluster of ticked GATE_B items that compile and pass their own unit tests but are never called from anywhere except their own `_test.go` files: `internal/replan`, `internal/engines/replan` (REPLAN-001–004), `internal/transaction/recovery` (TX-005) and `internal/transaction/correction` (TX-007), plus `internal/intent/analysis` (INTENT-020) and `internal/intent/surface` (INTENT-021). None of these appear in `go list -deps` for any of the four binaries or `cmd/hcmctl`, and a repo-wide grep for their exported entry points outside test files returns nothing. Most concretely, `internal/transaction/coordinator.Options.ResolveAmbiguous` — the exact hook TX-005's recovery resolver is meant to fill — is never set anywhere in production code, so a real commit-connection failure has no wired recovery path despite TX-004/TX-005 both being ticked complete.
+
+- [ ] `REV-007-01` **[GATE_B][SOL_HIGH] Wire the replan analysis, reuse and successor packages into the intent revalidation path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
+  - **TEST:** `TestTodo_REV_007_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_007_01`; `INTEGRATION=TestTodo_REV_007_01_Integration`.
+  - **RED:** GAP against REPLAN-001–REPLAN-004: `grep -rn "AnalyzeMaterialSubgraph(\|EvaluateReuse(\|CreateSuccessor(" --include=*.go .` (excluding `_test.go`) returns zero call sites in `internal/application`, `internal/intent` or `internal/workflow`; the packages compile and their own tests pass but no production code path invokes them when a control snapshot, budget or population input changes for an open proposal.
+  - **GREEN:** the proposal revalidation path (`GOVERN-003`'s revalidate step or the intent app layer) calls `internal/replan.AnalyzeMaterialSubgraph` on detected drift, feeds affected components to `internal/engines/replan.Compute`/`Invalidate` and `EvaluateReuse`, and routes a `CreateSuccessor` proposal to reapproval; an integration test changes a bound input under an approved proposal and observes a successor proposal appear without any test calling the replan packages directly.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/replan/analysis.go`, `internal/engines/replan/replan.go`, `internal/engines/replan/reuse.go`, `internal/intent/approval/successor.go`, [Change conflicts](specs/cross-workflow-conflict-and-write-intent.md).
+
+- [ ] `REV-007-02` **[GATE_B][SOL_HIGH] Wire the ambiguous-commit recovery resolver into the transaction coordinator's ResolveAmbiguous hook.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
+  - **TEST:** `TestTodo_REV_007_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_007_02`; `FAULT=TestTodo_REV_007_02_Fault`; `RECOVERY=TestTodo_REV_007_02_Recovery`.
+  - **RED:** GAP against TX-005: `grep -rn "ResolveAmbiguous:" --include=*.go .` matches nothing outside `internal/transaction/coordinator`'s own test files; `coordinator.Options.ResolveAmbiguous`, the exact seam `internal/transaction/recovery.Resolve` was built to fill, is never set in the live commit construction path, so a real connection failure during commit surfaces a bare `ErrCommitAmbiguous` instead of a resolved verdict.
+  - **GREEN:** the production commit-coordinator construction (in `internal/transaction/commit`) sets `Options.ResolveAmbiguous` to a closure over `recovery.Resolve` against the durable ledger/idempotency store; a fault-injection test that severs the connection immediately after prepare proves the coordinator's next attempt returns the recovered `COMMITTED`/`ABSENT` verdict rather than an unresolved ambiguous error.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transaction/coordinator/coordinator.go`, `internal/transaction/recovery/resolver.go`, `internal/transaction/commit/boundary.go`, [Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md).
+
+- [ ] `REV-007-03` **[GATE_B][SOL_HIGH] Expose append-only business correction through a governed operator capability.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
+  - **TEST:** `TestTodo_REV_007_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_007_03`; `INTEGRATION=TestTodo_REV_007_03_Integration`; `SECURITY=TestTodo_REV_007_03_Security`.
+  - **RED:** GAP against TX-007: `grep -rn "correction.Append(" --include=*.go .` matches only `internal/transaction/correction/correction_test.go`; no capability, intent operation kind or transport route reaches `correction.Append`, so the GREEN TX-007 claims (successor correction, reconciliation obligations) is unreachable from any channel, including the INTENT-022 operator/repair intent path that governs comparable material mutations.
+  - **GREEN:** a material operator-intent kind added to `internal/intent/operation.go` (alongside INTENT-022's other nine mutations) resolves through `AuthorizeOperatorAction`'s JIT/dual-control/simulation gates to `correction.Append`; an end-to-end test drives one correction from a governed `IntentInstance` through to the appended ledger row and reconciliation obligations with no bypass path.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transaction/correction/correction.go`, `internal/intent/operation.go`, [Ledger correction semantics](specs/transaction-ledger-reconciliation-and-repair.md).
+
+- [ ] `REV-007-04` **[GATE_B][SOL_HIGH] Route analysis-to-action recommendations and intent inspection surfaces through a transport boundary.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
+  - **TEST:** `TestTodo_REV_007_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_007_04`; `INTEGRATION=TestTodo_REV_007_04_Integration`; `CONFORMANCE=TestTodo_REV_007_04_Conformance`; `GOLDEN=TestTodo_REV_007_04_Golden`.
+  - **RED:** GAP against INTENT-020 and INTENT-021: a repo-wide grep for `intent/analysis"` and `intent/surface"` imports outside their own `_test.go` files returns nothing in `internal/transport`, `cmd/*` or `internal/intent/app`; `RecommendAction` and the deep-link/search/timeline/inspector/cancel/supersede/correct/escalate surface are exercised only by their own unit tests, so no UI, agent, or API caller can reach either ticked capability.
+  - **GREEN:** `internal/transport` (grpcserver or edge) exposes typed routes for `AnalyticalRequest`/`RecommendAction` and for the surface reads/actions, each entering through `CAP-002`'s gateway on the single invocation path `INTENT-013` already proves for other features; extending `tools/policy/invocationpath`'s route-manifest conformance check confirms both packages appear in the enabled-route set with zero direct-call bypass.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/intent/analysis/analysis.go`, `internal/intent/surface/surface.go`, `tools/policy/invocationpath/invocationpath.go`, [Plane model](specs/platform-plane-model.md).
+
+### R008. Section 7: Workflow compiler and all 17 primitive step types
+
+Checked all 23 items (WF-COMP-001..006, WF-STEP-001..017) against `internal/workflow`, `internal/workflow/version`, `internal/workflow/parallel`, `internal/workflow/steps/{approval,task,wait,signal,compensate,subworkflow}` and `go list -deps` over the four binaries. Every named `TestTodo_WF_COMP_*`/`TestTodo_WF_STEP_*` primary test exists and the compiler, version-publication and most step packages (APPROVAL, WAIT, SIGNAL, DECISION, CAPABILITY, TRANSFORM, OBSERVE, END) are both implemented and reachable from `cmd/hcmnext`. COMPENSATE is already tracked as unwired by `WF-REV-002` (do not duplicate). The one gap not yet tracked: the served TASK step (`promotionexec.NodeReapproval`, dispatched through `internal/platform/execution/promotionsteps` and resumed by `internal/workflow/execute/resume.go`) never calls `internal/workflow/steps/task` — it uses a hand-rolled `checkWorkItemDrift` that skips the package's schema validation, accessibility/accommodation enforcement, form rendering and tamper-evident submission digesting that WF-STEP-004's own Golden/Conformance/Browser/Security tests certify. `internal/workflow/steps/task` has zero non-test importers anywhere in the repo (confirmed by `go list -deps` and `grep`), so a fully tested, GATE_B-closed step type is running unenforced in production.
+
+- [ ] `REV-008-01` **[GATE_B][SOL_HIGH] Wire the served TASK node through internal/workflow/steps/task instead of the ad hoc drift check.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=the certified TASK step contract must govern the one production TASK node instead of a duplicate hand-rolled check`.
+  - **TEST:** `TestTodo_REV_008_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_008_01`; `INTEGRATION=TestTodo_REV_008_01_Integration`; `SECURITY=TestTodo_REV_008_01_Security`.
+  - **RED:** GAP: WF-STEP-004 is ticked GATE_B with `_Browser`/`_Security`/`_Conformance` evidence for `internal/workflow/steps/task` (`Submit`, `RenderForm`, `Resolve`), but `internal/workflow/execute/resume.go:208` (`checkWorkItemDrift`) resumes the served `NodeReapproval` TASK node without calling `task.Submit` or `task.Resolve`; `grep -rln "workflow/steps/task\"" --include=*.go .` (excluding `_test.go`) returns no production caller, and the package is absent from `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler`.
+  - **GREEN:** `execute.Driver`'s TASK resume path calls `task.Resolve`/`task.Submit` for its typed submission, schema and accessibility-acknowledgement checks and its tamper-evident digest, so a submission that fails schema validation or omits the accommodation acknowledgement is refused before the advance commits; `internal/workflow/steps/task` appears in the binary's dependency graph.
+  - **REFACTOR:** delete `checkWorkItemDrift`'s duplicate validation once the package covers the same invariants, keeping only the instance/version/tenant binding checks that are specific to the resume envelope.
+  - **Refs:** `internal/workflow/execute/resume.go`, `internal/workflow/steps/task/submit.go`, `internal/workflow/steps/task/resolve.go`, `internal/platform/execution/promotionsteps/promotionsteps.go`.
+
+### R009. §8 Durable workflow runtime, recovery and intervention
+
+Reviewed `planning/todos.md` lines 3627-4021 (`WF-RUN-000` through `WF-RUN-033`, excluding the out-of-range `WF-RUN-026`) plus `specs/workflow-runtime.md` and the referenced source packages. The core runtime (persistence, leases, recovery, timers, signals, retry, poison quarantine, replay, cancellation, currency/materiality checks, advancement receipts) is genuinely implemented and composed into the served cell; `go list -deps` over `cmd/hcmnext`, `cmd/worker`, `cmd/projector` and `cmd/scheduler` confirms `internal/workflow/recover`, `internal/workflow/inspect` and `internal/workflow/intervention` are all in the running binaries' dependency graphs, and grep confirms `internal/data/signals.Store.Receive` now has a production caller (`internal/intent/app/journey_acknowledge.go`, wired through `internal/transport/journey/server.go`), closing the limit the ticket's own 2026-09-15 evidence had flagged as still open. Compensation/compensation-runner gaps in `WF-RUN-010`/`WF-RUN-015`/`WF-RUN-016` are intentionally not raised here per the round instructions (covered by §77-§78). The most important finding: `internal/workflow/migrate` (`WF-RUN-018`) and `internal/workflow/migrationpreview` (`WF-RUN-017`) are ticked GREEN but have zero production callers anywhere in the tree — `go list -deps` on all four binaries returns nothing for either package, and the only non-test, non-self caller of `migrationpreview.Preview` is `internal/workflow/quarantine`, itself an orphaned package nothing else imports. Both tickets' entire capability is unreachable from any running surface.
+
+- [ ] `REV-009-01` **[GATE_C][SOL_HIGH] Wire workflow migration preview and execution into a served operator surface.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=an approved workflow-version migration must be reachable from a running binary and not only from unit tests`.
+  - **TEST:** `TestTodo_REV_009_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_009_01`; `INTEGRATION=TestTodo_REV_009_01_Integration`; `FAULT=TestTodo_REV_009_01_Fault`; `RECOVERY=TestTodo_REV_009_01_Recovery`.
+  - **RED:** GAP against ticked `WF-RUN-017`/`WF-RUN-018`: `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` contains neither `internal/workflow/migrate` nor `internal/workflow/migrationpreview`; `grep -rn "migrate.Migrate(\|migrationpreview.Preview("` outside those packages' own files matches only `internal/workflow/quarantine/quarantine.go:226`, and that package itself has no importer outside its own directory (`WF-RUN-009`'s evidence already documents the live version registry moved to `internal/data/workflowversionstore`). No CLI command or admin/transport RPC exists to preview or execute a migration.
+  - **GREEN:** a served command (`hcmnext workflow-version migrate preview|execute`, alongside the existing `workflow-version list|quarantine|lift`) or an admin transport RPC composes `migrationpreview.Preview` and `migrate.Migrate` against real stores, both packages appear in `go list -deps` for the binary that hosts the command, and an end-to-end test drives a paused instance through preview then execute against embedded PostgreSQL.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/migrate/migrate.go`, `internal/workflow/migrationpreview/preview.go`, `internal/transport/admin/hcmctl`, [Workflow migration](specs/workflow-runtime.md).
+
+- [ ] `REV-009-02` **[GATE_C][SOL_HIGH] Expose skip, satisfy, override, rewind, supersede and reconcile interventions through an operator-reachable surface.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=an operator must be able to trigger every governed intervention kind the taxonomy defines and not only the four already wired to transport`.
+  - **TEST:** `TestTodo_REV_009_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_009_02`; `INTEGRATION=TestTodo_REV_009_02_Integration`; `FAULT=TestTodo_REV_009_02_Fault`.
+  - **RED:** GAP against ticked `WF-RUN-015`, whose own 2026-09-15 evidence states "there is no transport RPC yet"; confirmed still true for six of the ten kinds. `internal/transport/workflow/control.go` exposes only `PauseWorkflow`, `ResumeWorkflow`, `CancelWorkflow` and `RetryNode`. `grep -rln "intervention\." internal/transport` returns nothing, and `grep -rn "intervention.Skip\|intervention.Satisfy\|intervention.Override\|intervention.Rewind\|intervention.Supersede\|intervention.Reconcile" internal cmd` (excluding tests) matches only `internal/intent/operator/workflowcontrol/intervention.go` itself — no transport handler, admin RPC or `hcmctl` command constructs any of these six kinds.
+  - **GREEN:** a transport RPC or `hcmctl` command exists per remaining kind (or one generic `InterveneWorkflow(kind, ...)` endpoint covering all ten), each reachable end to end from the composed cell through `workflowcontrol.Controller`, and the six previously untriggerable kinds each have a passing integration test driving them from that surface.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/intervention/intervention.go`, `internal/intent/operator/workflowcontrol/intervention.go`, `internal/transport/workflow/control.go`, [Intervention model](plan.md#16-strategic-decisions).
+
+- [ ] `REV-009-03` **[GATE_B][SOL_HIGH] Route the admin instance view and journey inspector through inspect.Load's full durable traversal.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=an operator viewing a live instance through the admin surface must see the same timer, lease, checkpoint, outbox and reconciliation evidence inspect.Load already proves out`.
+  - **TEST:** `TestTodo_REV_009_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_009_03`; `INTEGRATION=TestTodo_REV_009_03_Integration`; `SECURITY=TestTodo_REV_009_03_Security`.
+  - **RED:** GAP against ticked `WF-RUN-019`, whose own evidence names this exact open item ("REFACTOR still open: internal/transport/admin and internal/intent/app/workflow_inspector.go still build views from rows they load themselves and should move to inspect.Load"). Confirmed unresolved: `internal/intent/app/workflow_inspector.go`'s `WorkflowInstanceReader` loads only the instance row, node executions, work items and transitions; `internal/transport/admin/instance.go:60` calls `inspect.Build` over that narrow record, not `inspect.Load`, so the admin operator view carries none of `inspect.Load`'s timer history, retry-backoff state, lease history, latest checkpoint, outbox rows or reconciliation jobs, and performs no version-digest re-verification.
+  - **GREEN:** `internal/transport/admin/instance.go` and `internal/intent/app/workflow_inspector.go` obtain their record through `inspect.Load` (or a thin shared adapter over it) instead of `WorkflowInstanceReader`, so the rendered admin view carries the same manifest states (LOADED, NOT_RECORDED, REDACTED, INTEGRITY_FAILED, UNAVAILABLE) for timers, leases, checkpoints, outbox and reconciliation that `TestTodo_WF_RUN_019_DurableInspection` already proves for the durable path, and a non-disclosable instance is refused before any read exactly as `inspect.Load` refuses it today.
+  - **REFACTOR:** `WorkflowInstanceReader` is retired once both callers move, so the record shape is defined once.
+  - **Refs:** `internal/transport/admin/instance.go`, `internal/intent/app/workflow_inspector.go`, `internal/workflow/inspect/load.go`, [Execution inspector](specs/workflow-runtime.md).
+
+### R010. Human work, approvals, forms and deterministic business rules
+
+Reviewed WORK-001 through WORK-011, FORM-001 through FORM-004, and RULE-001 through RULE-004 (lines 4023-4195). The WorkItem lifecycle, assignment, exclusive claim, reassignment, authority recheck, SLA clock, profile-photo ingest and the CEL-backed rules/decision-table engine all have real packages under `internal/humanwork/...` and `internal/engines/rules`, every named test exists and the WorkItem and rules packages are imported by `cmd/hcmnext` and `cmd/worker` rather than left library-only. FORM-001 through FORM-003 are correctly retired per the 2026-09-02 disposition and WORK-005 is correctly library-only per its DESIGN status. Two real gaps surfaced. RULE-004's execution-time re-evaluation function (`ReevaluatePromotionApproval`) is fully unit-tested but has zero callers outside `internal/engines/rules` itself; the actual execution driver's only material-change guard (WF-RUN-029's `CurrencyGuard`) checks proposal supersession and approval-binding digest match, never the rules engine, so a changed input that would move the required approval tier under the published threshold table is never re-evaluated before the terminal write. Separately, RULE-002/003's promotion approval-threshold table is one hardcoded global constant reached from every tenant's execution path, contradicting both the section's own disposition ("one threshold decision table from tenant configuration") and RULE-003's own source comment, because the tenant-parameter substrate that would carry a per-tenant override (`WF-DATA-036`-`038`) is still open.
+
+- [ ] `REV-010-01` **[GATE_B][SOL_HIGH] Call RULE-004's rule re-evaluation from the execution driver before every advance and terminal write.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=a changed rule input can move the required approval tier without ever being re-evaluated before the terminal write commits`.
+  - **TEST:** `TestTodo_REV_010_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_010_01`; `INTEGRATION=TestTodo_REV_010_01_Integration`; `GOLDEN=TestTodo_REV_010_01_Golden`.
+  - **RED:** GAP: contradicts ticked `RULE-004`. `ReevaluatePromotionApproval` (`internal/engines/rules/reevaluate.go`) has no call site outside `internal/engines/rules` and its own tests (grep for `Reevaluate` across `internal/` and `cmd/` turns up only unrelated `Reevaluate` functions in other packages plus this one's own file and test). The execution driver's only material-change check is `CurrencyGuard` (WF-RUN-029, `internal/workflow/execute/currency_guard.go`), which revalidates proposal supersession and approval-binding digest match through `intent/approval.MaterialResultEqual` and never calls the rules engine, so a changed input that keeps the same proposal and approval digests but would move the required approval tier under the currently published threshold table passes through uninspected.
+  - **GREEN:** at the same Resume and terminal-write points `CurrencyGuard.Check` already runs, the driver calls `ReevaluatePromotionApproval` against the currently published table version for every plan whose approval was resolved by a decision table; a CONFIRM result joins the existing continue path and an INVALIDATE result joins `CurrencyGuard`'s existing BLOCKED path, with the reevaluation's cited original and current table versions attached as evidence on the block.
+  - **REFACTOR:** the call lives inside `CurrencyGuard.Check` itself so WF-RUN-029's REFACTOR clause, that currency checks are never duplicated in step packages, still holds.
+  - **Refs:** `internal/engines/rules/reevaluate.go`, `internal/workflow/execute/currency_guard.go`, [human work forms and rules](specs/human-work-forms-and-rules.md).
+
+- [ ] `REV-010-02` **[GATE_C][SOL_HIGH] Resolve the Promotion approval-threshold table per tenant instead of one hardcoded global table.**
+  - **Depends:** `WF-DATA-036`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL,BI.TENANT; DIRECT=none; WHY=every tenant currently shares one hardcoded approval-threshold table even though the plan requires it to be tenant configuration`.
+  - **TEST:** `TestTodo_REV_010_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_010_02`; `GOLDEN=TestTodo_REV_010_02_Golden`; `PROPERTY=TestTodo_REV_010_02_Property`.
+  - **RED:** GAP: contradicts ticked `RULE-003` and the section's own disposition line ("one threshold decision table from tenant configuration"). `internal/engines/rules/promotion.go`'s own comment states customer thresholds "are compiled rule/workflow configuration ... not a constant this engine hardcodes for every tenant," yet `PromotionApprovalThresholdTable()` takes no tenant argument and returns one fixed 10%/20% table; every production call site uses it unparameterized (`internal/platform/execution/promotionsteps/promotionsteps.go:688`, `internal/workflow/replay/rulescandidate.go:46`, `internal/workflow/simulate/decisions.go`). The tenant-parameter substrate that would carry a per-tenant override, `WF-DATA-036` through `WF-DATA-038`, is still open and its own RED already records that `internal/platform/config` "has no non-test importer outside its own packages."
+  - **GREEN:** `PromotionApprovalThresholdTable` takes a tenant scope and resolves `financeThreshold`/`executiveThreshold` and the table version from a published `WF-DATA-036`/`037` tenant parameter at `PINNED_AT_PUBLISH` or `PINNED_AT_START` binding, falling back to the existing reference table only when no tenant override is published; two tenants with different published thresholds evaluating the identical raw increase percent receive different approval tiers, each decision citing its own resolved table version.
+  - **REFACTOR:** table construction stays a pure function of (tenant scope, published parameter revision); no per-call side effects join the decision-table engine.
+  - **Refs:** `internal/engines/rules/promotion.go`, `internal/platform/execution/promotionsteps/promotionsteps.go`, `internal/platform/config`, [human work forms and rules](specs/human-work-forms-and-rules.md).
+
+### R012. §11 Authoritative data plane, ledger, projections and artifacts
+
+Checked all 27 `DATA-*` items (DATA-001 through DATA-025, skipping unused numbers) against the packages under `internal/data/*`. Every referenced package exists and its named test function is present; `go list -deps` against the four running binaries (`cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler`) confirms `schema`, `ledger` (+`hashchain`/`checkpoint`/`evidence`/`temporal`), `bitemporal`, `outbox`, `projection`, `provenance`, `demoworkforce` and `workforce` are wired into a running binary. The most important finding: `internal/data/projection/critical.Apply` — the CAS-guarded, ledger-replayable materializer DATA-006 is ticked GREEN for — has zero non-test, non-comment callers anywhere in the repository. The live ledger-commit path (`internal/data/ledger/commit.Commit`) calls the generic `internal/data/projection.Apply`, which only advances a checkpoint sequence number; the actual `proposal_revision` row that DATA-006 claims to materialize from the ledger is instead written by a separate, directly-called, non-replayable insert (`intentcontrol.RevisionStore.Materialize`) from `internal/intent/app`. That silently breaks the rebuild/verify guarantees DATA-010 and DATA-012 promise for that table. Two smaller, related wiring gaps follow the same pattern: the read barrier (DATA-021) and the continuous invariant scanner (DATA-012) are both correct, tested libraries with no caller outside their own package.
+
+- [ ] `REV-012-01` **[GATE_B][SOL_HIGH] Wire the critical-projection materializer into the ledger commit path instead of a bypassing direct insert.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=make the ticked critical projection materializer the thing that actually writes the table it owns`.
+  - **TEST:** `TestTodo_REV_012_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_012_01`; `GOLDEN=TestTodo_REV_012_01_Golden`; `INTEGRATION=TestTodo_REV_012_01_Integration`; `MUTATION=TestTodo_REV_012_01_Mutation`.
+  - **RED:** GAP: DATA-006 (ticked) claims `internal/data/projection/critical.Apply` decodes IntentInstance/ProposalRevision protobufs into migration-00004 row shapes with CAS-guarded upsert; `grep -rn "\bcritical\." --include=*.go . | grep -v _test.go | grep -v internal/data/projection/critical/` matches only a doc comment (`internal/data/intentcontrol/facts.go:19`), never a real import or call. `internal/data/ledger/commit/commit.go:17,93-103` imports and calls `internal/data/projection.Apply` (checkpoint-only) instead. The `proposal_revision` row is actually written by `intentcontrol.RevisionStore.Materialize`, called directly from `internal/intent/app/proposal_facts.go:252` and `internal/intent/app/journey_candidates.go:274`, entirely outside the ledger-commit transaction's projection step and outside anything DATA-010/DATA-012 replay or scan.
+  - **GREEN:** the ledger-commit path (or its `internal/intent/app` caller) invokes `projection/critical.Apply` for the IntentInstance/ProposalRevision stream so the same-transaction, CAS-guarded, ledger-replayable projection is what produces `proposal_revision`/`intent_instance` rows; `DATA-010`'s rebuild and `DATA-012`'s scan actually reconstruct/verify those rows from the ledger; `RevisionStore.Materialize` is removed or reduced to a thin call into the same decode path so there is exactly one writer.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/projection/critical/apply.go`, `internal/data/ledger/commit/commit.go`, `internal/data/intentcontrol/facts.go`, `internal/intent/app/proposal_facts.go`.
+
+- [ ] `REV-012-02` **[GATE_B][SOL_HIGH] Enforce the projection read barrier at a real workflow or domain read call site.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=make the read barrier something dependent reads actually pass through rather than an unused library`.
+  - **TEST:** `TestTodo_REV_012_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_012_02`; `INTEGRATION=TestTodo_REV_012_02_Integration`; `FAULT=TestTodo_REV_012_02_Fault`.
+  - **RED:** GAP: DATA-021 (ticked) claims a caller declares required source transaction/stream heads and gets back authorized data at-or-after the minimum watermark or a typed `STALE`/`DEGRADED`/`UNAVAILABLE`/`REBUILDING`/`TIMEOUT`. `internal/data/projection/barrier.go` defines `Check`, `Await` and `SetStatus`, but `grep -rln "projection\.Check\|projection\.Await\|BarrierStatus" --include=*.go . | grep -v internal/data/projection/` returns nothing: no workflow runtime, intent app, or domain read path calls it. Dependent reads proceed against whatever watermark the projection happens to be at.
+  - **GREEN:** at least one production read path that constructs workflow or intent-decision context (e.g. `internal/workflow/runtime` or `internal/intent/app`) calls `projection.Check`/`Await` with its own required heads before returning data, and surfaces the typed barrier statuses to its caller instead of reading the checkpoint/projection table directly.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/projection/barrier.go`, `internal/workflow/runtime`, `internal/intent/app`.
+
+- [ ] `REV-012-03` **[GATE_B][SOL_HIGH] Schedule the ledger invariant scanner as a recurring job in a running binary.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=make continuous verification actually continuous in the deployed system, not only in its own tests`.
+  - **TEST:** `TestTodo_REV_012_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_012_03`; `INTEGRATION=TestTodo_REV_012_03_Integration`; `RECOVERY=TestTodo_REV_012_03_Recovery`.
+  - **RED:** GAP: DATA-012 (ticked) claims the platform "continuously verifies" ledger and relational invariants via `internal/data/ledger/hashchain.Scan`. `grep -rn "hashchain\.Scan\b" --include=*.go . | grep -v _test.go` returns no matches: no job in `cmd/scheduler`, `cmd/worker` or `cmd/projector` invokes it, so nothing runs the scan on any cadence in any of the four running binaries.
+  - **GREEN:** one of the running binaries registers a recurring job that runs `hashchain.Scan` per tenant/partition on a configured cadence and routes the findings it already produces (gap/digest/orphan/provenance/duplicate, with affected set and severity) into the incident/repair path DATA-012 names, so degraded quality is actually detected in the running system.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/ledger/hashchain/scan.go`, `cmd/scheduler/main.go`.
+
+### R013. §12 Integration Platform and first design-partner connector
+
+Checked all 20 `INTG-*` items (lines 4613-4836): every Refs package exists (`internal/connectivity/{definition,connection,diagnostics,schemasnapshot,mapping,observe,operation,health,webhook,syncjob,mft}` plus Postgres adapters), and every `TestTodo_INTG_NNN` primary test function is present. `go list -deps` on the four cmd binaries shows only `internal/connectivity`, `internal/connectivity/delivery`, `internal/connectivity/fakeincumbent`, `internal/connectivity/observe` and `internal/connectivity/operation` reachable at all; `mapping`, `schemasnapshot`, `webhook`, `syncjob` and `mft` are library-only, which matches the section's own 2026-09-02 disposition demoting sync engine/webhooks/schema discovery/capacity manager to DESIGN, so that is not treated as a gap here. Two real gaps stood out on deep inspection: (1) `cmd/worker` wires the Gate B connector-operation journal — the thing INTG-011 through INTG-016 all depend on being durable — to an in-memory store even though a live Postgres pool and a tested Postgres adapter both already exist and sit unused; and (2) INTG-003 (credential diagnostics) and INTG-017 (connector health) are fully orphaned, called from nowhere in the repository, so the running pilot has no way to see connector health or diagnose a broken credential at all.
+
+- [ ] `REV-013-01` **[GATE_B][SOL_HIGH] Back the worker's connector operation journal with durable Postgres storage instead of memory.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION; DIRECT=none; WHY=a worker restart during the planned-to-dispatched window must not lose the ConnectorOperation journal it already promised is durable`.
+  - **TEST:** `TestTodo_REV_013_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_013_01`; `INTEGRATION=TestTodo_REV_013_01_Integration`; `RECOVERY=TestTodo_REV_013_01_Recovery`; `FAULT=TestTodo_REV_013_01_Fault`.
+  - **RED:** GAP: contradicts ticked `INTG-011`, whose GREEN promises "planned/queued operation is durable... before a worker obtains dispatch lease" and whose evidence text claims "a crash after the journal but before the send is recoverable." `cmd/worker/main.go:258` unconditionally sets `connectorJournalStore := operation.NewMemoryJournal(nil)` even though a live pgx pool is already in scope a few lines earlier (`pgxTenantLister{pool: pool}`, main.go:218). The tested, migration-backed durable store `internal/data/connectivityopstore` (migration `00236_connector_operation_journal.sql`, append-only with a `forbid_mutation` trigger and forced RLS) has zero non-test importers anywhere in the repository (`grep -rl "connectivityopstore" --include=*.go .` returns only its own `store.go`/`store_test.go`). A worker process restart between journal write and dispatch send silently loses the operation, and everything downstream (`INTG-012` revalidation, `INTG-013` idempotent dispatch, `INTG-014` ambiguity handling, `INTG-016` redrive) assumes that state survives a restart.
+  - **GREEN:** `cmd/worker`'s connector-role workload persists the journal and ledger through `internal/data/connectivityopstore` (or an adapter satisfying the existing `connectorJournal`/`connectorLedger` seams) over the already-open pool; an integration test kills the worker mid-lease between journal commit and send and confirms the operation resumes from its persisted PLANNED/QUEUED state on restart rather than disappearing.
+  - **REFACTOR:** `connector_role.go`'s `connectorJournal`/`connectorLedger` interfaces already abstract the seam; only the constructor selection at `main.go:258` needs to switch to the durable adapter when a database URL is configured, keeping `MemoryJournal` only as the no-database dev fallback.
+  - **Refs:** `cmd/worker/main.go`, `internal/connectivity/operation/journal.go`, `internal/data/connectivityopstore/store.go`, `migrations/00236_connector_operation_journal.sql`, [Integration Platform](specs/integration-platform.md).
+
+- [ ] `REV-013-02` **[GATE_C][SOL_LOW] Wire connector diagnostics and health projections into an operator-reachable surface.**
+  - **Depends:** `INTG-003`, `INTG-017`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION; DIRECT=none; WHY=a design partner cannot see connector health or diagnose a broken credential if no caller anywhere reaches the code that reports it`.
+  - **TEST:** `TestTodo_REV_013_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_013_02`; `INTEGRATION=TestTodo_REV_013_02_Integration`; `SECURITY=TestTodo_REV_013_02_Security`.
+  - **RED:** GAP: contradicts ticked `INTG-003` (diagnose external credentials/permissions without leaking secrets) and `INTG-017` (publish connector health with causes/watermarks/impacted workflows). `internal/connectivity/diagnostics` (`Diagnose`) and `internal/connectivity/health` (`Project`) each have zero non-test importers anywhere in the repository, and neither appears in `go list -deps` for `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler` or `cmd/hcmctl`. Gate A's own acceptance bar requires that "source authority and every transformation remain visible" to the design partner, but there is currently no command or endpoint that invokes either package against a live `ConnectorConnection`.
+  - **GREEN:** `cmd/hcmctl` (or an existing operator HTTP surface already serving the pilot) exposes a command/endpoint that calls `diagnostics.Diagnose` and `health.Project` against a real `ConnectorConnection`, returning the typed findings and health report with no secret or credential material in the response, verified end to end against a test connection.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity/diagnostics/diagnostics.go`, `internal/connectivity/health/health.go`, `cmd/hcmctl`, [Connector test bench](specs/integration-platform.md), [incident management](specs/incident-management.md).
+
+### R006. Phase 1 People, organization, position, compensation and budget domains
+
+Checked that every Refs package for PEOPLE-001..004, ORG-001..003, POSITION-001..003, COMP-001..004, BUDGET-001/002, SNAPSHOT-001..003 and PROMO-001..013 exists and that all named `TestTodo_*` functions exist and are unique. `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` shows the section's read/write execution path (people, org, position, rewards, compensation, promotion, promotion/commit, promotion/localcommit, platform/execution/promotionsteps, platform/execution/promotionterminal, data/promotioncommit) reachable from the served binaries, but the section's own governed _decision_ layer is not: `internal/domains/promotion/snapshot`, `simassign`, `simcomp`, `simcontract`, `trace`, `internal/domains/budget`, `internal/domains/organization` and `internal/workflow/conformance/managerchange` have zero non-test importers anywhere and are absent from every served binary's dependency closure. `internal/intent/app/inputs.go`'s `FixtureInputs` — confirmed by the repo's own PROMOUX-004 evidence text as "the production propose path" — never calls `snapshot.Build`, `simassign`, `simcomp` or `simcontract`, so the PROMO-001..004 pipeline these tickets describe as GREEN is exercised only by its own unit tests. The most important gap: `POSITION-003` and `BUDGET-002`'s fenced reservations are never called from any production path (only from their own tests), so `internal/domains/promotion/localcommit`'s invariant check trusts caller-supplied capacity/currency numbers with no concurrency fence, leaving the exact "two competing reservations win" race those tickets were written to close.
+
+- [ ] `REV-006-01` **[GATE_B][SOL_HIGH] Wire ProposePromotion's production resolver to the governed snapshot and simulation pipeline instead of FixtureInputs.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=COMPOSITE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORKFORCE; DIRECT=none; WHY=the production promotion resolver must use the governed snapshot and simulation domains instead of an ungoverned fixture path`.
+  - **TEST:** `TestTodo_REV_006_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_006_01`; `INTEGRATION=TestTodo_REV_006_01_Integration`; `GOLDEN=TestTodo_REV_006_01_Golden`.
+  - **RED:** GAP against ticked `PROMO-001`-`PROMO-004`, `SNAPSHOT-001`-`SNAPSHOT-003` and `BUDGET-001`. `internal/intent/app/inputs.go`'s `FixtureInputs` is the production `ProposePromotion` resolver (per its own `planning/todos.md` PROMOUX-004 evidence: "the production propose path (FixtureInputs) passes none today"). Repo-wide grep for non-test importers of `internal/domains/promotion/snapshot`, `simassign`, `simcomp`, `simcontract`, `internal/domains/budget` and `internal/domains/organization` returns none outside those packages themselves, and `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` omits all of them. This contradicts PROMO-001's GREEN ("one immutable `PromotionInputSnapshot` binds every source revision/observation") and BUDGET-001's typed budget authority: the live journey never builds either.
+  - **GREEN:** `ProposePromotion`'s application resolver builds its baseline through `internal/domains/promotion/snapshot.Build`, runs `simassign`/`simcomp` to produce the `SimulationResult` `simcontract.Validate` requires, and `commit`/`localcommit` execute against that digest; `go list -deps ./cmd/hcmnext` then includes `promotion/snapshot`, `simassign`, `simcomp`, `simcontract` and `domains/budget`; an integration test proves a promotion against an exhausted live compensation pool is refused before commit, not only caught after the fact by `localcommit`'s invariant check.
+  - **REFACTOR:** delete or rename `FixtureInputs` to mark it test-only once the resolver depends on the real snapshot builder.
+  - **Refs:** `internal/intent/app/inputs.go`, `internal/domains/promotion/snapshot/build.go`, `internal/domains/promotion/simassign/simulate.go`, `internal/domains/promotion/simcomp/simulate.go`, `internal/domains/promotion/simcontract/contract.go`, `internal/domains/budget`, [Promotion reference](reference-workflows/promote-into-management.md).
+
+- [ ] `REV-006-02` **[GATE_B][SOL_HIGH] Fence position and budget reservations before the promotion commit instead of trusting caller-supplied capacity numbers.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=COMPOSITE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORKFORCE; DIRECT=none; WHY=concurrent promotions must not both pass a stale capacity check and overbook one position or compensation pool`.
+  - **TEST:** `TestTodo_REV_006_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_006_02`; `RACE=TestTodo_REV_006_02_Race`; `SECURITY=TestTodo_REV_006_02_Security`.
+  - **RED:** GAP against ticked `POSITION-003` and `BUDGET-002`. `internal/domains/position.PositionReservationStore.Reserve` and `internal/domains/budget`'s `REQUESTED->HELD` reservation lifecycle have zero non-test callers anywhere under `internal/intent`, `internal/platform` or `internal/domains/promotion` (grep confirms). `internal/domains/promotion/localcommit.EvaluateInvariants` only checks currency match and a capacity boolean the caller supplies in `InvariantInput`; two concurrent `ProposePromotion` calls targeting the last open head on one position each read their own `PositionFacts` snapshot, both see capacity available, and both can reach commit. This directly contradicts POSITION-003's own RED case ("two competing reservations win") and BUDGET-002's fenced lifecycle, both ticked but never invoked from the execution path.
+  - **GREEN:** the admitted proposal holds a `PositionReservationStore.Reserve` and a budget reservation keyed to the proposal digest before commit is attempted; `localcommit.Commit` refuses to proceed without a live, unexpired reservation for that exact digest; a concurrency test starting two promotions for the last open headcount on one position proves exactly one commits and the other receives the typed reservation conflict rather than a duplicate successful commit.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/position/reservation.go`, `internal/domains/budget`, `internal/domains/promotion/localcommit/localcommit.go`, [Position contract](specs/position-and-headcount-domain.md), [Budget authority](specs/workforce-budget-authority.md).
+
+### R011. §10 Phase 1 messaging and secure inbox slice
+
+Checked `MSG-001`-`MSG-013` (todos.md:4197-4344) against the packages they cite: `internal/messaging`, `internal/domains/audience`, `internal/engines/messagetemplate`, `internal/data/inbox`, `internal/operations/messagingdelivery`, `internal/data/inboundmsg`. All named packages and `TestTodo_MSG_00N` functions exist and the matrix tests referenced in evidence are present. `internal/messaging` and `internal/operations/messagingdelivery` are reachable from `cmd/hcmnext`/`cmd/worker`/`cmd/scheduler` (`go list -deps`) through `internal/workflow/execute/message_gate.go` and `internal/humanwork/workitem/compartment.go`, so the intent/template/delivery-state/redaction machinery is at least library-plus-caller, not orphaned. Two concrete gaps stand out: the audience-resolution and inbox-record packages that `MSG-002`/`MSG-005` claim GATE_B-complete are never called from the real approval-messaging path, and the `Provider` interface `MSG-006` depends on for actually sending email has no non-test implementation anywhere in the repo, so no build can send a real message. `MSG-003`, `MSG-009`, `MSG-011`-`MSG-013` are correctly scoped as DESIGN/Phase 2/3 and their being library-only is consistent with disposition.
+
+- [ ] `REV-011-01` **[GATE_B][SOL_HIGH] Wire audience resolution and the inbox record into the real approval-messaging gate.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.EXPERIENCE; DIRECT=none; WHY=close the gap between ticked audience and inbox capabilities and the gate that never calls them`.
+  - **TEST:** `TestTodo_REV_011_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_011_01`; `INTEGRATION=TestTodo_REV_011_01_Integration`; `SECURITY=TestTodo_REV_011_01_Security`.
+  - **RED:** GAP against ticked `MSG-002` (GATE_B/SOL_HIGH, audience resolution) and `MSG-005` (GATE_B/SOL_LOW, GREEN text at todos.md:4252 says the inbox record "is readable from the Promotion workspace under current AuthZ"). `grep -rl "internal/domains/audience" --include=*.go .` excluding tests returns only `internal/domains/survey/launch.go` (an unrelated survey campaign consumer); `grep -rl "internal/data/inbox\"" --include=*.go .` excluding tests returns only `tools/policy/substratecoverage/substratecoverage.go:89`, a string-literal allowlist entry, not a Go import. `internal/workflow/execute/message_gate.go:40`, the actual approval-notification gate wired into the running binaries, only checks `strings.EqualFold(req.Intent.AudienceExpression, "TEAM")` and a caller-supplied `EmployeeNotificationRecorded` bool; it never calls `audience.Resolve` or `internal/data/inbox`. `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/scheduler ./cmd/projector` confirms none of the four binaries reach `internal/domains/audience` or `internal/data/inbox`; `internal/humanwork/workspace` (the Promotion workspace built for `UX-002`) has no reference to `inbox` or `messaging` either.
+  - **GREEN:** `message_gate.go` (or its direct caller) resolves the current audience via `internal/domains/audience.Resolve` for every `AudienceExpression` before treating a notification obligation as satisfied, and every approval/task/determination message intent it settles writes a row through `internal/data/inbox`'s store so `internal/humanwork/workspace` can list it; a new integration test proves one approval notification produces exactly one inbox record visible only to its addressed recipient under current AuthZ, and is reachable from `go list -deps ./cmd/hcmnext`.
+  - **REFACTOR:** keep `audience.Resolve` and the inbox store as the only entry points; `message_gate.go` must not re-implement audience membership checks inline.
+  - **Refs:** `internal/workflow/execute/message_gate.go`, `internal/domains/audience/audience.go`, `internal/data/inbox/store.go`, `internal/humanwork/workspace`, [Messaging spec](specs/messaging-and-notification-plane.md#phase-1-boundary).
+
+- [ ] `REV-011-02` **[GATE_B][SOL_HIGH] Register a concrete email Provider adapter so transactional messages can actually be sent.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.EXPERIENCE; DIRECT=none; WHY=give the messaging capability a real provider adapter so approval email can actually leave the system`.
+  - **TEST:** `TestTodo_REV_011_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_011_02`; `INTEGRATION=TestTodo_REV_011_02_Integration`.
+  - **RED:** GAP against ticked `MSG-006` (GATE_B/SOL_HIGH, "Dispatch transactional email asynchronously"), whose REFACTOR note at todos.md:4264 says "provider adapter is replaceable and health-aware." `internal/operations/messagingdelivery/delivery.go:66` defines `type Provider interface { Send(context.Context, Delivery) (ProviderResult, error) }`, but `grep -rln "messagingdelivery.Provider\|) Send(" --include=*.go .` outside `_test.go` returns nothing, and `grep -rln "smtp\.\|sendgrid" internal --include=*.go .` outside tests returns nothing: the disposition at todos.md:4199 requires P1B to implement `MSG-006` "only for one template, one locale, one email adapter," and that one adapter was never built, so no build of `cmd/worker` or `cmd/scheduler` can deliver a real email.
+  - **GREEN:** a concrete `Provider` implementation for one named transport (e.g. SMTP or one ESP) lives under `internal/operations/messagingdelivery` or an adapter package it imports, is registered in `cmd/worker` (or `cmd/scheduler`) startup wiring, and is exercised end to end by an integration test that drives `messaging.Fulfill` through it against a local or fake transport.
+  - **REFACTOR:** keep the adapter behind the existing `Provider` interface; do not change `delivery.go`'s contract to accommodate it.
+  - **Refs:** `internal/operations/messagingdelivery/delivery.go`, `internal/operations/messagingdelivery/email.go`, [Async delivery](specs/messaging-and-notification-plane.md), [integration platform](specs/integration-platform.md).
+
+### R014. §13 HRIS DataOps and configuration lifecycle
+
+Checked all eleven items (`DATAOPS-001`–`008`, `CONFIG-001`–`003`): every named package (`internal/domains/dataops`, `internal/domains/dataops/importing`, `internal/platform/config`, `internal/platform/config/promotion`) exists, every `TestTodo_*`/`FuzzTodo_*` named in the matrices is present and the two package suites pass. The import pipeline (`DATAOPS-001`–`006`) and the drift detector (`DATAOPS-008`) are reachable from `cmd/hcmnext` per `go list -deps`; `internal/platform/config` and `internal/platform/config/promotion` (`CONFIG-001`–`003`) have zero non-test importers and are not in any `cmd/*` dependency graph, but that is already tracked outside this section by the open `WF-DATA-036` ("`internal/platform/config` has no non-test importer outside its own packages"), so it is not repeated here. The one real, undisclosed gap: the section's own disposition note claims P1A ships the effective-date debugger (`DATAOPS-007`) as one of four operator surfaces, but `internal/capability/bootstrap.go`'s `bootstrapDefinitions()` — the compiled-in list the code itself comments is "the eight executable P1A intent contracts" — never publishes `hcmnext.dataops.explain_field_history`, and `internal/intent/app/capabilities.go`'s dispatch switch has no case for it either; the only production call to `dataops.ExplainFieldHistory` is a single internal step inside `create_repair_plan`. No operator or automation can invoke the debugger on its own despite the ticked `[x]`/`GATE_A` claim and the disposition's explicit promise.
+
+- [ ] `REV-014-01` **[GATE_B][TERRA] Publish the effective-date debugger as its own P1A capability.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DIRECT; SETS=BI.DATAOPS; DIRECT=none; WHY=let an operator invoke the effective-date debugger directly instead of only as a hidden step inside create_repair_plan`.
+  - **TEST:** `TestTodo_REV_014_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_014_01`; `SECURITY=TestTodo_REV_014_01_Security`; `GOLDEN=TestTodo_REV_014_01_Golden`.
+  - **RED:** GAP against ticked `DATAOPS-007`: the section disposition (line 4909) names the effective-date debugger as one of four P1A operator surfaces, but `internal/capability/bootstrap.go` `bootstrapDefinitions()` lists exactly ten published P1A capabilities and `hcmnext.dataops.explain_field_history` is not among them; `internal/intent/app/capabilities.go`'s `domainHandlers.handlerFor` switch has no case for it; `grep -rn "dataops.ExplainFieldHistory(" --include=*.go .` outside test files returns one call site, `internal/intent/app/diagnostics.go:147`, reached only from `createRepairPlan`.
+  - **GREEN:** `bootstrapDefinitions()` publishes `hcmnext.dataops.explain_field_history` as a read-only capability, `handlerFor` dispatches it to a new handler that calls `dataops.ExplainFieldHistory` with the caller's authorization and returns the same `HistoryExplanation` an equivalent direct library call produces for an identical request; an unauthorized caller gets the same field-level redaction the library already proves in `TestTodo_DATAOPS_007_Security`.
+  - **REFACTOR:** `create_repair_plan` keeps its direct call to `ExplainFieldHistory` rather than routing through the capability gateway, since a plan must not depend on transport-layer indirection.
+  - **Refs:** `internal/capability/bootstrap.go`, `internal/intent/app/capabilities.go`, `internal/intent/app/diagnostics.go:147`, `internal/domains/dataops/history.go`, [Effective-date debugger](specs/hris-admin-dataops.md).
+
+### R015. §14 Tenant lifecycle, placement, sandbox and commercial pilot
+
+Checked all nine items (`TENANT-001..005`, `COMM-001..003`, `SANDBOX-001`, lines 5032-5134). Every referenced package (`internal/domains/tenant`, `internal/data/tenancy`, `test/tenant`, `internal/commercial`, `internal/platform/sandbox`, `internal/governance/exit`) exists and every named `TestTodo_*` function is present and grep-confirmed. `TENANT-001`/`TENANT-002` (placement, bootstrap) and `COMM-001..003` (entitlement gate, invoice/economic evidence) are genuinely wired: `go list -deps` shows `internal/domains/tenant`, `internal/data/tenancy` and `internal/commercial` reachable from `cmd/hcmnext`, `cmd/worker` and `cmd/scheduler`, and `internal/intent/app/commercial_entitlement.go` calls the commercial gate from the execution path. The important gap is the opposite pattern for the rest of the unit: `TENANT-003` (suspend/resume/close), `TENANT-005` (relocation, though explicitly Phase-1-excluded by its own REFACTOR clause) and especially `SANDBOX-001` and `TENANT-004`/`PRIV-EXIT-001` (exit rehearsal) are pure libraries — zero non-test callers anywhere in the repo, absent from `go list -deps` of every one of `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler` and `cmd/hcmctl`, and `hcmctl`'s own command switch (`internal/transport/admin/hcmctl/commands.go`) has no tenant, sandbox or exit subcommand at all. Several other ticked items (`WF-RUN-014`, `WF-EXT-014`, `CONN-RT-001`, `OPS-*`) declare `SANDBOX-001`/`TENANT-003` as dependencies in their INTENT CONTEXT metadata but their own code never imports those packages, so the "dependency" is documentation only.
+
+- [ ] `REV-015-01` **[GATE_C][TERRA] Wire SANDBOX-001's sandbox fence into a real admin transport command that creates and resets a sandbox tenant.**
+  - **Depends:** `SANDBOX-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=downstream workflow modes and operators need a runnable command not only a tested library to obtain a sandbox tenant`.
+  - **TEST:** `TestTodo_REV_015_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_015_01`; `INTEGRATION=TestTodo_REV_015_01_Integration`; `RECOVERY=TestTodo_REV_015_01_Recovery`.
+  - **RED:** GAP against `SANDBOX-001`. `grep -rn "internal/platform/sandbox\"" --include=*.go .` outside `internal/platform/sandbox/` itself returns nothing, and `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler ./cmd/hcmctl | grep sandbox` returns nothing; `internal/transport/admin/hcmctl/commands.go` implements only `list-intents`, `release-manifest`, `list-capabilities`, `explain-transaction`, `worker-state` and `instance`. The fence and emulator in `internal/platform/sandbox/fence.go` and `emulator.go` are real, working code that no running binary can reach.
+  - **GREEN:** a new admin transport command (for example `hcmctl sandbox reset --tenant <id>`) constructs the fence, resets the named synthetic Promotion sandbox to its baseline digest and returns the destruction/reset receipts `SANDBOX-001` already computes; the command's package appears in `go list -deps ./cmd/hcmctl`.
+  - **REFACTOR:** fence enforcement stays independent of the new command's own configuration, per `SANDBOX-001`'s original REFACTOR clause.
+  - **Refs:** `internal/platform/sandbox/fence.go`, `internal/platform/sandbox/sandbox.go`, `internal/transport/admin/hcmctl/commands.go`, [Sandbox and test-data platform](specs/platform-responsibility-boundaries.md#sandbox-and-test-data-platform).
+
+- [ ] `REV-015-02` **[GATE_C][SOL_HIGH] Wire TENANT-003's suspend, resume and close transitions into an operator-invokable admin command.**
+  - **Depends:** `TENANT-003`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TENANT; DIRECT=none; WHY=an operator must be able to actually revoke a tenant's authorization and sessions not only exercise the lifecycle in unit tests`.
+  - **TEST:** `TestTodo_REV_015_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_015_02`; `INTEGRATION=TestTodo_REV_015_02_Integration`; `SECURITY=TestTodo_REV_015_02_Security`.
+  - **RED:** GAP against `TENANT-003`. `grep -rn "\.Suspend(\|\.Resume(\|NewLifecycle(\|NewManager(" --include=*.go .` finds no caller of `internal/domains/tenant/lifecycle.go`'s `Lifecycle` outside its own file and its `_test.go`; no `internal/transport` or `internal/api` file imports `domains/tenant`, and `hcmctl`'s command switch has no tenant subcommand. A ticked GATE_B item claiming an operational capability has no path for an operator to reach it in the running system.
+  - **GREEN:** a new admin transport command (for example `hcmctl tenant suspend|resume|close --tenant <id> --reason ...`) loads the tenant's `Lifecycle`, applies the requested transition and reports the exact allowed/denied capabilities and revocation receipts the domain layer already computes; replaying the same idempotency key returns the original result and the command's package appears in `go list -deps ./cmd/hcmctl`.
+  - **REFACTOR:** commercial, security and legal suspension reasons remain distinct in the new command's output, per `TENANT-003`'s original REFACTOR clause.
+  - **Refs:** `internal/domains/tenant/lifecycle.go`, `internal/transport/admin/hcmctl/commands.go`, [Tenant lifecycle](specs/platform-responsibility-boundaries.md#tenant-provisioning-and-lifecycle).
+
+- [ ] `REV-015-03` **[GATE_C][SOL_HIGH] Wire TENANT-004's pilot exit rehearsal into an operator-invokable admin command.**
+  - **Depends:** `TENANT-004`, `PRIV-EXIT-001`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TENANT; DIRECT=none; WHY=the commercial pilot's exit commitment needs a real operator-run rehearsal not only a library a test file calls`.
+  - **TEST:** `TestTodo_REV_015_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_015_03`; `INTEGRATION=TestTodo_REV_015_03_Integration`; `RECOVERY=TestTodo_REV_015_03_Recovery`.
+  - **RED:** GAP against `TENANT-004` and `PRIV-EXIT-001`. `grep -rln "governance/exit" --include=*.go .` matches only files inside `internal/governance/exit/` itself; `go list -deps` of every `cmd/*` binary omits the package, and no `hcmctl` subcommand or transport RPC calls `Rehearse`. The Gate B "pilot exit rehearsal" the plan and `execution-plan.md#gate-b-acceptance--limited-write-authority` describe cannot currently be run by a person, only by `go test`.
+  - **GREEN:** a new admin transport command (for example `hcmctl tenant exit-rehearsal --tenant <id>`) drives `exit.Rehearse` end to end and prints the export/shutdown/revocation receipts, hold-exception list, restore re-delete plan and `CERTIFIABLE` verdict; the command's package appears in `go list -deps ./cmd/hcmctl`.
+  - **REFACTOR:** the new command performs no irreversible production destruction, per `TENANT-004`'s original REFACTOR clause.
+  - **Refs:** `internal/governance/exit/rehearsal.go`, `internal/transport/admin/hcmctl/commands.go`, [Tenant exit](specs/platform-responsibility-boundaries.md#tenant-exit-and-portability).
+
+### R016. §15 Privacy, records and processing lifecycle
+
+Checked all 12 items (`PRIV-001..011`, `RECORDS-COPY-001`, `RECORDS-HOLD-001`, `RECORDS-DISP-001`, `PRIV-EXIT-001`), all ticked. Every referenced package exists (`internal/governance/privacy`, `.../inventory`, `.../dispatch`, `internal/data/privacymeta`, `internal/data/recordsmeta`, `internal/governance/records`, `internal/governance/exit`, `internal/domains/privacy/dsr`) and their named tests are present and internally coherent (sampled `PRIV-003`, `RECORDS-COPY-001`, `RECORDS-HOLD-001`, `PRIV-005/006`, `PRIV-008/009/010/011` deeply). The section is library-only rather than delivered: `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler ./cmd/hcmctl` contains none of these packages, and a repo-wide grep for non-test imports finds only one live caller in the whole plane (`internal/data/recordsmeta` from `internal/data/ledger/disposition`), which itself is also absent from every `go list -deps` above. The most important gap: `PRIV-003`'s DLP/egress dispatch gate is never invoked by the actual external-write dispatch code (`internal/connectivity/operation/operation.go`'s `MemoryJournal.Dispatch`), so today a real connector call can leave the tenant with no transfer/region/DLP check at all, contradicting the ticked GREEN.
+
+- [ ] `REV-016-01` **[GATE_B][SOL_HIGH] Wire the PRIV-003 DLP egress gate into the live connector dispatch path.**
+  - **Depends:** `PRIV-003`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.INTEGRATION; DIRECT=none; WHY=enforce the signed DLP and transfer policy against every real external dispatch call so egress can be blocked not just simulated`.
+  - **TEST:** `TestTodo_REV_016_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_016_01`; `GOLDEN=TestTodo_REV_016_01_Golden`; `SECURITY=TestTodo_REV_016_01_Security`; `INTEGRATION=TestTodo_REV_016_01_Integration`.
+  - **RED:** GAP: `PRIV-003` is ticked GREEN claiming dispatch binds signed DLP/transfer policy snapshots to the operation digest, but `internal/connectivity/operation/operation.go:720` `MemoryJournal.Dispatch` calls `writer.Write` directly with no reference to `governance/privacy/dispatch`; `grep -rl "governance/privacy/dispatch" --include=*.go .` returns zero non-test callers anywhere in the repository.
+  - **GREEN:** the live external-write dispatch path resolves the current signed DLP/transfer policy snapshot for the operation's destination, processor, region and classification through `governance/privacy/dispatch` before calling the provider writer, and returns `EGRESS_BLOCKED` with durable evidence and zero provider call when the snapshot denies, matching `PRIV-003`'s own GREEN.
+  - **REFACTOR:** none, the policy-decision logic in `governance/privacy/dispatch` is reused as-is.
+  - **Refs:** `internal/connectivity/operation/operation.go`, `internal/governance/privacy/dispatch/dispatch.go`, [DLP and egress](specs/data-classification-and-dlp.md), [integration dispatch](specs/integration-platform.md).
+
+- [ ] `REV-016-02` **[GATE_C][SOL_HIGH] Compose the privacy governance and DSR packages into a served capability.**
+  - **Depends:** `PRIV-001`, `PRIV-005`, `PRIV-006`, `PRIV-007`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PRIVACY; DIRECT=none; WHY=expose data subject request intake and inventory backed disposition decisions to callers through the same served capability set as every other domain`.
+  - **TEST:** `TestTodo_REV_016_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_016_02`; `SECURITY=TestTodo_REV_016_02_Security`; `INTEGRATION=TestTodo_REV_016_02_Integration`.
+  - **RED:** GAP: `PRIV-001`, `PRIV-005`, `PRIV-006` and `PRIV-007` are ticked GREEN, but `internal/domains/privacy/dsr` and `internal/governance/privacy`/`.../inventory` have zero non-test callers anywhere in the repo (`grep -rl "domains/privacy/dsr" --include=*.go . | grep -v _test.go` and the equivalent for `governance/privacy"` and `governance/privacy/inventory` return empty), none of the four `cmd/*` binaries import them (`go list -deps` check), and `planning/specs/business-intent-catalog.md` names no data-subject-request or processing-inventory intent, so no served capability can accept or resolve an actual data subject request.
+  - **GREEN:** `internal/intent/app` (the composition point other served domains such as `internal/domains/people` register through, per `internal/intent/app/capabilities.go`) gains a privacy capability that routes DSR intake, item resolution and processor-certification through the same authorization and evidence pipeline as every other served intent; `go list -deps ./cmd/hcmnext` then contains `internal/domains/privacy/dsr` and `internal/governance/privacy/inventory`.
+  - **REFACTOR:** none, the domain and governance logic stays behind its existing package boundary.
+  - **Refs:** `internal/domains/privacy/dsr/intake.go`, `internal/governance/privacy/inventory/inventory.go`, `internal/intent/app/capabilities.go`, [Privacy intents](specs/business-intent-catalog.md), [privacy records](specs/records-management-and-disposition.md).
+
+### R017. Operations, assurance, overload and recovery
+
+Checked all 16 ticked items (OPS-001..006, ADMISSION-001/002, RECOVERY-001..004, TIME-001, CRYPTO-001, SUPPLY-001..004): every named package exists and every named test function is present and matches its claimed GREEN behavior on inspection of 6 sampled items. The gap is wiring, not correctness: `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` plus a full-repo grep for non-test importers shows `internal/operations/{reliability,slo,telemetry,telemetryhealth,advisory,drain,recovery}` and `internal/trust/cryptoagile` have zero callers anywhere outside their own package and tests, including the `hcmctl` operator CLI — only `admission`, `incidentstate`, `messagingdelivery`, `reconcile` and `repair` are reachable from a running binary or CLI. The most consequential instance: `OBS-004` (the live production telemetry-redaction evaluator inside `internal/platform/telemetry`, imported by `cmd/hcmnext/telemetry.go` and `cmd/worker/telemetry.go`) declares `Depends: OBS-002, OPS-002`, but its own evidence at `planning/todos.md:9293` shows it built an independent classify/cardinality/export evaluator that never imports `internal/operations/telemetry` — so `OPS-002` is a fully tested but functionally unused duplicate of the real enforcement path, and the plan's dependency graph is fictional at that edge.
+
+- [x] `REV-017-01` **[GATE_C][SOL_LOW] Resolve OPS-002's telemetry-policy package as a dead duplicate of OBS-004's live evaluator.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_017_01` family in `tools/policy/depedge`; `go test -count=1 -run 'TestTodo_REV_017_01' ./tools/policy/depedge/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS; DIRECT=none; WHY=make the telemetry privacy policy code path match what OBS-004 actually enforces in production instead of leaving a duplicate nothing calls`.
+  - **TEST:** `TestTodo_REV_017_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_017_01`; `SECURITY=TestTodo_REV_017_01_Security`; `INTEGRATION=TestTodo_REV_017_01_Integration`.
+  - **RED:** GAP: `OPS-002` (`internal/operations/telemetry`) is ticked complete with tests proving allowlist, cardinality and redaction behavior, but `grep -rl "operations/telemetry\"" internal/ cmd/ tools/` finds zero non-test callers, and `OBS-004` (`internal/platform/telemetry`, the package actually wired into `cmd/hcmnext` and `cmd/worker`) lists `Depends: OBS-002, OPS-002` while its own evidence text describes an independently built evaluator with no import of `internal/operations/telemetry`.
+  - **GREEN:** either `internal/platform/telemetry`'s evaluator is refactored to call `OPS-002`'s manifest/policy types so there is one enforcement path, or `OPS-002`'s package and OBS-004's `Depends` edge onto it are removed from the plan and the dead code deleted; `go list -deps ./cmd/hcmnext ./cmd/worker` then shows `internal/operations/telemetry` either genuinely present or absent, never claimed-but-unreachable.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/operations/telemetry`, `internal/platform/telemetry`, `internal/platform/telemetry/otel/doc.go`, [SLO contract](specs/slo-sli-error-budget.md).
+
+- [x] `REV-017-02` **[GATE_C][SOL_HIGH] Give an operator a real command path to the tested backup, restore and game-day recovery packages.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_017_02` family in `internal/operations/recovery/opcmd`; `go test -count=1 -run 'TestTodo_REV_017_02' ./internal/operations/recovery/opcmd/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** `RECOVERY-002`, `RECOVERY-003`, `RECOVERY-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS; DIRECT=none; WHY=give an operator an actual entry point to the tested restore and game day mechanics so a real incident can run a measured recovery`.
+  - **TEST:** `TestTodo_REV_017_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_017_02`; `FAULT=TestTodo_REV_017_02_Fault`; `RECOVERY=TestTodo_REV_017_02_Recovery`; `INTEGRATION=TestTodo_REV_017_02_Integration`.
+  - **RED:** GAP: `RECOVERY-001` through `RECOVERY-004` are ticked complete in `internal/operations/recovery` with passing named tests, but a repo-wide grep for `"operations/recovery\""` (including `cmd/hcmctl`, the operator CLI) finds zero non-test callers and `cmd/` has no backup or restore subcommand at all; the section's own P1B disposition at `planning/todos.md:5306` requires "a measured restore," yet nothing outside `go test` can invoke `DrillPilotRestore` or `ExecuteGameDay` today.
+  - **GREEN:** an `hcmctl` subcommand (or equivalent operator-invokable entry point) calls `RestoreTenant`/`DrillPilotRestore` against a named backup set and isolated target, and `ExecuteGameDay` against a named scenario, printing the same RPO/RTO/restored-count/tombstone evidence the package tests assert, so an on-call operator can run recovery without writing Go.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/operations/recovery`, `cmd/hcmctl`, [Recovery matrix](data/models/operations-production.md), [Cyber recovery](data/models/operations-production.md).
+
+- [x] `REV-017-03` **[GATE_B][SOL_HIGH] Trigger customer advisory publication and workload drain from the live incident and admission paths.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_017_03` family in `internal/operations/advisory`, `internal/data/jobs`, `internal/application`; targeted `go test -count=1 -run 'TestTodo_REV_017_03'` PASS in all three on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** `OPS-004`, `OPS-005`, `OPS-006`, `ADMISSION-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS; DIRECT=none; WHY=make a live incident actually notify tenants and make overload actually drain instead of leaving both tested packages uncalled`.
+  - **TEST:** `TestTodo_REV_017_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_017_03`; `INTEGRATION=TestTodo_REV_017_03_Integration`; `FAULT=TestTodo_REV_017_03_Fault`; `RACE=TestTodo_REV_017_03_Race`.
+  - **RED:** GAP: `OPS-004`'s incident state machine is live (imported by `internal/application/incident_alerts.go` and `internal/authn/outage/continuity.go`) and `ADMISSION-001`'s DEGRADE/REJECT decisions are live inside `internal/connectivity/edge/overload.go` and `internal/workflow/runtime/retry.go`, but a repo-wide grep for `"operations/advisory\""` and `"operations/drain\""` finds zero non-test callers anywhere, so a real `DETECTED`-to-`REVIEWED` incident never calls advisory publication and a real admission `DEGRADE` never calls drain `Begin`.
+  - **GREEN:** an incident transition into its customer-facing state calls `OPS-005`'s advisory publication with the incident's scoped affected set, and an admission `DEGRADE`/`REJECT` decision or workflow shutdown path calls `OPS-006`'s `Begin`/`Complete` so leases actually fence and drain instead of doing so only inside their own package tests.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/operations/advisory`, `internal/operations/drain`, `internal/operations/incidentstate`, `internal/operations/admission`, [Customer communications](specs/incident-management.md).
+
+### R101. Supplementary review: architecture and dependency rules
+
+A read-only check of the code against `AGENTS.md`, the Go technology constitution, the plane model and the `definitions/architecture/*.yaml` manifests.
+
+- **What holds:** kernel and engine purity, prohibited frameworks (none present), declared roots and commands, and generated protobuf code.
+- **What fails:** QA tooling ships in the release binaries; a domain package depends on the transport layer; workflow code mutates domain state directly; demo fixtures sit on the production write path; the library firewall rows no longer match real imports.
+- **Why the gates missed it:** the dependency-edge check enforces only five named rules, so most of these edges pass CI.
+
+- [ ] `REV-101-01` **[GATE_B][SOL_HIGH] Remove developer tooling packages from the release binaries.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the layout manifest excludes tools from the release image but the served binaries link the UX qualification tooling and its test data`.
+  - **TEST:** `TestTodo_REV_101_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_101_01`; `GOLDEN=TestTodo_REV_101_01_Golden`.
+  - **RED:** GAP: `internal/humanwork/workspace` (handler.go, render.go, build.go, approvals.go, product_shell.go and others) and `internal/governance/privacy/render.go` import `tools/uxqual/*`; `go list -deps ./cmd/hcmnext` includes `tools/uxqual/{contract,forms,tokens,render,ssrshell,pagedef,floorplan,qual,testdata}`; `internal/customobject` and `internal/platform/topology` also import `tools/`.
+  - **GREEN:** the rendering, forms, tokens and contract code the product needs lives under `internal/`; no package under `internal/` or `cmd/` imports `tools/`; a dependency-edge rule and its test fail on any such import.
+  - **REFACTOR:** `tools/uxqual` consumes the moved packages.
+  - **Refs:** `definitions/architecture/repository-layout.yaml`, `internal/humanwork/workspace`, `tools/uxqual`, `tools/policy/depedge`.
+
+- [ ] `REV-101-02` **[GATE_B][SOL_HIGH] Enforce every forbidden upward dependency edge, not only five named rules.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the dependency policy forbids any upward edge but the checker enforces only kernel-level rules, so a domain importing the transport layer passes CI`.
+  - **TEST:** `TestTodo_REV_101_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_101_02`; `GOLDEN=TestTodo_REV_101_02_Golden`; `INTEGRATION=TestTodo_REV_101_02_Integration`.
+  - **RED:** GAP: `definitions/architecture/package-dependency-policy.yaml` ranks kernel below engines below domains below capability below workflow below transport and forbids upward edges, but `tools/policy/depedge/policy.go` implements only named rules; `internal/domains/promotion/promoux011.go` imports `internal/transport/productquery` and `internal/domains/leave` imports `internal/humanwork/workitem` without failing the gate; `humanwork`, `application` and `platform` carry no rank.
+  - **GREEN:** every declared root has a rank; the checker rejects any edge to a higher rank over the live import graph; the existing violations are fixed or carry dated, owned exceptions.
+  - **REFACTOR:** move promotion UI invalidation regions to the transport layer and work-item types below the domain layer.
+  - **Refs:** `tools/policy/depedge`, `definitions/architecture/package-dependency-policy.yaml`, `internal/domains/promotion/promoux011.go`.
+
+- [ ] `REV-101-03` **[GATE_B][SOL_HIGH] Move promotion guard, budget and schema writes out of the workflow terminal effect.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.REWARDS,BI.WORK; DIRECT=none; WHY=the plane model says workflow never directly mutates domain or projection tables, yet the terminal effect releases compensation budget and admission holds and writes the ledger schema table itself`.
+  - **TEST:** `TestTodo_REV_101_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_101_03`; `INTEGRATION=TestTodo_REV_101_03_Integration`; `GOLDEN=TestTodo_REV_101_03_Golden`.
+  - **RED:** GAP: `internal/workflow/execute/effects/terminal.go` imports `promotionguard` and `promotionbudget`, releases their holds inside the workflow transaction, inserts into `payload_schema` directly and defines the promotion outcome payload.
+  - **GREEN:** the terminal effect invokes a promotion domain capability that owns guard release, budget release and schema registration; workflow records only the typed capability result; no workflow package writes a non-workflow table.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/execute/effects/terminal.go`, [plane model](specs/platform-plane-model.md).
+
+- [ ] `REV-101-04` **[GATE_B][SOL_HIGH] Take demo fixtures and fake incumbents off the production write path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.TENANT; DIRECT=none; WHY=a real tenant's budget reservation resolves through the demo seed's identifier scheme and several served paths fall back to fixture tenants and workers`.
+  - **TEST:** `TestTodo_REV_101_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_101_04`; `INTEGRATION=TestTodo_REV_101_04_Integration`; `SECURITY=TestTodo_REV_101_04_Security`.
+  - **RED:** GAP: `internal/data/promotionbudget/reservation.go` derives the budget identity from `demoworkforce.BudgetID`; `internal/intent/app/cell.go` falls back to `fakeincumbent` and sets a default connection tenant from `fixtures.Tenant`; `internal/intent/app/workerlocator.go` resolves workers from `fixtures.Workers()`; `internal/intent/app/demo_bands.go` hard-codes the demo tenant; the fixture corpus is linked into the served binaries.
+  - **GREEN:** budget, worker and band resolution are ports supplied by the composition root; demo, fixture and fake-incumbent packages are selectable only by the local development profile or a build tag; a test proves a non-demo tenant never resolves a fixture identity.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/promotionbudget/reservation.go`, `internal/intent/app/cell.go`, `internal/data/demoworkforce`.
+
+- [ ] `REV-101-05` **[GATE_B][SOL_LOW] Reconcile the library firewall rows with real imports and run the firewall in the gate.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=third-party modules are imported outside their allowed roots, which means either the firewall is not gating or the gate is bypassed`.
+  - **TEST:** `TestTodo_REV_101_05`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_101_05`; `GOLDEN=TestTodo_REV_101_05_Golden`.
+  - **RED:** GAP: `github.com/google/uuid` is imported in domains, application, platform/execution and transport packages outside its allowed roots; `golang.org/x/text` in people, i18n and experience; OpenTelemetry attribute, codes and trace packages in telemetry, otelmw and providertelemetry while its rows allow none of them; manifest comments contradict the rows.
+  - **GREEN:** each row is widened with a recorded rationale or the import is routed through the owning package; the library firewall runs in pre-commit and CI; comments in the manifests match the rows.
+  - **REFACTOR:** none.
+  - **Refs:** `definitions/architecture/dependency-roles.yaml`, `tools/policy/libfirewall`.
+
+- [ ] `REV-101-06` **[GATE_C][SOL_LOW] Stop the transport layer from building registries and reaching into domain and runtime types.**
+  - **Depends:** `REV-101-02`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=the engineering rules say transport is a thin generated boundary, yet it constructs a default capability registry and imports domain and runtime packages`.
+  - **TEST:** `TestTodo_REV_101_06`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_101_06`; `INTEGRATION=TestTodo_REV_101_06_Integration`.
+  - **RED:** GAP: `internal/transport/admin/server.go` imports `internal/capability` and falls back to `capability.NewBootstrapRegistry()`; `transport/manifest` imports `capability`; `transport/admin` imports `domains/people` and `domains/intelligence`; `transport/admin/instance.go` and `transport/cell` readers import `workflow/runtime`.
+  - **GREEN:** registries and readers are injected through application ports; transport packages import only generated contracts, the application layer and trust; the dependency-edge check enforces it.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/admin/server.go`, `internal/transport/manifest`.
+
+- [ ] `REV-101-07` **[GATE_C][SOL_LOW] Inject clocks in engines and domains that call the system clock directly.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=direct clock reads make engine and domain output non-deterministic and unreplayable`.
+  - **TEST:** `TestTodo_REV_101_07`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_101_07`; `PROPERTY=TestTodo_REV_101_07_Property`.
+  - **RED:** GAP: `internal/engines/abuse/investigation.go` and `internal/domains/jobarch/workspace.go` call `time.Now()` directly.
+  - **GREEN:** both take an injected clock as sibling engines do; a static check rejects `time.Now` in engine and domain packages outside declared adapters.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/engines/abuse/investigation.go`, `internal/domains/jobarch/workspace.go`.
+
+- [ ] `REV-101-08` **[GATE_C][SOL_LOW] Move hand-written adapters out of the generator-owned tree and stop committing build artifacts.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the generated tree holds hand-written code and a schemaless wire adapter, and build outputs and demo media are committed into the embedded asset directory`.
+  - **TEST:** `TestTodo_REV_101_08`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_101_08`; `GOLDEN=TestTodo_REV_101_08_Golden`; `INTEGRATION=TestTodo_REV_101_08_Integration`.
+  - **RED:** GAP: `gen/wire/critical_projection.go` and `gen/wire/struct.go` have no generated header and `struct.go` wraps untyped maps for provenance; `internal/generated/schemaflux` mirrors 120 protobuf messages with one tool consumer; `internal/humanwork/workspace/assets` tracks an 8 MB `journey.wasm.gz` build output and about 60 demo persona photos; root-level `*.test.exe` and `worker.exe` builds are produced outside `.artifacts/`.
+  - **GREEN:** hand-written adapters live under `internal/`; provenance uses a real message; the mirrored model tree moves under `tools/` or is removed; the wasm bundle is built into `.artifacts` and embedded at build time; demo media is served only by the development seed; a check fails on generated-tree files without the generated header.
+  - **REFACTOR:** none.
+  - **Refs:** `gen/wire`, `internal/generated/schemaflux`, `internal/humanwork/workspace/assets`.
+
+### R102. Supplementary review: data, storage and tenant isolation rules
+
+A read-only check of the migrations and `internal/data` against `AGENTS.md`, `definitions/storage/storage-disposition.yaml`, the modeling conventions and the ledger, classification and deletion specs.
+
+**What holds**
+
+- Every table with a `tenant_id` column has forced row-level security with a check.
+- Tenant foreign keys include the tenant.
+- No SECURITY DEFINER functions or TRUNCATE grants.
+- Every plpgsql block is wrapped.
+- No floating-point column types.
+- Outbox writes stay inside the caller's transaction.
+- SQL builders use only validated identifiers.
+
+**What fails**
+
+- **Isolation bypass (most important):** production never switches to the restricted application role (`SET ROLE hcmnext_app` appears only in tests), so row-level security, forced policies and withheld grants apply only in tests.
+- **Mutable permanent tables:** several tables classified permanent are writable in place.
+- **Registry flags:** the append-only flags in the registry contradict the triggers.
+- **Money precision:** varies between tables.
+- **Floating-point pay quantities:** pay-relevant quantities use floating point in Go.
+- **Role history:** role assignments are hard-deleted.
+- **Idempotency:** records are purged without tombstones.
+- **Unused stores:** 65 data packages, owning about 250 of 402 tables, are imported by no binary.
+
+- [ ] `REV-102-01` **[GATE_B][SOL_HIGH] Run the served processes under the restricted application role and refuse privileged logins.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TENANT,BI.SECURITY; DIRECT=none; WHY=tenant isolation, forced policies and withheld update and delete grants apply only when the session runs as the application role, and production code never switches to it`.
+  - **TEST:** `TestTodo_REV_102_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_102_01`; `SECURITY=TestTodo_REV_102_01_Security`; `INTEGRATION=TestTodo_REV_102_01_Integration`; `FAULT=TestTodo_REV_102_01_Fault`; `RECOVERY=TestTodo_REV_102_01_Recovery`.
+  - **RED:** GAP: `SET ROLE hcmnext_app` appears only in `_test.go` files; `internal/data/tenancy/tenancy.go` `WithTenant` only sets `app.tenant_id`; `internal/application/serve.go` runs migrations and opens the runtime pool from the same `DatabaseURL`, whose local default is the `postgres` superuser; nothing checks `rolsuper`, `rolbypassrls` or table ownership at startup; migration `00008_tenant_isolation.sql` documents that the role is reached only by SET ROLE.
+  - **GREEN:** migration and runtime use separate connection strings; every runtime connection enters the application role on connect; startup fails when the effective role is a superuser, bypasses row-level security or owns the tables; an integration test proves a cross-tenant read and an in-place update of a permanent table are refused through the served pool.
+  - **REFACTOR:** remove the per-test SET ROLE helpers in favour of the production pool setup.
+  - **Refs:** `internal/data/tenancy/tenancy.go`, `internal/application/serve.go`, `internal/application/config.go`, `migrations/00008_tenant_isolation.sql`.
+
+- [ ] `REV-102-02` **[GATE_B][SOL_HIGH] Keep names out of permanent evidence subjects and logs.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.PRIVACY,BI.PEOPLE; DIRECT=none; WHY=a worker's name becomes the subject of append-only evidence and a log field, where no erasure can reach it`.
+  - **TEST:** `TestTodo_REV_102_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_102_02`; `SECURITY=TestTodo_REV_102_02_Security`.
+  - **RED:** GAP: `internal/intent/app/journey_workforce.go` builds `journeyWorkerKey` from the name slug and `workforceSubject` from the preferred or legal name, uses them as `SubjectRef` in `evidencestore.RecordInvocation`, and logs `worker_ref` with the slug.
+  - **GREEN:** evidence subjects and log fields use the opaque worker identifier; the display slug is derived at read time; a test scans evidence and log output for fixture names and finds none.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/intent/app/journey_workforce.go`, [classification and DLP](specs/data-classification-and-dlp.md).
+
+- [ ] `REV-102-03` **[GATE_B][SOL_LOW] Make permanent tables immutable or reclassify them, and correct the registry flags against the triggers.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=legal rule content and other permanent records can be rewritten in place, and the registry's append-only flags contradict the triggers that consumers such as sandbox reset rely on`.
+  - **TEST:** `TestTodo_REV_102_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_102_03`; `GOLDEN=TestTodo_REV_102_03_Golden`; `FAULT=TestTodo_REV_102_03_Fault`; `RECOVERY=TestTodo_REV_102_03_Recovery`.
+  - **RED:** GAP: `legal_rule_pack` (00021), `record_copy_link` (00056) and `performance_rating_case` (00108) are PERMANENT with UPDATE granted and no immutability trigger; `leave_availability_revision` (00281) grants UPDATE against its own comment; 17 tables with a full `forbid_mutation` trigger are registered `append_only: false`; 17 OPERATIONAL rows are registered `append_only: true`.
+  - **GREEN:** each PERMANENT table either denies in-place updates or is reclassified with a history table; a new migration drops the stray UPDATE grants; a registry test compares every `append_only` flag with the live `pg_trigger` catalogue and fails on disagreement.
+  - **REFACTOR:** none.
+  - **Refs:** `definitions/storage/storage-disposition.yaml`, `internal/data/tenancy/storagedisposition`, `migrations`.
+
+- [ ] `REV-102-04` **[GATE_C][SOL_LOW] Standardize money, quantity and FTE column types and remove floating point from pay-relevant Go code.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.REWARDS,BI.PAYROLL,BI.WORKFORCE; DIRECT=none; WHY=amounts are rounded or rescaled as they move between tables stored at different precisions, and absence hours and analytic sums use binary floating point`.
+  - **TEST:** `TestTodo_REV_102_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_102_04`; `PROPERTY=TestTodo_REV_102_04_Property`; `FAULT=TestTodo_REV_102_04_Fault`; `RECOVERY=TestTodo_REV_102_04_Recovery`.
+  - **RED:** GAP: money is `numeric(19,4)` in most tables but `numeric(14,2)` in `journey_worker.base_pay`, `numeric(38,12)` in promotion evidence, `bigint` minor units in safety and commercial tables and unbounded `numeric` in leave balances; FTE is `numeric(9,4)` and `numeric(6,4)`; `internal/domains/availability/versioned_absence.go` accumulates hours as `float64`; `internal/data/analytics/analytics.go` sums metrics as `float64`.
+  - **GREEN:** one money domain type with currency and rounding-policy reference and one FTE type are used by every table through a migration; Go code for pay, hours and rates uses the decimal value type; PROPERTY proves no amount changes value moving between tables.
+  - **REFACTOR:** none.
+  - **Refs:** [modeling conventions](data/models/modeling-conventions.md), `migrations/00023_journey_workforce.sql`, `internal/domains/availability/versioned_absence.go`.
+
+- [ ] `REV-102-05` **[GATE_C][SOL_LOW] Enforce half-open, non-null effective intervals everywhere.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=several effective-dated tables accept null or inverted intervals and some use inclusive ends, contrary to the canonical half-open convention`.
+  - **TEST:** `TestTodo_REV_102_05`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_102_05`; `PROPERTY=TestTodo_REV_102_05_Property`; `FAULT=TestTodo_REV_102_05_Fault`; `RECOVERY=TestTodo_REV_102_05_Recovery`.
+  - **RED:** GAP: the job architecture revision tables (00048), `custom_record_revision` (00086), `commercial_contract_revision` (00078) and `work_authorization_evidence` (00096) lack `effective_from < effective_to` checks and allow null starts; `knowledge_article_revision` and the leave tables use inclusive ends.
+  - **GREEN:** a migration adds non-null starts and half-open checks; the inclusive tables are normalised; a schema test fails on any `effective_from` column without the check.
+  - **REFACTOR:** none.
+  - **Refs:** `migrations/00048_job_architecture.sql`, `migrations/00086_custom.sql`, `migrations/00281_medical_leave_return_to_work.sql`.
+
+- [ ] `REV-102-06` **[GATE_C][SOL_LOW] Keep compact tombstones for financial and irreversible idempotency keys.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.PAYROLL,BI.ALL; DIRECT=none; WHY=expired idempotency records are deleted for every capability, so a retried financial or irreversible request after expiry can execute twice`.
+  - **TEST:** `TestTodo_REV_102_06`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_102_06`; `PROPERTY=TestTodo_REV_102_06_Property`.
+  - **RED:** GAP: `internal/transaction/idempotency/store.go` deletes every expired row for the tenant regardless of capability class, although the spec requires capability-specific expiry and permanent compact tombstones for financial, government and irreversible actions.
+  - **GREEN:** expiry policy is declared per capability; financial and irreversible keys keep a compact tombstone of key and request hash; replay of a tombstoned key is refused or requires an explicit duplication-risk check.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transaction/idempotency/store.go`, [idempotency lifecycle](specs/platform-foundation-gap-closure.md).
+
+- [ ] `REV-102-07` **[GATE_C][SOL_LOW] Correct the storage-disposition registry's stale header, owners and encryption classes.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the registry names a nonexistent owner package, a stale migration range and a platform-managed class for a table holding ciphertext`.
+  - **TEST:** `TestTodo_REV_102_07`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_102_07`; `GOLDEN=TestTodo_REV_102_07_Golden`; `FAULT=TestTodo_REV_102_07_Fault`; `RECOVERY=TestTodo_REV_102_07_Recovery`.
+  - **RED:** GAP: the header source range ends at 00281 while migrations reach 00313; `worker_id_reservation.owner_package` names `internal/data/workerstore`, which does not exist; `pseudonym_escrow_record` holds ciphertext but is `PLATFORM_MANAGED`; the registry test does not validate owner packages.
+  - **GREEN:** the header and rows are correct; the registry test fails when an owner package does not exist or a ciphertext column's table is not `FIELD_LEVEL`.
+  - **REFACTOR:** none.
+  - **Refs:** `definitions/storage/storage-disposition.yaml`.
+
+### R018. §17 Experience, API and accessibility
+
+Checked all 23 items (`UX-QUAL-001`, `UX-001`–`UX-009`, `UXFLOW-001`–`UXFLOW-010`, `API-001`, `API-002`). API and the qualification/workspace items (`UX-QUAL-001`, `UX-001`, `UX-002`, `API-001`, `API-002`) are genuinely wired: `internal/humanwork/workspace`, `tools/uxqual/qual`, `tools/uxqual/contract` and `internal/transport/manifest` all appear in `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler`. The rest of the unit is weaker than its GREEN evidence claims. First, the entire `UXFLOW-001`–`UXFLOW-010` family plus `UX-003` (WCAG gate) and `UX-005` (truthful error/recovery states) live in `internal/experience/{userflow,participants,disposition,presentation,draftflow,outcome,continuity,channelparity}`, `internal/flow` and `tools/uxqual/wcag` — none of which appears in the four binaries' dependency graphs, and a repo-wide grep for non-test importers of any of these packages outside their own directory returns zero hits. They are self-consistent, well-tested islands with no caller. Second, `UX-006`, `UX-007` and `UX-008` are ticked GREEN on TypeScript-only proof (`src/platform/action-discovery`, `intent-center`, `channel-parity`, files dated 2026-09-08, explicitly allowlisted in `tools/planning/traceability/allowlist.go`) with no Go implementation at all, which conflicts with the repo's own Go-only technology constitution. The most important gap is the first: ten-plus ticked "done" items describing the workspace's shared truthful-state, draft, resume and recovery mechanics are not reachable from anything the running cell actually serves.
+
+- [ ] `REV-018-01` **[GATE_B][SOL_HIGH] Wire the shared flow-state, draft, resume and recovery packages into the served workspace and journey handlers.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=stop the served workspace from presenting ad hoc or absent state truth while the tested shared mechanics sit unused`.
+  - **TEST:** `TestTodo_REV_018_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_018_01`; `INTEGRATION=TestTodo_REV_018_01_Integration`; `RECOVERY=TestTodo_REV_018_01_Recovery`.
+  - **RED:** GAP against `UXFLOW-004`, `UXFLOW-005`, `UXFLOW-006`, `UXFLOW-007` and `UX-005`, all ticked GREEN describing the workspace's participant-facing state, draft/confirmation, resume and recovery mechanics. `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` does not include `internal/experience/presentation`, `internal/experience/draftflow`, `internal/flow`, `internal/experience/outcome`, `internal/experience/continuity`, `internal/experience/channelparity`, `internal/experience/userflow`, `internal/experience/participants`, `internal/experience/disposition` or `internal/experience/recovery`; a repo-wide `grep -rl` for imports of each of those packages outside their own directory (excluding `_test.go`) returns no matches, so `internal/humanwork/workspace` and `tools/uxqual/render/journey` — the handlers actually serving `/workspace/journey` per the `UX-009` browser evidence — call none of them.
+  - **GREEN:** the served workspace/journey handlers call `presentation.Resolve` for every rendered state, `draftflow`'s versioned draft/confirmation binding for drafts, `flow.Resume` for deep-link/session resume and `outcome`'s recovery mapping for degraded/ambiguous results; a new integration test drives an HTTP/GWC request through the served handler and asserts the exact typed state, safe-action set and evidence refs produced by these packages appear in the response, not a handler-local reimplementation.
+  - **REFACTOR:** delete any duplicate state/draft/resume/recovery logic left in `internal/humanwork/workspace` once the shared packages are the single source, matching the `UXFLOW-005` REFACTOR clause.
+  - **Refs:** `internal/experience/presentation`, `internal/experience/draftflow`, `internal/flow`, `internal/experience/outcome`, `internal/experience/continuity`, `internal/experience/channelparity`, `internal/humanwork/workspace`, `tools/uxqual/render/journey`.
+
+- [ ] `REV-018-02` **[GATE_C][SOL_HIGH] Implement universal action discovery, the Intent Center and channel parity in Go instead of leaving them as TypeScript-only prototypes.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=ship the discovery, intent-center and channel-parity capabilities inside the Go-only release runtime instead of an excluded prototype language`.
+  - **TEST:** `TestTodo_REV_018_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_018_02`; `CONFORMANCE=TestTodo_REV_018_02_Conformance`; `GOLDEN=TestTodo_REV_018_02_Golden`.
+  - **RED:** GAP against `UX-006`, `UX-007` and `UX-008`, all ticked GREEN with evidence stating "TypeScript proof (no Go coverage by design)" verified by vitest in `src/platform/action-discovery`, `src/platform/intent-center` and `src/platform/channel-parity` (files timestamped 2026-09-08, i.e. new, not legacy) and formally exempted from Go coverage in `tools/planning/traceability/allowlist.go` lines 19-28. `planning/specs/go-only-technology-constitution.md` excludes "TypeScript or JavaScript application source" from the request path (line 124) and states existing Node/TypeScript files are historical comparison evidence that is "not extended with new behavior" (lines 140-142, 160-161); a repo-wide grep for Go importers of any of the three `src/platform` packages returns nothing.
+  - **GREEN:** action discovery, Intent Center and channel-parity semantics are implemented in Go, served from `cmd/hcmnext`/the GWC workspace, and reproduce the behavior the existing TypeScript test fixtures assert; the TypeScript packages are either deleted or reduced to a comparison baseline explicitly excluded from the release SBOM per the constitution, and the traceability allowlist entries are removed.
+  - **REFACTOR:** build the three capabilities on the same shared `internal/experience` mechanics as `REV-018-01` rather than three independent command registries.
+  - **Refs:** `src/platform/action-discovery/index.ts`, `src/platform/intent-center/index.ts`, `src/platform/channel-parity/index.ts`, `tools/planning/traceability/allowlist.go`, [Go-only constitution](specs/go-only-technology-constitution.md).
+
+### R022. Future-domain intent conformance
+
+Checked all nine items in §21 (lines 6849-6951): `INTENT-CONF-001` and `CONF-009` through `CONF-016`. Every referenced package exists on disk and every cited `TestTodo_*` function name is present and passes; the eight `CONF-0xx` domain conformance packages (`internal/workflow/conformance/{payroll,benefits,time,talent,learning,hrcase,mobility}` and `internal/domains/safety`) are real, substantive SIMULATE-interpreter proofs with hundreds of lines of assertions each (spot-checked payroll and hrcase deeply). These are deliberately library/test-only, per their own REFACTOR notes ("no Phase 1 payroll engine", "no native carrier administration") and are exercised by CI's blanket `go test ./...`, so library-only status is by design, not a gap. `INTENT-CONF-001` is the outlier: its officially-cited PRIMARY/GOLDEN/CONFORMANCE test functions in `tools/planning/intentmanifests/intent_conf_test.go` are non-functional placeholders (only `os.Stat` the YAML file, then `t.Log`, with every real assertion commented out), and its MUTATION test has an empty body. The actual manifest-loading and field/count/digest/conformance-only validation that the ticked item's GREEN describes does exist, but under differently-named tests (`TestLoadAndValidateIntentManifest`, `TestIntentDescriptorFields`, `TestIntentManifestDeterminism` in `manifest_test.go`), not the ones the plan cites as evidence.
+
+- [x] `REV-022-01` **[GATE_C][SOL_HIGH] Replace the stubbed INTENT-CONF-001 TestTodo functions with real assertions or delete the duplicate stub file.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_022_01` family in `tools/planning/intentmanifests`; `go test -count=1 -run 'TestTodo_REV_022_01' ./tools/planning/intentmanifests/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORK,BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=prove accepted intent behavior or delivery evidence without creating production authority`.
+  - **TEST:** `TestTodo_REV_022_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_022_01`; `CONFORMANCE=TestTodo_REV_022_01_Conformance`; `MUTATION=TestTodo_REV_022_01_Mutation`.
+  - **RED:** GAP against `INTENT-CONF-001` (ticked `[x]`, line 6853): its cited evidence tests are hollow. `tools/planning/intentmanifests/intent_conf_test.go:12-81` (`TestTodo_INTENT_CONF_001`) only calls `os.Stat` on the yaml path and then `t.Log(...)`; every load/validate/count/digest/change_manager-marker check is commented out (lines 21-77). `TestTodo_INTENT_CONF_001_Golden` (lines 84-115) and `_Conformance` (lines 117-156) are the same pattern. `TestTodo_INTENT_CONF_001_Mutation` (lines 158-167) has zero executable statements — it cannot fail no matter what the manifest contains. `loader_test.go`'s `TestLoadIntentManifest`, `TestIntentDescriptorStructure` are the same stub pattern over an apparently-unused `loader.go`. If `manifest.go`'s `LoadIntentManifestYAML`/`ValidateIntentManifestYAML` regressed, none of the four TestTodo functions the plan cites as evidence would catch it.
+  - **GREEN:** `TestTodo_INTENT_CONF_001` calls `LoadIntentManifestYAML`/`ValidateIntentManifestYAML`, asserts exactly 14 descriptors with all mandatory dimensions (entities/properties/reads/writes/effects/authority/time/evidence, five-dimension lifecycle, negative-policy matrix, scenario) non-empty; `_Golden` pins the digest; `_Conformance` asserts determinism and that `change_manager` is the only `conformance_only` row with no undrafted intent ids present; `_Mutation` actually mutates a copy of the fixture (strip a dimension, unmark `change_manager`, add an undrafted id) and asserts each mutation is rejected. `loader.go`/`loader_test.go` are either wired to the same real assertions or deleted as dead duplication of `manifest.go`.
+  - **REFACTOR:** one authoritative loader/validator (`manifest.go`) and one set of tests; delete `loader.go` if `manifest.go` fully supersedes it.
+  - **Refs:** `tools/planning/intentmanifests/intent_conf_test.go`, `tools/planning/intentmanifests/loader.go`, `tools/planning/intentmanifests/loader_test.go`, `tools/planning/intentmanifests/manifest.go`, `tools/planning/intentmanifests/manifest_test.go`, `definitions/governance/intent-conformance-descriptors.yaml`.
+
+### R103. Supplementary review: tests, runtime reachability and code hygiene
+
+A read-only check of the backlog and code against `AGENTS.md` quality gates, the todo header rules, the coverage gate and the per-file test directive.
+
+**What holds**
+
+- Every npm script and path `AGENTS.md` names exists.
+- The pre-commit hook runs the gates it lists.
+- No TODO or FIXME markers exist in production code.
+
+**What fails**
+
+- **Unreachable code:** `go list -deps ./cmd/...` reaches 189 of 577 internal packages. 661 ticked todos name only packages no binary reaches.
+- **Missing tests:** 120 live ticked todos name tests that do not exist.
+- **Missing evidence:** nine ticked todos have no evidence line.
+- **Hollow tests:**
+  - 126 test functions only call another test.
+  - Many race tests start no goroutines.
+  - Golden tests skip when their file is missing.
+- **Coverage logs:** the per-file coverage logs miss 898 files and cannot be regenerated from the checkout.
+- **Waived floor:** the coverage floor is waived for 182 packages, all sharing one owner and expiry.
+
+- [ ] `REV-103-01` **[GATE_B][SOL_HIGH] Fail the plan check when a ticked runtime todo names only code no binary reaches.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the backlog reports features as done that no running process can execute, which overstates what the product can do`.
+  - **TEST:** `TestTodo_REV_103_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_103_01`; `GOLDEN=TestTodo_REV_103_01_Golden`.
+  - **RED:** GAP: 388 of 577 internal packages are absent from `go list -deps ./cmd/...`; 661 ticked todos name only such packages, including LEAVE-001 to LEAVE-017 (`internal/domains/leave`), PAYRUN-001 to PAYRUN-009 (`internal/domains/payroll`), ELIG-001 to ELIG-008 (`internal/engines/eligibility`) and BEN, BAL and DB-023 items; the §73 rule says a checkbox requires proof on the composed serve path.
+  - **GREEN:** every todo declares whether it is a runtime capability or a library; the plan check fails when a ticked runtime todo's packages are not reachable from a binary; the affected ticks are reopened or re-tagged with an owner.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/plancheck`, `tools/planning/todogovernance`, `planning/todos.md`.
+
+- [ ] `REV-103-02` **[GATE_B][SOL_LOW] Block ticked todos whose named tests or evidence commands do not exist.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=a tick is only evidence if its named tests exist and its evidence names the command that ran them`.
+  - **TEST:** `TestTodo_REV_103_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_103_02`; `GOLDEN=TestTodo_REV_103_02_Golden`.
+  - **RED:** GAP: 485 names from ticked TEST and TEST MATRIX fields have no function, leaving 120 live todos after retired and TypeScript-proven ones, including SVC-003 (primary and all five matrix names), UXSCAN-006, UXSCAN-011, DB-005 (fuzz, race, integration, fault, mutation) and LEDGER-001 (race, mutation); evidence lines cite nonexistent tests such as `TestJourneyDrivesPromotionFromProposalToRecordedOutcome`; UXSCAN-001 to UXSCAN-007, UXSCAN-009 and UXSCAN-010 are ticked with no evidence line; 47 evidence lines carry no command.
+  - **GREEN:** the traceability check fails the build for a ticked todo with a missing test name, no evidence line or no command; each listed todo is fixed by writing the test, recording an applicability reason or unticking.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/plancheck`, `AGENTS.md`.
+
+- [ ] `REV-103-03` **[GATE_B][SOL_LOW] Reject alias tests, race tests without concurrency and golden tests that skip.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=tests named for a risk class must exercise that class, and a missing golden file must fail rather than skip`.
+  - **TEST:** `TestTodo_REV_103_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_103_03`; `GOLDEN=TestTodo_REV_103_03_Golden`.
+  - **RED:** GAP: 126 test functions only call another test (for example `internal/conformance/selectedjurisdiction/conformance_test.go` maps model-based to golden and security to fault); `_Race` tests such as `cmd/worker/roles_test.go`, `internal/domains/equity/equity_test.go` and `internal/domains/merit/merit_test.go` start no goroutines; five golden tests call `t.Skipf` when the golden file is missing.
+  - **GREEN:** a lint rejects test functions whose body only calls another test, `_Race` tests without goroutines or a concurrency helper, and golden tests that skip; the listed tests are rewritten.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/quality`, `AGENTS.md`.
+
+- [ ] `REV-103-04` **[GATE_C][SOL_LOW] Generate per-file test coverage logs from the checkout and gate on them.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the per-file test rule can only be enforced if the inventory is regenerable, per file and current`.
+  - **TEST:** `TestTodo_REV_103_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_103_04`; `GOLDEN=TestTodo_REV_103_04_Golden`.
+  - **RED:** GAP: `planning/test_coverage_root.md` has 2,139 rows for 3,037 hand-written files, tracks packages rather than files, has no exclusions table, and its generator `coverage_inventory.ps1` is not in the repository; `tools/planning/cmd/pilotblueprint` has no tests and is not logged.
+  - **GREEN:** a Go generator in the repository writes both logs per file with an exclusions table; a check fails when a hand-written file has no test and no named exclusion.
+  - **REFACTOR:** none.
+  - **Refs:** `planning/test_coverage_root.md`, `planning/test_coverage_nested.md`, `definitions/toolchain/coverage-gate.yaml`.
+
+- [ ] `REV-103-05` **[GATE_C][SOL_LOW] Give coverage-floor exceptions real owners and staggered expiries, starting with request-path packages.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=all 182 below-floor exceptions share one placeholder owner and expire the same day, so the floor is nominal and will fail all at once`.
+  - **TEST:** `TestTodo_REV_103_05`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_103_05`; `GOLDEN=TestTodo_REV_103_05_Golden`.
+  - **RED:** GAP: every `below_floor` exception in `definitions/toolchain/coverage-gate.yaml` has `owner: backlog` and `expiry: 2026-12-31`, including `internal/intent/app/pgstore` at 13.9 percent, `internal/transport` at 19.6 percent and `internal/workflow/execute/effects` at 18.7 percent.
+  - **GREEN:** the gate refuses the placeholder owner; exceptions name a real owner and a dated plan; request-path packages reach the floor first.
+  - **REFACTOR:** none.
+  - **Refs:** `definitions/toolchain/coverage-gate.yaml`.
+
+- [ ] `REV-103-06` **[GATE_C][SOL_LOW] Stop ignoring errors that drop evidence or misreport state.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=several ignored errors silently lose evidence, misreport fencing and hide failed releases`.
+  - **TEST:** `TestTodo_REV_103_06`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_103_06`; `FAULT=TestTodo_REV_103_06_Fault`; `SECURITY=TestTodo_REV_103_06_Security`.
+  - **RED:** GAP: `internal/data/operationstore/store.go` drops the fence query error so a cancel is misreported as fenced; `internal/intent/app/pgstore/pgstore.go` ignores legal-obligation decoding errors; `internal/trust/session/store.go` drops denial-evidence writes; `internal/intent/app/journey_intervention.go` ignores a commit error without logging; `internal/transport/evidence/server.go` runs exports on `context.Background()`.
+  - **GREEN:** each error is returned, logged with a metric, or documented with a test proving it is safe; export jobs use a request-derived context with timeout and shutdown draining; FAULT injects each failure.
+  - **REFACTOR:** a lint flags `_ =` on error-returning calls outside deferred rollbacks.
+  - **Refs:** `internal/data/operationstore/store.go`, `internal/intent/app/pgstore/pgstore.go`, `internal/trust/session/store.go`.
+
+- [ ] `REV-103-07` **[GATE_C][SOL_LOW] Remove wall-clock sleeps and latency assertions from tests and cache the embedded database offline.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=sleep-based and latency-asserting tests flake on a loaded host and data tests need network on a cold cache`.
+  - **TEST:** `TestTodo_REV_103_07`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_103_07`; `GOLDEN=TestTodo_REV_103_07_Golden`.
+  - **RED:** GAP: 69 `time.Sleep` calls in 45 test files; unit tests assert 200 to 250 millisecond latencies (`uxaudit019_history_test.go`, `web246_table_loading_test.go`, `transport/health/health_test.go`); `internal/data/pgtest/embedded.go` downloads PostgreSQL from a public repository on a cold cache.
+  - **GREEN:** tests use injected clocks and synchronization instead of sleeps; latency budgets move to benchmarks; the PostgreSQL binary is fetched once by a pinned, checksummed toolchain step and tests run offline.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/pgtest/embedded.go`, `AGENTS.md`.
+
+### R005. §4 Identity, authorization, privacy and trust (lines 1856-2404: TRUST-001..025, SECARCH-001..024)
+
+Checked package existence for every Refs path in this unit (`internal/trust/*`, `internal/domains/paymethod/*`, `internal/domains/payroll/{calcpolicy,filing,paymentprofile}`, `internal/domains/tenant/govauth`, `tools/planning/{threatmodel,securebydesign}`, `tools/policy/releaseadmission`, `internal/platform/telemetry/securityevidence`, `internal/trust/custody/kmsadapter`, `internal/trust/session/pgstore`, `internal/trust/adversarial`) — all exist and their named `TestTodo_*` functions are present. Core AuthZ (`TRUST-008`..`TRUST-012`) is genuinely wired into the serving path: `internal/trust/authz` is imported by `internal/intent/app` (the P1A cell), and `internal/intent/app/authorization.go` does derive `people.AuthorizationDecision` from `authz.Decision` as `TRUST-011`'s evidence note flagged as a follow-up, so that item is not a gap. However, `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` shows only 12 of the 27 `internal/trust/*` packages reachable from any binary the repo actually runs; `internal/trust/federation` (and its only callers, `internal/authn/oidc` and `internal/authn/issuerregistry`) is not one of them, and `internal/application/serve.go`'s `composeVerifier` hard-codes `trust.NewHMACVerifier` with no CLI flag or config path to select a federation-backed verifier. So `TRUST-002` ("Implement enterprise federation validation"), marked done and GATE_A, cannot actually authenticate anyone in the shipped binary — every deployment runs on the shared dev-HMAC scheme regardless of tenant IdP configuration. Separately, the whole unit has no privacy/data-protection risk-assessment gate (DPIA-equivalent) despite the platform running automated risk scoring (`ABUSE-004`) and classification/consent machinery it would need to justify.
+
+- [ ] `REV-005-01` **[GATE_B][SOL_HIGH] Wire a federation-backed credential verifier into the hcmnext serve composition root.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ACCESS,BI.SECURITY; DIRECT=none; WHY=production authentication must actually reach the tested OIDC and SAML verifiers TRUST-002 built`.
+  - **TEST:** `TestTodo_REV_005_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_005_01`; `GOLDEN=TestTodo_REV_005_01_Golden`; `SECURITY=TestTodo_REV_005_01_Security`; `INTEGRATION=TestTodo_REV_005_01_Integration`.
+  - **RED:** GAP against `TRUST-002` (`planning/todos.md:1871`, ticked, GATE_A): `internal/application/serve.go` `composeVerifier` (around line 592) only ever builds `trust.NewHMACVerifier`; `internal/trust/federation`, `internal/authn/oidc` and `internal/authn/issuerregistry` are absent from `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler`, and no flag in `cmd/hcmnext` selects them, so a tenant's configured OIDC/SAML issuer is never consulted at runtime.
+  - **GREEN:** `hcmnext serve` accepts tenant IdP configuration (issuer, JWKS/metadata source, audience) and, when present, builds a `trust.Verifier` backed by `internal/trust/federation` instead of the dev HMAC key; the dev verifier remains available only under `-profile=local-dev` or an explicit opt-in flag.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/serve.go`, `internal/trust/federation`, `internal/authn/oidc/flow.go`, `internal/authn/issuerregistry/resolver.go`, `planning/todos.md:1871` (`TRUST-002`).
+
+- [ ] `REV-005-02` **[GATE_C][LUNA] Require a versioned privacy/data-protection risk assessment before enabling high-risk or automated-decision processing per tenant.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.TENANT; DIRECT=none; WHY=GDPR Art 35 and state comprehensive-privacy-law data-protection-assessment duties attach whenever automated risk scoring or classified-field processing is enabled for a tenant`.
+  - **TEST:** `TestTodo_REV_005_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_005_02`; `GOLDEN=TestTodo_REV_005_02_Golden`; `SECURITY=TestTodo_REV_005_02_Security`.
+  - **RED:** NEW: `planning/todos.md` has zero occurrences of "impact assessment" or "DPIA" anywhere in the file (checked with grep across the whole document); `PRIV-001` (line 5139) only publishes a processing-activity/data-flow inventory, not a risk assessment, and `ABUSE-004`/`TRUST-010`/`TRUST-024` run automated risk scoring, field classification and consent without any linked assessment gating their activation for a tenant.
+  - **GREEN:** a versioned `PrivacyRiskAssessment` record, keyed per tenant and per processing activity from `PRIV-001`'s inventory, documents necessity/proportionality, identifies risk to data subjects, names mitigations (linking `TRUST-010` field masks, `TRUST-024` consent, `TRUST-018` DLP) and is a required, reviewer-signed precondition before `ABUSE-004`-style automated scoring or any RESTRICTED-or-higher field processing is activated for that tenant; a missing or stale (past its review interval) assessment blocks activation.
+  - **REFACTOR:** none.
+  - **Refs:** `planning/todos.md:5139` (`PRIV-001`), `planning/todos.md:1959` (`TRUST-010`), `planning/todos.md:2113` (`TRUST-024`), `internal/engines/abuse` (`ABUSE-004`), [privacy contract](plan.md#95-privacy-contract).
+
+### R019. §18 Bounded agent and intelligence safety
+
+Checked `AGENT-001` through `AGENT-005` (`planning/todos.md:5754-5813`). The package `internal/agentsecurity` exists with 3,402 lines across gateway, semantic-trust, output-validation, draft-ingestion, eval-gate and action-compiler files; every named test (`TestTodo_AGENT_001`/`_Mutation`/`_Security`, `TestTodo_AGENT_002`/`_Golden`, `FuzzTodo_AGENT_002`, `TestTodo_AGENT_003`, `TestOwnerRegistryIngestDraft`, `TestTodo_AGENT_004`, `TestAgentActionCreatesDraftIntentWithoutAuthorityExpansion`, `TestTodo_AGENT_005_Golden`/`_Mutation`) is present and `go test -count=1 -cover ./internal/agentsecurity/...` passes at 91.3% coverage; `go vet` is clean. Per the section's own disposition, none of this is wired into `cmd/hcmnext`/`cmd/worker`/`cmd/projector`/`cmd/scheduler` (`go list -deps` confirms zero agentsecurity dependency in any of the four binaries) and it has exactly one external caller, a conformance test — both expected for a DESIGN-phase item with no scheduled agent capability, and already stated honestly in the evidence notes, so this is not treated as a gap. The one real gap found is in `AGENT-005`: its `ActionCompiler` resolves proposed actions against a private, in-package `IntentDefinition`/`DefinitionRegistry` (five fields: ID, Version, RequiresReview, RequiresSimulation, MaxBulk) that is structurally and referentially disconnected from the platform's real, running `IntentDefinition` catalog served by `internal/intent/app` and exposed over `intentsv1.IntentDefinition` (schema, capability/governance/precondition/invariant refs, side-effect profile, risk class) — so the ticked claim that agent output "selects a discoverable IntentDefinition" is proven only against a toy stand-in, never against the catalog every other intent-creation path in the running binary actually uses.
+
+- [x] `REV-019-01` **[GATE_C][SOL_HIGH] Bind ActionCompiler's definition lookup to the real IntentDefinition registry instead of a private stand-in type.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_019_01` family in `internal/intent/app`; `go test -count=1 -run 'TestTodo_REV_019_01' ./internal/intent/app/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=stop agent drafts from bypassing the real definition catalogs schema and capability gates`.
+  - **TEST:** `TestTodo_REV_019_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_019_01`; `INTEGRATION=TestTodo_REV_019_01_Integration`; `MUTATION=TestTodo_REV_019_01_Mutation`.
+  - **RED:** GAP: `AGENT-005` (`planning/todos.md:5803`) is ticked with GREEN claiming a compiled draft "selects a discoverable IntentDefinition," but `internal/agentsecurity/action_compiler.go` defines its own `IntentDefinition{ID,Version,RequiresReview,RequiresSimulation,MaxBulk}` and `DefinitionRegistry` (`NewDefinitionRegistry`/`Register`/`Lookup`) that `ActionCompiler.definitions` resolves against; nothing converts a real `intentsv1.IntentDefinition` served by `internal/intent/app.IntentService.ListIntentDefinitions`/`GetIntentDefinition` (wired into `cmd/hcmnext` per `go list -deps`) into this private type, so no test proves a compiled draft's definition, schema, capability refs, governance-requirement refs or side-effect profile match the catalog the rest of the platform actually serves.
+  - **GREEN:** `ActionCompiler` resolves definitions through an adapter over `internal/intent/app`'s live catalog (or an equivalent read port), `CompileAction` refuses an action whose definition id/version is absent from that catalog, and a test proves the compiler and `IntentService.GetIntentDefinition` agree on review/simulation/bulk and schema/capability constraints for at least one real registered definition.
+  - **REFACTOR:** remove the package-private `IntentDefinition`/`DefinitionRegistry` types from non-test code once the adapter lands, or confine them explicitly to test fixtures.
+  - **Refs:** `internal/agentsecurity/action_compiler.go`, `internal/intent/app/registry.go`, `gen/go/hcmnext/intents/v1/business_intent.pb.go`, [Agent runtime](data/models/assurance-intelligence-platform.md), [BusinessIntent](specs/business-intent-and-change-request.md).
+
+### R020. §19 Reference-workflow conformance harness
+
+Checked `CONF-001` through `CONF-008` (`planning/todos.md:5814-5905`). All eight named test functions exist and pass their packages by name (`TestTodo_CONF_001` in `tools/conformance`, `_002` in `tools/conformance/recruit`, `_003`/`_004`/`_005`/`_008` in `internal/workflow/conformance/{transfer,leavereturn,termination,payroll}`, `_006` in `internal/domains/payroll/correction`, `_007` in `internal/domains/org`). `CONF-001`'s generic harness (`tools/conformance`) is correctly scoped to the P1A disposition: it parses only the two machine-readable fixtures under `planning/reference-workflows/` (`promote-into-management.md`, `manager-change.md`) and executes just Promotion through the real compiled plan (`tools/conformance/runner.PlanRunner` + `internal/workflow/simulate`); REPLAY and fault schedules are absent, matching the documented 2026-09-02 deferral, not a gap. `CONF-003`, `CONF-004`, `CONF-005` and `CONF-007` genuinely drive `internal/workflow` (and `internal/workflow/simulate`) as claimed. `CONF-002`, however, is a pure boolean-flag validator with no engine wiring at all — a real gap detailed below. `CONF-006` intentionally stays engine-free per its own REFACTOR clause ("no native payroll engine is required"), so that is not a gap.
+
+- [ ] `REV-020-01` **[GATE_C][SOL_HIGH] Replace the Recruit/Hire/Onboard conformance fixture with a real workflow definition executed by the SIMULATE interpreter.**
+  - **Depends:** `CONF-001`, `WF-STEP-001`, `WF-STEP-005`, `WF-STEP-009`, `WF-STEP-013`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=prove accepted intent behavior for recruit hire and onboard rather than a self-contained flag checker`.
+  - **TEST:** `TestTodo_REV_020_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_020_01`; `CONFORMANCE=TestTodo_REV_020_01_Conformance`; `SECURITY=TestTodo_REV_020_01_Security`.
+  - **RED:** GAP: `tools/conformance/recruit/contract.go` and `contract_test.go` implement ticked item `CONF-002` ("prove Recruit, Hire and Onboard semantics") as a standalone `Scenario` struct checked by an if-chain in the same package; `grep -rn "internal/workflow" tools/conformance/recruit/` returns nothing, so no compiled workflow, proposal/approval binding, position/budget reservation or IAM/payroll port is ever exercised. Its own `golden()` fixture sets every required field to true/pass by hand and `Check` simply reads those same fields back, so the test cannot fail against real recruit/hire/onboard behavior — unlike sibling `CONF-003` (`internal/workflow/conformance/transfer`), `CONF-004` (`internal/workflow/conformance/leavereturn`), `CONF-005` (`internal/workflow/conformance/termination`) and `CONF-007` (`internal/domains/org`), which all import and drive `internal/workflow` and/or `internal/workflow/simulate`, and there is no `internal/workflow/conformance/recruit` package at all.
+  - **GREEN:** a new `internal/workflow/conformance/recruit` package compiles a real Recruit/Hire/Onboard workflow definition using the `CAPABILITY` (`WF-STEP-001`), `WAIT` (`WF-STEP-005`), `SUBWORKFLOW` (`WF-STEP-009`) and `DOCUMENT` (`WF-STEP-013`) step types, runs it through `internal/workflow/simulate`, and duplicate-person, offer-expiry, exhausted-position/budget, missing-work-authorization and degraded-downstream outcomes are all derived from the interpreter's proposal/approval/reservation/observation state rather than asserted directly by the test.
+  - **REFACTOR:** retire `tools/conformance/recruit` once the real package lands so exactly one Recruit/Hire/Onboard conformance fixture remains authoritative.
+  - **Refs:** `tools/conformance/recruit/contract.go`, `tools/conformance/recruit/contract_test.go`, `internal/workflow/conformance/transfer/definition.go`, [Recruit-to-onboard](workflows/lifecycle/recruit-hire-onboard.md).
+
+### R021. §20 Regulatory platform and content operations
+
+Checked `LEGAL-001`..`LEGAL-018`, all 13 `LEGAL-TOOL-*`, and a spread of `LEGAL-ST-*` state packs (AL, AK, AZ, AR, CA, CO, CT, DE, FL, GA, HI, ID, WY, DC), plus `WAGE-001`, `TAX-001`, `FILING-001/002` that close this section. The `internal/governance/legal` package tree (attribution, carveouts, extract, indexation, payrules, pipeline, reciprocity, researchgaps, stateparams) exists and is wired into `cmd/hcmnext` and `cmd/worker` (`go list -deps` confirms `internal/governance/legal` and `internal/governance/legal/pipeline`); `definitions/legal/packs/states` holds all 51 registered packs (50 states + DC) matching the ticked `LEGAL-ST-*` items, and downstream domains (`leave`, `payroll/filing`, `privacy/dsr`, `intent/app`) do import the legal package, so the LEGAL-\* obligation core is real and consumed. The section's weak spot is the wage/tax/filing chain it hands off to: `WAGE-001`'s `EvaluateWages` (`internal/domains/payroll/wagehour.go`) and `TAX-001`'s `CalculateTax` (`internal/domains/payroll/tax_calc.go`) take opaque, pre-resolved rate/multiplier/rule-pack inputs from the caller and have zero non-test callers anywhere in the repo, so the jurisdiction-specific overtime, tax and filing parameters this section spent `LEGAL-TOOL-001`, `LEGAL-TOOL-003` and 51 state packs capturing are never actually read by a resolver at runtime — they are proven in isolation and then orphaned. A second gap: nothing in the Experience/Administration layer (§66) exposes the counsel-review pipeline (`LEGAL-015`) to a tenant, even though every registered pack is permanently stuck below the release floor until a tenant's own counsel signs it (documented in `LEGAL-ST-AL-001`'s 2026-09-14 progress note), so there is no product path today for a customer to ever reach `VENDOR_BASELINE`/`CUSTOMER_DEFINED` on any state.
+
+- [x] `REV-021-01` **[GATE_C][SOL_HIGH] Resolve WAGE-001's overtime and pay parameters from the jurisdiction's registered LegalContext instead of accepting opaque caller-supplied multipliers.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_021_01` family in `internal/domains/payroll`; `go test -count=1 -run 'TestTodo_REV_021_01' ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL,BI.REGULATORY; DIRECT=none; WHY=make the fifty-state overtime and wage-floor parameters LEGAL-TOOL-001 captured actually govern the wage-hour calculation`.
+  - **TEST:** `TestTodo_REV_021_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_021_01`; `GOLDEN=TestTodo_REV_021_01_Golden`.
+  - **RED:** GAP contradicting `LEGAL-TOOL-001`'s own REFACTOR clause ("WAGE-001, once built, reads these parameters by jurisdiction and business-effective-date exactly as it reads WageFloorRule today"): `WageInput` in `internal/domains/payroll/wagehour.go` has `OvertimeMultiple`, `DoubleTimeMultiple` and `MinimumWage` as plain caller-supplied decimals with no `Jurisdiction`/`LegalContext` field and no import of `internal/governance/legal` or `internal/governance/legal/stateparams`; Alaska's daily-overtime trigger, Colorado's 12-hour/12-consecutive-hour COMPS Order #40 rule and Kentucky's seventh-consecutive-day premium that `LEGAL-TOOL-001` typed have no code path that ever reads them into an `EvaluateWages` call.
+  - **GREEN:** `EvaluateWages` accepts a resolved `LegalContext` (or the caller passes a resolver-derived `OvertimeThreshold` struct sourced from `stateparams`), and a golden test proves Alaska (daily-8/weekly-40), Colorado (greater-of 40/12/12) and Kentucky (7th-consecutive-day) each produce a different overtime split from the same 45-hour, 6-consecutive-day input.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/payroll/wagehour.go`, `internal/governance/legal/stateparams`, [Obligation kinds](specs/legal-rule-packs-and-state-configuration.md#4-obligation-kinds).
+
+- [ ] `REV-021-02` **[GATE_C][SOL_HIGH] Wire WAGE-001, TAX-001 and FILING-001 into a callable capability so the payroll-obligation chain runs outside its own unit tests.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=COMPOSITE; SETS=BI.PAYROLL,BI.REGULATORY; DIRECT=none; WHY=make the proven wage-tax-filing engines reachable from a real payroll run instead of existing only as tested-in-isolation functions`.
+  - **TEST:** `TestTodo_REV_021_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_021_02`; `INTEGRATION=TestTodo_REV_021_02_Integration`.
+  - **RED:** GAP: `grep -rln "EvaluateWages\|CalculateTax" --include=*.go .` (excluding `_test.go`) matches only `wagehour.go` and `tax_calc.go` themselves — no capability, workflow step, or `payroll.go`/`trialcalc.go`/`release.go` call site invokes either function, and `internal/domains/payroll/filing` likewise has no non-test caller; `TAX-001`, `FILING-001` and `FILING-002` are ticked GREEN on unit coverage alone with no evidence the three compose into one payroll run.
+  - **GREEN:** a payroll-run capability (or `trialcalc.go`) calls `EvaluateWages` then `CalculateTax` then produces a `FilingPackage` for one worker's period end to end, with an integration test asserting the tax input derives from the wage result and the filing package's source values trace back to both.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/payroll/wagehour.go`, `internal/domains/payroll/tax_calc.go`, `internal/domains/payroll/filing`, `internal/domains/payroll/trialcalc.go`.
+
+- [ ] `REV-021-03` **[GATE_C][TERRA] Add a tenant-facing counsel review and pack-promotion surface so a registered state pack can ever leave UNREVIEWED.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.REGULATORY,BI.TENANT; DIRECT=none; WHY=give a tenant a real path to VENDOR_BASELINE or CUSTOMER_DEFINED instead of a permanently unreleasable pack`.
+  - **TEST:** `TestTodo_REV_021_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_021_03`; `SECURITY=TestTodo_REV_021_03_Security`; `GOLDEN=TestTodo_REV_021_03_Golden`.
+  - **RED:** NEW: `LEGAL-015` builds the author/reviewer/publisher pipeline as a library with separated ed25519 signers, and `LEGAL-ST-AL-001`'s 2026-09-14 progress note records that all 51 registered packs "fail the tenant review floor" because `Releasable()` requires `CounselApproved`/`VendorBaseline`/`CustomerDefined` and nothing but a human counsel signature can satisfy it; §66 (Administration operations and release, lines 18328-18530) has no mention of "legal" or "rule pack" at all, so no operator or tenant surface exists to review a draft pack's obligations, attach a counsel signature, or promote it — the entire fifty-one-state corpus is permanently stuck at `UNREVIEWED` from a product-usage standpoint.
+  - **GREEN:** an operator/tenant admin page lists registered packs by jurisdiction and `ReviewStatus`, lets an authorized tenant-counsel principal review typed obligations against citations and sign a promotion to `CUSTOMER_DEFINED` (or accept the vendor's `VENDOR_BASELINE` signature), and the promotion is recorded through the existing `LEGAL-015` signed pipeline event log with no new signature scheme.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/governance/legal/pipeline`, `internal/governance/legal/review_record.go`, [Authoring and review pipeline](specs/legal-rule-packs-and-state-configuration.md#7-authoring-and-review-pipeline).
+
+### R023. Dependency-closure additions
+
+Checked all 5 items in section 22 (`CONFLICT-004`, `APPROVAL-004`, `APPROVAL-005`, `GOV-016`, `DOC-001`, lines 6952-7011). Every named package exists and every `TestTodo_*`/`FuzzTodo_*` name greps clean in its stated package. `APPROVAL-004`'s `Resolve` is wired into `internal/humanwork/workitem/assignment.go`, and `go list -deps` confirms `internal/humanwork`, `internal/transaction/conflict` and `internal/intent/approval` are all linked into `cmd/hcmnext`. The planning tools (`docintegrity`, `dependencygraph`, `todogovernance`) are correctly library/CLI-only; their CI-wiring gap is already tracked by open item `REV-001-03` (`planning/todos.md:22432`), so it is not repeated here. The important gap: `CONFLICT-004` and `APPROVAL-005` each define an execution-time re-evaluation function whose GREEN text promises it runs "immediately before" commit, but neither function has any caller outside its own package and tests — the real commit path (`internal/transaction/commit/commit.go`, `internal/workflow/runtime/*`, `internal/workflow/execute/*`) never invokes either one, so the described protection cannot actually fire in a live transaction.
+
+- [ ] `REV-023-01` **[GATE_B][SOL_HIGH] Call ReevaluatePreflight from the real execution-commit path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=make the execution-time conflict re-evaluation actually block a real commit instead of only its own unit tests`.
+  - **TEST:** `TestTodo_REV_023_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_023_01`; `INTEGRATION=TestTodo_REV_023_01_Integration`; `MUTATION=TestTodo_REV_023_01_Mutation`.
+  - **RED:** GAP: `CONFLICT-004` (`planning/todos.md:6956`) is ticked with GREEN claiming "blocked path commits zero business effects," but `grep -rln "ReevaluatePreflight" --include=*.go .` outside `_test.go` files returns only `internal/transaction/conflict/reevaluate.go` itself; `internal/transaction/commit/commit.go` calls `ConflictFence.ValidateAtCommit` (stream/sequence fencing) and `internal/workflow/runtime/boundary.go` calls `conflict.ClassifyConflict` (admission-time candidate check), neither of which is `ReevaluatePreflight`, so the pinned-vs-current cross-workflow re-evaluation this item describes never runs on a real transaction.
+  - **GREEN:** the execution step that precedes a real commit (in `internal/workflow/runtime` or `internal/transaction/commit`) calls `ReevaluatePreflight` with the approval-pinned intent set and the current footprint set, and an integration test drives a real commit where a post-approval collision yields `BLOCKED` and asserts the transaction wrote zero rows.
+  - **REFACTOR:** share `fence.go`'s `WriteFootprint`/`WriteBaseline` conversions with `ReevaluateRequest` so the runtime is not asked to maintain two divergent conflict representations.
+  - **Refs:** `internal/transaction/conflict/reevaluate.go`, `internal/transaction/commit/commit.go`, `internal/workflow/runtime/boundary.go`, `internal/workflow/runtime/start.go`.
+
+- [ ] `REV-023-02` **[GATE_B][SOL_HIGH] Call RevalidateBeforeExecution from the real workflow execution path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK; DIRECT=none; WHY=make execution-time approval-authority revalidation actually gate a real commit instead of only its own unit tests`.
+  - **TEST:** `TestTodo_REV_023_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_023_02`; `SECURITY=TestTodo_REV_023_02_Security`; `INTEGRATION=TestTodo_REV_023_02_Integration`.
+  - **RED:** GAP: `APPROVAL-005` (`planning/todos.md:6978`) is ticked with Evidence claiming execution "revalidates approver authority and the proposal binding immediately before the commit," but `grep -rln "RevalidateBeforeExecution" --include=*.go .` outside `_test.go` files returns only `internal/intent/approval/revalidation.go`; none of `internal/workflow/execute/currency_guard.go`, `internal/workflow/steps/approval/complete.go` or `internal/transaction/commit/commit.go` call it, so a revoked approver or a proposal that moved after the decision can still reach a real commit.
+  - **GREEN:** the workflow step that commits an approved plan (`internal/workflow/execute` or `internal/workflow/steps/approval`) calls `RevalidateBeforeExecution` with live `Authority`/`Proposal`/`Control` ports immediately before invoking commit, and an integration test proves a revoked authority or a moved proposal digest returns `APPROVAL_STALE` with zero effects through the real commit path.
+  - **REFACTOR:** thread `ExecutionRevalidationPorts` through the same dependency-injection point `commit.go` already uses for `ConflictFence`.
+  - **Refs:** `internal/intent/approval/revalidation.go`, `internal/workflow/execute/currency_guard.go`, `internal/workflow/steps/approval/complete.go`, `internal/transaction/commit/commit.go`.
+
+### R024. §23 Document processing and signature execution
+
+Checked all seven items (`DOC-MAL-001`, `DOC-INTAKE-001`, `DOC-EXTRACT-001`, `DOC-REDACT-001`, `DOC-TEMPLATE-001`, `DOC-SIGN-001`, `DOC-EVIDENCE-001`): every named package exists with the claimed `TestTodo_*` functions and passes as a library. But `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` contains none of `internal/documents/{intake,signing,evidence,template}`, `internal/engines/{docextract,docredact}` or `internal/domains/asset/quarantine` — the entire unit is library-only, unreachable from any running binary, and there is no upload/e-signature surface in any `.proto` or `internal/transport/manifest`. Downstream items that declare a `Depends` on this unit (`LEAVE-003` on `DOC-INTAKE-001`, `CASE-004` on `DOC-EVIDENCE-001`) do not import the corresponding package at all; they reimplement ad hoc substitutes (`internal/domains/leave/snapshot.go` defines its own bare `EvidenceRef string` colon-format check instead of consuming intake's typed evidence reference). Separately, three orphaned duplicate packages (`internal/documentsecurity`, `internal/documentextract`, `internal/documentredact`) reuse the exact `TestTodo_DOC_MAL_001`/`DOC_EXTRACT_001`/`DOC_REDACT_001` names claimed as evidence for the canonical packages, with zero importers anywhere in the tree — dead, confusing shadow implementations. The most important gap is the first: a P1B/GATE_B-flagged malware-quarantine gate and its downstream pipeline are not actually in the request path of the running system.
+
+- [ ] `REV-024-01` **[GATE_C][SOL_HIGH] Wire the DOC-INTAKE-001/DOC-MAL-001 pipeline into a real ingress path or downgrade its disposition.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DOCUMENTS; DIRECT=none; WHY=an uploaded artifact must actually pass through quarantine and intake before any consumer sees it`.
+  - **TEST:** `TestTodo_REV_024_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_024_01`; `INTEGRATION=TestTodo_REV_024_01_Integration`.
+  - **RED:** GAP against `DOC-MAL-001`/`DOC-INTAKE-001`: `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` contains no `internal/documents/intake`, `internal/domains/asset/quarantine` or `internal/data/artifacts`; `grep -rln "internal/documents/intake\"" internal cmd` returns only the package's own test file; no `.proto`/`internal/transport/manifest` exposes an upload or document-submission call at all.
+  - **GREEN:** at least one served endpoint or workflow step accepts artifact bytes, routes them through quarantine scan and intake freezing, and returns only a typed `EvidenceRef`; the call chain is visible in `go list -deps` for a served binary; if the pilot truly accepts no uploads yet, the plan's disposition line for `DOC-MAL-001` is corrected to say so explicitly instead of standing as `[GATE_B]`.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/documents/intake/intake.go`, `internal/domains/asset/quarantine/use.go`, `internal/data/artifacts/store.go`, [platform responsibility boundaries](specs/platform-responsibility-boundaries.md).
+
+- [ ] `REV-024-02` **[GATE_C][SOL_HIGH] Make LEAVE-003 and CASE-004 consume the typed DOC-INTAKE-001/DOC-EVIDENCE-001 references they declare as dependencies.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.CASES,BI.DOCUMENTS; DIRECT=none; WHY=a declared dependency on the governed evidence pipeline must not be satisfied by a private lookalike type`.
+  - **TEST:** `TestTodo_REV_024_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_024_02`; `INTEGRATION=TestTodo_REV_024_02_Integration`.
+  - **RED:** GAP against ticked `LEAVE-003` (declares `Depends: ... DOC-INTAKE-001 ...`) and `CASE-004` (declares `Depends: ... DOC-EVIDENCE-001 ...`): `internal/domains/leave/snapshot.go:38` defines its own `EvidenceRef string` validated only by `strings.Contains(entry.EvidenceRef, ":")` (snapshot.go:89), and neither `internal/domains/leave` nor `internal/domains/hrcase` imports `internal/documents/intake` or `internal/documents/evidence` (`grep -rn "human-capital-management-suite/internal/documents/(intake|evidence)" internal/domains/leave internal/domains/hrcase` returns nothing).
+  - **GREEN:** `LeaveInputSnapshot` evidence entries and case evidence-package export carry the actual typed `EvidenceRef` (or a value convertible only from one) produced by `internal/documents/intake`/`internal/documents/evidence`, not a bare colon-delimited string invented locally.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/leave/snapshot.go`, `internal/domains/hrcase/appeal.go`, `internal/documents/intake/intake.go`, `internal/documents/evidence/evidence.go`.
+
+- [ ] `REV-024-03` **[GATE_C][SOL_LOW] Remove or merge the orphaned documentsecurity/documentextract/documentredact packages that shadow the canonical DOC-MAL-001/DOC-EXTRACT-001/DOC-REDACT-001 implementations.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DOCUMENTS; DIRECT=none; WHY=two non-communicating implementations of the same todo id create ambiguity about which one is authoritative evidence`.
+  - **TEST:** `TestTodo_REV_024_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_024_03`.
+  - **RED:** GAP: `internal/documentsecurity/doc_mal_001_test.go`, `internal/documentextract/extract_test.go` and `internal/documentredact/redact_test.go` declare `TestTodo_DOC_MAL_001[_Golden/_Integration]`, `TestTodo_DOC_EXTRACT_001[_Golden/_Security]` and `TestTodo_DOC_REDACT_001[_Golden/_Integration]` respectively, duplicating names already claimed as evidence for `DOC-MAL-001`/`DOC-EXTRACT-001`/`DOC-REDACT-001` in `internal/domains/asset/quarantine`, `internal/engines/docextract` and `internal/engines/docredact`; `grep -rn "human-capital-management-suite/internal/document(security|extract|redact)"` finds zero importers outside each package's own files except `internal/documents/intake` importing `documentsecurity`.
+  - **GREEN:** exactly one package per capability remains, or the plan records which package is canonical evidence and which is retired/merged, so `TestTodo_DOC_MAL_001` etc. resolve unambiguously to one implementation.
+  - **REFACTOR:** if `internal/documentsecurity` is kept because `internal/documents/intake` depends on it, retire the fully unused `internal/documentextract` and `internal/documentredact` outright.
+  - **Refs:** `internal/documentsecurity/security.go`, `internal/documentextract/extract.go`, `internal/documentredact/redact.go`, `internal/domains/asset/quarantine/quarantine.go`, `internal/engines/docextract/docextract.go`, `internal/engines/docredact/docredact.go`.
+
+### R025. §24 Human decision safety and continuity
+
+Checked all eight items (APPROVAL-006/007, FORM-005/006, WORK-007/008/009/010) against `internal/intent/approval`, `internal/humanwork/workitem`, `internal/forms/drafts`, `internal/humanwork/formcontinuity` and `internal/workflow/steps/approval`. Every named `TestTodo_*` primary/matrix test (including the `FuzzTodo_FORM_005`, `FuzzTodo_FORM_006` and `BenchmarkTodo_WORK_007` matrix entries) exists and the approval/work-item packages are reachable from `cmd/hcmnext`/`cmd/worker` via `go list -deps`. Two items — FORM-005 (encrypted resumable drafts) and FORM-006 (alternate-channel continuity) — are fully implemented and tested but have zero non-test importers anywhere in the repository and are absent from all four binaries' dependency graphs; they are orphaned libraries, not part of the served human-work flow their GATE_B disposition claims. (Separately, `internal/workflow/steps/task`, which WORK-010's evidence also leans on, is already tracked as unwired by `REV-008-01` at line 22562 — not duplicated here.)
+
+- [ ] `REV-025-01` **[GATE_B][SOL_HIGH] Wire encrypted form drafts and alternate-channel continuity into the served human-work completion path.**
+  - **Depends:** `FORM-005`, `FORM-006`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DOCUMENTS; DIRECT=none; WHY=resumable drafts and alternate-channel continuity must actually run for a real form interruption not just exist as a tested library`.
+  - **TEST:** `TestTodo_REV_025_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_025_01`; `INTEGRATION=TestTodo_REV_025_01_Integration`; `GOLDEN=TestTodo_REV_025_01_Golden`.
+  - **RED:** GAP: FORM-005 and FORM-006 are ticked GATE_B ("the running cell already serves"), but `grep -rln "internal/forms/drafts\"" --include=*.go .` and `grep -rln "internal/humanwork/formcontinuity\"" --include=*.go .` both return no results outside the packages' own test files, and neither package appears in `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler`; a real interrupted form fill-out or phone/in-person/postal submission today has no code path that ever calls `drafts.Store` or `formcontinuity.Establish`/`Route`.
+  - **GREEN:** the served task/form intake boundary (e.g. `internal/workflow/steps/task` or its caller) constructs and calls into `drafts.Store.Save/Resume/Submit` for interrupted form sessions and `formcontinuity.Establish`/`Route` for accommodation/alternate-channel intake, so both packages appear in `go list -deps ./cmd/hcmnext` and an end-to-end save-interrupt-resume and an alternate-channel submission both produce the typed records their own test suites already certify.
+  - **REFACTOR:** the assisted/alternate route still never gains decision authority; draft/continuity records stay evidence, not workflow input.
+  - **Refs:** `internal/forms/drafts/drafts.go`, `internal/humanwork/formcontinuity/continuity.go`, `internal/workflow/steps/task/submit.go`, [human work](specs/human-work-forms-and-rules.md).
+
+### R026. Search, metrics and outcome intelligence
+
+Checked all eight ticked items in §25 (`SEARCH-001`, `SEARCH-002`, `METRIC-001`, `METRIC-002`, `DISCLOSURE-001`, `OUTCOME-001`, `PROCESS-001`, `REPRO-001`). Every named `TestTodo_*` function exists and the referenced files (`internal/engines/search/*.go`, `internal/domains/intelligence/*.go`, `internal/governance/privacy/{disclosure,processlog}.go`) are real, well-typed implementations matching their GREEN prose on a sampled read. The gap is systemic rather than local: `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` never resolves `internal/engines/search` or `internal/governance/privacy`, and although `internal/domains/intelligence` is a dependency of `cmd/hcmnext`, that is only because `ExplainTransaction` is wired into `internal/transport/admin`; `CompileMetric`, `AppendCorrection`, and `RecordOutcomeLink` have zero callers anywhere outside their own package and tests. Concretely: no shipped binary can execute an authorized search, apply disclosure control to an analytics query, build a process-mining case log, compile/correct a metric, or record an outcome link — the entire unit is exercised only by its own test suite and two unrelated policy/coverage lint tools (`tools/policy/substratecoverage`, `tools/policy/crosscut`). This is the most important finding: eight items are ticked GREEN on unit tests alone with no production entry point, so the capability the plan describes does not exist for a real tenant yet.
+
+- [ ] `REV-026-01` **[GATE_C][SOL_HIGH] Wire the authorized search engine into a running transport handler or worker.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=expose governed search authorization to a real caller instead of tests only`.
+  - **TEST:** `TestTodo_REV_026_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_026_01`; `INTEGRATION=TestTodo_REV_026_01_Integration`; `SECURITY=TestTodo_REV_026_01_Security`.
+  - **RED:** GAP: `SEARCH-001` and `SEARCH-002` are ticked complete, but `grep -rln "engines/search" --include=*.go .` outside `internal/engines/search/*_test.go` returns only `tools/policy/substratecoverage/substratecoverage.go`, a coverage-declaration lint tool, not a caller; `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` never resolves `internal/engines/search`, so no tenant can execute a search request in the running system.
+  - **GREEN:** a transport handler or worker job accepts a search request, builds `search.QueryEnvelope`, calls the authorization-then-ranking path with a live ranker implementation, and returns hits carrying source digest and suppression evidence to a real caller; `internal/engines/search` appears in `go list -deps` for at least one shipped binary.
+  - **REFACTOR:** ranking backend selection stays behind the existing port interface.
+  - **Refs:** `internal/engines/search/search.go`, `internal/engines/search/propagation.go`, `internal/engines/search/repro001.go`, [Intelligence model](data/models/assurance-intelligence-platform.md).
+
+- [ ] `REV-026-02` **[GATE_C][SOL_HIGH] Wire metric compilation, correction and outcome linkage into a running worker or transport path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS; DIRECT=none; WHY=provide owned analytics computation to a real caller instead of tests only`.
+  - **TEST:** `TestTodo_REV_026_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_026_02`; `INTEGRATION=TestTodo_REV_026_02_Integration`.
+  - **RED:** GAP: `METRIC-001`, `METRIC-002` and `OUTCOME-001` are ticked complete, but `grep -rln "CompileMetric\|AppendCorrection\|RecordOutcomeLink" --include=*.go .` matches only `internal/domains/intelligence/*.go` itself plus same-named but unrelated methods on other packages' own types (confirmed by reading each hit: `employeerelations/chronology.go`, `payroll/correction/correction.go`, `pseudonym/evidence.go` each define their own `AppendCorrection`); the only production caller into `internal/domains/intelligence` is `ExplainTransaction` via `internal/transport/admin/explain_transaction.go`, so no shipped binary can compile a metric, post a correction, or record an outcome link.
+  - **GREEN:** a worker/scheduler job or transport RPC accepts a metric definition, correction, or outcome-link request, calls `CompileMetric`/`Execute`, `(*CorrectionLog).AppendCorrection`, or `RecordOutcomeLink` against real `MetricRow`/decision data, and persists or returns the typed result through a path visible in `go list -deps` for a shipped binary.
+  - **REFACTOR:** metric/outcome persistence stays behind the already-tested typed contract.
+  - **Refs:** `internal/domains/intelligence/metric.go`, `internal/domains/intelligence/metric_correction.go`, `internal/domains/intelligence/outcome001.go`, `internal/transport/admin/explain_transaction.go`.
+
+- [ ] `REV-026-03` **[GATE_C][SOL_HIGH] Wire disclosure-controlled analytics and process-mining projection into a running path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ANALYTICS,BI.PRIVACY; DIRECT=none; WHY=govern analytics disclosure and privacy before any transport ships a real result`.
+  - **TEST:** `TestTodo_REV_026_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_026_03`; `GOLDEN=TestTodo_REV_026_03_Golden`; `INTEGRATION=TestTodo_REV_026_03_Integration`; `SECURITY=TestTodo_REV_026_03_Security`.
+  - **RED:** GAP: `DISCLOSURE-001` and `PROCESS-001` are ticked complete, but `Apply` (disclosure budget/suppression) and `NewProcessProjector`/`Append`/`Project` in `internal/governance/privacy` have zero callers outside their own tests plus `tools/policy/substratecoverage` and `tools/policy/crosscut` (coverage/lint tools, not runtime callers); `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` never resolves `internal/governance/privacy`, so no analytics query is ever disclosure-checked and no process-mining case log is ever built in the running system.
+  - **GREEN:** a transport handler calls `privacy.Apply` before returning any aggregate/count analytics result, and a projector job calls `NewProcessProjector`/`Append` from real workflow/case events; both paths are visible in `go list -deps` for a shipped binary.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/governance/privacy/disclosure.go`, `internal/governance/privacy/processlog.go`, [Disclosure model](data/models/assurance-intelligence-platform.md).
+
+### R027. §26 PostgreSQL database and model materialization
+
+Read all ~726 lines (7276-8001), sampling the DB-001..DB-024 core aggregates deeply and skimming the 41-item "Domain persistence backfill (2026-09-05)" subsection (PERSIST-ACCESS-001 through PERSIST-TRUST-001), then verified claims against migrations/, internal/data/, and `go list -deps` on the four serving binaries. The core DB-001..DB-024 items check out: migrations, RLS via DB-017, and repository tests exist as claimed. The backfill subsection is where the plan diverges sharply from the running system: of the 41 PERSIST-\* store packages, only `legalevidencestore` is reachable from `cmd/hcmnext`/`cmd/worker`/`cmd/projector`/`cmd/scheduler` — the other ~38 (career, payroll, benefits, incentive, mobility, CBA, safety, employee-relations, custom objects, access, and more) are checked-in, tested-in-isolation Go packages that no serving binary imports, so their migrations create schema no production code path reads or writes. Separately, two of those tickets (employee-relations, safety) admit in their own migration comments that the compartment/participant row-visibility their RED clause requires was never implemented, leaving only bare tenant isolation on highly sensitive investigation and injury records.
+
+- [ ] `REV-027-01` **[GATE_C][SOL_HIGH] Wire the domain-persistence backfill store packages into a serving code path or reopen the tickets that claim them as done.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=forty-one PERSIST domain store packages exist but only legalevidencestore is reachable from any of the four serving binaries so the other domains capabilities are not actually durable in production`.
+  - **TEST:** `TestTodo_REV_027_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_027_01`; `INTEGRATION=TestTodo_REV_027_01_Integration`; `CONFORMANCE=TestTodo_REV_027_01_Conformance`; `FAULT=TestTodo_REV_027_01_Fault`; `RECOVERY=TestTodo_REV_027_01_Recovery`.
+  - **RED:** GAP: `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` filtered to `internal/data/` lists `legalevidencestore` but none of `accessstore`, `schedulingstore`, `assetstore`, `attestationstore`, `balancestore`, `benefitsstore`, `budgetstore`, `careerstore`, `cbastore`, `contactstore`, `crmstore`, `customstore`, `planningstore`, `employeerelationsstore`, `equitystore`, `fxstore`, `hrcasestore`, `incentivestore`, `contentregistrystore`, `jobarchstore`, `locationstore`, `meritstore`, `mobilitystore`, `payglstore`, `payinputstore`, `paymethodstore`, `payrollstore`, `performancestore`, `positionstore`, `identityprivacystore`, `safetystore`, `skillstore`, `subscriptionstore`, `successionstore`, `surveystore`, `taxprofilestore`, `tenantstore`, `trustadditionalstore`, `commercialstore`; a direct check (`grep -rl employeerelationsstore --include=*.go internal/ cmd/`) shows the package imported only by its own files. This contradicts `PERSIST-EMPLOYEERELATIONS-001`, `PERSIST-CAREER-001`, `PERSIST-PAYROLL-001` and 35 more tickets marked `[x]` complete on the strength of an isolated `go test ./internal/data/<x>store/` pass alone.
+  - **GREEN:** each PERSIST-_ store gains at least one call site in its domain's owning service, handler, or worker loop that is itself reachable from one of the four cmd binaries; where a domain genuinely has no serving trigger yet, its ticket is reopened with a dated note rather than left checked as done. `go list -deps` on the four binaries then includes every store package the storage-disposition manifest lists as an active AGGREGATE/LEDGER/CONTROL disposition, and a scripted check fails CI the day a new PERSIST-_ store ships without a caller.
+  - **REFACTOR:** the storage-disposition manifest generator (`tools/gen/storagemanifest`) gains a serving-reachability column so a disposition with no caller is flagged automatically instead of only discoverable by manual `go list -deps` audits like this one.
+  - **Refs:** `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler`, `internal/data/employeerelationsstore`, `internal/data/careerstore`, `internal/data/payrollstore`, `definitions/storage/storage-disposition.yaml`.
+
+- [ ] `REV-027-02` **[GATE_C][SOL_HIGH] Add a database-enforced compartment-visibility policy for the employee-relations and safety revision tables.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.CASES,BI.SECURITY; DIRECT=none; WHY=employee-relations and safety revision tables carry compartment_ref and participants columns but enforce only tenant isolation so any tenant session can read every investigation or injury record regardless of compartment membership`.
+  - **TEST:** `TestTodo_REV_027_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_027_02`; `SECURITY=TestTodo_REV_027_02_Security`; `INTEGRATION=TestTodo_REV_027_02_Integration`; `FAULT=TestTodo_REV_027_02_Fault`; `RECOVERY=TestTodo_REV_027_02_Recovery`.
+  - **RED:** GAP: `migrations/00088_employeerelations.sql:183` comments "Participant/compartment authorization remains a governed follow-up policy" and creates only a `tenant_isolation` RLS policy on all six `er_*_revision` tables (confirmed by grepping `POLICY` in that file); `migrations/00112_safety.sql` does the same for all six `safety_*_revision` tables. This contradicts the RED clause both `PERSIST-EMPLOYEERELATIONS-001` and `PERSIST-SAFETY-001` state for themselves ("a principal not named in participants reads a row for a compartment_ref they are not part of"), and both tickets are marked `[x]` complete. The only compartment check found, `CONF-014` in `internal/workflow/conformance/hrcase`, runs inside the SIMULATE workflow interpreter, is application-layer only, and per `REV-027-01` is not reachable from a serving binary — so today there is no enforcement path at all, in-process or in the database, for this stated invariant.
+  - **GREEN:** a compartment-membership row-security policy (or a `SECURITY DEFINER` predicate function checking the session principal against a row's `participants`, with a governance-recorded override authority from `DB-013` for cross-compartment access) is added under `FORCE ROW LEVEL SECURITY` on all twelve tables; a negative fixture proves a tenant-authorized principal absent from a row's `participants` gets zero rows, and a positive fixture proves a named participant or override-holder reads normally.
+  - **REFACTOR:** the resulting policy becomes the documented template `DB-017` already promises for any future compartmented-evidence table set, referenced by name rather than re-derived.
+  - **Refs:** `migrations/00088_employeerelations.sql`, `migrations/00112_safety.sql`, `internal/data/employeerelationsstore`, `internal/data/safetystore`, `internal/workflow/conformance/hrcase`.
+
+### R029. §28 Modular-monolith process roles and Go command binaries
+
+Checked all thirteen `SVC-*` items (lines 8171-8317). `cmd/` holds exactly the manifest's six pinned initial commands plus `frontenddev` (`hcmnext`, `worker`, `projector`, `migrate`, `scheduler`, `hcmctl`); `definitions/architecture/process-roles.yaml` lists the same set with `status: initial` and no unresolved "later" rows, matching `TestTodo_SVC_001`'s assertions. `go list -deps` on all six confirms every one composes through `internal/platform/bootstrap` (SVC-002), and every named `TestTodo_SVC_00N*` function exists in the Refs packages (SVC-002 through SVC-011, SVC-013). SVC-008's connector role and SVC-010-adjacent messaging role candidly document themselves as fail-closed/inert pending a provider adapter and credential authority, which is already tracked by prior-round items (`REV-013-01`, the messaging-provider GAP at line 22728) and not duplicated here. The one serious problem is SVC-012: its "process topology" proof never touches a real process, binary, or capability/workflow package — the harness is a self-contained in-memory bookkeeping model whose invariants are enforced by its own hand-written control flow, so the ticket's claim to have proven the six-binary cell's recovery and isolation behavior is not actually backed by anything that runs `cmd/hcmnext`, `cmd/worker`, or `bootstrap.Run`.
+
+- [ ] `REV-029-01` **[GATE_C][SOL_HIGH] Prove process topology against the real six-binary cell, not an in-memory role-name bookkeeping model.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=make the modular-monolith recovery and isolation proof exercise the binaries it claims to test`.
+  - **TEST:** `TestTodo_REV_029_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_029_01`; `INTEGRATION=TestTodo_REV_029_01_Integration`; `FAULT=TestTodo_REV_029_01_Fault`; `RECOVERY=TestTodo_REV_029_01_Recovery`.
+  - **RED:** GAP against ticked `SVC-012` (GATE_B), whose GREEN and 2026-09-14 evidence claim "a Go harness starts the six pinned commands... proves durable recovery, role/workload-identity isolation, bounded degradation, reconciliation and no duplicate effects; package graph remains identical across placements." `internal/platform/topology/cellharness.go` imports only `tools/policy/processroles` (confirmed by grepping its import block) — never `internal/platform/bootstrap`, any `cmd/*` package, or any real capability/workflow/connectivity package. `StartCell` only parses `process-roles.yaml` into string labels; `(*Cell).Execute` (cellharness.go:194) only writes a synthetic string `Key` into an in-memory `map[string]string`; no operation ever reaches `internal/capability`, `internal/workflow`, or a real Postgres-backed ledger/journal. `PackageFingerprint` (cellharness.go:123) hashes the hardcoded `PinnedRoles` table and never reads its caller's `placement` argument, so "package graph remains identical across placements" (asserted by `TestTodo_SVC_012_Property`) is true by construction of the fingerprint function, not proven by running anything under a different placement. No test in `svc012_test.go` or `svc012_matrix_test.go` starts an OS process or calls `bootstrap.Run`.
+  - **GREEN:** a topology-proof test drives the real cell — either by spawning the actual `cmd/hcmnext`, `cmd/worker`, `cmd/projector` and `cmd/scheduler` binaries as OS processes, or by calling each one's real `bootstrap.Run`/application composition root in-process against a shared test Postgres — submits real BusinessIntent/Promotion work through the real transport and capability dispatch path, kills and restarts the real worker process mid-flight, and asserts the real durable ledger/journal shows the work committed exactly once; the package-fingerprint claim is checked by actually re-resolving each role's owning package after moving it to a different command, not by hashing a placement-independent constant table.
+  - **REFACTOR:** keep the existing `internal/platform/topology/cellharness.go` in-memory model as a fast unit-level check of the role-isolation and reconciliation bookkeeping rules; add the process-level proof as a separate, slower integration suite rather than replacing the fast one.
+  - **Refs:** `internal/platform/topology/cellharness.go`, `internal/platform/topology/svc012_test.go`, `internal/platform/topology/svc012_matrix_test.go`, `internal/platform/bootstrap`, `cmd/worker`, `cmd/hcmnext`.
+
+### R030. §29 Machine-readable model sources and public API contracts
+
+Checked MSRC-001..010 and PROTO-001..008 (lines 8318-8519). Every referenced package exists (`tools/gen/schemaflux`, `internal/intent/model/deferred`, `tools/gen/modelgen`, `internal/intent/modelbinding`, `tools/policy/driftgate`, `tools/gen/contracts`, `internal/transport/clients`, `internal/transport/streaming`, `internal/transport/journey`, `tools/policy/apigate`) and every named `TestTodo_MSRC_*`/`TestTodo_PROTO_*` function is present, so the source-manifest, metamodel, SchemaFlux encodings, modelgen, drift gate, and proto/contract generation are genuinely implemented (library/tool-only is expected and correct for generators and CI gates). Runtime wiring is also correct for most generated contracts: `gen/go/hcmnext/{intents,registry,capabilities,evidence,admin,journey,humanwork,workflow}/v1` are all imported by `cmd/hcmnext`, and `internal/transport/streaming`/`internal/transport/journey` are linked into the running binaries. The one real hole: PROTO-004 generated `dataops/v1` `DataOpsService` (4 RPCs) and `integration/v1` `IntegrationService` (7 RPCs), but neither package is imported by any binary (`go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler ./cmd/hcmctl ./cmd/frontenddev ./cmd/migrate` all return zero hits for `gen/go/hcmnext/dataops` and `gen/go/hcmnext/integration`), and no file anywhere implements `DataOpsServiceServer` or `IntegrationServiceServer` (`grep -rln "DataOpsServiceServer\|IntegrationServiceServer|RegisterDataOpsServiceServer\|RegisterIntegrationServiceServer" --include=*.go .` outside `gen/go` returns nothing). `internal/transport/grpcserver/server.go` registers only `IntentService` and `RegistryService` directly; DataOps and Integration have no analogous registration despite their backing domain items (`DATAOPS-001`, `INTG-001`) being marked done.
+
+- [ ] `REV-030-01` **[GATE_C][SOL_HIGH] Implement and register DataOpsService and IntegrationService gRPC servers over the existing import-batch and connector-definition capabilities.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DATAOPS,BI.INTEGRATION; DIRECT=none; WHY=expose the already-implemented DATAOPS-001 and INTG-001 domain capabilities through their generated service contracts`.
+  - **TEST:** `TestTodo_REV_030_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_030_01`; `INTEGRATION=TestTodo_REV_030_01_Integration`.
+  - **RED:** GAP against `PROTO-004` (evidence 2026-09-03, `tools/gen/contracts`): `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` contains zero references to `gen/go/hcmnext/dataops` or `gen/go/hcmnext/integration`, and `grep -rln "DataOpsServiceServer\|IntegrationServiceServer" --include=*.go .` outside `gen/go` finds no implementation; `internal/transport/grpcserver/server.go` registers only `intentsv1.RegisterIntentServiceServer` and `registryv1.RegisterRegistryServiceServer`, with no DataOps/Integration counterpart, even though `DATAOPS-001` and `INTG-001` are both marked `[x]`.
+  - **GREEN:** new `internal/transport/dataops` and `internal/transport/integration` packages implement `DataOpsServiceServer`/`IntegrationServiceServer` backed by the `DATAOPS-001` import-batch handler and the `INTG-001` connector-definition registry, are registered in `internal/transport/grpcserver/server.go`, are reachable from `cmd/hcmnext`, and pass the existing `PROTO-006` grpcbridge parity suite for the new methods.
+  - **REFACTOR:** reuse the `intentService`/`registryService` registration pattern already in `server.go`.
+  - **Refs:** `gen/go/hcmnext/dataops/v1`, `gen/go/hcmnext/integration/v1`, `internal/transport/grpcserver/server.go`, [HRIS DataOps](specs/hris-admin-dataops.md), [integration platform](specs/integration-platform.md).
+
+### R031. §30 Control-plane publication, distribution and activation
+
+Checked all ten items (`CP-001`–`CP-010`). Every named test exists and passes at the unit level (`internal/platform/configregistry`, `internal/data/configregistry`, `internal/platform/configbundle`, ~5,500 lines), and spot-checking `bundle.go` (`Compile`, `ExtractDependencies`), `signing.go` (real Ed25519), `rollback.go`, `outage.go` (`OutageCell.ServeKnownGood`/`Activate`/`AdoptRecovery`) and `distribution.go` (`Receiver.Receive`/`Apply`) shows genuine, non-stub logic, not padding. The gap is wiring, not correctness: `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` shows `internal/platform/configbundle` (all of CP-002–CP-010) is imported by zero binaries, and a repo-wide grep for non-test imports of it returns nothing outside its own package. `internal/platform/configregistry` (CP-001) does reach a binary, but only through its read-only `Resolve` call in `internal/data/tenancy/planeverification.go:205`; its write path (`Publish`, `PutActivation`) and `hcmctl`'s command set (`internal/transport/admin/hcmctl/commands.go`: `list-intents`, `release-manifest`, `list-capabilities`, `explain-transaction`, `worker-state`, `instance` — no config/publish/activate/rollback/kill-switch verb) confirm there is no operator-reachable path anywhere in a running binary to publish, distribute, activate, roll back or kill-switch configuration; every such action today exists only inside `_test.go` files. This is consistent with the section's own 2026-09-02 disposition deferring "publication, signed bundle distribution, activation epochs and offline continuation" to Gate C, so the ticked items are not wrong about what they built, but their present-tense GREEN language ("services verify and atomically apply bundles" CP-004, "control plane reports active before required consumers apply" CP-005, propagation "within SLO" CP-008) describes behavior that cannot occur in the deployed system today.
+
+- [ ] `REV-031-01` **[GATE_C][SOL_HIGH] Wire configbundle publication, distribution, activation, rollback and kill-switch into a running service and an operator command.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.TENANT,BI.OPERATIONS; DIRECT=none; WHY=make the tested control-plane library reachable from a running binary and an authenticated operator surface`.
+  - **TEST:** `TestTodo_REV_031_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_031_01`; `INTEGRATION=TestTodo_REV_031_01_Integration`; `FAULT=TestTodo_REV_031_01_Fault`; `RECOVERY=TestTodo_REV_031_01_Recovery`; `SECURITY=TestTodo_REV_031_01_Security`.
+  - **RED:** GAP: `CP-004`, `CP-005`, `CP-007`, `CP-008`, `CP-009` and `CP-010` are ticked complete but `internal/platform/configbundle` (their entire implementation) is imported by none of `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler`, `cmd/hcmctl` or `cmd/migrate` (`go list -deps` returns no match for any of the six); `internal/transport/admin/hcmctl/commands.go` has no publish/activate/rollback/kill-switch command; `configregistry.Publish`/`PutActivation` are called nowhere outside `_test.go`, so the described distributor, receiver, canary, kill switch, rollback and outage behavior is unreachable in any deployed cell.
+  - **GREEN:** an operator using `hcmctl` (or an equivalent authenticated admin surface composed into `cmd/hcmnext`) can publish a configuration object, compile and sign a bundle, activate it for a tenant/cell, and separately trigger rollback and a scoped kill switch, each producing the CP-003/CP-005/CP-008/CP-009 receipt types already defined; a long-running receiver (`configbundle.Receiver`) is composed into at least one service's lifecycle so it actually applies distributed bundles rather than only being exercised by tests.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/platform/configbundle/distribution.go`, `internal/platform/configbundle/rollback.go`, `internal/platform/configbundle/outage.go`, `internal/transport/admin/hcmctl/commands.go`, `internal/data/tenancy/planeverification.go`, [Foundation publication](specs/platform-foundation-gap-closure.md).
+
+### R033. §32 Production identity, key custody and edge enforcement
+
+Checked packages under `internal/authn`, `internal/trust`, `internal/transport/edge` and `internal/connectivity/{egress,edge}` against `go list -deps` for all six binaries (`cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler`, `cmd/admin`, `cmd/migrate`) and repo-wide import greps. The session/step-up/custody/envelope core is genuinely live (`trust/session`, `trust/stepup`, `trust/custody`, `trust/envelope` are real dependencies of running binaries and are imported by `paymethod`, `settlement`, `promotion_admission` and `tenant` domain code). But the federation/OIDC/workload-identity/east-west/egress-proxy/overload-coordinator layer that the rest of the section is built on is verified only by its own package's tests: `internal/authn/oidc`, `issuerregistry`, `subjectlink`, `enterprisegate`, `outage`, `internal/trust/workload`, `bootstrap`, `bundle`, `outage`, `internal/transport/eastwest` and `internal/connectivity/edge` (the EDGE-007 overload coordinator) all have zero non-test importers anywhere in the tree and are absent from every binary's dependency graph. The single most important gap: AUTHN-002's own evidence entry admits the live workspace login endpoint (`serveLoginSubmit`) still accepts a pasted credential and was never switched over to the tested OIDC flow, so despite nine ticked AUTHN/TRUST/EDGE items describing a federated-identity, mTLS and DNS-aware-egress mesh, no real request in the running cell currently exercises most of it.
+
+- [ ] `REV-033-01` **[GATE_B][SOL_HIGH] Wire the OIDC authorization-code login route into the workspace login handler.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ACCESS; DIRECT=none; WHY=close the self-reported gap where a tested OIDC login flow exists but the live workspace login endpoint still accepts pasted credentials instead of it`.
+  - **TEST:** `TestTodo_REV_033_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_033_01`; `SECURITY=TestTodo_REV_033_01_Security`; `INTEGRATION=TestTodo_REV_033_01_Integration`.
+  - **RED:** GAP: AUTHN-002's own evidence (`planning/todos.md:8918`) states "the workspace dev login is not yet wired to it"; `internal/humanwork/workspace/handler.go:588` `serveLoginSubmit` still verifies a pasted credential through `trust.Verifier` and no `BeginAuthorization`/`HandleCallback` route exists in that package; `grep -rln "authn/oidc\"" --include=*.go .` returns only files inside `internal/authn/oidc` itself, confirming zero callers.
+  - **GREEN:** Workspace login exposes `BeginAuthorization` and `HandleCallback` HTTP routes ahead of `serveLoginSubmit` that drive `internal/authn/oidc`'s PKCE flow end to end against a configured tenant issuer and mint the same session type AUTHN-004 produces, with the pasted-credential path retained only as an explicitly flagged fallback.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/authn/oidc/flow.go`, `internal/humanwork/workspace/handler.go`, `planning/todos.md:8918`.
+
+- [ ] `REV-033-02` **[GATE_C][SOL_HIGH] Route outbound provider HTTP clients through the centralized egress gateway.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.SECURITY,BI.INTEGRATION; DIRECT=none; WHY=stop provider connectors from bypassing the DNS TLS and DLP checks EDGE-005 promises for every outbound hop before those connectors carry live traffic`.
+  - **TEST:** `TestTodo_REV_033_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_033_02`; `SECURITY=TestTodo_REV_033_02_Security`; `INTEGRATION=TestTodo_REV_033_02_Integration`.
+  - **RED:** GAP: contradicts EDGE-005's stated contract; `internal/connectivity/egress/egress.go`'s package doc says callers "never receive a direct socket or a path around DNS/address, TLS, proxy and DLP checks," but `internal/connectivity/providerdelivery/delivery.go:132` builds `&http.Client{CheckRedirect: noFollow}` directly and `internal/connectivity/iamsim`, `oauthcc` and `payrollsim` do the same; none of these four packages import `internal/connectivity/egress`.
+  - **GREEN:** Every package under `internal/connectivity` that performs outbound HTTP construction takes an `egress.Gateway` (or equivalent port) instead of building its own `http.Client`, and a policy check fails a connectivity package that constructs an `http.Client` without also depending on the egress port.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity/egress/egress.go`, `internal/connectivity/providerdelivery/delivery.go`, `internal/connectivity/iamsim/iamsim.go`, `internal/connectivity/oauthcc/oauthcc.go`, `internal/connectivity/payrollsim/payrollsim.go`.
+
+- [ ] `REV-033-03` **[GATE_C][SOL_HIGH] Wire workload identity, trust bundles and east-west policy into a real service call path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY; DIRECT=none; WHY=make the mTLS and workload identity guarantees AUTHN-006 TRUST-027 TRUST-030 and EDGE-006 claim actually gate a real inter-service call instead of existing only as tested libraries with no caller`.
+  - **TEST:** `TestTodo_REV_033_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_033_03`; `SECURITY=TestTodo_REV_033_03_Security`; `INTEGRATION=TestTodo_REV_033_03_Integration`.
+  - **RED:** GAP: contradicts AUTHN-006, TRUST-027, TRUST-030 and EDGE-006 (all ticked done); `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler ./cmd/admin ./cmd/migrate` shows none import `internal/trust/workload`, `internal/trust/bootstrap`, `internal/trust/bundle` or `internal/transport/eastwest`; repo-wide greps for each import path find callers only inside those four packages' own tests and each other (`internal/trust/bootstrap` and `internal/transport/eastwest` both import `internal/trust/workload`), never from a `cmd/` entrypoint or a service handler.
+  - **GREEN:** At least one real inter-binary or inter-cell call path is issued a workload identity through TRUST-027's bootstrap, presents it over mTLS validated against TRUST-030's bundle, and is authorized by EDGE-006's east-west policy, with a failing case proving a workload without an issued identity is unreachable.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/trust/workload`, `internal/trust/bootstrap/bootstrap.go`, `internal/trust/bundle`, `internal/transport/eastwest/peer.go`.
+
+- [ ] `REV-033-04` **[GATE_C][SOL_HIGH] Wire the overload and circuit-breaker coordinator into a real client or transport call path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.SECURITY,BI.INTEGRATION; DIRECT=none; WHY=give the tested overload coordinator a real caller so nested 429 503 and timeout responses from an actual client path are governed by one bounded retry budget`.
+  - **TEST:** `TestTodo_REV_033_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_033_04`; `INTEGRATION=TestTodo_REV_033_04_Integration`; `FAULT=TestTodo_REV_033_04_Fault`.
+  - **RED:** GAP: contradicts EDGE-007 (ticked done, evidence claims overload/retry/circuit state is propagated "end to end"); `internal/connectivity/edge`'s `Coordinator`/`CircuitBreaker` (`overload.go`) has zero non-test importers anywhere in the repository, so no HTTP client, gRPC client or provider adapter ever calls `Coordinator.Decide`.
+  - **GREEN:** At least one outbound call path (a provider adapter or the egress gateway) constructs and consults a `Coordinator` before each attempt, so a real 429/503/timeout sequence from that path is bounded by the tested budget and trips the circuit breaker, verified with that call path's own integration test.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity/edge/overload.go`, `internal/connectivity/egress/egress.go`, [integration platform](specs/integration-platform.md).
+
+### R034. §33 CI/CD, release admission and observability
+
+Checked all 27 ticked items (CICD-001..006, OBS-001..021). The observability half is real and wired: `internal/platform/telemetry/...` genuinely appears in `go list -deps ./cmd/hcmnext` (OTel SDK, `telemetry/otel`, `telemetry/boundary`, `telemetry/securityevidence` all resolve), matching the OBS-002/012/014 evidence claims. The CI/CD half is the opposite: every one of CICD-001 through CICD-006 is a well-tested Go package with zero callers outside its own `_test.go` files, and `.github/workflows/tests.yml` (the repo's only workflow file) never invokes `tools/policy/cleancheckout`, `tools/policy/migrationci`, or any function from `tools/policy/release` (`Admit`, `NewRollout`/`Advance`, `EvaluateDecision`). CICD-001's own evidence admits this ("Not wired into test:all or CI yet"); the same is true, undisclosed, for CICD-002 and for CICD-004/005/006, which additionally have no CLI wrapper at all (unlike `tools/policy/release/cmd/release`, which builds/verifies bundles but is likewise absent from CI). So the section's ticked items are correct as unit-level claims but the section's title promise — CI/CD gating and release admission — is not actually happening anywhere in this repository today; a broken build, a bad migration manifest, an unsigned/incompatible release candidate, or a breached rollout would not be caught by anything that runs.
+
+- [ ] `REV-034-01` **[GATE_C][TERRA] Wire the clean-checkout and migration-rehearsal verifiers into the CI workflow as required gate steps.**
+  - **Depends:** `CICD-001`, `CICD-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=make the already-built verification tools actually block a broken tracked tree or migration manifest instead of only passing their own unit tests`.
+  - **TEST:** `TestTodo_REV_034_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_034_01`; `INTEGRATION=TestTodo_REV_034_01_Integration`; `FAULT=TestTodo_REV_034_01_Fault`; `RECOVERY=TestTodo_REV_034_01_Recovery`.
+  - **RED:** GAP against `CICD-001` and `CICD-002`. CICD-001's own evidence at `planning/todos.md:9186` states the verifier is "Not wired into test:all or CI yet" and currently exits non-zero on the live tree. `tools/policy/migrationci` has zero non-test callers (`grep -rln "policy/migrationci\"" --include=*.go .` returns nothing) and no `cmd/` wrapper at all. `.github/workflows/tests.yml` (the only file under `.github/workflows`) never mentions `cleancheckout` or `migrationci`, so a tracked-tree gap or a broken expand/backfill/shadow/cutover/contract migration manifest can merge to main undetected.
+  - **GREEN:** `tests.yml` gains a `cleancheckout` step running `go run ./tools/policy/cleancheckout/cmd/cleancheckout` and a migration-rehearsal step (new `cmd/` wrapper) running `tools/policy/migrationci` over the tracked migrations, both required on push/PR; the tracked-tree gaps CICD-001's evidence found are triaged into the owner allowlist so main is green.
+  - **REFACTOR:** none beyond adding the missing `cmd/` entry point for `migrationci`, mirroring `cleancheckout/cmd`.
+  - **Refs:** `tools/policy/cleancheckout/cleancheckout.go`, `tools/policy/migrationci/migrationci.go`, `.github/workflows/tests.yml`, [Go technology constitution](specs/go-only-technology-constitution.md).
+
+- [ ] `REV-034-02` **[GATE_C][SOL_HIGH] Give release admission, canary rollout and the decision manifest a callable entry point wired into the deployment pipeline.**
+  - **Depends:** `CICD-003`, `CICD-004`, `CICD-005`, `CICD-006`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=turn the tested admission decision logic into something a real deployment actually consults instead of a package only its own tests import`.
+  - **TEST:** `TestTodo_REV_034_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_034_02`; `INTEGRATION=TestTodo_REV_034_02_Integration`; `SECURITY=TestTodo_REV_034_02_Security`; `GOLDEN=TestTodo_REV_034_02_Golden`.
+  - **RED:** GAP against `CICD_004`, `CICD-005` and `CICD-006`. `grep -rln "\"github.com/monstercameron/human-capital-management-suite/tools/policy/release\"" --include=*.go .` outside `tools/policy/release/` itself returns nothing: `Admit`, `NewRollout`/`Advance` and `EvaluateDecision` are called only by their own package's tests. `tools/policy/release/cmd/release` exists but only implements `bundle`/`verify` (CICD-003); it has no subcommand for admission, rollout advancement or decision-manifest generation, and no `.github/workflows` file invokes any of them. A signed-but-unapproved bundle, a breached canary, or a `STOP`-worthy decision therefore cannot block anything today because nothing calls the functions that would say so.
+  - **GREEN:** `cmd/release` (or a new sibling command) gains `admit`, `rollout`, and `decide` subcommands that load a candidate/policy from disk, call `Admit`/`Advance`/`EvaluateDecision`, print the signed decision, and exit non-zero on anything other than `ADMIT`/healthy/`PROCEED`; a CI or deploy-time workflow step runs `decide` and fails the job on `REMEDIATE`/`QUARANTINE`/`STOP`.
+  - **REFACTOR:** none; compose the existing `Admit`/`Rollout`/`DecisionManifest` types rather than re-deriving their logic in the new command.
+  - **Refs:** `tools/policy/release/admission.go`, `tools/policy/release/rollout.go`, `tools/policy/release/decision.go`, `tools/policy/release/cmd/release/main.go`, [Foundation admission](specs/platform-foundation-gap-closure.md).
+
+### R037. §36 Operator surfaces, ownership and measurable production limits
+
+Checked all packages named in Refs for ADMIN-001..008, OPS-007..010, PERF-ENV-001/002..008 and SUBSTRATE-COVERAGE-001: every named package and test function exists (`internal/transport/admin`, `internal/operations/{inspector,explorer,authzsim,admincenter/*}`, `internal/platform/config`, `internal/workflow/inspect`, `cmd/hcmctl`, `internal/performance`, `tools/planning/operations`, `tools/policy/substratecoverage`), and the ADMIN-001/ADMIN-008 read RPCs and `hcmctl` subcommands are genuinely wired into `internal/transport/cell` and served by `cmd/hcmnext`. The disposition for this section is explicit — "P1A for the four DataOps operator surfaces and a minimal hcmctl" — and ADMIN-001 itself requires "GRPC/grpcbridge/CLI share generated contracts." That requirement is not met for most of the section: `internal/operations/explorer`, `internal/operations/authzsim`, `internal/platform/config`, and all three `internal/operations/admincenter/*` packages (incidentrepair, diagnosticsession, evidenceexport) have zero non-test importers anywhere in the repository, `schema/proto/hcmnext/admin/v1/admin_service.proto` declares only six RPCs (none for these capabilities), and `cmd/hcmctl`'s `parseArgs` recognizes only `list-intents`, `release-manifest`, `list-capabilities`, `explain-transaction`, `worker-state` and `instance`. ADMIN-003 through ADMIN-007 (five ticked GATE_A/GATE_B items) are library-only: fully unit-tested logic with no operator-reachable entry point in any served binary. Separately, ADMIN-002's own package (`internal/operations/inspector.BuildWorkflowView`) is also never imported outside its tests — the workflow inspector that actually ships through ADMIN-008 is a parallel, independently-built package (`internal/workflow/inspect`), leaving ADMIN-002's code as unreferenced duplicate logic; this is noted here but not turned into its own item since the capability it promised is otherwise covered by ADMIN-008.
+
+- [ ] `REV-037-01` **[GATE_C][SOL_HIGH] Wire the ledger/provenance explorer and AuthZ simulator into AdminService and hcmctl.**
+  - **Depends:** `ADMIN-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=an operator must be able to run a bitemporal ledger read or an authorization simulation without a database console`.
+  - **TEST:** `TestTodo_REV_037_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_037_01`; `INTEGRATION=TestTodo_REV_037_01_Integration`; `SECURITY=TestTodo_REV_037_01_Security`.
+  - **RED:** GAP: ADMIN-003 is ticked complete claiming "ledger/provenance explorer and AuthZ simulator" but `grep -rl "internal/operations/explorer\"\|internal/operations/authzsim\"" --include=*.go .` matches only files inside those two packages themselves; `schema/proto/hcmnext/admin/v1/admin_service.proto` has no RPC for stream listing, chain verification or authorization simulation, and `internal/transport/admin/hcmctl/commands.go`'s `parseArgs` has no matching case; an operator has no way to reach either capability from a running binary.
+  - **GREEN:** AdminService gains read-only RPCs (e.g. `ListLedgerEvents`, `GetChainVerification`, `SimulateAuthorization`) that call the existing `internal/operations/explorer` and `internal/operations/authzsim` ports unchanged, `hcmctl` gains matching subcommands, and an integration test drives a real gRPC round trip proving the same zero-write, redaction-preserving behavior the library tests already assert is reachable by an operator credential.
+  - **REFACTOR:** share the interceptor chain, redaction and evidence-id derivation already used by the other AdminService methods; no change to `internal/operations/explorer` or `internal/operations/authzsim` internals.
+  - **Refs:** `internal/operations/explorer`, `internal/operations/authzsim`, `internal/transport/admin/server.go`, `internal/transport/admin/hcmctl/commands.go`, `schema/proto/hcmnext/admin/v1/admin_service.proto`, [HRIS DataOps](specs/hris-admin-dataops.md), [Provenance](specs/provenance-graph-and-lineage.md), [AuthZ](specs/organization-scope-and-authz.md).
+
+- [ ] `REV-037-02` **[GATE_C][SOL_HIGH] Wire the connector/config operations center into AdminService and hcmctl.**
+  - **Depends:** `ADMIN-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=an operator must be able to inspect test redrive reconcile diff simulate promote or roll back a connector without a database console`.
+  - **TEST:** `TestTodo_REV_037_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_037_02`; `INTEGRATION=TestTodo_REV_037_02_Integration`; `SECURITY=TestTodo_REV_037_02_Security`; `FAULT=TestTodo_REV_037_02_Fault`.
+  - **RED:** GAP: ADMIN-004 is ticked complete claiming "inspect/test/redrive/reconcile/diff/simulate/promote/rollback" for connectors and config, but `grep -rl "internal/platform/config\"" --include=*.go .` (excluding tests) matches only `internal/platform/config/promotion/promotion.go`, an internal caller inside the same package tree; no transport service or `hcmctl` command reaches `internal/platform/config` from outside it, so none of the eight named operator actions is reachable in a running binary.
+  - **GREEN:** AdminService gains RPCs covering inspect/test/redrive/reconcile/diff/simulate/promote/rollback backed by `internal/platform/config`'s existing logic, `hcmctl` gains matching subcommands, and an integration test proves a redrive or promote call preserves the governed evidence the library tests already assert while never targeting a production connector without explicit operator confirmation.
+  - **REFACTOR:** none beyond the new transport bindings; `internal/platform/config` keeps its existing tested contract.
+  - **Refs:** `internal/platform/config`, `internal/transport/admin/server.go`, `internal/transport/admin/hcmctl/commands.go`, `schema/proto/hcmnext/admin/v1/admin_service.proto`, [Integration platform](specs/integration-platform.md), [HRIS DataOps](specs/hris-admin-dataops.md).
+
+- [ ] `REV-037-03` **[GATE_C][SOL_HIGH] Wire the incident/repair, diagnostic-session and evidence-export centers into AdminService and hcmctl.**
+  - **Depends:** `ADMIN-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=an operator must be able to run an incident repair a diagnostic session or an evidence export without a database console`.
+  - **TEST:** `TestTodo_REV_037_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_037_03`; `INTEGRATION=TestTodo_REV_037_03_Integration`; `SECURITY=TestTodo_REV_037_03_Security`.
+  - **RED:** GAP: ADMIN-005, ADMIN-006 and ADMIN-007 are all ticked complete, but `grep -rl "internal/operations/admincenter/" --include=*.go .` (excluding tests) returns no matches at all; `schema/proto/hcmnext/admin/v1/admin_service.proto` has no incident, diagnostic-session or evidence-export RPC and `hcmctl`'s `parseArgs` has no matching case for any of the three; an operator cannot diagnose→simulate→approve→execute an incident repair, open a support-safe diagnostic session, or run a resumable evidence export from any served binary despite all three having passing unit test suites.
+  - **GREEN:** AdminService gains RPCs for the incident/repair workflow, diagnostic-session open/query/revoke, and evidence-export request/status/verify, each backed unchanged by `internal/operations/admincenter/incidentrepair`, `.../diagnosticsession` and `.../evidenceexport`; `hcmctl` gains matching subcommands; an integration test drives each through a real gRPC call proving the SoD, time/purpose-bound access and manifest guarantees the library tests already assert survive the transport boundary.
+  - **REFACTOR:** share the interceptor chain, redaction and evidence-id derivation already used by the other AdminService methods; no change to the three admincenter packages' internals.
+  - **Refs:** `internal/operations/admincenter/incidentrepair`, `internal/operations/admincenter/diagnosticsession`, `internal/operations/admincenter/evidenceexport`, `internal/transport/admin/server.go`, `internal/transport/admin/hcmctl/commands.go`, [Incident management](specs/incident-management.md), [repair](specs/transaction-ledger-reconciliation-and-repair.md), [Support access](specs/platform-responsibility-boundaries.md), [Audit evidence](specs/platform-responsibility-boundaries.md).
+
+### R028. §27 Authoritative ledger implementation
+
+Checked all 15 items (`LEDGER-001` through `LEDGER-014`, `DB-COVERAGE-001`), all ticked. Every referenced package exists, builds, and its named `TestTodo_LEDGER_*`/`TestTodo_DB_COVERAGE_001` function is present; `go list -deps` of the four running binaries confirms `internal/data/ledger` (append, multi-stream, ambiguous-commit) plus its `checkpoint`, `evidence`, `hashchain` and `temporal` subpackages are wired into a running cell, and the single-stream append (`LEDGER-002`), multi-stream commit (`LEDGER-003`), hash chains (`LEDGER-007`), bitemporal query (`LEDGER-006`), checkpoints (`LEDGER-010`) and crash/ambiguous-commit recovery (`LEDGER-014`) are genuinely reachable code, not library-only. The most important gap: two ticked capabilities are unreachable from every process the platform ships. `internal/data/ledger/lineage` (`LEDGER-005`'s correction/supersession lineage) has exactly one non-test importer in the whole repository, `internal/operations/explorer/lineage.go`, and that `explorer` package is itself imported by nothing outside its own test — so no running binary can ever record a governed correction or resolve current-effective-through-corrections truth. `internal/data/ledger/evidence` (`LEDGER-012`'s auditor evidence export) is reached by `go list -deps` only through `internal/ledger`'s type-alias re-export, which no code calls; its one production-shaped consumer, `internal/domains/payroll/auditpack`, has zero non-test callers, and the admin gRPC service (`schema/proto/hcmnext/admin/v1/admin_service.proto`) exposes no evidence-export RPC. `internal/data/ledger/commit` and `internal/data/ledger/partition` are also caller-free, but partitioning is already delivered at the schema level (`migrations/00005_ledger.sql`'s `PARTITION BY HASH`), and the commit-path wiring gap is already tracked as `REV-012-01`; the retention/hold/erasure unreachability under `LEDGER-011` is already tracked as `REV-004-02`. No other duplication found.
+
+- [ ] `REV-028-01` **[GATE_B][SOL_HIGH] Wire ledger correction and supersession lineage into a reachable production code path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=make the ticked correction and supersession capability something a running process can actually invoke`.
+  - **TEST:** `TestTodo_REV_028_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_028_01`; `INTEGRATION=TestTodo_REV_028_01_Integration`.
+  - **RED:** GAP against `LEDGER-005` (ticked): `grep -rln "ledger/lineage\"" --include=*.go . | grep -v _test.go` returns only `internal/operations/explorer/lineage.go`; `grep -rln "operations/explorer" --include=*.go .` shows that package is imported nowhere else (two hits outside its own test are doc comments in `internal/platform/sandbox/tenantreset.go` and `internal/platform/execution/scheduler/doc.go`, not real imports); `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` never lists `internal/data/ledger/lineage`. Nothing in any shipped binary can call `lineage.Append` to record a business correction or `lineage.EffectiveCurrent`/`Ancestors`/`Descendants` to resolve corrected truth, contradicting `LEDGER-005`'s ticked GREEN.
+  - **GREEN:** a real call site in a running binary (e.g. the intent app's business-correction path, or a governed admin RPC) invokes `lineage.Append` to record a correction and reads current-effective truth back through `lineage.EffectiveCurrent`, with `go list -deps` confirming `internal/data/ledger/lineage` reachable from at least one of `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler`.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/ledger/lineage/lineage.go`, `internal/operations/explorer/lineage.go`, [ledger spec](specs/transaction-ledger-reconciliation-and-repair.md).
+
+- [ ] `REV-028-02` **[GATE_B][SOL_HIGH] Wire the auditor evidence export capability into a reachable grpc admin RPC or CLI path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=let an operator actually produce the offline-verifiable evidence package the ledger already supports`.
+  - **TEST:** `TestTodo_REV_028_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_028_02`; `INTEGRATION=TestTodo_REV_028_02_Integration`; `SECURITY=TestTodo_REV_028_02_Security`.
+  - **RED:** GAP against `LEDGER-012` (ticked): `grep -rn "NewEvidenceExporter\|BuildEvidence\|VerifyEvidence(" --include=*.go .` matches only `internal/ledger/evidence.go` (a type/function re-export) and its own tests; the one production-shaped consumer, `internal/domains/payroll/auditpack` (`export.go`, `package.go`, `resolve.go`), has zero non-test callers anywhere in the repo; `schema/proto/hcmnext/admin/v1/admin_service.proto` lists only `ListIntents`, `GetReleaseManifest`, `ListCapabilityProfiles`, `ExplainTransaction`, `GetWorkerState` and `GetWorkflowInstance`, no evidence-export RPC; `internal/transport/admin/hcmctl` has no matching subcommand. No operator or auditor can obtain the evidence package `LEDGER-012` claims the platform exports.
+  - **GREEN:** a read-only admin RPC (or `hcmctl` subcommand reaching it) accepts tenant and recorded-window scope, invokes `internal/ledger.NewEvidenceExporter`/`BuildEvidence` through `internal/data/ledger/evidence`, returns or persists the package, and an offline verify of that same output round-trips through `VerifyEvidence` in an end-to-end test driven through the real transport, not only the package's own unit tests.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/ledger/evidence`, `internal/ledger/evidence.go`, `internal/domains/payroll/auditpack/export.go`, `schema/proto/hcmnext/admin/v1/admin_service.proto`, [audit evidence](specs/platform-responsibility-boundaries.md).
+
+### R032. §31 Infrastructure as code and physical data services
+
+Checked all 20 items (`IAC-001`-`IAC-012`, `STORE-001`-`STORE-003`, `EVENT-001`-`EVENT-006`, `CACHE-001`, `RETRIEVAL-001`, `ANALYTICS-001`, lines 8634-8901) against the packages their Refs and Evidence name. Every named package exists and every named `TestTodo_*` function is present and passing per its own evidence; sampled `IAC-006`, `IAC-010`, `IAC-012`, `STORE-003`, `CACHE-001`, `RETRIEVAL-001` and `EVENT-006` deeply. `internal/data/tenancy/storagedisposition` and `internal/data/outbox` are the only packages in this section reachable from `go list -deps` on `cmd/hcmnext`, `cmd/worker`, `cmd/projector` and `cmd/scheduler`. Everything else — the entire `IAC-*` provisioning family (`tools/policy/iac`, `iacstack`, `iacdrift`, `iacrecovery`, `internal/platform/database`, `internal/platform/workload`, `internal/connectivity/artifactstore`, `internal/platform/identitybinding`), plus `internal/data/health` (`STORE-003`), `internal/platform/cache` (`CACHE-001`) and `internal/data/search` (`RETRIEVAL-001`) — has zero non-test importers anywhere in the repository. The most important gap: the section's own disposition calls for "one runnable dev/sandbox cell with PostgreSQL and object storage," but no `.tf`, `docker-compose*.yml`, Kubernetes manifest or any other infrastructure definition exists in the repo, and none of the `IAC-*` packages is invoked by any `cmd/` binary or by CI (`.github/workflows/tests.yml`, `tools/quality`) — each one only validates synthetic `Plan`/`Stack` structs its own `_test.go` constructs, so "provisioned"/"implemented" is asserted in evidence text but never demonstrated against anything real.
+
+- [ ] `REV-032-01` **[GATE_C][TERRA] Stand up one real dev or sandbox cell and wire the IaC provisioning contracts to it.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=the section disposition requires one runnable dev or sandbox cell with real PostgreSQL and object storage but no cell definition or caller of the provisioning contracts exists anywhere in the repository or CI`.
+  - **TEST:** `TestTodo_REV_032_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_032_01`; `INTEGRATION=TestTodo_REV_032_01_Integration`; `SECURITY=TestTodo_REV_032_01_Security`.
+  - **RED:** GAP: contradicts ticked `IAC-002`, `IAC-006`, `IAC-007`, `IAC-008`, `IAC-010`, `IAC-011`, `IAC-012`, whose evidence claims stacks, PostgreSQL, artifact storage, identity bindings, immutable recovery and rehearsed teardown are provisioned or implemented. A repo-wide search for `*.tf`, `docker-compose*.yml` and any Kubernetes manifest path returns nothing. `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` excludes `tools/policy/iac`, `iacstack`, `iacdrift`, `iacrecovery`, `internal/platform/database`, `internal/platform/workload`, `internal/connectivity/artifactstore` and `internal/platform/identitybinding` entirely, and a repo-wide grep for non-test imports of each finds zero callers outside their own packages; neither `.github/workflows/tests.yml` nor `tools/quality` invokes any of them as a policy/lint step either. `internal/platform/database.Validate`, for example, only checks an in-memory `Plan` struct built by its test file, so nothing in the repo has ever run it against a real cluster description.
+  - **GREEN:** a checked-in cell definition (compose file, Terraform module or an equivalent Go provisioning command) exists in the repo, is validated at build or CI time by `database.Validate`, `workload`'s manifest checks, `iacstack`'s module graph and `artifactstore`/`identitybinding`'s contracts, and a documented command stands the cell up with real PostgreSQL and object storage locally; `go list -deps` or a CI job log shows at least one of these packages consumed outside its own tests.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/platform/database/database.go`, `internal/platform/workload/workload.go`, `tools/policy/iac`, `tools/policy/iacstack`, `tools/policy/iacdrift`, `tools/policy/iacrecovery`, `internal/connectivity/artifactstore`, `internal/platform/identitybinding`, [Platform architecture](specs/platform-architecture-catalog.md).
+
+- [ ] `REV-032-02` **[GATE_C][SOL_HIGH] Wire store health publishing and the tenant-safe cache into a served path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=no running service today reports per-store health or caches a tenant read even though both capabilities are ticked complete`.
+  - **TEST:** `TestTodo_REV_032_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_032_02`; `INTEGRATION=TestTodo_REV_032_02_Integration`.
+  - **RED:** GAP: contradicts ticked `STORE-003` and `CACHE-001`. `internal/data/health` ("publish health, freshness, saturation and recovery state for every store") and `internal/platform/cache` ("rebuildable tenant-safe cache contract") have zero non-test, non-comment importers anywhere in the repo: `grep -rl` for `data/health"` and `platform/cache"` outside `_test.go` files returns only `tools/policy/substratecoverage/substratecoverage.go`, a static package-name inventory entry, not a functional caller. `go list -deps` against `cmd/hcmnext`, `cmd/worker`, `cmd/projector` and `cmd/scheduler` confirms neither package is reachable from any of them. No operator surface reports store health today and no read path is cached.
+  - **GREEN:** at least one real caller exists in a served binary — a store-health endpoint reachable from an admin/ops surface using `internal/data/health`'s typed status, and a genuine tenant-scoped read path using `internal/platform/cache`'s adapter — each covered by an integration test run against that binary, and `go list -deps ./cmd/hcmnext` shows both packages reachable.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/health`, `internal/platform/cache`, [Operations models](data/models/operations-production.md).
+
+- [ ] `REV-032-03` **[GATE_C][SOL_HIGH] Call the authorized lexical search projection from a real transport or worker path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS,BI.INTELLIGENCE; DIRECT=none; WHY=the tenant-scoped search projection this section ships is never queried or kept fresh by anything outside its own tests`.
+  - **TEST:** `TestTodo_REV_032_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_032_03`; `INTEGRATION=TestTodo_REV_032_03_Integration`; `SECURITY=TestTodo_REV_032_03_Security`.
+  - **RED:** GAP: contradicts ticked `RETRIEVAL-001`. `internal/data/search` implements `Query` (`internal/data/search/query.go:34`) with tenant/field/purpose filtering over a GIN-indexed search projection, but a repo-wide `grep -rl` for `data/search"` outside `_test.go` returns only `tools/policy/substratecoverage`'s static inventory entry, and `go list -deps` against all four `cmd/` binaries excludes `internal/data/search` entirely. No transport handler, worker or scheduler job calls `Query` or triggers the projection rebuild, so the projection this ticket ships is populated and exercised only by its own test fixtures.
+  - **GREEN:** a real caller exists — a transport endpoint invokes `search.Query` behind an authorization/scope check, and a projector or worker job invokes the projection's rebuild path so it stays current with committed ledger facts — and `go list -deps ./cmd/...` shows `internal/data/search` reachable from at least one served binary.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/search/query.go`, [Search governance](specs/platform-responsibility-boundaries.md), [data classification](specs/data-classification-and-dlp.md).
+
+### R035. §34 Batch, scheduling and connector execution substrate
+
+Checked all fifteen items (JOB-001–004, SCHED-001–004, CONN-RT-001–008) against their Refs packages: every named file exists, every named `TestTodo_*` function is present and `go test ./internal/data/jobs/ ./internal/engines/schedule/ ./internal/connectivity/...` claims listed in evidence match real test files. The connector operation runtime (CONN-RT-003/004/007/008) is genuinely wired: `internal/connectivity/operation` is a dependency of `cmd/worker` and is driven from `cmd/worker/connector_role.go`'s dispatch funnel. Two adjacent tickets are not: the job-execution substrate (`internal/data/jobs`, JOB-001–004) and the trigger scheduling substrate (`internal/engines/schedule`'s dispatch/occurrence/quarantine code, SCHED-001–004) are each fully implemented and tested in isolation but have zero production callers anywhere in the tree — confirmed by `go list -deps` on all four `cmd/*` binaries and by grepping every non-test importer. The most important gap: nothing in a served binary ever publishes a trigger, computes its occurrence, dispatches it, or admits/leases/checkpoints a batch job — the entire §34 batch-and-schedule promise is a library that nothing calls.
+
+- [ ] `REV-035-01` **[GATE_C][SOL_HIGH] Wire the schedule trigger pipeline into a running composition so a published trigger actually dispatches.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=SCHED-003s own promise that one firing names one BusinessIntent never executes outside its package tests`.
+  - **TEST:** `TestTodo_REV_035_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_035_01`; `INTEGRATION=TestTodo_REV_035_01_Integration`.
+  - **RED:** GAP: SCHED-001–004 are ticked GREEN and implement a full publish/occurrence/dispatch/quarantine pipeline in `internal/engines/schedule`, but `grep -rn "schedule.NewDispatcher\|schedule.Dispatcher{" --include=*.go .` and the same for `schedule.Calculate`/`CalculateOccurrences` return zero non-test, non-package hits. `internal/application/scheduler_workload.go` is the only production importer of the package and uses it solely for `schedule.MisfireConfig`, which feeds `internal/workflow/timer`'s wait-node misfire policy — an unrelated workflow-timer concern, not trigger dispatch. `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` shows `internal/engines/schedule` reachable only through that same misfire path. No cmd role or application workload ever calls `Dispatcher.Dispatch` or `Calculate` in production.
+  - **GREEN:** A composed workload (an `internal/application` role or a new `cmd/scheduler` mode) periodically loads published triggers, calls `schedule.Calculate` for due occurrences and `Dispatcher.Dispatch` on each, and an integration test starting that composed binary's workload (not calling the package directly) proves a real `PublishedTrigger` produces a real BusinessIntent or a quarantined dead letter end to end.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/engines/schedule/dispatch.go`, `internal/engines/schedule/occurrence.go`, `internal/engines/schedule/quarantine.go`, `internal/application/scheduler_workload.go`, [Scheduling responsibilities](specs/platform-responsibility-boundaries.md), [workflow runtime](specs/workflow-runtime.md).
+
+- [ ] `REV-035-02` **[GATE_C][SOL_HIGH] Wire the batch job substrate into a served role so a job definition can actually run.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE; DIRECT=none; WHY=the tested admission and lease machinery for batch jobs is unreachable from every running binary`.
+  - **TEST:** `TestTodo_REV_035_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_035_02`; `INTEGRATION=TestTodo_REV_035_02_Integration`.
+  - **RED:** GAP: JOB-001–004 are ticked GREEN and persist/lease/govern job definitions, runs, partitions and checkpoints in `internal/data/jobs`, but `grep -rl "internal/data/jobs\"" --include=*.go .` (excluding tests) finds only `internal/data/queryplans/catalog.go` (a static SQL-query documentation catalog referencing `PartitionStore.ListByRun` for a doc string, never calling it at runtime) and `tools/policy/substratecoverage` (a lint/coverage tool). `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` returns nothing for `internal/data/jobs`. JOB-001's own evidence text cites "no dispatcher ships under the WF-RUN-000 gate," but `definitions/runtime/durable-runtime-decision.yaml` and the WF-RUN-000 ticket (`planning/todos.md:3631`) scope that gate to the workflow-instance runtime's timers/leases/scheduler, never mentioning JOB-\* or a batch substrate — so the gate does not actually license leaving this admitted-and-leased capability wired to nothing.
+  - **GREEN:** A `cmd/worker` (or new) role admits at least one real `JobDefinition`, calls `StartRun`/`ClaimPartition`/`Checkpoint`/`Complete` against a live database, and an integration test starting the composed binary's workload (not calling `internal/data/jobs` directly) proves a job runs to completion with the same crash-resume guarantees JOB-003 already tests in isolation.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/jobs/jobs.go`, `internal/data/jobs/admit.go`, `internal/data/jobs/lease.go`, `internal/data/jobs/govern.go`, `internal/data/queryplans/catalog.go`, [Batch responsibilities](specs/platform-responsibility-boundaries.md), [operations models](data/models/operations-production.md).
+
+### R036. §35 Artifact bytes and customer-data onboarding
+
+Checked `internal/store/object` (object.go, multipart.go, metadata.go, integrity.go, sealed.go, revisions.go) and `internal/connectivity/onboarding` (manifest.go, extract.go, identity.go, guard.go, cutover.go, reconcile.go, lineage.go) against ARTIFACT-001..006 and ONBOARD-001..008. Every named `TestTodo_ARTIFACT_*`/`TestTodo_ONBOARD_*` function exists and the sampled tickets (ARTIFACT-001, 002, 004, 005, 006, ONBOARD-005, 006) match their GREEN claims in the code I read. The packages themselves are implemented; the overall state of the unit is library-only. `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` shows no dependency on `internal/connectivity/onboarding` or `internal/store/object`, and a repo-wide grep finds zero non-test Go file outside those two packages that imports either one; `internal/transport/admin/hcmctl/commands.go`'s subcommand switch (list-intents, release-manifest, list-capabilities, explain-transaction, worker-state, instance) has no onboarding or artifact command. The most important gap: the disposition scoped this unit to an operator CSV seed and object-store conformance only, deferring "everything else" to the DataOps product test, yet ONBOARD-001 through ONBOARD-008 were built as a complete signed-manifest/extract/adjudicate/cutover/reconcile/lineage pipeline and ticked done with no operator entry point anywhere in the repository — a fact the plan's own `CUSTOMER-001` evidence text independently confirms ("no onboarding orchestrator has been built").
+
+- [ ] `REV-036-01` **[GATE_C][SOL_HIGH] Expose the onboarding pipeline through an admin RPC and hcmctl command.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.LIFECYCLE,BI.DOCUMENTS; DIRECT=none; WHY=operators cannot run or observe tenant onboarding today without editing code`.
+  - **TEST:** `TestTodo_REV_036_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_036_01`; `INTEGRATION=TestTodo_REV_036_01_Integration`; `SECURITY=TestTodo_REV_036_01_Security`; `FAULT=TestTodo_REV_036_01_Fault`; `RECOVERY=TestTodo_REV_036_01_Recovery`.
+  - **RED:** GAP: ONBOARD-001 through ONBOARD-008 are all ticked [x] with passing tests in `internal/connectivity/onboarding`, but `grep -rln "connectivity/onboarding\"" --include=*.go .` excluding `_test.go` returns zero matches outside the package itself, `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` never names it, and `internal/transport/admin/hcmctl/commands.go`'s subcommand switch has no onboarding entry. The disposition for this unit defers "everything else" beyond the CSV seed and object-store conformance to a later DataOps product test, yet the full cutover/reconcile/lineage pipeline (ONBOARD-005 through ONBOARD-008) was built and ticked anyway with no consumer, and `CUSTOMER-001`'s own evidence (2026-09-13) states plainly that no onboarding orchestrator exists.
+  - **GREEN:** an authorized operator can, through a generated admin RPC and its hcmctl subcommand, publish an onboarding manifest, run preflight, start and observe a resumable extraction, review adjudication outcomes, execute or abort cutover and read the reconciliation report for a real tenant, with every step visible through `internal/transport/admin` and no caller reaching into `internal/connectivity/onboarding` directly.
+  - **REFACTOR:** keep manifest, preflight, extraction, adjudication, cutover and reconciliation semantics owned by `internal/connectivity/onboarding`; the admin layer only authorizes, translates and reports.
+  - **Refs:** `internal/connectivity/onboarding/manifest.go`, `internal/connectivity/onboarding/cutover.go`, `internal/connectivity/onboarding/reconcile.go`, `internal/transport/admin/hcmctl/commands.go`, [HRIS DataOps](specs/hris-admin-dataops.md).
+
+- [ ] `REV-036-02` **[GATE_C][SOL_HIGH] Fold object identity into the envelope AAD instead of relying only on an application-layer check.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DOCUMENTS,BI.PRIVACY; DIRECT=none; WHY=cryptographic tamper detection should not depend on a caller remembering an identity check after decrypt`.
+  - **TEST:** `TestTodo_REV_036_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_036_02`; `SECURITY=TestTodo_REV_036_02_Security`; `FUZZ=FuzzTodo_REV_036_02`.
+  - **RED:** GAP: `ARTIFACT-004`'s own evidence (2026-09-11) documents that `internal/trust/envelope.Manager.Encrypt` (envelope.go:147) validates its `objectID` parameter is non-empty (line 151) but never folds it into the authenticated header: `headerBytes` (envelope.go:412-427) authenticates only Version/Tenant/DEKID/Algorithm/Nonce. Object-identity binding is enforced only by an application-layer `sealedPayload{ObjectID, Data}` wrapper in `internal/store/object/sealed.go`, checked after decrypt succeeds. `TRUST-028` (ticked GATE_A) claims "Wrong tenant/AAD/version, nonce reuse, revoked key and tampering fail" but has no follow-up item for this, so a future caller of `Manager.Encrypt`/`Decrypt` that skips the sealed wrapper gets no cryptographic protection against a same-tenant, cross-object ciphertext swap.
+  - **GREEN:** `Encrypt` folds `objectID` into the authenticated header so `Decrypt` fails closed on any object-id mismatch without depending on a caller-side wrapper, and `internal/store/object/sealed.go`'s `sealedPayload` check becomes redundant defense in depth rather than the only enforcement.
+  - **REFACTOR:** remove the now-redundant `sealedPayload` identity check once the primitive enforces it, or keep it only as an explicit defense-in-depth assertion with a comment saying so.
+  - **Refs:** `internal/trust/envelope/envelope.go`, `internal/store/object/sealed.go`, [Security models](data/models/security-trust.md).
+
+### R038. §37 Shared transformation and population engines
+
+Checked XFORM-001..008 and POP-001..010 (lines 10059-10256). The pure engines (`internal/engines/transformation/{ir,exec,taint,version,conformance,lineage}`, `internal/engines/population`) are real, well-tested Go packages with the named `TestTodo_*` functions present and passing per `go vet`/build inspection. Population is genuinely wired into production (`internal/domains/crm/campaign.go`, `internal/engines/search/population_action.go`, `internal/intent/batch.go`, confirmed in `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/scheduler`). The most important gap is XFORM-008: it is ticked `[x]` but its own "partial" evidence entry says the cutover never happened, and I confirmed three independent transform/mapping interpreters still exist with zero import of the shared engine — `internal/connectivity/mapping/mapping.go` (`Execute`), `internal/connectivity/mappingprofile/profile.go` (`Compiled.Execute`), and `internal/domains/dataops/importing/mapping.go` — the last of which is reachable from `cmd/hcmnext`/`cmd/worker` today, directly contradicting the ticked GREEN clause "independent transform runtimes are rejected afterward." Separately, POP-010's `internal/engines/popscale` package has zero non-test importers anywhere in the tree (`go list -deps ./cmd/...` never reaches it), so none of the three production population consumers get its declared scale/pagination/non-disclosure guarantees; `population.Resolve` itself takes no page/limit parameter.
+
+- [ ] `REV-038-01` **[GATE_B][SOL_HIGH] Cut the dataops, connectivity and mapping-profile interpreters over to the shared transformation engine.**
+  - **Depends:** `XFORM-008`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.INTEGRATION; DIRECT=none; WHY=close the independent transform runtimes XFORM-008 claims are rejected but that still execute live dataops imports outside the shared adapters`.
+  - **TEST:** `TestTodo_REV_038_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_038_01`; `INTEGRATION=TestTodo_REV_038_01_Integration`; `FAULT=TestTodo_REV_038_01_Fault`; `RECOVERY=TestTodo_REV_038_01_Recovery`.
+  - **RED:** GAP: XFORM-008 is ticked with GREEN "Circular package dependencies and independent transform runtimes are rejected afterward," but `internal/domains/dataops/importing/mapping.go`, `internal/connectivity/mapping/mapping.go` (`Execute`, called by `internal/connectivity/mapping/mapping_test.go`) and `internal/connectivity/mappingprofile/profile.go` (`Compiled.Execute`) import none of `internal/engines/transformation` or its `adapters` package; `grep -rln "engines/transformation" internal/domains/dataops` returns nothing, and `go list -deps ./cmd/hcmnext ./cmd/worker` shows `internal/domains/dataops/importing` live in the running binaries while `adapters.ExecuteShared`/`mapping.ExecuteShared` have zero production callers (`grep -rn "mapping.ExecuteShared" internal/ cmd/` outside tests is empty).
+  - **GREEN:** DataOps import compilation and connector field mapping route through `internal/engines/transformation/adapters` (or direct `ir.Compile`/`exec.Execute`) with a byte-identical migration proof against each legacy interpreter's current output, then the legacy `Execute` functions in `internal/connectivity/mapping` and `internal/connectivity/mappingprofile` are deleted so only one transform execution path is reachable from `cmd/hcmnext`, `cmd/worker` and `cmd/scheduler`.
+  - **REFACTOR:** delete `internal/connectivity/mappingprofile` entirely if nothing outside its own tests still needs it after the cutover.
+  - **Refs:** `internal/domains/dataops/importing/mapping.go`, `internal/connectivity/mapping/mapping.go`, `internal/connectivity/mappingprofile/profile.go`, `internal/engines/transformation/adapters/adapters.go`, [integration platform](specs/integration-platform.md), [DataOps](specs/hris-admin-dataops.md).
+
+- [ ] `REV-038-02` **[GATE_B][SOL_HIGH] Route production population resolution through the scale-safe engine.**
+  - **Depends:** `POP-010`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=give real multi-tenant population consumers the pagination and non-disclosure limits POP-010 already proves in isolation`.
+  - **TEST:** `TestTodo_REV_038_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_038_02`; `SECURITY=TestTodo_REV_038_02_Security`; `BENCHMARK=BenchmarkTodo_REV_038_02`.
+  - **RED:** GAP: POP-010 is ticked GREEN "Representative multi-tenant/bulk fixtures meet declared p95/memory limits, paginate consistently and keep denied/empty/unknown timing/count responses non-distinguishing," but `internal/engines/popscale` has zero non-test importers repo-wide (`grep -rln "engines/popscale" internal/ cmd/` matches only its own package files), and the three real consumers of population — `internal/domains/crm/campaign.go`, `internal/engines/search/population_action.go`, `internal/intent/batch.go` — call `population.Resolve` (`internal/engines/population/resolve.go:137`) directly, which takes no page or limit parameter, so none of POP-010's guarantees apply to any live query path.
+  - **GREEN:** the three production population consumers resolve large or multi-tenant populations through `popscale`'s paginated, limit-bounded path instead of calling `population.Resolve` unbounded, with the same declared p95/memory ceilings and non-distinguishing denied/empty/unknown responses proven against representative fixtures for each consumer.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/engines/popscale/resolve.go`, `internal/engines/population/resolve.go`, `internal/domains/crm/campaign.go`, `internal/engines/search/population_action.go`, `internal/intent/batch.go`, [performance limits](#36-operator-surfaces-ownership-and-measurable-production-limits).
+
+### R040. §39 Qualification, demand, matching and scenario engines
+
+Checked all 27 items (QUAL-001..006, DEMAND-001..006, MATCH-001..007, SCENARIO-001..007). The four packages (`internal/domains/qualification`, `internal/domains/demand`, `internal/domains/matching`, `internal/domains/scenario`) exist, compile, and every sampled `TestTodo_*` primary and matrix function is present (QUAL-002/003, DEMAND-004/006, MATCH-005, SCENARIO-003/006/007 all grep-confirmed). None of the four packages appear in `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` — library-only, per REV-103-01, not repeated here. Two gaps specific to this unit, both beyond bare reachability: (1) QUAL-006 and MATCH-007 "prove... across" five/four named consumer domains, but the proof is a closed string-constant vocabulary evaluated entirely inside the qualification/matching packages themselves — none of `schedopt`, safety, access, leave (RTW), recruiting, career/mobility or learning packages import qualification or matching at all, unlike the SIMULATE-interpreter-driven CONFORMANCE items elsewhere in the plan (CONF-009..016) that run real definitions. (2) SCENARIO-006's `CompilePlan`/`IntentCompilation` is a same-named, unrelated duplicate of the real governed pipeline (`internal/intent.CompilePlan`/`TransactionPlan`, TX-001/TX-002); the scenario package never imports `internal/intent`, so an approved scenario's compiled deltas have no code path into the actual BusinessIntent/TransactionPlan machinery even as a library call.
+
+- [ ] `REV-040-01` **[GATE_C][SOL_HIGH] Wire QUAL-006 and MATCH-007 cross-domain conformance proofs to a real consumer package instead of a closed self-referential vocabulary.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORKFORCE,BI.RECRUITING,BI.TALENT; DIRECT=none; WHY=a conformance proof that never exercises the domains it names does not show cross-domain behavior`.
+  - **TEST:** `TestTodo_REV_040_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_040_01`; `CONFORMANCE=TestTodo_REV_040_01_Conformance`; `INTEGRATION=TestTodo_REV_040_01_Integration`.
+  - **RED:** GAP: `internal/domains/qualification/crossqual006.go` defines `CrossDomain` as five closed string constants (`CrossJob`, `CrossScheduling`, `CrossSafety`, `CrossAccess`, `CrossRTW`) evaluated only inside its own package, and `internal/domains/matching/four_domain.go` does the same for `MatchDomain`; `grep -rl "domains/qualification\"" --include=*.go internal/` and the matching equivalent return no hits outside the packages themselves, so no scheduling, safety, access, leave, recruiting, mobility or learning code ever calls the evaluators QUAL-006/MATCH-007 claim to prove across those domains, contradicting the ticked claim.
+  - **GREEN:** QUAL-006's and MATCH-007's primary tests drive at least one real consumer package (for example `internal/domains/schedopt` for Scheduling) through its own exported entry point, feeding it actual domain data rather than a closed enum, matching the SIMULATE-interpreter pattern CONF-009 through CONF-016 use to prove other domains against real definitions.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/qualification/crossqual006.go`, `internal/domains/matching/four_domain.go`, `internal/domains/schedopt/schedopt.go`, [intent coverage](data/models/intent-coverage-matrix.md).
+
+- [ ] `REV-040-02` **[GATE_C][SOL_HIGH] Connect SCENARIO-006's compiled intents to the real internal/intent transaction pipeline.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS,BI.INTELLIGENCE; DIRECT=none; WHY=a scenario compilation that cannot reach the governed transaction pipeline can never turn an approved plan into a real business intent`.
+  - **TEST:** `TestTodo_REV_040_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_040_02`; `INTEGRATION=TestTodo_REV_040_02_Integration`; `PROPERTY=TestTodo_REV_040_02_Property`.
+  - **RED:** GAP: `internal/domains/scenario/compile.go` defines its own `CompilePlan` function and `IntentCompilation`/`CompiledIntent` types with the same name as, but no reference to, `internal/intent/plan.go`'s `CompilePlan`/`TransactionPlan` (the governed pipeline TX-001/TX-002 proves); `grep -rl "internal/intent\"" internal/domains/scenario/` returns nothing, so SCENARIO-006's ticked deliverable of compiling "approved Plan deltas into BusinessIntents" has no code path into the actual BusinessIntent/TransactionPlan machinery.
+  - **GREEN:** an adapter converts a validated `scenario.IntentCompilation` into `internal/intent.PlanInput` (or an equivalent bridge), and a test proves the resulting `TransactionPlan` carries the same keys, write sets and dependencies as the source `CompiledIntent`s with no field silently dropped.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/scenario/compile.go`, `internal/intent/plan.go`, [BusinessIntent](specs/business-intent-and-change-request.md).
+
+### R042. §41 Event subscription, partner application and custom-object engines
+
+Checked all 21 items (SUB-001..008, APP-001..006, CUSTOM-001..007). Every referenced package exists (`internal/domains/subscription`, `internal/domains/partnerapp`, `internal/connectivity/application`, `internal/customobject`, `internal/domains/custom`) and every named `TestTodo_*` function is present and matches its claimed matrix (spot-checked `FuzzTodo_SUB_003`, the CUSTOM-002/003 Property/Golden/Fault/Mutation set, and the grpcbridge parity check in `capabilities.go`). None of the five packages appear in `go list -deps` for `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, or `cmd/scheduler` — library-only, but that generic unreachability is REV-103-01's job, so it is not re-flagged here. Two real, section-specific gaps found: the event-subscription engine's closed event vocabulary excludes the sibling custom-object engine's own events, and partner-application revocation/quarantine never actually cascades into live subscriptions or credentials — both are library functions taking caller-supplied lists rather than code that queries the other domain, and nothing in the repo calls them that way. A third gap: subscription delivery has no per-tenant/per-destination throughput bound, unlike the connector-quota work done elsewhere for outbound calls.
+
+- [ ] `REV-042-01` **[GATE_C][SOL_HIGH] Add custom-object event kinds to the subscription engine's closed vocabulary.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION,BI.DATAOPS,BI.TENANT; DIRECT=none; WHY=let partners subscribe to tenant custom-object changes the same way they subscribe to core HR events`.
+  - **TEST:** `TestTodo_REV_042_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_042_01`; `INTEGRATION=TestTodo_REV_042_01_Integration`.
+  - **RED:** GAP: `internal/domains/subscription/subscription.go` `EventKind.Valid()` (lines 54-62) accepts only `WORKER_CREATED`, `WORKER_CHANGED`, `EMPLOYMENT_CHANGED`, `ASSIGNMENT_CHANGED`, `ORGANIZATION_CHANGED`, `COMPENSATION_CHANGED`, `PARTNER_APPLICATION_REVOKED`; `internal/domains/custom/lifecycle.go` defines `CUSTOM_OBJECT_CREATED`/`CHANGED`/`CORRECTED`/`RETIRED` (lines 40-43) with its own outbox, but none of those kinds are declared subscribable, so SUB-001 (ticked) and CUSTOM-004 (ticked) never connect even though this section presents them as one engine family.
+  - **GREEN:** subscription's closed vocabulary includes the four custom-object event kinds scoped per tenant/custom-object-type, `Valid()` accepts them, and an activated subscription's matcher matches a real custom-object outbox entry end to end without exposing raw payload or undeclared fields.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/subscription/subscription.go`, `internal/domains/custom/lifecycle.go`, [Integration platform](specs/integration-platform.md).
+
+- [ ] `REV-042-02` **[GATE_C][SOL_HIGH] Wire partner-application revocation to enumerate and cut live subscriptions and credentials.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION,BI.SECURITY; DIRECT=none; WHY=make revocation actually remove a rogue partner's access instead of only recording that a caller said so`.
+  - **TEST:** `TestTodo_REV_042_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_042_02`; `INTEGRATION=TestTodo_REV_042_02_Integration`; `SECURITY=TestTodo_REV_042_02_Security`; `FAULT=TestTodo_REV_042_02_Fault`.
+  - **RED:** GAP: `internal/domains/partnerapp/partnerapp.go` `ApplicationVersion.Revoke` (line 273) and `internal/connectivity/application`'s `Quarantine`/`AuthorizeUse` (APP-005, ticked, evidence claims "stops tokens/subscriptions/effects within SLO") take caller-supplied `subscriptionRefs`/`leaseRefs` or operate only on the installation's own state; neither package imports `internal/domains/subscription`, and repo-wide grep for `.Revoke(` finds no caller that derives the affected subscription/lease set from live subscription or credential state — the cascade the plan describes does not exist in code, only the state machine that would record it if fed the right list.
+  - **GREEN:** revoking or quarantining an application version queries `internal/domains/subscription` and the credential/lease store for everything scoped to that application/version, pauses or revokes each one as part of the same operation, and the receipt lists exactly what was cut with counts that match a live fixture, not a caller-asserted list.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/partnerapp/partnerapp.go`, `internal/connectivity/application/installation.go`, `internal/domains/subscription/subscription.go`, [Control plane](#30-control-plane-publication-distribution-and-activation).
+
+- [ ] `REV-042-03` **[GATE_C][SOL_LOW] Bound outbound subscription delivery per tenant and destination.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION; DIRECT=none; WHY=stop one tenant or one slow partner destination from consuming all dispatch capacity for every other tenant's subscriptions`.
+  - **TEST:** `TestTodo_REV_042_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_042_03`; `RACE=TestTodo_REV_042_03_Race`; `INTEGRATION=TestTodo_REV_042_03_Integration`.
+  - **RED:** NEW: `internal/domains/subscription/delivery.go` and `retry.go` have no quota, rate-limit, or fairness concept (grep for `quota|RateLimit|throughput|fairness` in the package returns nothing) and never call `internal/connectivity/operation`'s `ConnectorQuota`/`TryReserve` built for exactly this admission problem in INTG-015/PERF-006; SUB-005's DLQ/pause handles a permanently poison endpoint but not a merely slow or bursty one starving delivery workers shared across tenants.
+  - **GREEN:** delivery admission for a subscription reserves capacity through a per-tenant and per-destination budget before dispatch, a bursty or slow destination degrades to its own share only, and a fairness test with one noisy tenant proves other tenants' delivery latency stays within SLO.
+  - **REFACTOR:** reuse `internal/connectivity/operation`'s existing quota/ledger primitives rather than building a second one.
+  - **Refs:** `internal/domains/subscription/delivery.go`, `internal/domains/subscription/retry.go`, `internal/connectivity/operation/quota.go`, [Integration platform](specs/integration-platform.md).
+
+### R047. §46 Knowledge and composable industry-pack engines
+
+Checked `internal/domains/knowledge` (KNOW-001..006: knowledge.go, lifecycle.go, resolve.go, rag.go, invalidation.go, freshness006.go) and `internal/domains/industrypack` (PACK-001..007: manifest.go, binding.go, experience.go, compatibility.go, publication.go, layering.go, conformance.go) plus `tools/policy/enginecoverage`. Every named `TestTodo_KNOW_*`/`TestTodo_PACK_*`/`TestTodo_ENGINE_COVERAGE_001*` function exists and the packages are real, well-factored, kernel-pure implementations (typed rejections, canonical digests, ed25519-signed activation, layered mandatory-setting protection) — this is not a stub area. Two specific functional gaps stood out on deep read. First, KNOW-004's "exclude hostile instructions" guarantee (`rag.go`) and KNOW-006's "never uncited fabrication" guarantee (`freshness006.go`, which reuses KNOW-003 scope verdicts but not any injection check) both rest on an ad hoc, private, English-only, exact-substring blocklist that the codebase's own reviewed prompt-injection boundary (`internal/agentsecurity.DefaultInstructionDetector`, AGENT-002) neither backs nor is even consistent with — two independently maintained weak blocklists for the same concern. Second, PACK-004/005/007's publish-and-activate path (`compatibility.go`, `publication.go`, `conformance.go`) verifies compatibility, dependencies, migrations and a trusted publisher signature, but never checks that the activating tenant is commercially entitled to the industry pack being turned on, even though the platform already has a channel-neutral entitlement resolver (`internal/commercial`, COMM-001) wired into another capability gate (PROMO-010).
+
+- [ ] `REV-047-01` **[GATE_C][SOL_HIGH] Route knowledge hostile-instruction detection through one reviewed, pluggable detector.**
+  - **Depends:** `AGENT-002`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=knowledge chunk and answer authorization against hostile instructions must not rely on a private unreviewed blocklist`.
+  - **TEST:** `TestTodo_REV_047_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_047_01`; `SECURITY=TestTodo_REV_047_01_Security`; `FUZZ=TestTodo_REV_047_01_Fuzz`; `MUTATION=TestTodo_REV_047_01_Mutation`.
+  - **RED:** GAP contradicting the ticked KNOW-004/KNOW-006 GREEN claims ("excludes hostile instructions", "never uncited fabrication"): `internal/domains/knowledge/rag.go`'s `hostile()` matches only 8 fixed English phrases with `strings.Contains` on the lowercased text (e.g. `"ignore previous instructions"`); a chunk text of `"Ignore  previous instructions"` (double space), a newline in place of the space, or the French `"ignorez les instructions précédentes"` all pass `PublishChunk` uncaught. `internal/domains/knowledge/freshness006.go`'s `EvaluateAnswerFreshness` runs no hostile-content check at all — it only checks citation scope/injection/invalidation flags already set by the caller. Separately, `internal/agentsecurity/semantic_trust.go`'s `DefaultInstructionDetector` is the codebase's one reviewed detector, itself only 6 fixed English phrases, and `knowledge` neither calls it nor accepts an injectable detector the way `agentsecurity.Gateway` does (`Gateway.detector func(string) (bool, error)`); the two lists disagree (knowledge has "exfiltrate"/"bypass review", agentsecurity has "reveal your prompt"/"developer message" — neither has the other's markers).
+  - **GREEN:** `PublishChunk` and `EvaluateAnswerFreshness` both invoke one shared, injectable instruction-taint detector (reusing or extending `agentsecurity.DefaultInstructionDetector`'s contract) rather than each holding a private marker list; the shared detector's coverage gaps are enumerated and either closed or the KNOW-004/KNOW-006 evidence is amended to state the same disclosed boundary AGENT-002 already states ("not a claim of exhaustive injection detection"), so no ticket asserts a stronger guarantee than the platform actually provides; a corpus of whitespace/case/locale-varied hostile phrasings is checked against both call sites.
+  - **REFACTOR:** collapse the two detector implementations into one internal/agentsecurity-owned function knowledge imports (or an injected functional dependency knowledge's tests can override), so a future improvement to hostile-instruction detection updates both domains at once.
+  - **Refs:** `internal/domains/knowledge/rag.go:19-30,87-95`, `internal/domains/knowledge/freshness006.go`, `internal/agentsecurity/semantic_trust.go:208-214`, [DLP](specs/data-classification-and-dlp.md).
+
+- [ ] `REV-047-02` **[GATE_C][SOL_HIGH] Require tenant commercial entitlement authorization before industry-pack publication and activation.**
+  - **Depends:** `COMM-001`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.REGULATORY,BI.COMMERCIAL; DIRECT=none; WHY=an industry pack is a sold product SKU and activating one for a tenant without checking commercial entitlement lets any signed pack run for any tenant`.
+  - **TEST:** `TestTodo_REV_047_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_047_02`; `SECURITY=TestTodo_REV_047_02_Security`; `MUTATION=TestTodo_REV_047_02_Mutation`.
+  - **RED:** NEW — never covered by an existing item (grepped `entitlement`, `licens`, `commercial`, `subscription` against `PACK-0*` in `planning/todos.md`: no hits). `internal/domains/industrypack/compatibility.go`'s `CheckPublication` checks manifest validity, compatibility ranges, dependency publication and migrations only; `internal/domains/industrypack/publication.go`'s `VerifyActivation`/`ActivateSigned` check only signature trust, scope, staleness and approver distinctness; `internal/domains/industrypack/conformance.go`'s `ComposeIndustry`/`ActivateIndustry` (PACK-007) compose and bundle-check but call none of these against any entitlement source. None of the three files import or reference `internal/commercial` or any entitlement type (grep for `commercial|Entitlement` in `internal/domains/industrypack/*.go` returns no matches), so a validly signed Healthcare pack activates for a tenant with no Healthcare-pack subscription exactly as it would for an entitled tenant — unlike `PROMO-010`, which already pins its own Promotion capability behind `internal/commercial`'s COMM-001 resolver as an immutable admission fingerprint.
+  - **GREEN:** `CheckPublication`/`ActivateSigned`/`ActivateIndustry` accept an entitlement check (mirroring PROMO-010's `PromotionEntitlementGate` pattern: pin an immutable entitlement fingerprint to the accepted activation, not a re-resolved check) that refuses `PACK_00X_REJECTED` with a distinct entitlement-denied state when the target tenant's resolved commercial snapshot does not include the pack's industry/SKU, and a suspended or expired snapshot is refused even for an otherwise valid signed envelope; persistence occurs only after the entitlement check passes.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/industrypack/compatibility.go`, `internal/domains/industrypack/publication.go`, `internal/domains/industrypack/conformance.go`, `internal/intent/app` (`PromotionEntitlementGate`, PROMO-010 pattern), [Commercial entitlement](plan.md#312-portfolio-discipline).
+
+### R041. Attestation and conformance-gated program engines
+
+Checked all 15 items in section 40 (`ATTEST-001`–`008`, `PROGRAM-CONF-001`, `PROGRAM-001`–`006`): every named package (`internal/domains/attestation`, `internal/trust/attest`, `internal/data/attestationstore`, `internal/domains/program`, `internal/workflow/conformance/program`) exists, every named `TestTodo_*` function exists, and `go test` for the sampled items (ATTEST-004/006/007, PROGRAM-006) matches its GREEN description. None of the five packages appear in `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler`, which is the general problem REV-103-01 already tracks, so no new item duplicates that. Two gaps go beyond "unreachable from a binary": the attestation execution gate (`ATTEST-006`) has zero callers anywhere in the tree, including inside the workflow runtime it depends on (`WF-COMP-003`), so nothing is actually blocked by a missing attestation even as a library call; and the shared Program abstraction (`PROGRAM-CONF-001`) that was built specifically to remove duplicated Benefit/Bonus/Learning/Leave semantics is imported by nothing outside its own package, while `internal/domains/benefits`, `internal/domains/leave` and `internal/domains/learning` each carry their own independent plan/eligibility/enrollment types. The most important finding is the second one: the conformance proof exists, but the very domains it targeted never adopted the abstraction, so the duplication it was meant to eliminate is still there.
+
+- [ ] `REV-041-01` **[GATE_C][SOL_HIGH] Make Benefits, Leave and Learning consume the shared Program engine instead of duplicating its semantics.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.WORKFORCE,BI.TALENT; DIRECT=none; WHY=eliminate duplicated domain semantics that the shared program abstraction was built to remove`.
+  - **TEST:** `TestTodo_REV_041_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_041_01`; `MUTATION=TestTodo_REV_041_01_Mutation`.
+  - **RED:** GAP: `PROGRAM-CONF-001` and `PROGRAM-001`–`006` (ticked) built `internal/domains/program` to prove one shared definition/revision/population/eligibility/cycle/participation/outcome abstraction across Benefit, Bonus, Learning and Leave fixtures; `grep -rln 'domains/program"' --include=*.go internal/` returns nothing outside `internal/domains/program` and its own conformance package; `internal/domains/benefits` (`plan.go`, `planyear.go`, `eligibility.go`, `revision.go`, `enrollment.go`), `internal/domains/leave` (`program.go`, `plan.go`, `eligibility.go`) and `internal/domains/learning` (`eligibility.go`, `enrollment.go`, `registry.go`, `renewal.go`) each define independent definition/eligibility/enrollment types, so the proven abstraction eliminates no duplication in the domains it targeted.
+  - **GREEN:** `internal/domains/benefits`, `internal/domains/leave` and `internal/domains/learning` resolve plan/course/leave-type definitions, revisions, eligibility and enrollment through `internal/domains/program`'s Definition/Revision/Binding/Lifecycle types, or the pre-existing duplicate types are retired in favor of it; a static check fails if a fifth program-shaped domain reintroduces its own copy.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/program`, `internal/domains/benefits`, `internal/domains/leave`, `internal/domains/learning`, `internal/workflow/conformance/program`.
+
+- [ ] `REV-041-02` **[GATE_C][SOL_HIGH] Wire the attestation execution gate into the workflow runtime so dependent effects are actually blocked.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.WORK,BI.REGULATORY; DIRECT=none; WHY=enforce the attestation authorization gate that dependent workflow effects are supposed to require`.
+  - **TEST:** `TestTodo_REV_041_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_041_02`; `SECURITY=TestTodo_REV_041_02_Security`.
+  - **RED:** GAP: `ATTEST-006` (ticked) claims a valid attestation response is revalidated at execution and linked to the transaction before a dependent effect proceeds; `grep -rln 'EnforceRequired\|RevalidateAtExecution\|ExecutionRequirement' --include=*.go internal/` matches only `internal/trust/attest/execution.go` itself, so no caller in `internal/workflow` or any domain package ever invokes the gate; `internal/workflow/conformance/time/definition.go` declares `ObligationAttestation` with `RequiredAction: "Bind the worker's own attestation of the punch to the proposal digest"` as descriptive text only and never calls `internal/trust/attest`; no runtime effect in the repository is actually blocked by a missing or refused attestation.
+  - **GREEN:** the workflow obligation resolver looks up each `ObligationAttestation` (and equivalent) obligation, calls `attest.EnforceRequired` with the transaction's `ExecutionRequirement` before the gated effect commits, and a missing, refused or stale response returns the effect's typed denial instead of proceeding; a test exercises a real gated workflow step end to end, not just the package-internal unit tests.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/trust/attest/execution.go`, `internal/workflow/conformance/time/definition.go`, `internal/workflow`.
+
+### R043. §42 Confidential actors, abuse detection and progressive rollout
+
+Checked all four package groups behind this section: `internal/trust/confidentialactor` (ANON-001), `internal/domains/pseudonym` (ANON-002..008), `internal/engines/abuse` (ABUSE-001..008), `tools/planning/rolloutplan` (ROLLOUT-001..008), and `internal/connectivity/edge` (EDGE-009). All packages and named `TestTodo_...` functions exist and the code plausibly implements the described GREEN behavior on inspection of 6 items sampled deeply (ANON-003/004/006, ABUSE-001/005, ROLLOUT-004/006). None of these packages are imported by any other package in the repo (`grep -rl` for each import path outside its own package returns nothing) — pure library-only, which is REV-103-01's generic finding and is not repeated here. Beyond that, three specific defects stand out. First, ANON-004's revelation authorization and ANON-003's escrow release implement "distinct approver"/dual-control by nothing more than `strings.EqualFold(RequestedBy, EscrowCustodian)` on caller-supplied free-text labels (`internal/domains/pseudonym/escrow.go:277-278`) — despite ANON-003 depending on `TRUST-014`/`TRUST-031` and ANON-004 depending on `TRUST-021`/`APPROVAL-002`, the pseudonym package never imports the real approval/trust packages (`internal/intent/approval`, `internal/trust/custody` is imported but that's key custody, not identity/role verification), so two aliases for the same person satisfy the "dual-control" contract. Second, ANON-006's abuse/spam bounding is a self-contained `ScopeLimiter` with its own `LimitCode` vocabulary, entirely disconnected from ABUSE-001's governed signal/detector-version framework that this same section defines for exactly this purpose — no shared signal, no ABUSE-004 risk score, no ABUSE-007 drift evaluation over confidential-actor abuse. Third, ROLLOUT-006's "emergency kill through CP-008" is only demonstrated in `rollback_test.go`; the production files (`rollback.go`, `activate.go`, `health.go`) never import `internal/platform/configbundle`, so a live CP-008 kill switch on a capability has no effect on that capability's rollout stage progression, and rollout's own kill/rollback path is a second, uncoordinated implementation.
+
+- [ ] `REV-043-01` **[GATE_C][SOL_HIGH] Bind escrow release and revelation dual-control to real approval identity, not free-text labels.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.PRIVACY; DIRECT=none; WHY=prevent a spoofed dual-control check from opening identity escrow`.
+  - **TEST:** `TestTodo_REV_043_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_043_01`; `SECURITY=TestTodo_REV_043_01_Security`.
+  - **RED:** GAP: ANON-003 and ANON-004 are ticked GREEN for "distinct custodian approver" and "dual-control", but `internal/domains/pseudonym/escrow.go:274-278` enforces this only as `RequestedBy != EscrowCustodian` string inequality on caller-supplied labels with no lookup against `internal/intent/approval.ApprovalDecision` or any real principal/role registry; two aliases held by one person, or two unauthenticated free-text values, satisfy the check today.
+  - **GREEN:** Escrow release and revelation authorization require an `ApprovalDecision` (or equivalent verified principal record) for both the requester and the custodian, resolved against a real identity/role source, and reject any release where that resolution fails or resolves both roles to the same principal.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/pseudonym/escrow.go`, `internal/domains/pseudonym/revelation.go`, `internal/intent/approval`.
+
+- [ ] `REV-043-02` **[GATE_C][SOL_HIGH] Route confidential-actor abuse signals through the governed ABUSE detector framework.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.PRIVACY,BI.SECURITY; DIRECT=none; WHY=give one abuse-governance path evaluation and drift oversight instead of two disconnected ones`.
+  - **TEST:** `TestTodo_REV_043_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_043_02`; `SECURITY=TestTodo_REV_043_02_Security`.
+  - **RED:** GAP: ANON-006 is ticked GREEN for bounding duplicate/spam abuse, but `internal/domains/pseudonym/rate_limit.go` defines its own closed `LimitCode` vocabulary and denial path with zero reference to `internal/engines/abuse` (`grep -rl "engines/abuse" internal/domains/pseudonym/*.go` returns nothing); confidential-actor abuse never reaches ABUSE-001's signal registry, ABUSE-004's risk scoring, or ABUSE-007's drift evaluation, so a systemic anonymous-abuse campaign is invisible to the platform's one abuse-oversight system.
+  - **GREEN:** `ScopeLimiter` denials publish an ABUSE-001 activity signal (pseudonymous scope and code only, no token) so ABUSE-004 risk scoring and ABUSE-007 drift evaluation cover confidential-actor abuse alongside every other detector.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/pseudonym/rate_limit.go`, `internal/engines/abuse/activity_signal.go`, `internal/engines/abuse/registry.go`.
+
+- [ ] `REV-043-03` **[GATE_C][SOL_HIGH] Make progressive-rollout stage gating consult the CP-008 kill-switch state it claims to honor.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.OPERATIONS,BI.TENANT; DIRECT=none; WHY=stop a live kill switch and a rollout stage from disagreeing about whether a capability is active`.
+  - **TEST:** `TestTodo_REV_043_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_043_03`; `SECURITY=TestTodo_REV_043_03_Security`; `INTEGRATION=TestTodo_REV_043_03_Integration`; `FAULT=TestTodo_REV_043_03_Fault`; `RECOVERY=TestTodo_REV_043_03_Recovery`.
+  - **RED:** GAP: ROLLOUT-006 is ticked GREEN citing "emergency kill through CP-008", but only `tools/planning/rolloutplan/rollback_test.go` references `internal/platform/configbundle`; none of `rollback.go`, `activate.go` or `health.go` import it (`grep -n "configbundle" tools/planning/rolloutplan/*.go` matches only the test file), so `Activate`/`Expand` can advance a stage for a capability that CP-008 has already killed, and rollout's own kill/rollback path never consults or updates CP-008 state.
+  - **GREEN:** `Activate` and `Expand` check the target capability's CP-008 kill-switch state before proceeding and refuse with a distinct code when it is killed; the two systems share one applied-kill record rather than two independent ones.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/rolloutplan/activate.go`, `tools/planning/rolloutplan/health.go`, `tools/planning/rolloutplan/rollback.go`, `internal/platform/configbundle/cp008.go`.
+
+### R044. §43 Deep Payroll, accounting, settlement and garnishment engines
+
+Reviewed all 29 items (PAYRUN-001..009, PAYGL-001..006, SETTLE-001..007, GARN-001..007), lines 11861-12183. Every Refs package (`internal/domains/payroll`, `internal/domains/paygl`, `internal/domains/settlement`, `internal/domains/garnishment`) exists with matching source files, and every named `TestTodo_*` primary/matrix function greps to a real test (spot-checked PAYRUN-001/004, PAYGL-001, SETTLE-001/003, GARN-005 in depth: GARN-005's remittance/authorization code and mutation test genuinely enforce destination/batch-digest binding, not a stub). `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler ./cmd/hcmctl ./cmd/migrate ./cmd/frontenddev` shows zero imports of any of the four packages, so the whole unit is library-only with no wired production entry point — consistent with the section's own "DEFERRED; a separate product line with its own gate" disposition, and covered by REV-103-01, so not re-raised here. The most important gap: the settlement domain's closed rail vocabulary (`ACH|WIRE|SEPA|RTP|FEDNOW|INTERNAL` in `internal/domains/settlement/settlement.go`, mirrored in `internal/domains/paymethod/paymethod.go`) has no paper-check or pay-card rail, and no payroll item models employee payment-method consent, so a jurisdiction that restricts mandatory direct deposit cannot be honored end to end.
+
+- [ ] `REV-044-01` **[GATE_C][SOL_HIGH] Add a governed paper-check/pay-card settlement rail and payment-method consent so employees who do not consent to direct deposit can still be paid lawfully.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=several states bar mandatory direct deposit and require a paper check or compliant pay card fallback that the platform cannot currently instruct or settle`.
+  - **TEST:** `TestTodo_REV_044_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_044_01`; `PROPERTY=TestTodo_REV_044_01_Property`; `SECURITY=TestTodo_REV_044_01_Security`.
+  - **RED:** NEW: `internal/domains/settlement/settlement.go`'s `SettlementRail` closed vocabulary (`RailACH, RailWire, RailSEPA, RailRTP, RailFedNow, RailInternal`) and its alias in `internal/domains/paymethod/paymethod.go` have no `CHECK` or `PAYCARD` value; `grep -rn "PAY_METHOD\|direct deposit\|paycard" planning/todos.md internal/domains/payroll internal/domains/settlement internal/domains/paymethod` returns nothing, so no item or code path lets an employee elect, or a jurisdiction mandate, a non-electronic payment instrument, and SETTLE-001's PaymentInstruction cannot be constructed for one.
+  - **GREEN:** A worker's governed payment-method election (direct deposit, paper check, or pay card where the jurisdiction's fee/access disclosure rule pack permits it) is bound into the payroll release effects; a `CHECK`/`PAYCARD` rail resolves to check-printing/void-and-reissue or pay-card-load obligations instead of ACH submission, and a jurisdiction rule marking direct deposit non-mandatory blocks release when no consented fallback exists for an affected worker.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/settlement/settlement.go`, `internal/domains/paymethod/paymethod.go`, [Rewards/payroll models](data/models/rewards-payroll-workforce.md).
+
+- [ ] `REV-044-02` **[GATE_C][SOL_HIGH] Validate payroll release wage statements against the jurisdiction's itemization requirements instead of carrying an opaque digest.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL; DIRECT=none; WHY=itemized wage statement content is a statutory obligation with civil penalties and the release engine currently never checks it against the platform's own legal registry`.
+  - **TEST:** `TestTodo_REV_044_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_044_02`; `PROPERTY=TestTodo_REV_044_02_Property`.
+  - **RED:** NEW: `internal/domains/payroll/release.go`'s release effects carry only a `StatementsDigest string` (an opaque reference) with no reference to the per-state `pay-statement-fields` registry that `internal/governance/legal/payrules` (LEGAL-TOOL-005, `planning/todos.md:6146`) already resolves (mandatory/not-mandated, required field set, delivery medium); `grep -n "PAYSTMT\|PayStatement\|wage.statement" internal/domains/payroll/*.go internal/domains/payroll/**/*.go` (excluding tests) returns nothing, so a release with a statement missing California's nine §226 fields or Alaska's eight fields is indistinguishable from a compliant one at release time.
+  - **GREEN:** Before a PAYRUN-007 release finalizes, the statement content bound into `StatementsDigest` is checked against the resolved `pay-statement-fields` requirement for the worker's jurisdiction; a statement missing a mandatory field, or lacking required delivery-medium consent, blocks release with a named field/jurisdiction rather than releasing on a bare digest match.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/payroll/release.go`, [payrules](internal/governance/legal/payrules), [Rewards/payroll models](data/models/rewards-payroll-workforce.md).
+
+### R045. §44 Benefits, time, attendance, scheduling and labor-cost engines
+
+Checked all 30 items across `internal/domains/benefits`, `internal/domains/clock`, `internal/domains/attendance`, `internal/domains/schedopt` and `internal/domains/labor`: every Refs path and named primary test exists (spot-checked `TestTodo_BEN_001`, `TestTodo_BEN_008`, `TestTodo_CLOCK_005`, `TestTodo_ATTEND_005`, `TestTodo_SCHED_OPT_007`, `TestTodo_LABOR_005` by grep), and `go list -deps` on the four cmd binaries shows none of these five packages reachable — consistent with the section's own "DEFERRED; a separate product line with its own gate" disposition, not a fresh finding (REV-103-01 already covers unreachability generically). BEN-008, LABOR-005 and SCHED-OPT-007's "reconcile/publish/export" logic is kernel-pure comparison/mapping with no connector or work-item port, matching what their own Evidence notes claim, so no contradiction. WF-CAP-004/005/007/013/016 already own absence, protected leave, timecard, default elections and benefits delegation, so those are out of scope here. The most important remaining gap: `ATTEND-003` detects meal/rest-break violations but neither `ATTEND-005`'s payroll recalculation nor `LABOR-003`'s wage engine has any concept of a flat statutory premium (e.g. California's one-hour-of-pay-per-violation rule) — violations are folded into `ConsumerPay` as a minutes-delta, which is the wrong shape for a per-occurrence penalty. Two further specific gaps: no domain models fair-workweek/predictive-scheduling notice and change-premium rules even though `LEGAL-TOOL-013` already flags the statutes exist, and there is no worker-initiated shift-swap/open-shift capability alongside the manager/optimizer-driven `SCHED-OPT` publish flow.
+
+- [ ] `REV-045-01` **[GATE_C][SOL_HIGH] Model statutory per-violation meal/rest-break premium pay separately from minutes-based recalculation.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.REWARDS; DIRECT=none; WHY=jurisdictions such as California require a flat extra hour of pay per missed meal or rest period regardless of minutes worked`.
+  - **TEST:** `TestTodo_REV_045_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_045_01`; `PROPERTY=TestTodo_REV_045_01_Property`; `GOLDEN=TestTodo_REV_045_01_Golden`.
+  - **RED:** GAP: `internal/domains/attendance/mealbreak.go` has no `Premium`/`Penalty` type (grep for both returns nothing) and `internal/domains/attendance/attend005.go`'s `ConsumerInputs` routes `MealException`/`BreakException` into `ConsumerPay` purely as a minute delta (`attend005.go:41-45`); `internal/domains/labor/wages.go` only exposes a generic `DifferentialHours`/`DifferentialRate` shift differential (`wages.go:29-135`), so a worker denied three meal breaks in one pay period is priced as zero extra minutes rather than three extra hours of pay, contradicting `ATTEND-003`'s and `LABOR-003`'s own GREEN claims of exact, jurisdiction-correct compensation.
+  - **GREEN:** A jurisdiction-versioned rule declares whether a meal/rest violation triggers a flat per-occurrence premium (amount, cap per day, applicable rate basis); `ATTEND-005`'s pay consumer emits a distinct premium line alongside the minutes delta, and `LABOR-003` prices it as its own wage component with full trace; unknown jurisdiction/rule returns unknown, never zero.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/attendance/mealbreak.go`, `internal/domains/attendance/attend005.go`, `internal/domains/labor/wages.go`, [rules models](data/models/rules-and-decisions.md).
+
+- [ ] `REV-045-02` **[GATE_C][SOL_HIGH] Model fair-workweek advance-notice and schedule-change premium pay.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.REGULATORY; DIRECT=none; WHY=predictive-scheduling statutes require minimum posting notice and premium pay for late schedule changes that this engine never checks`.
+  - **TEST:** `TestTodo_REV_045_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_045_02`; `PROPERTY=TestTodo_REV_045_02_Property`; `GOLDEN=TestTodo_REV_045_02_Golden`.
+  - **RED:** NEW: `LEGAL-TOOL-013` (ticked, `internal/governance/legal/researchgaps`) already names real predictive-scheduling/fair-workweek statutes (Oregon statewide; Chicago, NYC, Seattle, San Francisco, Philadelphia local) that require minimum posting notice and premium pay for post-notice changes; grepping `internal/domains/schedopt/*.go` and `internal/domains/attendance/*.go` and `internal/domains/labor/*.go` for "notice" or "predictab" returns zero matches, so `SCHED-OPT-006`'s manual-change revalidation and `SCHED-OPT-007`'s publish/reconcile have no way to flag a below-threshold notice change or price the resulting premium.
+  - **GREEN:** Publication records the posting instant; a manual change after publish compares elapsed notice against the applicable jurisdiction's minimum and, when short, creates a typed premium obligation (amount/basis) distinct from ordinary wages; unresolved jurisdiction returns unknown/review, not silent compliance.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/schedopt/publish007.go`, `internal/domains/schedopt/review006.go`, `internal/governance/legal/researchgaps`, [governance composition](specs/governance-decision-and-obligation-composition.md).
+
+- [ ] `REV-045-03` **[GATE_C][SOL_HIGH] Add worker-initiated shift swap and open-shift claim with fenced concurrency.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.EXPERIENCE; DIRECT=none; WHY=a published schedule needs a governed self-service path for workers to trade or pick up shifts without waiting on a re-run of the optimizer`.
+  - **TEST:** `TestTodo_REV_045_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_045_03`; `PROPERTY=TestTodo_REV_045_03_Property`; `RACE=TestTodo_REV_045_03_Race`.
+  - **RED:** NEW: `internal/domains/schedopt` has only `PublishSchedule` and `ReconcileSchedule` (`publish007.go:90,157`) and a solver-driven optimizer/human-review path (`SCHED-OPT-004`–`SCHED-OPT-006`); grepping the whole planning file for "shift swap", "shift trade", "open shift" and "self-schedul" returns no existing item, so a published assignment has no worker-facing offer/accept/claim path and two workers racing to pick up the same open shift have no defined winner.
+  - **GREEN:** A published shift can be offered for trade or opened for claim; a claim revalidates the same hard constraints as `SCHED-OPT-003` for the claiming worker, is CAS/fenced so only one of two concurrent claims wins, and the losing claim gets a typed rejection, not a silent no-op; the resulting change reuses `SCHED-OPT-007`'s publish/reconcile path.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/schedopt/publish007.go`, `internal/domains/schedopt/hardconstraints.go`, [position reservation](specs/position-and-headcount-domain.md).
+
+### R046. §45 Talent, learning, survey, recruiting and appointment engines
+
+Read lines 12529-12897 (`RESERVE-001` through `APPT-006`) plus the source for `internal/domains/performance`, `internal/domains/learning`, `internal/domains/survey`, `internal/domains/crm`, `internal/domains/appointment` and `internal/resource/reservation`. Section disposition is DEFERRED except `RESERVE-001`; `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` confirms none of the five domain packages are imported by any binary, while `RESERVE-001` is transitively wired in through `internal/domains/promotion/trace` -> `internal/intent/app`, matching the stated disposition. All 24 named `TestTodo_*` functions sampled exist and the packages build; this is genuinely library-only code, not vaporware, and the generic unreachability gap is REV-103-01's territory so it is not repeated here. Sampling code behind the ticked evidence turned up three concrete defects: `CRM-005`'s conversion function is a dead-end preflight nothing ever executes, `APPT-003` silently reinvented the reservation fencing that `RESERVE-001` exists to share (unlike promotion and compensation, which do share it), and `LEARN-006`'s credential-expiry function has a literal `"tenant-acme"` hardcoded into its authorization and filter logic. The most important finding is the `LEARN-006` hardcoded tenant, because it is a live multi-tenancy correctness bug hiding behind a passing, ticked test suite, and it is the kind of defect that generic "is this wired up" or "is this a stub" checks do not catch.
+
+- [ ] `REV-046-01` **[GATE_C][SOL_HIGH] Give CRM-005 prospect conversion an execution path that actually writes the candidate or application role.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=close the gap between the CRM-005 conversion proposal and an executable conversion write path`.
+  - **TEST:** `TestTodo_REV_046_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_046_01`; `SECURITY=TestTodo_REV_046_01_Security`; `MUTATION=TestTodo_REV_046_01_Mutation`.
+  - **RED:** GAP contradicts ticked `CRM-005` (todos.md:12820), whose GREEN claims conversion "creates candidate/application role through governed intent." `PrepareProspectConversion` in `internal/domains/crm/conversion.go:38` returns only a `CandidateConversionProposal`, and its own doc comment at line 23 calls that type "a zero-write preflight artifact." A repo-wide grep for `CandidateConversionProposal` and `PrepareProspectConversion` outside `internal/domains/crm/*_test.go` returns zero callers, so no code path anywhere ever turns the proposal into a written candidate, application or identity link; the ticket's own 2026-09-08 partial-evidence note already admits "no composed durable identity-link owner, conversion-purpose consent authority, recruiting candidate/application writer or governed conversion execution integration," and the later 2026-09-16 evidence entry closes the ticket without adding one.
+  - **GREEN:** An apply/execute function accepts a validated `CandidateConversionProposal` plus governed-intent authority and a commit fence, writes the candidate/application role and identity link exactly once (idempotent on replay), and is invoked from at least one real caller (an intent-app step or an integration test standing in for one) so the write path is exercised end to end rather than only preflighted.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/crm/conversion.go`, `internal/domains/crm/conversion_identity.go`, [BusinessIntent](specs/business-intent-and-change-request.md).
+
+- [ ] `REV-046-02` **[GATE_C][SOL_HIGH] Make APPT-003 appointment reservations use the shared RESERVE-001 fencing primitives instead of a private reimplementation.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=stop appointment reservations from drifting away from the one shared fencing protocol RESERVE-001 exists to provide`.
+  - **TEST:** `TestTodo_REV_046_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_046_02`; `RACE=TestTodo_REV_046_02_Race`; `MUTATION=TestTodo_REV_046_02_Mutation`.
+  - **RED:** GAP contradicts the intent of ticked `APPT-003` (todos.md:12854), which depends on `RESERVE-001` and whose own file doc comment (`internal/domains/appointment/reservation.go:1-14`) claims fenced hold/expire/release semantics. A grep of `internal/domains/appointment/*.go` for `internal/resource/reservation` returns nothing: the package never imports the RESERVE-001 package and instead reimplements its own mutex-guarded hold map from scratch. By contrast, `internal/domains/promotion/trace` and `internal/domains/compensation/change.go` both fence through what their own evidence text (todos.md:2696, :13171) calls "the shared reservation protocol," i.e. `internal/resource/reservation`. RESERVE-001's own REFACTOR clause says domains should share "lifecycle/fencing primitives" rather than invent their own; appointment does not.
+  - **GREEN:** Appointment slot and resource holds acquire, consume, release and expire through `internal/resource/reservation`'s CAS/fenced `Reservation` lifecycle, the same primitive compensation and promotion/trace use, with appointment-specific participant/resource semantics layered on top; a race test proves a reservation fenced or expired by the shared package cannot be double-consumed through the appointment-specific wrapper.
+  - **REFACTOR:** fold the current bespoke hold map in `reservation.go` into a thin adapter over the shared package once the shared primitive is wired in.
+  - **Refs:** `internal/domains/appointment/reservation.go`, `internal/resource/reservation`, [transaction coordinator](specs/transaction-plan-and-commit-coordinator.md).
+
+- [ ] `REV-046-03` **[GATE_C][SOL_HIGH] Remove the hardcoded tenant-acme literal from LEARN-006 credential expiry.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TALENT; DIRECT=none; WHY=stop credential expiry from silently authorizing and processing only one hardcoded tenant`.
+  - **TEST:** `TestTodo_REV_046_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_046_03`; `SECURITY=TestTodo_REV_046_03_Security`; `MUTATION=TestTodo_REV_046_03_Mutation`.
+  - **RED:** GAP contradicts ticked `LEARN-006` (todos.md:12676), whose GREEN implies general trusted-time expiry across tenants. `internal/domains/learning/renewal.go:46` calls `r.authorize(caller, "tenant-acme")` and line 51 skips any credential where `cred.Tenant != "tenant-acme"`, both literal strings. Every other `authorize` call site in the package passes the record's own field instead (`completion.go:179,237`, `course.go:267,293,329`, `credential.go:184`, `enrollment.go:94,126`), confirming this is an outlier, not the intended pattern. Every test fixture in the package also only ever uses `"tenant-acme"` (`helper_test.go`, `learn001_test.go` through `learn006_test.go`), so the passing test suite never exercises a second tenant and the bug is invisible to `go test`.
+  - **GREEN:** `ExpireCredentials` authorizes and filters by each credential's own `Tenant` field, matching every sibling call site, and a test seeding credentials under two distinct tenant IDs proves both are expired and warned independently with no credential silently skipped and no caller authorized against the wrong tenant.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/learning/renewal.go`, `internal/domains/learning/registry.go`, [security models](data/models/security-trust.md).
+
+### R050. §49 Exact initial BusinessIntent delivery closure
+
+Checked all six items (CONF-025, PEOPLE-005, COMP-006, APPROVAL-008, INTEL-001, REPAIR-003). Every named package exists (`internal/domains/org`, `internal/domains/people`, `internal/domains/rewards`, `internal/engines/payband`, `internal/intent/app`, `internal/domains/intelligence`, `internal/domains/repair`) and each is reachable from `cmd/hcmnext` per `go list -deps`. Every claimed PRIMARY test function exists at the cited file, and the `TestTodo_*` matrix names and fuzz targets (`FuzzTodo_COMP_006`, `FuzzEvaluatePayBandPosition`, `FuzzTodo_REPAIR_003`) are present. Dispatch is real, not decorative: `internal/intent/app/capabilities.go` and `diagnostics.go` register `explainWorkerState`, `simulateCompensation`, `simulateRepair` and `explainTransaction` in the domain-handler table against the exact `hcmnext.*` capability IDs, and each calls straight into the pure domain function (`people.ExplainWorkerState`, `rewards.SimulateCompensation`, `repair.SimulateRepair`, `intelligence.ExplainTransaction`) with no writer/store argument, matching the zero-effect GREEN claims. `ApproveProposal`/`RejectProposal` are real `IntentService` methods (`proposal_decision.go`) that gate on separation-of-duties, revision/digest staleness and execution-authority before completing a WorkItem transactionally. `CONF-025`'s `ChangeManager.CompileIntent` has `ProductionEffects()` hard-coded to return nil, matching the disposition that it stays conformance-only and does not broaden Gate B authority. All referenced specs resolve under `planning/` (`specs/business-intent-catalog.md`, `workflows/people/manager-change.md`, etc.). This closure set is fully implemented, tested and wired; I found no functional gap and no missing feature worth proposing beyond REV-103-01's generic-unreachability scope.
+
+No items: the unit is genuinely complete.
+
+### R056. §61 Every-BusinessIntent maximal vertical-slice convergence
+
+Checked all fifteen items (`SLICE-001` through `SLICE-015`, lines 14823-15012). The section carries a 2026-09-02 disposition retiring the whole vertical-slice program (530-slot baseline, 807-name vocabulary, MAX-v1 configuration) in favor of the fourteen drafted BusinessIntent definitions, and every item's own evidence line states "no code or tests written per that disposition." That claim holds on disk: `workflows/vertical-slices/` does not exist, none of the fifteen named test functions (e.g. `TestVerticalSliceRecordRejectsMissingExecutionConfigurationOrEvidenceDimension`, `TestBaselineVerticalSliceRegisterIsExactGaplessAndSourceBound`, `TestVerticalSliceScenarioCompilerCoversApplicableMaximalConfiguration`, `TestVerticalSliceCoverageReportUsesSeparateExactDenominators`) appear anywhere in the Go tree, and no package implements a `verticalslice`-style baseline/vocabulary/MAX-v1 compiler. The `.artifacts/` registry snapshots list the fifteen IDs only as generated todo-graph entries, not as evidence of any consumer. The successor work this disposition points to (design-closure register, Phase 1 scope ceiling, per-intent closure witness) lives in section 62 (`CLOSE-001`, `PHASE-001`, `SLICE-016`), outside this unit, and is itself implemented with real packages and tests. This section is a documentation-only retirement with a truthful "nothing built" claim; there is no gap between what it says and what exists, and no functional capability was silently dropped in the transition since the 14-intent catalog path replaced it and is covered elsewhere.
+
+No items. The area is genuinely complete: the plan explicitly retired this program, no code was claimed or found, and the retirement is internally consistent (no dangling test names, no orphaned directories, no coverage manifest treating any `SLICE-0xx` item as implemented). Any remaining risk (stale cross-references to the removed `workflows/vertical-slices/*` paths from other still-open specs) is generic broken-reference unreachability, out of scope per REV-103-01.
+
+### R039. §38 Eligibility, business-cycle and balance engines
+
+Checked `internal/engines/eligibility` (14 files), `internal/engines/cycle` (11 files) and `internal/domains/balance` (14 files) against all 32 ticked items (ELIG-001..008, CYCLE-001..010, BAL-001..013). Every named `TestTodo_*` function exists and the packages are library-only with no `cmd/` consumer, which matches the section's own 2026-09-02 DEFERRED disposition and REV-103-01's general "ticked but unreachable" finding (not repeated here). Sampled deeply: ELIG package isolation, CYCLE-008 restatement, BAL-004 rules, BAL-006 recalculation, BAL-007 reconciliation and BAL-012 posting-plan shape. Two specific implementation gaps stand out under the ticked claims (CYCLE-008's "append-only" claim has no durable store or concurrency control at all, unlike its BAL analog; BAL-006's "dependent recalculation" is proven only against fake test stand-ins, with zero real payroll/tax/benefits domain wired as a recalculator), plus one missing feature: the balance engine has no atomic cross-account transfer primitive, which Rewards/Payroll platforms need for PTO cash-out, comp-time conversion and leave-donation banks.
+
+- [ ] `REV-039-01` **[GATE_C][SOL_HIGH] Give BusinessCycle restatement a durable, CAS-guarded append store.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.PAYROLL,BI.TALENT; DIRECT=none; WHY=provide durable append-only persistence so cycle restatements survive crashes and cannot race to conflicting sequences`.
+  - **TEST:** `TestTodo_REV_039_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_039_01`; `RACE=TestTodo_REV_039_01_Race`; `FAULT=TestTodo_REV_039_01_Fault`; `RECOVERY=TestTodo_REV_039_01_Recovery`.
+  - **RED:** GAP against `CYCLE-008` (ticked, evidence 2026-09-16, `planning/todos.md:10427-10437`, claiming "Correction revision ... append-only"). `internal/engines/cycle/restatement.go` only validates a `RestatementRequest` and computes a digest (`RestatePriorCycle`, line 199; `Validate`, line 104) over in-memory values; there is no `internal/data/cyclestore` package (confirmed absent from `internal/data/*`, unlike the balance analog `internal/data/balancestore`, which has `ErrCorrectionConflict`/CAS handling at `internal/data/balancestore/store.go:58,319`). Two goroutines can independently produce two "valid" `CycleRestatement` values for the same `Prior.Sequence` with no store to reject the second, and nothing persists a restatement if the process crashes after computing it, contradicting the ticked "append-only" and "correction revision" claims.
+  - **GREEN:** a `cyclestore` (or equivalent) rejects a second restatement whose `Prior.Sequence`/digest was already superseded with a typed conflict error, persists an accepted restatement transactionally with the owning `BusinessTransaction`, and replays identically after a crash between digest computation and commit.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/engines/cycle/restatement.go`, `internal/data/balancestore/store.go`, [ledger corrections](specs/transaction-ledger-reconciliation-and-repair.md).
+
+- [ ] `REV-039-02` **[GATE_C][SOL_HIGH] Wire real payroll, tax and benefits domains as BAL-006 dependent recalculators.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.PAYROLL; DIRECT=none; WHY=wire retroactive balance corrections to the real payroll tax and benefits domains so recalculation obligations are not satisfied by test only stand ins`.
+  - **TEST:** `TestTodo_REV_039_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_039_02`; `INTEGRATION=TestTodo_REV_039_02_Integration`; `MUTATION=TestTodo_REV_039_02_Mutation`.
+  - **RED:** GAP against `BAL-006` (ticked, evidence 2026-09-16, `planning/todos.md:10516-10517`, claiming "dependents recompute in dependency order with version-pinned, reconciled evidence"). `internal/domains/balance/correction.go` defines `DependentRecalculator`/`RecalculationContext` (lines 44-76), but `grep -rln "DependentRecalculator"` outside `_test.go` returns only `correction.go` itself; `internal/domains/balance/recalculation_test.go` proves the mechanism solely with fake closures keyed by literal strings `"payroll-result"`, `"tax-result"`, `"benefits-result"` (lines 26-42, 66). None of `internal/domains/payroll`, `internal/domains/taxprofile` or `internal/domains/benefits` import `internal/domains/balance` (confirmed empty for all three). So a real retroactive balance correction today produces zero recalculation of any actual payroll, tax or benefits state; the "reconciled evidence" the ticked item claims exists only against synthetic test dependents.
+  - **GREEN:** at least one real dependent domain (start with payroll, since it is the most balance-sensitive) registers a `DependentRecalculator` that recomputes its own affected result from the corrected balance and returns version-pinned `RecalculationEvidence`, exercised end to end (not through a fake closure) by an integration test that posts a real `BAL-002` correction and observes the payroll domain's recomputed output.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/balance/correction.go`, `internal/domains/balance/recalculation_test.go`, `internal/domains/payroll`, [payroll repair workflow](workflows/payroll/payroll-correction-retro.md).
+
+- [ ] `REV-039-03` **[GATE_C][SOL_HIGH] Add an atomic cross-account balance transfer primitive.**
+  - **Depends:** `BAL-011`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.PAYROLL; DIRECT=none; WHY=let programs move value between two balance accounts atomically so PTO cash out comp time conversion and leave donation never drop or double post value`.
+  - **TEST:** `TestTodo_REV_039_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_039_03`; `PROPERTY=TestTodo_REV_039_03_Property`; `RACE=TestTodo_REV_039_03_Race`; `MUTATION=TestTodo_REV_039_03_Mutation`.
+  - **RED:** NEW. `internal/domains/balance/posting_plan.go` defines `PostingPlan` with a single `AccountID` (line 28), and `BAL-012` posts one such plan atomically with its owning transaction (`internal/domains/balance/posting.go`). No type in the package links a debit on one account to a credit on another as one conserved unit, and `grep -n "cash.out|cashout|PTO sell|PTO buy|comp.time conversion|balance transfer" planning/todos.md` returns nothing anywhere in the 4MB plan. Real Rewards/Payroll balance engines need this for PTO cash-out (vacation accumulator debit, payroll-input credit), comp-time-to-pay conversion and leave-donation banks (one employee's PTO accumulator debited, a colleague's credited) — none of which can be expressed today without two independently-committed plans that can partially fail.
+  - **GREEN:** a `TransferPlan` (or paired `PostingPlan`s under one digest) binds a source and destination account/definition revision, an amount, and produces linked debit/credit entries that commit or fail together under one `BusinessTransaction`; a property test proves the source debit and destination credit are always equal in magnitude and opposite in sign across randomized amounts, definitions and concurrent transfer/correction interleavings.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/balance/posting_plan.go`, `internal/domains/balance/posting.go`, [rewards/payroll models](data/models/rewards-payroll-workforce.md), [transaction coordinator](specs/transaction-plan-and-commit-coordinator.md).
+
+### R048. §47 Workflow-research traceability and extracted-HR vertical conformance
+
+Checked all thirteen ticked items (WF-DISC-001..004, MODEL-031, COMP-005, HEADCOUNT-001, CONF-017..024). Every named package (`tools/planning/workflowregistry`, `workflowarchetypes`, `workflowdecisions`, `workflowpromotion`, `internal/intent/model`, `internal/domains/compensation`, `internal/domains/headcount`, `internal/domains/contact`, `internal/domains/people`, `internal/workflow/conformance/{bulkack,triage,edges}`) and every named `Test...` function exist and the referenced spec/workflow docs exist under `planning/`. Most of these are deliberately proof-only (`ROLE=CONFORMANCE`, `WHY=...without creating production authority`), so their absence from `go list -deps ./cmd/...` is the generic unreachability REV-103-01 already tracks, not a fresh finding. The one real gap: the workflow-promotion gate this section itself builds (WF-DISC-001..004) is never actually exercised against the live corpus, and the five catalog workflow documents that CONF-017/018/019/020/021 built full domain conformance proofs against (`contact-information-update.md`, `emergency-contact-update.md`, `legal-name-change.md`, `compensation-change.md`, `headcount-requisition.md`) still self-report `state: EXTRACTED + EXPLORED` in their front matter — never `CONTRACTED` — which is exactly the reporting WF-DISC-001's own RED clause forbids ("`EXTRACTED|REFERENCE|EXPLORED` may not be reported as `CONTRACTED|IMPLEMENTED` without typed contract and fresh evidence links"). `tools/planning/workflowpromotion` is imported by nothing outside its own test, and the only promotion-receipt artifact in the repo is a testdata fixture (`internal/workflow/simulate/testdata/promotion-receipt.json`), so no workflow has ever actually been promoted through the gate this section built.
+
+- [ ] `REV-048-01` **[GATE_C][SOL_HIGH] Reconcile vertical conformance proofs against unpromoted EXTRACTED/EXPLORED workflow source documents.**
+  - **Depends:** `WF-DISC-004`, `CONF-017`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=conformance proofs must not be built on research artifacts the plans own promotion gate has not certified`.
+  - **TEST:** `TestTodo_REV_048_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_048_01`; `GOLDEN=TestTodo_REV_048_01_Golden`; `CONFORMANCE=TestTodo_REV_048_01_Conformance`.
+  - **RED:** GAP against `WF-DISC-001`'s own rule: `planning/workflows/people/contact-information-update.md`, `emergency-contact-update.md`, `legal-name-change.md`, `planning/workflows/rewards/compensation-change.md` and `planning/workflows/workforce/headcount-requisition.md` all carry `state: EXTRACTED + EXPLORED` (grep `^state:` in each), yet `CONF-017`, `CONF-018`, `CONF-019`, `CONF-020` and `CONF-021` are ticked with full domain conformance evidence built directly on them; `tools/planning/workflowpromotion` (`WF-DISC-004`, the tool that mints the `CONTRACTED` receipt these proofs would need) is imported by nothing outside `tools/planning/workflowpromotion/promotion_test.go`, and no non-testdata promotion receipt exists in the repository.
+  - **GREEN:** a plan-check rule fails the build when a ticked `CONFORMANCE`-role todo's Refs point at a workflow document whose front-matter `state` is not `CONTRACTED`, unless the todo is explicitly tagged as pre-promotion exploratory scaffolding; the five listed documents are either promoted through `workflowpromotion` with a committed receipt or the affected CONF items are re-tagged to disclose they proved against unpromoted research.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/workflowpromotion`, `planning/workflows/people/contact-information-update.md`, `planning/workflows/people/emergency-contact-update.md`, `planning/workflows/people/legal-name-change.md`, `planning/workflows/rewards/compensation-change.md`, `planning/workflows/workforce/headcount-requisition.md`.
+
+### R049. §48 Feature-to-Intent semantic instruction-set closure
+
+Reviewed all eight items in §48 (FEATURE-003, INTENT-026, INTENT-027, INTENT-028, INTENT-029, SEARCH-003, FEATURE-CONF-001, INTENT-CONF-002), all ticked. Every referenced package (`internal/intent`, `internal/intent/evolution`, `internal/engines/search`, `tools/planning/intentmanifests`) exists, and every named primary test (grepped by exact function name) exists in its stated file. `internal/intent` itself is in `go list -deps` for `cmd/hcmnext`, so this is not the generic-unreachability finding REV-103-01 already covers; the problem is internal to the wired pipeline. `internal/intent/app` — the one package that `cmd/hcmnext` actually calls for proposal submission and capability dispatch — never constructs or consumes INTENT-026's `IntentCompositionPlan` or INTENT-027's universal `IntentPreflightPlan`; its real dispatch (`capabilities.go`) goes straight to domain-specific `promotion.PreflightPromotion`, `promotion.SimulatePromotion`, `rewards.SimulateCompensation` and `repair.SimulateRepair`. INTENT-028's live-definition-evolution compatibility checker (`internal/intent/evolution`) is even more isolated: it has zero non-test importers anywhere in the repo, and the registry it would need to guard is documented in its own source as an immutable, compile-time BOOTSTRAP table, with the MANAGED publish lifecycle explicitly marked "not implemented here" — so the control currently has no live event to ever intercept. INTENT-029 (outcome links) and SEARCH-003 (search-to-population-to-batch conversion) show the same zero-non-test-caller pattern but are not separately written up here to keep this round to the two most load-bearing gaps.
+
+- [ ] `REV-049-01` **[GATE_B][SOL_HIGH] Route intent preflight and multi-child dispatch through the compiled IntentCompositionPlan and IntentPreflightPlan instead of bypassing them.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the wired submission pipeline must compile one governed plan instead of calling domain simulators directly`.
+  - **TEST:** `TestTodo_REV_049_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_049_01`; `INTEGRATION=TestTodo_REV_049_01_Integration`; `GOLDEN=TestTodo_REV_049_01_Golden`.
+  - **RED:** GAP: INTENT-026 and INTENT-027 (both ticked, `internal/intent/composition.go`, `internal/intent/preflight.go`) claim proposal submission compiles an immutable `IntentCompositionPlan` and one universal `IntentPreflightPlan`; `grep -rn "IntentCompositionPlan|IntentPreflightPlan" internal/intent/app/*.go` (excluding `_test.go`) returns no matches, and `internal/intent/app/capabilities.go:105-127` dispatches `promotion.PreflightPromotion`, `promotion.SimulatePromotion`, `rewards.SimulateCompensation` and `repair.SimulateRepair` directly, none of which build or consume either plan type.
+  - **GREEN:** the capability dispatcher in `internal/intent/app` builds one `intent.PreflightPlan` (wrapping the domain preflight/simulate result as its calculated cost/risk/effect payload) before returning any promotion, compensation or repair answer, and any multi-child intent path compiles an `intent.IntentCompositionPlan` first, so the plan's canonical digest is what the client receives and what any later approval binds to.
+  - **REFACTOR:** domain calculation functions keep their business math; only plan construction and digesting move through the shared compiler.
+  - **Refs:** `internal/intent/preflight.go`, `internal/intent/composition.go`, `internal/intent/app/capabilities.go`, `internal/intent/app/diagnostics.go`.
+
+- [ ] `REV-049-02` **[GATE_C][SOL_HIGH] Give the intent-definition evolution compatibility checker a live registry-publish event to guard, or mark it dormant.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=definition evolution governance has nothing live to intercept until the registry gains a publish action`.
+  - **TEST:** `TestTodo_REV_049_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_049_02`; `GOLDEN=TestTodo_REV_049_02_Golden`.
+  - **RED:** GAP: INTENT-028 (ticked) claims to govern live intent-definition evolution through compatibility review or supersession; `grep -rn "intent/evolution" --include=*.go .` finds zero non-test importers, and `internal/intent/registry.go`'s own doc comment states the registry is immutable once constructed under `ProfileBootstrap` (a compiled-in Go table) and that the "MANAGED — the full propose, validate, review, publish, activate lifecycle — arrives at Gate C and is not implemented here"; no code path publishes a new `Definition` version, so nothing can ever call the compatibility check.
+  - **GREEN:** either the registry gains a `MANAGED` publish action that calls the evolution compatibility check before accepting a new `Definition` version, or INTENT-028's evidence is corrected to state the control is dormant pending a `MANAGED` registry and does not currently govern any live transition.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/intent/evolution/compatibility.go`, `internal/intent/registry.go`.
+
+### R052. HCM semantic engine ownership expansion
+
+Read planning/todos.md lines 13568-14227 (§51, all 76 items: FX, proofing, employee relations, mobility, safety, skill, career, succession, merit, incentive, equity, asset, contact, location, service, CBA, reporting, tax profile, pay input, pay method, job architecture). Confirmed every named `internal/domains/*` package exists and every sampled PRIMARY test (fx, jobarch, paymethod, proofing) exists and is grep-able. `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` shows only `fx` and `jobarch` of the 20 domain packages reachable from a binary; the rest are library-only, which is REV-103-01's generic finding and not repeated here. Sampling deeper turned up one concrete cross-package wiring gap: `PAYMETHOD-002`'s fraud gate and `SECARCH-016`'s ACH risk-scoring engine were both built and ticked but never connected to each other by any code in the repository, so the "fraud decision" the direct-deposit gate claims to enforce is never actually computed. A second gap is a genuine missing feature: nothing in the CBA or pay-input domains models union-dues checkoff, despite CBA-002 explicitly owning wage/schedule/leave/seniority/discipline composition for the same agreements.
+
+- [ ] `REV-052-01` **[GATE_C][SOL_HIGH] Wire the ACH risk-scoring engine into the pay-method fraud gate it was built to feed.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL,BI.PEOPLE,BI.SECURITY; DIRECT=none; WHY=a direct-deposit change can commit on a fraud decision that no engine in the repository ever computes`.
+  - **TEST:** `TestTodo_REV_052_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_052_01`; `SECURITY=TestTodo_REV_052_01_Security`; `INTEGRATION=TestTodo_REV_052_01_Integration`.
+  - **RED:** GAP: `PAYMETHOD-002` (line 14140) is ticked GREEN as "change binds ... risk/fraud decision ... unsafe cases return STEP_UP_REQUIRED|REVIEW_REQUIRED|REPLAN_REQUIRED|BLOCKED", and `SECARCH-016` (line 2304) is ticked GREEN as delivering the versioned ACH risk-scoring policy in `internal/domains/paymethod/achrisk`; `internal/domains/paymethod/authorization.go:59-61` states in its own doc comment that "the higher layer maps its assessment into this port", but `grep -rn achrisk --include=*.go .` outside `internal/domains/paymethod/achrisk/` finds only that one comment, and `grep -rln paymethod.RiskDecision --include=*.go` outside tests finds zero constructors anywhere in the repository; `paymethod.AuthorizeChange` only validates the shape and freshness of a caller-supplied `RiskDecision`, so today no code path -- test or production -- ever calls `achrisk.Policy.Evaluate` and threads the result into `AuthorizeChange`.
+  - **GREEN:** an adapter package converts `achrisk.RiskAssessment` into `paymethod.RiskDecision` (mapping `Alert|Hold|Release|Reject` to the pay-method vocabulary, carrying `RuleVersion`/`AssessmentDigest`/`ProposalDigest`/`EvaluatedAt`/`ValidUntil`), a caller in the direct-deposit change path invokes `achrisk.Policy.Evaluate` before `paymethod.AuthorizeChange`, and an integration test proves a real `Signals` input produces a `RiskDecision` that `AuthorizeChange` accepts or blocks on.
+  - **REFACTOR:** keep the mapping in its own small adapter so `paymethod` and `achrisk` retain their documented no-import-cycle boundary.
+  - **Refs:** `internal/domains/paymethod/authorization.go`, `internal/domains/paymethod/achrisk/risk.go`, [BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [authority expansion](specs/competitive-positioning-and-authority-expansion.md#authority-absorption-gate).
+
+- [ ] `REV-052-02` **[GATE_C][SOL_HIGH] Define union-dues checkoff authorization, revocation and remittance as a governed pay-input source.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PAYROLL,BI.WORKFORCE,BI.CASES; DIRECT=none; WHY=CBA-governed workplaces require member-authorized, revocable dues checkoff with remittance evidence and this section owns both the CBA and pay-input domains without modeling it`.
+  - **TEST:** `TestTodo_REV_052_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_052_02`; `PROPERTY=TestTodo_REV_052_02_Property`; `GOLDEN=TestTodo_REV_052_02_Golden`; `CONFORMANCE=TestTodo_REV_052_02_Conformance`; `SECURITY=TestTodo_REV_052_02_Security`.
+  - **RED:** NEW: `grep -in "dues\|checkoff\|agency fee" internal/domains/payinput/*.go internal/domains/cba/*.go` and a whole-file search of `planning/todos.md` for "union dues", "dues checkoff" and "agency fee" return no matches; `CBA-002` (line 14007, ticked) composes wage/schedule/leave/seniority/discipline constraints from the same agreement but has no dues-authorization or remittance contract, and `PAYINPUT-001` (line 14096, ticked) defines generic earning/deduction assignments with no CBA-sourced authorization, member-revocation window or per-jurisdiction right-to-work/agency-fee constraint, so a governed union agreement in this platform cannot actually deduct or remit dues.
+  - **GREEN:** a typed checkoff-authorization revision binds worker, bargaining-unit membership (from `CBA-001`), authorization/revocation instrument and effective window; it resolves `AUTHORIZED|REVOKED|AGENCY_FEE_ONLY|PROHIBITED_BY_JURISDICTION|UNKNOWN` and emits exactly one bounded `PAYINPUT` deduction assignment per active authorization, with a separate remittance-obligation record per union/period that reconciles independently of payroll settlement.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/cba/`, `internal/domains/payinput/`, [BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [model coverage](data/models/intent-coverage-matrix.md).
+
+### R053. §58 BusinessIntent-to-workflow design convergence
+
+Checked all eight ticked items (`WF-DISC-005` through `WF-DISC-012`, lines 14228-14319). Every referenced package exists (`tools/planning/workflowdesign`, `workflowdesignjoin`, `workflowexpansion`, `directcapability`, `designownership`, `scenariomatrix`, `workflowmaturity`, `tools/planning/cmd/workflowmaturity`, plus `internal/intent` for `WF-DISC-011`), and every named PRIMARY test function is present and grep-verified, including the full matrix suite for `WF-DISC-011` despite its terse evidence note. As expected for design-time governance tooling, none of these packages appear in `go list -deps` for `cmd/hcmnext`, `cmd/worker`, `cmd/projector` or `cmd/scheduler` — they compile and audit the _plan_, not the runtime, which matches their stated purpose. The one substantive gap: `WF-DISC-012`'s own evidence documents 30 hand-typed `**Status**: EXISTING` claims in `planning/workflows/catalog.md` that its generated maturity report contradicts (each capped at `CONCEPTUAL`), and running the tool live today reproduces the identical 30-item list unchanged — the cross-check exists but nothing acts on it or reruns it as a gate, so the catalog keeps asserting implemented capability that the platform's own generated evidence says does not exist.
+
+- [ ] `REV-053-01` **[GATE_C][SOL_HIGH] Reconcile or gate catalog.md status claims against the workflowmaturity report.**
+  - **Depends:** `WF-DISC-012`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=stop the catalog asserting EXISTING for capabilities the generated maturity evidence caps at CONCEPTUAL`.
+  - **TEST:** `TestTodo_REV_053_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_053_01`; `GOLDEN=TestTodo_REV_053_01_Golden`; `CONFORMANCE=TestTodo_REV_053_01_Conformance`.
+  - **RED:** GAP against `WF-DISC-012` — `go run ./tools/planning/cmd/workflowmaturity` prints "planning/workflows/catalog.md cross-check: 30 EXISTING claim(s) not supported by generated evidence" today (2026-09-19), unchanged from the 2026-09-13 evidence line; `planning/workflows/catalog.md:254` still reads `**Status**: \`EXISTING\``for`WF-PEO-003`against`hcmnext.people.change_manager/v1`, which the same tool caps at `CONCEPTUAL`; `main.go`'s own doc comment confirms the command "exits non-zero only on a load failure or a self-validation mismatch", never on a disagreement, so nothing fails when the drift grows.
+  - **GREEN:** either `planning/workflows/catalog.md`'s per-flow `Status` field is generated from `workflowmaturity.Reconcile` output rather than hand-typed, or a CI/gate step runs the cross-check and fails the build on any new disagreement beyond a pinned, reviewed baseline; the live disagreement count is zero or explicitly enumerated and owned.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/workflowmaturity/maturity.go`, `tools/planning/workflowmaturity/catalog.go`, `tools/planning/cmd/workflowmaturity/main.go`, `planning/workflows/catalog.md`, [workflow design registry](workflows/business-intent-workflow-registry.md).
+
+### R051. §50 Critical HCM domain-engine ownership
+
+Checked all sixteen ticked items (`RECRUIT-001`–`004`, `ACCESS-001`–`004`, `CASE-001`–`004`, `WORKER-LIFE-001`–`004`) against `internal/domains/{recruiting,access,hrcase,workerlifecycle}` and `internal/operations/accessdrift`: every named package, file and primary/matrix test (`TestTodo_RECRUIT_00*`, `TestTodo_ACCESS_00*`, `TestTodo_CASE_00*`, `TestTodo_WORKER_LIFE_00*` and their PRIMARY names) exists and compiles as claimed, and `go list -deps ./cmd/...` confirms none of these packages (nor `internal/data/{accessstore,hrcasestore}`) reach any binary — pure library implementations, which REV-103-01 already tracks generically. Sampling six items deeply surfaced a recurring pattern the generic unreachability finding does not cover: several ticked items declare a cross-domain `Depends` and a REFACTOR clause promising composition with a named sibling engine, but the actual package never imports that sibling, so the two domains model the same concept twice with no binding between them. Two concrete instances: `RECRUIT-001`'s `Requisition` (only an opaque `SourceRef string`, validated merely non-empty) never references or checks `HEADCOUNT-001`/`CONF-021`'s approved-capacity `Requisition`, so the ATS can open a requisition independent of headcount approval — exactly the failure mode `HEADCOUNT-001`'s own RED clause names ("recruiting opens against unavailable/frozen capacity"); and `ACCESS-002`'s `entitlement_derivation.go` imports none of `internal/engines/eligibility`, `internal/engines/rules` or a population engine despite depending on `POP-003`/`ELIG-003`/`RULE-003` and its REFACTOR clause stating it should "reuse Population/Eligibility/Rules mechanics." Separately, the recruiting domain has no adverse-impact/EEO applicant-flow analysis over its own `RECRUIT-002` candidacy-stage pipeline, a gap the existing `WF-CAP-009` (reduction-selection adverse impact) does not cover.
+
+- [ ] `REV-051-01` **[GATE_C][SOL_HIGH] Bind ATS requisition creation to approved headcount capacity.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING,BI.WORKFORCE; DIRECT=none; WHY=prevent the ATS from opening requisitions that headcount never approved`.
+  - **TEST:** `TestTodo_REV_051_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_051_01`; `GOLDEN=TestTodo_REV_051_01_Golden`; `INTEGRATION=TestTodo_REV_051_01_Integration`; `RACE=TestTodo_REV_051_01_Race`; `FAULT=TestTodo_REV_051_01_Fault`.
+  - **RED:** GAP: `internal/domains/recruiting/recruiting.go` `OpenRequisition(id, sourceRef string, ...)` stores `sourceRef` as a free-form label (e.g. `"job:registered-nurse"`, see `recruiting_test.go:30`) validated only by `validID` (`strings.TrimSpace(id) != ""`, `recruiting.go:87`); it holds no `HeadcountRequisitionID`/capacity reference and never calls `internal/domains/headcount`, so a requisition opens whether or not any `HEADCOUNT-001` capacity was approved, contradicting the ticked `HEADCOUNT-001` RED clause that names this exact scenario as a failure to prevent.
+  - **GREEN:** `OpenRequisition` requires a typed reference to an `APPROVED`/consumed headcount capacity record (via the port `internal/domains/headcount` already exposes for `CONF-021`), rejects an unknown, foreign-tenant, closed or already-fully-consumed capacity reference with a typed error, and records the bound capacity revision in the requisition's canonical digest so a later capacity revocation is detectable.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/recruiting/recruiting.go`, `internal/domains/headcount/headcount.go`, [Headcount requisition workflow](workflows/workforce/headcount-requisition.md).
+
+- [ ] `REV-051-02` **[GATE_C][SOL_HIGH] Compose Access expected-entitlement derivation from the governed Eligibility and Rules engines.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ACCESS; DIRECT=none; WHY=stop expected-access logic from diverging from the audited eligibility and rules engines it depends on`.
+  - **TEST:** `TestTodo_REV_051_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_051_02`; `GOLDEN=TestTodo_REV_051_02_Golden`; `SECURITY=TestTodo_REV_051_02_Security`; `MUTATION=TestTodo_REV_051_02_Mutation`.
+  - **RED:** GAP: `internal/domains/access/entitlement_derivation.go` imports only `internal/domains/evidence`, `internal/engines/canonicalbytes` and `internal/kernel/values` (no `internal/engines/eligibility` or `internal/engines/rules`); `ACCESS-002` lists `ELIG-003` and `RULE-003` as Depends and its own REFACTOR clause says it should "reuse Population/Eligibility/Rules mechanics while Access owns entitlement meaning," but the package reimplements fact/rule evaluation locally instead, so a future change to the shared eligibility/rules semantics (e.g. deny-dominance or `PASS/FAIL/PARTIAL/UNKNOWN` lattice fixes in `internal/engines/eligibility`) will not propagate to expected-access derivation.
+  - **GREEN:** `DeriveExpectedEntitlements` calls `internal/engines/eligibility` for the fact/rule evaluation lattice and `internal/engines/rules` for deny-dominance policy composition instead of duplicating that logic, with `EXPECTED|NOT_EXPECTED|CONDITIONAL|UNKNOWN` outcomes traceable to the exact eligibility/rule evaluation that produced them.
+  - **REFACTOR:** remove the package-local duplicate of deny-dominance/rule-priority logic once the shared engine is wired in.
+  - **Refs:** `internal/domains/access/entitlement_derivation.go`, `internal/engines/eligibility`, `internal/engines/rules`, [rules and decisions](data/models/rules-and-decisions.md).
+
+- [ ] `REV-051-03` **[GATE_C][TERRA] Add hiring-funnel adverse-impact analysis over candidacy stage transitions.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING,BI.ANALYTICS; DIRECT=none; WHY=let a federal contractor tenant monitor OFCCP four-fifths selection-rate risk across the hiring pipeline`.
+  - **TEST:** `TestTodo_REV_051_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_051_03`; `GOLDEN=TestTodo_REV_051_03_Golden`; `PROPERTY=TestTodo_REV_051_03_Property`; `MUTATION=TestTodo_REV_051_03_Mutation`.
+  - **RED:** NEW: `internal/domains/recruiting` records every candidacy stage transition and decision (`stage.go`) but computes no selection-rate or four-fifths comparison over that history; `grep -in "adverse\|disparate\|four.fifth\|selection.rate" internal/domains/recruiting/*.go` returns nothing, and the only adverse-impact analysis in the plan, `WF-CAP-009`, is scoped to reduction-in-force selection, not hiring-stage advancement, so no HCM area covers applicant-flow adverse impact.
+  - **GREEN:** a pure analysis over a pinned set of candidacy-stage outcomes and declared applicant demographic-group facts returns per-transition selection rates by group, flags a four-fifths-rule violation with the comparison groups and counts, and returns `UNKNOWN` rather than a rate when a group's sample size is too small to be meaningful; the analysis writes no candidacy, stage or offer state and never stores raw demographic data outside its declared purpose.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/recruiting/stage.go`, [WF-CAP-009 adverse impact precedent](planning/todos.md), [recruit workflow](workflows/lifecycle/recruit-hire-onboard.md).
+
+### R057. §62 Product-decision and implementation convergence
+
+Read all 24 items in §62 (lines 15013-15452, all ticked) plus the referenced evidence in `tools/planning/threatregister`, `tools/planning/lineageconformance`, `internal/platform/topology`, `internal/operations/reconcile`, `internal/connectivity/operation`, and `tools/planning/gateevidence/selectionbind` (NEXT-002), and confirmed the absence of a topology gate artifact directly against `definitions/planning/gates/` on disk. The section is a library-only meta-layer of signed YAML governance artifacts (scope ceiling, jurisdiction, provider, threat register, topology, customer blueprint, commercial package, pilot go/no-go, convergence compiler) that is not itself served by any `cmd/*` binary; per the round brief that generic unreachability is out of scope for this unit (covered by REV-103-01). What is squarely in scope, and what this pass found, is that the section's own convergence claims disagree with each other: the frozen items in §62 do not always agree with the ticked implementation evidence that already exists elsewhere in the tree, so the release-gate chain (NEXT-002, GATEB-EVID-001) is currently blocked or under-proven on stale premises rather than real gaps. The most important finding is REV-057-01: the frozen threat register blocks Phase 1 release on a CRITICAL finding whose stated cause was already fixed by an earlier-dated, independently tested connector change.
+
+- [ ] `REV-057-01` **[GATE_C][SOL_HIGH] Resynchronize the frozen threat register's AMBIGUOUS_EFFECT verdict with the already-built connector redrive guarantee.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=stop a stale critical threat finding from blocking Phase 1 release evidence when the mitigating connector behavior already exists and is tested`.
+  - **TEST:** `TestTodo_REV_057_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_057_01`; `GOLDEN=TestTodo_REV_057_01_Golden`; `INTEGRATION=TestTodo_REV_057_01_Integration`; `SECURITY=TestTodo_REV_057_01_Security`.
+  - **RED:** GAP: `THREAT-001` (ticked, evidence 2026-09-13) records `THR-07` (AMBIGUOUS_EFFECT, CRITICAL) as unmitigated, justified by "Phase 1 has not built the observe-before-retry mechanism," and its `ReleaseDecision` reports `release blocked: true` on that basis. But `CONN-RT-007` (ticked, evidence 2026-09-11, two days earlier, in `internal/connectivity/operation`) already proves a blind resend after an ambiguous timeout is structurally impossible: a timeout lands the operation in `AMBIGUOUS`, a second `Lease` is refused with `ErrInvalidTransition`, and `StateReconciled` is unreachable without a typed `APPLIED` observation, all pinned by unit, integration, fault and a 1.7M-exec fuzz run. `CONN-RT-009` extends the same guarantee across crash and restore. `THREAT-001`'s own register was never updated against this. The staleness already propagates downstream: `NEXT-002`'s live selection-completeness run (2026-09-13) names "THR-07 blocking release" as one of its INCOMPLETE reasons.
+  - **GREEN:** re-running `threatregister.Compile` against `CONN-RT-007`/`CONN-RT-009` as named mitigation evidence reclassifies `THR-07` as mitigated, or downgrades it with a named accepting owner and expiry instead of the current required-and-empty `accepted_by`; `ReleaseDecision` no longer reports `release blocked: true` for this reason, and `NEXT-002`'s selection-completeness report drops "THR-07 blocking release" from its INCOMPLETE reasons without any change to connector code.
+  - **REFACTOR:** none.
+  - **Refs:** `planning/todos.md` (THREAT-001, CONN-RT-007, CONN-RT-009, NEXT-002 evidence blocks), `internal/connectivity/operation`, `tools/planning/threatregister`, `tools/planning/gateevidence/selectionbind`.
+
+- [ ] `REV-057-02` **[GATE_C][SOL_HIGH] Join per-intent lineage conformance to RECON-001's persisted reconciliation-job store instead of reporting reconciliation as permanently unknown.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=stop lineage conformance treating a reconciliation result as absent when a durable reconciliation job for the same effect already exists`.
+  - **TEST:** `TestTodo_REV_057_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_057_02`; `CONFORMANCE=TestTodo_REV_057_02_Conformance`; `GOLDEN=TestTodo_REV_057_02_Golden`; `FAULT=TestTodo_REV_057_02_Fault`; `RECOVERY=TestTodo_REV_057_02_Recovery`.
+  - **RED:** GAP: `DATA-022` (ticked, evidence 2026-09-13, `tools/planning/lineageconformance`) reports the RECONCILIATION link as `UNKNOWN` for all 19 intent families, including its own store-backed Promotion integration case, and its evidence states plainly "no store holds a reconciliation result, and none is invented." But `RECON-001` (ticked, evidence 2026-09-05, `internal/operations/reconcile`, migration 00040) already persists exactly that fact in `effect_reconciliation_job`, one durable row per committed effect and comparison policy with a closed status set `PENDING/OBSERVING/PASS/MISMATCH/PARTIAL/UNKNOWN/EXPIRED/REPAIR_REQUIRED`, keyed by tenant, effect idempotency key and policy ref. `DATA-022`'s `DefaultProducers()` never names `RECON-001` as a source, so every family is structurally capped at PARTIAL/UNKNOWN for this dimension regardless of what reconciliation work has actually run.
+  - **GREEN:** a producer added to `lineageconformance.DefaultProducers()` reads `effect_reconciliation_job` by the same effect idempotency key `DATA-015`/`LEDGER-013` producers already use, and the RECONCILIATION link resolves to that job's status instead of UNKNOWN whenever a row exists; the existing embedded-Postgres integration fixture is extended to write and read back a real reconciliation job row, and the live run moves the Promotion family's RECONCILIATION link off UNKNOWN.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/lineageconformance`, `internal/operations/reconcile`, `migrations/00040_effect_reconciliation_job.sql`.
+
+- [ ] `REV-057-03` **[GATE_C][SOL_HIGH] Publish TOPOLOGY-001's missing signed decision artifact so selection-completeness stops reporting no topology decision exists.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=give the pilot cell topology a reviewable signed artifact so downstream gates can bind to a decision instead of only source code`.
+  - **TEST:** `TestTodo_REV_057_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_057_03`; `SECURITY=TestTodo_REV_057_03_Security`; `INTEGRATION=TestTodo_REV_057_03_Integration`.
+  - **RED:** GAP: `TOPOLOGY-001` (ticked, evidence 2026-09-05) claims a "generated topology and deploy manifest" with digest-backed inventory, following the same freeze pattern as `PHASE-001`, `SELECT-001` and `SELECT-002`. Direct inspection of `definitions/planning/gates/` shows only `select-002-provider-topology.yaml`; no `topology-001-*.yaml` artifact exists, and `internal/platform/topology/` contains only `topology.go`, `cellharness.go` and their tests, no signed decision file. `NEXT-002`'s own live selection-completeness run (2026-09-13) names this exactly: "no TOPOLOGY-001 decision artifact (the binding pins `internal/platform/topology/topology.go` and the evaluator states that no decision exists)," so P1A selection completeness cannot reach COMPLETE on this ground independent of the provider and jurisdiction gaps.
+  - **GREEN:** a signed `definitions/planning/gates/topology-001-pilot-cell.yaml`, following the `PHASE-001`/`SELECT-001`/`SELECT-002` CanonicalDigest-plus-ed25519 convention, pins the `topology.go`-derived inventory (processes, zones, failure domains, capacity budgets) as a reviewable artifact with its own consumer; `selectionbind.Evaluate` resolves the `TOPOLOGY-001` binding to that file and the live INCOMPLETE report drops the "no decision exists" reason.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/platform/topology/topology.go`, `definitions/planning/gates/select-002-provider-topology.yaml` (pattern to follow), `tools/planning/gateevidence/selectionbind`.
+
+### R059. §64 Dependency-ordered execution convergence
+
+Checked `NEXT-001`..`NEXT-009` (lines 15638-15746). Every named PRIMARY test exists (`TestP1AAndP1BManifestsAreDisjointOrderedBoundedAndSelectionComplete` in `tools/planning/gateevidence/selectionbind`, `TestP1AEvidenceCompilerRejectsMissingStaleOutOfManifestOrEffectfulEvidence` and `TestGateDependencyGraphRejectsLaterPhaseEdgesCyclesAndEvidenceSelfCertification` in `tools/planning/gateevidence`/`tools/policy/phaseone`, `TestBootstrapCellMigratesServesSimulatesAppendsRestartsAndReconciles` and `TestP1APromotionProducesExactEvidenceAndZeroAuthoritativeOrProviderEffect` in `test/bootstrap`, and the two `internal/governance/authority` tests for `NEXT-006`/`NEXT-009`), and the packages build. `NEXT-004`/`NEXT-005` are genuinely wired: `test/bootstrap` runs a real migrated PostgreSQL cell through both transports, and `p1a.no_governed_write` (`internal/intent/app/service.go:40`) is the live refusal reason the running `cmd/hcmnext` service returns for Submit/Cancel/Supersede, not a test-only stub. `NEXT-001`-`NEXT-003`/`NEXT-008` are correctly library/tool-only compilers (their own nature per this section's disposition note), consistent with the generic unreachability `REV-103-01` already tracks, so that is not re-flagged here. The one gap specific to this unit: `NEXT-006`'s own evidence text admits that wiring its `Amendment.AdmitLocalWrite` write-scope gate into a real command path is a "consumer follow-up" that "remains" outstanding, and it still does — nothing outside the `internal/governance/authority` package's own tests calls it, so the P1B write-authorization mechanism `NEXT-006`/`NEXT-009` built has no enforcement point anywhere in the tree, including the `internal/application` package named as its intended consumer.
+
+- [ ] `REV-059-01` **[GATE_B][SOL_HIGH] Wire the P1B Amendment.AdmitLocalWrite scope gate into a real command execution path.**
+  - **Depends:** `NEXT-006`, `NEXT-009`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PEOPLE,BI.REWARDS,BI.INTEGRATION; DIRECT=none; WHY=make the pre-write authorization amendment actually stop an out-of-scope write instead of only describing one`.
+  - **TEST:** `TestTodo_REV_059_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_059_01`; `GOLDEN=TestTodo_REV_059_01_Golden`; `SECURITY=TestTodo_REV_059_01_Security`.
+  - **RED:** GAP against ticked `NEXT-006`, whose own REFACTOR note states "conditional admission of local command implementations from the amendment by `internal/application` remains a consumer follow-up (unblocks `WEDGE-015`, `NEXT-009`)"; `grep -rn "governance/authority" --include=*.go` outside `internal/governance/authority/` returns only a string literal in `tools/planning/intentcoverage/intentcoverage.go`, and `grep -rn "AdmitLocalWrite" --include=*.go` finds no caller outside `internal/governance/authority/authority_test.go` — the sole write-scope enforcement function `NEXT-006` and `NEXT-009` built is called by nothing but its own tests.
+  - **GREEN:** the intent/application command path that will execute a P1B write calls the active `Amendment.AdmitLocalWrite` (or an equivalent check derived from it) before applying the write, so a field/operation/tenant/time outside the bound amendment is refused at the call site with the amendment's own error, proven by a test that exercises a real handler with an out-of-scope field and asserts the write never lands.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/governance/authority/authority.go`, `internal/governance/authority/prewrite.go`, `internal/intent/app/service.go`, [P1B milestone](next-steps.md#m5--p1b-bounded-write-path).
+
+### R054. §59 Adversarial infrastructure edges and third-party tool qualification
+
+Reviewed all 17 ticked items in §59 (LIB-016-020, TOOL-021-024, DB-EDGE-001-004, RPC-EDGE-001, PROTO-009, ARTIFACT-007, OBS-022-024, EXPORT-001), spot-checked the named PRIMARY tests for five of them (all exist and match their described behavior: `TestSpreadsheetExportNeutralizesFormulaCellsWhileMachineExportPreservesExactValues`, `TestConcurrentMultipartCompletionBindsOnlyAuthorizedVersionChecksumAndHold`, `TestGRPCRetryPolicyCannotReplayNonIdempotentCapabilityEffect`, `TestMixedVersionProtoRelayNeverSilentlyDropsMaterialUnknownFields`, `TestAWSSDKAdapterPassesObjectStoreConformanceWithoutTypeLeakage`), and checked `go.mod`/import graphs for the third-party libraries each item claims to qualify. Most of the section is implemented as described. One item is a genuine, self-contradicting gap: `LIB-019` is ticked `[x]` (done) but its own trailing evidence note explicitly states the TODO "remains open" because no Protovalidate module or interceptor exists; `go.mod`/`go.sum` still carry no protovalidate dependency and the only occurrences of the word "protovalidate" in the tree are inside the qualification tooling itself, never a wired interceptor. DB-EDGE-003 shows a similar stale-note pattern but newer test files (dated after its last "remains open"/"unticked" evidence note) show real production-path retry integration has since landed, so it looks like genuine in-flight progress rather than a standing gap and is not reported here.
+
+- [ ] `REV-054-01` **[GATE_C][SOL_HIGH] Reconcile LIB-019's ticked status with its own unresolved Protovalidate evidence.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=make the qualification record for structural request validation match what is actually built and wired`.
+  - **TEST:** `TestTodo_REV_054_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_054_01`; `GOLDEN=TestTodo_REV_054_01_Golden`; `INTEGRATION=TestTodo_REV_054_01_Integration`; `CONFORMANCE=TestTodo_REV_054_01_Conformance`.
+  - **RED:** GAP contradicting ticked `LIB-019`: its own "Evidence (partial, 2026-09-03)" note (`planning/todos.md:14374`) says "no Protovalidate module, annotations, or interceptor evidence exists, so this TODO remains open," yet the item is checked done. Independently verified: `go.mod`/`go.sum` contain no protovalidate module, and `grep -rl protovalidate --include=*.go .` only matches `tools/policy/libqualification`, `tools/quality/bufprotovalidatekit` and `tools/gen/librarystrategy` (qualification/test tooling), never an interceptor referenced by `internal/transport/edge`, `internal/transport/endpoint` or `internal/transport/manifest`. LIB-019's own GREEN clause ("pinned offline Buf checks and Protovalidate interceptors return owned typed field violations identically across transports") is therefore false as shipped.
+  - **GREEN:** either a single owned interceptor enforces protovalidate-equivalent structural field constraints identically on the connect-go and grpcbridge/HTTP paths with `definitions/architecture/buf-protovalidate-qualification.yaml` recording ADOPT and a pinned module, or the architecture decision is formally updated to REJECT/DEFER protovalidate (parallel to LIB-005's CEL-Go DEFER) with the checkbox and evidence made consistent so no ticked item asserts unbuilt behavior.
+  - **REFACTOR:** none.
+  - **Refs:** `planning/todos.md:14364`, `planning/todos.md:14374`, `go.mod`, `tools/quality/bufprotovalidatekit/qualification.go`, `definitions/architecture/buf-protovalidate-qualification.yaml`, [edge/tooling audit](specs/adversarial-edge-and-tooling-audit-2026-08-14.md).
+
+### R055. §60 Canonical gRPC services, grpcbridge HTTP endpoints and endpoint TDD
+
+Checked all 25 items (ENDPOINT-001..009, EP-REG-001, EP-INTENT-001..004, EP-PROMO-001, EP-WORK-001..003, EP-WF-001..002, EP-EVID-001, EP-OPS-001, EP-HEALTH-001) against the real production composition path (`internal/application/serve.go:403` calling `internal/transport/cell.NewGRPCServerWithWorkflowInspectorAndOperations`), not just each package's own test harness. The endpoint contracts, manifest and per-package test suites are genuinely implemented and well-evidenced. The gap is systemic: `internal/transport/cell/cell.go` is the _only_ place that wires services onto the real server, and it silently under-wires three already-ticked items relative to their own GREEN clauses — confirmed by grep and by reading the exact composition code, and in two cases the evidence blocks for those items already admit the shortfall in prose but no todo tracks closing it. `EP-EVID-001`'s `EvidenceService` is registered nowhere outside `gen/` and its own tests, so `GetExecutionReceipt`/`ExportIntentEvidence` are unreachable from the running binary. `EP-WORK-002`/`EP-WORK-003`'s `ClaimWorkItem`, `ReleaseWorkItem`, `CompleteWorkItem` and `DecideApproval` fail closed `UNAVAILABLE` in production because `cell.go` never sets `transporthumanwork.Dependencies.Claims`/`.Idempotency`. `EP-HEALTH-001`'s `/readyz` is wired with an all-zero `Dependencies{}`, so it unconditionally reports ready regardless of real database/schema/key state. REV-030 (DataOps/Integration) and RBAC-RT-016 (universal call gating) already exist and are not duplicated here.
+
+- [ ] `REV-055-01` **[GATE_C][SOL_HIGH] Register EvidenceService in the production gRPC/HTTP composition root.**
+  - **Depends:** `EP-EVID-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DATAOPS,BI.PRIVACY,BI.OPERATIONS; DIRECT=none; WHY=wire EvidenceService into the one production composition root so evidence and export endpoints are reachable rather than only tested in isolation`.
+  - **TEST:** `TestTodo_REV_055_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_055_01`; `INTEGRATION=TestTodo_REV_055_01_Integration`; `SECURITY=TestTodo_REV_055_01_Security`.
+  - **RED:** GAP against `EP-EVID-001` (ticked done): `evidencev1.RegisterEvidenceServiceServer` is called nowhere except `internal/transport/evidence/server.go` itself and its tests (repo-wide grep for `RegisterEvidenceServiceServer` returns only `gen/go/...`, `internal/transport/evidence/*_test.go` and `tools/gen/contracts`). `internal/transport/cell/cell.go`'s `NewGRPCServerWithWorkflowInspectorAndOperations` — the only function `internal/application/serve.go:403` calls to build the real server — registers Intent, Registry, Admin, Journey, Workflow, HumanWork, Operations and Health, but no Evidence service. `EP-EVID-001`'s own evidence entry already states the boundary: "EvidenceService is registered in no composition root."
+  - **GREEN:** `internal/transport/cell` composes `internal/transport/evidence.Server` from ports the cell already has (or a new one `serve.go` supplies) and registers it beside the other services inside `NewGRPCServerWithWorkflowInspectorAndOperations`, under the same interceptor chain; an integration test starts the composed server the way `internal/application/serve.go` does and calls `GetExecutionReceipt`/`ExportIntentEvidence` over real gRPC and the HTTP edge and gets a real response instead of "unimplemented".
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/cell/cell.go`, `internal/transport/evidence/server.go`, `internal/application/serve.go`, [evidence endpoints](specs/http-grpc-endpoint-contract.md#evidence-and-long-running-operations).
+
+- [x] `REV-055-02` **[GATE_B][SOL_HIGH] Wire durable claim and idempotency ports into the production Human Work write endpoints.**
+  - **Evidence (2026-09-19):** STALE per §81 triage, verified by orchestrator: RED no longer reproduces — `internal/transport/cell/cell.go:152` threads Claims/Idempotency from workWrites and `internal/application/serve.go:408-412` composes them into gRPC and edge surfaces; `go test -count=1 ./tools/planning/todoregistry/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** `EP-WORK-002`, `EP-WORK-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.ALL; DIRECT=none; WHY=wire durable claim and idempotency ports into the production cell so human work write endpoints actually serve instead of failing closed`.
+  - **TEST:** `TestTodo_REV_055_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_055_02`; `INTEGRATION=TestTodo_REV_055_02_Integration`.
+  - **RED:** GAP against `EP-WORK-002`/`EP-WORK-003` (both ticked done): `internal/transport/cell/cell.go`'s call `transporthumanwork.Register(srv, transporthumanwork.Dependencies{Queue: newWorkQueueReader(workQueue), CursorKey: ...})` sets only `Queue` and `CursorKey`; `Claims` and `Idempotency` are left nil. This is the exact call reached from the real serve path (`internal/application/serve.go:403`), not a test double. `transporthumanwork.Dependencies`'s own doc comment says a nil `Idempotency`/`Claims` is "treated as the write surface being unavailable," and `EP-WORK-002`'s evidence entry already names this: "production composition is not connected... Claims and Idempotency are nil and both endpoints fail closed with UNAVAILABLE in production." So `ClaimWorkItem`, `ReleaseWorkItem`, `CompleteWorkItem` and `DecideApproval` cannot succeed in the running `hcmnext` binary even though the endpoint manifest and RBAC gate mark them served.
+  - **GREEN:** `internal/application/serve.go` composes a durable `Claims` adapter and reuses `ENDPOINT-004`'s `Coordinator` as `transporthumanwork.Dependencies.Idempotency`, threaded through `internal/transport/cell` the same way `workQueueReader` already is, so a claim/release/complete/decide call against the composed serve binary succeeds and is idempotent under replay instead of returning `UNAVAILABLE`.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/cell/cell.go`, `internal/transport/humanwork/work.go`, `internal/application/serve.go`, [work endpoints](specs/http-grpc-endpoint-contract.md#human-work-and-approvals).
+
+- [ ] `REV-055-03` **[GATE_B][SOL_HIGH] Wire real liveness and readiness checks into the production health registration.**
+  - **Depends:** `EP-HEALTH-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=wire real liveness and readiness checks into the production health registration so readyz reflects actual dependency state instead of always answering healthy`.
+  - **TEST:** `TestTodo_REV_055_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_055_03`; `INTEGRATION=TestTodo_REV_055_03_Integration`; `RECOVERY=TestTodo_REV_055_03_Recovery`.
+  - **RED:** GAP against `EP-HEALTH-001` (ticked done, GREEN requires "/readyz reports role-specific admission state from bounded cached dependency/control checks"): `internal/transport/cell/cell.go` calls `transporthealth.Register(srv, transporthealth.Dependencies{})` with every field zero. `internal/transport/health/health.go`'s `isLive` returns true whenever `Live` is nil and `isReady` treats a nil `ReadyCheck` as never erroring, so gRPC Health, `/healthz` and `/readyz` on the real `hcmnext` binary unconditionally report live/ready regardless of database, key or schema availability — exactly the condition the item's own RED clause ("readiness reports serving before config/key/schema/role dependencies are usable") describes as the failure to prevent.
+  - **GREEN:** `internal/application/serve.go` supplies a role-appropriate `Dependencies.Live` and `Dependencies.ReadyCheck` (a bounded pool ping plus config/schema fingerprint check, threaded through `internal/transport/cell` the way `workQueueReader` already is), so `/readyz` flips to `NOT_SERVING` when the database is unreachable and flips back once it recovers, observed within the configured cache interval by a test against the composed serve binary.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/cell/cell.go`, `internal/transport/health/health.go`, `internal/application/serve.go`, [non-material endpoints](specs/http-grpc-endpoint-contract.md#non-material-service-endpoints).
+
+### R058. §63 Untraveled operational and delivery surfaces
+
+Checked all 16 items in §63 (lines 15453-15637): `CLIENT-001`, `CLIENT-002`, `MAIL-001`, `FULFILL-001`, `SYNTH-001`, `ASSURANCE-001`, `RESIDENCY-001`, `TIME-002`, `CONTRACT-ARCHIVE-001`, `A11Y-001`, `STATUS-001`, `DIAG-001`, `FORENSIC-001`, `SUBPROCESSOR-001`, `REFDATA-001`, `MASK-001`. Every named package exists on disk and every cited `Test...`/`TestTodo_*` function is present (grep-verified for nine of them, including the primaries). Roughly half the packages (`synthetic`, `assurance`, `residency`, `contractarchive`, `platform/archive`, `a11y`, `experience/status`, `platform/diagnostics`, `operations/subprocessor`, `data/refdata`/`domains/refdata`, `governance/masking`) are not in `go list -deps` for any of `cmd/hcmnext|worker|projector|scheduler`, but per this round's instructions that generic unreachability is `REV-103-01`'s territory, not repeated here. Sampled `internal/operations/messagingdelivery` (MAIL-001) deeply: the kernel logic (`email.go`) is real, explicit "no lookups itself" by design, and `VerifyDomain`/`DomainProfile.Rotate` are correctly kernel-pure — but no code anywhere in the tree (`grep -rn "DNSRecords{"` outside tests) ever constructs live DNS evidence or calls `VerifyDomain`/`Rotate` in a running binary, and `cmd/scheduler` has no job that does so. So a sending domain's SPF/DKIM/DMARC state, once first verified, has no path to ever be re-checked or to detect drift (key rotation on the registrar side, a lapsed DMARC record, expiry) even though this package is wired into the live send path via `internal/domains/leave` and `internal/humanwork/workitem`. That is the most important gap in this unit.
+
+- [ ] `REV-058-01` **[GATE_C][SOL_HIGH] Add a scheduled DNS-authentication re-verification job for sending-domain profiles.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.OPERATIONS; DIRECT=none; WHY=detect SPF DKIM or DMARC drift on a previously verified sending domain before it silently degrades delivery or reputation`.
+  - **TEST:** `TestTodo_REV_058_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_058_01`; `INTEGRATION=TestTodo_REV_058_01_Integration`; `FAULT=TestTodo_REV_058_01_Fault`.
+  - **RED:** GAP against `MAIL-001`: `internal/operations/messagingdelivery.VerifyDomain` and `DomainProfile.Rotate` are kernel-pure and take caller-supplied `DNSRecords`, but no production caller ever constructs `DNSRecords` or invokes either function (`grep -rn "DNSRecords{" --include=*.go .` outside `_test.go` returns nothing) and `cmd/scheduler` has no recurring job that resolves live DNS and re-verifies a `DomainProfile`; a domain that passed verification once stays `Verified: true` forever even after its DKIM key or DMARC policy changes or lapses.
+  - **GREEN:** a scheduled job resolves each active sending domain's SPF/DKIM/DMARC records on a fixed interval, feeds the result through `VerifyDomain`/`Rotate`, and on authentication failure flips the domain profile to unverified and raises an owned operational alert before further sends are attempted through it.
+  - **REFACTOR:** the job is a thin DNS-resolving adapter over the existing kernel-pure `email.go` API; it adds no new authentication logic of its own.
+  - **Refs:** `internal/operations/messagingdelivery/email.go`, `cmd/scheduler/main.go`, [messaging plane](specs/messaging-and-notification-plane.md).
+
+- [ ] `REV-058-02` **[GATE_C][SOL_HIGH] Govern SMS/text-message carrier compliance, consent and opt-out registry as a deliverability surface parallel to email.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.OPERATIONS,BI.REGULATORY; DIRECT=none; WHY=prevent SMS notifications for shift changes deadlines or MFA from being sent without TCPA consent carrier registration or an honored opt-out`.
+  - **TEST:** `TestTodo_REV_058_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_058_02`; `SECURITY=TestTodo_REV_058_02_Security`; `CONFORMANCE=TestTodo_REV_058_02_Conformance`.
+  - **RED:** NEW: `MAIL-001` governs authenticated sending-domain lifecycle for email and `FULFILL-001` governs the analogous surface for print/postal, but no item anywhere in `planning/todos.md` governs SMS/text carrier registration (A2P 10DLC/toll-free/short-code), per-recipient TCPA consent capture and expiry, or a carrier-level STOP/opt-out registry (`grep -in "10DLC\|TCPA\|opt-out registry" planning/todos.md` outside this new item returns nothing; the messaging plane spec names plural "Channel Adapters" but `specs/messaging-and-notification-plane.md` never names SMS compliance mechanics); `MSG-003` only checks tenant-side preference/quiet-hours opt-outs, not carrier-mandated consent or registration status.
+  - **GREEN:** a versioned SMS sending-identity profile records carrier registration status and campaign use-case, a per-recipient consent record with source, timestamp and expiry gates any transactional or bulk SMS send, and an inbound STOP/HELP/START keyword updates a tenant-and-purpose-scoped suppression that a send always checks before dispatch; sends attempted without current consent or against a suppressed recipient are refused rather than silently dropped.
+  - **REFACTOR:** shares the `internal/operations/messagingdelivery` states/suppression pattern already proven for email; SMS-specific carrier mechanics stay in a dedicated adapter.
+  - **Refs:** `internal/operations/messagingdelivery/email.go`, `internal/domains/audience` (MSG-003), [messaging plane](specs/messaging-and-notification-plane.md).
+
+### R061. §66 / Program contracts and governance
+
+Checked all 12 WEB-001..012 items: the referenced packages (`tools/policy/webdelivery`, `tools/uxqual/pagedef`, `tools/uxqual/floorplan`, `tools/uxqual/widgetreg`, `tools/uxqual/presentation`) and every named `TestTodo_WEB_00N` exist and the evidence's stated `go test` invocations are plausible against the code present. The governance stack is library-only: `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` shows none of `pagedef`, `floorplan`, `widgetreg`, or `presentation` reachable from any running binary, and no non-test `.go` file outside a build-time tool (`tools/planning/productslice`) imports them. The most important gap: every item's own INTENT WHY says it defines these contracts "without creating a second source of business authority," but the production frontend that `cmd/hcmnext` actually serves (`internal/humanwork/productui`, 17 registered pages per `WEB-020`'s evidence) has its own independent, structurally different `PageDefinition` type and its own independent provenance/field-disposition/action types, none of which reference or are validated against the governed `tools/uxqual/pagedef`/`floorplan`/`widgetreg`/`presentation` contracts — those are validated only against a synthetic 2-page "Promotion" example. So the governance this section marks done is real as a standalone specification but is not the frontend's actual single source of authority; it is a second, parallel, unenforced authority.
+
+- [ ] `REV-061-01` **[GATE_B][TERRA] Reconcile the governed PageDefinition/floorplan/widget-registry stack with the production page registry it is supposed to govern.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=make the governed page contracts the actual authority for the pages cmd/hcmnext serves instead of a parallel unenforced specification`.
+  - **TEST:** `TestTodo_REV_061_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_061_01`; `GOLDEN=TestTodo_REV_061_01_Golden`.
+  - **RED:** GAP against `WEB-002`/`WEB-003`/`WEB-005`. `internal/humanwork/productui/registry.go:16` defines its own `PageDefinition` struct (route/label/nav/features only, no region-kind vocabulary, no floorplan reference, no widget bindings) used by `registeredPages()` in `internal/humanwork/productui/web242_page_modules.go:543` for the pages actually served; `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` never resolves `tools/uxqual/pagedef`, `tools/uxqual/floorplan`, or `tools/uxqual/widgetreg`, and `grep -rln "uxqual/pagedef\"" --include=*.go .` outside those packages' own tests returns nothing; the governed contracts' golden tests cover only a 2-page synthetic Promotion example, never the 17-page live registry.
+  - **GREEN:** every page in `internal/humanwork/productui.registeredPages()` resolves to a `tools/uxqual/pagedef.PageDefinition@version` bound through the governed floorplan resolver and widget-registry lookup, so the closed region-kind vocabulary and widget lifecycle actually gate what `cmd/hcmnext` serves; a conformance test fails if a served page has no governed counterpart or diverges from it.
+  - **REFACTOR:** once reconciled, retire whichever of the two page-definition abstractions is not authoritative instead of maintaining both indefinitely.
+  - **Refs:** `internal/humanwork/productui/registry.go`, `internal/humanwork/productui/web242_page_modules.go`, `tools/uxqual/pagedef/pagedef.go`, `tools/uxqual/floorplan/floorplan.go`, `tools/uxqual/widgetreg/widgetreg.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+- [ ] `REV-061-02` **[GATE_B][TERRA] Reconcile the governed BoundValue/SemanticAction contract with the frontend's own independent provenance, field-disposition, and action types.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.PRIVACY; DIRECT=none; WHY=make the governed provenance and action contract the one thing that decides what a served page reveals or hides instead of an unenforced parallel spec`.
+  - **TEST:** `TestTodo_REV_061_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_061_02`; `GOLDEN=TestTodo_REV_061_02_Golden`; `SECURITY=TestTodo_REV_061_02_Security`.
+  - **RED:** GAP against `WEB-006`/`WEB-007`. `grep -rln "BoundValue\|SemanticAction" --include=*.go .` outside `tools/uxqual/presentation`'s own files and tests returns nothing; `internal/humanwork/productui` instead has its own independent `FieldDisposition` type (`field_disposition.go:12`), `ProvenanceProjection` (`provenance.go:25`), and `ActionLauncherItem`/`semanticLauncherDefinition` (`action_launcher.go:267,299`) that neither wrap nor derive from `presentation.BoundValue`/`SemanticAction`, so the redaction and hidden-action-token-leak guarantees `WEB-006`/`WEB-007` test are not enforced on any value or action a user actually sees.
+  - **GREEN:** `internal/humanwork/productui`'s `FieldDisposition` and `ActionLauncherItem` wrap or derive from `tools/uxqual/presentation.BoundValue` and `SemanticAction`, or a conformance test proves the two vocabularies are kept in lockstep (same disposition states, same hidden-action non-leak rule) so a change to one cannot silently diverge from the other.
+  - **REFACTOR:** collapse to one BoundValue/SemanticAction representation once reconciled.
+  - **Refs:** `internal/humanwork/productui/field_disposition.go`, `internal/humanwork/productui/provenance.go`, `internal/humanwork/productui/action_launcher.go`, `tools/uxqual/presentation/contracts.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+### R060. §65 Additional untraveled operational and delivery surfaces
+
+Section 65 has exactly one item, `IDEMP-001` ("govern idempotency identity, retention, expiry and tombstones across every ingress and effect layer"), plus a disposition note pointing back to section 63's cross-cutting inventory. `internal/platform/idempotency` exists (`idempotency.go`, 244 lines) with a full test matrix (`idempotency_test.go`: Property/Golden/Integration/Fault/Security/Conformance/Recovery/ModelBased/Mutation/Race/Fuzz all present and passing). It is consumed by two real production adapters, `internal/connectivity/webhook.Store` (backing ticked `INTG-018`) and `internal/operations/messagingdelivery.Dispatcher` (backing ticked `MAIL-001`), so the kernel is not merely library-only in the REV-103-01 sense. The gap is inside the implementation itself: `Registry` (idempotency.go:99-104) is a bare `sync.Mutex` + `map[string]Record` with no persistence port at all, and `webhook.go`'s own doc comment concedes it ("Store is a concurrency-safe in-memory receipt/quarantine port. Production persistence can implement the same immutable semantics without changing the validation contract" — webhook.go:100-102) without that production persistence existing anywhere in the repo. `Registry.Expire` is never called by any non-test code (`grep -rn "\.Expire(" --include=*.go .` outside `idempotency_test.go` returns only unrelated `Leases.Expire`/`lease.Expire`/`approval` calls), so the "Recovery" test only re-calls `Reserve` on the same live object in the same process — it never proves survival of a real restart. This directly contradicts `IDEMP-001`'s own GREEN ("crash/restore preserves one outcome/effect") and `INTG-018`'s own GREEN ("immutable receipt/disposition/dedupe persists"). No adjacent section-63/65 operational surface (email deliverability, physical fulfillment, synthetic journeys, diagnostics, forensics, subprocessors, reference data, masking) was missed by the plan; the one gap here is specific and implementation-level, not a coverage hole.
+
+- [ ] `REV-060-01` **[GATE_C][SOL_LOW] Back the governed cross-layer idempotency registry with a durable store so webhook and message-dispatch dedupe survive a process restart.**
+  - **Depends:** `IDEMP-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTEGRATION,BI.OPERATIONS; DIRECT=none; WHY=webhook receipt and message dispatch adapters lose all duplicate-effect protection across a process restart which risks duplicate payroll and notification effects`.
+  - **TEST:** `TestTodo_REV_060_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_060_01`; `GOLDEN=TestTodo_REV_060_01_Golden`; `INTEGRATION=TestTodo_REV_060_01_Integration`; `FAULT=TestTodo_REV_060_01_Fault`; `RECOVERY=TestTodo_REV_060_01_Recovery`.
+  - **RED:** GAP: `IDEMP-001` is ticked GREEN with "crash/restore preserves one outcome/effect" and `INTG-018` is ticked GREEN with "immutable receipt/disposition/dedupe persists", but `internal/platform/idempotency.Registry` (idempotency.go:99-104) is an in-process `map[string]Record` with no store interface, `webhook.Store` (webhook.go:101-111) and `messagingdelivery.Dispatcher` (delivery.go:106,119) each hold their own private instance of it, and `Registry.Expire` is invoked nowhere outside its own test file — a process restart silently loses every in-flight/completed dedupe record and nothing ever prunes the map, so a long-running process both re-executes effects on redelivery after a restart and grows the map without bound.
+  - **GREEN:** a durable idempotency store (Postgres-backed, following the pattern already proven in `internal/transaction/idempotency`/migration `00019_idempotency_record.sql`) implements `Reserve`/`Complete`/`Lookup`/`Expire` with the same decision semantics, `webhook.Store` and `messagingdelivery.Dispatcher` construct their registries against it instead of the bare in-memory map, and a scheduled reclamation path calls `Expire` so tombstoned/expired rows are bounded; a restart mid-flight replays into `IN_PROGRESS`/`REPLAY` from the durable record rather than `RESERVED` from an empty map.
+  - **REFACTOR:** keep `internal/platform/idempotency`'s pure decision kernel unchanged and add only a storage port plus a Postgres adapter, so `internal/transaction/idempotency` (TX-006, transactional-commit dedupe) remains a distinct, separately governed store as `IDEMP-001`'s own REFACTOR clause already requires.
+  - **Refs:** `internal/platform/idempotency/idempotency.go`, `internal/connectivity/webhook/webhook.go`, `internal/operations/messagingdelivery/delivery.go`, `migrations/00019_idempotency_record.sql`, [idempotency lifecycle](specs/platform-foundation-gap-closure.md).
+
+### R062. Design-system and accessibility foundations
+
+Checked all twelve items (`WEB-013`..`WEB-024`, lines 15903-16037 of `planning/todos.md`) against `internal/humanwork/productui` and `tools/uxqual/tokens`/`tools/uxqual/floorplan`. All twelve named primary tests exist (`TestTodo_WEB_013` through `TestTodo_WEB_024`) with their GOLDEN/BROWSER/CONFORMANCE (and, for WEB-024, SECURITY/RTL/I18n/Performance) matrix subtests present, and `go list -deps ./cmd/hcmnext` confirms `internal/humanwork/productui` and the `tools/uxqual/*` renderer packages are compiled into the running server binary, not library-only. Deep sampling of six items (WEB-013 theme admission, WEB-014 typography, WEB-017 icons, WEB-019 focus, WEB-021 status, WEB-024 contrast/forced-colors/print) found the implementation matches its claims: `ResolveTheme` is a real fail-closed admission boundary (per-token allowlist, CSS-control-character rejection, bounded font/radius/motion regexes, and a correct WCAG relative-luminance/contrast-ratio calculation applied to both light and computed dark palettes before acceptance), forced-colors styling uses genuine CSS system-color keywords (`Canvas`, `CanvasText`, `ButtonFace`, `Highlight`, etc.) rather than faked equivalents, and RTL icon mirroring (`[dir=rtl] .history-navigation-glyph { transform: scaleX(-1) }`) is implemented and tested, not just claimed. `ResolveTheme`/`StylesheetForTheme` are called from production `styles.go`/`typed_theme.go`, not only from tests, and per-tenant override rendering is computed fresh per call (no unsafe cross-tenant caching). No plan-vs-implementation gap or missing foundational capability was found; the one code-level oddity — an unused `--jn-focus-color` custom property in `focus.go` that the file's own comment flags as a declared-but-unread contract — does not change rendered behavior (the ring rule reads `--hcm-color-focus` directly) and is not worth a ticket. Chart/data-visualization color tokens, which this HCM platform's Insights dashboards would need, are already covered by the separately-ticketed and ticked `WEB-228` (`Implement accessible data visualization`), so no duplicate is proposed. This subsection is genuinely complete; zero items follow.
+
+### R068. §66 / Experience Studio
+
+Checked WEB-085 through WEB-096 (page-definition inventory through governed page publication controls), all ticked GREEN with Evidence dated 2026-09-08. All twelve named tests (`TestTodo_WEB_085`..`096` plus `_Golden`/`_Browser`/`_Conformance`) exist in `internal/humanwork/productui`, the package compiles clean (`go vet`) and is reachable from `cmd/hcmnext` (confirmed via `go list -deps`), and sampled implementations (`floorplan.go`, `page_inventory.go`, `widget.go`, `binding_inspector.go`, `content_editor.go`, `composition_diff.go`, `page_draft.go`/`PublishGoverned`) are real, non-stub logic with deterministic, fixed-order validation — this area is implemented, not library-only-in-name. The most important gap: `content_editor.go`'s own comment promises that markup sniffing at edit time is deliberately shallow because "anything deeper (entities, URLs, origins) stays with the content-safety gates at publication" (`internal/humanwork/productui/content_editor.go:32-35`), but no such gate exists anywhere in the publish path or in the repository at all.
+
+- [x] `REV-068-01` **[GATE_C][TERRA] Add a content-safety validation gate to governed page publication.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_068_01` family in `internal/humanwork/productui`; `go test -count=1 -run 'TestTodo_REV_068_01' ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.TENANT; DIRECT=none; WHY=close the stored-content injection path the sanitized content editor defers to a publication gate that was never built`.
+  - **TEST:** `TestTodo_REV_068_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_068_01`; `SECURITY=TestTodo_REV_068_01_Security`; `GOLDEN=TestTodo_REV_068_01_Golden`.
+  - **RED:** GAP contradicting `WEB-092` ("Implement the sanitized content editor," ticked green): `EditBindingContent`'s `containsRawMarkup` only refuses `<` followed by a letter, `/`, `!`, or `?` and explicitly punts "entities, URLs, origins" to publication-time "content-safety gates" (`internal/humanwork/productui/content_editor.go:29-35`); `PublishGoverned` (`internal/humanwork/productui/page_draft.go:109-139`) only runs `ValidateComposition` (purpose/floorplan/regions/widgets/actions/ceiling), `ValidatePreviewPlan`, preview-evidence equality, and reviewer-approval checks — none of which inspect `WidgetBinding.Value`/`DisplayValue` content. `grep -rn "func Sanitize\|ContentSafety" --include=*.go .` returns nothing repo-wide, and `ValidateWidgetBinding` (`internal/humanwork/productui/widget.go`) checks only registry/version/classification/masked-display, never value content. A binding whose `Value`/`DisplayValue` is set by any path other than `EditBindingContent` (e.g. bulk import, a from-scratch draft assembled directly, or a future authoring surface) reaches `PublishGoverned` with zero content-safety inspection, and even values that do pass through `EditBindingContent` are checked only for bare tag-open grammar — `javascript:` URLs, HTML entities, and `data:` origins in a content-tier binding's display value pass both the editor sniff and the publish gate unexamined.
+  - **GREEN:** `PublishGoverned` runs a dedicated content-safety validator over every content-tier `WidgetBinding.Value` and `DisplayValue` in the draft composition — refusing raw markup, script/javascript/data URL schemes, and unescaped entities — before recording the revision, independent of which authoring path produced the binding; the check is idempotent, deterministic, and reported as a named validation step alongside purpose/floorplan/widgets/actions/ceiling so the findings panel (WEB-094) surfaces it the same way.
+  - **REFACTOR:** fold the new check into `ValidateComposition`'s `ValidationStep` set rather than bolting a second ad hoc gate onto `PublishGoverned`, so validation-panel and publication share one authoritative content-safety finding.
+  - **Refs:** `internal/humanwork/productui/content_editor.go`, `internal/humanwork/productui/page_draft.go`, `internal/humanwork/productui/widget.go`, `internal/humanwork/productui/validation_panel.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+### R063. Go renderer and browser runtime
+
+Checked WEB-025 through WEB-036 (SSR shell, GWC page rendering, WASM mount lifecycle, hydration parity, progressive-enhancement forms, deep-link/resume routing, browser-storage boundary, asset-integrity manifest, CSP, the qualified RPC adapter, and the invalidation/reconnect client). Every named package exists (`tools/uxqual/ssrshell`, `render/page`, `render/journey`, `hydration`, `forms`, `productclient`, `journeyclient`, `invalidation`), every `TestTodo_WEB_02[5-9]`/`WEB_03[0-6]` primary test is present and these packages are genuinely wired into the served `journey.wasm`/`cmd/hcmnext` binaries (confirmed via `go list -deps`), not library-only. Per the brief, the fact that `tools/uxqual/*` is linked into release binaries and that `journey.wasm(.gz)` is a committed build artifact are architecture-layering defects already tracked by `REV-101-01`/`REV-101-08`, so this review does not repeat them. The `manifest.json` byte-mismatch that blocked `ComposeServe` in the WF-STEP-018 evidence (2026-09-15) is not reproducible now: the live `journey.wasm` sha256 matches the `manifest.json` entry exactly, so that boundary looks like transient churn from the concurrent session, not a standing gap. The one real, verified defect found is that the RPC adapter's preserved `Unauthenticated` status (WEB-034) never reaches the sign-out recovery UI that WEB-059 built: the product router swallows every load error into a generic, non-actionable retry banner, leaving the dedicated `SignedOut` panel with its sign-in link completely unreferenced by any production code path.
+
+- [ ] `REV-063-01` **[GATE_B][SOL_HIGH] Route an Unauthenticated route-load failure to the sign-out recovery panel instead of a dead-end retry banner.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=a revoked or expired session on any product route shows a dead-end retry banner instead of the sign-in recovery panel the plan already built`.
+  - **TEST:** `TestTodo_REV_063_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_063_01`; `SECURITY=TestTodo_REV_063_01_Security`; `INTEGRATION=TestTodo_REV_063_01_Integration`; `BROWSER=TestTodo_REV_063_01_Browser`.
+  - **RED:** GAP contradicting WEB-030's and WEB-034's GREEN claims (deep-link/resume routing over an adapter that "preserves typed gRPC status details"): `tools/uxqual/cmd/journeywasm/product_wasm.go:354` sets `view.LoadError = "We couldn't load this page. Try again."` for every non-nil `loadErr` returned by `productclient.Load`/`LoadWithBaseline` without ever inspecting `status.Code(loadErr)`. `tools/uxqual/productclient/client.go`'s `load` (the function WEB-030's router calls) checks `status.Code(...) == codes.PermissionDenied` only for the workers read (line 424) and has no `codes.Unauthenticated` branch anywhere. The recovery UI this needs already exists — `internal/humanwork/productui/signed_out.go`'s `SignedOutProps`/`SignedOut` renders "the converged signed-out panel: what happened, which grants the server revoked, and the single sign-in path" — but `grep -rn "SignedOutProps{" --include=*.go .` matches only `internal/humanwork/productui/web059_signed_out_test.go` and `web060_auth_telemetry_test.go`; no production code constructs it. The one place that does translate an `Unauthenticated` status into copy, `tools/uxqual/journeyclient/app.go`'s `noticeFromError` (via `refusalCopyKey`, line ~1770), only covers the promotion-proposal write path and renders an inline "journey.error_signed_out" notice with no sign-in link, not the shared panel.
+  - **GREEN:** a product route load whose aggregated error carries `codes.Unauthenticated` sets `view.SignedOut` to a populated `SignedOutProps` with a real `SignInHref` and no fabricated detail or grant list; the shell renders the converged sign-out panel in place of the generic "Try again" banner; the same mapping is reused (not reimplemented) by `journeyclient.noticeFromError` so the write path stops showing a dead-end inline notice too; a compiled `js/wasm` browser test proves the panel appears after an injected `Unauthenticated` response and that its rendered link points at the sign-in destination.
+  - **REFACTOR:** extract one `Unauthenticated`-to-recovery mapping shared by `productclient.load` and `journeyclient.noticeFromError` instead of leaving one path silent and the other showing an unlinked inline notice.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/product_wasm.go`, `tools/uxqual/productclient/client.go`, `internal/humanwork/productui/signed_out.go`, `tools/uxqual/journeyclient/app.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+### R069. §66 / Home and My Work
+
+Checked `WEB-097` through `WEB-108` (lines 16854-16987 of `planning/todos.md`), all ticked, all backed by real `TestTodo_WEB_0{97..108}` (+ `_Golden`/`_Browser`/`_Conformance`) tests in `internal/humanwork/productui`, and the package is wired into `cmd/hcmnext` per `go list -deps`. The floorplan (`WEB-097`), my-work classification (`WEB-103`), task/approval filtering (`WEB-104`), and quick actions/tracked-requests (`WEB-101`/`WEB-106`) are genuinely called from `page_home.go`/`page_work.go`. But three tickets in this exact subsection are library-only: the exported function each ticket claims to "implement" compiles, is unit-tested, and is never called from any page composition or props struct, so the described capability does not actually appear on a rendered Home or My Work surface. The worst is `WEB-102`: `HomePageProps` (`internal/humanwork/productui/home_components.go:8`) has no `Announcements` field at all, so the registered `HomeSectionAnnouncements` floorplan slot from `WEB-097` resolves but is silently dropped by `homePage` in `page_home.go`, and there is no content source that would ever populate one.
+
+- [x] `REV-069-01` **[GATE_B][TERRA] Wire governed announcement regions into the rendered Home page.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_069_01` family in `internal/humanwork/productui`; `go test -count=1 -run 'TestTodo_REV_069_01' ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=make the announcements floorplan slot actually present announcements instead of silently resolving to nothing`.
+  - **TEST:** `TestTodo_REV_069_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_069_01`; `GOLDEN=TestTodo_REV_069_01_Golden`.
+  - **RED:** GAP contradicting ticked `WEB-102`: `GovernAnnouncements` and `Announcement` (`internal/humanwork/productui/announcement_regions.go`) have zero non-test callers (`grep -rn "GovernAnnouncements\b" --include=*.go .` matches only its own definition), `HomePageProps` in `internal/humanwork/productui/home_components.go:8-30` has no announcements field, and `homePage` in `internal/humanwork/productui/page_home.go` computes `sections[HomeSectionAnnouncements]` but never reads it — the announcements section registered by `WEB-097`'s floorplan is a slot that can never show content.
+  - **GREEN:** `homePage` renders an announcements region gated by `sections[HomeSectionAnnouncements]`, sourced from a real (even if minimal, e.g. tenant-admin-authored) announcement stream passed through `GovernAnnouncements`, with `HomePageProps` carrying the polite/assertive regions end to end into `HomePage`.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/announcement_regions.go`, `internal/humanwork/productui/page_home.go`, `internal/humanwork/productui/home_components.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+- [x] `REV-069-02` **[GATE_B][TERRA] Route Home's recent-completed-work rail through the CompletedHistory projection.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_069_02` family in `internal/humanwork/productui`; `go test -count=1 -run 'TestTodo_REV_069_02' ./internal/humanwork/productui/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=stop the page from hand-picking completion evidence per row after WEB-107 built the derived-only record precisely to prevent that drift`.
+  - **TEST:** `TestTodo_REV_069_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_069_02`; `GOLDEN=TestTodo_REV_069_02_Golden`.
+  - **RED:** GAP contradicting ticked `WEB-107`: `CompletedHistory`/`CompletedEntry` (`internal/humanwork/productui/completed_history.go`) have zero non-test callers (`grep -rn "CompletedHistory\b" --include=*.go .` matches only the definition); `homePage` in `internal/humanwork/productui/page_home.go:32-45` instead builds its `RecentActivityProps.Items` by hand-iterating `RecentWork(historyPopulation)` and calling `localizedWorkTitle`/`localizedWorkStatus` inline — exactly the "pages hand-pick completion evidence per row" scenario `WEB-107`'s own RED comment says the ticket exists to eliminate.
+  - **GREEN:** `homePage`'s recent-completed rail is built by first computing `CompletedHistory(historyPopulation)` and mapping each `CompletedEntry` (by ID) to its `ActivityProps`, so a future change to what counts as "completed" only has to change `CompletedHistory`.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/completed_history.go`, `internal/humanwork/productui/page_home.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+- [ ] `REV-069-03` **[GATE_B][TERRA] Wire ResolveListDetailPanes into the My Work page's responsive layout.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=make the responsive list-detail decision function actually govern which panes My Work renders at narrow width`.
+  - **TEST:** `TestTodo_REV_069_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_069_03`; `GOLDEN=TestTodo_REV_069_03_Golden`; `BROWSER=TestTodo_REV_069_03_Browser`.
+  - **RED:** GAP contradicting ticked `WEB-108`: `ResolveListDetailPanes` (`internal/humanwork/productui/list_detail.go:22`) has no caller outside `web108_list_detail_test.go` (`grep -rn "ResolveListDetailPanes\b" --include=*.go .`); `internal/humanwork/productui/page_work.go` never calls it, so the My Work page has no code path that actually collapses to a single pane at `ListDetailNarrow` with a selection — the responsive behavior the ticket claims is a pure function nobody invokes.
+  - **GREEN:** `page_work.go`'s My Work composition calls `ResolveListDetailPanes` with the page's layout/selection state and uses `showList`/`showDetail` to gate which pane(s) the rendered props include, verified with a browser test that resizes/selects and asserts only one pane's DOM is present at narrow width with a selection.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/list_detail.go`, `internal/humanwork/productui/page_work.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+### R070. People directory and worker object
+
+Checked WEB-109 through WEB-120 (People directory, query builder, search, worker identity header, and the seven worker-object sections through the responsive layout). All twelve named tests (`TestTodo_WEB_109` ... `TestTodo_WEB_120` plus their `_Golden`/`_Browser`/`_Conformance` variants) exist in `internal/humanwork/productui` and match their evidence notes; `productui` is a real dependency of `cmd/hcmnext` (confirmed via `go list -deps`), not library-only, and the RPC path (`JourneyService.ListWorkers`, `internal/transport/journey/server.go:585`) backs it. Field-level pay/name exposure is already tracked by `RBAC-RT-001`, so it is excluded here per instructions. The one substantive gap found: the domain spec's own canonical model (`planning/specs/people-employment-assignment-domain.md:32-33`) declares `Worker` carries a lifecycle status and `Employment` carries a worker type, but neither value survives the projection from the durable row into the directory or the worker object — a terminated or contingent worker renders identically to an active permanent employee, with no way to filter, mark, or gate actions on that state.
+
+- [x] `REV-070-01` **[GATE_B][TERRA] Project worker lifecycle status and worker type into the People directory and worker object instead of dropping them at the row-to-summary boundary.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_070_01` family in `internal/humanwork/productui`, `internal/data/workforce`, `internal/intent/app`, `internal/transport/journey`, `tools/uxqual/productclient`; targeted `go test -count=1 -run 'TestTodo_REV_070_01'` PASS in all five on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.LIFECYCLE,BI.EXPERIENCE; DIRECT=none; WHY=a directory and worker object that cannot distinguish an active worker from a terminated or contingent one misrepresents the workforce and lets WEB-119 offer workforce-change actions on someone no longer employed`.
+  - **TEST:** `TestTodo_REV_070_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_070_01`; `GOLDEN=TestTodo_REV_070_01_Golden`; `INTEGRATION=TestTodo_REV_070_01_Integration`.
+  - **RED:** GAP against `WEB-109`/`WEB-112`: `workforce.WorkerRow` carries `LifecycleStatus` and `WorkerType` (`internal/data/workforce/row.go:66-73`), but `createdWorkerSummary` (`internal/intent/app/journey_workforce.go:195-228`) never copies either field into `workspace.WorkerSummary`, whose struct definition (`internal/humanwork/workspace/journey_port.go:627-676`) has no such field to receive them; `toWorker` (`internal/transport/journey/convert.go:537-561`) has nothing to forward; `productui.Person` (`internal/humanwork/productui/model.go:259-300`) has no status or type field; and `BuildPeopleQuery` (`internal/humanwork/productui/people_query.go:25-40`) takes no status filter, so a terminated worker cannot be excluded, marked, or searched by state.
+  - **GREEN:** `LifecycleStatus` and `WorkerType` flow unbroken from `WorkerRow` through `WorkerSummary`, the wire `Worker` message, and `productui.Person`; the directory query builder accepts a status filter defaulting to active-only per the documented default, with an explicit opt-in to see terminated or on-leave workers; the worker identity header (`WEB-112`) displays the state distinctly; and contextual action discovery (`WEB-119`) withholds workforce-change actions once a worker's lifecycle status is terminated.
+  - **REFACTOR:** one shared lifecycle/worker-type vocabulary type reused by the query builder, the action-availability gate, and the presentation layer, rather than ad hoc string checks introduced independently at each site.
+  - **Refs:** `internal/data/workforce/row.go`, `internal/intent/app/journey_workforce.go`, `internal/humanwork/workspace/journey_port.go`, `internal/transport/journey/convert.go`, `internal/humanwork/productui/model.go`, `internal/humanwork/productui/people_query.go`, [People domain](specs/people-employment-assignment-domain.md).
+
+### R072. §66 / Hire and onboard
+
+Checked all twelve items (`WEB-133`–`WEB-144`): the package `internal/humanwork/productui` exists, every named `TestTodo_WEB_13x`/`14x` and its Golden/Browser/Conformance matrix test is present, and `productui` is in `go list -deps ./cmd/hcmnext` so the routes are live. But every one of the twelve route adapters (`page_headcount.go`, `page_position.go`, `page_requisition.go`, `page_candidates.go`, `page_candidate.go`, `page_interviews.go`, `page_offer.go`, `page_portal.go`, `page_onboarding.go`, `page_onboarding_tasks.go`, `page_activation_readiness.go`) is a byte-for-byte identical pattern: `ui.CreateElement(EmptyState, ...)` with a comment stating the governed backend "is not published yet" and "the UI will not simulate one." The tests pass because they assert exactly this honest-stub behavior, not that hiring or onboarding works. The backing domains are `internal/domains/recruiting` (RECRUIT-001–004, all ticked complete 2026-09-16/17) and `internal/domains/workerlifecycle` (WORKER-LIFE-001–003, ticked complete), yet `grep -rl "internal/domains/recruiting"` and the same for `workerlifecycle` across the whole repo return nothing outside their own packages — no page, no service, nothing imports either domain. The hire-commit capability that would make a requisition, offer or onboarding plan produce a real worker, `WF-CAP-001`, is still open (`- [ ]`). Net effect: hiring and onboarding are fully modeled and unit-tested at the domain layer and fully scaffolded as live routes at the UI layer, but a user can complete zero percent of the hire-to-onboard journey in the running application — every screen in this section is a permanent dead end. This is distinct from the already-tracked `REV-103-01` (generic library-unreachability) because these UI packages _are_ reachable from the binary; the gap is the missing UI-to-domain wiring plus the still-open commit capability, which no existing item covers for this section.
+
+- [ ] `REV-072-01` **[GATE_C][SOL_HIGH] Wire the recruiting-facing hire pages to the recruiting domain and the hire-commit capability.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.RECRUITING,BI.LIFECYCLE,BI.EXPERIENCE; DIRECT=none; WHY=let hiring managers and candidates actually see and act on requisitions offers and candidacies instead of a permanent empty state`.
+  - **TEST:** `TestTodo_REV_072_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_072_01`; `INTEGRATION=TestTodo_REV_072_01_Integration`; `CONFORMANCE=TestTodo_REV_072_01_Conformance`.
+  - **RED:** GAP: `WEB-133`, `WEB-134`, `WEB-135`, `WEB-136`, `WEB-137`, `WEB-138`, `WEB-139`, `WEB-140`, `WEB-141` are ticked "Implement the ... page" but `internal/humanwork/productui/page_headcount.go`, `page_position.go`, `page_requisition.go`, `page_candidates.go`, `page_candidate.go`, `page_interviews.go`, `page_offer.go`, `page_portal.go` each render only `EmptyState` and none import `internal/domains/recruiting` (`grep -rl "internal/domains/recruiting" internal/` matches only the domain package itself), so no requisition, posting, application, candidacy or offer ever reaches these live routes.
+  - **GREEN:** each of the nine pages queries a recruiting read-model scoped by tenant and requester authorization and renders real requisition/candidate/offer state when present, still falling back to the existing honest empty state only when the query legitimately returns nothing; a live-server check shows a seeded requisition appearing on `/workspace/app/headcount` and `/workspace/app/requisitions`.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/page_headcount.go`, `internal/humanwork/productui/page_requisition.go`, `internal/humanwork/productui/page_candidates.go`, `internal/humanwork/productui/page_offer.go`, `internal/domains/recruiting`, [recruit workflow](workflows/lifecycle/recruit-hire-onboard.md).
+
+- [ ] `REV-072-02` **[GATE_C][SOL_HIGH] Wire the onboarding pages to the worker-lifecycle domain once the hire-commit capability exists.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.LIFECYCLE,BI.EXPERIENCE; DIRECT=none; WHY=let a newly hired worker and their manager see and complete real onboarding tasks instead of a permanent empty state`.
+  - **TEST:** `TestTodo_REV_072_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_072_02`; `INTEGRATION=TestTodo_REV_072_02_Integration`; `CONFORMANCE=TestTodo_REV_072_02_Conformance`.
+  - **RED:** GAP: `WEB-142`, `WEB-143`, `WEB-144` are ticked "Implement the onboarding-plan page / onboarding task completion / worker-activation readiness" but `page_onboarding.go`, `page_onboarding_tasks.go` and `page_activation_readiness.go` each render only `EmptyState`, none import `internal/domains/workerlifecycle` (`grep -rl "internal/domains/workerlifecycle" internal/` matches only the domain package itself), and `WF-CAP-001` — the hire-commit capability that would create the worker these plans attach to — is still open, so there is no path from an accepted offer to an onboarding plan a worker can act on.
+  - **GREEN:** once `WF-CAP-001` commits a hire, the three pages read the resulting `WorkerLifecyclePlan` and its requirement/task state and let the assigned owner mark a task complete through a governed mutation that appends an event rather than a client-side toggle.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/page_onboarding.go`, `internal/humanwork/productui/page_onboarding_tasks.go`, `internal/humanwork/productui/page_activation_readiness.go`, `internal/domains/workerlifecycle`, `WF-CAP-001`.
+
+### R073. §66 / Time and leave
+
+Checked all twelve items (`WEB-145`..`WEB-156`, lines 17392-17522): every `PageID` (`PageTimeHub`, `PageTimeEntry`, `PageTimeCorrection`, `PageTimeApproval`, `PageTimeExceptions`, `PageTimeOff`, `PageTimeOffRequest`, `PageTeamCoverage`, `PageProtectedLeave`, `PageLeaveEvidence`, `PageLeaveTimeline`, `PageReturnToWork`) is declared in `internal/humanwork/productui/model.go`, registered with route/renderer/access-policy/data-profile in `internal/humanwork/productui/registry.go`, and each named `TestTodo_WEB_1{45..56}[/_Golden/_Browser/_Conformance]` exists and is grep-confirmed in its own `web1NN_*_test.go` file. `go list -deps ./cmd/hcmnext ...` shows `internal/humanwork/productui` reachable from `cmd/hcmnext`, so this is wired into a running binary, not library-only. Referenced specs (`planning/specs/production-frontend-and-page-composition.md`, `planning/user-flows/reference/medical-leave-and-return.md`) exist and match the flow the tests encode.
+
+Every one of the twelve tests is, by its own RED comment, an "honest fallback" surface: it asserts the page is registered, routes round-trip, renders deterministically per locale, and — critically — that the rendered document never invents balance/case/timecard data (e.g. `TestTodo_WEB_153` fails if the doc contains `"case:"`, `"opened ✓"`, etc.; `TestTodo_WEB_150` fails on `"balance:"`, `"12 days"`). This is deliberate and consistent with the plan: the underlying capabilities these pages front — ordinary-absence commit/cancel and team coverage (`WF-CAP-004`), protected-leave lookback/rolling/intermittent/certification rules (`WF-CAP-005`), the accommodation interactive process (`WF-CAP-006`), and a timecard aggregate with submit/lock (`WF-CAP-007`) — are all still open (`- [ ]`, lines 21051-21089) with their RED conditions explicitly citing the missing domain logic (e.g. `WF-CAP-004`'s RED: "the time-off page is a placeholder because only protected leave can commit"). So the WEB-14x/15x Evidence claims are accurate for what they claim (a registered, non-lying UI shell), and the real functional gap is already tracked by those four WF-CAP items, which the brief flags as out of scope for duplication here.
+
+I looked for a genuinely uncovered feature specific to this area and did not find one worth adding: medical-evidence compartmentation/retention (the obvious ADA-adjacent risk behind `WEB-154`) is already handled generically by `internal/documents/intake`'s `MEDICAL_SENSITIVE`-class compartment (`DOC-INTAKE-001`, line ~7028), and `WF-CAP-006`'s GREEN already commits to a manager seeing the accommodation, not the diagnosis. Given that, this section is complete for its declared scope; the meaningful gap is upstream in the already-tracked `WF-CAP-004/005/007` items, not in this UI layer.
+
+No items proposed for this round.
+
+### R074. §66 / Pay rewards and benefits
+
+Checked all twelve items (`WEB-157`..`WEB-168`, lines 17526-17656): every named test (`TestTodo_WEB_15{7,8,9}`, `TestTodo_WEB_16{0..8}` and their `_Golden`/`_Browser`/`_Conformance` siblings) exists in `internal/humanwork/productui` and each page is registered in `registry.go` with a route, a renderer, and an access policy, so the tests genuinely pass. But every one of the twelve renderer functions (`page_pay_summary.go:15`, `page_pay_statements.go:15`, `page_pay_discrepancy.go:15`, `page_comp_proposals.go:16`, `page_salary_comparison.go:16`, `page_cycle_populations.go:16`, `page_comp_worksheet.go:16`, `page_comp_calibration.go:16`, `page_benefits_overview.go:15`, `page_benefits_compare.go:15`, `page_benefits_enroll.go:15`, `page_pay_benefit_recon.go:16`) is a bare `ui.CreateElement(EmptyState, ...)` with a "return home" link and nothing else — a permanent stub, not a temporary loading state. `grep -rn "domains/compensation\|domains/payroll\|domains/benefits" internal/humanwork/productui/*.go` (excluding tests) returns zero hits: the productui package never imports any of `internal/domains/payroll`, `internal/domains/compensation`, or `internal/domains/benefits`, even though those packages contain real, tested business logic (`internal/domains/compensation/read.go` is an explicit "authorized, read-only compensation projection"; `internal/domains/benefits/enrollment.go` and `eligibility.go` compute real enrollment windows and eligibility). For comparison, `internal/humanwork/productui/page_org_explorer.go` in the neighboring section reuses "the live admitted organization projection" — proving the wiring pattern exists elsewhere in this codebase and was simply never applied here. The most important gap: an entire HCM area — pay, compensation cycles, and benefits, arguably the most sensitive and highest-value surfaces in the product — is 100% non-functional placeholder UI marked complete, with real backend read/decision logic sitting unused behind it.
+
+- [ ] `REV-074-01` **[GATE_B][SOL_HIGH] Wire the pay summary, pay statements, and pay-discrepancy pages to the compensation and payroll domains instead of a permanent empty state.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS,BI.PAYROLL,BI.SECURITY; DIRECT=none; WHY=stop presenting a governed pay capability as delivered when the worker sees only a static unavailable notice`.
+  - **TEST:** `TestTodo_REV_074_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_074_01`; `GOLDEN=TestTodo_REV_074_01_Golden`; `SECURITY=TestTodo_REV_074_01_Security`; `INTEGRATION=TestTodo_REV_074_01_Integration`.
+  - **RED:** GAP: `WEB-157`, `WEB-158`, `WEB-159` are ticked complete, but `paySummaryPage`, `payStatementsPage`, and `payDiscrepancyPage` (`internal/humanwork/productui/page_pay_summary.go:15-26`, `page_pay_statements.go:15-26`, `page_pay_discrepancy.go:15-26`) each return only an `EmptyState` node; `grep -rn "domains/compensation\|domains/payroll" internal/humanwork/productui/*.go` (non-test files) matches nothing, so the "authorization-filtered outputs ... from versioned inputs" the GREEN clause of those items claims is never produced — the page has no inputs at all.
+  - **GREEN:** `paySummaryPage` and `payStatementsPage` call the compensation read projection (`internal/domains/compensation/read.go`, `ReadIntentType`) and a payroll statement query for the authenticated worker's own subject, rendering only fields the projection returns as authorized, and falling back to the existing `EmptyState` solely when the projection reports no record or a read failure; `payDiscrepancyPage` submits through a governed intake path instead of only linking home.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/page_pay_summary.go`, `internal/humanwork/productui/page_pay_statements.go`, `internal/humanwork/productui/page_pay_discrepancy.go`, `internal/domains/compensation/read.go`, `internal/domains/payroll/payroll.go`.
+
+- [ ] `REV-074-02` **[GATE_B][SOL_HIGH] Wire the manager compensation-cycle pages to the compensation domain's read and change surfaces.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS,BI.PAYROLL,BI.SECURITY; DIRECT=none; WHY=stop presenting a governed compensation-cycle capability as delivered when managers see only a static unavailable notice`.
+  - **TEST:** `TestTodo_REV_074_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_074_02`; `GOLDEN=TestTodo_REV_074_02_Golden`; `SECURITY=TestTodo_REV_074_02_Security`.
+  - **RED:** GAP: `WEB-160`..`WEB-164` are ticked complete, but `compProposalsPage`, `salaryComparisonPage`, `cyclePopulationsPage`, `compWorksheetPage`, and `compCalibrationPage` (`internal/humanwork/productui/page_comp_proposals.go:16`, `page_salary_comparison.go:16`, `page_cycle_populations.go:16`, `page_comp_worksheet.go:16`, `page_comp_calibration.go:16`) each return only an `EmptyState` node and none imports `internal/domains/compensation`, so a manager can never actually propose, compare, or calibrate compensation through this UI despite `internal/domains/compensation/change.go` and `composition.go` already implementing that logic and being tested.
+  - **GREEN:** the five pages call the compensation domain's read projection to populate the manager's scoped population, ranges, and worksheet rows, and route worksheet/calibration submissions through the compensation change intents in `internal/domains/compensation/change.go`, restricting every row to subjects the manager is authorized to see.
+  - **REFACTOR:** factor the shared "scoped compensation population" fetch into one helper so the five pages do not each re-derive manager scope.
+  - **Refs:** `internal/humanwork/productui/page_comp_proposals.go`, `internal/humanwork/productui/page_salary_comparison.go`, `internal/humanwork/productui/page_cycle_populations.go`, `internal/humanwork/productui/page_comp_worksheet.go`, `internal/humanwork/productui/page_comp_calibration.go`, `internal/domains/compensation/change.go`, `internal/domains/compensation/composition.go`.
+
+- [ ] `REV-074-03` **[GATE_B][SOL_HIGH] Wire the benefits overview, comparison, enrollment, and pay-benefit reconciliation pages to the benefits domain.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS,BI.PAYROLL; DIRECT=none; WHY=stop presenting a governed benefits capability as delivered when the worker sees only a static unavailable notice`.
+  - **TEST:** `TestTodo_REV_074_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_074_03`; `GOLDEN=TestTodo_REV_074_03_Golden`.
+  - **RED:** GAP: `WEB-165`..`WEB-168` are ticked complete, but `benefitsOverviewPage`, `benefitsComparePage`, `benefitsEnrollPage`, and `payBenefitReconPage` (`internal/humanwork/productui/page_benefits_overview.go:15`, `page_benefits_compare.go:15`, `page_benefits_enroll.go:15`, `page_pay_benefit_recon.go:16`) each return only an `EmptyState` node and none imports `internal/domains/benefits`, even though `internal/domains/benefits/eligibility.go` (`EvaluateEligibility`) and `enrollment.go` (`EnrollmentWindow`, `NewEnrollmentWindowSet`) already compute real eligibility and enrollment windows with passing tests.
+  - **GREEN:** the four pages call `EvaluateEligibility` and the enrollment-window logic to render the worker's actual plan options, coverage tiers, and open-enrollment window, submit elections through the existing benefits domain, and surface real reconciliation status instead of a static notice; `EmptyState` is kept only for a subject with no eligible plans or a domain read failure.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/page_benefits_overview.go`, `internal/humanwork/productui/page_benefits_compare.go`, `internal/humanwork/productui/page_benefits_enroll.go`, `internal/humanwork/productui/page_pay_benefit_recon.go`, `internal/domains/benefits/eligibility.go`, `internal/domains/benefits/enrollment.go`.
+
+### R077. §66 / HR help and cases
+
+Checked all twelve items (`WEB-193`..`WEB-204`) against `internal/humanwork/productui`: every registered page, route, and named `TestTodo_WEB_19[3-9]*`/`TestTodo_WEB_20[0-4]*` function exists, `productui` is reachable from `cmd/hcmnext` (`go list -deps`), and the code matches what each test actually checks. But what each test checks is thin by design: every one of the twelve is a registry-shape test (definition exists, route round-trips, locale keys resolve, fallback copy contains no invented data) and none call into any HR business service. Two systemic gaps follow from that: (1) the case-work surfaces (`WEB-197`..`WEB-204`) have no service behind them — `internal/domains/hrcase` (`CASE-001`/`CASE-002`, real and tested) is imported by nothing outside its own store, and the run-access-policy/task-pool substrate the brief flags (`WF-EXT-024`, `WF-EXT-025`) is still open with no test functions in the tree, so `WEB-204`'s test literally proves nothing about redaction despite its title; (2) the Help/knowledge surfaces (`WEB-193`/`WEB-194`) reference a "governed help service" that no ticket or package in the repo defines — there is no knowledge-article store or search engine anywhere for `WEB-194`'s "implement authorized knowledge search" to call. The most important finding is (1): the case-management path that HR relies on for investigations and confidential matters is twelve tickets deep and still renders nothing but a placeholder in the live server.
+
+- [ ] `REV-077-01` **[GATE_B][SOL_HIGH] Wire the served case-work exposure surfaces to the hrcase domain and the run access policy they depend on.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.CASES,BI.PRIVACY,BI.EXPERIENCE; DIRECT=none; WHY=case specialists need real authorization-filtered case data instead of a permanent placeholder on a page the server already serves`.
+  - **TEST:** `TestTodo_REV_077_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_077_01`; `GOLDEN=TestTodo_REV_077_01_Golden`; `SECURITY=TestTodo_REV_077_01_Security`.
+  - **RED:** GAP against `WEB-197`..`WEB-204`. `grep -rn hrcase internal/humanwork/productui/*.go` (excluding `_test.go`) returns nothing, and `grep -rl "domains/hrcase" --include=*.go .` outside the package's own tests finds only `internal/data/hrcasestore/store.go` — no handler, transport, or productui code reads case state. `WEB-204`'s own test, `internal/humanwork/productui/web204_case_redaction_test.go`, is titled "Prove case-view redaction and audit" but only asserts page registration, route round-trip, and absence of a hardcoded string; it never invokes any redaction or compartment logic, so `CASE-002`'s tested compartment authorization is not enforced on anything a user sees. The substrate that would carry compartment/task data into a run — `WF-EXT-024` (run access policy) and `WF-EXT-025` (bounded case task pool), both cited by the round brief — are open (`- [ ]`) with zero `TestTodo_WF_EXT_024`/`TestTodo_WF_EXT_025` matches anywhere in the tree. `internal/humanwork/productui` is confirmed reachable from `cmd/hcmnext` via `go list -deps`, so this is a defect in a currently served page tree, not an unreachable library.
+  - **GREEN:** each of `WEB-197`..`WEB-204`'s renderers calls a case service backed by `internal/domains/hrcase` and `WF-EXT-024`'s run-scoped participant wall; an authorized participant sees real case status/messages/assignment/evidence/disposition/appeal state, an unauthorized viewer or a non-participant sees the existing non-disclosing fallback, and `WEB-204`'s test asserts a specific compartmented field is present for a participant and absent for a non-participant in the same rendered document.
+  - **REFACTOR:** `productui` stays rendering-only; `hrcase` and the run-access-policy substrate remain the sole authority for case state and visibility.
+  - **Refs:** `internal/domains/hrcase`, `internal/data/hrcasestore/store.go`, `internal/humanwork/productui/web204_case_redaction_test.go`, `internal/humanwork/productui/web199_case_center_test.go`, `internal/workflow/runtime`, [Case models](data/models/talent-experience-cases.md).
+
+- [ ] `REV-077-02` **[GATE_C][SOL_LOW] Build the knowledge-article service that WEB-193/WEB-194's Help hub and search are waiting on.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.PRIVACY,BI.EXPERIENCE; DIRECT=none; WHY=employees need an authorization-scoped searchable knowledge base instead of a placeholder Help hub with no content`.
+  - **TEST:** `TestTodo_REV_077_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_077_02`; `GOLDEN=TestTodo_REV_077_02_Golden`; `SECURITY=TestTodo_REV_077_02_Security`.
+  - **RED:** NEW. `WEB-193` and `WEB-194`'s own test comments name "the governed help service" as the future publisher of Help hub and knowledge-search content, but no ticket or package defines it: `grep -n "help service\|HELP-0\|knowledge base\|KNOWLEDGE-" planning/todos.md` matches only the two `WEB-193`/`WEB-194` items themselves, and no `internal/domains/*` or `internal/data/*` package holds a knowledge-article type. `WEB-194` is ticked `[x]` "Implement authorized knowledge search," but its test (`internal/humanwork/productui/web194_knowledge_search_test.go`) only proves a page renders its own fallback copy with no invented results string — there is no article store or index anywhere for a query to search.
+  - **GREEN:** a knowledge-article domain package holds versioned, audience/role-scoped articles under records retention; a search capability resolves a query to authorization-filtered matches; `WEB-194`'s renderer calls it, returning real results for an authorized query and the existing non-disclosing empty state for an unauthorized or no-match query.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/web194_knowledge_search_test.go`, `internal/humanwork/productui/web193_help_hub_test.go`, [records management](specs/records-management-and-disposition.md).
+
+### R079. §66 / Insights and governed reporting
+
+Checked all twelve `WEB-217`..`WEB-228` items (lines 18196-18327), their named tests (`internal/humanwork/productui/web21{7,8,9}_*_test.go`, `web22{0..8}_*_test.go`, all present and matching the ticked `TestTodo_WEB_2xx{,_Golden,_Browser,_Conformance}` claims), and their page bodies (`page_report_catalog.go`, `page_report_types.go`, `page_analysis_floorplan.go`, `page_analysis_filters.go`, `page_result_lineage.go`, `page_data_freshness.go`, `page_aggregate_suppression.go`, `page_report_export.go`, `page_report_sharing.go`, `page_nl_analysis.go`, `page_analysis_handoff.go`, `page_accessible_viz.go`). Every one of the twelve page bodies is a ~26-27 line `EmptyState` fallback with an identical doc comment: "The governed reporting service is not published to this UI yet ... until then the UI will not simulate one." None imports or calls any reporting package. The dependency `REPORT-001` (report/dashboard definitions), and its siblings `REPORT-002` (execute/render/export) and `REPORT-003` (schedule/reproduce) in `internal/experience/reporting`, `internal/experience/reportrender`, `internal/experience/reportschedule`, are also ticked `[x]`, but `grep -rln` across the repo shows nothing outside their own test files and one ownership-metadata line in `tools/policy/substratecoverage/substratecoverage.go` imports any of the three packages, and `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` returns no `internal/experience/report*` package. `productui` itself is wired into `cmd/hcmnext` (via `internal/transport/humanwork`), so the twelve pages are served, but every one deliberately renders nothing. The section is honestly labeled (no fabricated data, tests correctly assert the empty state and refuse to leak `⟦` keys or invented catalog copy) but delivers zero end-to-end reporting/analysis capability: the entire governed-reporting backend is orphaned library code with no transport surface and no caller, and no ticked item anywhere does that wiring.
+
+- [ ] `REV-079-01` **[GATE_C][SOL_HIGH] Wire the governed reporting engines to a transport surface the report catalog and analysis UI can call.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ANALYTICS,BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=none; WHY=let the twelve insights pages render real governed report and analysis truth instead of a permanent empty state`.
+  - **TEST:** `TestTodo_REV_079_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_079_01`; `INTEGRATION=TestTodo_REV_079_01_Integration`; `GOLDEN=TestTodo_REV_079_01_Golden`; `BROWSER=TestTodo_REV_079_01_Browser`; `CONFORMANCE=TestTodo_REV_079_01_Conformance`.
+  - **RED:** GAP against `WEB-217`..`WEB-228` (all ticked `[x]`): `page_report_catalog.go`, `page_analysis_floorplan.go`, `page_report_export.go`, `page_nl_analysis.go` and the other eight page bodies in `internal/humanwork/productui/` are fixed `EmptyState` fallbacks; `grep -rln "internal/experience/reporting\"\|internal/experience/reportrender\"\|internal/experience/reportschedule\"" --include=*.go .` matches nothing outside those packages' own files and one line in `tools/policy/substratecoverage/substratecoverage.go`; `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` contains no `internal/experience/report*` entry, so `REPORT-001`/`REPORT-002`/`REPORT-003` are unreachable from every running binary.
+  - **GREEN:** a transport adapter (analogous to `internal/transport/humanwork`) accepts an authorized report-catalog/execute/schedule request, calls `internal/experience/reporting` and `internal/experience/reportrender` for real definitions and executions, and the twelve `productui` pages render that response (or `COMPLETE|PARTIAL|STALE|UNKNOWN` per `REPORT-002`) in place of the empty state, with `go list -deps ./cmd/hcmnext` now including the reporting packages.
+  - **REFACTOR:** keep report/definition truth and disclosure policy inside `internal/experience/reporting`/`reportrender`/`reportschedule`; the new transport layer only marshals and authorizes, it does not recompute report semantics.
+  - **Refs:** `internal/humanwork/productui/page_report_catalog.go`, `internal/humanwork/productui/page_analysis_floorplan.go`, `internal/experience/reporting`, `internal/experience/reportrender`, `internal/experience/reportschedule`, `internal/transport/humanwork`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+### R083. §67 / Authorized query and projection path
+
+Checked `ALIGN-017`–`ALIGN-024` (`internal/transport/queryenvelope`, `internal/transport/productquery`): every named test (`TestTodo_ALIGN_017`…`024` plus their matrix variants) exists and the packages compile into `cmd/hcmnext`'s dependency graph (`go list -deps ./cmd/hcmnext`). The field-disposition model itself is well built: `queryenvelope.New`/`Validate` correctly collapse denied scopes to zero subjects and suppress field metadata on denial, `productquery.Compile` drops denied/withheld fields uniformly, `MapAbsence` is a total closed mapping, and `refetch.View` enforces tenant/projection/watermark checks on invalidation hints. However, this is library-only code: outside its own package and `_test.go` files, no production path calls `queryenvelope.New`, `productquery.Compile`, `productquery.Project`/`Build`, `productquery.AvailableActions`, `productquery.MapAbsence`, `productquery.VerifyFreshness`, or `refetch.NewView`/`Accept`. The only real caller anywhere in the tree is `internal/domains/promotion/promoux011.go`, which uses solely `productquery.EmitInvalidation` (the ALIGN-023 invalidation-message surface). No handler in `internal/transport/journey`, `internal/transport/intent`, or `internal/application` constructs an envelope, compiles it, or attaches freshness/absence/actions to a real response — the entire "authorized product-query envelope" contract (ALIGN-017, 018, 019, 020, 021, 024) that RBAC-RT-001 and friends describe as still-open gaps in `journey` has already been built once here and then never plumbed into the services that actually need it.
+
+- [ ] `REV-083-01` **[GATE_C][SOL_HIGH] Wire the authorized product-query envelope into a real transport handler.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=the field-authorized query envelope and compiler exist and are tested but no RPC handler constructs or consumes one so callers still get unauthorized raw fields`.
+  - **TEST:** `TestTodo_REV_083_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_083_01`; `INTEGRATION=TestTodo_REV_083_01_Integration`; `SECURITY=TestTodo_REV_083_01_Security`.
+  - **RED:** GAP: contradicts the closure claimed by `ALIGN-017`, `ALIGN-018`, `ALIGN-019`, `ALIGN-020`, `ALIGN-021` and `ALIGN-024`; `grep -rl "queryenvelope\.\|productquery\." --include=*.go .` outside `_test.go`, the two packages themselves and `tools/` shows only `internal/domains/promotion/promoux011.go`, which calls exclusively `productquery.EmitInvalidation` (`internal/domains/promotion/promoux011.go:318`); `queryenvelope.New` (`internal/transport/queryenvelope/queryenvelope.go:119`), `productquery.Compile` (`internal/transport/productquery/compile.go:56`), `productquery.Project`/`Build` (`internal/transport/productquery/productquery.go:299`,`365`), `productquery.AvailableActions` (`internal/transport/productquery/actions.go:56`), `productquery.MapAbsence` (`internal/transport/productquery/absence.go:32`) and `refetch.NewView`/`Accept` (`internal/transport/productquery/refetch.go:50`,`122`) have zero references in `internal/transport/journey`, `internal/transport/intent` or `internal/application`.
+  - **GREEN:** at least one served RPC (starting with the worker/journey read path RBAC-RT-001 already flags for unauthorized fields) builds its `authz.RepositoryScope` into a `queryenvelope.Envelope`, compiles it with `productquery.Compile`, and serializes the response through `productquery.Project`/`MapAbsence` so denied and withheld fields are absent on the wire, not merely absent in a library test; an end-to-end test drives the real handler and asserts the wire payload has no unauthorized field.
+  - **REFACTOR:** fold the handler's own ad hoc field copying (e.g. `toWorker` in `internal/transport/journey/convert.go`) into calls onto the envelope/compile/absence functions instead of duplicating the disposition logic.
+  - **Refs:** `internal/transport/queryenvelope/queryenvelope.go`, `internal/transport/productquery/compile.go`, `internal/transport/productquery/productquery.go`, `internal/transport/productquery/absence.go`, `internal/transport/productquery/actions.go`, `internal/transport/productquery/refetch.go`, `internal/transport/journey/convert.go`.
+
+### R078. §66 / Exit and offboarding
+
+Checked all twelve items (`WEB-205`–`WEB-216`, lines 18060-18193). Each has its own `webNNN_*_test.go` in `internal/humanwork/productui` with the standard four-test matrix (primary, Golden, Browser, Conformance); `LookupPage`/`LookupRoute`/`pageRenderer` all resolve, and each test explicitly asserts the page shows nothing invented ("final check 3,210", "COBRA starts Aug 1", "badge deactivated", etc.) until "the governed lifecycle service publishes." This is implemented exactly as designed: these are EXPOSURE-role honest-fallback shells, not functioning workflows, and the code matches that claim — no gap in what's ticked. `WORKER-LIFE-004` (§46, already `[x]`) composes closure tracking (`internal/domains/workerlifecycle/offboarding.go`) but only records evidence handed to it — `CompleteEmployment` flips a bool, `ObserveClosure` matches pre-formed `EntityRef`s; it performs no employment-ending, access-revocation, severance or benefits mutation itself. The actual capabilities these twelve UI pages are fallbacks for — end employment (`WF-CAP-002`), plan-and-execute revoke-all (`WF-CAP-003`), severance calculation (`WF-CAP-010`), and continuation-coverage/carrier binding (`WF-CAP-016`) — are all still `[ ]` open in §76, and grepping the repo for `EndEmployment`, `RevokeAll`/`plan_revoke_all`, `Severance`, and `Continuation`/`COBRA` returns zero hits anywhere, confirming they don't exist yet. Those are already tracked; this round does not duplicate them. The one real gap specific to this unit is that the offboarding surfaces have no page or capability, anywhere in the plan, for rehire eligibility or for managing state unemployment-insurance claims that follow a termination — both are standard, statutorily-timed HR obligations missing end to end.
+
+- [ ] `REV-078-01` **[GATE_C][TERRA] Capture rehire eligibility at exit completion and expose it to hiring screening.**
+  - **Depends:** `WF-CAP-002`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.LIFECYCLE,BI.RECRUITING; DIRECT=none; WHY=a completed exit must record eligible, not-eligible or conditional rehire status with a reason so later hiring can screen against it`.
+  - **TEST:** `TestTodo_REV_078_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_078_01`; `GOLDEN=TestTodo_REV_078_01_Golden`; `CONFORMANCE=TestTodo_REV_078_01_Conformance`.
+  - **RED:** NEW: `planning/todos.md` has no item for rehire eligibility; `grep -in "rehire" planning/todos.md` returns nothing, `WEB-216` exit completion invents no such field and the underlying capability does not exist (`grep -rn "Rehire" internal/domains` is empty), so a terminated worker's record carries no eligibility signal a future requisition could check.
+  - **GREEN:** `people.record_rehire_eligibility` sets an eligible/not-eligible/conditional status with a reason and effective date on `end_employment`, retained as history, not overwritten; recruiting's candidate-screening path can read it read-only; GOLDEN pins the three-state vocabulary and its reason-code set; CONFORMANCE proves the raw reason is visible to HR/recruiting roles only, never to the candidate.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/people`, `internal/domains/workerlifecycle/offboarding.go`, `internal/domains/recruiting`.
+
+- [ ] `REV-078-02` **[GATE_C][TERRA] Bind unemployment-insurance claims response to a delegated provider with statutory deadlines.**
+  - **Depends:** `WF-CAP-011`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.LIFECYCLE,BI.INTEGRATION,BI.REGULATORY; DIRECT=none; WHY=every termination can trigger a state unemployment claim with a short statutory response deadline and nothing in the plan tracks or answers one`.
+  - **TEST:** `TestTodo_REV_078_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_078_02`; `INTEGRATION=TestTodo_REV_078_02_Integration`; `GOLDEN=TestTodo_REV_078_02_Golden`.
+  - **RED:** NEW: `grep -in "unemployment claim\|SUTA\|state unemployment" planning/todos.md` finds only a wage-filing item (line 2387) and no claims-response capability; `grep -rn "UnemploymentClaim" internal/domains` is empty, so a claim notice against a terminated worker has no obligation, deadline, or provider binding anywhere in the platform.
+  - **GREEN:** `regulatory.receive_unemployment_claim` opens a DELEGATED obligation bound to a claims-administration provider through a connector binding, with a jurisdiction deadline resolved from the `WF-CAP-011` rule pack; the response and outcome are observed and reconciled, never computed locally; INTEGRATION proves the connector binding round-trips a recorded vendor contract; GOLDEN pins one jurisdiction's deadline and required response fields.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity`, `internal/domains/workerlifecycle`, [legal rule packs](specs/legal-rule-packs-and-state-configuration.md).
+
+### R081. §67 / Contract and registry
+
+Checked `ALIGN-001` through `ALIGN-008` (`tools/planning/productslice`, `tools/planning/cmd/productslice`, `tools/policy/tableinventory`) against `planning/specs/default-product-slice-alignment.md`. All eight named tests and their PROPERTY/GOLDEN/SECURITY/CONFORMANCE variants exist and pass in the tree, and `ALIGN-001`'s conformance test genuinely re-validates the checked-in `definitions/planning/product-slices.yaml` against the live registries (feature/intent coverage, capability BOOTSTRAP, Phase 1 closure, todo registry) rather than a fixture, which is real engineering. Two things are not what they claim: the `ALIGN-002` disposition vocabulary implemented in `disposition.go` (`CORE`, `OPTIONAL`, `DEFERRED`, `EXCLUDED`, `PARTNER_ONLY`) is a different closed set from the vocabulary the governing spec actually defines (`CORE_REQUIRED`, `DOMAIN_PACK_DEFAULT`, `AVAILABLE_NOT_ENABLED`, `CUSTOMER_DEFINED`, `DEFERRED`/`PROHIBITED`), so the ticked item does not define "the default product disposition vocabulary" the contract names; and `ALIGN-007`'s ownership/consumer enforcement is proven only against `tools/planning/productslice/testdata/slice-ownership.yaml`, a hand-written fixture, with no checked-in `definitions/` registry and no conformance test tying it to the real admitted Promotion slice the way `ALIGN-001` does. `ALIGN-008`'s "alignment registry" is a distinct, correctly-scoped table-level check (`tableinventory.Generate`), not a naming collision worth flagging.
+
+- [x] `REV-081-01` **[GATE_C][TERRA] Replace the disposition vocabulary with the spec's default_disposition terms.**
+  - **Evidence (2026-09-19):** `TestTodo_REV_081_01` family in `tools/planning/productslice`; `go test -count=1 -run 'TestTodo_REV_081_01' ./tools/planning/productslice/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=let a slice actually declare whether it ships core-required, domain-pack-default, available-not-enabled, customer-defined, deferred or prohibited as the contract requires`.
+  - **TEST:** `TestTodo_REV_081_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_081_01`; `GOLDEN=TestTodo_REV_081_01_Golden`; `CONFORMANCE=TestTodo_REV_081_01_Conformance`.
+  - **RED:** GAP against ticked `ALIGN-002`: `tools/planning/productslice/disposition.go` lines 21-38 define `DispositionCore/Optional/Deferred/Excluded/PartnerOnly`, none of which is `CORE_REQUIRED`, `DOMAIN_PACK_DEFAULT`, `AVAILABLE_NOT_ENABLED`, or `CUSTOMER_DEFINED` from `planning/specs/default-product-slice-alignment.md` lines 197-203; `TestTodo_ALIGN_002_Golden` only pins a digest of the code's own five values and never checks them against the spec text, so the mismatch passes.
+  - **GREEN:** `ProductDisposition` is a six-value closed vocabulary matching the spec exactly (`CORE_REQUIRED`, `DOMAIN_PACK_DEFAULT`, `AVAILABLE_NOT_ENABLED`, `CUSTOMER_DEFINED`, `DEFERRED`, `PROHIBITED`), each with the spec's own one-line definition text, and a new conformance test asserts the vocabulary's codes against a literal list transcribed from the spec so the two can never diverge silently again; downstream callers (`SliceElementDisposition`, `NewDispositionSet`) migrate to the new codes with the same reason-code and digest discipline.
+  - **REFACTOR:** update `PromotionSliceDefinition`/fixtures that reference `DispositionCore` to the nearest correct new term (`CORE_REQUIRED` for Promotion's admitted elements); keep the per-element `SliceElementDisposition` shape, only the vocabulary changes.
+  - **Refs:** `tools/planning/productslice/disposition.go`, `tools/planning/productslice/align002_test.go`, [default product alignment](specs/default-product-slice-alignment.md).
+
+- [ ] `REV-081-02` **[GATE_C][TERRA] Check in a real product-slice ownership registry and conformance-test it against the live Promotion slice.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=make slice ownership and consumer admission a real enforced fact about the shipped Promotion slice instead of a property proven only against a synthetic fixture`.
+  - **TEST:** `TestTodo_REV_081_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_081_02`; `CONFORMANCE=TestTodo_REV_081_02_Conformance`; `SECURITY=TestTodo_REV_081_02_Security`; `GOLDEN=TestTodo_REV_081_02_Golden`.
+  - **RED:** GAP against ticked `ALIGN-007`: `grep -rn "OwnershipRegistry" --include=*.go .` outside `tools/planning/productslice` returns nothing, and the only `slice-ownership.yaml` in the repo is `tools/planning/productslice/testdata/slice-ownership.yaml`; `TestTodo_ALIGN_007` (`tools/planning/productslice/align007_test.go`) loads that fixture, never a checked-in `definitions/` file, so nothing proves the real admitted "promotion" slice from `definitions/planning/product-slices.yaml` has a declared owner or admitted consumer today.
+  - **GREEN:** a checked-in `definitions/planning/slice-ownership.yaml` declares the Promotion slice's owner and consumers with a `definition_digest` pinned to `PromotionSliceDefinition().Digest()`, and a new conformance test (mirroring `TestTodo_ALIGN_001_Conformance`) loads that file, calls `OwnershipRegistry.Validate`/`VerifyDigest`, and fails if the pinned digest drifts from the live slice definition.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/planning/productslice/ownership.go`, `tools/planning/productslice/align007_test.go`, `tools/planning/productslice/testdata/slice-ownership.yaml`, [default product alignment](specs/default-product-slice-alignment.md).
+
+### R082. §67 / PostgreSQL disposition and invariants
+
+Checked ALIGN-009 through ALIGN-016 (lines 18626-18715): all eight ticked items have real, compiling packages (`tools/policy/tableinventory`, `tableownership`, `placementbindings`, `rlsparity`, `dispositionrebuild`, `storageproduct`) with the named `TestTodo_ALIGN_0xx` functions present and passing, and these are wired into CI via `go test ./...` in `.github/workflows/tests.yml`, so this is a genuine drift-detection gate rather than dead library code. The implementation is sound but structurally weaker than it looks: every one of these policies (`rlsparity.ScanRLS`, `placementbindings.ScanMigrations`) proves its contract by regexing the single `CREATE TABLE` migration file for a table, never against the live PostgreSQL catalog and never against later `ALTER TABLE` migrations. `internal/data/tenancy/storagedisposition`'s own `TestTodo_STORE_001_Integration` already demonstrates the stronger pattern (live `pg_trigger`/`information_schema` cross-checks for `append_only` and `tenant_scoping_column`) for two of the six registry flags, but conspicuously omits row-level security itself — no test anywhere enumerates every `TenantScoped` registry row and confirms `pg_class.relrowsecurity`, `relforcerowsecurity` and a matching `pg_policies` row for all of them in one place; RLS liveness is instead checked ad hoc, per-table, only where an individual domain package happens to assert it (`fxstore`, `governance`, `jobs`, `integrationmeta`, `recordsmeta`, `tenancy`). A later migration that runs `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` or `DROP POLICY tenant_isolation` on an already-registered table would pass every ALIGN-013/ALIGN-014 check and would not be caught by STORE-001 either. This is a real gap, distinct from REV-102-03's `append_only`-vs-`pg_trigger` fix and REV-102-07's registry-metadata fix (neither addresses RLS state), so it is not a duplicate of the already-covered REV-102 items.
+
+- [ ] `REV-082-01` **[GATE_C][TERRA] Cross-check every registered tenant-scoped table's row-level security against the live PostgreSQL catalog, not just migration text.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=a later migration or manual DDL can disable row level security or drop the tenant isolation policy on an already registered table without any existing test noticing`.
+  - **TEST:** `TestTodo_REV_082_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_082_01`; `INTEGRATION=TestTodo_REV_082_01_Integration`; `SECURITY=TestTodo_REV_082_01_Security`; `FAULT=TestTodo_REV_082_01_Fault`; `GOLDEN=TestTodo_REV_082_01_Golden`; `RECOVERY=TestTodo_REV_082_01_Recovery`.
+  - **RED:** GAP: `tools/policy/rlsparity/rlsparity.go` (`ScanRLS`) and `tools/policy/placementbindings/placementbindings.go` (`ScanMigrations`) derive `Enabled`/`Forced`/`Policy`/`UsingTenant`/`WithCheckTenant` purely by regex over the `CREATE TABLE` migration file named in the registry (contradicts ALIGN-013's ticked claim of proving "row-security and repository-scope parity"); `internal/data/tenancy/storagedisposition/registry_test.go`'s `TestTodo_STORE_001_Integration` proves `tenant_scoping_column` nullability and `append_only` triggers against the live catalog (`pg_trigger`, `information_schema.columns`) but has no equivalent block querying `pg_class.relrowsecurity`/`relforcerowsecurity` or `pg_policies`; `grep -rn "relrowsecurity\|pg_policies" internal/data/tenancy/storagedisposition/registry_test.go` returns nothing, and existing live RLS assertions (`internal/data/fxstore/fx003_store_test.go`, `internal/data/governance/governance_test.go`, `internal/data/jobs/matrix_test.go`) only cover the handful of tables their own domain package happens to touch, not the full registry.
+  - **GREEN:** one test, run against the fully migrated live schema, iterates every `storagedisposition.Registry` entry with `TenantScoped() == true` and asserts `pg_class.relrowsecurity = true`, `relforcerowsecurity = true`, and a `pg_policies` row named `tenant_isolation` whose `qual`/`with_check` reference the declared tenant column, for every such table with no exceptions besides `storeboundaries`'s documented reviewed list; the test fails if a table is RLS-enabled by migration text but disabled by a later migration, or vice versa.
+  - **REFACTOR:** fold this catalog cross-check into `TestTodo_STORE_001_Integration`'s existing per-table loop so registry structural drift (append-only, tenant column, RLS) is proven from one place.
+  - **Refs:** `internal/data/tenancy/storagedisposition/registry_test.go`, `tools/policy/rlsparity/rlsparity.go`, `tools/policy/placementbindings/placementbindings.go`, `definitions/storage/storage-disposition.yaml`.
+
+### R075. §66 / Performance and growth
+
+Checked all 12 items (WEB-169 through WEB-180, lines 17658-17790). Every named `TestTodo_WEB_*` primary/Golden/Browser/Conformance function exists in `internal/humanwork/productui` and the package builds and passes, so the Evidence lines are not fabricated at the test level. But every single page implementation behind these tickets — `page_growth_home.go`, `page_goal_planning.go`, `page_governed_feedback.go`, `page_manager_checkins.go`, `page_perf_review.go`, `page_review_participants.go`, `page_skills_profile.go`, `page_assigned_learning.go`, `page_career_discovery.go`, `page_talent_workbench.go`, `page_talent_calibration.go`, `page_succession_planning.go` — renders nothing but a static `EmptyState` with copy admitting "the governed growth service is not published to this UI yet." No such service exists anywhere in the repo, and that admission is untracked (`grep -c "governed growth service" planning/todos.md` outside these stub comments is 0). This is worse than the generic library-only-code gap REV-103-01 already tracks: `internal/domains/performance` (review cycles, calibration, participant/reviewer graph) and `internal/domains/career` (development objectives) already exist and parts of `performance` are even compiled into `cmd/hcmnext` for promotion decisions, yet `internal/humanwork/productui` imports neither package anywhere — the tests prove the stub renders consistently, not that the feature exists. The most important gap is that a manager's calibrated rating already drives a real promotion decision in production while the calibration UI that should show it is a placeholder.
+
+- [ ] `REV-075-01` **[GATE_C][SOL_HIGH] Replace the goal/feedback/check-in/review-workspace empty states with real bindings to the review and objective domains.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.TALENT,BI.EXPERIENCE; DIRECT=none; WHY=the review workspace and goal surfaces must show the governed review and objective state instead of an admitted placeholder`.
+  - **TEST:** `TestTodo_REV_075_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_075_01`; `GOLDEN=TestTodo_REV_075_01_Golden`.
+  - **RED:** GAP: `WEB-173` is ticked claiming the performance-review workspace is implemented, but `internal/humanwork/productui/page_perf_review.go` renders only `EmptyState` with `perf_review.unavailable_title`; the same pattern holds for `page_goal_planning.go` (`WEB-170`), `page_governed_feedback.go` (`WEB-171`) and `page_manager_checkins.go` (`WEB-172`). `internal/domains/performance/review_collection.go` and `proposed_rating.go` implement the review-cycle model these pages need, and `internal/domains/career/objective.go` already defines `DevelopmentObjectiveRevision` (a worker/manager-agreed goal), but grep for `performance.ReviewCollection`, `performance.ProposedRating` and `career.DevelopmentObjective` across the repo matches nothing outside their own packages and tests.
+  - **GREEN:** `page_perf_review.go`, `page_goal_planning.go`, `page_governed_feedback.go` and `page_manager_checkins.go` render the caller's actual review-cycle and development-objective state sourced from `internal/domains/performance` and `internal/domains/career`, keeping the empty state only for the case where no cycle or objective actually exists for that caller yet.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/page_perf_review.go`, `internal/humanwork/productui/page_goal_planning.go`, `internal/humanwork/productui/page_governed_feedback.go`, `internal/humanwork/productui/page_manager_checkins.go`, `internal/domains/performance/review_collection.go`, `internal/domains/performance/proposed_rating.go`, `internal/domains/career/objective.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+- [ ] `REV-075-02` **[GATE_C][SOL_HIGH] Wire review-participant visibility to the frozen participant/reviewer graph instead of an empty state.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.TALENT,BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=review-participant visibility must enforce the frozen reviewer graph authorization rules instead of disclosing nothing to everyone alike`.
+  - **TEST:** `TestTodo_REV_075_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_075_02`; `SECURITY=TestTodo_REV_075_02_Security`.
+  - **RED:** GAP: `WEB-174` is ticked with its Conformance test passing, claiming review-participant visibility is enforced, but `internal/humanwork/productui/page_review_participants.go` renders only `EmptyState` and never imports `internal/domains/performance/participant_reviewer_graph.go`. That domain file already implements the real authorization-adjacent rules — self-review rejection, reviewer-is-participant conflict rejection, and immutable-after-freeze revisions (`PERFORMANCE-002`) — but grep for `participant_reviewer` and `ParticipantReviewer` under `internal/humanwork/productui` matches nothing, so no employee or manager can reach the visibility this ticket claims to enforce.
+  - **GREEN:** `page_review_participants.go` loads the frozen participant/reviewer graph for the caller's review cycle from `internal/domains/performance` and renders only the participants and reviewers the authenticated caller is authorized to see, and a Security test asserts a caller outside the graph gets the same empty disclosure as one with no cycle at all, while a caller inside it sees the real graph.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/page_review_participants.go`, `internal/domains/performance/participant_reviewer_graph.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+- [ ] `REV-075-03` **[GATE_C][SOL_HIGH] Wire talent calibration and the talent workbench to the calibration data that already drives promotion decisions.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.TALENT,BI.EXPERIENCE; DIRECT=none; WHY=the manager who produces a calibrated rating needs a calibration and workbench surface for the same rating that already drives a live promotion decision`.
+  - **TEST:** `TestTodo_REV_075_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_075_03`; `GOLDEN=TestTodo_REV_075_03_Golden`.
+  - **RED:** GAP: `WEB-179` is ticked claiming talent calibration is implemented, but `internal/humanwork/productui/page_talent_calibration.go` and `page_talent_workbench.go` (`WEB-178`) both render only `EmptyState`. `internal/domains/performance/calibration.go`'s `CalibratedRating` and `IsHighPerformer` are already compiled into `cmd/hcmnext` (`go list -deps ./cmd/hcmnext` includes `internal/domains/performance`) and are used by `internal/intent/app/promotion_plan_route.go` to gate real promotion decisions, but neither talent page imports the performance package, so the calibration that already changes a worker's promotion outcome has no manager-facing calibration or workbench surface at all.
+  - **GREEN:** `page_talent_calibration.go` and `page_talent_workbench.go` render the caller's calibration session and workbench queue from `internal/domains/performance`'s `CalibratedRating` and `ReviewCollection` state, replacing the empty state once that data exists, with a Golden test pinning the rendered calibration summary digest the way `WEB-169`'s Golden test already pins the Growth home fallback.
+  - **REFACTOR:** collapse the now-duplicated `EmptyState` fallback boilerplate shared by the remaining unimplemented pages in this section into one helper once real pages replace some of them.
+  - **Refs:** `internal/humanwork/productui/page_talent_calibration.go`, `internal/humanwork/productui/page_talent_workbench.go`, `internal/domains/performance/calibration.go`, `internal/intent/app/promotion_plan_route.go`.
+
+### R076. §66 / Organization and workforce planning
+
+Checked all 12 tickets (WEB-181..WEB-192) in `internal/humanwork/productui`: every `TestTodo_WEB_18x/19x` (plus `_Golden`/`_Browser`/`_Conformance`) exists and passes, and `go list -deps` confirms the package is wired into `cmd/hcmnext` (not library-only). Reading the actual renderers shows the section is a two-tier illusion: WEB-181/182/192 (org explorer, outline, responsive) genuinely render live worker-directory data, but they group people by a flat `Person.Team` string, never touching the canonical effective-dated organization graph (`internal/domains/organization`, ORG-001) which is completely unreachable from any of the four binaries. Worse, 6 of the remaining 9 tickets — WEB-183, 184, 185, 186, 187, 189, 190, 191 (effective-date nav, position object, position occupancy, headcount plan, workforce scenario, cost/capacity simulation, reorg proposals, planned-vs-committed) — are marked `[x]` complete but their renderers are one-line calls into a hard-coded `EmptyState` saying "unavailable," by explicit design comment, because "the governed service is not published to this UI yet." The domains that would back several of these (`internal/domains/headcount`, `internal/domains/scenario`, `internal/data/planningstore`) are fully built and unit-tested but have zero callers outside their own package and are absent from `go list -deps` of every binary — while `internal/domains/position`, which would back the position pages, is already reachable in `cmd/hcmnext` via promotion journeys, making those two specifically a live wiring gap rather than a missing backend. The most important finding: roughly three-quarters of this section's tickets describe workforce-planning capability (headcount plans, scenarios, reorg proposals, position management) that does not exist in the running product at all, despite being checked off as delivered.
+
+- [ ] `REV-076-01` **[GATE_C][SOL_HIGH] Back the organization explorer with the canonical effective-dated organization graph.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORKFORCE,BI.PEOPLE; DIRECT=none; WHY=organization browsing must reflect governed org-unit structure not a free-text team label`.
+  - **TEST:** `TestTodo_REV_076_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_076_01`; `GOLDEN=TestTodo_REV_076_01_Golden`; `INTEGRATION=TestTodo_REV_076_01_Integration`.
+  - **RED:** GAP against WEB-181/182/183/192 (ticked done): `internal/humanwork/productui/page_organization.go` groups people via `admittedPeople`/`filterOrganizationPeople` keyed on the flat `Person.Team` string (`selectors.go:131`), never importing `internal/domains/organization`; `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` has no hit for `internal/domains/organization` at all, although ORG-001 ("Implement canonical organization graph reads," line 2442) is ticked done and that package already implements effective-dated `Snapshot.Read`/`Ancestry`/`Descendency`. WEB-183 "effective-date organization navigation" is itself a stub: `page_org_effective_date.go` returns a static `EmptyState` with an "unavailable" title.
+  - **GREEN:** `/workspace/app/organization/explorer` and `/workspace/app/organization/effective-date` resolve unit membership and ancestry/descendency from `organization.Snapshot.Read`/`Ancestry`/`Descendency` as of a caller-supplied date, and the unit/location facet counts come from the graph's active edges rather than a free-text `Team` field.
+  - **REFACTOR:** share one org-context read port between the explorer, the position pages, and the headcount domain instead of each inventing its own scope query.
+  - **Refs:** `internal/humanwork/productui/page_organization.go`, `internal/humanwork/productui/selectors.go`, `internal/humanwork/productui/page_org_effective_date.go`, `internal/domains/organization/contracts.go`, [position domain](specs/position-and-headcount-domain.md).
+
+- [ ] `REV-076-02` **[GATE_C][SOL_HIGH] Expose the headcount and scenario domains through a running service so the workforce-planning pages serve real data.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORKFORCE,BI.PEOPLE; DIRECT=none; WHY=headcount and scenario planning cannot be a governed capability while its domain and store are unreachable from every binary`.
+  - **TEST:** `TestTodo_REV_076_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_076_02`; `GOLDEN=TestTodo_REV_076_02_Golden`; `INTEGRATION=TestTodo_REV_076_02_Integration`.
+  - **RED:** GAP against WEB-186, WEB-187, WEB-189, WEB-190, WEB-191 (headcount-plan workspace, workforce scenario authoring, cost/capacity simulation, reorganization proposals, planned-vs-committed — all ticked done): `page_headcount_plan.go`, `page_workforce_scenario.go`, `page_cost_capacity.go`, `page_reorg_proposals.go`, and `page_planned_committed.go` each return nothing but a static `EmptyState` "unavailable" message. `internal/domains/headcount` and `internal/domains/scenario` are fully implemented and unit-tested, and `internal/data/planningstore` persists scenario revisions, demand signals, and coverage requirements — but `grep -rln "planningstore\." --include=*.go .` outside `internal/data/planningstore` itself returns nothing, and none of `internal/domains/headcount`, `internal/domains/scenario`, or `internal/data/planningstore` appears in `go list -deps` of `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, or `cmd/scheduler`.
+  - **GREEN:** at least the headcount-plan route renders a real plan loaded end to end through a transport handler backed by `planningstore.LoadScenarioRevision`/`ListScenarioRevisions`, and its "unavailable" copy is replaced by rendered plan data; the same wiring pattern is documented for the remaining four stub pages.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/page_headcount_plan.go`, `internal/humanwork/productui/page_workforce_scenario.go`, `internal/humanwork/productui/page_cost_capacity.go`, `internal/humanwork/productui/page_reorg_proposals.go`, `internal/humanwork/productui/page_planned_committed.go`, `internal/domains/headcount/headcount.go`, `internal/domains/scenario/scenario.go`, `internal/data/planningstore/store.go`, [position domain](specs/position-and-headcount-domain.md).
+
+- [ ] `REV-076-03` **[GATE_B][SOL_HIGH] Wire the position-object and position-occupancy pages to the position domain already running in cmd/hcmnext.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORKFORCE,BI.PEOPLE; DIRECT=none; WHY=the position domain data these pages need is already reachable in the serving binary so the stub is a wiring gap not a missing backend`.
+  - **TEST:** `TestTodo_REV_076_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_076_03`; `GOLDEN=TestTodo_REV_076_03_Golden`; `INTEGRATION=TestTodo_REV_076_03_Integration`.
+  - **RED:** GAP against WEB-184 and WEB-185 (ticked done): `page_position_object.go` and `page_position_occupancy.go` both return a static `EmptyState` claiming "the governed position service is not published to this UI yet." That claim is stale: `go list -deps ./cmd/hcmnext | grep domains/position` hits, because `internal/intent/app/promotion_target_position.go` and `internal/intent/app/journey_vacancies.go` already call the position domain (`position.RevisionRef`, `position.CalculateCapacity`, `Occupant`) for promotion journeys — the data these two UI pages need is reachable in the running binary today; only their own read path is missing.
+  - **GREEN:** the position-object page renders a named position's current revision and compatibility from `position.RevisionRef.Decode` plus a repository read, and the occupancy page renders occupants and vacancies from `position.CalculateCapacity`, both authorization-filtered per view, with the "unavailable" copy dropped once wired.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/page_position_object.go`, `internal/humanwork/productui/page_position_occupancy.go`, `internal/domains/position/capacity.go`, `internal/domains/position/revisionref.go`, `internal/intent/app/promotion_target_position.go`, [position domain](specs/position-and-headcount-domain.md).
+
+### R085. §67 / Durability and recovery
+
+Checked `ALIGN-033` through `ALIGN-040` (append-oriented history, half-open intervals, exact money, optimistic concurrency, atomic ledger+outbox, storage classification, retention/disposition, projection rebuild), all ticked and pointing at `internal/data/productdurability`. The package exists with all named tests (`TestTodo_ALIGN_033`..`_040` plus their Property/Golden/Security/Integration/Fault/Conformance matrix members all present and, per each item's own evidence line, passing). But `internal/data/productdurability` is a self-contained, in-memory-only simulation: `grep -rn "postgres|pgx|sql\." internal/data/productdurability/*.go` returns nothing, and `grep -rl "data/productdurability"` across the repo finds zero importers outside the package itself. `go list -deps` on all four binaries (`cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler`) never mentions it. Meanwhile the real, wired equivalents already exist and ship: `internal/data/ledger` and `internal/data/outbox` are both in `cmd/worker`'s dependency graph, and `internal/data/rebuild` has a real `pgsource.go`. So the eight GREEN claims that this proves behavior "across UI, business contracts and PostgreSQL" are false for the running system — the contract is proven only against an isolated in-memory double that nothing calls, while the actual persistence path (ledger/outbox/rebuild) is exercised by a separate, unrelated set of tests this section never references. This is the most important gap: eight ticked GATE_C items whose evidence text overstates what was verified.
+
+- [ ] `REV-085-01` **[GATE_B][TERRA] Prove ALIGN-033..040 durability contracts against the wired ledger, outbox and rebuild packages instead of an orphan in-memory double.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=the ticked durability contracts must hold for the code the binaries actually run, not for an unreferenced simulation package`.
+  - **TEST:** `TestTodo_REV_085_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_085_01`; `INTEGRATION=TestTodo_REV_085_01_Integration`; `CONFORMANCE=TestTodo_REV_085_01_Conformance`.
+  - **RED:** GAP against ALIGN-033 through ALIGN-040: `internal/data/productdurability` has zero `postgres`/`pgx`/`sql.` references (`grep -rn "postgres\|pgx\|sql\." internal/data/productdurability/*.go` empty) and zero importers anywhere else in the tree (`grep -rl "data/productdurability" --include=*.go .` matches only files inside the package itself), and it is absent from `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler`; the eight items' GREEN text claims proof "across UI, business contracts and PostgreSQL," which this package cannot supply.
+  - **GREEN:** the append-only-history, half-open-interval, exact-money, optimistic-concurrency, atomic-ledger-outbox, classification, retention and rebuild-from-chronology invariants are each proven against the actually-wired packages (`internal/data/ledger`, `internal/data/outbox`, `internal/data/rebuild`, `internal/data/bitemporal`) with a real PostgreSQL fixture, or the ALIGN-033..040 evidence lines are corrected to state the contract is validated only against an unwired reference model and the wired path is tracked as a separate open item.
+  - **REFACTOR:** either delete `internal/data/productdurability` once its invariants are re-homed as tests on the wired packages, or explicitly document it as a design-reference/spec package with no production claim and strip the PostgreSQL language from its ALIGN evidence entries.
+  - **Refs:** `internal/data/productdurability/doc.go`, `internal/data/productdurability/history.go`, `internal/data/productdurability/ledgeroutbox.go`, `internal/data/ledger`, `internal/data/outbox`, `internal/data/rebuild/pgsource.go`, [default product alignment](specs/default-product-slice-alignment.md).
+
+### R088. §67 / Cross-layer conformance and release
+
+Checked all eight ticked items (`ALIGN-057` through `ALIGN-064`, lines 19166-19255). Every named test function exists (`internal/transport/conformance/align057_test.go` .. `align064_test.go`, `query_test.go` for `ALIGN-058`/`ALIGN-059`, `internal/operations/releaseevidence/chronology_test.go` for `ALIGN-060`) and the tests are substantive: real digests, real invalidation/concurrency logic reusing `internal/trust/authz` and `internal/kernel/values`, and `ALIGN-060` drives the actual embedded-migration chronology through `migrations.Files()` and `pgtest`. Overall state is library-only, not wired into a running binary: `go list -deps` on `cmd/hcmnext`, `cmd/worker`, `cmd/projector` and `cmd/scheduler` shows none of them import `internal/transport/conformance` or `internal/operations/releaseevidence`, and a repo-wide grep finds no non-test caller of either package. The most important gap is `ALIGN-064`: its `ReleaseGate.Admit` is proven correct in isolation, but nothing calls `conformance.DefaultReleaseGate()` outside its own tests. The production release bundler (`tools/policy/release.RequiredPolicyReports`) requires only `driftgate`, `apigate`, `substratecoverage`, `cleancheckout` — none of the eight product-quality gates (`parity.ssr_browser`, `parity.transport`, `authorization.noninterference`, `chronology.postgres`, `restart.restore`, `safety.concurrent_actions`, `localization.a11y`, `usability.zero_override`) this item's plan text claims to gate. The product UI's own `/workspace/app/release-gate` page (`internal/humanwork/productui/page_release_gate.go`) is an explicit, permanent empty state whose comment states the governed release service is "not published to this UI yet" and "the UI will not simulate one" — an honest admission that this whole subsection never reaches an operator or a release decision.
+
+- [ ] `REV-088-01` **[GATE_C][LUNA] Wire the product-slice release gate into the real release bundle path or the release-gate page.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=make the proven product slice release gate actually decide a real release instead of only its own test`.
+  - **TEST:** `TestTodo_REV_088_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_088_01`; `INTEGRATION=TestTodo_REV_088_01_Integration`; `CONFORMANCE=TestTodo_REV_088_01_Conformance`.
+  - **RED:** GAP against `ALIGN-064`: `conformance.DefaultReleaseGate` and `conformance.ReleaseEvidence` have zero non-test callers (`grep -rln "transport/conformance\"" --include=*.go . | grep -v _test.go` returns nothing); `tools/policy/release.RequiredPolicyReports` lists only `driftgate`, `apigate`, `substratecoverage`, `cleancheckout`, none of the eight gates `ALIGN-064`'s own `TestTodo_ALIGN_064_Conformance` requires; `internal/humanwork/productui/page_release_gate.go` renders a permanent `EmptyState` because "the governed release service is not published to this UI yet".
+  - **GREEN:** either `tools/policy/release.Build` collects `ALIGN-064`'s eight gate digests as additional required policy reports and refuses a bundle missing one (with `VerifyBundle` re-checking them), or a governed release service publishes `conformance.ReleaseGate` decisions that `page_release_gate.go` renders instead of the empty state; a test proves a bundle or page reflects a real `ReleaseGate.Admit` denial when one named proof is missing.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/conformance/releasegate.go`, `tools/policy/release/release.go`, `internal/humanwork/productui/page_release_gate.go`, [default product alignment](specs/default-product-slice-alignment.md).
+
+### R080. §66 / Administration operations and release
+
+Checked all 18 items (`WEB-229` through `WEB-246`), all ticked, in `internal/humanwork/productui`. Every named `TestTodo_WEB_2[2-4][0-9]` function exists in source (not just build cache), `internal/humanwork/productui` is confirmed wired into `cmd/hcmnext` and `cmd/worker` via `go list -deps`, and `WEB-229`, `WEB-241` through `WEB-246` are genuinely implemented (`page_admin.go`'s admin home renders real capability cards that mark unpublished actions unavailable rather than faking them; `web242_page_modules.go`'s registry, `feature_registry.go`'s RBAC CRUD ceilings, and the keyboard/table-loading gates all show real logic and real assertions). The most important finding: 11 of the 18 items — `WEB-230` through `WEB-240` (Policy Studio, policy simulation, configuration center, integration operations, reconciliation workbench, privacy telemetry, performance budgets, browser matrix, assistive tech, disaster recovery, release gate) — are ticked complete claiming "implement the X," but every one of their route adapters (`page_policy_studio.go`, `page_policy_simulation.go`, `page_configuration_center.go`, `page_integration_operations.go`, `page_reconciliation_workbench.go`, `page_privacy_telemetry.go`, `page_performance_budgets.go`, `page_browser_matrix.go`, `page_assistive_tech.go`, `page_disaster_recovery.go`, `page_release_gate.go`) renders nothing but an `EmptyState` with a comment stating "the governed service is not published to this UI yet ... until then the UI will not simulate one." This is not a hidden defect: the codebase's own later evidence, `UXAUDIT-011` (2026-09-12, `internal/humanwork/productui/uxaudit011_studio_admission_test.go`), explicitly names these same eleven pages as "registry entries backed by no real service" and excludes them from navigation via `Admitted: false` — but no todo item was ever opened to build the actual capabilities or to correct the misleading ticked status of `WEB-230`–`WEB-240`. Two follow-on items, `REV-037-01`/`REV-037-02`/`REV-037-03`, already track wiring the backend libraries (`internal/operations/explorer`, `authzsim`, `internal/platform/config`, `internal/operations/admincenter/*`) into `AdminService`/`hcmctl` for operator CLI access, but nothing tracks wiring the product-UI pages themselves to that backend once it exists, so this GAP is not a duplicate.
+
+- [ ] `REV-080-01` **[GATE_C][SOL_HIGH] Build real Policy Studio, policy simulation, configuration center, integration-operations and reconciliation-workbench content behind their admitted admin pages.**
+  - **Depends:** `REV-037-01`, `REV-037-02`, `REV-037-03`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.OPERATIONS,BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=an administrator opening these five ticked-complete admin pages today gets an unavailable placeholder instead of the claimed capability`.
+  - **TEST:** `TestTodo_REV_080_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_080_01`; `SECURITY=TestTodo_REV_080_01_Security`; `INTEGRATION=TestTodo_REV_080_01_Integration`; `GOLDEN=TestTodo_REV_080_01_Golden`.
+  - **RED:** GAP: `WEB-230`, `WEB-231`, `WEB-232`, `WEB-233` and `WEB-234` are ticked complete claiming the Policy Studio, policy simulation, configuration center, integration operations and reconciliation workbench are implemented, but `internal/humanwork/productui/page_policy_studio.go`, `page_policy_simulation.go`, `page_configuration_center.go`, `page_integration_operations.go` and `page_reconciliation_workbench.go` each return only `ui.CreateElement(EmptyState, ...)`, and `UXAUDIT-011`'s evidence names all five as "backed by no real service."
+  - **GREEN:** each page renders live content sourced from the AdminService RPCs `REV-037-01`/`REV-037-02`/`REV-037-03` add (ledger/AuthZ explorer and simulator for the studio and simulation pages, the connector/config operations center for configuration center and integration operations, the incident/repair center for the reconciliation workbench); the registry's `Admitted` flag flips to true only once real content replaces the fallback; a live server check shows governed data instead of the unavailable message.
+  - **REFACTOR:** keep each page a thin presentation adapter over the AdminService client; no page invents or caches operation data locally.
+  - **Refs:** `internal/humanwork/productui/page_policy_studio.go`, `internal/humanwork/productui/page_policy_simulation.go`, `internal/humanwork/productui/page_configuration_center.go`, `internal/humanwork/productui/page_integration_operations.go`, `internal/humanwork/productui/page_reconciliation_workbench.go`, `internal/humanwork/productui/registry.go`, [integration platform](specs/integration-platform.md), [authorization plan](specs/organization-scope-and-authz.md), [ledger reconciliation and repair](specs/transaction-ledger-reconciliation-and-repair.md).
+
+- [ ] `REV-080-02` **[GATE_C][SOL_HIGH] Deliver real evidence or drop the page framing for the frontend telemetry, performance-budget, browser-matrix, assistive-tech, disaster-recovery and release-gate stubs.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.OPERATIONS,BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=six release-quality gates ticked complete currently ship no telemetry performance browser accessibility or recovery evidence at all`.
+  - **TEST:** `TestTodo_REV_080_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_080_02`; `GOLDEN=TestTodo_REV_080_02_Golden`; `RECOVERY=TestTodo_REV_080_02_Recovery`; `CONFORMANCE=TestTodo_REV_080_02_Conformance`; `SECURITY=TestTodo_REV_080_02_Security`.
+  - **RED:** GAP: `WEB-235` through `WEB-240` are ticked complete claiming privacy-safe telemetry, performance budgets, a browser matrix, assistive-tech qualification, disaster recovery and a release gate are implemented, but `page_privacy_telemetry.go`, `page_performance_budgets.go`, `page_browser_matrix.go`, `page_assistive_tech.go`, `page_disaster_recovery.go` and `page_release_gate.go` each render only `EmptyState`, and `UXAUDIT-011`'s evidence lists all six among the "eleven further registry entries backed by no real service" excluded from navigation.
+  - **GREEN:** each capability is delivered as the artifact its nature actually requires — a wired telemetry pipeline, a CI-enforced performance budget, a maintained browser qualification matrix, an assistive-technology audit report, a tested disaster-recovery runbook with drill evidence, and a release-gate check a real deploy pipeline consults — with its page surfacing that real evidence, or the page is removed from the registry if the capability is not properly a product page.
+  - **REFACTOR:** none beyond removing the `EmptyState` placeholder once real evidence exists; do not add a second ad hoc status source outside the existing registry.
+  - **Refs:** `internal/humanwork/productui/page_privacy_telemetry.go`, `internal/humanwork/productui/page_performance_budgets.go`, `internal/humanwork/productui/page_browser_matrix.go`, `internal/humanwork/productui/page_assistive_tech.go`, `internal/humanwork/productui/page_disaster_recovery.go`, `internal/humanwork/productui/page_release_gate.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+### R087. §67 / Operations and evidence
+
+Checked ALIGN-049 through ALIGN-056 (lines 19076-19165): all eight items are ticked, and each named test (`TestTodo_ALIGN_049`..`_056` plus their Property/Golden/Security/Integration/Fault/Conformance siblings) exists and matches the file layout claimed in the evidence lines, in `internal/operations/authorizedhealth`, `internal/operations/repairworkbench`, `internal/operations/productcorrelation` and `internal/operations/releaseevidence` (release.go, skew.go, rollback.go, chronology.go). The library code itself is real and well tested. The gap is integration: `grep -rl` for each of these four package import paths across the whole repository returns nothing outside the package's own directory and its own tests, and `go list -deps` on `./cmd/hcmnext`, `./cmd/worker`, `./cmd/projector` and `./cmd/scheduler` shows none of the four packages reachable from any binary. The admin gRPC surface (`schema/proto/hcmnext/admin/v1/admin_service.proto`) has `GetWorkerState`, `GetReleaseManifest`, `ListIntents` and `ExplainTransaction` but no freshness/health/repair-workbench/correlation/release-evidence method, and `internal/transport/admin/server.go`'s `GetReleaseManifest` renders a static discovery-document digest unrelated to `releaseevidence.Release`. The spec these items claim (`planning/specs/default-product-slice-alignment.md` lines 99-105, "Administration and operations") explicitly requires "projection freshness, outbox, connector and reconciliation status", "bounded repair workbench" and "privacy-safe telemetry correlation" as part of the product surface an operator reaches, not as a standalone library. So every item's own GREEN language ("safe presentation," "without transferring authority between presentation, business and persistence layers") is unproven: there is no presentation layer at all for this code today.
+
+- [ ] `REV-087-01` **[GATE_C][SOL_HIGH] Wire authorized health, repair-workbench and telemetry-correlation into a reachable operator route.**
+  - **Depends:** `ALIGN-052`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.OPERATIONS; DIRECT=none; WHY=an operator can only inspect freshness health and repair findings if a running service exposes the existing packages`.
+  - **TEST:** `TestTodo_REV_087_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_087_01`; `INTEGRATION=TestTodo_REV_087_01_Integration`; `SECURITY=TestTodo_REV_087_01_Security`; `GOLDEN=TestTodo_REV_087_01_Golden`.
+  - **RED:** GAP: `ALIGN-049`, `ALIGN-050`, `ALIGN-051`, `ALIGN-052` and `ALIGN-053` are ticked, but `grep -rl "operations/authorizedhealth\|operations/repairworkbench\|operations/productcorrelation" --include=*.go .` matches nothing outside those three packages' own directories, and `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` contains none of them; `schema/proto/hcmnext/admin/v1/admin_service.proto` has no freshness, workflow-health, outbox-health, repair-workbench or correlation RPC, so no operator can reach the audited contracts through a running binary.
+  - **GREEN:** an admin/operations gRPC or HTTP method calls `authorizedhealth`'s freshness/workflow/outbox views, `repairworkbench.Submit` and `productcorrelation`'s correlation view; the method appears in `go list -deps` on the serving binary; an end-to-end test authenticates as an operator, calls the route, and gets the same tenant-scoped, digest-stable output the package's own `_Golden`/`_Property` tests prove, while a non-operator caller is refused before the packages run.
+  - **REFACTOR:** keep the new route thin and delegate every decision to the existing packages rather than re-implementing their checks at the transport layer.
+  - **Refs:** `internal/operations/authorizedhealth/authorizedhealth.go`, `internal/operations/repairworkbench/repairworkbench.go`, `internal/operations/productcorrelation/productcorrelation.go`, `internal/transport/admin/server.go`, `schema/proto/hcmnext/admin/v1/admin_service.proto`, [default product alignment](specs/default-product-slice-alignment.md).
+
+- [ ] `REV-087-02` **[GATE_C][SOL_HIGH] Wire release-evidence recording, skew detection and rollback proof into a serving binary and unify with the release gate.**
+  - **Depends:** `ALIGN-056`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.OPERATIONS; DIRECT=none; WHY=release evidence and rollback proof must be recorded and read by a running service not only by its own tests`.
+  - **TEST:** `TestTodo_REV_087_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_087_02`; `INTEGRATION=TestTodo_REV_087_02_Integration`; `FAULT=TestTodo_REV_087_02_Fault`; `RECOVERY=TestTodo_REV_087_02_Recovery`.
+  - **RED:** GAP: `ALIGN-054`, `ALIGN-055` and `ALIGN-056` are ticked, but `internal/operations/releaseevidence` (release.go, skew.go, rollback.go) has zero importers outside its own directory and is absent from `go list -deps` on every `cmd/*` binary; the code path that is actually wired into a binary for the neighboring `ALIGN-064` ("Gate default product-slice release") is `internal/transport/conformance/releasegate.go`, whose `ReleaseGate`/`ReleaseEvidence` types and digest checks never call `releaseevidence.Release` or `releaseevidence.Detect`, so the plan's two "release evidence" mechanisms are disconnected and only one is ever exercised at runtime.
+  - **GREEN:** the deploy/release path (e.g. `hcmctl` or the admin service) calls `releaseevidence.Release` to record the binary's own release evidence and `releaseevidence.Detect` to compare a running cell against it, and `internal/transport/conformance/releasegate.go`'s gate consumes that same evidence rather than a parallel digest scheme; an integration test starts the embedded PostgreSQL migration harness, records a release, restarts the process, and proves `Detect` reports no skew while a deliberately mismatched binary is refused by the same gate `ALIGN-064` exercises.
+  - **REFACTOR:** fold `releasegate.go`'s evidence shape into `releaseevidence` so the plan has one release-evidence source of truth instead of two independently tested ones.
+  - **Refs:** `internal/operations/releaseevidence/release.go`, `internal/operations/releaseevidence/skew.go`, `internal/operations/releaseevidence/rollback.go`, `internal/transport/conformance/releasegate.go`, [default product alignment](specs/default-product-slice-alignment.md).
+
+### R089. §68 Backend performance optimization
+
+Checked all six PERFOPT items (lines 19256-19325). Every named package exists (`internal/data/pgxadapter`, `internal/transport/edge`, `internal/data/ledger` and its `checkpoint`/`evidence` subpackages, `internal/data/dbport`, `internal/engines/cycle`, `internal/transport/envelope`, `tools/policy/regexhoist`, `tools/policy/fkindex`), every named `TestTodo_PERFOPT_00N*`/`BenchmarkTodo_PERFOPT_00N` function is present by grep, and `go list -deps` confirms `pgxadapter`, `transport/edge`, `data/ledger` and `data/dbport` are all reachable from `cmd/hcmnext`/`cmd/worker`/`cmd/projector`/`cmd/scheduler`, not library-only. Spot checks matched the evidence text closely: PERFOPT-001's `hygieneSQL` constant in `internal/data/pgxadapter/pgxadapter.go:166` is exactly the single simple-protocol statement described (DISCARD ALL's components spelled out because DISCARD ALL itself cannot appear in a multi-statement message); PERFOPT-002's context carrier and fingerprint check are in `internal/transport/invocation.go:264-311`; PERFOPT-003's regexhoist scan list matches its claimed package set and the flagged `regexp.MustCompile` calls remaining in those packages are all legitimate package-level `var` declarations, not indented in-function compiles; PERFOPT-005's `migrations/00262_fk_indexes.sql` exists with a per-index citation comment and the 87/65/22 counts in its header match the evidence line. This section is genuinely well-implemented and wired.
+
+The one real gap: PERFOPT-004's own evidence line only converts four hot paths (ledger multi-stream append, checkpoint store, intentcontrol, outbox) to the new `dbport.Batcher`/`ExecAll` primitive, but the section preamble's own baseline claim is "twenty-two stores issue row-at-a-time statements inside loops." A live grep across `internal/data` for `Exec`/`QueryRow` calls inside `for range` loops turns up dozens of files never mentioned by PERFOPT-004, including concrete per-row loops in `internal/data/meritstore/emission.go` (a `QueryRow` per child at lines 69-78, then an `Exec` INSERT per child at lines 80-94, during compensation-cycle finalize) and `internal/data/leavestore/store.go:129-137` (one INSERT per entitlement segment). `dbport.ExecAll` (`internal/data/dbport/batch.go`) is generic and driver-agnostic, so these are straightforward adoptions PERFOPT-004 simply didn't reach; nothing in the plan tracks finishing the other ~18 stores.
+
+- [ ] `REV-089-01` **[GATE_C][SOL_LOW] Extend dbport.ExecAll batching to the row-at-a-time stores PERFOPT-004 left unconverted.**
+  - **Depends:** `PERFOPT-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=finish the batching primitive rollout the 2026-09-07 baseline scoped to twenty-two stores but only four received`.
+  - **TEST:** `TestTodo_REV_089_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_089_01`; `INTEGRATION=TestTodo_REV_089_01_Integration`; `BENCHMARK=BenchmarkTodo_REV_089_01`.
+  - **RED:** GAP: PERFOPT-004 is ticked complete and cites a baseline of twenty-two row-at-a-time stores, but its GREEN only names `internal/data/ledger`, `internal/data/ledger/checkpoint`, `internal/data/intentcontrol` and `internal/data/outbox`. `internal/data/meritstore/emission.go:69-78` issues one `QueryRow` per child compensation intent and lines 80-94 issue one `INSERT` per child inside the same `for _, child := range children` loop; `internal/data/leavestore/store.go:129-137` issues one `INSERT` per entitlement segment in a loop. Neither references `dbport.ExecAll` or PERFOPT-004.
+  - **GREEN:** a policy sweep (or documented manual audit) enumerates every `internal/data/*` file with an `Exec`/`QueryRow` call inside a `for`/`range` loop; each qualifying store either adopts `dbport.ExecAll` (batching the per-row calls into one round trip, matching the pattern PERFOPT-004 established) or is recorded as an explicit, justified exception; `meritstore.EmitChildren` (or its equivalent) batches its per-child insert into one `ExecAll` call, a benchmark shows statement count per multi-child cycle finalize fell, and existing merit tests (duplicate-child, conflict-digest, idempotent finalize) still pass unchanged.
+  - **REFACTOR:** land the audit as a policy package like `tools/policy/fkindex` so a new store with a per-row loop is caught rather than accumulating silently.
+  - **Refs:** `internal/data/dbport/batch.go`, `internal/data/meritstore/emission.go`, `internal/data/leavestore/store.go`, [Master plan quantitative envelope](plan.md).
+
+### R093. §72 September 14 live-UI regression findings
+
+Checked all eleven `UXSCAN-*` items (lines 19958-20069). The referenced packages (`internal/humanwork/productui`, `tools/uxqual/productclient`, `tools/uxqual/render/journey`, `tools/uxqual/presentation`) exist and each item has a matching `uxscanNNN_*_test.go` file. `REV-103-02` already flags UXSCAN-001 to UXSCAN-007, UXSCAN-009 and UXSCAN-010 as ticked with no evidence line, and separately flags UXSCAN-006 and UXSCAN-011 for named tests that do not exist as functions (confirmed: `TestTodo_UXSCAN_006` and `TestTodo_UXSCAN_011` are absent; only differently-suffixed functions exist). The one item REV-103-02 does not mention is UXSCAN-008, which does have passing, correctly-named tests, so it survives that check — but a deeper read shows it is ticked despite its own 2026-09-14 progress note admitting the feature is not built: `productclient.AccessPreview` (the "server-resolved effective-access summary" the GREEN requires) is constructed nowhere outside its own test file (`grep -rn "AccessPreview{" --include=*.go .` outside `_test.go` returns nothing), `tools/uxqual/productclient` is absent from `go list -deps ./cmd/hcmnext` and `./cmd/worker`, and `internal/transport/journey/organization_visibility.go:15` still grants `hcm_admin`/`comp_admin` every worker before any visibility policy runs — exactly the admin-override gap the progress note names as unresolved. This is the same defect `RBAC-RT-014`/`RBAC-RT-015` (lines 22249-22323) already track as open work ("the effective-access preview ... promised ... never delivered on the server"), so the fix itself is already planned; what is missing is a correction of UXSCAN-008's own checkbox, which currently misreports the area as done.
+
+- [x] `REV-093-01` **[GATE_B][SOL_LOW] Untick UXSCAN-008 or land the server-resolved access preview it claims.**
+  - **Evidence (2026-09-19):** landed rather than unticked: `JourneyService.PreviewRoleAccess` resolves the preview from the saved role store and live workforce with the same `VisibilityEvaluator` as the directory filter (`roleaccess/access_preview.go`), administrator-only, and the visibility editor shows current versus proposed inline. `hcm_admin`/`comp_admin` report every unit, and their editor shows only `Everyone (administrator override)` with the reason instead of inert controls. Tests `TestTodo_REV_093_01`, `_Regression`, `_Security` (`go test ./internal/experience/roleaccess/`), `_Golden`, `_ClientProjection` (`go test ./tools/uxqual/productclient/`), `_Transport` (`go test -run REV_093_01 ./internal/transport/journey/`), `_Integration` (`go test -run REV_093_01 ./internal/application/`), `_AdministratorEditor` (`go test -run REV_093_01 ./internal/humanwork/productui/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ACCESS,BI.SECURITY; DIRECT=none; WHY=a ticked todo must not claim a server capability that no binary serves and that a bypass still defeats`.
+  - **TEST:** `TestTodo_REV_093_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_093_01`; `GOLDEN=TestTodo_REV_093_01_Golden`; `SECURITY=TestTodo_REV_093_01_Security`; `INTEGRATION=TestTodo_REV_093_01_Integration`.
+  - **RED:** GAP: UXSCAN-008 is ticked `[x]` (`planning/todos.md:20028`) with GREEN requiring "an authorized, server-resolved summary" and a "current-versus-proposed preview," but its own 2026-09-14 progress note (`planning/todos.md:20038`) states the proposed-scope projection still cannot resolve inherited roles or admin overrides and "this todo remains open"; `productclient.AccessPreview` (`tools/uxqual/productclient/access_preview.go`) is a pure validation type built only by its own tests, `tools/uxqual/productclient` does not appear in `go list -deps ./cmd/hcmnext` or `./cmd/worker`, and `visibleWorkforce` (`internal/transport/journey/organization_visibility.go:15`) still returns every worker to `hcm_admin`/`comp_admin` before any role or visibility policy runs.
+  - **GREEN:** either the checkbox is reopened to match the todo's own recorded evidence, or a transport call resolves `AccessPreview` from durable role/visibility data (including the admin-override case) and the visibility editor consumes it, with a security test proving `hcm_admin`/`comp_admin` previews show their true unrestricted scope rather than a silently narrowed one.
+  - **REFACTOR:** none.
+  - **Refs:** `planning/todos.md` (UXSCAN-008, `RBAC-RT-014`), `internal/transport/journey/organization_visibility.go`, `tools/uxqual/productclient/access_preview.go`, [organization scope and authz](specs/organization-scope-and-authz.md).
+
+### R084. Governed work and mutation loop
+
+Reviewed `ALIGN-025` through `ALIGN-032` (`planning/todos.md:18806-18895`), all ticked `[GATE_C]` with dated evidence in `internal/intent/draftstore`, `internal/application` and `internal/intent/app`. All 8 primary tests (`TestTodo_ALIGN_025` through `TestTodo_ALIGN_032`) exist and their bodies match the evidence text: draft persistence, proposal-revision binding, write-free simulation, decision-to-digest binding, workflow-to-product-stage projection, action-plan binding, submission idempotency and correction routing. The tests themselves are real and well built, but a consistent pattern undercuts the section's "governed work and mutation loop" claim: several capabilities are proven only against the type in isolation and are never invoked from the code path a real request takes. `internal/intent/draftstore` (`ALIGN-025`/`ALIGN-026`) has zero importers anywhere in the repo and is absent from `go list -deps ./cmd/...` for every binary, so the durable draft store this section says it built is entirely inert. `ActionPlanBinding`/`BindAcceptedAction` (`ALIGN-030`), `SubmissionRegistry` (`ALIGN-031`) and `RouteCorrection` (`ALIGN-032`) compile into the served binaries through `internal/intent/app`, but each is called only from its own test file: `execute_intent.go`, `execution.go` and `cell.go` never construct an `ActionPlanBinding`, no submission handler calls `SubmissionRegistry.Submit`, and `internal/transport/journey/http.go` has no route for correct, repair, withdraw or rebase. The most important gap is the draft store: it is marked done with a 97%+ coverage figure for durability guarantees that no real product draft ever touches.
+
+- [ ] `REV-084-01` **[GATE_C][TERRA] Wire the durable draft store and proposal-revision binding into the served product flow.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=the draftstore package proves durable draft semantics in isolation but no served binary or handler imports it so the guarantee never reaches a real request`.
+  - **TEST:** `TestTodo_REV_084_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_084_01`; `INTEGRATION=TestTodo_REV_084_01_Integration`; `SECURITY=TestTodo_REV_084_01_Security`.
+  - **RED:** GAP against `ALIGN-025`/`ALIGN-026`. `grep -rln "intent/draftstore" --include=*.go .` returns only files inside `internal/intent/draftstore` itself; `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` never names `internal/intent/draftstore`. The 97%+ coverage and durability evidence cited for `ALIGN-025`/`ALIGN-026` covers a package no served binary can reach.
+  - **GREEN:** a real save-and-submit flow through the application entrypoint products actually use persists through `draftstore.Port`, and `Bind`/`Check` from `binding.go` classify `CURRENT`/`DRAFT_CHANGED`/`SUPERSEDED`/`TAMPERED` for that same flow, proven by driving the served handler rather than the store directly.
+  - **REFACTOR:** expose `draftstore.Port` through the same application-layer submission path `internal/intent/app` already serves, rather than leaving it a second, unreachable store.
+  - **Refs:** `internal/intent/draftstore/draftstore.go`, `internal/intent/draftstore/binding.go`, `internal/application`, [default product alignment](specs/default-product-slice-alignment.md).
+
+- [ ] `REV-084-02` **[GATE_B][SOL_HIGH] Invoke action-plan binding from the real intent execution path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=COMPOSITE; SETS=BI.ALL; DIRECT=none; WHY=BindAcceptedAction is unit tested but the execution path that runs accepted actions never calls it so no accepted action is provably bound to its transaction plan in production`.
+  - **TEST:** `TestTodo_REV_084_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_084_02`; `GOLDEN=TestTodo_REV_084_02_Golden`.
+  - **RED:** GAP against `ALIGN-030`. `grep -rln "BindAcceptedAction\|ActionPlanBinding{" --include=*.go .` outside `internal/intent/app` returns nothing, and `execute_intent.go`, `execution.go` and `cell.go` in that package never reference `BindAcceptedAction` or `ActionPlanBinding`, so the binding this item claims done has no caller in the execution flow.
+  - **GREEN:** running a real accepted action through `execute_intent.go`'s entrypoint yields a record carrying an `ActionPlanBinding` whose `VerifyDigest` succeeds, and a tampered or plan-mismatched action is refused at that same entrypoint.
+  - **REFACTOR:** call `BindAcceptedAction` at the point in `execute_intent.go` where an accepted action is first admitted, rather than as a parallel, uncalled proof.
+  - **Refs:** `internal/intent/app/actionplan.go`, `internal/intent/app/execute_intent.go`, [default product alignment](specs/default-product-slice-alignment.md).
+
+- [ ] `REV-084-03` **[GATE_B][SOL_HIGH] Enforce the semantic-idempotency registry on real product submissions.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=SubmissionRegistry proves duplicate detection in isolation but nothing outside its own package constructs or calls it so a real duplicate submission is never deduplicated`.
+  - **TEST:** `TestTodo_REV_084_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_084_03`; `RACE=TestTodo_REV_084_03_Race`.
+  - **RED:** GAP against `ALIGN-031`. `grep -rln "SubmissionRegistry\|NewSubmissionRegistry\|ProductSubmission{" --include=*.go .` outside `internal/intent/app` returns nothing, meaning no submission handler in the served application constructs a registry or calls `Submit`.
+  - **GREEN:** submitting the same product action twice through the real submission entrypoint returns the first `SubmissionRecord` on the second call instead of creating a second one, including under concurrent duplicate submissions.
+  - **REFACTOR:** hold one tenant-scoped `SubmissionRegistry` behind the actual submission handler instead of leaving it test-only.
+  - **Refs:** `internal/intent/app/idempotency.go`, [default product alignment](specs/default-product-slice-alignment.md).
+
+- [ ] `REV-084-04` **[GATE_B][SOL_HIGH] Expose governed correction and repair routes over a real transport surface.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=RouteCorrection computes correction and repair routing decisions but no HTTP handler ever calls it so the routes this item claims to expose do not exist for a client`.
+  - **TEST:** `TestTodo_REV_084_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_084_04`; `INTEGRATION=TestTodo_REV_084_04_Integration`.
+  - **RED:** GAP against `ALIGN-032`, whose title says "Expose governed correction and repair routes." `grep -rln "RouteCorrection" --include=*.go .` finds callers only inside `correction.go` and its own test file; the two other hits repo-wide (`internal/workflow/conformance/talent/definition.go`, `ports.go`) are an unrelated constant, `RouteCorrectionRequiresNewRevision`, not calls to this function. `internal/transport/journey/http.go` has zero matches for correct, repair, withdraw or rebase.
+  - **GREEN:** sending a correction request to the served HTTP transport returns a response reflecting `RouteCorrection`'s decision, including the superseded-revision-routes-to-rebase and tampered-content-refused cases.
+  - **REFACTOR:** add a work-loop correction endpoint in `internal/transport/journey` (or the equivalent served router) that calls `RouteCorrection`, rather than leaving it an uncalled library function.
+  - **Refs:** `internal/intent/app/correction.go`, `internal/transport/journey/http.go`, [default product alignment](specs/default-product-slice-alignment.md).
+
+### R086. §67 / Default product definitions (ALIGN-041 through ALIGN-048)
+
+Checked `tools/policy/defaultproduct` (ALIGN-041..047) and `tools/policy/defaultactivation` (ALIGN-048): both packages exist, are well-tested (all named `TestTodo_ALIGN_0{41..48}` PRIMARY/PROPERTY/GOLDEN/SECURITY/CONFORMANCE functions are present and, per their own evidence notes, pass), and implement exactly what their doc comments claim as pure in-memory compilers (tokens, shell, work-loop pages, failure pages, routes, zero-override composition, activation manifests). The gap is wiring: `grep -rn "tools/policy/defaultproduct"` and `grep -rn "tools/policy/defaultactivation"` across the repo return zero hits outside the packages' own (in-package) test files, and `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` contains neither import path. The actual served shell/page/route pipeline that IS in `cmd/hcmnext`'s and `cmd/worker`'s dependency graphs runs through `tools/uxqual/ssrshell` -> `tools/uxqual/pagedef` + `tools/uxqual/render/page`, a separate implementation that never calls into `defaultproduct`'s `Shell`/`PageRegistry`/`RouteTable`/`Composition` types or `defaultactivation`'s `Activate`. So the eight tickets' evidence entries ("Seed the authorization-resolved application shell", "Register default routes against admitted capabilities", "Reject unadmitted default feature activation") are true only of an isolated library that no running binary consumes; nothing in the served product actually seeds tokens, resolves the shell, or refuses an unadmitted activation through this code path. This is the most important finding: eight GATE_C tickets are ticked GREEN on unit-test evidence for a policy package with zero production callers.
+
+- [ ] `REV-086-01` **[GATE_C][TERRA] Wire the served application shell, work-loop pages and default routes to the tools/policy/defaultproduct compiler instead of leaving it unimported.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=the transport layer must render the authorization-resolved shell and routes it actually serves from the same compiled definitions the policy package proves rather than from an unrelated unimported computation`.
+  - **TEST:** `TestTodo_REV_086_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_086_01`; `INTEGRATION=TestTodo_REV_086_01_Integration`; `SECURITY=TestTodo_REV_086_01_Security`.
+  - **RED:** GAP against ALIGN-041, ALIGN-042, ALIGN-043, ALIGN-044, ALIGN-045, ALIGN-046 and ALIGN-047 (all ticked `[x]`): `grep -rn "tools/policy/defaultproduct" --include=*.go .` matches only files inside `tools/policy/defaultproduct` itself, and `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` contains no `tools/policy/defaultproduct` entry, so no served request path resolves through `Shell.Resolve`, `PageRegistry`, `RouteTable.Resolve` or `Composition`; the served shell/route/page pipeline is the separate `tools/uxqual/ssrshell`/`pagedef`/`render/page` stack (confirmed present in the same `go list -deps` output), which does not import `defaultproduct`.
+  - **GREEN:** an integration test drives a real request through the `cmd/hcmnext`-served path (transport -> ssrshell/pagedef/render/page or a documented replacement) for a fixed admitted-capability set and asserts the shell entries, work-loop pages and route table returned to the caller are byte-for-byte the ones `defaultproduct.Composition` computes for that same capability set, and that a capability absent from the admitted set never yields a route, page or shell entry in the response.
+  - **REFACTOR:** if `ssrshell`/`pagedef` already resolve capabilities through `internal/capability/binding`, fold `defaultproduct`'s resolution into that existing path rather than running two independent authorization-resolution implementations side by side.
+  - **Refs:** `tools/policy/defaultproduct`, `tools/uxqual/ssrshell`, `tools/uxqual/pagedef`, `tools/uxqual/render/page`, `internal/capability/binding`, [default product alignment](specs/default-product-slice-alignment.md).
+
+- [ ] `REV-086-02` **[GATE_C][SOL_HIGH] Enforce tools/policy/defaultactivation's admitted-manifest check on the runtime feature-activation path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=runtime activation of a domain-pack feature must be refused by the same authorization check the policy package proves in isolation so an unadmitted feature cannot become product authority`.
+  - **TEST:** `TestTodo_REV_086_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_086_02`; `GOLDEN=TestTodo_REV_086_02_Golden`; `SECURITY=TestTodo_REV_086_02_Security`.
+  - **RED:** GAP against ALIGN-048 (ticked `[x]`, evidence in `tools/policy/defaultactivation`): `grep -rn "tools/policy/defaultactivation" --include=*.go .` matches only the package's own files, and none of `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` includes it, so no runtime activation request currently calls `Activate`; a tenant-facing toggle for a domain-pack feature outside the admitted manifest has no proven refusal path in the served binaries, only in the package's own unit tests.
+  - **GREEN:** an integration test locates or adds the runtime entry point that turns a `DOMAIN_PACK_DEFAULT`/`AVAILABLE_NOT_ENABLED` feature on for a tenant, drives an activation request naming a feature outside the admitted manifest through that entry point, and asserts it is refused end-to-end (no product-authority state change, no shell/route exposure) using `defaultactivation.Activate` or an equivalent call on the served path, plus a positive case proving an admitted feature does activate.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/policy/defaultactivation`, `tools/policy/defaultproduct`, [default product alignment](specs/default-product-slice-alignment.md).
+
+### R095. §74 September 17 live UI and UX audit findings
+
+Reviewed all 26 `UXLIVE-001..026` items (lines 20248-20543), every one ticked with detailed live-browser evidence citing real files (`internal/humanwork/productui`, `internal/intent/app`, `tools/uxqual/journeyclient`, `tools/uxqual/render/journey`) and passing tests confirmed by grep (`uxlive004_test.go`, `uxlive007_test.go`, `uxlive009_test.go`, `uxlive023_test.go`, `uxlive024_test.go` all exist). The section is unusually disciplined: several items are explicitly closed with a stated open remainder rather than silently marked fully done, and those remainders are real, verified gaps rather than plan-vs-code drift. The most important finding is that `UXLIVE-004`'s ticked fix prefills the edit-proposal dialog but leaves its refused-submit path with no `aria-invalid`, no inline message and no focus move — confirmed absent by grep of the dialog's rendering code, which still routes validation only through server round trips (`FocusInvalidRevision`, `Field.Error` in `tools/uxqual/render/journey/contract.go`). The other four gaps below are narrower but each independently verified against source rather than taken on the todo's word.
+
+- [x] `REV-095-01` **[GATE_B][SOL_HIGH] Wire client-side required-field validation into the edit-proposal dialog's aria-invalid and focus contract.**
+  - **Evidence (2026-09-19):** `render/journey/required_fields.go` (`MissingRequired`, `WithFieldErrors`, driven by `Field.Required`) and `journeyclient/edit_validation.go` refuse a blank field before any `EditProposal` call. Live defects found and fixed: the confirm dialog's slide-in `transform:none` cancelled its centring, leaving fields and actions off-screen (now inset-centred, height-capped with a pinned action bar, a sheet on phones, the body spaced and the committing button primary), and invalid-field focus gave up after 8 frames. Live: blank target grade and business reason each get `aria-invalid`, `Complete this field.` via `aria-describedby`, focus lands on target grade, Escape returns focus to the trigger. Tests `TestTodo_REV_095_01`, `_Required`, `_Browser`, `TestConfirmSurfaceIsCenteredWithoutTransform` (`go test ./tools/uxqual/journeyclient/ ./tools/uxqual/render/journey/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS; DIRECT=none; WHY=a form that fails silently without stating which field is wrong or moving focus there wastes an approver's confirmation attempt`.
+  - **TEST:** `TestTodo_REV_095_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_095_01`; `BROWSER=TestTodo_REV_095_01_Browser`.
+  - **RED:** GAP: `UXLIVE-004` is ticked, but its own evidence states "a refused submit still produces no inline message, no `aria-invalid` and no focus move to the first invalid field; the renderer has the machinery (`Field.Error`, `Page.FocusInvalidRevision`, `OnFocusField`) but it is driven by server responses". Verified live in source: `tools/uxqual/render/journey/contract.go` and `internal/humanwork/productui/validation.go` define the machinery, but no call site marks `target_grade`, `effective_date`, `business_reason` or `reason` invalid before a server round trip on the edit dialog.
+  - **GREEN:** submitting the edit-proposal dialog with an empty `target_grade`, `effective_date`, `business_reason` or `reason` marks each one `aria-invalid`, links a visible inline message through `aria-describedby`, and moves focus to the first invalid field without waiting on the server; a submit with all fields populated passes through unchanged.
+  - **REFACTOR:** drive the check off the same `Field.Required` flag `contract.go` already carries instead of adding a second per-field rule set.
+  - **Refs:** `tools/uxqual/render/journey/contract.go`, `internal/humanwork/productui/validation.go`, [promotion workflow live audit remediation](#70-promotion-workflow-live-audit-remediation).
+
+- [x] `REV-095-02` **[GATE_B][TERRA] Reject a token-shaped business reason at proposal submission, not only at display.**
+  - **Evidence (2026-09-19):** one predicate, `internal/humanwork/reasontext.TokenShaped` (a leaf package so the wasm client can use it without linking the server workspace package), backs both the display formatter and `workspace.ValidateBusinessReason`, which Propose, EditProposal and ProposePromotion call before anything is recorded (`journey.input.reason_not_prose`). Tests `TestTodo_REV_095_02` (`go test -run REV_095_02 ./internal/intent/app/`), `_Property` (`go test ./internal/humanwork/workspace/`), `TestTokenShaped` (`go test ./internal/humanwork/reasontext/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS,BI.EXPERIENCE; DIRECT=none; WHY=an unenforced token-shaped reason still reaches the durable record whenever the display layer that would catch it is skipped`.
+  - **TEST:** `TestTodo_REV_095_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_095_02`; `PROPERTY=TestTodo_REV_095_02_Property`.
+  - **RED:** GAP: `UXLIVE-009` is ticked, but its own evidence states "nothing yet stops a new proposal being submitted with a token instead of prose" and that seeded and fixture reasons "are still slugs". Verified: `tokenShaped` exists only in `tools/uxqual/journeyclient`'s display formatter; grep of `internal/intent/app/inputs.go` and `journey.go` (the propose and edit write paths) finds no equivalent check on `business_reason` before a proposal is recorded.
+  - **GREEN:** a propose or edit submission whose `business_reason` is token-shaped (no whitespace, with an underscore or hyphen — the same rule the display formatter uses) is refused with a typed validation error naming the field before the proposal is durably recorded; an ordinary prose reason is unaffected.
+  - **REFACTOR:** share one `tokenShaped` predicate between the write-path validator and the display formatter instead of keeping two independent definitions of what a token looks like.
+  - **Refs:** `internal/intent/app/inputs.go`, `tools/uxqual/journeyclient/projector.go`, [task-oriented product language](#69-live-product-ux-audit-remediation).
+
+- [x] `REV-095-03` **[GATE_B][TERRA] Give the person page's workflow launcher its own empty-search copy instead of the generic unavailable sentence.**
+  - **Evidence (2026-09-19):** the person launcher counts its cards before filtering, so an empty search shows its own no-match copy, and a launcher emptied because a promotion is running is titled `Promotion in progress` with an `Open active promotion` link. Tests `TestTodo_REV_095_03`, `_Browser`, `_Security` (`go test -run REV_095_03 ./internal/humanwork/productui/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.WORK; DIRECT=none; WHY=a launcher that has a card must describe its own empty search rather than repeat the sentence reserved for having no card at all`.
+  - **TEST:** `TestTodo_REV_095_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_095_03`; `BROWSER=TestTodo_REV_095_03_Browser`; `SECURITY=TestTodo_REV_095_03_Security`.
+  - **RED:** GAP: `UXLIVE-023` is ticked, but its own evidence records, measured live: "on the served page the launcher reports a card while still rendering its empty state, so the sentence comes from a copy-resolution layer this change does not reach and needs its own todo." Verified: `internal/humanwork/productui/i18n.go` lines 1561, 1582 and 1590 route the launcher's empty-state message through `ordinaryUnavailableCopy` regardless of whether `WorkflowLauncher` actually holds a card.
+  - **GREEN:** when the workflow launcher holds a card but its filtered result is empty, the panel renders the launcher's own no-match copy naming how to broaden the search; the generic "not available yet" sentence is reserved for a launcher with no card at all.
+  - **REFACTOR:** resolve the launcher's empty-state copy from the launcher's own state rather than the shared i18n fallback chain that cannot see it.
+  - **Refs:** `internal/humanwork/productui/i18n.go`, `internal/humanwork/productui`, [worker profile identity](#69-live-product-ux-audit-remediation).
+
+- [x] `REV-095-04` **[GATE_B][TERRA] Carry the People directory filter into Organization's own URL.**
+  - **Evidence (2026-09-19):** `RouteStateProfile.CarriesDirectoryQuery` puts the carried People filter into Organization's own address. Live: `/workspace/app/organization?q=Amara` reproduces `1 of 64 people` on reload. Tests `TestTodo_REV_095_04`, `_Browser` (`go test -run REV_095_04 ./tools/uxqual/productclient/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORKFORCE,BI.ACCESS; DIRECT=none; WHY=a filtered browse that vanishes from the address bar cannot be shared or restored with Back`.
+  - **TEST:** `TestTodo_REV_095_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_095_04`; `BROWSER=TestTodo_REV_095_04_Browser`.
+  - **RED:** GAP: `UXLIVE-007` is ticked, but its own evidence states "the filter still travels between People and Organization without appearing in the second page's URL, so it is not shareable or reversible with Back." Verified: `internal/humanwork/productui/uxlive007_test.go` asserts the scope-count fix only, with no route-state parameter test for the carried filter on the organization route.
+  - **GREEN:** navigating from a filtered People view to Organization appends the active filter to Organization's own URL; reloading or sharing that URL reproduces the same filtered browse groups while the scope-level counts stay unfiltered; Back returns to People with its filter intact.
+  - **REFACTOR:** declare the carried filter in the page module's route-state profile instead of passing it through in-memory state the URL never reflects.
+  - **Refs:** `internal/humanwork/productui`, `tools/uxqual/productclient`, [organization browsing](#69-live-product-ux-audit-remediation).
+
+- [x] `REV-095-05` **[GATE_B][TERRA] Stop the work filter strip from wrapping at 1280px with the sidebar expanded.**
+  - **Evidence (2026-09-19):** `productui/work_filter_strip.go` sizes each entry from its own label and count and uses a container query, so entries that do not fit move behind a named More control and the active one stays inline; nothing clips. Live DOM measurement: Home 578 px (sidebar expanded) 2 inline, 704 px 3, 390 px 1, My Work 930 px 5, de-DE 2, no clipped label. Tests `TestTodo_REV_095_05`, `_Browser` (`go test -run REV_095_05 ./internal/humanwork/productui/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK; DIRECT=none; WHY=a filter strip that still wraps at a common viewport buries the last filter under an orphaned underline`.
+  - **TEST:** `TestTodo_REV_095_05`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_095_05`; `BROWSER=TestTodo_REV_095_05_Browser`.
+  - **RED:** GAP: `UXLIVE-018` is ticked, but its own evidence states "the strip's wrapping at 1280px with the sidebar expanded, named in this todo's RED, is not addressed; the counts make each entry slightly wider, so that layout clause stays open." Verified: `internal/humanwork/productui/uxlive018_test.go` contains no wrap or overflow assertion for the strip.
+  - **GREEN:** at 1280px with the sidebar expanded, Home's attention strip and My Work's filter strip stay on one line or degrade to an explicit overflow control, measured with the new per-filter counts in place, at both sidebar-expanded and sidebar-collapsed widths.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui`, [spacing and rhythm](#71-live-visual-design-and-interaction-polish).
+
+### R090. §69 Live product UX audit remediation
+
+Checked all 25 `UXAUDIT-001..025` items (lines 19326-19616), all ticked, against their named test files in `internal/humanwork/productui`, `internal/data/orgfacts`, `internal/intent/app`, `test/workspace` and `tools/uxqual/*`, and against the production wasm client at `tools/uxqual/cmd/journeywasm/product_wasm.go`. Most items are genuinely implemented and carry unusually thorough live-server verification narratives; `UXAUDIT-009` and `UXAUDIT-010`'s own shipped tests confirm the bulk-assignment and effective-access-preview capabilities their GREEN required were deliberately never built, but that exact gap is already tracked open at `RBAC-RT-014` (line 22249) and its neighbors, so it is not re-raised here. Two other gaps are not yet tracked: `UXAUDIT-012`'s failure-safe async-region primitives (`BuildFailure`, `BuildAsyncRegion`) have no caller anywhere outside their own definition files, so a real fetch failure in the live wasm router still falls back to the old collapsing `LoadError` path the todo was meant to replace; and `UXAUDIT-017`'s `ListJourneys` still performs one database read and, for every unexecuted proposal, a full re-simulation per journey inside its list loop, which its own evidence admits is "not yet truly batched" and which runs on every load of `/workspace/app/journeys` and `/workspace/app/work`.
+
+- [x] `REV-090-01` **[GATE_B][TERRA] Wire the failure-safe async region into the live wasm route-fetch error path.**
+  - **Evidence (2026-09-19):** a failed People, Work, History or Organization read renders `BuildAsyncRegion(AsyncRegionFailure)` in the loading geometry with a visible title, recovery line and a Try again button that re-runs the same route read (`productui/async_region_failure.go`, `journeywasm/product_failure.go`), announced assertively, in en-US, de-DE and ar. Tests `TestTodo_REV_090_01`, `_Fault`, `_Golden` (`go test ./tools/uxqual/cmd/journeywasm/`), `_Region` (`go test -run REV_090_01 ./internal/humanwork/productui/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=make genuine fetch failures preserve layout instead of falling back to the pre-existing collapsing LoadError path`.
+  - **TEST:** `TestTodo_REV_090_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_090_01`; `FAULT=TestTodo_REV_090_01_Fault`; `GOLDEN=TestTodo_REV_090_01_Golden`.
+  - **RED:** GAP: `UXAUDIT-012` is ticked complete, but `BuildFailure` (`internal/humanwork/productui/loading_components.go:123`) and `BuildAsyncRegion` (`internal/humanwork/productui/async_region.go`) have no caller anywhere in the repository outside their own definition files (grep `BuildFailure(` and `BuildAsyncRegion(` across non-test `.go` files each return exactly one hit, the function's own definition); the live wasm router still sets `view.LoadError` directly on a fetch failure at `tools/uxqual/cmd/journeywasm/product_wasm.go:355` and `:574`, which the todo's own evidence names as "a different working contract" left deliberately alone.
+  - **GREEN:** a genuine fetch failure on People, Work, History or Organization in the running wasm client renders through `BuildFailure`/`AsyncRegionState` with geometry identical to that region's loading and resolved states, verified with a forced network failure against the live server rather than only through the existing unit test's direct call to `BuildFailure`.
+  - **REFACTOR:** once every async region `UXAUDIT-012` covers has a production failure path, retire the separate `view.LoadError` collapse branch so only one failure contract exists.
+  - **Refs:** `internal/humanwork/productui/loading_components.go`, `internal/humanwork/productui/async_region.go`, `tools/uxqual/cmd/journeywasm/product_wasm.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+- [x] `REV-090-02` **[GATE_B][SOL_HIGH] Batch journey record reads and stop re-simulating unexecuted proposals in ListJourneys.**
+  - **Evidence (2026-09-19):** `ListJourneys` reads a page in at most 8 batched statements plus tenant scope (`intent/app/journey_list_batch.go`, `workflow/runtime/store_batch.go`, `workitem/store_batch.go`) and describes unexecuted proposals from what Propose stored instead of re-simulating them; Inspect still re-simulates. Tests `TestTodo_REV_090_02`, `_Benchmark` (1 and 5 journeys issue the same statement count), `_Golden` (`go test -run REV_090_02 ./internal/intent/app/`), `_RuntimeBatch` (`go test ./internal/workflow/runtime/`), `_WorkItemBatch` (`go test ./internal/humanwork/workitem/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.OPERATIONS; DIRECT=none; WHY=keep Journeys and My Work responsive as the number of open promotion proposals grows`.
+  - **TEST:** `TestTodo_REV_090_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_090_02`; `BENCHMARK=TestTodo_REV_090_02_Benchmark`; `GOLDEN=TestTodo_REV_090_02_Golden`.
+  - **RED:** GAP: `UXAUDIT-017` is ticked complete, but `ListJourneys` (`internal/intent/app/journey.go:204-287`) performs one `readExecutedRecordForIntent` transaction read per journey inside its loop and, for every unexecuted proposal, a full `resimulate` recompute plus a second `readRecord` (lines 253-268); the todo's own 2026-09-13 evidence records this verbatim as "recorded, not fixed: `ListJourneys` already performed one record read per journey and re-simulated unexecuted journeys before this change, so the page is not yet truly batched." This runs on every load of `/workspace/app/journeys` and `/workspace/app/work`, both pages this same todo shipped.
+  - **GREEN:** `ListJourneys` resolves executed-record lookups and unexecuted-proposal simulation inputs in a bounded number of round trips independent of the number of journeys on the page, and a PERFORMANCE test asserts that listing N journeys issues O(page-size) database reads rather than O(N).
+  - **REFACTOR:** share the batched read path between `ListJourneys` and `ListJourneysPage` so both list entry points carry the same fix rather than diverging.
+  - **Refs:** `internal/intent/app/journey.go`, [promotion workflow](reference-workflows/promote-into-management.md).
+
+### R091. §70 Promotion workflow live-audit remediation
+
+Checked all 17 ticked items (`PROMOUX-001`..`PROMOUX-017`). Every referenced file/package/migration exists, and the highest-risk claims verified true by grep and `go list`: the active-promotion and target-position DB guards, the separation-of-duties row lock, the diagnostics-authorization gate, the `EditProposal`/`PreviewJourneyIntervention`/`RequestJourneyIntervention` RPCs, `promotionguard.Release` call sites, and PROMOUX-016's `promotionterminal.Resolver` -> `promotioncommit.Writer` path are all reachable from production code, not library-only. The most important gap: three presentation components this section itself flagged as unwired at merge time (PROMOUX-005 `PromotionReview`, PROMOUX-006 `CompensationGuardrailCard`, PROMOUX-007 `MapPromotionRefusal`) are _still_ unwired six days later, and the live proposal-refusal path has since grown a second, independent refusal-to-presentation implementation (`tools/uxqual/journeyclient.mapProposalRefusal`) that parses gRPC rule-ref strings — the exact anti-pattern PROMOUX-007's REFACTOR clause was written to prevent — with no todo item tracking reconciliation.
+
+- [x] `REV-091-01` **[GATE_C][SOL_HIGH] Reconcile the two divergent promotion-refusal presentation paths or wire the tested one into production.**
+  - **Evidence (2026-09-19):** one refusal mapper: `productui/promotion_refusal_wire.go` maps the wire refusal and the client only decodes `ErrorDetail` and maps fields to element ids. Tests `TestTodo_REV_091_01` (`go test -run REV_091_01 ./internal/humanwork/productui/`), `_Integration` (`go test -run REV_091_01 ./tools/uxqual/journeyclient/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.REWARDS,BI.EXPERIENCE; DIRECT=none; WHY=stop the live promotion form and the tested refusal mapper from silently drifting apart`.
+  - **TEST:** `TestTodo_REV_091_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_091_01`; `INTEGRATION=TestTodo_REV_091_01_Integration`.
+  - **RED:** `productui.MapPromotionRefusal` (`internal/humanwork/productui/promotion_validation.go`) has zero callers outside its own package and tests (verified by repo-wide grep); the live path instead uses `tools/uxqual/journeyclient.mapProposalRefusal` (`promotion_validation.go:24`), which switches on literal `violation.GetRuleRef()` strings such as `"promotion.base_pay.not_exact"` -- parsing transport rule-ref strings is the same shape PROMOUX-007's REFACTOR ("do not parse human error strings") was written to forbid, just on a different field than `Finding.Message`. This contradicts the ticked `PROMOUX-007` GREEN clause that "one refusal-to-presentation mapper serves SSR and enhanced clients."
+  - **GREEN:** exactly one refusal-to-presentation mapper is reachable from the live proposal form; either `journeyclient` composes `productui.MapPromotionRefusal` (extended to accept the wire's `ErrorDetail` shape) or the domain-level mapper is retired in favor of the wire-level one with equivalent exhaustive-code coverage and leak tests ported over.
+  - **REFACTOR:** delete whichever mapper loses, so only one implementation exists to drift.
+  - **Refs:** `internal/humanwork/productui/promotion_validation.go`, `tools/uxqual/journeyclient/promotion_validation.go`, `internal/domains/promotion` (Finding codes).
+
+- [x] `REV-091-02` **[GATE_C][SOL_HIGH] Wire the promotion-review and compensation-guardrail cards into the live proposal/review page, or retire them.**
+  - **Evidence (2026-09-19):** `JourneyDetail.promotion_review` carries management impact and the compensation guardrail, computed in Inspect with the viewer's `FieldBaseSalary` authority (withheld as NOT_AUTHORIZED with no figures) and shown as the existing PromotionReview and CompensationGuardrail cards under Reporting line and pay range; positions and org units show their names, dates use the product format, a withheld card is one quiet sentence with no button. Also fixed PROMOUX-005's one-hop manager visibility limit. Tests `TestTodo_REV_091_02`, `_Security` (`go test -run REV_091_02 ./internal/intent/app/ ./internal/transport/journey/ ./tools/uxqual/journeyclient/`), `_Browser` (wasm under node), `TestEvaluateManagementImpact` (`go test ./internal/domains/promotion/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS; DIRECT=none; WHY=make the tested manager-organization-impact and pay-guardrail views actually reach a promotion reviewer`.
+  - **TEST:** `TestTodo_REV_091_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_091_02`; `BROWSER=TestTodo_REV_091_02_Browser`.
+  - **RED:** GAP against `PROMOUX-005` and `PROMOUX-006`. `productui.PromotionReview`/`PromotionReviewPropsFrom` (`internal/humanwork/productui/promotion_review.go`) and `productui.CompensationGuardrailCard`/`CompensationGuardrailPropsFrom` (`compensation_guardrail.go`) have zero callers anywhere in `tools/uxqual` or `cmd/hcmnext` (repo-wide grep, non-test). Both todos' evidence already named this as a boundary "escalated together" with PROMOUX-003 and PROMOUX-007 on 2026-09-12, but no todo item exists to close it and the components remain library-only as of this review.
+  - **GREEN:** the live proposal review surface (`tools/uxqual/render/journey` review path) renders manager, organization and reporting-line impact from `PromotionReview` and the compensation baseline/guardrail from `CompensationGuardrailCard` for an authorized viewer, verified by driving a real journey through the running server.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/promotion_review.go`, `internal/humanwork/productui/compensation_guardrail.go`, `tools/uxqual/render/journey`, [promotion workflow](reference-workflows/promote-into-management.md).
+
+- [x] `REV-091-03` **[GATE_C][TERRA] Invoke PROMOUX-011's authority-filtered invalidation sequencer from a real committed-transition write path.**
+  - **Evidence (2026-09-19):** committed transitions (propose, edit, decide, acknowledge, withdraw/cancel, execute, timer and signal resumes) publish after commit to a tenant-scoped hub (`internal/humanwork/journeyinvalidation`) sequenced by `promotioninvalidation.NextSequence`; the new `WatchPromotionInvalidations` stream filters each record by the subscriber's own Inspect and `EmitForSubscriber`, and the wasm shell coalesces hints into one quiet revalidation. Tests `TestTodo_REV_091_03`, `_Integration`, `_Security`, `_Browser` (`go test -run REV_091_03 ./internal/intent/app/ ./internal/transport/journey/ ./internal/humanwork/journeyinvalidation/ ./tools/uxqual/journeyclient/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.EXPERIENCE,BI.PEOPLE; DIRECT=none; WHY=make committed promotion transitions actually push the sequenced, authority-filtered invalidations the design already guarantees are gap-free`.
+  - **TEST:** `TestTodo_REV_091_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_091_03`; `INTEGRATION=TestTodo_REV_091_03_Integration`.
+  - **RED:** GAP against `PROMOUX-011`. `internal/data/promotioninvalidation.NextSequence` has no production caller (repo-wide grep finds only its own definition and test files); no code on a committed-transition write path invokes it or `SubscriberSequencer.EmitForSubscriber`. The ticked item's own evidence already named this boundary ("no production caller yet invokes `NextSequence` from a committed-transition write path") without a follow-up todo.
+  - **GREEN:** a durable promotion transition commit (propose, approve, reject, cancel, complete) calls `NextSequence` and emits through `SubscriberSequencer` in the same transaction or immediately after commit; a live reconnect/catch-up test shows shell count, Journeys, My Work, Person and detail regions converging from real writes, not from test-only harness calls.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/promotioninvalidation`, `internal/domains/promotion/promoux011.go`, `internal/intent/app` (commit write paths).
+
+### R094. §73 Workflow engine plan-vs-implementation gaps (2026-09-14)
+
+Checked WF-RUN-034 through WF-RUN-040, WF-STEP-018, WF-COMP-007 and the PROMO-EXEC-00x series (lines 20071-20246). All ticked items' named packages exist and `internal/data/{promotioncommit,promotionbudget,promotionterminal,evidencestore,operatorjournal,workflowversionstore}` are confirmed reachable from `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler`, so the section is largely wired rather than library-only, and PROMO-EXEC-002..007 are correctly left open (their tests do not exist yet, matching RED). Three of the ticked items' own evidence text names a limit that was never given a follow-up ticket, and code-reading confirms each is still live: the served capability gateway never wires the WF-RUN-039 obligation-suspension source, so an overdue bypass obligation cannot actually suspend a capability in production; WF-RUN-037's effect-role settlement rows are written on every downstream-effect or derived-update failure but read by nothing, so the "routes to reconciliation" / "rebuilds from the core" claim has no operational follow-through; and capability invocation evidence (`internal/capability/gateway.go`) is still written in its own transaction after the effect handler runs, exactly the crash-loses-the-record gap WF-RUN-035 documented and left open. The most important of these is the reconciliation-consumer gap: it means a partially failed promotion (core committed, payroll or IAM leg failed) is recorded as needing reconciliation but nothing ever performs or surfaces that reconciliation.
+
+- [ ] `REV-094-01` **[GATE_B][SOL_HIGH] Wire the served capability gateway to the bypass-obligation suspension source.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=an overdue bypass obligation must suspend the capability its authorization covers but the served gateway never checks for one`.
+  - **TEST:** `TestTodo_REV_094_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_094_01`; `SECURITY=TestTodo_REV_094_01_Security`.
+  - **RED:** GAP against ticked `WF-RUN-039` ("overdue obligations suspend the capability, repair/override/migrate are distinct operator kinds"). `internal/intent/app/cell.go:545` builds the served gateway as `capability.NewGateway(caps, sink, gatewayOptions...)` with no `capability.WithSuspensions` option, and `gatewayOptions` (built a few lines above) only ever appends `capability.WithClock`. A repo-wide grep for non-test callers of `WithSuspensions` returns none, so `internal/intent/operator.CapabilitySuspensions` (the concrete `SuspensionSource` WF-RUN-039 built) is never consulted on the path that runs promotions; an operator whose repair or override obligation is overdue can still invoke the capability the obligation was meant to suspend.
+  - **GREEN:** the cell composition passes a tenant-resolved `CapabilitySuspensions` into `capability.WithSuspensions` when it builds the served gateway; an integration test proves a capability invocation on that gateway is refused `CAPABILITY_SUSPENDED` once its family's obligation is overdue and succeeds again once the obligation is discharged.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/intent/app/cell.go`, `internal/capability/suspension.go`, `internal/intent/operator/capabilitysuspension.go`, [bypass obligations](specs/workflow-runtime.md).
+
+- [ ] `REV-094-02` **[GATE_B][SOL_HIGH] Consume effect-role settlement rows to actually reconcile or rebuild, not just record them.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=a downstream effect failure records a reconciliation route today but nothing ever reconciles or rebuilds from it`.
+  - **TEST:** `TestTodo_REV_094_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_094_02`; `FAULT=TestTodo_REV_094_02_Fault`; `RECOVERY=TestTodo_REV_094_02_Recovery`.
+  - **RED:** GAP against ticked `WF-RUN-037` ("downstream failures route to reconciliation, and derived updates rebuild from the core"). A repo-wide grep for `workflow_effect_role_settlement` outside `internal/workflow/runtime/effect_role_settlement.go` returns nothing, and there is no non-test caller anywhere in `cmd` or `internal` that loads a `RouteReconciliation` or `RouteRebuildFromCore` settlement row and acts on it. The row inserted in the advance transaction (`internal/workflow/runtime/effect_role_settlement.go`) is write-only: once a downstream payroll or IAM leg fails after the promotion's authoritative core commits, the settlement is durable but permanently unresolved and invisible to any operator surface.
+  - **GREEN:** a sweep (the existing `internal/workflow/progress` sweep or a sibling) loads open `RECONCILIATION` and `REBUILD_FROM_CORE` settlements per tenant, retries the named downstream effect or rebuilds the derived projection from the settlement's recorded core outcomes, and marks it resolved with its own evidence; a settlement unresolved past a configurable age surfaces on the operator work queue.
+  - **REFACTOR:** share the parked-promotion sweep fixture from `PROMO-EXEC-005` rather than building a second one.
+  - **Refs:** `internal/workflow/runtime/effect_role_settlement.go`, `internal/platform/execution/effect_roles.go`, `internal/workflow/progress`, [authoritative core versus downstream effects](specs/workflow-runtime.md).
+
+- [ ] `REV-094-03` **[GATE_B][SOL_HIGH] Record capability invocation evidence in the same transaction as the effect it evidences.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=a crash between the effect handler committing and the evidence write leaves a committed effect with no audit record`.
+  - **TEST:** `TestTodo_REV_094_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_094_03`; `FAULT=TestTodo_REV_094_03_Fault`; `RECOVERY=TestTodo_REV_094_03_Recovery`.
+  - **RED:** GAP against ticked `WF-RUN-035`, whose own evidence names this limit without a follow-up ticket: "evidence is written in its own transaction after the run commits, so a crash between them loses the entry rather than the fact it describes." `internal/capability/gateway.go`'s `Invoke` runs `handler(ctx, req.Payload)` and only afterward calls the non-transactional `g.evidence.RecordInvocation`; `refuse` does the same. `EvidenceSink` has no transaction-scoped variant, unlike the execution-evidence port, which already has both `RecordExecutionEvidence` and `RecordExecutionEvidenceTx` (`internal/data/evidencestore/store.go:102-116`).
+  - **GREEN:** `EvidenceSink` gains a transaction-scoped `RecordInvocationTx` mirroring `RecordExecutionEvidenceTx`, and `Gateway.Invoke`/`refuse` use it whenever the handler executed inside a caller-supplied transaction; a fault test kills the process between effect commit and evidence write and recovery finds either both rows or neither, never an effect with no evidence.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/capability/gateway.go`, `internal/data/evidencestore/store.go`, [storage and evidence boundaries](specs/workflow-runtime.md).
+
+### R097. Cross-cutting: core HCM market features the plan omits
+
+Compared the backlog against the standard ChangeOps-overlay feature set (org chart/position management, mass/bulk change, self-service, effective-dated changes/rescinds/retro, approval delegation, notifications, audit/export, integrations, localization, contingent workforce, compliance filings, document management/e-signature). Most of these are genuinely covered: position/headcount/requisition governance (`HEADCOUNT-001`, `CONF-021`, `internal/domains/position`), reporting-line/org-chart rendering (`UXAUDIT-004`) and workforce-planning wiring gaps (already tracked by `REV-076-01..03`), bulk/population campaigns (`WF-EXT-021`), delegation and vacation coverage (`TRUST-013`/`TRUST-014`), document intake/templates/e-signature (§23, `DOC-*`), multi-jurisdiction legal context and per-state pay-transparency/wage/notice obligations (`LEGAL-001`, `LEGAL-ST-*`), government filings infrastructure for payroll/tax/new-hire reporting (`FILING-001`, `FILING-002`, `internal/domains/payroll/filing`), and general reporting/export wiring (already tracked by `REV-079-01`). One clear, unduplicated gap remains: the plan has government-filing _infrastructure_ (signed, immutable `FilingPackage`, jurisdiction-schema binding) and a government-data-_classification_ boundary that already names ACA (`SECARCH-020`), but nothing anywhere defines the underlying data domain or report content for the specific federal workforce-compliance filings a ChangeOps platform's customers are legally required to produce: EEO-1 Component 1, VETS-4212, and ACA Forms 1094-C/1095-C. Voluntary self-identification of race/ethnicity/sex/veteran/disability status does not exist as a governed data concept anywhere (`grep -rn "RaceEthnicity\|VeteranStatus\|DisabilityStatus\|SelfIdent" --include=*.go .` and `grep -rn "EEOJobCategory\|EEO1\|VETS4212\|Form1095\|Form1094" --include=*.go .` both return nothing), and `planning/todos.md` has zero matches for `EEO-1`, `VETS-4212`, `1094`, `1095-C`, `self-identif`, `veteran status`, or `disability status`. `REV-051-03` (already in the backlog) even names "declared applicant demographic-group facts" as an input to its adverse-impact analysis without that data domain existing to declare from.
+
+- [ ] `REV-097-01` **[GATE_C][SOL_HIGH] Add a governed voluntary self-identification data domain and generate EEO-1 Component 1 and VETS-4212 federal compliance filings.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.PEOPLE,BI.REGULATORY; DIRECT=none; WHY=federal contractors and 100-plus-employee employers must file EEO-1 Component 1 and VETS-4212 but no self-identification data domain or report exists to source them from`.
+  - **TEST:** `TestTodo_REV_097_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_097_01`; `GOLDEN=TestTodo_REV_097_01_Golden`; `SECURITY=TestTodo_REV_097_01_Security`; `CONFORMANCE=TestTodo_REV_097_01_Conformance`; `MUTATION=TestTodo_REV_097_01_Mutation`.
+  - **RED:** NEW: `grep -rn "RaceEthnicity\|VeteranStatus\|DisabilityStatus\|SelfIdent" --include=*.go .` and `grep -rn "EEOJobCategory\|EEO1\|VETS4212" --include=*.go .` both return nothing; `grep -in "EEO-1\|VETS-4212\|self-identif\|veteran status\|disability status\|EEO job categor" planning/todos.md` returns nothing; `SECARCH-020`'s government-data-classification dimension covers `FTI/CJI/CUI/ACA` but has no race/ethnicity/veteran/disability class, and `FILING-001`'s generic signed `FilingPackage` substrate has no report definition to bind for either filing; `REV-051-03`'s own GREEN clause depends on "declared applicant demographic-group facts" that no domain currently declares.
+  - **GREEN:** a self-identification domain records each worker's voluntary race/ethnicity/sex/veteran/disability declaration (or explicit decline) with purpose-limited access separate from ordinary worker fields, maps active workers to EEO-1 job categories, and a report definition aggregates counts into EEO-1 Component 1 and VETS-4212 shapes, emitted through `FILING-001`'s existing signed `FilingPackage`; declining to self-identify never blocks employment actions and is itself a recorded, auditable state.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/people`, `internal/trust/dataclass` (SECARCH-020 precedent), `internal/domains/payroll/filing` (FILING-001/002), [Government reporting](plan.md), [data classification and DLP](specs/data-classification-and-dlp.md).
+
+- [ ] `REV-097-02` **[GATE_C][SOL_HIGH] Add ACA monthly offer-of-coverage and affordability tracking and generate IRS Forms 1094-C/1095-C.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS,BI.REGULATORY; DIRECT=none; WHY=an applicable large employer must file 1094-C and 1095-C every year but no per-month offer-of-coverage or affordability record exists to source them from`.
+  - **TEST:** `TestTodo_REV_097_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_097_02`; `GOLDEN=TestTodo_REV_097_02_Golden`; `PROPERTY=TestTodo_REV_097_02_Property`; `CONFORMANCE=TestTodo_REV_097_02_Conformance`; `SECURITY=TestTodo_REV_097_02_Security`.
+  - **RED:** NEW: `grep -rn "Form1095\|Form1094\|MinimumEssentialCoverage\|OfferOfCoverage" --include=*.go .` returns nothing and `grep -in "1094\|1095-C\|ACA.*filing\|applicable large employer" planning/todos.md` returns nothing; `SECARCH-022` pins MARS-E/CMS-ARS control mappings for tenants running an ACA/exchange _integration_ but that is a security-control profile, not a coverage-offer data model, and `FILING-001`'s generic `FilingPackage` has no ACA report definition to bind.
+  - **GREEN:** a per-worker, per-month record captures offer of minimum essential coverage, employee-share cost and affordability safe-harbor basis, sourced from the benefits-eligibility engine already computing enrollment; a report definition renders IRS-line-code-accurate 1095-C statements per worker and a summed 1094-C transmittal per applicable large employer, emitted through `FILING-001`'s signed `FilingPackage`, with `UNKNOWN`/`REVIEW_REQUIRED` states where a month's coverage or affordability basis cannot be resolved rather than a fabricated code.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/payroll/filing`, `internal/trust/dataclass` (ACA classification precedent), [Government reporting](plan.md), [ACA/exchange control mapping](specs/platform-responsibility-boundaries.md).
+
+### R099. Cross-cutting: compliance, certification and customer assurance
+
+Checked the eleven-buyer-requirement list against `planning/todos.md` in full (whole-file grep, not a single section) plus the source behind the hits: `GOV-030` (SOC 2/ISO/NIST crosswalk, `tools/planning/controlcrosswalk`), `SECARCH-001..024` (§4), `PRIV-001..011` and `SUBPROCESSOR-001` (§15), `TENANT-001` residency, `UX-003` WCAG, `LEDGER-012` evidence export and `OBS-021` telemetry lifecycle. Most of the list is genuinely implemented and evidenced: access review (`SECARCH-003`), ISO/SOC 2/NIST crosswalk (`GOV-030`), ROPA-equivalent inventory and DSR/DSR-SLA (`PRIV-001`/`005`/`006`), state privacy-law employee rights including CCPA/CPRA (`PRIV-010`), subprocessor governance (`SUBPROCESSOR-001`), residency placement (`TENANT-001`), and a government-procurement/security-questionnaire evidence pack (`SECARCH-018`/`024`). Five things enterprise buyers ask for have no real coverage: cross-border transfer safeguards are validated as non-empty strings rather than against a recognized SCC/TIA mechanism; nothing in the repo mentions HIPAA or business-associate obligations despite the plan's own workflow research naming them repeatedly for benefits/leave medical data; there is no independent penetration-test program distinct from CI-time DAST; there is no per-criterion VPAT accessibility conformance report, only a pass/fail suite and one free-text questionnaire slot; and there is no tenant-facing export of audit/security events into a customer's own SIEM. The most important of these is the transfer-safeguard gap, because it sits inside a GDPR control (`PRIV-001`) already marked done and could pass review by string presence alone.
+
+- [ ] `REV-099-01` **[GATE_C][LUNA] Validate cross-border transfer safeguards against a recognized mechanism registry before approving a non-adequate-region flow.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY; DIRECT=none; WHY=GDPR and UK GDPR require a valid transfer mechanism such as Standard Contractual Clauses or a transfer impact assessment before personal data crosses into a non-adequate jurisdiction`.
+  - **TEST:** `TestTodo_REV_099_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_099_01`; `GOLDEN=TestTodo_REV_099_01_Golden`; `SECURITY=TestTodo_REV_099_01_Security`; `MUTATION=TestTodo_REV_099_01_Mutation`.
+  - **RED:** GAP: `PRIV-001` is ticked GREEN claiming a recorded transfer assessment, but `internal/governance/privacy/inventory/inventory.go:60` (`TransferAssessmentRefs []string`) and `:79` (`Safeguards []string`) are checked only by `nonEmpty` (`:112`, applied at `:184`), which accepts any non-blank string; `ProcessingDataFlow.Validate` (`:178`-`:199`) never checks `TransferRegions` against an adequacy list or matches `Safeguards` against a recognized SCC-module/BCR/adequacy-decision vocabulary, so a flow into a non-adequate region is "approved" with `Safeguards: []string{"trust me"}`.
+  - **GREEN:** a closed vocabulary of recognized transfer mechanisms (SCC Module 1-4 with version, Binding Corporate Rules, adequacy decision, derogation) backs `Safeguards`; `TransferAssessmentRefs` must resolve to a versioned Transfer Impact Assessment scoped to destination region and processor; `ProcessingDataFlow.Validate` refuses a flow whose `TransferRegions` includes a non-adequate jurisdiction unless a matching mechanism and current TIA are present.
+  - **REFACTOR:** keep the mechanism vocabulary and adequacy list as governed configuration versioned alongside the legal rule packs, not inline code.
+  - **Refs:** `internal/governance/privacy/inventory/inventory.go`, [data classification and DLP](specs/data-classification-and-dlp.md), [records management and disposition](specs/records-management-and-disposition.md).
+
+- [ ] `REV-099-02` **[GATE_C][LUNA] Establish a HIPAA business-associate program record for MEDICAL-classified benefits and leave data.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.REGULATORY; DIRECT=none; WHY=benefits and medical-leave workflows handle protected health information the plans own research repeatedly flags as a HIPAA business-associate obligation`.
+  - **TEST:** `TestTodo_REV_099_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_099_02`; `GOLDEN=TestTodo_REV_099_02_Golden`; `SECURITY=TestTodo_REV_099_02_Security`; `INTEGRATION=TestTodo_REV_099_02_Integration`; `MUTATION=TestTodo_REV_099_02_Mutation`.
+  - **RED:** NEW: `planning/todos.md` has zero occurrences of "HIPAA" or "business associate" anywhere (whole-document grep), while `planning/workflows/catalog.md` names HIPAA business-associate obligations at nine separate points (e.g. lines 6953, 7272, 8097, 8134, 8209, 9938, 10399) for connectors, support access, sandbox refresh and tenant exit touching protected health information; `internal/intent/model/classification.go:17` (`ClassMedical`) exists and propagates like any other label, but nothing binds a HIPAA-specific control set to it, and `PRIV-009`'s breach matrix only names the FTC Health Breach Notification Rule, not the 45 CFR 164.400-414 covered-entity/business-associate clock that actually governs self-insured leave/benefits data.
+  - **GREEN:** a versioned `HIPAABusinessAssociateProgram` record names every subprocessor reachable by a MEDICAL-classified field (cross-checked against `RECORDS-COPY-001`'s copy inventory), requires a current BAA reference before that subprocessor's flow can be approved, enforces a minimum-necessary field scope for MEDICAL data stricter than PII's, and extends `PRIV-009`'s notification matrix with the HIPAA 60-day/media/annual-if-under-500 clock alongside the existing federal, state and GLBA ones.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/intent/model/classification.go`, `internal/governance/privacy` (`PRIV-009`), [workflow catalog](workflows/catalog.md), [records disposition](specs/records-management-and-disposition.md).
+
+- [ ] `REV-099-03` **[GATE_C][LUNA] Track an independent penetration-test program distinct from CI-time DAST scanning.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY; DIRECT=none; WHY=enterprise security questionnaires and SOC 2 CC7.1 ask for an independent periodic penetration-test report that an automated release-time scan cannot stand in for`.
+  - **TEST:** `TestTodo_REV_099_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_099_03`; `GOLDEN=TestTodo_REV_099_03_Golden`; `SECURITY=TestTodo_REV_099_03_Security`; `MUTATION=TestTodo_REV_099_03_Mutation`.
+  - **RED:** NEW: a whole-repository grep for "penetration" and "pen test" returns zero matches; `SECARCH-007` (line 2205) governs SAST/secret-scanning/IaC-scanning/DAST as automated `release.RequiredPolicyReports` gates in `tools/policy/releaseadmission`, and `SECARCH-011` (line 2249) covers a vulnerability-disclosure policy, but neither models an independent third-party manual penetration test: no engagement scope/cadence record, no severity-ranked finding register, no remediation-SLA clock and no re-test evidence a customer's security team could be shown.
+  - **GREEN:** a versioned `PenetrationTestEngagement` record captures scope, tester, engagement window and report digest; each finding carries severity, discovery date and a remediation-SLA deadline derived from severity; an overdue high/critical finding blocks the next engagement's closure and is surfaced in `SECARCH-024`'s procurement/questionnaire pack as a current, dated answer rather than a static claim.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/policy/releaseadmission` (`SECARCH-007`), `tools/planning/securebydesign` (`SECARCH-011`), `internal/domains/tenant/govauth` (`SECARCH-024`).
+
+- [ ] `REV-099-04` **[GATE_C][LUNA] Generate a per-criterion VPAT/WCAG 2.2 AA accessibility conformance report.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=enterprise procurement and accessibility reviewers ask for a standard per-success-criterion VPAT document not a pass or fail test suite`.
+  - **TEST:** `TestTodo_REV_099_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_099_04`; `GOLDEN=TestTodo_REV_099_04_Golden`; `CONFORMANCE=TestTodo_REV_099_04_Conformance`; `MUTATION=TestTodo_REV_099_04_Mutation`.
+  - **RED:** GAP: `UX-003` (line 5545) is ticked GREEN proving automated and manual WCAG 2.2 AA scenarios pass in `tools/uxqual/wcag`, and `SECARCH-024` (line 2392) generates a procurement pack whose `QuestionAccessibility` (`internal/domains/tenant/govauth/govauth.go:312`) is a single free-text answer category, but neither produces the standard ITI VPAT/WCAG-edition Accessibility Conformance Report format buyers request: a table of every WCAG 2.2 A/AA success criterion with a Supports/Partially Supports/Does Not Support/Not Applicable rating and remarks.
+  - **GREEN:** a generator walks `tools/uxqual/wcag`'s per-criterion results and emits a versioned, digest-pinned VPAT-format report covering every WCAG 2.2 A/AA success criterion with conformance level and remarks; `SECARCH-024`'s pack references the report by version instead of a bare "accessibility" string, and a report older than the next `UX-003` run blocks pack generation.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/wcag` (`UX-003`), `internal/domains/tenant/govauth/govauth.go` (`SECARCH-024`), [experience UI and branding](specs/experience-ui-and-branding.md).
+
+- [ ] `REV-099-05` **[GATE_C][LUNA] Export tenant-scoped security and audit events to a customer-operated SIEM endpoint.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.SECURITY,BI.INTEGRATION; DIRECT=none; WHY=enterprise buyers require continuous audit-log delivery into their own SIEM and every security signal today stays internal`.
+  - **TEST:** `TestTodo_REV_099_05`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_099_05`; `GOLDEN=TestTodo_REV_099_05_Golden`; `SECURITY=TestTodo_REV_099_05_Security`; `INTEGRATION=TestTodo_REV_099_05_Integration`; `MUTATION=TestTodo_REV_099_05_Mutation`.
+  - **RED:** NEW: a whole-repository grep for "SIEM" and "syslog" returns zero matches; `SECARCH-008` (line 2216) binds security-telemetry retention, hold and alerting into one evidence contract in `internal/platform/telemetry/securityevidence`, and `LEDGER-012` (line 8127) exports an auditor-verifiable ledger evidence package, but both are pull/offline artifacts for the platform's own auditors, not a tenant-configurable continuous feed; `internal/domains/subscription`'s outbound delivery substrate (`SUB-001..008`) is never wired to security-evidence events.
+  - **GREEN:** a tenant-scoped SIEM export destination reuses the existing subscription/delivery substrate to stream `SECARCH-008`'s alert-rule events plus DLP/access/admin-action audit signals as a signed, ordered, resumable feed (webhook push or pull cursor) with a documented schema; delivery gaps are detectable through the same completeness reconciliation `SUB-008` already proves for other subscriptions.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/platform/telemetry/securityevidence` (`SECARCH-008`), `internal/data/ledger/evidence` (`LEDGER-012`), `internal/domains/subscription` (`SUB-001..008`), [platform responsibility boundaries](specs/platform-responsibility-boundaries.md).
+
+### R096. §75 High-performer promotion variant with market-rate step
+
+Checked all five items. `HIPERF-001` is ticked and its evidence holds: `internal/domains/rewards/marketrate.go`, `internal/domains/fixtures/marketrate.go` and `internal/connectivity/marketdata/{marketdata.go,marketdata_test.go}` exist, and `TestTodo_HIPERF_001`/`_Integration` are present as claimed. `HIPERF-002`..`005` are correctly left unticked, but the code for all four already exists (`internal/workflow/promotionhiperf/definition.go`, `internal/intent/app/promotion_plan_route.go`, `internal/intent/app/promotion_market.go`, plus their `TestTodo_HIPERF_00{2,3,4,5}` tests) and is honestly component/unit-level: `ResolvePromotionPlanDigest` and `FetchMarketRate`/`SimulateCompensationWithMarket` are exercised directly by hand-built harnesses, never through a served `IntentService.ExecuteIntent` call. Nothing in `internal/application` (the sole real wiring layer per its own ARCH-GO-020 doc comment) or `cmd/hcmnext` references `promotionhiperf`, `HighPerformerVariantDigest`, `PerformanceRatings` or `MarketRateSource`, and `PublishShippedVersions` (`internal/platform/execution/release.go:139-170`) only ever publishes the prototype approval and the two `promotionexec` versions — so a served cell today cannot reach the variant at all. That specific "hard-coded plan list never includes the variant" defect is already named in `WF-EXT-002`'s own RED and its fix (workflow registrations, "the high-performer variant lands as a third registration, not a copied package") and in `WF-EXT-017`'s template-overlay design, so it is not repeated here. The one gap those tickets do not name and that blocks `HIPERF-004`/`HIPERF-005` on its own terms: no code anywhere implements `app.CalibratedRatingLookup` outside test doubles, and the one real persistence path that could back it returns a shape the domain type's own validation rejects.
+
+- [x] `REV-096-01` **[GATE_C][TERRA] Implement a production CalibratedRatingLookup adapter so the routing predicate can ever fire outside a test.**
+  - **Evidence (2026-09-19):** `performancestore.CalibratedRatings.LookupCalibratedRating` resolves a subject's most recently finalized closed cycle, decodes the calibrated rating the `adjustments` document carries, cross-checks it against the `performance_final_rating` numeric and its digest chain (a tampered document reports a miss rather than a rating) and returns a `FinalCalibratedRating` that passes `Validate()`; `composeCalibratedRatings` binds it to `CellConfig.PerformanceRatings` in the serve composition, so `highPerformerPin` no longer short-circuits and the market-informed variant is reachable in a served cell. The demo tenant now seeds the data behind it: two closed review cycles plus the open one, 360 reviews, 30 calibration sessions and 120 final ratings computed from the reviews rather than asserted (`internal/data/demoworkforce/performance.go`). Tests `TestTodo_REV_096_01`, `TestTodo_REV_096_01_Integration` (`go test -run TestTodo_REV_096_01 ./internal/data/performancestore/`), plus `TestComposedDemoTenantCarriesItsPerformancePayrollAndRoleData` (`go test -run TestComposedDemoTenant ./internal/application/`).
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TALENT,BI.REWARDS; DIRECT=none; WHY=the predicate that routes a top performer to the market-informed plan can never fire in a served cell because no code turns a persisted final rating into the calibrated rating value the predicate requires`.
+  - **TEST:** `TestTodo_REV_096_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_096_01`; `INTEGRATION=TestTodo_REV_096_01_Integration`.
+  - **RED:** GAP: `app.CalibratedRatingLookup` (`internal/intent/app/promotion_market.go:24-26`) is implemented in the repo only by `stubRatings` in `internal/intent/app/hiperf005_test.go`; grepping `LookupCalibratedRating` outside `_test.go` files finds zero production callers or implementations. The one real persistence path, `performancestore.Store.LoadFinalRating(ctx, tenant, participantID, cycleID)` (`internal/data/performancestore/store.go:376`), needs a `cycleID` the routing seam never has and returns `performance.FinalRatingRecord` (`internal/domains/performance/store.go:83-90`: `RatingRef, ParticipantID, CycleID, FinalRating, FinalizedAt, CanonicalDigest`), which lacks the `ProposedRatingDigest` and `SessionDigest` that `FinalCalibratedRating.Validate()` requires (`internal/domains/performance/calibration.go:251-254`), so no direct conversion is possible today. `internal/application` never sets `cell.Config.PerformanceRatings` (zero references outside `cell.go`/tests). The result: `IntentService.highPerformerPin` (`internal/intent/app/promotion_market.go:136-149`) always takes its `s.performanceRatings == nil` branch in any real deployment and resolves the execute plan for every worker, so `HIPERF-004`'s SECURITY proof and `HIPERF-005`'s "end to end" claim are true only against a hand-built stub, never against a real rating.
+  - **GREEN:** an adapter (over `performancestore.Store` or a narrower reader) resolves a subject's current or most recently finalized cycle and its final rating and produces a `FinalCalibratedRating` that passes `Validate()` — either by the store recording the additional digests at finalization time or by the adapter loading the finalized `CalibrationSessionRecord` alongside the rating; `internal/application`'s serve wiring binds it to `cell.Config.PerformanceRatings` whenever a performance store is configured; PRIMARY proves the adapter converts a real finalized record into a valid `FinalCalibratedRating`; INTEGRATION proves a served promotion for a real top-band subject resolves the variant digest end to end with no stub in the path.
+  - **REFACTOR:** consider whether `FinalRatingRecord` should simply persist the fields `FinalCalibratedRating.Validate()` needs, instead of keeping two incompatible shapes for the same fact.
+  - **Refs:** `internal/intent/app/promotion_market.go`, `internal/intent/app/service.go`, `internal/data/performancestore/store.go`, `internal/domains/performance/calibration.go`, `internal/application`.
+
+### R100. Cross-cutting: developer and integration ecosystem
+
+Checked the platform's outward-facing developer/partner surface across §12 (Integration Platform, INTG-001..020), §29 (MSRC/PROTO-001..008), §17 (API-001/002), §30 (control-plane CP-001..010), §41 (SUB-001..008, APP-001..006, CUSTOM-001..007) and AUTHN-008/oauthcc/CONN-RT-001, plus `go list -deps` on all serving binaries and repo-wide greps for OpenAPI, rate-limit and export vocabulary. The connector-inbound half (reading from an incumbent HCM, mapping, reconciling, redriving) is genuinely deep and largely wired. The customer/partner-outbound half is comprehensively designed as tested Go libraries — webhooks/event subscriptions (SUB-001..008), partner marketplace apps and machine-client credentials (APP-001..006), custom-object extensibility (CUSTOM-001..007), and the DataOps/Integration gRPC services (PROTO-004) — but none of those packages appear in `go list -deps` for `cmd/hcmnext`/`cmd/worker`/`cmd/projector`/`cmd/scheduler`; that generic unreachability is already tracked by `REV-103-01` and is not re-flagged here (following the precedent set in R042 and R030/R031, which found the same pattern in sibling sections). What is genuinely missing from the plan itself, not merely unwired, is: a publishable API reference beyond raw `.proto` files and an internal JSON discovery document; any per-machine-client rate limit on the platform's own inbound API (as opposed to tenant-level admission or outbound connector quotas); and a bulk business-data export path symmetric to the DataOps bulk-import pipeline. SCIM is correctly scoped as a deliberate customer-evidence-gated decision (`AUTHN-008`), not a gap.
+
+- [x] `REV-100-01` **[GATE_C][SOL_HIGH] Publish an OpenAPI specification and human-readable API reference for every governed HTTP endpoint.**
+  - **Evidence (2026-09-19):** STALE per §81 triage, verified by orchestrator: RED no longer reproduces — `schema/openapi/rpcs.openapi.yaml` exists (generated v0.1.0) and `INTAPI-008` is ticked; `go test -count=1 ./tools/planning/todoregistry/` PASS on windows/arm64 (Go 1.26.3); branch operations/promo-exec-provider-integrations.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTEGRATION; DIRECT=none; WHY=expose governed intent creation inspection or consumption to external developers through a complete published API contract`.
+  - **TEST:** `TestTodo_REV_100_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_100_01`; `GOLDEN=TestTodo_REV_100_01_Golden`; `INTEGRATION=TestTodo_REV_100_01_Integration`.
+  - **RED:** NEW: `buf.gen.yaml` only invokes `protoc-gen-go` and `protoc-gen-go-grpc`; a repo-wide `grep -rli "openapi\|swagger" .` (excluding `node_modules`) returns zero hits; the only served API description, `DiscoveryDocument` in `internal/transport/manifest/discovery.go`, carries endpoint id, method name, HTTP path/verb and disposition but no request/response field schema, enum values, auth/scope documentation or examples, so an external developer has nothing to build against beyond reading `.proto` source in this repository.
+  - **GREEN:** a generated OpenAPI 3 (or equivalent JSON-Schema) document is produced from the same proto sources `PROTO-001`..`005` already generate Go bindings from, covers every endpoint `API-001` discovers with full request/response schemas, error codes and auth requirements, is served at a stable path or published artifact, and is regenerated by the existing drift gate so it cannot go stale relative to the `.proto` contracts.
+  - **REFACTOR:** reuse the existing `EndpointManifest`/`DiscoveryDocument` model as the generator's input rather than re-deriving endpoint metadata a second time.
+  - **Refs:** `buf.gen.yaml`, `internal/transport/manifest/discovery.go`, `tools/gen/contracts`, `tools/policy/driftgate`, [Experience/API plane](specs/platform-plane-model.md).
+
+- [ ] `REV-100-02` **[GATE_C][SOL_HIGH] Enforce per-application-credential rate limits and quotas on the platform's own inbound gRPC and HTTP API.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION,BI.OPERATIONS; DIRECT=none; WHY=prevent one machine client from exhausting the admission budget shared by its whole tenant`.
+  - **TEST:** `TestTodo_REV_100_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_100_02`; `RACE=TestTodo_REV_100_02_Race`; `INTEGRATION=TestTodo_REV_100_02_Integration`; `SECURITY=TestTodo_REV_100_02_Security`; `FAULT=TestTodo_REV_100_02_Fault`.
+  - **RED:** NEW: `internal/operations/admission` (`ADMISSION-001`/`002`, ticked) scopes admission decisions to tenant, cell and workflow criticality only; `internal/connectivity/operation/quota.go` (`INTG-015`, ticked) scopes rate limiting to the platform's own outbound calls to external vendor APIs; a repo-wide `grep -rn "RateLimit\|ratelimit" internal/transport internal/platform --include=*.go` returns a hit only in `internal/platform/sandbox/emulator.go`, so no code path bounds how many inbound requests one partner application credential (`APP-004`, `internal/domains/partnerapp`) or other machine API client can make against the platform's own gRPC/HTTP surface; a runaway or compromised integration can only be curbed by throttling its entire tenant.
+  - **GREEN:** an inbound request carrying an application or machine-client identity is checked against a per-client quota and rate limit before admission, returns a typed `RATE_LIMITED`/`QUOTA_EXCEEDED` result with retry-after, and a client that exceeds its bound cannot consume another client's or an interactive user's share of the same tenant's admission budget.
+  - **REFACTOR:** share the reservation/token-bucket mechanics `INTG-015` already built for outbound connector quotas rather than writing a second implementation.
+  - **Refs:** `internal/operations/admission`, `internal/connectivity/operation/quota.go`, `internal/domains/partnerapp`, [Rate-limit manager](specs/integration-platform.md), [platform correctness](plan.md#519-platform-correctness-is-business-correctness).
+
+- [ ] `REV-100-03` **[GATE_C][SOL_HIGH] Provide a governed bulk data-export capability symmetric to the DataOps bulk-import pipeline.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.INTEGRATION; DIRECT=none; WHY=give partners and tenants a governed way to pull their own business data out at scale`.
+  - **TEST:** `TestTodo_REV_100_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_100_03`; `GOLDEN=TestTodo_REV_100_03_Golden`; `INTEGRATION=TestTodo_REV_100_03_Integration`; `SECURITY=TestTodo_REV_100_03_Security`; `RECOVERY=TestTodo_REV_100_03_Recovery`.
+  - **RED:** NEW: `DATAOPS-001`..`008` (ticked, `internal/domains/dataops`) build a full staged-import pipeline (stage, profile, map, validate, simulate, commit) for data moving into a tenant, but no analogous capability lets a partner or tenant pull a governed, resumable, checksum-verified bulk extract of its own business objects back out; the plan's only export-shaped items are `LEDGER-012` (auditor evidence package, not business data), `ANALYTICS-001` (internal Parquet/DuckDB analytical substrate), the single-subject DSAR `PORTABILITY` request (line 5223, per-individual and legally gated, not a routine sync mechanism) and `TENANT-004` exit rehearsal (full tenant departure); `grep -rn "BulkExport\|DataExport" internal --include=*.go` finds nothing.
+  - **GREEN:** a governed bulk-export capability stages a resumable, checksum-verified extract of a tenant's own business objects (scoped by object type, population and date range) through the same AuthZ, classification and evidence machinery DataOps import uses, and returns partition manifests a partner integration can page through and reconcile against its own import path.
+  - **REFACTOR:** share DataOps' checksum/manifest and resumable-cursor mechanics rather than inventing a second one.
+  - **Refs:** `internal/domains/dataops`, `internal/data/analytics`, [HRIS DataOps](specs/hris-admin-dataops.md), [tenant exit](specs/platform-responsibility-boundaries.md#tenant-exit-and-portability).
+
+### R092. §71 Live visual-design and interaction polish
+
+Checked all twelve `UIPOLISH-001`..`UIPOLISH-012` items (lines 19813-19953). Every referenced package (`internal/humanwork/productui`, `tools/uxqual/tokens`, `tools/uxqual/render/{journey,page}`, `tools/uxqual/wcag`, `tools/uxqual/latencygate`, `tools/uxqual/i18n`) exists, `internal/humanwork/productui` is reachable from `cmd/hcmnext` per `go list -deps`, and every item's PRIMARY `TestTodo_UIPOLISH_NNN` function exists and the package currently passes (`go test -count=1 ./internal/humanwork/productui/` PASS, 119s). Several items' TEST MATRIX fields name `_Browser`/`_Performance` functions that do not exist anywhere in the repo (`UIPOLISH-002_Browser`, `UIPOLISH-006_Browser`, `UIPOLISH-006_Performance`, `UIPOLISH-007_Browser`, `UIPOLISH-008_Browser`, `UIPOLISH-008_Performance`, `UIPOLISH-012_Browser`); this is already tracked by the open `REV-103-02` (its RED cites "485 names ... have no function"), so it is not repeated here as a new item. The most important gap this unit does not already have tracked: `UIPOLISH-008`'s GREEN promises a **user** density preference that persists, but the only density setting in the codebase is `Theme.Density` (a single tenant-wide value in `internal/experience/preferences/preferences.go`, whose own doc comment says brand values are "everyone admitted to the same organization scope shares" while only locale/navigation/table/accessibility belong to one principal) — there is no per-user density field in `preferences.User`, no settings surface to choose it, and no code path where a worker's own density choice diverges from what the tenant administrator picked for the whole organization.
+
+- [x] `REV-092-01` **[GATE_C][TERRA] Give each authenticated user their own persisted density preference instead of only a tenant-wide theme value.**
+  - **Evidence (2026-09-19):** `preferences.User.Density` persists per person through `SaveUserPreferences`; `productui.EffectiveAppearance` applies the personal choice over the organization's, and the choice is one group of the Accessibility form saved by its single Save (the organization default is an explicit option). Tests `TestTodo_REV_092_01`, `_Golden` (`go test -run REV_092_01 ./internal/humanwork/productui/`), `_Property` (`go test ./internal/experience/preferences/`), `_Integration` (`go test -run REV_092_01 ./internal/data/preferencestore/`), `_RPC` (`go test -run REV_092_01 ./internal/transport/journey/`). Verified live on 2026-09-19 against a served build of the current tree (admin persona, 1280 and 390 px, light/dark, en-US/de-DE/ar) with headless-Chromium screenshots and interaction scripts under `.artifacts/uxcheck/`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=let one worker choose a compact or comfortable view without changing what every other worker in the tenant sees`.
+  - **TEST:** `TestTodo_REV_092_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_092_01`; `GOLDEN=TestTodo_REV_092_01_Golden`; `PROPERTY=TestTodo_REV_092_01_Property`; `INTEGRATION=TestTodo_REV_092_01_Integration`.
+  - **RED:** GAP contradicts `UIPOLISH-008` (ticked), whose GREEN states "user density preference persists without overriding page safety": `internal/experience/preferences/preferences.go` defines `Density` only on `Theme`/`TenantTheme` (line 71), not on `User` (lines 52-61); `TestTodo_UIPOLISH_008_PersistedDensityReachesHistoryPage` (`internal/humanwork/productui/uipolish008_table_test.go:40`) only sets `view.Appearance.Density`, i.e. the shared `CustomerTheme`, and proves nothing about a personal, per-principal choice; grepping the repo for `PreferredDensity`, `PersonalDensity` and `UserPreference.*[Dd]ensity` returns no hits, and no settings page renders a density control bound to `preferences.User`.
+  - **GREEN:** `preferences.User` gains a `Density` field (empty meaning "inherit tenant theme"); a Settings/Appearance control lets an authenticated worker set compact/comfortable/spacious for themselves through the existing `SaveUserPreferences` RPC; page rendering resolves density as user-override-then-tenant-default; the tenant administrator's `Theme.Density` remains the default for workers who never set a personal choice, and no personal choice can regress below the 44px control-height floor `UIPOLISH-006` established.
+  - **REFACTOR:** resolve density through one shared "effective appearance" function consumed by every page renderer, rather than reading `CustomerTheme.Density` directly as `historyPage` and similar renderers do today.
+  - **Refs:** `internal/experience/preferences/preferences.go`, `internal/humanwork/productui/uipolish008_table_test.go`, `internal/humanwork/productui/appearance.go`, `internal/transport/journey/preferences.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+### R098. Cross-cutting: enterprise operability for large customers
+
+Checked the plan and code against the standard enterprise-operability checklist: backup/PITR/DR with RPO/RTO, zero-downtime migrations, tenant data export on exit, status page, support impersonation with audit, quotas/rate limiting, observability dashboards, secrets/certificate rotation, dependency CVE response, and load/soak/chaos testing. Most of this list is already planned and ticked at the library level (RECOVERY-001..004, CICD-001..006, EDGE-003, OBS-001..021, SUPPLY-001..004, STATUS-001, ADMIN-006/007), and the wiring-into-a-running-binary gap for backup/restore/game-day (RECOVERY-_), release admission (CICD-_), IaC (IAC-_) and the admin center (ADMIN-_) is already tracked by REV-017-02, REV-034-01/02, REV-032-01/02/03 and REV-037-01/02/03, so those are not repeated here. Four gaps survive that filter: tenant exit only verifies a caller-supplied export receipt and never builds the export package the exit API promises; the one ticked "support-safe diagnostic session" allows incident-only authorization with no customer consent, contradicting the spec section it cites; secret/certificate rotation exists only as an on-demand function nothing schedules or alerts on; and the platform's only "soak test" and "game day" are in-process simulations that are architecturally fenced from ever touching real infrastructure, so no capability exists to actually load-test or chaos-test a live deployment. The most consequential is the last one: an enterprise buyer will ask for load-test and DR-drill evidence against something real, and today that evidence cannot exist even after every other wiring gap in the backlog is closed.
+
+- [ ] `REV-098-01` **[GATE_C][SOL_HIGH] Build the schema-described, checksum-verified tenant export package the exit contract promises.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.TENANT,BI.PRIVACY,BI.DOCUMENTS; DIRECT=none; WHY=let a departing tenant actually receive their data instead of only letting the platform verify a receipt someone else produced`.
+  - **TEST:** `TestTodo_REV_098_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_098_01`; `SECURITY=TestTodo_REV_098_01_Security`; `INTEGRATION=TestTodo_REV_098_01_Integration`.
+  - **RED:** GAP against `PRIV-EXIT-001` (ticked, GATE_B): the spec it cites defines `tenant_exit.plan|export|verify|shutdown|destroy|certify|status` with an `ExportManifest` state where "export is checksum-verifiable and schema-described" (`specs/platform-responsibility-boundaries.md:299-313`), but `internal/governance/exit/exit.go`'s `ExportReceipt` (line 71) and its use in `ExecuteExit` (line 249) only check that a caller-supplied `ID`, `SchemaVersion`, `Checksum`, `ExpectedDigest` and `Recipient` are non-empty and that `Checksum == ExpectedDigest`; a repo-wide grep for `ExportManifest`, `BuildExportPackage`, `GenerateExport` and `TenantExport` (`--include=*.go`, whole tree) returns zero hits, including in tests, so nothing in the repository ever produces the export bytes a departing tenant would receive — the verifier can be satisfied by any caller who already computed a matching checksum for an artifact built entirely outside this codebase.
+  - **GREEN:** a new exporter, invoked from the same exit flow `PRIV-EXIT-001` gates, walks the tenant's data-copy inventory (`RECORDS-COPY-001`) and produces a schema-versioned, checksummed package per declared category; `ExecuteExit` verifies a receipt this exporter actually produced, and an integration test proves the produced package's digest matches the receipt `ExecuteExit` accepts.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/governance/exit/exit.go`, `internal/data/privacymeta` (`RECORDS-COPY-001`), [Tenant exit and portability](specs/platform-responsibility-boundaries.md#tenant-exit-and-portability).
+
+- [ ] `REV-098-02` **[GATE_C][SOL_HIGH] Require customer consent before a support-safe diagnostic session may open.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.TENANT; DIRECT=none; WHY=stop support from being able to open a view-as session on its own incident-based authority alone`.
+  - **TEST:** `TestTodo_REV_098_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_098_02`; `GOLDEN=TestTodo_REV_098_02_Golden`; `SECURITY=TestTodo_REV_098_02_Security`.
+  - **RED:** GAP against `ADMIN-006` (ticked, GATE_A): its own GREEN clause reads "Customer- or incident-authorized time/purpose-bound session" (the "or" is the defect), and its cited spec section, Customer Support Access (`specs/platform-responsibility-boundaries.md:356-369`), defines a `CustomerConsent` state, a `support_access.approve` API step and a mandatory "customer approver" in evidence, stating plainly that "support cannot create customer approvals." `internal/operations/admincenter/diagnosticsession/session.go`'s `Scope` struct (line 27) has fields for `TenantID, SubjectID, CaseID, Purpose, Resources, Actions, IssuedAt, ExpiresAt` and nothing else; a grep for `consent`, `approv` and `customer` in the package's non-test source returns zero hits, so `ds.New` can mint a session on `PurposeSupport` alone with no customer-side approval recorded anywhere.
+  - **GREEN:** `Scope` (or a wrapping `SupportRequest`) carries a `CustomerApproval` reference that `New` refuses to accept as empty when `Purpose` is support-driven access to a live tenant, distinct from an incident-declared emergency path that itself requires its own recorded justification and shorter TTL; a test proves an ordinary support session without a customer approval is refused.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/operations/admincenter/diagnosticsession/session.go`, [Customer Support Access](specs/platform-responsibility-boundaries.md#customer-support-access).
+
+- [ ] `REV-098-03` **[GATE_C][SOL_HIGH] Add a scheduled secret and certificate rotation cadence with pre-expiry alerting.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY; DIRECT=none; WHY=stop key and certificate rotation from depending on someone remembering to call it before something expires`.
+  - **TEST:** `TestTodo_REV_098_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_098_03`; `SECURITY=TestTodo_REV_098_03_Security`; `INTEGRATION=TestTodo_REV_098_03_Integration`.
+  - **RED:** NEW: `TRUST-026` and `TRUST-030` (both ticked) define a `Rotate` capability in `internal/trust/custody` and CA/leaf rotation in `internal/trust/bundle`, and `internal/trust/envelope.Manager.RotateKEK` (envelope.go:254) calls it, but a repo-wide grep for `RotateKEK` finds it invoked only from inside `envelope.go` itself, never from `cmd/scheduler` or any other production caller; `planning/todos.md` has zero occurrences of "secrets rotation" or "certificate expiry" as an operational policy anywhere in the file (checked with grep across the whole document), and no job in `cmd/scheduler` reads a key or certificate's age or expiry and acts on it. A KEK, DEK or leaf certificate that is never manually rotated can age and expire silently in production with nothing to detect it in advance.
+  - **GREEN:** a `cmd/scheduler` job periodically reads each tenant's active key/certificate ages from `internal/trust/custody`, calls `RotateKEK`/the bundle rotation path before a declared age threshold, and raises an alert through the existing telemetry/alerting path (`OBS-007`) when an item crosses a warning threshold without successfully rotating; a fault test proves a stalled rotation raises the alert rather than expiring silently.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/trust/envelope/envelope.go`, `internal/trust/custody`, `internal/trust/bundle/hierarchy.go`, `cmd/scheduler`, [Foundation certificate lifecycle](specs/platform-foundation-gap-closure.md).
+
+- [ ] `REV-098-04` **[GATE_C][TERRA] Run load, soak and chaos drills against a real deployed cell instead of an in-process simulation.**
+  - **Depends:** `REV-032-01`, `REV-017-02`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS; DIRECT=none; WHY=produce load-test and disaster-recovery-drill evidence an enterprise buyer can trust because it ran against something real`.
+  - **TEST:** `TestTodo_REV_098_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_098_04`; `FAULT=TestTodo_REV_098_04_Fault`; `RECOVERY=TestTodo_REV_098_04_Recovery`; `BENCHMARK=BenchmarkTodo_REV_098_04`; `SECURITY=TestTodo_REV_098_04_Security`.
+  - **RED:** GAP against `PERF-003` and `RECOVERY-004` (both ticked): `PERF-003`'s own evidence text describes `internal/performance/soak.go`'s `RunSoak` as a "pure 24-virtual-hour" run driven through the in-process `admission.Decide` function, and a grep of `soak.go` for `sql.Open`, `pgtest`, `net/http`, `httptest`, `exec.Command` and `grpc.Dial` returns zero hits — no real database, process or network is ever touched. `RECOVERY-004`'s own REFACTOR clause states "failure injection cannot escape test/recovery cells," so `ExecuteGameDay` is designed to never run against real infrastructure even once `REV-017-02` gives it a CLI entry point. Neither `REV-032-01` (standing up a real cell) nor `REV-017-02` (a CLI path to the existing simulations) closes this: both leave the actual load-generation and infrastructure-fault-injection mechanics unbuilt.
+  - **GREEN:** once a real dev/sandbox cell exists (`REV-032-01`), a load-generation harness drives real traffic against the composed `hcmnext` binary at ramp/peak/soak levels and a chaos harness injects a real fault (killed connection, restarted process, network partition) against that same cell, both producing the same RPO/RTO/p95/p99 evidence shape `PERF-003`/`RECOVERY-004` already assert in simulation, but measured from the real system.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/performance/soak.go`, `internal/operations/recovery/gameday.go`, [performance limits](specs/platform-foundation-gap-closure.md), [operations models](data/models/operations-production.md).
+
+### R064. §66 / Application shell and navigation
+
+Reviewed WEB-037 through WEB-048 (`internal/humanwork/productui`, `internal/humanwork/workspace`), all ticked. `go list -deps ./cmd/hcmnext` confirms `productui` and `workspace` are compiled into the served binary, and every `TestTodo_WEB_0{37..48}` function exists. Sampled deeply: WEB-037 shell composition (`render.go`, `shell.go`), WEB-038 context switcher, WEB-040 action launcher, WEB-041 global search, WEB-042 notification center. WEB-040/041 are genuinely wired end to end: `resolveProductLauncherActions`/`productLauncherActions` in `internal/humanwork/workspace/product_shell.go:62,300` and `projectLauncherActions` in `tools/uxqual/cmd/journeywasm/product_launcher.go` populate real `LauncherActionProjection`/`GlobalSearchItem` data from the authorized View. WEB-038 is not: the component's `ContextSwitcherProps` (which carries `Options`, `Current`, and the `Exchange`/`Commit`/`Rollback` adapter seams) is never assigned anywhere in `internal/humanwork/workspace/product_shell.go` or `tools/uxqual/cmd/journeywasm/product_wasm.go` — the only non-test files that build a `View` for the running application — so `view.ContextSwitcher` is always its zero value there, `contextSwitcherVisible` returns `false`, and the tenant/acting-context switcher renders nothing at all in the served shell despite the ticket's own 2026-09-07 evidence conceding "the repository still has no authoritative backend context-exchange RPC." A smaller finding: WEB-042's `AttentionList` helper (`internal/humanwork/productui/attention_list.go:122`) has zero callers outside its own test file; the shell's actual notification popover (`notificationMenu` in `shell.go:454`) uses the unrelated `ActionableWorkItems` function instead, so `AttentionList` is dead code left over from a different design.
+
+- [ ] `REV-064-01` **[GATE_B][TERRA] Wire the tenant and acting-context switcher into the served product shell.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.ACCESS; DIRECT=none; WHY=the context switcher component that WEB-038 closed is never populated by any production view builder so it is invisible in the running application`.
+  - **TEST:** `TestTodo_REV_064_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_064_01`; `INTEGRATION=TestTodo_REV_064_01_Integration`.
+  - **RED:** GAP against `WEB-038` (ticked): `grep -n "ContextSwitcher" internal/humanwork/workspace/product_shell.go tools/uxqual/cmd/journeywasm/product_wasm.go` returns no assignment to `view.ContextSwitcher`, so `ContextSwitcherProps{}` is always the zero value in the running binary; `contextSwitcherVisible` (`internal/humanwork/productui/context_switcher.go:468-470`) returns `false` for a zero-value props, so `contextSwitcherSlot` renders `html.Fragment()` for every authenticated user in production.
+  - **GREEN:** `product_shell.go` and the journey WASM entrypoint resolve a real `AuthorityContext`/`[]AuthorityContextOption` for the acting principal and an authenticated `ContextExchange`/`ContextCommit`/`ContextRollback` adapter, so the switcher is visible whenever the principal has more than one tenant/authority pair and an actual exchange call reaches a real endpoint instead of failing closed with `ErrContextExchangeUnavailable`.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/context_switcher.go`, `internal/humanwork/workspace/product_shell.go`, `tools/uxqual/cmd/journeywasm/product_wasm.go`.
+
+- [ ] `REV-064-02` **[GATE_C][LUNA] Remove or wire the dead AttentionList helper left over from the notification center.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.EXPERIENCE; DIRECT=none; WHY=an exported helper from the WEB-042 notification center has no caller anywhere in the repository so it silently diverges from the function the shell actually renders with`.
+  - **TEST:** `TestTodo_REV_064_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_064_02`.
+  - **RED:** GAP against `WEB-042` (ticked): `grep -rn "AttentionList(" --include=*.go .` matches only the definition in `internal/humanwork/productui/attention_list.go:122` and its own test file; the shell's real popover (`notificationMenu`, `internal/humanwork/productui/shell.go:454`) instead calls `ActionableWorkItems` from `my_work.go:235`, a separate function with different filtering.
+  - **GREEN:** either `notificationMenu` calls `AttentionList` for the notification surface and the two functions' behavior is reconciled with one documented owner, or `AttentionList` and its test are deleted; no exported helper claiming to serve the notification center remains uncalled.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/attention_list.go`, `internal/humanwork/productui/shell.go`, `internal/humanwork/productui/my_work.go`.
+
+### R065. §66 / Authentication session and delegated context
+
+Checked WEB-049 through WEB-060 (`internal/humanwork/productui`, tenant-federation entry, sign-in recovery, session warning, reauth resume, step-up, delegation selector, acting-authority banner, break-glass, view-as simulation, logout, auth telemetry). All twelve named tests (`TestTodo_WEB_049` … `TestTodo_WEB_060`) exist and the package is imported by `cmd/hcmnext` and `cmd/worker`, so it is compiled into the running binary — but the whole area is library-only in the sense that matters: the production request path that builds the `View` the tests exercise never populates any of the session/identity fields these items claim to implement. `View.SessionWarning`, `StepUpChallenge`, `BreakGlassActivation`, `PolicySimulation`, `SignedOut` (`internal/humanwork/productui/model.go:558-577`) and `View.ContextSwitcher`, `FederationEntries`, `RecoveryOptions` (`model.go:527-548`) are all documented as "server-resolved"/"server-projected", yet `PageRequest`/`ApplyRequest` (`internal/humanwork/productui/provider.go`) carry no such fields, `JourneyConfig` (`internal/humanwork/workspace/journey_shell.go:109-142`) carries no such fields, and `productShellDocumentForRouteStateWithPreferences`'s view construction (`internal/humanwork/workspace/product_shell.go:248-263`) never assigns them. `grep -rln "productui.View{" --include=*.go .` (excluding the package itself and tests) finds exactly one caller in the whole repo, `tools/uxqual/productclient/refresh.go`, a fixture-refresh tool, not a served handler. So in the real app no user is ever shown a session-expiry warning, step-up prompt, break-glass option, view-as panel, signed-out convergence page, delegation selector, acting-authority banner, federation entry chrome, or sign-in recovery links — every WEB-049..060 golden/browser test proves a component renders correctly from a hand-built struct, never that the running cell produces that struct. This is the most important gap in the unit: eleven "GATE_C done" tickets describe UI that cannot appear to a real user today.
+
+- [ ] `REV-065-01` **[GATE_B][SOL_HIGH] Wire session-lifecycle authority surfaces into the served request path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=session-expiry warning step-up break-glass view-as and signed-out convergence never reach a real user because the production provider never sets the View fields that carry them`.
+  - **TEST:** `TestTodo_REV_065_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_065_01`; `SECURITY=TestTodo_REV_065_01_Security`; `INTEGRATION=TestTodo_REV_065_01_Integration`.
+  - **RED:** GAP: contradicts WEB-052, WEB-054, WEB-057, WEB-058, WEB-059 (all ticked done, evidence 2026-09-07/08); `View.SessionWarning`, `StepUpChallenge`, `BreakGlassActivation`, `PolicySimulation`, `SignedOut` (`internal/humanwork/productui/model.go:558-577`) are documented as server-projected but `PageRequest`/`ApplyRequest` in `internal/humanwork/productui/provider.go` and `JourneyConfig` in `internal/humanwork/workspace/journey_shell.go:109-142` declare no such fields; `productShellDocumentForRouteStateWithPreferences` (`internal/humanwork/workspace/product_shell.go:248-263`) builds `view` via `NewView`/`ApplyRoleVisibility`/`ApplyPagePermissions`/`ApplyFeaturePermissions`/`ApplyLocale` only; `grep -rln "productui.View{" --include=*.go .` outside `internal/humanwork/productui` and test files returns only `tools/uxqual/productclient/refresh.go`, an offline fixture tool, confirming zero production caller ever sets these fields.
+  - **GREEN:** `JourneyConfig` (or an equivalent request-scoped projection) carries the caller's real session-expiry, pending-elevation, break-glass eligibility, view-as target and revocation facts sourced from the trust/session backend; `product_shell.go`'s view construction assigns `View.SessionWarning` ahead of expiry, `StepUpChallenge` when a pending action needs elevated assurance, `BreakGlassActivation`/`PolicySimulation` per the caller's actual entitlements, and `SignedOut` once the session is revoked; a request against a running `cmd/hcmnext` with a session nearing expiry renders the warning banner and one with a revoked session renders the signed-out panel instead of the page.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/model.go`, `internal/humanwork/productui/provider.go`, `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/workspace/journey_shell.go`, `tools/uxqual/productclient/refresh.go`.
+
+- [ ] `REV-065-02` **[GATE_B][SOL_HIGH] Wire the delegation context switcher and tenant-federation/recovery chrome into the served request path.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.SECURITY,BI.ACCESS; DIRECT=none; WHY=the delegation selector acting-authority banner tenant-federation entry links and sign-in recovery links never reach a real user because no config field carries them from the handler to the view`.
+  - **TEST:** `TestTodo_REV_065_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_065_02`; `SECURITY=TestTodo_REV_065_02_Security`; `INTEGRATION=TestTodo_REV_065_02_Integration`.
+  - **RED:** GAP: contradicts WEB-049, WEB-050, WEB-055, WEB-056 (all ticked done); `View.ContextSwitcher` (`internal/humanwork/productui/model.go:545-548`), `FederationEntries` and `RecoveryOptions` (`model.go:527-539`) are documented as server-resolved/server-composed, but `JourneyConfig` (`internal/humanwork/workspace/journey_shell.go:109-142`) has no field for any of the three, and `grep -rn "SwitchAuthorityContext|productui.ContextSwitcherProps{" --include=*.go .` outside `internal/humanwork/productui` and its tests returns no matches, so no handler ever resolves a caller's delegated grants, issuer registry, or recovery destinations into the view a real request renders.
+  - **GREEN:** `JourneyConfig` carries the caller's delegated grants, the issuer registry for tenant-federation entry, and the recovery-destination registry, sourced from the real trust/directory backend (the same source as role bindings); `product_shell.go` assigns them onto `View.ContextSwitcher`, `FederationEntries`, and `RecoveryOptions`; an authenticated request for a principal holding a delegated grant renders a selectable option in the real app and `SwitchAuthorityContext` is reachable from a real handler route, not only from `productui`'s own tests.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/model.go`, `internal/humanwork/productui/context_switcher.go`, `internal/humanwork/workspace/journey_shell.go`, `internal/humanwork/workspace/product_shell.go`.
+
+### R066. Authorization and visibility projection
+
+Checked WEB-061 through WEB-072 (`internal/humanwork/productui`, package is a real dependency of `cmd/hcmnext` via `go list -deps`). All twelve named tests and their Golden/Browser/Conformance/Security variants exist and are well-constructed unit tests of `ProjectAuthorizedValue`, `ProjectAuthorizedRecord`, `DiscoveryAdmitted`, `DiscoveryLabel`, and the record-level page checks in `page_person.go`/`page_organization.go`/`global_search.go`/`selectors.go`. The library code is correct and library-only, not wired: `View.RecordVerdicts` (`internal/humanwork/productui/model.go:583`) is assigned only inside `_test.go` files across the whole repo (`grep -rn "\.RecordVerdicts *=" .` finds zero non-test hits). `productui.NewView` never sets it, the SSR loading shell in `internal/humanwork/workspace/product_shell.go:248` never sets it, and the live WASM data path (`tools/uxqual/productclient/client.go` `Service`/`load()`) only calls `ListJourneys`, `ListWorkers`, `GetPreferences`, `GetWorkerIDPolicy`, `GetRoleAccess` — none of which carry a per-record or per-field authorization verdict (`gen/go/hcmnext/journey/v1/journey_service.pb.go`'s `Worker` message has plain `BasePay`, `BonusTarget`, `LegalName`, etc. with no disclosability/effect/reason companion fields). Every "silent" branch in the projection code (`DiscoveryAdmitted` returns `true` on an empty map; `page_person.go`'s `silent := len(view.RecordVerdicts) == 0` keeps raw values) is documented as intentional ("a silent server keeps the current values") pending `RBAC-RT-001`, which is still open.
+
+- [ ] `REV-066-01` **[GATE_B][SOL_HIGH] Carry authorization verdicts on the wire and populate View.RecordVerdicts from the live worker/journey RPCs.**
+
+- **Depends:** `RBAC-RT-001`.
+- **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.SECURITY,BI.PRIVACY,BI.EXPERIENCE; DIRECT=none; WHY=close the gap between the tested authorization projection and the live data path that never feeds it verdicts`.
+- **TEST:** `TestTodo_REV_066_01`.
+- **TEST MATRIX:** `PRIMARY=TestTodo_REV_066_01`; `SECURITY=TestTodo_REV_066_01_Security`; `INTEGRATION=TestTodo_REV_066_01_Integration`.
+- **RED:** GAP against WEB-061 through WEB-072 (all ticked, evidence 2026-09-08): `grep -rn "\.RecordVerdicts *=" internal tools` outside `_test.go` returns nothing, and `journeyv1.Worker` (`gen/go/hcmnext/journey/v1/journey_service.pb.go:3835`) carries no disclosability/effect/reason fields, so `productclient.load()` (`tools/uxqual/productclient/client.go:326`) can never build a non-empty `RecordVerdicts`; every request executes the documented fail-open "silent server" branch (`internal/humanwork/productui/page_person.go:63`), rendering compensation and identity fields unmasked to every authenticated viewer.
+- **GREEN:** once `RBAC-RT-001` computes per-field verdicts server-side, the journey RPC responses carry them, `productclient` maps them into `View.RecordVerdicts` on every load and refresh, and an integration test proves a viewer without a compensation grant receives `PresentationDenied`/`PresentationRedact` fields end-to-end (RPC to rendered DOM), not just in a hand-built fixture.
+- **REFACTOR:** once wired, tighten the "silent means admit" branches in `page_person.go`, `global_search.go`, and `selectors.go` to fail closed instead of pass-through, now that a legitimate silent response (transport error, unversioned client) must not be indistinguishable from full authorization.
+- **Refs:** `internal/humanwork/productui/model.go`, `internal/humanwork/productui/page_person.go`, `tools/uxqual/productclient/client.go`, `gen/go/hcmnext/journey/v1/journey_service.pb.go`, [authorization model](specs/organization-scope-and-authz.md).
+
+### R067. §66 / Governed customer-page platform
+
+Checked all twelve ticked items (WEB-073 through WEB-084) covering the immutable revision log, draft lifecycle, floorplan/region/widget/action validation, classification ceilings, config precedence, widget-version migration, rollout, rollback/retirement, and dependency-impact reporting. Every named test file and implementation file exists in `internal/humanwork/productui` (`page_revision.go`, `page_draft.go`, `page_rollout.go`, `page_rollback.go`, `dependency_impact.go`, plus the twelve `web0NN_*_test.go` files), the logic sampled (WEB-073, WEB-082, WEB-083, WEB-084) is real, well-structured, and deterministic, and `go list -deps ./cmd/hcmnext` confirms `productui` compiles into the running binary. The one item to flag hard: this entire governance layer is library-only in practice. `PageRevisionLog`, `PageRollout`, `PageRetirement`, and `ReportDependencyImpact` are referenced nowhere outside `internal/humanwork/productui` itself (no hits in a repo-wide grep excluding that package and its tests); the actual page-serving path in `internal/humanwork/workspace/product_shell.go` resolves pages straight from the compiled `productui.PageDefinitions()`/`LookupRoute` registry and never touches a revision, rollout, or retirement. So a page that has been "rolled back" or "retired" through this machinery keeps being served unchanged, and every revision recorded through `PageRevisionLog.Record` lives only in a process-memory map (no `sql.`/`database/sql` call anywhere in the cluster) and vanishes on restart. The section's tests all pass, but the capability the section's title promises — a governed page platform — governs nothing a request actually sees.
+
+- [ ] `REV-067-01` **[GATE_B][SOL_HIGH] Wire the page-revision and rollout ledger into the live page-serving handler.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.TENANT; DIRECT=none; WHY=the served page must resolve through the governed rollout so retirement and rollback actually take effect`.
+  - **TEST:** `TestTodo_REV_067_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_067_01`; `GOLDEN=TestTodo_REV_067_01_Golden`; `FAULT=TestTodo_REV_067_01_Fault`; `RECOVERY=TestTodo_REV_067_01_Recovery`.
+  - **RED:** GAP: WEB-073, WEB-082, and WEB-083 are ticked as implementing persisted revisions, scoped rollout, and rollback/retirement, but `PageRevisionLog`/`PageRollout`/`PageRetirement` have zero callers outside `internal/humanwork/productui` (repo-wide grep excluding that package and `_test.go` files returns nothing), and the live serving path `internal/humanwork/workspace/product_shell.go:30,665` resolves pages directly through `productui.LookupRoute`/`PageDefinitions()` with no revision, rollout, or retirement check, so a retired or rolled-back page keeps serving.
+  - **GREEN:** `product_shell.go`'s route resolution looks up the live `PageRollout` for the requesting scope from the revision ledger before serving, refuses (or falls back per a defined policy) when no live rollout covers the scope or when an active `PageRetirement` darkens the page, and a golden test proves the served page definition matches the rolled-out revision digest while a fault test proves a retired or rolled-back page is never served.
+  - **REFACTOR:** extract a single revision-resolution helper shared by `product_shell.go` and any future studio/admin API rather than duplicating rollout/retirement checks at each call site.
+  - **Refs:** `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/productui/page_revision.go`, `internal/humanwork/productui/page_rollout.go`, `internal/humanwork/productui/page_rollback.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+- [ ] `REV-067-02` **[GATE_C][SOL_LOW] Back the page-revision and rollout ledger with durable per-tenant storage.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.TENANT; DIRECT=none; WHY=an in-memory ledger loses every published revision on restart which breaks the append-only ledger guarantee`.
+  - **TEST:** `TestTodo_REV_067_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_067_02`; `GOLDEN=TestTodo_REV_067_02_Golden`; `RECOVERY=TestTodo_REV_067_02_Recovery`.
+  - **RED:** GAP: `page_revision.go:132-134` keeps `PageRevisionLog.revisions` as a bare `map[PageID]map[int64]PageDefinitionRevision` field with no SQL or file-backed writer anywhere in the cluster (grep for `sql.`/`database/sql` across `page_revision.go`, `page_rollout.go`, `dependency_impact.go` returns nothing), so WEB-073's ticked claim to "persist immutable pagedefinition revisions" produces state that does not survive a process restart, contradicting the platform's append-only-ledger principle.
+  - **GREEN:** a tenant-scoped store persists `PageRevisionLog.Record`/`PageRollout` rows keyed by (tenant, page, version) using the existing digest verification, and a recovery test restarts the process (or constructs a fresh log from the store) and proves previously recorded revisions and live rollouts read back unchanged, with tampered stored rows still failing closed.
+  - **REFACTOR:** keep `PageRevisionLog`'s digest and validation logic as the single source of truth and add a persistence adapter around it rather than re-deriving digests in the store.
+  - **Refs:** `internal/humanwork/productui/page_revision.go`, `internal/humanwork/productui/page_rollout.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+### R071. §66 / Intent Workspace
+
+Checked all twelve ticked items (`WEB-121`..`WEB-132`, lines 17122-17255): the primary test and every declared `_Golden`/`_Browser`/`_Conformance`/`_Integration`/`_Fault` subtest exist and are named correctly in `tools/uxqual/render/workspace` (WEB-121) and `internal/humanwork/productui` (WEB-122..132). `internal/humanwork/productui` is in `go list -deps ./cmd/hcmnext` and `./cmd/worker`, so the package is linked into a running binary. But two distinct wiring gaps surfaced on deeper inspection. First, `tools/uxqual/render/workspace` itself (WEB-121's "canonical Intent Workspace shell") is absent from `go list -deps ./cmd/hcmnext`; its own doc.go states the real server (`internal/humanwork/workspace/journey_shell.go`'s `serveJourney`) still serves a bespoke shell and `tools/uxqual/cmd/journeywasm` mounts `render/journey.LiveComponent` directly, never this package's `Build`. Second, the eleven WEB-122..132 presentation-logic files (draft autosave, field comparison, proposal guide, validation summary, simulation comparison, policy/obligation explanations, proposal confirmation, approval progress, status dimensions, reconciliation, reauth continuity) each export exactly one `Resolve*`/`Compare*`/`Explain*` function, and none of those eleven functions has a caller anywhere in the repo outside its own defining file and its own `_test.go` — confirmed by per-symbol grep. The Promotion floorplan (`tools/uxqual/pagedef/promotion.go`) declares the comparison-table and gauge widget slots these functions would logically back, but nothing routes through them. Most important gap: eleven ticked "Implement X presentation" items produced tested but functionally dead code — real page composition never calls it, so a user driving the actual Promotion flow gets none of this behavior.
+
+- [ ] `REV-071-01` **[GATE_C][SOL_HIGH] Wire the canonical Intent Workspace shell into the production journey HTTP handler, replacing the bespoke shell and the journeywasm LiveComponent mount.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=make the one qualified workspace shell the thing users actually receive from the running server`.
+  - **TEST:** `TestTodo_REV_071_01`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_071_01`; `INTEGRATION=TestTodo_REV_071_01_Integration`; `GOLDEN=TestTodo_REV_071_01_Golden`.
+  - **RED:** GAP: WEB-121 is ticked complete but `tools/uxqual/render/workspace/doc.go` (its own "Integration point (not wired by this package)" section) states `internal/humanwork/workspace/journey_shell.go`'s `serveJourney` still serves a bespoke journey-specific shell and `tools/uxqual/cmd/journeywasm`'s client mounts `tools/uxqual/render/journey.LiveComponent` directly rather than this package's `Build`; `go list -deps ./cmd/hcmnext` and `./cmd/worker` both omit `tools/uxqual/render/workspace` entirely, so no served binary links the shell WEB-121 built and tested.
+  - **GREEN:** `serveJourney` and the journeywasm client both call `tools/uxqual/render/workspace.Build` for every governed page, `go list -deps ./cmd/hcmnext` includes `tools/uxqual/render/workspace`, and a native-plus-wasm test proves the served response carries the shell's skip link, hash-route nav, session strip, and single canonical live region rather than the bespoke shell's markup.
+  - **REFACTOR:** retire the bespoke journey_shell markup and the direct LiveComponent mount once parity is proven.
+  - **Refs:** `tools/uxqual/render/workspace/doc.go`, `tools/uxqual/render/workspace/shell.go`, `internal/humanwork/workspace/journey_shell.go`, `tools/uxqual/cmd/journeywasm`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+- [ ] `REV-071-02` **[GATE_C][SOL_HIGH] Call the WEB-122 through WEB-132 promotion presentation resolvers from real page composition instead of leaving them reachable only from their own tests.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=connect the promotion draft comparison and approval presentation logic to the governed page so it actually renders`.
+  - **TEST:** `TestTodo_REV_071_02`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_071_02`; `CONFORMANCE=TestTodo_REV_071_02_Conformance`; `GOLDEN=TestTodo_REV_071_02_Golden`.
+  - **RED:** GAP: WEB-122 through WEB-132 each ship one exported function in `internal/humanwork/productui` (`ResolveDraftAutosave`, `CompareFieldValue`/`CompareFieldValues`, `ResolveProposalGuide`, `ResolveValidationSummary`, `CompareSimulations`, `ResolveObligationExplanation`, `ResolveProposalConfirmation`, `ResolveApprovalProgress`, `ResolveStatusDimensions`, `ResolveReconciliation`, `ResolveResumeHref`); `grep -rln` for each symbol across the whole repository returns only its defining file and its own `_test.go`, and `tools/uxqual/pagedef/promotion.go`'s `comparison-table`, `pay-band-gauge`, and `budget-gauge` widget slots never call `CompareFieldValue`/`CompareSimulations`, so eleven ticked "implement X presentation" items are tested but unreachable from any served page.
+  - **GREEN:** the Promotion page's registered widgets for autosave, field comparison, guided proposal, validation summary, simulation comparison, policy/obligation explanation, confirmation, approval progress, execution status, reconciliation, and reauth resume each call their corresponding `productui` resolver, and a conformance test fails the build if any of the eleven listed exported functions has zero callers outside its own defining file and test file.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/draft_autosave.go`, `internal/humanwork/productui/field_comparison.go`, `internal/humanwork/productui/proposal_guide.go`, `internal/humanwork/productui/validation_summary.go`, `internal/humanwork/productui/simulation_comparison.go`, `internal/humanwork/productui/policy_obligation_explanations.go`, `internal/humanwork/productui/proposal_confirmation.go`, `internal/humanwork/productui/approval_progress.go`, `internal/humanwork/productui/status_dimensions.go`, `internal/humanwork/productui/reconciliation.go`, `internal/humanwork/productui/reauth_continuity.go`, `tools/uxqual/pagedef/promotion.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+
+## 82. External integration HTTP API and machine-client authentication (2026-09-19)
+
+These come from a read-only analysis on 2026-09-19 of the served API surface, feature-by-feature API coverage and authentication for machine clients.
+
+### What is served today
+
+- **Declared and working:** 76 RPCs are declared and 57 work.
+- **Plain HTTP:** only 26 are reachable over plain HTTP on the connect-go edge: intents, registry, workflow control, work-item reads, operations, and the promotion proposal.
+- **Not served:** `EvidenceService` is built but unregistered, and `DataOpsService` and `IntegrationService` have no transport.
+- **Missing by domain:** no domain other than intents, promotion, base pay and budget has a read or write API. 236 of 253 features in `definitions/governance/feature-intent-coverage.yaml` are deferred.
+- **Missing surfaces:** no token endpoint, no TLS, no inbound webhook route, no change feed and no OpenAPI document.
+
+### Authentication
+
+- A non-browser client can authenticate only with a self-signed HMAC token under one shared key.
+- The token supplies tenant, roles, purposes, assurance and delegations.
+- A capability's scope is granted to any token that lists the purpose.
+
+### What full CRUD means here
+
+External "full CRUD" follows the endpoint contract (`planning/specs/http-grpc-endpoint-contract.md`), which forbids generic patch endpoints for governed facts:
+
+- **Governed business facts** are created, changed and ended through intent-backed endpoints and read through authorized, effective-dated reads.
+- **Configuration and custom data** get versioned CRUD with retirement instead of deletion.
+- **Externally mastered data** is linked and observed.
+- **Append-only records** are created, corrected or voided, never erased.
+
+### Specs and related items
+
+Two OpenAPI documents describe the surface:
+
+- `schema/openapi/rpcs.openapi.yaml` is generated from the protobuf descriptors and covers every declared RPC.
+- `schema/openapi/integration.openapi.yaml` is the design contract for the planned resource API. Every operation in it names the todo that delivers it.
+
+Related open items are not duplicated here:
+
+- `RBAC-RT-002` and `RBAC-RT-010`: server-resolved roles and an identity-only token.
+- `REV-005-01`: federation verifier.
+- `REV-030-01`: DataOps and Integration services.
+- `REV-055-01` and `REV-055-02`: evidence service and work-item writes.
+- `REV-060-01`: durable dedupe.
+- `REV-100-01`, `REV-100-02` and `REV-100-03`: API reference, per-client quotas and bulk export.
+
+- [ ] `INTAPI-001` **[GATE_B][SOL_HIGH] Register machine clients and issue them short-lived asymmetric tokens through a client-credentials endpoint.**
+  - **Depends:** `RBAC-RT-010`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY,BI.INTEGRATION; DIRECT=none; WHY=external systems can only obtain access today through a token signed with one shared key that grants whatever authority it claims`.
+  - **TEST:** `TestTodo_INTAPI_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_001`; `SECURITY=TestTodo_INTAPI_001_Security`; `INTEGRATION=TestTodo_INTAPI_001_Integration`; `FAULT=TestTodo_INTAPI_001_Fault`; `RECOVERY=TestTodo_INTAPI_001_Recovery`.
+  - **RED:** GAP: no table or entity represents a machine client; `internal/application/serve.go` composes only `trust.NewHMACVerifier`; no route issues tokens; `internal/domains/partnerapp/credential.go` keeps workload credentials in memory and is not connected to transport.
+  - **GREEN:** a machine-client registry stores owner, tenant, granted capability scopes, purpose, data-domain and field subset, IP allow-list, expiry, public keys with rotation, revocation state and last use; `POST /oauth2/token` accepts client credentials authenticated by private_key_jwt or mutual TLS and returns a token of at most fifteen minutes carrying only subject, client, tenant, session and assurance, signed by a rotating key published at `/.well-known/jwks.json`; the served verifier accepts these tokens and refuses the HMAC token outside the local development profile.
+  - **REFACTOR:** promote `partnerapp.WorkloadIdentityManager` onto the durable registry.
+  - **Refs:** `internal/trust/hmactoken.go`, `internal/application/serve.go`, `internal/domains/partnerapp/credential.go`, `schema/openapi/integration.openapi.yaml`.
+
+- [ ] `INTAPI-002` **[GATE_B][SOL_HIGH] Cap token lifetime, reject replays and check revocation on every bearer call.**
+  - **Depends:** `INTAPI-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY; DIRECT=none; WHY=a stolen token stays valid until it expires and can be replayed from anywhere because nothing checks lifetime bounds, identifiers or revocation`.
+  - **TEST:** `TestTodo_INTAPI_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_002`; `SECURITY=TestTodo_INTAPI_002_Security`; `PROPERTY=TestTodo_INTAPI_002_Property`; `INTEGRATION=TestTodo_INTAPI_002_Integration`.
+  - **RED:** GAP: the bearer verifier checks only signature, issuer, audience and expiry; there is no maximum lifetime, token identifier replay cache, session or credential-epoch lookup, or proof-of-possession binding; `CredentialDigest()` is computed and never recorded.
+  - **GREEN:** tokens above the maximum lifetime are refused; each token identifier is accepted once per lifetime; a revoked client, key or session fails closed within the propagation budget; write-capable clients must present a DPoP proof or mutual-TLS binding matching the token confirmation claim; PROPERTY proves no replayed or post-revocation token is admitted.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/trust/hmactoken.go`, `internal/transport/invocation.go`, `internal/trust/session`.
+
+- [ ] `INTAPI-003` **[GATE_B][SOL_HIGH] Enforce client scopes, machine roles, verified delegation and step-up on every capability call.**
+  - **Depends:** `INTAPI-001`, `RBAC-RT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY,BI.ALL; DIRECT=none; WHY=a capability's scope is granted to any token that names the purpose, so client least privilege does not exist`.
+  - **TEST:** `TestTodo_INTAPI_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_003`; `SECURITY=TestTodo_INTAPI_003_Security`; `PROPERTY=TestTodo_INTAPI_003_Property`.
+  - **RED:** GAP: `internal/intent/app/capabilities.go` `authorize` grants `AuthZScopeRef` to any principal whose token lists the purpose; the policy table's role templates are all human; `DelegationRefs` are taken from the token; step-up is recorded but never gates a served write.
+  - **GREEN:** effective authority is the intersection of the client's granted scopes, the capability's scope and the field policy; machine role templates grant least privilege; acting on behalf of a person requires a delegation verified on the server and intersected with that person's current authority; writes of high risk class require step-up or dual approval; PROPERTY proves a client never exceeds its grant.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/intent/app/capabilities.go`, `internal/trust/authz/policy.go`, `internal/trust/delegation.go`, `internal/trust/stepup`.
+
+- [ ] `INTAPI-004` **[GATE_B][SOL_HIGH] Terminate TLS at the listeners and record client identity in audit and abuse signals.**
+  - **Depends:** `INTAPI-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY,BI.OPERATIONS; DIRECT=none; WHY=both listeners serve plaintext and audit records cannot say which client made a call`.
+  - **TEST:** `TestTodo_INTAPI_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_004`; `SECURITY=TestTodo_INTAPI_004_Security`; `INTEGRATION=TestTodo_INTAPI_004_Integration`.
+  - **RED:** GAP: no TLS or client-certificate configuration exists on the gRPC or HTTP listener; invocation evidence records subject and session but no client identifier or credential digest; `internal/engines/abuse` has no production importer.
+  - **GREEN:** the listeners require TLS, or a documented and tested terminator contract forwards verified client identity; invocation evidence records client identifier and credential digest; client call patterns feed the abuse detector; per-client quotas follow `REV-100-02`.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/grpcserver`, `internal/transport/cell/cell.go`, `internal/engines/abuse`.
+
+- [ ] `INTAPI-005` **[GATE_B][SOL_HIGH] Require a durable idempotency key on every external write.**
+  - **Depends:** `INTAPI-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.INTEGRATION; DIRECT=none; WHY=external systems retry, and a write replayed after a restart or on another replica must not execute twice`.
+  - **TEST:** `TestTodo_INTAPI_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_005`; `RECOVERY=TestTodo_INTAPI_005_Recovery`; `RACE=TestTodo_INTAPI_005_Race`; `FAULT=TestTodo_INTAPI_005_Fault`; `INTEGRATION=TestTodo_INTAPI_005_Integration`.
+  - **RED:** GAP: `endpoint.Coordinator` keeps idempotency state in an in-process map that is unbounded and lost on restart; `ProposeJourney`, `ExecuteJourney`, `DecideJourney`, `AcknowledgeJourney`, `CreateWorker` and every `Save*` call accept writes without a key; the work-item and dedupe gaps are tracked as `REV-055-02` and `REV-060-01`.
+  - **GREEN:** every externally reachable write requires an `Idempotency-Key` header or field; the coordinator persists key, request digest and result in PostgreSQL shared across replicas with capability-specific expiry; a replay returns the original result and a key reused with a different request is refused; RACE proves concurrent duplicates execute once.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/endpoint`, `internal/intent/app/cell.go`.
+
+- [ ] `INTAPI-006` **[GATE_B][SOL_LOW] Fix defects on the served API surface.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORK,BI.SECURITY; DIRECT=none; WHY=several served calls record wrong audit data, ignore paging, return unavailable or expose operator services through the browser tunnel`.
+  - **TEST:** `TestTodo_INTAPI_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_006`; `SECURITY=TestTodo_INTAPI_006_Security`; `GOLDEN=TestTodo_INTAPI_006_Golden`; `INTEGRATION=TestTodo_INTAPI_006_Integration`.
+  - **RED:** GAP: `internal/transport/workflow/control.go` sends the idempotency key as `ReasonRef` for `RetryNode`; `WorkService` `GetThresholdTable` is unimplemented; `ListJourneys` ignores its page request; the workspace gRPC tunnel accepts clients without an Origin header and exposes every registered service including `AdminService`; the development HMAC key also signs page cursors.
+  - **GREEN:** `RetryNode` records the caller's reason; `GetThresholdTable` is implemented or removed from the contract; `ListJourneys` pages; the tunnel serves only workspace session clients and the services the workspace uses; cursors are signed with a dedicated rotating key.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/workflow/control.go`, `internal/transport/humanwork/work.go`, `internal/transport/cell/tunnel.go`, `internal/application/serve.go`.
+
+- [ ] `INTAPI-007` **[GATE_C][SOL_LOW] Serve every public service over HTTP with resource aliases and a versioning and deprecation policy.**
+  - **Depends:** `INTAPI-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTEGRATION,BI.ALL; DIRECT=none; WHY=only 26 of 57 working calls are reachable over plain HTTP, so integrators without gRPC tooling cannot use most of the platform`.
+  - **TEST:** `TestTodo_INTAPI_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_007`; `INTEGRATION=TestTodo_INTAPI_007_Integration`; `GOLDEN=TestTodo_INTAPI_007_Golden`.
+  - **RED:** GAP: `internal/transport/edge/handler.go` mounts 26 procedures; `AdminService`, most of `JourneyService` and the work-item writes are gRPC or tunnel only; discovery lists only intent and registry methods; there is no written deprecation policy.
+  - **GREEN:** every service classified public in the generated OpenAPI document is mounted on the HTTP edge with Connect JSON and a resource-style alias; discovery lists every public operation; a deprecation header and sunset date accompany deprecated operations and removal requires a published notice period.
+  - **REFACTOR:** derive the edge mount list from the service registry rather than a hand list.
+  - **Refs:** `internal/transport/edge/handler.go`, `internal/transport/manifest`.
+
+- [x] `INTAPI-008` **[GATE_C][SOL_LOW] Generate the OpenAPI document for every RPC from protobuf descriptors and fail on drift.**
+  - **Evidence (2026-09-19):** `tools/gen/openapi` walks the compiled protobuf descriptors of every `gen/go/hcmnext` package and writes `schema/openapi/rpcs.openapi.yaml` (OpenAPI 3.1.0): 10 services, 76 operations at their Connect paths, 382 component schemas under the protobuf JSON mapping, the Connect error model, bearer security, and `x-hcmnext-service`, `x-hcmnext-rpc-kind`, `x-hcmnext-registered` (62 operations) and `x-hcmnext-http-exposed` (25 operations plus the `/v1/promotions:proposeIntoManagement` alias) extensions; `JourneyService.WatchJourney` is marked server-streaming and gRPC only. The registered and exposed lists are proven against the real composition: `exposure_test.go` builds `cell.NewGRPCServer` and reads its service registry, and probes `cell.NewEdgeHandlerWithDependencies` for every declared procedure path. Regenerate with `go run ./tools/gen/openapi/cmd/openapigen`; `-check` compares instead of writing and reports up to date. `TestTodo_INTAPI_008` and `TestTodo_INTAPI_008_Golden` pass: `go test ./tools/gen/openapi/... -count=1` ok (package coverage 99.2 percent, command 94.7 percent). The generated file is excluded from prettier in `.prettierignore`.
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTEGRATION,BI.ALL; DIRECT=none; WHY=external integrators need a machine-readable contract that cannot diverge from the protobuf services the cell serves`.
+  - **TEST:** `TestTodo_INTAPI_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_008`; `GOLDEN=TestTodo_INTAPI_008_Golden`.
+  - **RED:** GAP: `buf.gen.yaml` has only Go and gRPC plugins and no OpenAPI document exists; `REV-100-01` asks for publication but nothing generates the contract.
+  - **GREEN:** a Go generator walks the compiled protobuf descriptors and writes `schema/openapi/rpcs.openapi.yaml` with one POST operation per unary RPC at its Connect path, request and response schemas following the protobuf JSON mapping, the standard error model, bearer security, and extensions naming each operation's service, method kind and HTTP exposure; streaming RPCs are listed but marked gRPC only; GOLDEN fails when the checked-in document differs from a fresh generation.
+  - **REFACTOR:** none.
+  - **Refs:** `schema/proto`, `gen/go`, `schema/openapi/rpcs.openapi.yaml`, `tools/gen/openapi`.
+
+- [ ] `INTAPI-009` **[GATE_C][SOL_LOW] Keep the integration API design contract aligned with the served surface and the backlog.**
+  - **Depends:** `INTAPI-008`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTEGRATION; DIRECT=none; WHY=a design contract is useful to partners only if every planned operation is owned by a todo and every delivered operation matches the generated contract`.
+  - **TEST:** `TestTodo_INTAPI_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_009`; `GOLDEN=TestTodo_INTAPI_009_Golden`.
+  - **RED:** NEW: `schema/openapi/integration.openapi.yaml` is hand-authored and nothing checks it against the backlog or the generated RPC document.
+  - **GREEN:** a check fails when an operation lacks an `x-hcmnext-todo` naming an existing todo, when an operation marked served has no matching generated RPC, or when a todo it names is closed while the operation is still marked planned.
+  - **REFACTOR:** none.
+  - **Refs:** `schema/openapi/integration.openapi.yaml`, `planning/todos.md`.
+
+- [ ] `INTAPI-010` **[GATE_C][SOL_HIGH] Serve authorized, effective-dated read APIs for every governed domain.**
+  - **Depends:** `INTAPI-003`, `RBAC-RT-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.WORKFORCE,BI.REWARDS; DIRECT=none; WHY=no API returns a person, employment, assignment, organization, position, compensation package or budget although the domain reads exist`.
+  - **TEST:** `TestTodo_INTAPI_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_010`; `SECURITY=TestTodo_INTAPI_010_Security`; `INTEGRATION=TestTodo_INTAPI_010_Integration`; `BENCHMARK=TestTodo_INTAPI_010_Benchmark`.
+  - **RED:** GAP: PEOPLE-001 to PEOPLE-003, ORG-001, POSITION-001 and COMP-001 provide domain reads that no RPC serves.
+  - **GREEN:** get and list operations for workers, persons, employments, assignments, organization units, positions, compensation packages and budgets accept an as-of date, a field mask and a page cursor, apply field authorization per subject, and return a revision usable for optimistic concurrency; BENCHMARK pages 100,000 workers within budget.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/people`, `internal/domains/organization`, `internal/domains/compensation`.
+
+- [ ] `INTAPI-011` **[GATE_C][SOL_HIGH] Expose intent-backed write endpoints for governed operations, including batch submission.**
+  - **Depends:** `INTAPI-005`, `WF-EXT-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.WORKFORCE,BI.LIFECYCLE; DIRECT=none; WHY=external systems can change only promotion, base pay and budget holds, and governed facts must change through intents rather than generic updates`.
+  - **TEST:** `TestTodo_INTAPI_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_011`; `INTEGRATION=TestTodo_INTAPI_011_Integration`; `SECURITY=TestTodo_INTAPI_011_Security`; `PROPERTY=TestTodo_INTAPI_011_Property`.
+  - **RED:** GAP: only promotion, base pay and budget intents are executable; `internal/intent/batch.go` is not served; the capabilities hire commit, assignment revision, end employment and absence commit are tracked as WF-CAP items.
+  - **GREEN:** hire, assignment change, termination, organization change, leave request and access grant are each an intent type with a resource-style endpoint that creates and optionally submits the intent and returns its identifier and status; rescind maps to cancel or supersede; batch submission accepts up to a declared maximum with per-item results; PROPERTY proves no endpoint writes a governed fact outside an intent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/intent/batch.go`, `internal/intent/definitions`, [endpoint contract](specs/http-grpc-endpoint-contract.md).
+
+- [ ] `INTAPI-012` **[GATE_C][SOL_HIGH] Provide versioned configuration CRUD endpoints with revision checks and retirement.**
+  - **Depends:** `INTAPI-003`, `WF-DATA-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.TENANT,BI.INTEGRATION; DIRECT=none; WHY=custom objects, parameters, workflow definitions, roles, connectors and job architecture cannot be managed by any external system`.
+  - **TEST:** `TestTodo_INTAPI_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_012`; `SECURITY=TestTodo_INTAPI_012_Security`; `INTEGRATION=TestTodo_INTAPI_012_Integration`; `PROPERTY=TestTodo_INTAPI_012_Property`.
+  - **RED:** GAP: only role access, preferences and the worker-identifier policy have served writes, all as whole-entity upserts without deletion, history or approval.
+  - **GREEN:** custom object types and records, tenant parameters, write-only secrets, workflow definitions and versions, roles and role bindings, connectors and connections, job architecture and report definitions each have create, get, list, update and retire operations; updates require `If-Match` with the current revision; high-impact changes return a pending approval; retire keeps history; secrets are never readable.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/custom`, `internal/platform/config`, `internal/experience/roleaccess`.
+
+- [ ] `INTAPI-013` **[GATE_C][SOL_HIGH] Publish a change feed through managed webhook subscriptions and a pull event cursor.**
+  - **Depends:** `INTAPI-003`, `INTAPI-005`.
+  - **INTENT CONTEXT:** `ROLE=EMITTER; SETS=BI.INTEGRATION,BI.TRIGGERS; DIRECT=none; WHY=external systems cannot learn about changes except by polling reads, and the subscription engine has no management API or delivery path`.
+  - **TEST:** `TestTodo_INTAPI_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_013`; `INTEGRATION=TestTodo_INTAPI_013_Integration`; `SECURITY=TestTodo_INTAPI_013_Security`; `RECOVERY=TestTodo_INTAPI_013_Recovery`.
+  - **RED:** GAP: SUB-001 to SUB-008 and EVENT-001 to EVENT-006 are built but have no served management API; `internal/domains/subscription/credentials.go` signing is not on any delivery path.
+  - **GREEN:** clients create, list, pause, resume, replay and delete webhook subscriptions filtered by event type and scope; deliveries are signed with a rotating secret, retried with backoff, recorded and replayable; a pull feed returns authorized events after a cursor; events carry only fields the subscriber may read; RECOVERY proves no event is lost across restart.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/domains/subscription`, `internal/data/outbox`.
+
+- [ ] `INTAPI-014` **[GATE_C][SOL_LOW] Mount the inbound webhook route and run imports, exports and runs as asynchronous operations.**
+  - **Depends:** `INTAPI-005`, `REV-030-01`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTEGRATION,BI.DATAOPS; DIRECT=none; WHY=provider callbacks have no route and long-running work has no uniform status resource`.
+  - **TEST:** `TestTodo_INTAPI_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_014`; `INTEGRATION=TestTodo_INTAPI_014_Integration`; `SECURITY=TestTodo_INTAPI_014_Security`.
+  - **RED:** GAP: `internal/connectivity/webhook` and `providerreceipt` verify inbound callbacks but no route is mounted; `OperationsService` is served but almost nothing produces operations; bulk export is tracked as `REV-100-03`.
+  - **GREEN:** `POST /v1/inbound/{connection}` verifies signature, timestamp and replay before recording a receipt; imports, exports, evidence exports and report runs return an operation resource that clients poll or subscribe to, with cancellation and result download.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity/webhook`, `internal/connectivity/providerreceipt`, `internal/transport/operations`.
+
+- [ ] `INTAPI-015` **[GATE_C][SOL_HIGH] Run an API conformance suite against the published OpenAPI contract.**
+  - **Depends:** `INTAPI-007`, `INTAPI-008`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.INTEGRATION,BI.SECURITY; DIRECT=none; WHY=every public operation must behave identically for authentication, authorization, idempotency, paging and errors or integrators cannot rely on the contract`.
+  - **TEST:** `TestTodo_INTAPI_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_INTAPI_015`; `CONFORMANCE=TestTodo_INTAPI_015_Conformance`; `SECURITY=TestTodo_INTAPI_015_Security`; `INTEGRATION=TestTodo_INTAPI_015_Integration`.
+  - **RED:** NEW: no test exercises served operations from the contract; the runtime RBAC suite covers selected calls only.
+  - **GREEN:** a suite driven by the OpenAPI documents calls every public operation on a served cell and proves it rejects missing, expired and foreign-tenant credentials, enforces scopes, honours idempotency and optimistic concurrency, pages consistently and returns the standard error model.
+  - **REFACTOR:** reuse the runtime RBAC fixture users.
+  - **Refs:** `schema/openapi`, `internal/application/rbac_runtime_integration_test.go`.
