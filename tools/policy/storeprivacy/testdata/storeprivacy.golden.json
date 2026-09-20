@@ -1,0 +1,1320 @@
+{
+  "version": 1,
+  "permanent_tables": 276,
+  "fields": 3285,
+  "digest": "sha256:ee1994b1b0a654a9f2e9360464506fdfede4c72ac39b9f27fe7555b3f1fc71d2",
+  "roster": [
+    {
+      "table": "accessreview_review_record",
+      "field": "justification",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/truststore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "accumulator_definition",
+      "field": "subject",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/balancestore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "appointment_requirement",
+      "field": "participants",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/schedulingstore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "approval_requirement",
+      "field": "candidates",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/attestationstore",
+      "detail": "personal column: named candidate; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "approval_resolution",
+      "field": "candidates",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/attestationstore",
+      "detail": "personal column: named candidate; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "asset_custody_event",
+      "field": "assignee_receipt",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/assetstore",
+      "detail": "personal column: named assignee; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "asset_custody_event",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/assetstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "attainment_observation",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/incentivestore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "attestation_binding",
+      "field": "signer",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/attestationstore",
+      "detail": "personal column: named signatory; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "attestation_response",
+      "field": "evidence_receipt",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/attestationstore",
+      "detail": "personal column: evidentiary content; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "attestation_response",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/attestationstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "attestation_statement",
+      "field": "attester",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/attestationstore",
+      "detail": "personal column: named attester; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "attestation_statement",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/attestationstore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "award_calculation",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/incentivestore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "balance_entry",
+      "field": "subject",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/balancestore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "balance_lifecycle_entry",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/balancestore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "capability_invocation_evidence",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/evidencestore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "career_assessment_revision",
+      "field": "summary",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/careerstore",
+      "detail": "personal column: free-text content; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "career_assessment_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/careerstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "career_preference_revision",
+      "field": "consent_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/careerstore",
+      "detail": "personal column: consent record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "career_preference_revision",
+      "field": "mobility_preference",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/careerstore",
+      "detail": "personal column: subject preference; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "career_preference_revision",
+      "field": "travel_preference",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/careerstore",
+      "detail": "personal column: subject preference; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "career_preference_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/careerstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "cba_membership_revision",
+      "field": "membership_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/cbastore",
+      "detail": "personal column: named member; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "cba_membership_revision",
+      "field": "worker_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/cbastore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "compensation_package",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/rewards",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "config_object_activation",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/configregistry",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "contact_endpoint_revision",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/contactstore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "contact_endpoint_revision",
+      "field": "verification",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/contactstore",
+      "detail": "reviewed payload envelope: verification evidence for a subject channel; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "custom_record_revision",
+      "field": "field_values",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/customstore",
+      "detail": "personal column: subject-supplied values; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "data_subject_request_evidence",
+      "field": "detail",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/identityprivacystore",
+      "detail": "personal column: free-text detail; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "definition_version",
+      "field": "body",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/schema",
+      "detail": "reviewed payload envelope: seeded reference person and employment entries; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "development_objective_revision",
+      "field": "description",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/careerstore",
+      "detail": "personal column: free-text description; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "development_objective_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/careerstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "employment",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/people",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "equity_grant",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/equitystore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_allegation_revision",
+      "field": "participants",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_allegation_revision",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_allegation_revision",
+      "field": "summary",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: free-text content; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_discipline_revision",
+      "field": "participants",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_discipline_revision",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_finding_revision",
+      "field": "participants",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_finding_revision",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_grievance_revision",
+      "field": "grievant_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named grievant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_grievance_revision",
+      "field": "participants",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_interview_revision",
+      "field": "interviewee_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named interviewee; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_interview_revision",
+      "field": "participants",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_interview_revision",
+      "field": "statement",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: free-text account; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "er_investigation_revision",
+      "field": "participants",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/employeerelationsstore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "external_access_observation",
+      "field": "observed_state",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/accessstore",
+      "detail": "personal column: free-text observation; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "external_access_observation",
+      "field": "observed_workforce_identity_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/accessstore",
+      "detail": "personal column: identity record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "external_observation",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/connectivity/observe/adapters/postgres",
+      "detail": "reviewed payload envelope: observed external state about subjects; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "external_operation_observation",
+      "field": "observed_state",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/integrationmeta",
+      "detail": "personal column: free-text observation; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "hr_case_revision",
+      "field": "participants",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/hrcasestore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "hr_case_revision",
+      "field": "subject",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/hrcasestore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "identity_claim",
+      "field": "person_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/people",
+      "detail": "personal column: person record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "inbox_state_event",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/inbox",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "integration_provider_receipt",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/providerreceipts",
+      "detail": "reviewed payload envelope: provider records about subjects; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "integration_provider_receipt",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/providerreceipts",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "integration_receipt_item",
+      "field": "error_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/integrationmeta",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "intent_closure",
+      "field": "closure_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "intent_decision",
+      "field": "decision_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "intent_input_snapshot",
+      "field": "snapshot_body",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "personal column: subject data snapshot; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "intent_instance_context",
+      "field": "identity_assurance_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "personal column: identity record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "intent_result",
+      "field": "result_body",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "reviewed payload envelope: intent execution results over subject-affecting decisions; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "intent_simulation_result",
+      "field": "result_body",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "reviewed payload envelope: intent execution results over subject-affecting decisions; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "issuer_state_event",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/authn/issuerregistry",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "jit_evidence_record",
+      "field": "detail",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/truststore",
+      "detail": "personal column: free-text detail; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "journey_note",
+      "field": "body",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/intent/app",
+      "detail": "reviewed payload envelope: journey note content about the subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "journey_worker",
+      "field": "legal_name",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workforce",
+      "detail": "personal column: person name; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "journey_worker",
+      "field": "preferred_name",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workforce",
+      "detail": "personal column: person name; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "journey_worker",
+      "field": "worker_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workforce",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "journey_worker",
+      "field": "worker_key",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workforce",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "journey_worker",
+      "field": "worker_number",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workforce",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "journey_worker",
+      "field": "worker_type",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workforce",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "knowledge_article_revision",
+      "field": "summary",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/contentregistrystore",
+      "detail": "personal column: free-text content; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "knowledge_localized_revision",
+      "field": "summary",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/contentregistrystore",
+      "detail": "personal column: free-text content; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "leave_availability_revision",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/leavestore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "leave_availability_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/leavestore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "ledger_checkpoint_epoch",
+      "field": "corrects_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/ledger/checkpoint",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "ledger_event",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/ledger",
+      "detail": "reviewed payload envelope: typed domain facts over workforce subjects; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "ledger_payload_disposition",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/ledger/disposition",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "legal_entity",
+      "field": "registered_name",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/organization",
+      "detail": "personal column: registered name; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "legal_review_record",
+      "field": "findings",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/legalevidencestore",
+      "detail": "personal column: free-text finding; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "merit_compensation_intent_emission",
+      "field": "participant_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/meritstore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "merit_compensation_intent_emission",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/meritstore",
+      "detail": "reviewed payload envelope: named review population; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "merit_population_snapshot",
+      "field": "members",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/meritstore",
+      "detail": "personal column: named member; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "merit_recommendation",
+      "field": "participant_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/meritstore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "migration_journal",
+      "field": "failure_detail",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/schema",
+      "detail": "personal column: free-text detail; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "mobility_plan",
+      "field": "immigration",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/mobilitystore",
+      "detail": "personal column: immigration detail; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "mobility_plan",
+      "field": "relocation",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/mobilitystore",
+      "detail": "personal column: relocation detail; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "mobility_plan",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/mobilitystore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "partner_application",
+      "field": "contact_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/commercialstore",
+      "detail": "personal column: contact detail; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "payinput_worker_assignment",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/payinputstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "paymethod_destination",
+      "field": "bank_detail_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/paymethodstore",
+      "detail": "personal column: financial account reference; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "paymethod_destination",
+      "field": "token_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/paymethodstore",
+      "detail": "personal column: authentication token; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "paymethod_destination",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/paymethodstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "payroll_frozen_population",
+      "field": "members",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/payrollstore",
+      "detail": "personal column: named member; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "payroll_population_amendment",
+      "field": "member",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/payrollstore",
+      "detail": "personal column: named member; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "payroll_population_amendment",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/payrollstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "people_promotion_write_evidence",
+      "field": "worker_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/people",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "performance_final_rating",
+      "field": "participant_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/performancestore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "performance_rating_case",
+      "field": "participant_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/performancestore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "performance_review",
+      "field": "participant_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/performancestore",
+      "detail": "personal column: named participant; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "person",
+      "field": "legal_name",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/people",
+      "detail": "personal column: person name; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "person",
+      "field": "preferred_name",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/people",
+      "detail": "personal column: person name; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "position_occupancy",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/organization",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "position_reservation_event",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/positionstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "promotion_base_pay_evidence",
+      "field": "worker_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/compensation",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "promotion_invariant_evaluation",
+      "field": "findings",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/promotion/localcommit",
+      "detail": "personal column: free-text finding; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "promotion_manager_relationship_evidence",
+      "field": "worker_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/org",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "proofing_session",
+      "field": "evidence",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/identityprivacystore",
+      "detail": "personal column: evidentiary content; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "proofing_session",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/identityprivacystore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "proposal_revision",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/intent/app/pgstore",
+      "detail": "reviewed payload envelope: intent proposal material over subject-affecting decisions; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "proposal_write_item",
+      "field": "subject_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "pseudonym_escrow_record",
+      "field": "ciphertext",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/identityprivacystore",
+      "detail": "reviewed payload envelope: escrowed subject pseudonym; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "record_copy_event",
+      "field": "detail",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/recordsmeta",
+      "detail": "personal column: free-text detail; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "record_copy_link",
+      "field": "exception_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/recordsmeta",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "rule_evaluation",
+      "field": "input_snapshot",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/governance/legal",
+      "detail": "personal column: subject data snapshot; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "safety_claim_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/safetystore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "safety_correction_revision",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/safetystore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "safety_incident_revision",
+      "field": "description",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/safetystore",
+      "detail": "personal column: free-text description; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "safety_incident_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/safetystore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "safety_injury_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/safetystore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "safety_work_restriction_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/safetystore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "search_projection_event",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/search",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "settlement_payment_instruction",
+      "field": "bank_detail_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/paymethodstore",
+      "detail": "personal column: financial account reference; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "signature",
+      "field": "signer_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/documentmeta",
+      "detail": "personal column: named signatory; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "subscription_authorization_event",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/subscriptionstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "succession_slate",
+      "field": "candidates",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/successionstore",
+      "detail": "personal column: named candidate; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "survey_campaign_sample",
+      "field": "member_ids",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/surveystore",
+      "detail": "personal column: named member; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "survey_response_record",
+      "field": "answers",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/surveystore",
+      "detail": "personal column: subject-provided answer; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "survey_revision",
+      "field": "description",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/surveystore",
+      "detail": "personal column: free-text description; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "talent_pool_membership_revision",
+      "field": "consent",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/crmstore",
+      "detail": "personal column: consent record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "talent_pool_membership_revision",
+      "field": "membership_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/crmstore",
+      "detail": "personal column: named member; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "talent_pool_membership_revision",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/crmstore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "talent_pool_revision",
+      "field": "consent",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/crmstore",
+      "detail": "personal column: consent record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "target_role_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/careerstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "tax_exemption_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/taxprofilestore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "tenant_provisioning_event",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/tenantstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "transaction_abort_receipt",
+      "field": "abort_detail",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "personal column: free-text detail; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "transaction_correction",
+      "field": "correction_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "withholding_election_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/taxprofilestore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "work_authorization_evidence",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/identityprivacystore",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "work_item_claim",
+      "field": "claimed_by",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/runtimestate",
+      "detail": "personal column: subject claim; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "work_location_revision",
+      "field": "address",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/locationstore",
+      "detail": "personal column: postal address; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker",
+      "field": "person_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/people",
+      "detail": "personal column: person record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker",
+      "field": "worker_number",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/people",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker",
+      "field": "worker_type",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/domains/people",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker_availability",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/schedulingstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker_availability",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/schedulingstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker_id_reservation",
+      "field": "worker_number",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workerstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker_skill_evidence",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/skillstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker_tax_profile_revision",
+      "field": "residence_jurisdictions",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/taxprofilestore",
+      "detail": "reviewed payload envelope: worker residence jurisdiction attribution; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker_tax_profile_revision",
+      "field": "work_jurisdictions",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/taxprofilestore",
+      "detail": "reviewed payload envelope: worker work jurisdiction attribution; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worker_tax_profile_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/taxprofilestore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workflow_signal",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/runtimestate",
+      "detail": "reviewed payload envelope: subject-keyed workflow event data; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workflow_signal_disposition",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/workflow/runtime",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workflow_version_approval",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workflowversionstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workflow_version_quarantine",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workflowversionstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workflow_version_transition",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workflowversionstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workforce_identity",
+      "field": "identity_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/accessstore",
+      "detail": "personal column: identity record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workforce_identity",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/accessstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "worksite_revision",
+      "field": "address",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/locationstore",
+      "detail": "personal column: postal address; stored inline, no payload-vault reference"
+    }
+  ]
+}
