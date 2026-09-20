@@ -38,7 +38,7 @@ Artifact maturity must be interpreted precisely:
 ```text
 planning/specs       mixed contracts, active registers and reference documents;
                      consult the ownership registry for each artifact's status
-schema/proto         canonical contract sources; generation toolchain not yet pinned
+schema/proto         canonical contract sources; generation pinned: run `buf generate`
 schema/schemaflux    draft structured sources; no HCM compiler pipeline yet
 src/blocks/go        existing Go conformance and execution fixtures
 legacy TypeScript    historical behavior evidence; not the target architecture
@@ -93,7 +93,7 @@ All enter the same architectural spine:
                                 |
               +-----------------+-----------------+
               v                 v                 v
-       Human Capital Management Suite state     External systems    Human interaction
+               HCM Suite state   External systems Human interaction
               |                 |                 |
               +-----------------+-----------------+
                                 |
@@ -106,6 +106,9 @@ All enter the same architectural spine:
                                 v
                     COMPLETE | DIAGNOSE | REPAIR
 ```
+
+The product's code-level names are `hcmnext`, `HCMNEXT_*` environment
+variables, and the `HCM_NEXT` database.
 
 The responsibilities remain distinct:
 
@@ -532,7 +535,7 @@ Go product core (github.com/monstercameron/human-capital-management-suite)
 │   ├── internal/transaction [transaction; P1B; owner=transaction-and-conflict]
 │   ├── internal/ledger [data; P1A; owner=data-and-ledger]
 │   ├── internal/data [data; P1A; owner=data-and-ledger]
-│   ├── internal/humanwork [connectivity; deferred; owner=connectivity]
+│   ├── internal/humanwork [transport; P1A; owner=experience-and-transport]
 │   ├── internal/connectivity [connectivity; P1A; owner=connectivity]
 │   ├── internal/trust [trust; P1A; owner=governance-and-trust]
 │   ├── internal/operations [operations; P1A; owner=operations-and-assurance]
@@ -725,12 +728,8 @@ short-lived matching credential, eliminating the token-copy/login loop. The
 profile is rejected if the cell, database, gateway, or upstream is not on
 loopback. It still runs the real credential verifier, authorization policies,
 tenant isolation, PostgreSQL stores, gRPC tunnel, and production Go/WASM UI.
-Run migrations and seed explicitly when schema or fixtures change:
-
-```powershell
-go run ./cmd/migrate up
-go run ./cmd/migrate seed -tenant=harborcare-demo
-```
+Run migrations and seed explicitly when schema or fixtures change, as shown in
+the Run the prototype locally section below.
 
 Explicit flags and `HCMNEXT_DATABASE_URL` / `HCMNEXT_DEV_HMAC_KEY` override
 the profile defaults. To exercise the manual credential path instead, start
@@ -762,16 +761,19 @@ $env:HCMNEXT_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5432/hcm_nex
 $env:HCMNEXT_DEV_HMAC_KEY = "a-local-development-key-at-least-32-bytes"
 ```
 
-The four root commands are `hcmnext` (the API cell), `migrate` (schema and
-fixture seed), `projector` (projection reconciliation), and `worker` (outbox
-consumption). Start a fresh database with:
+The seven root commands are `hcmnext` (the API cell), `migrate` (schema and
+fixture seed), `projector` (projection reconciliation), `worker` (outbox
+consumption), `scheduler` (workflow-frontier scheduling), `hcmctl` (operator
+CLI), and `frontenddev` (local frontend development). The `hcm_next` database
+must exist before `migrate up` (create it with any PostgreSQL client, e.g.
+from a Go one-off using pgx, or an external server; the embedded PostgreSQL
+binaries this repo's tests cache ship no `psql` or `createdb`). Start a fresh
+database with:
 
 ```powershell
 go run ./cmd/migrate up
 go run ./cmd/migrate seed -tenant=harborcare-demo
 ```
-
-The embedded PostgreSQL binaries this repo's tests cache ship no `psql` or `createdb`; the `hcm_next` database must exist before `migrate up` (create it with any PostgreSQL client, e.g. from a Go one-off using pgx, or an external server).
 
 Run the API cell after migration and seeding:
 
@@ -813,6 +815,7 @@ database:
 ```powershell
 go run ./cmd/projector
 go run ./cmd/worker
+go run ./cmd/scheduler
 ```
 
 Focused smoke checks are:
@@ -828,10 +831,12 @@ The existing Go fixture suite can be run with:
 go -C .\src\blocks\go test ./...
 ```
 
-The repository does not yet have a pinned root Protobuf/SchemaFlux generation
-command. Do not check in handwritten Go duplicates of Protobuf messages to work
-around that gap. Pin the Go-native generator/toolchain and generated-file policy
-before generated contracts become a build dependency.
+Generating contracts is pinned: run `buf generate` from the repository root.
+The `protoc-gen-go` and `protoc-gen-go-grpc` plugins resolve through `go.mod`
+tool directives, output lands in `gen/go`, and generated files are checked in.
+Do not check in handwritten Go duplicates of Protobuf messages. SchemaFlux YAML
+(`schema/schemaflux`) is compiled by `tools/gen/schemaflux`, not by `buf
+generate`.
 
 When changing architecture or implementation:
 
@@ -849,5 +854,5 @@ When changing architecture or implementation:
 
 ## License
 
-This repository is currently private and unlicensed for external use unless a
-separate license grant says otherwise.
+This repository is MIT licensed. See [LICENSE](LICENSE) (Copyright (c) 2026
+Earl Cameron).

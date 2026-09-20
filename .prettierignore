@@ -26,3 +26,4 @@ definitions/model/relationship-lifecycle-constraints.yaml
 definitions/planning/product-slices.yaml
 # Vendored third-party skill files stay byte-for-byte as upstream.
 .claude/skills/
+schema/openapi/rpcs.openapi.yaml
