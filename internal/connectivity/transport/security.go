@@ -65,7 +65,7 @@ func (d DestinationTrust) resolvePublicHost(ctx context.Context, host string, re
 		return nil, errors.New("destination is not trusted")
 	}
 	if ip := net.ParseIP(host); ip != nil {
-		if unsafeDestinationIP(ip) {
+		if d.unsafeIP(ip) {
 			return nil, errors.New("private destination")
 		}
 		return []net.IP{ip}, nil
@@ -78,11 +78,20 @@ func (d DestinationTrust) resolvePublicHost(ctx context.Context, host string, re
 		return nil, errors.New("destination did not resolve")
 	}
 	for _, ip := range ips {
-		if unsafeDestinationIP(ip) {
+		if d.unsafeIP(ip) {
 			return nil, errors.New("destination resolves to a private address")
 		}
 	}
 	return ips, nil
+}
+
+// unsafeIP applies unsafeDestinationIP, except that loopback is admitted
+// when the trust explicitly opts in with AllowLoopback.
+func (d DestinationTrust) unsafeIP(ip net.IP) bool {
+	if d.AllowLoopback && ip != nil && ip.IsLoopback() {
+		return false
+	}
+	return unsafeDestinationIP(ip)
 }
 
 func unsafeDestinationIP(ip net.IP) bool {
