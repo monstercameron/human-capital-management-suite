@@ -46,6 +46,8 @@ func TestTodo_PROMO_ACK_ServedCompletionAndRefusals(t *testing.T) {
 	if err != nil || fired.Fired != 1 {
 		t.Fatalf("Tick after the effective date = %+v, %v; want one timer fired", fired, err)
 	}
+	// Promotion 1.1.0: the providers confirm the committed change first.
+	h.confirmProviders()
 	if got := h.wfrun034Count(`SELECT count(*) FROM workflow_signal_subscription WHERE node_id = $1 AND subscription_state = 'OPEN'`, promotionexec.NodeAcknowledgeRelease); got != 1 {
 		t.Fatalf("open acknowledgement subscriptions = %d, want 1", got)
 	}
@@ -86,8 +88,10 @@ func TestTodo_PROMO_ACK_ServedCompletionAndRefusals(t *testing.T) {
 	if got := h.wfrun034Count(`SELECT count(*) FROM workflow_signal WHERE event_type = $1`, "hcmnext.events.promotion_ack"); got != 1 {
 		t.Fatalf("acknowledgement signals = %d, want 1", got)
 	}
-	if got := h.wfrun034Count(`SELECT count(*) FROM workflow_signal_disposition WHERE status = 'ACCEPTED'`); got != 1 {
-		t.Fatalf("ACCEPTED dispositions = %d, want 1", got)
+	// One ACCEPTED disposition per wait: the payroll and identity
+	// providers' confirmations and the acknowledgement.
+	if got := h.wfrun034Count(`SELECT count(*) FROM workflow_signal_disposition WHERE status = 'ACCEPTED'`); got != 3 {
+		t.Fatalf("ACCEPTED dispositions = %d, want 3", got)
 	}
 	var payload string
 	if err := h.pool.QueryRow(context.Background(), `SELECT payload::text FROM workflow_signal WHERE event_type = $1`, "hcmnext.events.promotion_ack").Scan(&payload); err != nil {
@@ -106,13 +110,16 @@ func TestTodo_PROMO_ACK_ServedCompletionAndRefusals(t *testing.T) {
 	}
 }
 
-// acknowledgeParkedPromotion records the HR operator's attestation against
-// the journey's open acknowledgement gate and requires the run to reach its
-// recorded terminal. Every served commit path parks at the gate since the
-// graph gained the SIGNAL node, so a test asserting terminal effects must
-// clear it first; the exactly-once oracles after it are unchanged.
+// acknowledgeParkedPromotion plays the payroll and identity providers
+// confirming the committed change (promotion 1.1.0), then records the HR
+// operator's attestation against the journey's open acknowledgement gate and
+// requires the run to reach its recorded terminal. Every served commit path
+// parks at the provider waits and then at the gate, so a test asserting
+// terminal effects must clear them first; the exactly-once oracles after it
+// are unchanged.
 func (h *promoux015Harness) acknowledgeParkedPromotion(id string) {
 	h.t.Helper()
+	h.confirmProviders()
 	acked, err := h.composed.Cell().Journey.Acknowledge(h.ackOperatorCtx(), id, workspace.Acknowledgement{
 		EvidenceRef: "hris:signature:served-commit", Note: "operator attestation recorded on the served path",
 	})

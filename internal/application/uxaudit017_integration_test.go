@@ -111,7 +111,7 @@ func TestTodo_UXAUDIT_017_Integration(t *testing.T) {
 
 	proposed, err := journey.Propose(author, workspace.ProposalInput{
 		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
-		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "uxaudit017_integration_fixture",
+		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "uxaudit017 integration fixture",
 	})
 	if err != nil {
 		t.Fatalf("Journey.Propose: %v", err)
@@ -170,7 +170,7 @@ func TestTodo_UXAUDIT_017_Security(t *testing.T) {
 	author := mint("principal:uxaudit017-author", "org-north-america")
 	proposed, err := journey.Propose(author, workspace.ProposalInput{
 		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
-		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "uxaudit017_security_fixture",
+		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "uxaudit017 security fixture",
 	})
 	if err != nil {
 		t.Fatalf("Journey.Propose: %v", err)

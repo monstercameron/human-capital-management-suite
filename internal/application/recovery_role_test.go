@@ -138,11 +138,12 @@ func TestTodo_WF_RUN_003_ServeRedelivery(t *testing.T) {
 		instanceID.String()).Scan(&state, &holder, &token); err != nil {
 		t.Fatal(err)
 	}
-	// The lease chain is dead driver, sweeper takeover, then the
+	// The lease chain is dead driver, sweeper takeover, then the payroll and
+	// identity providers' confirmation resumes (promotion 1.1.0) and the
 	// acknowledgement's own fenced resume: the final release belongs to the
-	// execution workload two tokens above the dead driver's.
-	if state != "RELEASED" || !strings.HasPrefix(holder, "workload:hcmnext-execution#") || token != int64(deadToken)+2 {
-		t.Fatalf("instance lease after redelivery = %s/%s/%d, want RELEASED by the acknowledgement resume at %d", state, holder, token, deadToken+2)
+	// execution workload four tokens above the dead driver's.
+	if state != "RELEASED" || !strings.HasPrefix(holder, "workload:hcmnext-execution#") || token != int64(deadToken)+4 {
+		t.Fatalf("instance lease after redelivery = %s/%s/%d, want RELEASED by the acknowledgement resume at %d", state, holder, token, deadToken+4)
 	}
 	detail, err := h.client.InspectJourney(h.rpc("admin"), &journeyv1.InspectJourneyRequest{IntentId: intentID})
 	if err != nil {

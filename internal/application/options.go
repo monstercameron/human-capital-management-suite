@@ -24,6 +24,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps"
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
@@ -111,6 +112,13 @@ type Options struct {
 	RepairEffect         app.RepairEffectPort
 	RepairObservation    app.RepairObservationPort
 	RepairReconciliation app.RepairReconciliationPort
+
+	// ProviderReceipts reads the payroll and identity providers'
+	// confirmations the promotion 1.1.0 observations judge after each
+	// provider-confirmation wait. Nil means none is composed yet, and every
+	// 1.1.0 payroll and access observation fails closed
+	// (provider.reader=unconfigured) rather than passing unconfirmed.
+	ProviderReceipts promotionsteps.ProviderReceiptReader
 }
 
 // Option is the functional form of one Options field. Options are values
@@ -204,6 +212,12 @@ func WithDomainInputs(inputs app.DomainInputs, workers people.WorkerFacts, bands
 		o.Workers = workers
 		o.Bands = bands
 	}
+}
+
+// WithProviderReceipts supplies the provider-receipt reader the promotion
+// 1.1.0 observations read through.
+func WithProviderReceipts(reader promotionsteps.ProviderReceiptReader) Option {
+	return func(o *Options) { o.ProviderReceipts = reader }
 }
 
 // WithExecutionComposer supplies the P1B execution-authority composer.

@@ -126,7 +126,7 @@ func (h *promoux015Harness) discoverPromotion(persona string) (*journeyv1.Propos
 		base := promoux015ProposedBase(h.t, subject.GetBasePay(), path.GetMinimumBaseIncrease())
 		return &journeyv1.ProposeJourneyRequest{
 			WorkerRef: subject.GetWorkerRef(), Target: &journeyv1.Placement{JobCode: path.GetTargetJobCode(), Grade: path.GetTargetGrade()},
-			ProposedBase: base, EffectiveDate: h.effective, BusinessReason: promoux015FixtureVersion,
+			ProposedBase: base, EffectiveDate: h.effective, BusinessReason: "Promotion fixture " + promoux015FixtureVersion,
 		}, path
 	}
 	h.t.Fatalf("no published promotion path starts at the subject's %s/%s", subject.GetJobCode(), subject.GetGrade())

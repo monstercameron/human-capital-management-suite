@@ -256,7 +256,7 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 	// environment has no job_position row for any corpus fixture.
 	proposed, err := journey.Propose(ctx, workspace.ProposalInput{
 		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
-		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "promotion_into_senior_hrbp",
+		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "Promotion into the senior HRBP role",
 	})
 	if err != nil {
 		t.Fatalf("Journey.Propose: %v", err)

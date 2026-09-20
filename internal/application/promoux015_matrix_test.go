@@ -77,7 +77,9 @@ func (h *promoux015Harness) restart() {
 	if err := h.composed.Stop(stopCtx); err != nil {
 		h.t.Fatalf("stop the composed server: %v", err)
 	}
-	composed, err := ComposeServe(context.Background(), ServeInput{Config: h.cfg, Pool: h.pool, Identity: "promoux015-restarted-" + uuid.NewString()})
+	composed, err := ComposeServe(context.Background(), ServeInput{Config: h.cfg, Pool: h.pool, Identity: "promoux015-restarted-" + uuid.NewString(),
+		// The providers' receipts are external state: they survive the restart.
+		Options: Options{ProviderReceipts: h.receipts}})
 	if err != nil {
 		h.t.Fatalf("recompose over the same database: %v", err)
 	}

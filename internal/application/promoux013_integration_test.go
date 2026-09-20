@@ -89,7 +89,7 @@ func promoux013Propose(t *testing.T, ctx context.Context, journey workspace.Jour
 	t.Helper()
 	proposed, err := journey.Propose(ctx, workspace.ProposalInput{
 		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
-		ProposedBase: "98000.00", EffectiveDate: effectiveDate, BusinessReason: "promoux013_integration_fixture",
+		ProposedBase: "98000.00", EffectiveDate: effectiveDate, BusinessReason: "promoux013 integration fixture",
 	})
 	if err != nil {
 		t.Fatalf("Journey.Propose: %v", err)
@@ -145,7 +145,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 		successor, superseded, err := journey.EditProposal(ctx, proposed.IntentID, proposed.GovernanceVersion,
 			"idem:promoux013:edit:1", "correcting the proposed base pay", workspace.EditProposalInput{
 				TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", ProposedBase: "99000.00",
-				EffectiveDate: "2026-06-01", BusinessReason: "promoux013_integration_fixture_edited",
+				EffectiveDate: "2026-06-01", BusinessReason: "promoux013 integration fixture edited",
 			})
 		if err != nil {
 			t.Fatalf("Journey.EditProposal: %v", err)
@@ -217,7 +217,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 			"idem:promoux013:edit-mid-flight:1", "correcting a mid-flight proposal",
 			workspace.EditProposalInput{
 				TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", ProposedBase: "99000.00",
-				EffectiveDate: "2026-06-15", BusinessReason: "promoux013_integration_fixture_edited",
+				EffectiveDate: "2026-06-15", BusinessReason: "promoux013 integration fixture edited",
 			})
 		if err != nil {
 			t.Fatalf("Journey.EditProposal on a mid-flight proposal with a recorded approval: %v", err)
@@ -251,7 +251,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 			"idem:promoux013:terminal-setup:1", "first edit, makes the original terminal",
 			workspace.EditProposalInput{
 				TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", ProposedBase: "99000.00",
-				EffectiveDate: "2026-06-20", BusinessReason: "promoux013_terminal_setup",
+				EffectiveDate: "2026-06-20", BusinessReason: "promoux013 terminal setup",
 			})
 		if err != nil {
 			t.Fatalf("Journey.EditProposal (setup): %v", err)
@@ -272,7 +272,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 			"idem:promoux013:terminal-retry:1", "attempting to re-edit an already-terminal original",
 			workspace.EditProposalInput{
 				TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", ProposedBase: "100000.00",
-				EffectiveDate: "2026-06-20", BusinessReason: "promoux013_terminal_retry",
+				EffectiveDate: "2026-06-20", BusinessReason: "promoux013 terminal retry",
 			}); err == nil {
 			t.Fatal("EditProposal succeeded against an already-terminal (cancelled) original")
 		}
@@ -455,7 +455,7 @@ func TestTodo_PROMOUX_013_Race(t *testing.T) {
 					fmt.Sprintf("idem:promoux013:race:edit:%d", i), "racing edit",
 					workspace.EditProposalInput{
 						TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", ProposedBase: "99500.00",
-						EffectiveDate: "2026-10-01", BusinessReason: "promoux013_race_edit",
+						EffectiveDate: "2026-10-01", BusinessReason: "promoux013 race edit",
 					})
 				if err == nil {
 					mu.Lock()

@@ -17,6 +17,7 @@ import (
 	kernelvalues "github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	ledgerport "github.com/monstercameron/human-capital-management-suite/internal/ledger"
 	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps"
 	transactioncommit "github.com/monstercameron/human-capital-management-suite/internal/transaction/commit"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/effects"
@@ -33,6 +34,19 @@ import (
 // handed to the driver so its APPROVAL_COMPLETED/TASK_SUBMITTED/
 // TERMINAL_WRITTEN entries land beside the cell's gateway and gate evidence.
 func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool, evidence app.EvidenceStore, cfg ServeConfig) error {
+	return composeExecutionAuthority(cellConfig, pool, evidence, cfg, nil)
+}
+
+// composeExecutionAuthorityWith is ComposeExecutionAuthority with the
+// provider-receipt reader the promotion 1.1.0 observations read through
+// (Options.ProviderReceipts). A nil reader composes none.
+func composeExecutionAuthorityWith(receipts promotionsteps.ProviderReceiptReader) ExecutionComposer {
+	return func(cellConfig *app.CellConfig, pool *pgxadapter.Pool, evidence app.EvidenceStore, cfg ServeConfig) error {
+		return composeExecutionAuthority(cellConfig, pool, evidence, cfg, receipts)
+	}
+}
+
+func composeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool, evidence app.EvidenceStore, cfg ServeConfig, receipts promotionsteps.ProviderReceiptReader) error {
 	if cellConfig == nil {
 		return fmt.Errorf("application: the execution authority needs a cell configuration")
 	}
@@ -66,11 +80,15 @@ func ComposeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 		RequiredRole:               cfg.ExecutionAuthorityRole,
 		Clock:                      cellConfig.Now,
 		Telemetry:                  cellConfig.Telemetry,
+		Logger:                     cellConfig.EventLogger,
 		Evidence:                   evidence,
 		TimerDataset:               cfg.TimerDataset(),
 		// WF-COMP-006 / WF-RUN-035: published versions, their approvals and
 		// quarantine survive restart; serve never self-approves in memory.
 		Versions: workflowversionstore.Store{DB: pool},
+		// Promotion 1.1.0: the providers' confirmations its payroll and
+		// access observations judge. Nil fails those observations closed.
+		ProviderReceipts: receipts,
 	}
 	execution, err := platformexecution.NewPromotionExecution(executionConfig)
 	if err != nil {
