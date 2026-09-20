@@ -1,0 +1,14 @@
+tenant: tenant-acme
+activity: automated-risk-scoring
+version: 2
+decided_at: 2026-09-01T00:00:00Z
+review_interval: 2160h0m0s
+necessity: scoring is necessary to triage pilot support load
+proportionality: only workforce-role fields are scored, never raw identifiers
+risk: low|scoring drift across locales
+risk: medium|false positive flag delays a legitimate promotion
+mitigation: consent|TRUST-024
+mitigation: dlp|TRUST-018
+mitigation: field-mask|TRUST-010
+reviewer: privacy-reviewer
+signature: ed25519:reviewer-signature
