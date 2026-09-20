@@ -52,6 +52,31 @@ func ResolveFields(principal *trust.Principal, purpose string, fields []FieldID,
 	if principal == nil {
 		return FieldDecision{}, fmt.Errorf("%w: nil principal", ErrInvalidPolicyInput)
 	}
+	return resolveFields(principal.Roles(), principal.AuthorizesPurpose, purpose, fields, mandatoryDenies)
+}
+
+// ResolveFieldsWithRoles is [ResolveFields] over an explicit server-resolved
+// role set instead of the principal's credential roles. A non-nil roles,
+// even empty, governs as-is: an empty durable assignment authorizes nothing
+// and never falls back to the credential.
+func ResolveFieldsWithRoles(principal *trust.Principal, roles []string, purpose string, fields []FieldID, mandatoryDenies []string) (FieldDecision, error) {
+	if principal == nil {
+		return FieldDecision{}, fmt.Errorf("%w: nil principal", ErrInvalidPolicyInput)
+	}
+	if roles == nil {
+		roles = principal.Roles()
+	}
+	return resolveFields(roles, principal.AuthorizesPurpose, purpose, fields, mandatoryDenies)
+}
+
+// resolveFields is [ResolveFields] over an explicit role set instead of the
+// principal's own. The directory decision point resolves with an aliased set
+// (a legacy administrator token acting under its mapped template), so the
+// grant loop lives here and both callers share it.
+func resolveFields(roles []string, authorizes func(string) bool, purpose string, fields []FieldID, mandatoryDenies []string) (FieldDecision, error) {
+	if authorizes == nil {
+		return FieldDecision{}, fmt.Errorf("%w: nil purpose authorizer", ErrInvalidPolicyInput)
+	}
 
 	decision := FieldDecision{
 		Purpose:       purpose,
@@ -59,16 +84,16 @@ func ResolveFields(principal *trust.Principal, purpose string, fields []FieldID,
 		Rulings:       make(map[FieldID]FieldRuling, len(fields)),
 	}
 
-	held := rolesOf(principal.Roles())
+	held := rolesOf(roles)
 	crossTenantMandatoryDeny := slices.Contains(mandatoryDenies, mandatoryDenyCrossTenantSensitive)
 
 	for _, f := range fields {
-		decision.Rulings[f] = ruleField(principal, purpose, f, held, crossTenantMandatoryDeny)
+		decision.Rulings[f] = ruleField(authorizes, purpose, f, held, crossTenantMandatoryDeny)
 	}
 	return decision, nil
 }
 
-func ruleField(principal *trust.Principal, purpose string, f FieldID, held []RoleID, crossTenantMandatoryDeny bool) FieldRuling {
+func ruleField(authorizes func(string) bool, purpose string, f FieldID, held []RoleID, crossTenantMandatoryDeny bool) FieldRuling {
 	def, ok := FieldRegistry[f]
 	if !ok {
 		return FieldRuling{Effect: EffectDenied, RuleID: "p1a.field.unknown", Reason: "unknown_field"}
@@ -76,7 +101,7 @@ func ruleField(principal *trust.Principal, purpose string, f FieldID, held []Rol
 	if purpose == "" {
 		return FieldRuling{Effect: EffectDenied, RuleID: "p1a.field.purpose_required", Reason: "purpose_required"}
 	}
-	if !principal.AuthorizesPurpose(purpose) {
+	if !authorizes(purpose) {
 		return FieldRuling{Effect: EffectDenied, RuleID: "p1a.field.purpose_not_authorized", Reason: "purpose_not_authorized_for_principal"}
 	}
 	if crossTenantMandatoryDeny && def.Domain != DomainCore && def.Domain != DomainContact {

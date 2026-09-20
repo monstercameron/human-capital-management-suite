@@ -142,6 +142,12 @@ type ScopeInput struct {
 	// principal and Subject. Facts about a different subject are ignored
 	// rather than rejected, so a caller may pass a wider projection.
 	Relationships []RelationshipFact
+	// EffectiveRoles is the principal's server-resolved role set, from
+	// durable assignments. When non-nil it governs instead of the
+	// principal's credential roles; a non-nil empty set authorizes
+	// nothing. Nil keeps the legacy credential-role behavior for callers
+	// with no role store.
+	EffectiveRoles []string
 }
 
 // AuthorizationScope is the TRUST-009 result: whether a bitemporal,
@@ -184,7 +190,7 @@ func ResolveAuthorizationScope(principal *trust.Principal, req ScopeInput) (Auth
 		return AuthorizationScope{}, fmt.Errorf("%w: subject: %v", ErrInvalidPolicyInput, err)
 	}
 
-	held := rolesOf(principal.Roles())
+	held := rolesOf(effectiveRolesOf(principal, req.EffectiveRoles))
 	heldSet := make(map[RoleID]struct{}, len(held))
 	for _, r := range held {
 		heldSet[r] = struct{}{}
