@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 8e67bee2fdd24ff462344a474f1c04e99023eff0f8b9cdd58a6b904f4ee41d2c
+- Source graph: 8ce70bcc71839e1e9b17cd3c83d8fd3eed8813cc4d9c33f11a0bd24951975131
 - Package count: 882
-- Within-module edge count: 2307
+- Within-module edge count: 2313
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -78,35 +78,37 @@ Third-party modules are admitted only at the owning roots declared by `dependenc
 | --- | --- | --- |
 | `golang.org/x/` | INFRASTRUCTURE_MECHANIC | none |
 | `google.golang.org/` | INFRASTRUCTURE_MECHANIC | none |
-| `go.opentelemetry.io/` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel`, `internal/transport/otelmw` |
+| `go.opentelemetry.io/` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel`, `internal/transport/otelmw`, `internal/connectivity/providertelemetry` |
 | `github.com/cockroachdb/apd/v3` | INFRASTRUCTURE_MECHANIC | `internal/kernel` |
 | `github.com/fergusstrange/embedded-postgres` | DEV_TEST_ONLY | `test`, `tools`, `internal/data/pgtest` |
-| `github.com/google/uuid` | INFRASTRUCTURE_MECHANIC | `internal/kernel`, `internal/intent`, `internal/ledger`, `internal/data`, `internal/connectivity`, `internal/transaction`, `internal/humanwork`, `internal/workflow`, `internal/operations/explorer`, `internal/resource`, `internal/operations/reconcile`, `internal/engines/wire/digest`, `cmd`, `test` |
+| `github.com/google/uuid` | INFRASTRUCTURE_MECHANIC | `internal/kernel`, `internal/intent`, `internal/ledger`, `internal/data`, `internal/connectivity`, `internal/transaction`, `internal/humanwork`, `internal/workflow`, `internal/operations/explorer`, `internal/resource`, `internal/operations/reconcile`, `internal/engines/wire/digest`, `internal/application`, `internal/domains/leave`, `internal/domains/promotion`, `internal/platform/devclock`, `internal/platform/execution`, `internal/transport`, `tools/uxqual/journeyclient`, `cmd`, `test` |
 | `github.com/jackc/pgx/v5` | INFRASTRUCTURE_MECHANIC | `internal/data`, `internal/ledger`, `migrations`, `internal/platform/bootstrap`, `cmd/hcmnext`, `cmd/migrate` |
 | `github.com/lib/pq` | INFRASTRUCTURE_MECHANIC | `internal/data`, `internal/ledger`, `migrations` |
 | `github.com/pressly/goose/v3` | INFRASTRUCTURE_MECHANIC | `migrations`, `cmd`, `internal/data/pgtest`, `internal/data/schema` |
 | `github.com/sethvargo/go-retry` | INFRASTRUCTURE_MECHANIC | `internal/operations`, `internal/connectivity`, `internal/data` |
 | `github.com/xi2/xz` | DEV_TEST_ONLY | `test`, `tools` |
 | `golang.org/x/exp/typeparams` | DEV_TEST_ONLY | `tools` |
-| `golang.org/x/mod` | DEV_TEST_ONLY | `tools` |
-| `golang.org/x/net` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `tools/uxqual/forms`, `tools/uxqual/qual` |
+| `golang.org/x/mod` | DEV_TEST_ONLY | `tools`, `internal/workflow/version` |
+| `golang.org/x/net` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `tools/uxqual/forms`, `tools/uxqual/qual`, `tools/uxqual/hydration`, `tools/uxqual/wcag` |
 | `golang.org/x/sync` | INFRASTRUCTURE_MECHANIC | `internal/platform`, `internal/operations`, `internal/workflow` |
-| `golang.org/x/text` | INFRASTRUCTURE_MECHANIC | `internal/engines/wire/canonical`, `internal/kernel/values`, `internal/intent` |
+| `golang.org/x/text` | INFRASTRUCTURE_MECHANIC | `internal/engines/wire/canonical`, `internal/kernel/values`, `internal/intent`, `internal/domains/people`, `internal/experience/i18n`, `internal/humanwork/productui`, `internal/i18n`, `tools/uxqual/forms` |
 | `golang.org/x/tools` | DEV_TEST_ONLY | `tools` |
 | `google.golang.org/genproto/googleapis/rpc` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `gen` |
 | `connectrpc.com/connect` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `cmd` |
-| `github.com/monstercameron/GoGRPCBridge` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `cmd`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm` |
+| `github.com/monstercameron/GoGRPCBridge` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `cmd`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm`, `tools/uxqual/productclient` |
 | `github.com/monstercameron/GoWebComponents/v5` | INFRASTRUCTURE_MECHANIC | `tools/uxqual`, `internal/humanwork/productui`, `internal/humanwork/uicomponents`, `internal/humanwork/workspace` |
 | `github.com/monstercameron/schemaflux` | DEV_TEST_ONLY | `tools/gen` |
 | `go.opentelemetry.io/otel/sdk/metric` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel`, `internal/transport/otelmw` |
-| `go.opentelemetry.io/otel/trace` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel`, `internal/intent/app` |
+| `go.opentelemetry.io/otel` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel`, `internal/transport/otelmw`, `internal/connectivity/providertelemetry` |
+| `go.opentelemetry.io/otel/trace` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel`, `internal/transport/otelmw`, `internal/connectivity/providertelemetry`, `internal/intent/app` |
 | `go.opentelemetry.io/otel/metric` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel` |
+| `go.opentelemetry.io/otel/sdk` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel` |
 | `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel` |
 | `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel` |
 | `go.opentelemetry.io/otel/exporters/stdout/stdouttrace` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel` |
-| `google.golang.org/grpc` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `gen`, `tools/gen`, `cmd`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm` |
+| `google.golang.org/grpc` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `gen`, `tools/gen`, `cmd`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm`, `tools/uxqual/productclient` |
 | `google.golang.org/grpc/cmd/protoc-gen-go-grpc` | DEV_TEST_ONLY | `tools` |
-| `google.golang.org/protobuf` | INFRASTRUCTURE_MECHANIC | `gen`, `internal/transport`, `internal/intent/protomap`, `internal/engines/wire`, `tools/gen`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm`, `tools/quality/bufprotovalidatekit` |
+| `google.golang.org/protobuf` | INFRASTRUCTURE_MECHANIC | `gen`, `internal/transport`, `internal/intent/protomap`, `internal/engines/wire`, `tools/gen`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm`, `tools/uxqual/productclient`, `tools/quality/bufprotovalidatekit` |
 | `gopkg.in/yaml.v3` | INFRASTRUCTURE_MECHANIC | `tools`, `internal/data/tenancy/storagedisposition`, `internal/platform/telemetry`, `internal/transport/eastwest` |
 | `honnef.co/go/tools` | DEV_TEST_ONLY | `tools` |
 
@@ -567,7 +569,6 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/slo`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/subprocessor`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/synthetic`
-- `github.com/monstercameron/human-capital-management-suite/internal/operations/telemetry`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/telemetryhealth`
 - `github.com/monstercameron/human-capital-management-suite/internal/operations/wedge`
 - `github.com/monstercameron/human-capital-management-suite/internal/performance`
@@ -692,6 +693,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/mobility`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/payroll`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/program`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/recruit`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/talent`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/termination`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/time`
@@ -1038,4 +1040,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`9fd99d70cde107962b4a6e4f058f52379af2dcd4c04cb73768a646dd45d93272`
+`24e178cb08a585b8827dfc3b4e0c65108ca2daa1c7e91ba421011ef42eeb5dac`

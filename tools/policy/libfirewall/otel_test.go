@@ -8,13 +8,8 @@ import (
 )
 
 // TestOTelBackendQualification is the LIB-007 primary test. OpenTelemetry
-// is "not imported by production code before OBS-002" per
-// dependency-roles.yaml's go.opentelemetry.io/ family_rule, whose
-// allowed_import_roots is deliberately empty until OBS-002 adds an exact
-// row. This check reads that live allowed-roots value from the manifest
-// rather than hardcoding "always forbidden", so the day OBS-002 lands a row
-// naming internal/operations/telemetry (per that row's own comment), this
-// test starts enforcing the new boundary without needing to change.
+// is confined to the owned adapters admitted by OBS-002. REV-017-01 deleted
+// internal/operations/telemetry as a dead duplicate of the live evaluator.
 func TestOTelBackendQualification(t *testing.T) {
 	cfg, roles := loadFirewallConfigAndRoles(t)
 
@@ -28,13 +23,16 @@ func TestOTelBackendQualification(t *testing.T) {
 		{"an engine importing OTel metric", roles.Module + "/internal/engines/payband", cfg.OTelModulePrefix + "otel/metric", true},
 		{"workflow importing OTel", roles.Module + "/internal/workflow/runtime", cfg.OTelModulePrefix + "otel", true},
 		{"capability importing OTel", roles.Module + "/internal/capability", cfg.OTelModulePrefix + "otel/sdk/trace", true},
+		{"platform adapter importing OTel", roles.Module + "/internal/platform/telemetry/otel", cfg.OTelModulePrefix + "otel/sdk/trace", false},
+		{"transport middleware importing trace", roles.Module + "/internal/transport/otelmw", cfg.OTelModulePrefix + "otel/trace", false},
+		{"provider adapter importing trace", roles.Module + "/internal/connectivity/providertelemetry", cfg.OTelModulePrefix + "otel/trace", false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			v := libfirewall.CheckImport(roles, tc.importer, tc.imported)
 			if tc.wantV && v == nil {
-				t.Errorf("CheckImport(%q, %q) = nil, want a violation (OTel is not yet importable anywhere; OBS-002 has not landed)", tc.importer, tc.imported)
+				t.Errorf("CheckImport(%q, %q) = nil, want a violation outside the owned OTel adapters", tc.importer, tc.imported)
 			}
 			if !tc.wantV && v != nil {
 				t.Errorf("CheckImport(%q, %q) = %+v, want no violation", tc.importer, tc.imported, v)
@@ -43,19 +41,25 @@ func TestOTelBackendQualification(t *testing.T) {
 	}
 }
 
-// TestTodo_LIB_007_Golden pins the current (pre-OBS-002) allowed-roots
-// state for the OpenTelemetry family: empty, meaning zero direct
-// production imports anywhere. A change to dependency-roles.yaml's
-// go.opentelemetry.io/ family_rule allowed_import_roots (i.e. OBS-002
-// landing) is a visible diff here, not a silent behavior change.
+// TestTodo_LIB_007_Golden pins the OBS-002 family boundary.
 func TestTodo_LIB_007_Golden(t *testing.T) {
 	_, roles := loadFirewallConfigAndRoles(t)
 	class := roles.Classify("go.opentelemetry.io/otel")
 	if !class.Found {
 		t.Fatalf("dependency-roles.yaml no longer classifies go.opentelemetry.io/*")
 	}
-	if len(class.Row.AllowedImportRoots) != 0 {
-		t.Logf("go.opentelemetry.io/ allowed_import_roots is now %v (OBS-002 appears to have landed); TestOTelBackendQualification enforces whatever this manifest currently says", class.Row.AllowedImportRoots)
+	want := map[string]bool{
+		"internal/platform/telemetry/otel":        true,
+		"internal/transport/otelmw":               true,
+		"internal/connectivity/providertelemetry": true,
+	}
+	if len(class.Row.AllowedImportRoots) != len(want) {
+		t.Fatalf("OTel family roots = %v, want %v", class.Row.AllowedImportRoots, want)
+	}
+	for _, root := range class.Row.AllowedImportRoots {
+		if !want[root] {
+			t.Fatalf("unexpected OTel family root %q", root)
+		}
 	}
 }
 
@@ -78,7 +82,7 @@ func TestTodo_LIB_007_Integration(t *testing.T) {
 			}
 			if v := libfirewall.CheckImport(roles, pkg.ImportPath, imp); v != nil {
 				total++
-				t.Errorf("LIB-007 OpenTelemetry direct-import violation: %s imports %s (production code may not import OTel before OBS-002)", v.Importer, v.ImportedPath)
+				t.Errorf("LIB-007 OpenTelemetry direct-import violation: %s imports %s outside an owned adapter", v.Importer, v.ImportedPath)
 			}
 		}
 	}
@@ -102,7 +106,7 @@ func TestTodo_LIB_007_Race(t *testing.T) {
 
 // TestTodo_LIB_007_Conformance checks a representative OTel submodule
 // (trace, metric, sdk) all resolve to the same family classification and
-// are all currently forbidden everywhere.
+// are forbidden from domain code even though owned adapters are admitted.
 func TestTodo_LIB_007_Conformance(t *testing.T) {
 	_, roles := loadFirewallConfigAndRoles(t)
 	submodules := []string{

@@ -49,6 +49,7 @@ protobuf_grpc:
     # over the WebSocket tunnel; these two roots are the whole client.
     - tools/uxqual/journeyclient
     - tools/uxqual/cmd/journeywasm
+    - tools/uxqual/productclient
     - cmd
 
 # LIB-004: pgx/v5 confined behind the PostgreSQL adapter boundary. The

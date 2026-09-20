@@ -34,6 +34,12 @@
       "reason": "generated wire contract consumed by the Phase 1 intent and transport surfaces"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/humanwork/v1",
+      "repository_root": "gen",
+      "layer": "composition",
+      "reason": "generated wire contract consumed by the Phase 1 intent and transport surfaces"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1",
       "repository_root": "gen",
       "layer": "composition",
@@ -62,6 +68,12 @@
       "repository_root": "gen",
       "layer": "composition",
       "reason": "generated wire contract consumed by the Phase 1 intent and transport surfaces"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/agentsecurity",
+      "repository_root": "internal/agentsecurity",
+      "layer": "trust",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/application",
@@ -100,6 +112,18 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/onboarding",
+      "repository_root": "internal/connectivity",
+      "layer": "connectivity",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/transport",
+      "repository_root": "internal/connectivity",
+      "layer": "connectivity",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/admissionstore",
       "repository_root": "internal/data",
       "layer": "data",
@@ -112,7 +136,19 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/bandfacts",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/bitemporal",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/committedfacts",
       "repository_root": "internal/data",
       "layer": "data",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -130,7 +166,19 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/evidencestore",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/jobarchstore",
       "repository_root": "internal/data",
       "layer": "data",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -160,6 +208,12 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/ledger/lineage",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/ledger/temporal",
       "repository_root": "internal/data",
       "layer": "data",
@@ -178,7 +232,19 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/operatorjournal",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/opsmeta",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/orgfacts",
       "repository_root": "internal/data",
       "layer": "data",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -190,7 +256,25 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/payrollstore",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/performancestore",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/positionfacts",
       "repository_root": "internal/data",
       "layer": "data",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -208,7 +292,43 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/promotioncommit",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/promotioninvalidation",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/promotionladder",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/provenance",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/repairrecord",
       "repository_root": "internal/data",
       "layer": "data",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -226,6 +346,12 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/signals",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/tenancy",
       "repository_root": "internal/data",
       "layer": "data",
@@ -238,7 +364,25 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/truststore",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/workeridstore",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/workflowdraftstore",
+      "repository_root": "internal/data",
+      "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore",
       "repository_root": "internal/data",
       "layer": "data",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -247,6 +391,12 @@
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/workforce",
       "repository_root": "internal/data",
       "layer": "data",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/compensation",
+      "repository_root": "internal/domains",
+      "layer": "domains",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
@@ -292,7 +442,37 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/org",
+      "repository_root": "internal/domains",
+      "layer": "domains",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll",
+      "repository_root": "internal/domains",
+      "layer": "domains",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll/calcpolicy",
+      "repository_root": "internal/domains",
+      "layer": "domains",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll/filing",
+      "repository_root": "internal/domains",
+      "layer": "domains",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/people",
+      "repository_root": "internal/domains",
+      "layer": "domains",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/performance",
       "repository_root": "internal/domains",
       "layer": "domains",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -310,6 +490,24 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/commit",
+      "repository_root": "internal/domains",
+      "layer": "domains",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/localcommit",
+      "repository_root": "internal/domains",
+      "layer": "domains",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/positionpicker",
+      "repository_root": "internal/domains",
+      "layer": "domains",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/repair",
       "repository_root": "internal/domains",
       "layer": "domains",
@@ -317,6 +515,12 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/rewards",
+      "repository_root": "internal/domains",
+      "layer": "domains",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/taxprofile",
       "repository_root": "internal/domains",
       "layer": "domains",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -371,6 +575,12 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/engines/payband",
+      "repository_root": "internal/engines",
+      "layer": "engines",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/engines/popscale",
       "repository_root": "internal/engines",
       "layer": "engines",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -460,6 +670,12 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/legal/stateparams",
+      "repository_root": "internal/governance",
+      "layer": "governance",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/revalidate",
       "repository_root": "internal/governance",
       "layer": "governance",
@@ -472,13 +688,37 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/approverclass",
+      "repository_root": "internal/humanwork",
+      "layer": "connectivity",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/journeyinvalidation",
+      "repository_root": "internal/humanwork",
+      "layer": "connectivity",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui",
       "repository_root": "internal/humanwork",
       "layer": "connectivity",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/reasontext",
+      "repository_root": "internal/humanwork",
+      "layer": "connectivity",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents",
+      "repository_root": "internal/humanwork",
+      "layer": "connectivity",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/workflowview",
       "repository_root": "internal/humanwork",
       "layer": "connectivity",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -544,6 +784,18 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/intent/operator",
+      "repository_root": "internal/intent",
+      "layer": "intent",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol",
+      "repository_root": "internal/intent",
+      "layer": "intent",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/intent/protomap",
       "repository_root": "internal/intent",
       "layer": "intent",
@@ -580,13 +832,43 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/advisory",
+      "repository_root": "internal/operations",
+      "layer": "operations",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/authzsim",
+      "repository_root": "internal/operations",
+      "layer": "operations",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/explorer",
+      "repository_root": "internal/operations",
+      "layer": "operations",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/incidentstate",
       "repository_root": "internal/operations",
       "layer": "operations",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/internal/viewdigest",
+      "repository_root": "internal/operations",
+      "layer": "operations",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/messagingdelivery",
+      "repository_root": "internal/operations",
+      "layer": "operations",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/onboardingruns",
       "repository_root": "internal/operations",
       "layer": "operations",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -616,6 +898,18 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/config",
+      "repository_root": "internal/platform",
+      "layer": "platform",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/config/promotion",
+      "repository_root": "internal/platform",
+      "layer": "platform",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/configregistry",
       "repository_root": "internal/platform",
       "layer": "platform",
@@ -623,6 +917,18 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/execution",
+      "repository_root": "internal/platform",
+      "layer": "platform",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps",
+      "repository_root": "internal/platform",
+      "layer": "platform",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionterminal",
       "repository_root": "internal/platform",
       "layer": "platform",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -742,6 +1048,12 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint",
+      "repository_root": "internal/transport",
+      "layer": "transport",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/envelope",
       "repository_root": "internal/transport",
       "layer": "transport",
@@ -755,6 +1067,12 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/health",
+      "repository_root": "internal/transport",
+      "layer": "transport",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork",
       "repository_root": "internal/transport",
       "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -784,6 +1102,18 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/productquery",
+      "repository_root": "internal/transport",
+      "layer": "transport",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/queryenvelope",
+      "repository_root": "internal/transport",
+      "layer": "transport",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/streaming",
       "repository_root": "internal/transport",
       "layer": "transport",
@@ -802,7 +1132,19 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/accessreview",
+      "repository_root": "internal/trust",
+      "layer": "trust",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/authz",
+      "repository_root": "internal/trust",
+      "layer": "trust",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/breakglass",
       "repository_root": "internal/trust",
       "layer": "trust",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -821,6 +1163,12 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/envelope",
+      "repository_root": "internal/trust",
+      "layer": "trust",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/jit",
       "repository_root": "internal/trust",
       "layer": "trust",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -850,6 +1198,30 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/cancellation",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/designeredit",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/designerpalette",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/draftcompile",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/execute",
       "repository_root": "internal/workflow",
       "layer": "workflow",
@@ -874,7 +1246,25 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/intervention",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/lease",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/observe",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/progress",
       "repository_root": "internal/workflow",
       "layer": "workflow",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -887,6 +1277,18 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/recover",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/releasefixture",
       "repository_root": "internal/workflow",
       "layer": "workflow",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -905,6 +1307,12 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/approval",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/signal",
       "repository_root": "internal/workflow",
       "layer": "workflow",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
@@ -934,6 +1342,12 @@
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/workload",
+      "repository_root": "internal/workflow",
+      "layer": "workflow",
+      "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/migrations",
       "repository_root": "migrations",
       "layer": "composition",
@@ -946,7 +1360,19 @@
       "reason": "reachable developer-owned rendering/qualification support required by the Phase 1 workspace"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/tools/uxqual/floorplan",
+      "repository_root": "tools",
+      "layer": "composition",
+      "reason": "reachable developer-owned rendering/qualification support required by the Phase 1 workspace"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/tools/uxqual/forms",
+      "repository_root": "tools",
+      "layer": "composition",
+      "reason": "reachable developer-owned rendering/qualification support required by the Phase 1 workspace"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/tools/uxqual/pagedef",
       "repository_root": "tools",
       "layer": "composition",
       "reason": "reachable developer-owned rendering/qualification support required by the Phase 1 workspace"
@@ -965,6 +1391,18 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey",
+      "repository_root": "tools",
+      "layer": "composition",
+      "reason": "reachable developer-owned rendering/qualification support required by the Phase 1 workspace"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/page",
+      "repository_root": "tools",
+      "layer": "composition",
+      "reason": "reachable developer-owned rendering/qualification support required by the Phase 1 workspace"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/tools/uxqual/ssrshell",
       "repository_root": "tools",
       "layer": "composition",
       "reason": "reachable developer-owned rendering/qualification support required by the Phase 1 workspace"
@@ -1033,13 +1471,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/humanwork/v1",
-      "repository_root": "gen",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/integration/v1",
       "repository_root": "gen",
       "deferred_gate": "ARCH-GO-018",
@@ -1056,13 +1487,6 @@
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/a11y",
       "repository_root": "internal/a11y",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/agentsecurity",
-      "repository_root": "internal/agentsecurity",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
@@ -1201,6 +1625,13 @@
       "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/iamsim",
+      "repository_root": "internal/connectivity",
+      "deferred_gate": "INTG-001",
+      "owner_todo": "INTG-001",
+      "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/mapping",
       "repository_root": "internal/connectivity",
       "deferred_gate": "INTG-001",
@@ -1222,6 +1653,13 @@
       "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/marketdata",
+      "repository_root": "internal/connectivity",
+      "deferred_gate": "INTG-001",
+      "owner_todo": "INTG-001",
+      "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/mft",
       "repository_root": "internal/connectivity",
       "deferred_gate": "INTG-001",
@@ -1229,14 +1667,14 @@
       "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe/adapters/postgres",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/oauthcc",
       "repository_root": "internal/connectivity",
       "deferred_gate": "INTG-001",
       "owner_todo": "INTG-001",
       "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/onboarding",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe/adapters/postgres",
       "repository_root": "internal/connectivity",
       "deferred_gate": "INTG-001",
       "owner_todo": "INTG-001",
@@ -1257,7 +1695,21 @@
       "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/payrollsim",
+      "repository_root": "internal/connectivity",
+      "deferred_gate": "INTG-001",
+      "owner_todo": "INTG-001",
+      "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/providercontract",
+      "repository_root": "internal/connectivity",
+      "deferred_gate": "INTG-001",
+      "owner_todo": "INTG-001",
+      "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/providerdelivery",
       "repository_root": "internal/connectivity",
       "deferred_gate": "INTG-001",
       "owner_todo": "INTG-001",
@@ -1272,6 +1724,34 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/providerexit",
+      "repository_root": "internal/connectivity",
+      "deferred_gate": "INTG-001",
+      "owner_todo": "INTG-001",
+      "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/providerreceipt",
+      "repository_root": "internal/connectivity",
+      "deferred_gate": "INTG-001",
+      "owner_todo": "INTG-001",
+      "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/providertelemetry",
+      "repository_root": "internal/connectivity",
+      "deferred_gate": "INTG-001",
+      "owner_todo": "INTG-001",
+      "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/providertelemetry/providerwire",
+      "repository_root": "internal/connectivity",
+      "deferred_gate": "INTG-001",
+      "owner_todo": "INTG-001",
+      "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/retrypolicy",
       "repository_root": "internal/connectivity",
       "deferred_gate": "INTG-001",
       "owner_todo": "INTG-001",
@@ -1313,7 +1793,7 @@
       "reason": "integration adapter is deferred until its selected connector contract has an approved consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/transport",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/syncjob",
       "repository_root": "internal/connectivity",
       "deferred_gate": "INTG-001",
       "owner_todo": "INTG-001",
@@ -1411,6 +1891,13 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/budgetfacts",
+      "repository_root": "internal/data",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/budgetstore",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
@@ -1433,6 +1920,13 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/commercialstore",
+      "repository_root": "internal/data",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/compfacts",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -1579,13 +2073,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/jobarchstore",
-      "repository_root": "internal/data",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/jobs",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
@@ -1607,7 +2094,7 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/ledger/lineage",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/ledger/disposition",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -1684,20 +2171,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/payrollstore",
-      "repository_root": "internal/data",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/performancestore",
-      "repository_root": "internal/data",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/pgtest",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
@@ -1706,6 +2179,13 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/planningstore",
+      "repository_root": "internal/data",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/positionguard",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -1726,6 +2206,13 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/productdurability",
+      "repository_root": "internal/data",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/projection/critical",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
@@ -1733,7 +2220,7 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/promotioncommit",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/providerreceipts",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -1803,7 +2290,7 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/signals",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/shadow",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -1853,13 +2340,6 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/data/tenantstore",
-      "repository_root": "internal/data",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/data/truststore",
       "repository_root": "internal/data",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2027,13 +2507,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/compensation",
-      "repository_root": "internal/domains",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/contact",
       "repository_root": "internal/domains",
       "deferred_gate": "ARCH-GO-018",
@@ -2125,6 +2598,13 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/learning",
+      "repository_root": "internal/domains",
+      "deferred_gate": "DB-016",
+      "owner_todo": "DB-016",
+      "reason": "deferred-domain schema/conformance only; a future domain authority todo must precede production admission"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/leave",
       "repository_root": "internal/domains",
       "deferred_gate": "DB-016",
@@ -2154,13 +2634,6 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/mobility",
-      "repository_root": "internal/domains",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/org",
       "repository_root": "internal/domains",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2209,21 +2682,14 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/paymethod/safeguards",
       "repository_root": "internal/domains",
-      "deferred_gate": "DB-016",
-      "owner_todo": "DB-016",
-      "reason": "deferred-domain schema/conformance only; a future domain authority todo must precede production admission"
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll/auditpack",
-      "repository_root": "internal/domains",
-      "deferred_gate": "DB-016",
-      "owner_todo": "DB-016",
-      "reason": "deferred-domain schema/conformance only; a future domain authority todo must precede production admission"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll/calcpolicy",
       "repository_root": "internal/domains",
       "deferred_gate": "DB-016",
       "owner_todo": "DB-016",
@@ -2237,25 +2703,11 @@
       "reason": "deferred-domain schema/conformance only; a future domain authority todo must precede production admission"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll/filing",
-      "repository_root": "internal/domains",
-      "deferred_gate": "DB-016",
-      "owner_todo": "DB-016",
-      "reason": "deferred-domain schema/conformance only; a future domain authority todo must precede production admission"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll/paymentprofile",
       "repository_root": "internal/domains",
       "deferred_gate": "DB-016",
       "owner_todo": "DB-016",
       "reason": "deferred-domain schema/conformance only; a future domain authority todo must precede production admission"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/performance",
-      "repository_root": "internal/domains",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/privacy/dsr",
@@ -2265,14 +2717,14 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/commit",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/program",
       "repository_root": "internal/domains",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/localcommit",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/eligibility",
       "repository_root": "internal/domains",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2333,6 +2785,13 @@
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/recruiting",
+      "repository_root": "internal/domains",
+      "deferred_gate": "DB-016",
+      "owner_todo": "DB-016",
+      "reason": "deferred-domain schema/conformance only; a future domain authority todo must precede production admission"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/refdata",
@@ -2405,13 +2864,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/taxprofile",
-      "repository_root": "internal/domains",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/domains/workerlifecycle",
       "repository_root": "internal/domains",
       "deferred_gate": "ARCH-GO-018",
@@ -2454,7 +2906,7 @@
       "reason": "engine remains definitions/conformance-only until a first approved consumer reaches it"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/engines/popscale",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/engines/envelope",
       "repository_root": "internal/engines",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2692,7 +3144,21 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/authority",
+      "repository_root": "internal/governance",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/exit",
+      "repository_root": "internal/governance",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/gateb",
       "repository_root": "internal/governance",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2748,13 +3214,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/legal/stateparams",
-      "repository_root": "internal/governance",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/legalhold",
       "repository_root": "internal/governance",
       "deferred_gate": "ARCH-GO-018",
@@ -2769,7 +3228,21 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/pilot",
+      "repository_root": "internal/governance",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/privacy",
+      "repository_root": "internal/governance",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/privacy/assessment",
       "repository_root": "internal/governance",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2783,7 +3256,21 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/privacy/hipaa",
+      "repository_root": "internal/governance",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/privacy/inventory",
+      "repository_root": "internal/governance",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/governance/privacy/transfer",
       "repository_root": "internal/governance",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2833,6 +3320,13 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/intent/analysis",
+      "repository_root": "internal/intent",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/intent/draftstore",
       "repository_root": "internal/intent",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2909,13 +3403,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/advisory",
-      "repository_root": "internal/operations",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/assurance",
       "repository_root": "internal/operations",
       "deferred_gate": "ARCH-GO-018",
@@ -2930,21 +3417,7 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/authzsim",
-      "repository_root": "internal/operations",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/drain",
-      "repository_root": "internal/operations",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/explorer",
       "repository_root": "internal/operations",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2965,7 +3438,7 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/internal/viewdigest",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/productcorrelation",
       "repository_root": "internal/operations",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -2979,7 +3452,28 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/recovery/opcmd",
+      "repository_root": "internal/operations",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/releaseevidence",
+      "repository_root": "internal/operations",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/reliability",
+      "repository_root": "internal/operations",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/repairworkbench",
       "repository_root": "internal/operations",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -3008,13 +3502,6 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/synthetic",
-      "repository_root": "internal/operations",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/operations/telemetry",
       "repository_root": "internal/operations",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -3056,20 +3543,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/config",
-      "repository_root": "internal/platform",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/config/promotion",
-      "repository_root": "internal/platform",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/config/revalidation",
       "repository_root": "internal/platform",
       "deferred_gate": "ARCH-GO-018",
@@ -3091,21 +3564,14 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/devclock",
+      "repository_root": "internal/platform",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/diagnostics",
-      "repository_root": "internal/platform",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps",
-      "repository_root": "internal/platform",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionterminal",
       "repository_root": "internal/platform",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -3287,7 +3753,7 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/evidence",
       "repository_root": "internal/transport",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -3295,20 +3761,6 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/list",
-      "repository_root": "internal/transport",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/productquery",
-      "repository_root": "internal/transport",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/transport/queryenvelope",
       "repository_root": "internal/transport",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -3329,13 +3781,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/accessreview",
-      "repository_root": "internal/trust",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/adversarial",
       "repository_root": "internal/trust",
       "deferred_gate": "ARCH-GO-018",
@@ -3351,13 +3796,6 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/bootstrap",
-      "repository_root": "internal/trust",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/breakglass",
       "repository_root": "internal/trust",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -3427,13 +3865,6 @@
       "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/jit",
-      "repository_root": "internal/trust",
-      "deferred_gate": "ARCH-GO-018",
-      "owner_todo": "ARCH-GO-018",
-      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/lease",
       "repository_root": "internal/trust",
       "deferred_gate": "ARCH-GO-018",
@@ -3449,6 +3880,13 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/outbound",
+      "repository_root": "internal/trust",
+      "deferred_gate": "ARCH-GO-018",
+      "owner_todo": "ARCH-GO-018",
+      "reason": "not reached by cmd/hcmnext; admit only after its first approved Phase 1 consumer"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/trust/pentest",
       "repository_root": "internal/trust",
       "deferred_gate": "ARCH-GO-018",
       "owner_todo": "ARCH-GO-018",
@@ -3511,6 +3949,13 @@
       "reason": "workflow runtime admission is governed by the selected runtime gate"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/jurisdiction",
+      "repository_root": "internal/workflow",
+      "deferred_gate": "WF-RUN-000",
+      "owner_todo": "WF-RUN-000",
+      "reason": "workflow runtime admission is governed by the selected runtime gate"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/learning",
       "repository_root": "internal/workflow",
       "deferred_gate": "WF-RUN-000",
@@ -3519,6 +3964,13 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leave",
+      "repository_root": "internal/workflow",
+      "deferred_gate": "WF-RUN-000",
+      "owner_todo": "WF-RUN-000",
+      "reason": "workflow runtime admission is governed by the selected runtime gate"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leavereturn",
       "repository_root": "internal/workflow",
       "deferred_gate": "WF-RUN-000",
       "owner_todo": "WF-RUN-000",
@@ -3540,6 +3992,20 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/payroll",
+      "repository_root": "internal/workflow",
+      "deferred_gate": "WF-RUN-000",
+      "owner_todo": "WF-RUN-000",
+      "reason": "workflow runtime admission is governed by the selected runtime gate"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/program",
+      "repository_root": "internal/workflow",
+      "deferred_gate": "WF-RUN-000",
+      "owner_todo": "WF-RUN-000",
+      "reason": "workflow runtime admission is governed by the selected runtime gate"
+    },
+    {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/recruit",
       "repository_root": "internal/workflow",
       "deferred_gate": "WF-RUN-000",
       "owner_todo": "WF-RUN-000",
@@ -3581,13 +4047,6 @@
       "reason": "workflow runtime admission is governed by the selected runtime gate"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/intervention",
-      "repository_root": "internal/workflow",
-      "deferred_gate": "WF-RUN-000",
-      "owner_todo": "WF-RUN-000",
-      "reason": "workflow runtime admission is governed by the selected runtime gate"
-    },
-    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/migrate",
       "repository_root": "internal/workflow",
       "deferred_gate": "WF-RUN-000",
@@ -3616,6 +4075,13 @@
       "reason": "workflow runtime admission is governed by the selected runtime gate"
     },
     {
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/observe/observetest",
+      "repository_root": "internal/workflow",
+      "deferred_gate": "WF-RUN-000",
+      "owner_todo": "WF-RUN-000",
+      "reason": "workflow runtime admission is governed by the selected runtime gate"
+    },
+    {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/parallel",
       "repository_root": "internal/workflow",
       "deferred_gate": "WF-RUN-000",
@@ -3623,14 +4089,14 @@
       "reason": "workflow runtime admission is governed by the selected runtime gate"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/quarantine",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionhiperf",
       "repository_root": "internal/workflow",
       "deferred_gate": "WF-RUN-000",
       "owner_todo": "WF-RUN-000",
       "reason": "workflow runtime admission is governed by the selected runtime gate"
     },
     {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/recover",
+      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/quarantine",
       "repository_root": "internal/workflow",
       "deferred_gate": "WF-RUN-000",
       "owner_todo": "WF-RUN-000",
@@ -3652,13 +4118,6 @@
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/compensate",
-      "repository_root": "internal/workflow",
-      "deferred_gate": "WF-RUN-000",
-      "owner_todo": "WF-RUN-000",
-      "reason": "workflow runtime admission is governed by the selected runtime gate"
-    },
-    {
-      "path": "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/signal",
       "repository_root": "internal/workflow",
       "deferred_gate": "WF-RUN-000",
       "owner_todo": "WF-RUN-000",
