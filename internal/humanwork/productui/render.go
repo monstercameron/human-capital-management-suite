@@ -12,7 +12,7 @@ import (
 // authorized presentation model. Feature pages never construct document
 // chrome, and the shell never owns domain presentation logic.
 func Render(view View) (string, error) {
-	appearance := NormalizeCustomerTheme(view.Appearance)
+	appearance := view.EffectiveAppearance()
 	if err := ValidateCustomerTheme(appearance); err != nil {
 		return "", fmt.Errorf("productui: appearance: %w", err)
 	}

@@ -14,7 +14,9 @@ func insightsPage(view View) ui.Node {
 	// Derived counts draw from the admitted population, so denied
 	// journeys keep no share of any metric.
 	population := admittedWork(view)
-	active, terminal := journeyCounts(population)
+	// UXLIVE-027: the totals are the server's one authorized summary over
+	// the same journeys Journeys and Home show, never a page recount.
+	totals, fromServer := journeyTotals(view)
 	// Needs attention is an assignment measure, not a count of every visible
 	// journey in review. Use the same viewer-scoped projection as My Work so
 	// the Insights action and its destination cannot disagree.
@@ -33,9 +35,9 @@ func insightsPage(view View) ui.Node {
 		action = ActionLinkProps{Label: view.Locale.Text("insights.open_work"), Href: statefulHref(view, PageWork), Class: "button secondary", Navigate: view.Navigate}
 	}
 	metrics := []MetricProps{
-		{Label: view.Locale.Text("insights.visible_label"), Value: fmt.Sprint(len(population)), Note: view.Locale.Text("insights.visible_note")},
-		{Label: view.Locale.Text("insights.in_progress_label"), Value: fmt.Sprint(active), Note: view.Locale.Text("insights.in_progress_note")},
-		{Label: view.Locale.Text("insights.closed_label"), Value: fmt.Sprint(terminal), Note: view.Locale.Text("insights.closed_note")},
+		{Label: view.Locale.Text("insights.visible_label"), Value: view.Locale.FormatNumber(fmt.Sprint(totals.Total), 0), Note: view.Locale.Text("insights.visible_note")},
+		{Label: view.Locale.Text("insights.in_progress_label"), Value: view.Locale.FormatNumber(fmt.Sprint(totals.Active), 0), Note: view.Locale.Text("insights.in_progress_note")},
+		{Label: view.Locale.Text("insights.closed_label"), Value: view.Locale.FormatNumber(fmt.Sprint(totals.Closed), 0), Note: view.Locale.Text("insights.closed_note")},
 	}
 	// The queue describes the queue. The scope limitation is the evidence
 	// card's job, and printing it in both places said the same sentence
@@ -52,7 +54,14 @@ func insightsPage(view View) ui.Node {
 		Lineage:          view.Locale.Text("insights.source_value"),
 		ScopeDescription: view.Locale.Text("insights.attention_description"),
 	}
-	if len(population) == 0 {
+	// UXLIVE-027: the server summary carries when the counted journeys last
+	// changed; show it rather than claiming the time is unavailable.
+	if fromServer && !totals.LatestUpdate.IsZero() {
+		evidence.Freshness = formatInstantLabel(view.Locale, totals.LatestUpdate)
+	}
+	// Empty copy is only ever the authorized source's own answer: a
+	// non-empty summary can never render "no journeys".
+	if totals.Total == 0 {
 		empty := &EmptyStateProps{
 			Title:       view.Locale.Text("insights.no_data_title"),
 			Description: view.Locale.Text("insights.no_data_description"),
@@ -72,7 +81,7 @@ func insightsPage(view View) ui.Node {
 		I18nProps: I18nProps{Locale: view.Locale},
 		Metrics:   metrics,
 		Attention: AttentionPanelProps{
-			Title: view.Locale.Text("insights.attention_title"), CountLabel: view.Locale.Text("insights.needs_attention"), CountValue: fmt.Sprint(attention),
+			Title: view.Locale.Text("insights.attention_title"), CountLabel: view.Locale.Text("insights.needs_attention"), CountValue: view.Locale.FormatNumber(fmt.Sprint(attention), 0),
 			Description: attentionDescription,
 			Action:      action,
 		},

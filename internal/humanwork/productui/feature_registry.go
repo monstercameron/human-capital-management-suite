@@ -150,6 +150,15 @@ func (appearancePageModuleRenderer) PageFeatures() []FeatureDefinition {
 	}
 }
 
+func (workflowDesignerPageModuleRenderer) PageFeatures() []FeatureDefinition {
+	return []FeatureDefinition{
+		feature("workflow_catalog", "Workflow catalog", "Browse authorized published workflows", true, false, false, false),
+		feature("workflow_viewer", "Workflow viewer", "Inspect a published definition and authorized live run", true, false, false, false),
+		feature("workflow_drafts", "Workflow drafts", "Create and edit governed workflow drafts", true, true, true, true),
+		feature("workflow_publication", "Workflow publication", "Submit and approve workflow releases", true, true, true, false),
+	}
+}
+
 func (settingsPageModuleRenderer) PageFeatures() []FeatureDefinition {
 	return []FeatureDefinition{
 		feature("locale", "Locale", "Configure personal locale", true, false, true, false),

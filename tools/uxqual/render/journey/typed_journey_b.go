@@ -603,7 +603,12 @@ func declareJourneyForms() {
 		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("jn-accent")),
 	)
+	// The amount sits on its own line under the Changed chip and never
+	// splits: "+USD" stranded beside the chip read as a separate value.
 	declareGlobal(`.jn-delta`,
+		gwccss.Display.Block,
+		gwccss.Raw("margin-top", ".25rem"),
+		gwccss.Raw("white-space", "nowrap"),
 		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("font-variant-numeric", "tabular-nums"),
 	)

@@ -722,7 +722,7 @@ func listView(p Page, v ListView) ui.Node {
 		htmlIf(v.People != nil, func() ui.Node { return newEmployeeSection(l, v.People.Form) }),
 		engineUnavailableCallout(p.Locale, v.EngineAvailable, v.EngineNotice),
 		proposalSection(l, v),
-		journeysSection(p.Locale, v),
+		journeysSectionLive(liveOf(p), v),
 	)
 }
 
@@ -742,7 +742,7 @@ func embeddedListView(p Page, v ListView) ui.Node {
 				return html.A(html.Props{Class: "jn-btn", Href: link.Href, OnClick: activate(link.OnNavigate)}, html.Text(copy.Text("journey.list_choose_employee")))
 			})},
 		}),
-		journeysSection(p.Locale, v),
+		journeysSectionLive(liveOf(p), v),
 		engineUnavailableCallout(p.Locale, v.EngineAvailable, v.EngineNotice),
 	)
 }
@@ -762,14 +762,23 @@ func readableTenantLabel(value string) string {
 }
 
 func journeysSection(locale string, v ListView) ui.Node {
+	return journeysSectionLive(live{locale: locale}, v)
+}
+
+func journeysSectionLive(l live, v ListView) ui.Node {
+	locale := l.locale
 	copy := productui.ResolveProductLocale(locale)
 	body := ui.Node(nil)
 	switch {
+	case v.Filter != nil && v.Filter.Narrowed && len(v.Journeys) == 0:
+		// UXLIVE-031: a filter that matches nothing says so and offers the
+		// way back, instead of claiming no request exists at all.
+		body = journeyFilterEmpty(v.Filter)
 	case len(v.Groups) > 0:
 		body = html.Div(html.Props{Class: "jn-journey-groups"}, journeySubjectGroupSections(locale, v.Groups)...)
 	case len(v.Journeys) == 0:
 		body = emptyStateLocale(locale, v.Empty)
-	case hasLifecycleGroups(v.Journeys):
+	case hasLifecycleGroups(v.Journeys) && v.Grouping != journeyGroupingNone:
 		sections := make([]ui.Node, 0, 5)
 		for _, group := range groupedJourneys(v.Journeys) {
 			rows := html.Map(group.cards, func(j JourneyCard) ui.Node {
@@ -795,8 +804,9 @@ func journeysSection(locale string, v ListView) ui.Node {
 		// Pushed to opposite edges of a wide page they read as two.
 		html.Div(html.Props{Class: "jn-sectionhead jn-sectionhead-inline"},
 			html.H2(html.Props{ID: "journeys-heading"}, html.Text(copy.Text("journey.section_title"))),
-			chip(toneNeutral, countLabelLocale(locale, len(v.Journeys))),
+			journeyResultCount(locale, v),
 		),
+		journeyFilterForm(l, v.Filter),
 		body,
 	)
 }
@@ -924,18 +934,10 @@ func journeyCardLocale(locale string, j JourneyCard) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
 	return html.Article(html.Props{Class: "jn-card jn-journey",
 		DataAttr: html.DataAttribute{Name: "stage", Value: j.Stage}},
-		html.Div(html.Props{Class: "jn-journey-top"},
-			html.H3(html.Props{},
-				html.A(html.Props{Href: j.Href, OnClick: activate(j.OnOpen)},
-					html.Text(j.WorkerName),
-					htmlIf(JourneyReference(j.IntentID) != "", func() ui.Node {
-						return html.Span(html.Props{Class: "jn-journey-ref"}, html.Text(JourneyReference(j.IntentID)))
-					}),
-					visuallyHidden(" — "+copy.Text("journey.open_request")),
-				),
-			),
-			chip(j.StageTone, j.StageLabel),
-		),
+		// UXLIVE-032: task label, reference and status are separate slots
+		// of the shared object identity, not one concatenated heading.
+		journeyCardHead(locale, j),
+		journeyCardReference(locale, j),
 		htmlIf(j.Headline != "", func() ui.Node {
 			return html.P(html.Props{Class: "jn-journey-headline"}, html.Text(j.Headline))
 		}),
@@ -1406,6 +1408,7 @@ func detailView(p Page, v DetailView) ui.Node {
 		actionsSection(l, v.Actions),
 		stepperSectionLocale(p.Locale, v.Steps),
 		proposalDetailSectionLocale(p.Locale, v),
+		reviewCardsSectionLocale(p.Locale, v.Review),
 		html.Div(html.Props{Class: "jn-columns"},
 			html.Div(html.Props{Class: "jn-col"},
 				preflightSectionLocale(p.Locale, v),
@@ -1672,18 +1675,22 @@ func factsListWithClass(facts []Fact, class string) ui.Node {
 func comparisonTableLocale(locale string, rows []ComparisonRow) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
 	return html.Div(html.Props{Class: "jn-tablewrap"},
-		html.Table(html.Props{Class: "jn-table jn-compare"},
+		// The explicit table roles restate the native ones so assistive
+		// technology keeps the table when the phone layout (REV-091-02,
+		// typed_journey_review.go) restyles rows as stacked blocks, which
+		// otherwise drops table semantics in some browsers.
+		html.Table(html.Props{Class: "jn-table jn-compare", Role: "table"},
 			html.Caption(html.Props{Class: "jn-visually-hidden"},
 				html.Text(copy.Text("journey.comparison_caption"))),
-			html.Thead(html.Props{},
-				html.Tr(html.Props{},
-					html.Th(html.Props{Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_attribute"))),
-					html.Th(html.Props{Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_current"))),
-					html.Th(html.Props{Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_proposed"))),
-					html.Th(html.Props{Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_change"))),
+			html.Thead(html.Props{Role: "rowgroup"},
+				html.Tr(html.Props{Role: "row"},
+					html.Th(html.Props{Role: "columnheader", Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_attribute"))),
+					html.Th(html.Props{Role: "columnheader", Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_current"))),
+					html.Th(html.Props{Role: "columnheader", Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_proposed"))),
+					html.Th(html.Props{Role: "columnheader", Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_change"))),
 				),
 			),
-			html.Tbody(html.Props{}, html.Map(rows, func(r ComparisonRow) ui.Node { return comparisonRowLocale(locale, r) })...),
+			html.Tbody(html.Props{Role: "rowgroup"}, html.Map(rows, func(r ComparisonRow) ui.Node { return comparisonRowLocale(locale, r) })...),
 		),
 	)
 }
@@ -1694,7 +1701,7 @@ func comparisonRow(r ComparisonRow) ui.Node {
 
 func comparisonRowLocale(locale string, r ComparisonRow) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
-	props := html.Props{}
+	props := html.Props{Role: "row"}
 	if r.Changed {
 		props.DataAttr = html.DataAttribute{Name: "changed", Value: "true"}
 	}
@@ -1715,10 +1722,10 @@ func comparisonRowLocale(locale string, r ComparisonRow) ui.Node {
 		change = append(change, html.Span(html.Props{Class: "jn-muted"}, html.Text(copy.Text("journey.table_unchanged"))))
 	}
 	return html.Tr(props,
-		html.Th(html.Props{Raw: map[string]any{"scope": "row"}}, html.Text(r.Label)),
-		html.Td(html.Props{Class: "jn-num", Dir: "auto"}, html.Text(r.Current)),
-		html.Td(html.Props{Class: "jn-num jn-proposed", Dir: "auto"}, html.Text(r.Proposed)),
-		html.Td(html.Props{Class: "jn-num jn-change"}, change...),
+		html.Th(html.Props{Role: "rowheader", Raw: map[string]any{"scope": "row"}}, html.Text(r.Label)),
+		html.Td(html.Props{Class: "jn-num", Role: "cell", Dir: "auto"}, html.Text(r.Current)),
+		html.Td(html.Props{Class: "jn-num jn-proposed", Role: "cell", Dir: "auto"}, html.Text(r.Proposed)),
+		html.Td(html.Props{Class: "jn-num jn-change", Role: "cell"}, change...),
 	)
 }
 
@@ -2356,7 +2363,13 @@ func actionCard(l live, a Action) ui.Node {
 			submitLabel = reviewLabel
 		}
 	}
-	submit := html.Button(btn, html.Text(submitLabel))
+	submitProps := btn
+	if !a.Disabled && (len(a.Confirmation) > 0 || a.ConfirmationNote != "") && variant != "danger" {
+		// Inside the review the committing button is the dialog's one primary
+		// action; styled like Cancel beside it, the two read as equals.
+		submitProps.DataAttr = html.DataAttribute{Name: "variant", Value: "primary"}
+	}
+	submit := html.Button(submitProps, html.Text(submitLabel))
 	if !a.Disabled && (len(a.Confirmation) > 0 || a.ConfirmationNote != "") {
 		confirmTitle, reviewLabel := actionConfirmationCopy(l.locale, a)
 		children = append(children, ui.CreateElement(reviewSurface, reviewSurfaceProps{

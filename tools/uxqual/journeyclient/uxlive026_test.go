@@ -55,8 +55,8 @@ func TestTodo_UXLIVE_026(t *testing.T) {
 
 	// The page follows the rule.
 	startedActions := uxlive026Actions(t, started)
-	if !startedActions[ActionWithdraw].Disabled {
-		t.Fatalf("the page still offers withdraw on a started blocked run")
+	if _, shown := startedActions[ActionWithdraw]; shown {
+		t.Fatalf("the page still shows withdraw on a started blocked run")
 	}
 	if startedActions[ActionCancel].Disabled {
 		t.Fatalf("the page refuses cancel on a started blocked run")
@@ -66,8 +66,8 @@ func TestTodo_UXLIVE_026(t *testing.T) {
 	if unstartedActions[ActionWithdraw].Disabled {
 		t.Fatalf("the page refuses withdraw on a blocked proposal that never started")
 	}
-	if !unstartedActions[ActionCancel].Disabled {
-		t.Fatalf("the page offers cancel on a blocked proposal that never started")
+	if _, shown := unstartedActions[ActionCancel]; shown {
+		t.Fatalf("the page shows cancel on a blocked proposal that never started")
 	}
 }
 
@@ -75,15 +75,13 @@ func TestTodo_UXLIVE_026(t *testing.T) {
 // approvals are recorded is never described as one where none were.
 func TestTodo_UXLIVE_026_Browser(t *testing.T) {
 	started := uxlive026Actions(t, uxlive026Card(stageBlocked, "ee2abfa8"))
-	withdraw := started[ActionWithdraw]
-	if strings.Contains(withdraw.Description, "before any approval has been recorded") && !withdraw.Disabled {
-		t.Fatalf("an offered withdraw claims no approval was recorded on a started run: %q", withdraw.Description)
+	// A started run never shows a withdraw that claims no approval was
+	// recorded: the withdraw is omitted and Cancel, which applies, is offered.
+	if withdraw, shown := started[ActionWithdraw]; shown {
+		t.Fatalf("a started run still shows withdraw: %+v", withdraw)
 	}
-	if withdraw.DisabledReason == "" {
-		t.Fatalf("the refused withdraw names no reason")
-	}
-	if withdraw.DisabledReason != interventionReasonText(reasonAlreadyStarted) {
-		t.Fatalf("the refused withdraw's reason is %q, want the already-started one", withdraw.DisabledReason)
+	if cancel, shown := started[ActionCancel]; !shown || cancel.Disabled {
+		t.Fatalf("a started run does not offer the cancel that applies: %+v", cancel)
 	}
 }
 

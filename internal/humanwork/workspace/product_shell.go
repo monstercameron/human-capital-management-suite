@@ -78,7 +78,9 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 			h.writeProblem(w, http.StatusServiceUnavailable, "Appearance unavailable", "Organization appearance could not be loaded.")
 			return
 		}
-		appearance = productThemeFromPreference(snapshot.Theme.Theme)
+		// REV-092-01: the person's own density overrides the organization's
+		// on first paint, so the page does not reflow when the client loads.
+		appearance = productui.EffectiveAppearance(productThemeFromPreference(snapshot.Theme.Theme), snapshot.User.Density)
 		// The same read already returned this person's own accessibility
 		// preferences, and the document used to discard them and render the
 		// defaults. Someone who reads at large text or needs more contrast

@@ -70,7 +70,7 @@ func (c *serverPreferenceController) Adopt(view productui.View) {
 			favorites = append(favorites, string(page))
 		}
 		access := stored.Accessibility
-		c.user = &journeyv1.UserPreferences{Version: stored.Version, Locale: stored.Locale, NavCollapsed: stored.NavCollapsed, NavigationGroups: groups, FavoritePages: favorites, Tables: tables, WorkflowUses: stored.WorkflowUses,
+		c.user = &journeyv1.UserPreferences{Version: stored.Version, Locale: stored.Locale, NavCollapsed: stored.NavCollapsed, NavigationGroups: groups, FavoritePages: favorites, Tables: tables, WorkflowUses: stored.WorkflowUses, Density: stored.Density,
 			Accessibility: &journeyv1.AccessibilityPreferences{TextSize: access.TextSize, Contrast: access.Contrast, Motion: access.Motion, Links: access.Links}}
 	}
 	if view.AppearanceVersion >= c.theme.GetVersion() {
@@ -222,6 +222,13 @@ func (c *serverPreferenceController) SaveAccessibility(value productui.Accessibi
 	c.saveUser(func(user *journeyv1.UserPreferences) {
 		user.Accessibility = &journeyv1.AccessibilityPreferences{TextSize: value.TextSize, Contrast: value.Contrast, Motion: value.Motion, Links: value.Links}
 	}, done)
+}
+
+// SaveDensity stores the person's own layout density ("" inherits the
+// organization's) through the same principal-keyed SaveUserPreferences write
+// as every other personal preference (REV-092-01).
+func (c *serverPreferenceController) SaveDensity(density string, done func(error)) {
+	c.saveUser(func(user *journeyv1.UserPreferences) { user.Density = productui.NormalizePersonalDensity(density) }, done)
 }
 
 func (c *serverPreferenceController) SaveNavigationGroups(groups map[string]bool) {

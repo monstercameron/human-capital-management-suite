@@ -115,6 +115,7 @@ func newJourneyHarness(t *testing.T, mutate ...func(*app.CellConfig)) *journeyHa
 	jc := &cell{t: t, db: base.db, pool: base.pool, store: base.store}
 	cfg := app.CellConfig{
 		Store:       base.store,
+		RoleAccess:  bootstrapTestRoleAccess(t, base.pool, testTenant),
 		Verifier:    verifier,
 		Audience:    testAudience,
 		MaxDeadline: 30 * time.Second,
@@ -281,7 +282,7 @@ func journeyProposal() workspace.ProposalInput {
 		// (see internal/platform/sandbox's promotionInput).
 		ProposedBase:   "98000.00",
 		EffectiveDate:  "2026-06-01",
-		BusinessReason: "promotion_into_senior_hrbp",
+		BusinessReason: "Promotion into the senior HRBP role",
 	}
 }
 
@@ -352,7 +353,7 @@ func TestJourneyProposeListsThePromotionAtProposed(t *testing.T) {
 		t.Errorf("pay = %s -> %s %s, want 93000.00 -> 98000.00 USD",
 			found.CurrentBase, found.ProposedBase, found.Currency)
 	}
-	if found.EffectiveDate != "2026-06-01" || found.BusinessReason != "promotion_into_senior_hrbp" {
+	if found.EffectiveDate != "2026-06-01" || found.BusinessReason != "Promotion into the senior HRBP role" {
 		t.Errorf("effective/reason = %q/%q", found.EffectiveDate, found.BusinessReason)
 	}
 	if found.WorkerName == "" {

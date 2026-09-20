@@ -21,6 +21,11 @@ type LoadingProxyProps struct {
 	Page    PageID
 	State   AsyncRegionState
 	Message string
+	// Failure, used only when State is AsyncRegionFailure, makes the failed
+	// region visibly distinct from loading: a message and a Retry control
+	// drawn over the same size-compatible body (REV-090-01). Nil keeps the
+	// announcement-only failure shape.
+	Failure *AsyncRegionFailureProps
 }
 
 // LoadingRegionPage is the stable outlet used by route transitions. Keeping
@@ -156,6 +161,14 @@ func LoadingProxy(props LoadingProxyProps) ui.Node {
 	case AsyncRegionLoading, AsyncRegionEmpty, AsyncRegionStale, AsyncRegionResolved:
 		return html.Section(html.Props{Class: class, Raw: map[string]any{"aria-hidden": "true", "data-async-region": LoadingRegionPage, "data-loading-contract": LoadingContractVersion, "data-loading-layout": geometry.Layout, "data-preserve-scroll": "true", "data-preserve-focus": "true"}}, body)
 	case AsyncRegionFailure:
+		if props.Failure != nil {
+			// The notice is drawn over the unchanged body, so the failed region
+			// keeps the loading region's exact dimensions (no layout shift).
+			return html.Section(html.Props{Class: class + " " + asyncRegionFailedClass, Raw: map[string]any{"data-async-region-state": "failure"}},
+				ui.CreateElement(asyncRegionFailureNotice, *props.Failure),
+				body,
+			)
+		}
 		return html.Section(html.Props{Class: class, Raw: map[string]any{"role": "alert", "aria-live": "assertive"}},
 			html.Span(html.Props{Class: "sr-only"}, ui.Text(strings.TrimSpace(props.Message))),
 			body,

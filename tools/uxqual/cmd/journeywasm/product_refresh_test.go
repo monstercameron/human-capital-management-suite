@@ -18,6 +18,9 @@ func TestTodo_PROMOUX_010_Regression_KeepOnlyCurrentJourneyDuringRefresh(t *test
 		{name: "journey to list", last: productui.PageJourneys, next: productui.PageJourneys, active: "/journeys/j-1", requested: "/journeys"},
 		{name: "cold journey", last: productui.PageJourneys, next: productui.PageJourneys, requested: "/journeys/j-1"},
 		{name: "ordinary same-page filter", last: productui.PagePeople, next: productui.PagePeople, want: true},
+		// UXLIVE-031: a tracker filter change is the same list, not a new subject.
+		{name: "journey list filter", last: productui.PageJourneys, next: productui.PageJourneys, active: "#/journeys", requested: "#/journeys?q=amara&status=review", want: true},
+		{name: "journey list to detail", last: productui.PageJourneys, next: productui.PageJourneys, active: "#/journeys?q=amara", requested: "#/journeys/j-1"},
 		{name: "different page", last: productui.PagePeople, next: productui.PageJourneys, active: "/journeys/j-1", requested: "/journeys/j-1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -71,5 +74,28 @@ func TestTodo_UXAUDIT_012_Regression_AllowsSameOrganizationSubjectRefresh(t *tes
 	requested := productclient.State{Page: productui.PageOrganization, Request: productui.PageRequest{Page: productui.PageOrganization, SelectedPerson: "worker-a"}}
 	if !keepResolvedProductViewDuringLoad(last, requested, "", "") {
 		t.Fatal("same organization subject lost its stable warm projection")
+	}
+}
+
+func TestTodo_WF_UI_005_Regression_DraftRevalidationKeepsEditorMounted(t *testing.T) {
+	last := productui.View{
+		Page:                    productui.PageWorkflowDesigner,
+		SelectedWorkflowID:      "workflow.promotion",
+		SelectedWorkflowDraftID: "draft-42",
+	}
+	requested := productclient.State{
+		Page: productui.PageWorkflowDesigner,
+		Request: productui.PageRequest{
+			Page:            productui.PageWorkflowDesigner,
+			WorkflowDraftID: "draft-42",
+		},
+	}
+	if !keepResolvedProductViewDuringLoad(last, requested, "", "") {
+		t.Fatal("same-draft revalidation replaced the editor with a page loading proxy")
+	}
+
+	requested.Request.WorkflowDraftID = "draft-43"
+	if keepResolvedProductViewDuringLoad(last, requested, "", "") {
+		t.Fatal("different-draft navigation retained the previous editor")
 	}
 }

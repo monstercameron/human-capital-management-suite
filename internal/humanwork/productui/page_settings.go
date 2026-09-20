@@ -20,6 +20,8 @@ func settingsPage(view View) ui.Node {
 		TextSizes: AccessibilityTextSizeOptions(), Contrasts: AccessibilityContrastOptions(),
 		Motions: AccessibilityMotionOptions(), LinkStyles: AccessibilityLinkOptions(),
 		OnPreview: view.PreviewAccessibility, OnSave: view.SaveAccessibility, OnReset: view.ResetAccessibility,
+		Density: &PersonalDensityProps{Locale: view.Locale, Value: view.StoredPreferences.Density,
+			OrganizationDensity: view.Appearance.Density, OnSave: view.SaveDensity},
 	}
 	profileProps := ViewerProfileProps{
 		SectionLabel: view.Locale.Text("settings.profile_title"), Description: view.Locale.Text("settings.profile_description"),

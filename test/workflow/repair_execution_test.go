@@ -8,6 +8,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/reconcile"
 	operationrepair "github.com/monstercameron/human-capital-management-suite/internal/operations/repair"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 )
 
 type promotionRepairEffect struct{ calls []execute.RepairEffectRequest }
@@ -38,6 +39,11 @@ func TestTodo_WF_RUN_016_Integration(t *testing.T) {
 	_, parked := runPromotionToWait(t, f)
 	if got, err := makePromotionScheduler(t, f, f.fireAt).Tick(context.Background()); err != nil || got.Completed != 1 {
 		t.Fatalf("Promotion repair terminal tick = %+v, err=%v", got, err)
+	}
+	// The committed run parks on the payroll provider's confirmation; the
+	// confirmation resumes it into the observation that reports FAIL.
+	if result := confirmProviderWait(t, f, parked.Start.InstanceID, promotionexec.NodeAwaitPayrollConfirmation, "hcmnext.integrations.payroll", f.fireAt); result.Status != execute.StatusComplete {
+		t.Fatalf("after the payroll confirmation the run = %+v, want it COMPLETE on RepairPlan", result)
 	}
 	assertPromotionRows(t, f, parked.Start.InstanceID, "REPAIR_REQUIRED", "end_repair_plan", 1)
 

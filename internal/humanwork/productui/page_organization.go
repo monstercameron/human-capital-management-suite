@@ -69,7 +69,7 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 		I18nProps: I18nProps{Locale: view.Locale}, Title: title, Description: description, Groups: groups,
 		Summary: OrganizationSummaryProps{VisiblePeople: len(population), Units: len(units), Scope: view.Scope,
 			CompactLabel: densityLabel(view.Locale, "compact"), ComfortableLabel: densityLabel(view.Locale, "comfortable"), SpaciousLabel: densityLabel(view.Locale, "spacious"),
-			ExpandAllLabel: view.Locale.Text("nav.expand"), CollapseAllLabel: view.Locale.Text("nav.collapse")}, Density: view.Appearance.Density,
+			ExpandAllLabel: view.Locale.Text("nav.expand"), CollapseAllLabel: view.Locale.Text("nav.collapse")}, Density: view.EffectiveAppearance().Density,
 		ViewLabel: view.Locale.Text("organization.view_label"), TreeActive: forceTree || view.OrganizationView == organizationViewTree, TreeLocked: forceTree,
 		FlatAction: ActionLinkProps{Label: view.Locale.Text("organization.view_flat"), Href: statefulHref(view, view.Page, "org_view", organizationViewFlat, "q", view.Query, "person", view.SelectedPerson), Class: "organization-view-option", Navigate: view.Navigate},
 		TreeAction: ActionLinkProps{Label: view.Locale.Text("organization.view_tree"), Href: statefulHref(view, view.Page, "org_view", organizationViewTree, "q", view.Query, "person", view.SelectedPerson), Class: "organization-view-option", Navigate: view.Navigate},
@@ -87,19 +87,28 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 		TreeLabel: view.Locale.Text("organization.tree_label"),
 		Metadata: BusinessMetadataProps{
 			Title: view.Locale.Text("organization.metadata_title"), Description: view.Locale.Text("organization.metadata_description"),
-			Items: []BusinessMetadataItemProps{
+			Items: withKnownAccessScope(view, []BusinessMetadataItemProps{
 				{Label: view.Locale.Text("organization.business_name"), Value: valueOrUnavailableFor(view.Locale, view.Tenant)},
 				{Label: view.Locale.Text("organization.visible_workforce"), Value: number(len(population))},
 				{Label: view.Locale.Text("organization.units"), Value: number(len(units))},
 				{Label: view.Locale.Text("organization.locations"), Value: number(len(locations))},
 				{Label: view.Locale.Text("organization.pay_zones"), Value: number(len(payZones))},
-				{Label: view.Locale.Text("organization.access_scope"), Value: valueOrUnavailableFor(view.Locale, view.Scope)},
-			},
+			}),
 			FootprintLabel: view.Locale.Text("organization.footprint"), Footprint: visibleLocations,
 			Boundary: view.Locale.Text("organization.metadata_boundary"),
 		},
 		Empty: EmptyStateProps{Title: view.Locale.Text("organization.empty_title"), Description: view.Locale.Text("organization.empty_description")},
 	})
+}
+
+// withKnownAccessScope appends the access-scope fact only when the shell
+// knows the scope; a metadata tile that can only read "Not reported" is noise
+// (UXLIVE-014).
+func withKnownAccessScope(view View, items []BusinessMetadataItemProps) []BusinessMetadataItemProps {
+	if scope := strings.TrimSpace(view.Scope); scope != "" {
+		items = append(items, BusinessMetadataItemProps{Label: view.Locale.Text("organization.access_scope"), Value: scope})
+	}
+	return items
 }
 
 func organizationFilterHref(view View, query string) string {

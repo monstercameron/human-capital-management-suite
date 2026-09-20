@@ -9,6 +9,7 @@ import (
 
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -509,6 +510,37 @@ func (promotionRefusalWireVerifier) Verify(_ context.Context, cred trust.Credent
 	})
 }
 
+// promotionRefusalRoleAccess supplies the exact durable page and feature
+// grant this wire-level refusal fixture needs. The journey transport denies
+// missing permission data, so leaving RoleAccess nil would test authorization
+// failure instead of the typed engine refusal these tests are responsible for.
+type promotionRefusalRoleAccess struct{}
+
+func (promotionRefusalRoleAccess) Bootstrap(context.Context, values.TenantId, string) error {
+	return nil
+}
+func (promotionRefusalRoleAccess) Load(context.Context, values.TenantId, string) (roleaccess.Snapshot, error) {
+	return roleaccess.Snapshot{
+		PagePermissions:    []roleaccess.PagePermission{{RoleID: "intent_author", PageID: "journeys", View: true, Create: true}},
+		FeaturePermissions: []roleaccess.FeaturePermission{{RoleID: "intent_author", PageID: "journeys", FeatureID: "promotion_request", View: true, Create: true}},
+	}, nil
+}
+func (promotionRefusalRoleAccess) SaveRole(context.Context, values.TenantId, string, roleaccess.Role) (roleaccess.Role, error) {
+	return roleaccess.Role{}, nil
+}
+func (promotionRefusalRoleAccess) SaveAssignment(context.Context, values.TenantId, string, roleaccess.Assignment) (roleaccess.Assignment, error) {
+	return roleaccess.Assignment{}, nil
+}
+func (promotionRefusalRoleAccess) SaveVisibility(context.Context, values.TenantId, string, string, roleaccess.VisibilityPolicy) (roleaccess.VisibilityPolicy, error) {
+	return roleaccess.VisibilityPolicy{}, nil
+}
+func (promotionRefusalRoleAccess) SavePagePermission(context.Context, values.TenantId, string, roleaccess.PagePermission) (roleaccess.PagePermission, error) {
+	return roleaccess.PagePermission{}, nil
+}
+func (promotionRefusalRoleAccess) SaveFeaturePermission(context.Context, values.TenantId, string, roleaccess.FeaturePermission) (roleaccess.FeaturePermission, error) {
+	return roleaccess.FeaturePermission{}, nil
+}
+
 type promotionRefusalWireEngine struct {
 	workspace.JourneyEngine
 	refusal error
@@ -541,7 +573,7 @@ func TestTodo_PROMOUX_007_Integration_RealRefusalReachesRenderedClient(t *testin
 		Detail: "private pay baseline 100.03", PayRange: &workspace.JourneyPayRange{Minimum: minimum, Maximum: maximum},
 	}}
 	srv := grpc.NewServer(grpc.ChainUnaryInterceptor(grpcserver.UnaryInterceptor(transport.Config{Verifier: promotionRefusalWireVerifier{}})))
-	journeytransport.Register(srv, journeytransport.Dependencies{Engine: engine})
+	journeytransport.Register(srv, journeytransport.Dependencies{Engine: engine, RoleAccess: promotionRefusalRoleAccess{}})
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)

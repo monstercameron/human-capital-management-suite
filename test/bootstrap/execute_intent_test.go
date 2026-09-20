@@ -139,6 +139,7 @@ func newExecutionCellWithDB(t *testing.T, terminal execute.TerminalWriter, execu
 	ec := &cell{t: t, db: c.db, pool: c.pool, store: c.store, token: "Bearer " + token}
 	composed, err := app.NewCell(app.CellConfig{
 		Store:       c.store,
+		RoleAccess:  bootstrapTestRoleAccess(t, c.pool, testTenant),
 		Verifier:    verifier,
 		Audience:    testAudience,
 		MaxDeadline: 30 * time.Second,

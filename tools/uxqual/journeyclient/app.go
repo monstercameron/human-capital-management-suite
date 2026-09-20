@@ -50,6 +50,9 @@ type App struct {
 	store *journey.Store
 	now   func() time.Time
 
+	// listFilter debounces the tracker's live search (UXLIVE-031).
+	listFilter listFilterDebounce
+
 	// Async runs one unit of client work. It defaults to `go f()`; a test
 	// sets it to run f inline so an assertion follows the call.
 	Async func(func())
@@ -117,6 +120,9 @@ type App struct {
 	proposalErrors        map[string]string
 	proposalCorrections   map[string]proposalCorrection
 	proposalFocusRevision uint64
+	// editErrors are the edit-proposal dialog's client-side required-field
+	// messages, keyed by field id (REV-095-01; edit_validation.go).
+	editErrors map[string]string
 	// proposalAttemptID is minted once for one exact form payload and retained
 	// across transport retries. Changing an input starts a new semantic request;
 	// a timeout/retry of unchanged input remains the same request.
@@ -342,14 +348,21 @@ func (a *App) OnHashChange(hash string) {
 	}
 	previous := a.route
 	a.route = route
+	if route.IntentID != previous.IntentID || route.Kind != previous.Kind {
+		a.editErrors = nil
+	}
 	resetProposal := route.Kind == RouteProposal &&
 		(previous.Kind != RouteProposal || previous.WorkerRef != route.WorkerRef)
-	if route.Kind == RouteList && previous.Kind == RouteList && a.listLoaded && route.WorkerRef != previous.WorkerRef {
-		// Only the selection changed, and the answers it selects from are
-		// already in hand. Re-reading the whole tenant to move a highlight
-		// would be a round trip the reader can see.
+	if route.Kind == RouteList && previous.Kind == RouteList && a.listLoaded && (route.WorkerRef != previous.WorkerRef || route.Filter != previous.Filter) {
+		// Only the selection or the list filter changed, and the answers
+		// they select from are already in hand. Re-reading the whole tenant
+		// to move a highlight or narrow a list would be a round trip the
+		// reader can see (UXLIVE-031).
 		a.mu.Unlock()
-		a.selectValue(route.WorkerRef)
+		if route.WorkerRef != previous.WorkerRef {
+			a.selectValue(route.WorkerRef)
+		}
+		a.syncListFilterValues(route.Filter)
 		a.show(nil)
 		a.detailPublishMu.Unlock()
 		return
@@ -377,6 +390,9 @@ func (a *App) OnHashChange(hash string) {
 	if route.Kind == RouteDetail {
 		a.loadDetail(ctx, generation, route.IntentID)
 		return
+	}
+	if route.Kind == RouteList {
+		a.syncListFilterValues(route.Filter)
 	}
 	a.loadList(ctx, generation)
 }
@@ -406,9 +422,10 @@ func (a *App) Navigate(href string) {
 // the hashchange it provokes is recognised as this client's own.
 func (a *App) selectWorker(ref string) {
 	ref = strings.TrimSpace(ref)
-	href := WorkerHref(ref)
-
 	a.mu.Lock()
+	// Picking a person keeps the list's filter: the selection is a
+	// highlight within the narrowed list, not a reset of it (UXLIVE-031).
+	href := ListFilterHref(ref, a.route.Filter)
 	if a.route.Kind != RouteList {
 		// Nothing on the detail view selects an employee, but a stray
 		// selection there is a route change rather than a re-projection:
@@ -574,6 +591,8 @@ func (a *App) Submit(actionID string, values map[string]string) {
 		a.editProposal(ctx, generation, route.IntentID, values)
 	case ActionAddNote:
 		a.addNote(ctx, generation, route.IntentID, values[NameNoteBody])
+	case ActionFilterList:
+		a.Navigate(ListFilterHref(route.WorkerRef, ListFilterFromForm(values)))
 	default:
 		// An action id the projection does not emit is a projection bug, and
 		// the reader should see that their click did nothing rather than
@@ -1278,6 +1297,17 @@ func (a *App) editProposal(ctx context.Context, generation int, intentID string,
 	if intentID == "" {
 		return
 	}
+	a.mu.Lock()
+	a.editErrors = nil
+	a.mu.Unlock()
+	// REV-095-01: every Required field of the projected dialog is checked
+	// here, before any request, and refused field by field.
+	if errs, validated := a.editProposalMissing(values); validated {
+		if len(errs) > 0 {
+			a.refuseEditProposal(errs)
+			return
+		}
+	}
 	reason := strings.TrimSpace(values[NameEditReason])
 	if reason == "" {
 		a.show(keyedNotice(toneWarning, "journey.iv_need_reason_title", "journey.iv_edit_need_reason_detail"))
@@ -1470,8 +1500,10 @@ func (a *App) show(notice *journey.Notice) {
 		SelectedRef:    a.route.WorkerRef,
 		WorkerErrors:   a.workerErrors,
 		ProposalErrors: a.proposalErrors,
+		Filter:         a.route.Filter,
 	}
 	focusRevision := a.proposalFocusRevision
+	editErrors := a.editErrors
 	noteState := a.note
 	a.mu.Unlock()
 
@@ -1490,6 +1522,10 @@ func (a *App) show(notice *journey.Notice) {
 		page = ListPage(cfg, data, notice, values)
 	}
 	if len(data.ProposalErrors) > 0 {
+		page.FocusInvalidRevision = focusRevision
+	}
+	if route.Kind == RouteDetail && len(editErrors) > 0 {
+		applyEditErrors(&page, editErrors)
 		page.FocusInvalidRevision = focusRevision
 	}
 	if page.Detail != nil && page.Detail.Notes != nil && route.Kind == RouteDetail && detail.GetJourney().GetIntentId() == route.IntentID {
@@ -1514,10 +1550,14 @@ func (a *App) wire(p journey.Page) journey.Page {
 	// store remains the one controlled-input authority; this small wrapper
 	// only prevents a stale grade from surviving a new job selection.
 	p.OnFieldChange = func(fieldID, value string) {
+		if a.applyListFilterField(fieldID, value) {
+			return
+		}
 		if fieldID == FieldNoteBody {
 			a.editNoteDraft(value)
 			return
 		}
+		a.clearEditFieldError(fieldID)
 		if fieldID != FieldJobCode {
 			a.setProposalValue(fieldID, value)
 			if fieldID == FieldGrade {
@@ -1706,6 +1746,12 @@ func noticeFromError(err error, copy productui.LocaleContext) *journey.Notice {
 	}
 	st := status.Convert(err)
 	key := refusalCopyKey(st.Code())
+	// A few refusals share a transport code with conditions that read nothing
+	// like them. Where the server names one of those owned reasons, its own
+	// catalog entry wins over the code's generic one.
+	if reasonKey, ok := reasonCopyKey(refusalReasonRef(err)); ok {
+		key = reasonKey
+	}
 	detailKey := key + "_detail"
 	if st.Code() == codes.InvalidArgument && len(proposalFieldErrorsLocale(err, copy)) == 0 {
 		detailKey = "journey.error_invalid_unlinked_detail"
@@ -1740,24 +1786,28 @@ func safeProposalFieldErrorLocale(path string, copy productui.LocaleContext) (fi
 }
 
 func proposalFieldErrorKey(path string) (fieldID, key string) {
-	switch strings.TrimSpace(path) {
-	case "subject_worker_ref", "worker_ref":
-		return FieldWorker, "journey.field_worker_error"
-	case "desired_job_code", "target_job_code", "job_code":
-		return FieldJobCode, "journey.field_job_error"
-	case "desired_grade", "target_grade", "grade":
-		return FieldGrade, "journey.field_grade_error"
-	case "desired_position_id", "target_position_id", "position_id":
-		return FieldPosition, "journey.field_position_error"
-	case "desired_base_pay", "proposed_base", "proposed_base_pay", "base_pay":
-		return FieldBase, "journey.field_base_error"
-	case "effective_date":
-		return FieldEffective, "journey.field_effective_error"
-	case "reason", "business_reason":
-		return FieldReason, "journey.field_reason_error"
-	default:
-		return "", ""
+	// REV-091-01: the field table lives with the refusal mapper in productui.
+	field, key := productui.PromotionRefusalField(path)
+	return proposalFormFieldID(field), key
+}
+
+// ReasonNoActiveWorkflowVersion is the owned reason the intent service
+// attaches when no published version of the workflow has been approved and
+// activated. It is a FAILED_PRECONDITION like several others, but the only
+// thing that resolves it is an operator releasing a version, so it carries
+// its own copy rather than the generic "review the current status" line.
+const ReasonNoActiveWorkflowVersion = "workflow.no_active_version"
+
+// reasonCopyKey maps the small, closed set of owned reasons whose corrective
+// state the transport code alone does not express. An unknown reason is not
+// copy: it falls back to the code's entry, so a server that adds a reason
+// tomorrow cannot put an unreviewed string on the page.
+func reasonCopyKey(reason string) (string, bool) {
+	switch reason {
+	case ReasonNoActiveWorkflowVersion:
+		return "journey.error_no_active_workflow_version", true
 	}
+	return "", false
 }
 
 // refusalCopyKey keeps transport codes out of ordinary copy while retaining

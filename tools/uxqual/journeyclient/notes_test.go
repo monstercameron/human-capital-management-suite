@@ -123,6 +123,11 @@ func TestAddingANoteShowsItClearsTheDraftAndConfirms(t *testing.T) {
 	if notes.Composer.Status == "" || notes.Composer.Busy || notes.Composer.Field.Error != "" {
 		t.Fatalf("composer after success = %+v", notes.Composer)
 	}
+	// A browser keeps what was typed into a textarea whatever its text
+	// content says, so the recorded note must remount the box to empty it.
+	if notes.Composer.Revision != 1 {
+		t.Fatalf("composer revision after one recorded note = %d, want 1", notes.Composer.Revision)
+	}
 	// The confirmation answers the note just added; the next keystroke
 	// starts a new note and clears it.
 	typeNote(store, "N")
@@ -140,6 +145,9 @@ func TestAFailedNoteKeepsTheTextAndRetriesWithTheSameKey(t *testing.T) {
 	})
 	if p.Values[FieldNoteBody] != "Manager: aligned with the team plan." {
 		t.Fatalf("a failed submission lost the draft: %q", p.Values[FieldNoteBody])
+	}
+	if p.Detail.Notes.Composer.Revision != 0 {
+		t.Fatal("a failed submission remounted (emptied) the composer")
 	}
 	if p.Detail.Notes.Composer.Field.Error == "" || len(p.Detail.Notes.Notes) != 0 {
 		t.Fatalf("failure not reported inline: %+v", p.Detail.Notes)

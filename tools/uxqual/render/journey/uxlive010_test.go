@@ -74,7 +74,9 @@ func TestTodo_UXLIVE_010(t *testing.T) {
 // card without an intent id renders exactly as it did.
 func TestTodo_UXLIVE_010_Browser(t *testing.T) {
 	markup := uxlive010Render(t, uxlive010Card("01a0b189-e04c-7265-8926-909531dd6530"))
-	if !strings.Contains(markup, ">Omar<") {
+	// UXLIVE-032: the heading is now the task label ("Promotion for
+	// Omar"); the person's name is still in it, not replaced by the handle.
+	if !strings.Contains(markup, ">Promotion for Omar<") {
 		t.Fatalf("the person's name left the card heading:\n%s", markup)
 	}
 

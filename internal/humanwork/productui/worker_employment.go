@@ -7,10 +7,14 @@ var workerEmploymentFacts = []sectionFact{
 	{"person.manager", "manager", func(_ LocaleContext, person Person) string { return person.Manager }},
 	{"person.position_id", "position_id", func(_ LocaleContext, person Person) string { return person.PositionID }},
 	{"person.work_location", "work_location", func(_ LocaleContext, person Person) string { return person.Location }},
-	{"person.company", "company", func(LocaleContext, Person) string { return "" }},
-	{"person.business_unit", "business_unit", func(LocaleContext, Person) string { return "" }},
-	{"person.cost_center", "cost_center", func(LocaleContext, Person) string { return "" }},
-	{"person.work_arrangement", "work_arrangement", func(LocaleContext, Person) string { return "" }},
+	// Company, business unit and cost center are recorded names and codes, so
+	// they pass through; only the work arrangement is a token needing a word.
+	{"person.company", "company", func(_ LocaleContext, person Person) string { return person.Company }},
+	{"person.business_unit", "business_unit", func(_ LocaleContext, person Person) string { return person.BusinessUnit }},
+	{"person.cost_center", "cost_center", func(_ LocaleContext, person Person) string { return person.CostCenter }},
+	{"person.work_arrangement", "work_arrangement", func(locale LocaleContext, person Person) string {
+		return employmentTerm(locale, person.WorkArrangement)
+	}},
 }
 
 // ResolveWorkerEmployment resolves the worker employment

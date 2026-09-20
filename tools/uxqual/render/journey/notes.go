@@ -126,7 +126,7 @@ func noteComposer(l live, c NoteComposer) ui.Node {
 		props.Raw = map[string]any{"noValidate": true}
 	}
 	return html.Form(props,
-		fieldNode(l, field, c.Busy),
+		html.Div(html.Props{Class: "jn-note-field", Key: "note-field-" + strconv.Itoa(c.Revision)}, fieldNode(l, field, c.Busy)),
 		html.Div(html.Props{Class: "jn-note-compose-foot"},
 			counter,
 			html.P(html.Props{Class: "jn-note-status", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, html.Text(c.Status)),

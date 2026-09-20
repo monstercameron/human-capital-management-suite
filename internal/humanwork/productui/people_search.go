@@ -6,7 +6,9 @@ import "strings"
 // without enumerating it: blank queries match nothing, never
 // the population. Non-blank queries substring-match the
 // directory's own normalized index with team and location
-// narrowing when set, in admission order. Browsing the full
+// narrowing when set, in admission order. The query lifecycle
+// filter applies first, so terminated workers stay out of
+// search results until an explicit opt-in names them. Browsing the full
 // population stays on the authorized directory page; the
 // search path cannot be used to harvest it.
 func SearchPeopleDirectory(population []Person, query PeopleQuery) []Person {
@@ -17,7 +19,7 @@ func SearchPeopleDirectory(population []Person, query PeopleQuery) []Person {
 	}
 	team := strings.ToLower(strings.TrimSpace(query.Team))
 	location := strings.ToLower(strings.TrimSpace(query.Location))
-	for _, person := range population {
+	for _, person := range matchingPeople(population, query) {
 		index := normalizedPerson(person)
 		if !strings.Contains(index.search, text) {
 			continue

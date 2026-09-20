@@ -370,11 +370,6 @@ func personActionLauncherItems(view View) []ActionLauncherItem {
 	if len(catalog) == 0 {
 		return nil
 	}
-	workflows := catalog
-	authorized := view.Allows(PageJourneys, "create")
-	if !authorized {
-		workflows = nil
-	}
 	// admittedPeople, not view.People directly: a discovery-denied
 	// record (WEB-067/WEB-072) must not resurface here just because this
 	// control builds its own item list instead of reading page rows.
@@ -397,7 +392,10 @@ func personActionLauncherItems(view View) []ActionLauncherItem {
 			discoverySearchKeyword(person.ID, person.Location, "work_location", workerVerdicts),
 			discoverySearchKeyword(person.ID, person.Role, "role", workerVerdicts),
 		)
-		actions, reason, reasonWorkflow := personWorkflowActions(view, person, workflows)
+		// UXLIVE-033: the same resolved projection the People row reads, so
+		// the launcher and the row cannot disagree about a person.
+		projection := resolvePersonWorkflowActions(view, person, catalog)
+		actions, reason, reasonWorkflow := projection.Actions, projection.Reason, projection.ReasonWorkflow
 		for index, action := range actions {
 			// AccessibleLabel already carries the person-specific phrasing
 			// ("Start {workflow} for {name}"); the launcher is a ranked
@@ -412,9 +410,6 @@ func personActionLauncherItems(view View) []ActionLauncherItem {
 				Label: label, Description: identity.Role, Href: action.Href,
 				Keywords: keywords, SearchOnly: true, WorkerLookup: workerLookup,
 			})
-		}
-		if !authorized {
-			reason, reasonWorkflow = PromotionAvailabilityReason(view.Locale, PromotionWithheld), catalog[0].Name
 		}
 		if reason != "" {
 			items = append(items, ActionLauncherItem{

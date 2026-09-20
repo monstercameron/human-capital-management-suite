@@ -50,8 +50,12 @@ var workerOverviewFacts = []sectionFact{
 	{"person.job_code", "job_code", func(_ LocaleContext, person Person) string { return person.JobCode }},
 	{"person.job_level", "job_level", func(_ LocaleContext, person Person) string { return person.Grade }},
 	{"person.hire_date", "hire_date", func(locale LocaleContext, person Person) string { return localizedRecordDate(locale, person.HireDate) }},
-	{"person.employment_type", "employment_type", func(LocaleContext, Person) string { return "" }},
-	{"person.time_type", "time_type", func(LocaleContext, Person) string { return "" }},
+	{"person.employment_type", "employment_type", func(locale LocaleContext, person Person) string {
+		return employmentTerm(locale, person.EmploymentType)
+	}},
+	{"person.time_type", "time_type", func(locale LocaleContext, person Person) string {
+		return employmentTerm(locale, person.TimeType)
+	}},
 	{"person.record_source", "record_source", func(_ LocaleContext, person Person) string { return person.Source }},
 	{"person.record_created", "record_created", func(locale LocaleContext, person Person) string { return localizedRecordDate(locale, person.CreatedAt) }},
 }

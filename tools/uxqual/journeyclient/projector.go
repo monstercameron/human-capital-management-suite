@@ -10,6 +10,7 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/reasontext"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 )
@@ -427,6 +428,9 @@ type ListData struct {
 	// id. The projector only binds them to controls; it never interprets raw
 	// server failures.
 	ProposalErrors map[string]string
+	// Filter is the list route's search, status, date range, sort and
+	// grouping (UXLIVE-031), from the address.
+	Filter productui.JourneyListFilter
 }
 
 // ListPage projects the journeys overview: the workforce, the journeys and
@@ -434,17 +438,28 @@ type ListData struct {
 func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[string]string) journey.Page {
 	copy := productui.ResolveProductLocale(cfg.Locale)
 	p := chrome(cfg, copy.Text("journey.list_title")+" · "+Brand, notice, values, false)
-	cards := make([]journey.JourneyCard, 0, len(data.Journeys))
+	// UXLIVE-031: the address narrows and orders the already-authorized
+	// answer; it never adds a record or decides who may see one.
+	filter := productui.NormalizeJourneyListFilter(data.Filter)
+	visible := filterJourneys(data.Journeys, filter)
+	total := 0
 	for _, j := range data.Journeys {
-		if j == nil {
-			continue
+		if j != nil {
+			total++
 		}
+	}
+	cards := make([]journey.JourneyCard, 0, len(visible))
+	for _, j := range visible {
 		cards = append(cards, card(cfg, j))
 	}
 	// UXAUDIT-017: Journeys is a lifecycle tracker grouped by subject and
-	// status, not the flat list this loop just built in server-recency
-	// order.
-	cards = groupJourneyCards(cards)
+	// status, not the flat list this loop just built in recency order. The
+	// reader may instead group by status or not at all.
+	var groups []journey.JourneySubjectGroup
+	if filter.Group == "" {
+		cards = groupJourneyCards(cards)
+		groups = journeySubjectGroups(cards)
+	}
 	form := ProposalForm(values, data.Workers, data.SelectedRef, data.Options)
 	applyProposalErrors(&form, data.ProposalErrors)
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("journeys", "create") {
@@ -461,7 +476,9 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 	form.ConfirmationNote = copy.Text("journey.form_submit_help")
 	p.List = &journey.ListView{
 		Journeys: cards,
-		Groups:   journeySubjectGroups(cards),
+		Groups:   groups,
+		Grouping: filter.Group,
+		Filter:   listFilterView(copy, data, len(cards), total),
 		Empty:    copy.Text("journey.list_empty"),
 		Form:     form,
 		People:   PeopleView(cfg, data, values),
@@ -1572,7 +1589,7 @@ func DetailPageWithInterventions(
 		JourneysLink:    journey.NavLink{Label: copy.Text("journey.all_link"), Href: ListHref()},
 		Steps:           stepsLocale(cfg.Locale, head.Stage, detail.GetTimeline(), summary.GetEffectiveDate()),
 		Proposal:        proposalFactsLocale(cfg.Locale, detail),
-		Comparison:      comparisonLocale(cfg.Locale, summary),
+		Comparison:      reviewComparison(cfg.Locale, comparisonLocale(cfg.Locale, summary), detail),
 		Findings:        findingsLocale(cfg.Locale, detail.GetFindings()),
 		WaitExplanation: waitExplanationFacts(detail.GetFindings()),
 		Engine:          engineFacts(detail.GetInstance()),
@@ -1585,6 +1602,7 @@ func DetailPageWithInterventions(
 		Notes:           notesViewLocale(cfg.Locale, detail.GetNotes(), values[FieldNoteBody], noteComposerState{}, DetailHref(summary.GetIntentId())),
 		Actions:         detailActions,
 		EffectiveWindow: effectiveWindowLocale(cfg.Locale, summary),
+		Review:          reviewCards(cfg.Locale, detail),
 	}
 	// PayBand and Budget stay nil: the detail carries no band and no
 	// envelope, and a gauge drawn from numbers the engine did not send would
@@ -1830,16 +1848,10 @@ func stepTimesLocale(locale string, events []*journeyv1.TimelineEvent) [5]string
 }
 
 // tokenShaped reports whether a stored free-text value is a machine token
-// rather than prose: no whitespace, and separated by the underscores or
-// hyphens an identifier uses. A single word is not enough -- "Reorganisation"
-// is prose -- so a separator is required.
-func tokenShaped(value string) bool {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" || strings.ContainsAny(trimmed, " \t\n") {
-		return false
-	}
-	return strings.ContainsAny(trimmed, "_-")
-}
+// rather than prose. It is [reasontext.TokenShaped], the same rule the
+// proposal write path refuses on (REV-095-02), so display and admission
+// cannot disagree about what a token looks like.
+func tokenShaped(value string) bool { return reasontext.TokenShaped(value) }
 
 func proposalFactsLocale(locale string, detail *journeyv1.JourneyDetail) []journey.Fact {
 	copy := productui.ResolveProductLocale(locale)
@@ -2694,6 +2706,13 @@ func interventionActionsLocale(locale string, base []journey.Action, head journe
 
 	appendOne := func(kind, actionID, label, variant, description, review, confirm string, preview *journeyv1.PreviewJourneyInterventionResponse, reasonField, reasonName string, extraFields []journey.Field) {
 		reasonRef, available := InterventionAvailability(kind, head.Stage, journeyStarted(head))
+		if !available && interventionSupersededByAlternative(kind, reasonRef, head) {
+			// Withdraw once approvals have started, or Cancel before they
+			// have, cannot apply and its alternative is offered beside it:
+			// render nothing rather than a refused control saying "use the
+			// other one" (UXLIVE-014, UXLIVE-017).
+			return
+		}
 		if !available {
 			base = append(base, journey.Action{
 				ID: actionID, Label: label, Variant: variant, Description: description,
@@ -2908,4 +2927,23 @@ func stringOptions(prompt string, values []string, selected string) []journey.Op
 		}
 	}
 	return out
+}
+
+// interventionSupersededByAlternative reports whether a refused Withdraw or
+// Cancel is refused only because the other one is the applicable stop for
+// this stage, and that other one is available. Such a control is omitted;
+// refusals with no alternative (terminal, already committed) still render
+// with their reason.
+func interventionSupersededByAlternative(kind, reasonRef string, head journey.JourneyCard) bool {
+	alternative := ""
+	switch {
+	case kind == ActionWithdraw && reasonRef == reasonAlreadyStarted:
+		alternative = ActionCancel
+	case kind == ActionCancel && reasonRef == reasonNotYetStarted:
+		alternative = ActionWithdraw
+	default:
+		return false
+	}
+	_, available := InterventionAvailability(alternative, head.Stage, journeyStarted(head))
+	return available
 }

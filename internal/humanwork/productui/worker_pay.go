@@ -8,7 +8,15 @@ var workerPayFacts = []sectionFact{
 	{"person.base_pay", "base_pay", func(locale LocaleContext, person Person) string { return money(locale, person.BasePay) }},
 	{"person.bonus_target", "bonus_target", func(locale LocaleContext, person Person) string { return percentage(locale, person.BonusTarget) }},
 	{"person.pay_zone", "pay_zone", func(_ LocaleContext, person Person) string { return person.PayZone }},
-	{"person.pay_frequency", "pay_frequency", func(LocaleContext, Person) string { return "" }},
+	// The pay frequency is not a fact of its own: it is how the recorded pay
+	// basis reads. Deriving it here rather than storing a second column is
+	// what stops a record from ever saying ANNUAL_SALARY and "Hourly" at
+	// once. A worker whose basis is withheld with their pay discloses no
+	// frequency either, which is why this reads the same field the amount
+	// was disclosed with.
+	{"person.pay_frequency", "pay_frequency", func(locale LocaleContext, person Person) string {
+		return employmentTerm(locale, person.PayBasis)
+	}},
 }
 
 // ResolveWorkerPay resolves the worker pay and benefits

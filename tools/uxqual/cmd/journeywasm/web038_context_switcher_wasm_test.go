@@ -70,7 +70,7 @@ func TestTodo_WEB_038_Browser(t *testing.T) {
 	if scoped.projection != "tenant-a/principal-a/self-a" || len(scoped.history) != 2 || scoped.storage == "" {
 		t.Fatalf("scoped state cleared before authoritative success: %+v", scoped)
 	}
-	if trigger := web038WASMSummary(fixture); trigger == nil || trigger.Text() != "HarborCare · Your own authority ⌄" {
+	if trigger := web038WASMSummary(fixture); trigger == nil || trigger.Text() != "HarborCare · Your own authority" {
 		t.Fatalf("switcher claimed target while exchange was pending: text=%q node=%+v", trigger.Text(), trigger)
 	}
 	if status := fixture.ByLiveRegion("polite", "Switching workspace context…"); status == nil {
@@ -90,7 +90,7 @@ func TestTodo_WEB_038_Browser(t *testing.T) {
 	if scoped.projection != "tenant-b/principal-b/self-b" || len(scoped.history) != 0 || scoped.storage != "" {
 		t.Fatalf("successful commit did not clear/adopt atomically: %+v", scoped)
 	}
-	if trigger := web038WASMSummary(fixture); trigger == nil || trigger.Text() != "Northwind · Northwind employee ⌄" {
+	if trigger := web038WASMSummary(fixture); trigger == nil || trigger.Text() != "Northwind · Northwind employee" {
 		t.Fatalf("resolved replacement was not rendered: %+v", trigger)
 	}
 	if fixture.ByID("web038-shell-marker").NodeID() != stableMarkerID ||
@@ -120,12 +120,12 @@ func TestTodo_WEB_038_Browser(t *testing.T) {
 		deadline := time.Now().Add(2 * time.Second)
 		for time.Now().Before(deadline) {
 			failureFixture.Stabilize()
-			if failureFixture.ByLiveRegion("polite", "The workspace context could not be changed. Try again.") != nil {
+			if failureFixture.ByLiveRegion("polite", productui.ResolveProductLocale("en-US").Text("context_switcher.failed")) != nil {
 				break
 			}
 			time.Sleep(time.Millisecond)
 		}
-		if failureFixture.ByLiveRegion("polite", "The workspace context could not be changed. Try again.") == nil {
+		if failureFixture.ByLiveRegion("polite", productui.ResolveProductLocale("en-US").Text("context_switcher.failed")) == nil {
 			t.Fatal("failure was not announced with sanitized copy")
 		}
 		if failureScoped.projection != "tenant-a/principal-a/self-a" || len(failureScoped.history) != 1 || failureScoped.storage != "ledger" {

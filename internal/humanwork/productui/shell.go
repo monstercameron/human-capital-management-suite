@@ -267,8 +267,13 @@ func actionLauncher(view View) ui.Node {
 func authorizedActionLauncherItems(view View, items []ActionLauncherItem) []ActionLauncherItem {
 	allowed := authorizedNavigationPages(view)
 	result := make([]ActionLauncherItem, 0, len(items))
+	// The canonical per-person items are built once per call and indexed by
+	// ID. Rebuilding them inside the policy for every item made each header
+	// render quadratic in the population (a full per-person projection per
+	// launcher item) and dominated typing and navigation profiles.
+	canonical := canonicalPersonLauncherItems{view: view}
 	for _, item := range items {
-		state, admitted := actionLauncherItemPolicy(view, item)
+		state, admitted := actionLauncherItemPolicy(view, item, &canonical)
 		if !admitted || state.Availability == ActionHidden || !allowed[item.Page] || !actionLauncherDestinationValid(item) {
 			continue
 		}
@@ -282,17 +287,16 @@ func authorizedActionLauncherItems(view View, items []ActionLauncherItem) []Acti
 // unique semantic verdict. Item-provided fields are checked rather than
 // trusted, and page CRUD never manufactures action authority. Safe-to-disclose
 // denials require both an explicit reason and an authorized recovery route.
-func actionLauncherItemPolicy(view View, item ActionLauncherItem) (ActionState, bool) {
+func actionLauncherItemPolicy(view View, item ActionLauncherItem, people *canonicalPersonLauncherItems) (ActionState, bool) {
 	if item.Kind == ActionLauncherAction {
 		if strings.HasPrefix(item.ID, "action:") || strings.HasPrefix(item.ID, "action-unavailable:") {
-			for _, canonical := range personActionLauncherItems(view) {
-				if item.ID == canonical.ID && item.Page == canonical.Page && item.Action == canonical.Action &&
-					item.Kind == canonical.Kind && item.Href == canonical.Href && item.Label == canonical.Label &&
-					item.Description == canonical.Description && item.Reason == canonical.Reason &&
-					item.Availability.Availability == canonical.Availability.Availability &&
-					item.Availability.Reason == canonical.Availability.Reason {
-					return canonical.Availability, true
-				}
+			if canonical, ok := people.lookup(item.ID); ok &&
+				item.Page == canonical.Page && item.Action == canonical.Action &&
+				item.Kind == canonical.Kind && item.Href == canonical.Href && item.Label == canonical.Label &&
+				item.Description == canonical.Description && item.Reason == canonical.Reason &&
+				item.Availability.Availability == canonical.Availability.Availability &&
+				item.Availability.Reason == canonical.Availability.Reason {
+				return canonical.Availability, true
 			}
 			return ActionState{Availability: ActionHidden}, false
 		}
@@ -320,6 +324,30 @@ func actionLauncherItemPolicy(view View, item ActionLauncherItem) (ActionState, 
 		return ActionState{Availability: ActionHidden}, false
 	}
 	return ActionState{Availability: ActionAvailable}, true
+}
+
+// canonicalPersonLauncherItems builds personActionLauncherItems at most once
+// and indexes it by item ID. IDs are unique per person and action index, so
+// the first entry for an ID is the canonical one.
+type canonicalPersonLauncherItems struct {
+	view  View
+	built bool
+	byID  map[string]ActionLauncherItem
+}
+
+func (c *canonicalPersonLauncherItems) lookup(id string) (ActionLauncherItem, bool) {
+	if !c.built {
+		c.built = true
+		items := personActionLauncherItems(c.view)
+		c.byID = make(map[string]ActionLauncherItem, len(items))
+		for _, item := range items {
+			if _, seen := c.byID[item.ID]; !seen {
+				c.byID[item.ID] = item
+			}
+		}
+	}
+	item, ok := c.byID[id]
+	return item, ok
 }
 
 func actionLauncherRecoveryValid(view View, recovery ActionLinkProps) bool {
@@ -556,18 +584,24 @@ func currentPageAddressState(view View, collapsed bool) url.Values {
 }
 
 func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
-	children := make([]ui.Node, 0, 3)
+	// Every child is keyed. The refresh progress bar comes and goes at the
+	// front of this list; unkeyed, its arrival shifted the page head and the
+	// page itself one position, so a sort or filter refresh re-mounted them.
+	// The browser's scroll anchoring then moved the reader by the page
+	// head's height and the focused heading was replaced (UXLIVE-028).
+	children := make([]ui.Node, 0, 4)
 	if view.Refreshing {
 		children = append(children, html.Div(html.Props{
+			Key:   "network-progress",
 			Class: "loading-progress network-progress",
 			Raw:   map[string]any{"aria-hidden": "true"},
 		}))
 	}
 	if showHeading {
-		children = append(children, PageIdentityHeader(view))
+		children = append(children, html.WithKey(PageIdentityHeader(view), "page-identity"))
 	}
-	children = append(children, page,
-		html.Footer(html.Props{Class: "footer"},
+	children = append(children, keyUnlessKeyed(page, "page-content"),
+		html.Footer(html.Props{Key: "page-footer", Class: "footer"},
 			html.Span(html.Props{Data: map[string]string{"hcm-brand-name": ""}}, ui.Text(NormalizeCustomerTheme(view.Appearance).BrandName)),
 			html.Span(html.Props{}, ui.Text(view.Locale.Text("shell.live_source"))),
 		),
@@ -606,8 +640,11 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 	// scroll under 1050px). Nothing below the shell is meant to overflow the
 	// page horizontally without its own scroll owner, so the shell clipping
 	// stray overflow here is a safety net, not a competing scrollbar.
+	// The main region's position is owned by the history router's one scroll
+	// policy (UXLIVE-028), keyed by history entry and resource; a second,
+	// per-element restore here could put an unrelated page's offset back.
 	return ui.CreateElement(ScrollRegion, ScrollRegionProps{
-		Tag: "main", ID: "main-content", Class: "main-scroll", Focusable: true, RestoreScroll: true, Aria: aria,
+		Tag: "main", ID: "main-content", Class: "main-scroll", Focusable: true, Aria: aria,
 		Children: []ui.Node{html.Div(html.Props{Class: stageClass, Data: map[string]string{"network-state": stage}}, children...)},
 	})
 }

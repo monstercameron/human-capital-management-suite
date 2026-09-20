@@ -87,7 +87,7 @@ func tunnelPromotionRequest() *journeyv1.ProposePromotionRequest {
 		DesiredBasePay:          "98000.00",
 		DesiredPayCurrency:      "USD",
 		EffectiveDate:           "2026-06-01",
-		Reason:                  "promotion_into_senior_hrbp",
+		Reason:                  "Promotion into the senior HRBP role",
 		ExpectedSubjectRevision: "rewards.package.omar-reyes@1",
 		ClientRequestId:         "req-tunnel-1",
 	}

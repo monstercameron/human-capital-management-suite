@@ -94,7 +94,10 @@ func TestTodo_WEB_113_Golden(t *testing.T) {
 	// Re-pinned 2026-09-19: hire_date and record_created now read in the
 	// reader's locale (localizedRecordDate) instead of as raw ISO keys; the
 	// names, order and every other value are unchanged.
-	const want = "299166fca6b93f47d69d7785ad94b1dd91ca23973f9c3ee769f2f7cbafe85bd4"
+	// Date-vocabulary re-pin: the en-US hire date reads "1 Jun 2021", not
+	// "06/01/2021"; substituting the numeric form back reproduces the
+	// previous pin 299166fc... exactly.
+	const want = "42a32eca21cb1dc71cc67dad74a939a101674425535c4c71b069624b6806af0a"
 	if got != want {
 		t.Fatalf("overview digest = %s, want %s", got, want)
 	}

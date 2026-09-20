@@ -57,6 +57,9 @@ type noteComposerState struct {
 	busy      bool
 	errorKey  string
 	statusKey string
+	// revision counts recorded notes, so the composer's textarea is
+	// remounted empty after each one.
+	revision int
 }
 
 // notesViewLocale projects a journey's notes and the composer. value is the
@@ -94,7 +97,7 @@ func notesViewLocale(locale string, notes []*journeyv1.JourneyNote, value string
 	if state.errorKey != "" {
 		field.Error = copy.Text(state.errorKey)
 	}
-	view.Composer = &journey.NoteComposer{Field: field, MaxRunes: maxNoteRunes, Busy: state.busy, Action: action}
+	view.Composer = &journey.NoteComposer{Field: field, MaxRunes: maxNoteRunes, Busy: state.busy, Revision: state.revision, Action: action}
 	if state.statusKey != "" {
 		view.Composer.Status = copy.Text(state.statusKey)
 	}
@@ -200,7 +203,7 @@ func (a *App) addNote(ctx context.Context, generation int, intentID, body string
 		a.noteAttemptKey, a.noteAttemptIntent, a.noteAttemptBody = uuid.NewString(), intentID, text
 	}
 	key := a.noteAttemptKey
-	a.note = noteComposerState{busy: true}
+	a.note = noteComposerState{busy: true, revision: a.note.revision}
 	a.mu.Unlock()
 	a.show(a.store.Page().Notice)
 
@@ -208,7 +211,7 @@ func (a *App) addNote(ctx context.Context, generation int, intentID, body string
 		resp, err := service.AddJourneyNote(ctx, &journeyv1.AddJourneyNoteRequest{IntentId: intentID, Body: text, IdempotencyKey: key})
 		a.mu.Lock()
 		if a.generation != generation {
-			a.note = noteComposerState{}
+			a.note = noteComposerState{revision: a.note.revision}
 			a.mu.Unlock()
 			return
 		}
@@ -222,12 +225,12 @@ func (a *App) addNote(ctx context.Context, generation int, intentID, body string
 			if reused {
 				a.noteAttemptKey = ""
 			}
-			a.note = noteComposerState{errorKey: refusal}
+			a.note = noteComposerState{errorKey: refusal, revision: a.note.revision}
 			a.mu.Unlock()
 			a.show(a.store.Page().Notice)
 			return
 		}
-		a.note = noteComposerState{statusKey: "journey.note_added"}
+		a.note = noteComposerState{statusKey: "journey.note_added", revision: a.note.revision + 1}
 		a.noteAttemptKey, a.noteAttemptIntent, a.noteAttemptBody = "", "", ""
 		a.mu.Unlock()
 		// The draft is cleared only once the note is recorded; a refusal or a
@@ -243,6 +246,7 @@ func (a *App) addNote(ctx context.Context, generation int, intentID, body string
 
 func (a *App) setNoteState(state noteComposerState) {
 	a.mu.Lock()
+	state.revision = a.note.revision
 	a.note = state
 	a.mu.Unlock()
 	a.show(a.store.Page().Notice)
@@ -255,7 +259,7 @@ func (a *App) editNoteDraft(value string) {
 	a.mu.Lock()
 	stale := !a.note.busy && (a.note.errorKey != "" || a.note.statusKey != "")
 	if stale {
-		a.note = noteComposerState{}
+		a.note = noteComposerState{revision: a.note.revision}
 	}
 	a.mu.Unlock()
 	a.store.Update(func(page *journey.Page) {

@@ -174,10 +174,6 @@ func WorkPage(props WorkPageProps) ui.Node {
 }
 
 func WorkCollection(props WorkCollectionProps) ui.Node {
-	tabs := make([]ui.Node, 0, len(props.Tabs))
-	for _, item := range props.Tabs {
-		tabs = append(tabs, ui.CreateElement(WorkTab, item))
-	}
 	rows := make([]ui.Node, 0, len(props.Rows))
 	for _, item := range props.Rows {
 		item.I18nProps = props.I18nProps
@@ -214,8 +210,10 @@ func WorkCollection(props WorkCollectionProps) ui.Node {
 		Title: props.Title, Description: props.Description,
 		Trailing: html.Span(html.Props{Class: "count"}, ui.Text(props.CountLabel)),
 	})}
-	if len(tabs) > 0 {
-		children = append(children, html.Nav(html.Props{Class: "tabs", Aria: map[string]string{"label": props.Text("work.filter_label")}}, tabs...))
+	if len(props.Tabs) > 0 {
+		// REV-095-05: one line at every width, with an explicit More control
+		// for the filters that do not fit.
+		children = append(children, workFilterStrip(props))
 	}
 	children = append(children, html.Ul(html.Props{Class: "work-rows", Raw: map[string]any{"role": "list"}}, rows...))
 	if len(foot) > 0 {

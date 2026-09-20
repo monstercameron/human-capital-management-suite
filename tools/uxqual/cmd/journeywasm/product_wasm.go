@@ -32,11 +32,16 @@ var lastFocusedProductRoute string
 var productNavigationGroups *browserNavigationGroupController
 var productTransientPopovers *browserTransientPopoverController
 var lastResolvedProductView *productui.View
+
+// lastProductRouteFailed is true while the last route read failed.
+var lastProductRouteFailed bool
 var activeProductLayoutView productui.View
 var activeProductLayoutShowHeading = true
 
 func isProductPath(path string) bool {
-	return strings.HasPrefix(path, productPathPrefix)
+	// A path with surrounding whitespace is not a canonical product address;
+	// it is left to document routing rather than trimmed into one.
+	return path == strings.TrimSpace(path) && strings.HasPrefix(path, productPathPrefix)
 }
 
 func startProduct(ctx context.Context, cfg journeyclient.Config, service journeyclient.Service) error {
@@ -57,6 +62,20 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 		liveService.GetPreferences = preferenceService.GetProductPreferences
 		liveService.GetWorkerIDPolicy = preferenceService.GetWorkerIDPolicy
 		liveService.GetRoleAccess = preferenceService.GetRoleAccess
+	}
+	if workflowService, ok := service.(journeyclient.WorkflowViewerService); ok {
+		liveService.ListWorkflowPublications = workflowService.ListWorkflowPublications
+		liveService.GetWorkflowDefinitionView = workflowService.GetWorkflowDefinitionView
+		liveService.ListWorkflowBlocks = workflowService.ListWorkflowBlocks
+		liveService.CreateWorkflowDraft = workflowService.CreateWorkflowDraft
+		liveService.GetWorkflowDraft = workflowService.GetWorkflowDraft
+		liveService.InsertWorkflowPaletteEntry = workflowService.InsertWorkflowPaletteEntry
+		liveService.UpdateWorkflowDraftNode = workflowService.UpdateWorkflowDraftNode
+		liveService.SetWorkflowDraftOutcome = workflowService.SetWorkflowDraftOutcome
+		liveService.BindWorkflowDraftInput = workflowService.BindWorkflowDraftInput
+		liveService.MoveWorkflowDraftNode = workflowService.MoveWorkflowDraftNode
+		liveService.NavigateWorkflowDraftHistory = workflowService.NavigateWorkflowDraftHistory
+		liveService.ApplyWorkflowTemplateOverlay = workflowService.ApplyWorkflowTemplateOverlay
 	}
 	pagePermissions := make([]productui.RolePagePermission, 0, len(cfg.PagePermissions))
 	for _, permission := range cfg.PagePermissions {
@@ -87,6 +106,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// its own sign-out exit action, mounted only on PageJourneys.
 	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath}
 	preferences := newServerPreferenceController(ctx, service)
+	workflowAuthoring := newWorkflowAuthoringController(ctx, liveService)
 	// No Apply here. Both controllers start from defaults, and the document
 	// the server sent already carries the stored theme and preferences on
 	// <html>; applying the defaults over them is what made a light workspace
@@ -113,12 +133,19 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// off GWC's generic container focus so loading and resolved renders cannot
 	// move focus a second time.
 	productRouter.SetFocusManagement(false)
+	// REV-090-01: a failed region's Retry re-runs the same route read.
+	productRouteRetry = productRouter.Revalidate
 	// The application shell is a persistent layout route. Leaf routes own only
 	// the outlet below /workspace/app, so navigation cannot temporarily unmount
 	// the header, sidebar, or their local interaction state.
 	productRouter.Register("/workspace/app", productShellLayoutComponent, router.Options{Layout: true})
 	productHistory = newBrowserProductHistoryController()
-	navigateProduct := func(href string) { productHistory.Navigate(productRouter.Navigate, href) }
+	productScroll = newBrowserProductScrollController()
+	productScroll.Bind()
+	navigateProduct := func(href string) {
+		productScroll.BeginSoftwareNavigation()
+		productHistory.Navigate(productRouter.Navigate, href)
+	}
 	// Menu filtering is local component state. Debounce only its shareable URL
 	// state so typing never reruns page loaders or refetches workforce data.
 	navigationDebounce := newNavigationDebouncerWithScheduler(browserReplaceURL, browserDebounceScheduler)
@@ -226,6 +253,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				view.NavigateDebounced = navigationDebounce.Schedule
 				view.CancelDebouncedNavigation = navigationDebounce.Cancel
 				preferences.Adopt(view)
+				appearance.SetPersonalDensity(view.StoredPreferences.Density)
 				appearance.Load(view.Appearance)
 				accessibility.Load(view.Accessibility)
 				groups := make(map[string]bool, len(view.NavigationGroupOpen))
@@ -299,6 +327,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						}
 					})
 				}
+				view.PreviewRoleVisibility = roleAccessPreviewRequest(ctx, frontendTasks, service)
 				view.SaveRoleVisibility = func(policy productui.OrganizationVisibilityPolicy) {
 					preferences.SaveRoleVisibility(policy, func(err error) {
 						statusNode := js.Global().Get("document").Call("getElementById", "organization-visibility-status-"+policy.RoleID)
@@ -347,13 +376,116 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				view.PreviewAccessibility = accessibility.Preview
 				view.SaveAccessibility = accessibility.Save
 				view.ResetAccessibility = accessibility.Reset
+				view.SaveDensity = func(density string) {
+					preferences.SaveDensity(density, func(err error) {
+						if err == nil {
+							appearance.SetPersonalDensity(density)
+							navigateProduct(currentPath() + "?" + currentQuery())
+						}
+					})
+				}
+				if liveService.CreateWorkflowDraft != nil {
+					view.CreateWorkflowDraft = func(request productui.WorkflowDraftCreateRequest) {
+						setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_new"))
+						workflowAuthoring.Create(request, func(draftID string, err error) {
+							if err != nil || draftID == "" {
+								setWorkflowAuthoringBusy(false, view.Locale.Text("workflow_draft.create_failed"))
+								return
+							}
+							navigateWorkflowDraft(navigateProduct, draftID)
+						})
+					}
+				}
+				if liveService.InsertWorkflowPaletteEntry != nil && view.WorkflowDraft != nil {
+					draft := *view.WorkflowDraft
+					view.InsertWorkflowPaletteEntry = func(entry productui.WorkflowPaletteItem) {
+						setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+						workflowAuthoring.Insert(draft, entry, func(err error) {
+							if err != nil {
+								setWorkflowAuthoringBusy(false, view.Locale.Text("workflow_draft.save_failed"))
+								return
+							}
+							if !revalidateWorkflowDraft(productRouteRetry) {
+								setWorkflowAuthoringBusy(false, view.Locale.Text("workflow_draft.save_failed"))
+							}
+						})
+					}
+				}
+				if view.WorkflowDraft != nil {
+					draft := *view.WorkflowDraft
+					view.SelectWorkflowDraftNode = func(nodeID string) {
+						values, err := url.ParseQuery(currentQuery())
+						if err != nil {
+							return
+						}
+						nodeID = strings.TrimSpace(nodeID)
+						if nodeID == "" {
+							values.Del("node")
+						} else {
+							values.Set("node", nodeID)
+						}
+						browserReplaceURL(currentPath() + "?" + values.Encode())
+					}
+					complete := func(err error) {
+						if err != nil {
+							setWorkflowAuthoringBusy(false, view.Locale.Text("workflow_draft.save_failed"))
+							return
+						}
+						if !revalidateWorkflowDraft(productRouteRetry) {
+							setWorkflowAuthoringBusy(false, view.Locale.Text("workflow_draft.save_failed"))
+						}
+					}
+					if liveService.UpdateWorkflowDraftNode != nil {
+						view.UpdateWorkflowDraftNode = func(change productui.WorkflowNodeParameterChange) {
+							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							workflowAuthoring.UpdateNode(draft, change, complete)
+						}
+					}
+					if liveService.SetWorkflowDraftOutcome != nil {
+						view.SetWorkflowDraftOutcome = func(change productui.WorkflowOutcomeChange) {
+							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							workflowAuthoring.SetOutcome(draft, change, complete)
+						}
+					}
+					if liveService.BindWorkflowDraftInput != nil {
+						view.BindWorkflowDraftInput = func(change productui.WorkflowInputBindingChange) {
+							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							workflowAuthoring.BindInput(draft, change, complete)
+						}
+					}
+					if liveService.MoveWorkflowDraftNode != nil {
+						view.MoveWorkflowDraftNode = func(change productui.WorkflowNodeMove) {
+							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							workflowAuthoring.MoveNode(draft, change, complete)
+						}
+					}
+					if liveService.NavigateWorkflowDraftHistory != nil {
+						view.NavigateWorkflowDraftHistory = func(direction string) {
+							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							workflowAuthoring.NavigateHistory(draft, direction, complete)
+						}
+					}
+					if liveService.ApplyWorkflowTemplateOverlay != nil {
+						view.ApplyWorkflowOverlay = func(change productui.WorkflowTemplateOverlayChange) {
+							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							workflowAuthoring.ApplyOverlay(draft, change, complete)
+						}
+					}
+				}
 				attrs := router.Attrs{productViewKey: view, productSourceHrefKey: canonicalHref, productResolvedHrefKey: resolvedHref}
 				if state.Page == productui.PageJourneys {
 					attrs[productJourneyStoreKey] = journeyStore
 				}
 				if loadErr != nil {
-					view.LoadError = "We couldn't load this page. Try again."
+					// REV-090-01: a covered region fails through the async-region
+					// contract, in the shape it loads in; other pages keep the
+					// page-level LoadError degradation.
+					failedView, regionFailed := productRouteFailure(view, state.Page, loadErr)
+					view = failedView
 					attrs[productViewKey] = view
+					if regionFailed {
+						attrs[productFailureKey] = true
+					}
 				}
 				// Publish the stable shell projection at the loader completion
 				// boundary. Waiting for the leaf component to render leaves a small
@@ -373,7 +505,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				resolved.Refreshing = false
 				resolved.RefreshingRegion = ""
 				lastResolvedProductView = &resolved
+				lastProductRouteFailed = loadErr != nil
 				setActiveProductLayout(resolved, state.Page != productui.PageJourneys)
+				if shouldSettleWorkflowAuthoringBusy(state.Page, loadErr) {
+					setWorkflowAuthoringBusy(false, "")
+				}
 				return attrs, nil
 			},
 			Loading: func(_ router.Attrs) *router.Element {
@@ -382,7 +518,12 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					state = productclient.State{Page: definition.ID, Request: productui.PageRequest{Page: definition.ID}}
 				}
 				view := productclient.LoadingView(session, state)
-				warmRefresh := lastResolvedProductView != nil && keepResolvedProductViewDuringLoad(*lastResolvedProductView, state, journeys.fragment, productclient.JourneyFragment(state.Request))
+				// A failed read is not a resolved projection to refresh in place:
+				// retrying it shows the loading shape, not the empty page.
+				warmRefresh := lastResolvedProductView != nil && !lastProductRouteFailed && keepResolvedProductViewDuringLoad(*lastResolvedProductView, state, journeys.fragment, productclient.JourneyFragment(state.Request))
+				// REV-091-03: a live-update revalidation keeps the page exactly
+				// as it is while the loader re-reads.
+				quietRefresh := consumeProductQuietRefresh()
 				contentTransition := lastResolvedProductView != nil && !warmRefresh
 				if warmRefresh {
 					// Same-page network effects retain the last authorized projection.
@@ -421,7 +562,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				if warmRefresh {
 					view.Loading = false
 					view.ContentLoading = false
-					view.Refreshing = view.RefreshingRegion == ""
+					view.Refreshing = view.RefreshingRegion == "" && !quietRefresh
 					setActiveProductLayout(view, showHeading)
 					if state.Page == productui.PageJourneys {
 						content := journey.LiveContentComponent(journeyStore)
@@ -452,8 +593,54 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// fails. Bind document-level review listeners only after the live product
 	// tree is committed, so that fallback cannot leave a stale store behind.
 	bindConfirmationDialogs(journeyStore)
+	startProductInvalidations(ctx, cfg, service, canViewPage, journeyApp)
+	bindNoteComposerFocus(journeyStore)
 	bindUnsavedFormGuard()
 	return nil
+}
+
+func navigateWorkflowDraft(navigate func(string), draftID string) {
+	values, err := url.ParseQuery(currentQuery())
+	if err != nil {
+		values = make(url.Values)
+	}
+	values.Set("draft", draftID)
+	values.Del("workflow")
+	values.Del("run")
+	if navigate != nil {
+		navigate(currentPath() + "?" + values.Encode())
+	}
+}
+
+func setWorkflowAuthoringBusy(busy bool, message string) {
+	document := js.Global().Get("document")
+	statusNode := document.Call("getElementById", "workflow-designer-status")
+	if statusNode.Truthy() {
+		statusNode.Set("textContent", message)
+	}
+	page := document.Call("querySelector", ".workflow-designer-page")
+	if page.Truthy() {
+		if busy {
+			page.Call("setAttribute", "aria-busy", "true")
+		} else {
+			page.Call("removeAttribute", "aria-busy")
+		}
+	}
+	selector := `.workflow-draft-create:not(:disabled),.workflow-palette-insert:not(:disabled)`
+	if !busy {
+		selector = `[data-authoring-busy-disabled="true"]`
+	}
+	buttons := document.Call("querySelectorAll", selector)
+	for index := 0; index < buttons.Get("length").Int(); index++ {
+		button := buttons.Index(index)
+		if busy {
+			button.Call("setAttribute", "data-authoring-busy-disabled", "true")
+			button.Set("disabled", true)
+		} else {
+			button.Call("removeAttribute", "data-authoring-busy-disabled")
+			button.Set("disabled", false)
+		}
+	}
 }
 
 // hydrateProductRouter resumes the server-rendered loading shell before the
@@ -610,7 +797,8 @@ func renderProductRoute(data router.Attrs) ui.Node {
 		}
 	}
 	if result == nil {
-		result = productui.BuildPageContent(view)
+		failed, _ := data[productFailureKey].(bool)
+		result = productRouteContent(view, failed)
 	}
 	return result
 }
@@ -654,31 +842,41 @@ func focusProductRouteAfterNavigation() {
 	route := currentPath() + "?" + currentQuery()
 	if lastFocusedProductRoute == "" {
 		lastFocusedProductRoute = route
+		productScroll.Settle(route)
 		return
 	}
 	if route == lastFocusedProductRoute {
+		if productRetryFocusPending {
+			productRetryFocusPending = false
+			focusProductSelectorNextFrame(productRetryFocusSelector)
+		}
 		return
 	}
+	productRetryFocusPending = false
 	previousRoute := lastFocusedProductRoute
 	lastFocusedProductRoute = route
 	if navigationCollapsedRouteChange(previousRoute, route) {
 		resetCollapsedNavigationScroll()
 	}
-	resetMainScroll := productRouteShouldResetMainScroll(previousRoute, route)
+	// UXLIVE-028: the history router owns the main region's position through
+	// one policy keyed by history entry and canonical resource identity. A
+	// controller-less embedding (tests, the standalone journey page) keeps
+	// the plain destination rule.
+	scrollAction, scrollTop := productScrollKeep, 0.0
+	if productScroll != nil {
+		scrollAction, scrollTop = productScroll.Settle(route)
+	} else if productRouteShouldResetMainScroll(previousRoute, route) {
+		scrollAction = productScrollTop
+	}
 	selector, caretAtEnd := productRouteFocusTarget(previousRoute, route)
-	if selector == "" && !resetMainScroll {
+	if selector == "" && scrollAction == productScrollKeep && productScroll == nil {
 		return
 	}
 	var callback js.Func
 	callback = js.FuncOf(func(js.Value, []js.Value) any {
 		defer callback.Release()
 		document := js.Global().Get("document")
-		if resetMainScroll {
-			main := document.Call("getElementById", "main-content")
-			if main.Truthy() {
-				main.Set("scrollTop", 0)
-			}
-		}
+		applyProductScroll(scrollAction, scrollTop)
 		if selector == "" {
 			return nil
 		}
@@ -691,8 +889,35 @@ func focusProductRouteAfterNavigation() {
 			if caretAtEnd {
 				length := target.Get("value").Get("length").Int()
 				target.Call("setSelectionRange", length, length)
+			} else {
+				keepRouteFocus(selector, 0)
 			}
 		}
+		return nil
+	})
+	js.Global().Call("requestAnimationFrame", callback)
+}
+
+// keepRouteFocus re-applies route focus for a few frames if a late commit
+// replaced the focused heading and dropped focus to <body>. It never takes
+// focus from an element the reader has since moved to.
+func keepRouteFocus(selector string, frame int) {
+	if frame >= 6 {
+		return
+	}
+	var callback js.Func
+	callback = js.FuncOf(func(js.Value, []js.Value) any {
+		defer callback.Release()
+		document := js.Global().Get("document")
+		active := document.Get("activeElement")
+		if active.Truthy() && !active.Equal(document.Get("body")) {
+			keepRouteFocus(selector, frame+1)
+			return nil
+		}
+		if target := document.Call("querySelector", selector); target.Truthy() {
+			target.Call("focus", map[string]any{"preventScroll": true})
+		}
+		keepRouteFocus(selector, frame+1)
 		return nil
 	})
 	js.Global().Call("requestAnimationFrame", callback)
@@ -767,4 +992,22 @@ func currentQuery() string {
 		return ""
 	}
 	return strings.TrimPrefix(search.String(), "?")
+}
+
+// focusProductSelectorNextFrame focuses the first match of selector after
+// the pending commit, without scrolling the main region.
+func focusProductSelectorNextFrame(selector string) {
+	var callback js.Func
+	callback = js.FuncOf(func(js.Value, []js.Value) any {
+		defer callback.Release()
+		target := js.Global().Get("document").Call("querySelector", selector)
+		if target.Truthy() {
+			if !target.Call("hasAttribute", "tabindex").Bool() && target.Get("tagName").String() != "BUTTON" {
+				target.Call("setAttribute", "tabindex", "-1")
+			}
+			target.Call("focus", map[string]any{"preventScroll": true})
+		}
+		return nil
+	})
+	js.Global().Call("requestAnimationFrame", callback)
 }

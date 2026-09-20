@@ -61,6 +61,11 @@ type CompensationGuardrailProps struct {
 	// UnavailableMessage explains why, without naming the underlying cause
 	// in implementation terms. Populated only when Available is false.
 	UnavailableMessage string
+	// ReviewContext renders the card for someone reviewing a submitted
+	// proposal rather than entering one (REV-091-02): the unavailable state
+	// is one quiet explanation with no action, because "Enter proposed pay"
+	// is proposer wording and a dead control on a review page.
+	ReviewContext bool
 }
 
 // compensationGuardrailBandPositionKey maps the engine's closed placement
@@ -139,6 +144,27 @@ func CompensationGuardrailPropsFrom(locale LocaleContext, g promotion.Compensati
 	}
 }
 
+// CompensationGuardrailReviewPropsFrom is [CompensationGuardrailPropsFrom] for
+// the proposal review page: identical facts when available, and when not, no
+// unavailable action and a reviewer-facing explanation of why pay is absent.
+func CompensationGuardrailReviewPropsFrom(locale LocaleContext, g promotion.CompensationGuardrail) CompensationGuardrailProps {
+	props := CompensationGuardrailPropsFrom(locale, g)
+	props.ReviewContext = true
+	if props.Available {
+		return props
+	}
+	props.UnavailableAction = ""
+	switch g.Reason {
+	case promotion.GuardrailReasonNotAuthorized:
+		props.UnavailableMessage = locale.Text("compensation_guardrail.review_unavailable.not_authorized")
+	case promotion.GuardrailReasonBandUnresolved:
+		props.UnavailableMessage = locale.Text("compensation_guardrail.review_unavailable.band_unresolved")
+	default:
+		props.UnavailableMessage = locale.Text("compensation_guardrail.unavailable_reason.unspecified")
+	}
+	return props
+}
+
 // CompensationGuardrailCard renders GREEN's guardrail exactly as
 // CompensationGuardrailPropsFrom already localized it.
 //
@@ -150,6 +176,12 @@ func CompensationGuardrailPropsFrom(locale LocaleContext, g promotion.Compensati
 // two branches are structurally different subtrees, not the same subtree
 // with blanked-out numbers.
 func CompensationGuardrailCard(props CompensationGuardrailProps) ui.Node {
+	if !props.Available && props.ReviewContext {
+		return html.Div(html.Props{Class: "compensation-guardrail compensation-guardrail-unavailable", Raw: map[string]any{"role": "group"}, Aria: map[string]string{"label": props.Title}},
+			html.H3(html.Props{}, ui.Text(props.Title)),
+			html.P(html.Props{Class: "compensation-guardrail-reason"}, ui.Text(props.UnavailableMessage)),
+		)
+	}
 	if !props.Available {
 		return html.Div(html.Props{Class: "compensation-guardrail compensation-guardrail-unavailable", Raw: map[string]any{"role": "group"}, Aria: map[string]string{"label": props.Title}},
 			html.H3(html.Props{}, ui.Text(props.Title)),
@@ -157,7 +189,10 @@ func CompensationGuardrailCard(props CompensationGuardrailProps) ui.Node {
 			html.P(html.Props{Class: "compensation-guardrail-reason", Raw: map[string]any{"role": "status"}}, ui.Text(props.UnavailableMessage)),
 		)
 	}
+	// The label/value rows sit in a <dl>: a <dt>/<dd> pair outside a
+	// description list is not a pair to assistive technology.
 	return html.Div(html.Props{Class: "compensation-guardrail compensation-guardrail-available", Raw: map[string]any{"role": "group"}, Aria: map[string]string{"label": props.Title}},
-		append([]ui.Node{html.H3(html.Props{}, ui.Text(props.Title))}, factRows(props.Facts)...)...,
+		html.H3(html.Props{}, ui.Text(props.Title)),
+		html.Tag("dl", html.Props{Class: "compensation-guardrail-facts"}, factRows(props.Facts)...),
 	)
 }

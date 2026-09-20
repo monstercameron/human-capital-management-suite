@@ -38,9 +38,11 @@ func TestTodo_PROMO_009(t *testing.T) {
 	if err != nil || got.Fired != 1 || got.Completed != 1 {
 		t.Fatalf("promotion scheduler Tick = %+v, err=%v; want one fired and one completed dispatch", got, err)
 	}
-	// Reconciliation verified every leg; the run parks on the
-	// acknowledgement gate, and the received attestation runs it to its
-	// COMPLETE terminal.
+	// The committed run waits for the payroll and identity providers'
+	// confirmations (1.1.0); reconciliation then verifies every leg, the run
+	// parks on the acknowledgement gate, and the received attestation runs it
+	// to its COMPLETE terminal.
+	confirmProviderWaits(t, f, parked.Start.InstanceID, f.fireAt)
 	acknowledgeParkedPromotion(t, f, parked.Start.InstanceID, f.fireAt)
 
 	assertPromotion009Trace(t, f, parked.Start.InstanceID, promotion009CompleteDimensions())
@@ -69,11 +71,13 @@ func TestTodo_PROMO_009_Golden(t *testing.T) {
 		{promotionexec.NodeExecutePromotion, workflow.StepCapability},
 		{promotionexec.NodeReapproval, workflow.StepTask},
 		{promotionexec.NodeEndBlocked, workflow.StepEnd},
+		{promotionexec.NodeAwaitPayrollConfirmation, workflow.StepSignal},
 		{promotionexec.NodeObservePayroll, workflow.StepObserve},
 		{promotionexec.NodeEndInvalidated, workflow.StepEnd},
 		{promotionexec.NodeEndCancelled, workflow.StepEnd},
 		{promotionexec.NodeEndRejected, workflow.StepEnd},
 		{promotionexec.NodeEndExpired, workflow.StepEnd},
+		{promotionexec.NodeAwaitAccessConfirmation, workflow.StepSignal},
 		{promotionexec.NodeObserveAccess, workflow.StepObserve},
 		{promotionexec.NodeObserveReconciliation, workflow.StepObserve},
 		{promotionexec.NodeCompensateHold, workflow.StepCompensate},
@@ -304,6 +308,11 @@ func TestTodo_PROMO_009_Fault(t *testing.T) {
 	if err != nil || got.Fired != 1 || got.Completed != 1 {
 		t.Fatalf("fault scheduler Tick = %+v, err=%v; want one repaired completion", got, err)
 	}
+	// The committed run parks on the payroll provider's confirmation; the
+	// confirmation resumes it into the observation that reports FAIL.
+	if result := confirmProviderWait(t, f, parked.Start.InstanceID, promotionexec.NodeAwaitPayrollConfirmation, "hcmnext.integrations.payroll", f.fireAt); result.Status != execute.StatusComplete {
+		t.Fatalf("after the payroll confirmation the run = %+v, want it COMPLETE on RepairPlan", result)
+	}
 	assertPromotion009Trace(t, f, parked.Start.InstanceID, map[string]string{
 		"RequestState": "APPROVED", "ExecutionState": "REPAIR_REQUIRED", "BusinessState": "UNKNOWN",
 		"ConsistencyState": "DEGRADED", "ObligationState": "PENDING",
@@ -377,12 +386,14 @@ func assertPromotion009Trace(t *testing.T, f promotionFullFixture, instanceID uu
 		promotionexec.NodeRevalidate: true, promotionexec.NodeStillValid: true,
 		promotionexec.NodeExecutePromotion: true, promotionexec.NodeObservePayroll: true,
 		promotionexec.NodeObserveAccess: true, promotionexec.NodeObserveReconciliation: true,
-		promotionexec.NodeAcknowledgeRelease: true,
+		promotionexec.NodeAcknowledgeRelease:       true,
+		promotionexec.NodeAwaitPayrollConfirmation: true, promotionexec.NodeAwaitAccessConfirmation: true,
 	}
 	if f.behavior.aboveThreshold {
 		expected[promotionexec.NodeApproveFinance] = true
 	}
 	if f.behavior.payroll != "" && f.behavior.payroll != workflow.Outcome("PASS") {
+		delete(expected, promotionexec.NodeAwaitAccessConfirmation)
 		delete(expected, promotionexec.NodeObserveAccess)
 		delete(expected, promotionexec.NodeObserveReconciliation)
 		delete(expected, promotionexec.NodeAcknowledgeRelease)
@@ -449,7 +460,7 @@ func workspaceProposalForPROMO009(positionRef string) workspace.ProposalInput {
 		// No TargetPositionID: PROMOUX-004 refuses every position reference
 		// no picker issued, and POS-HRBP-301 is not a corpus position.
 		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
-		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "promotion_into_senior_hrbp",
+		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "Promotion into the senior HRBP role",
 	}
 }
 

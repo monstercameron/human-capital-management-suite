@@ -142,7 +142,7 @@ func TestTodo_UXAUDIT_006_I18N_MergedUX(t *testing.T) {
 		"page.skills_profile.title", "page.governed_population.label", "page.governed_population.title", "governed_population.unavailable_title",
 		"page.report_export.title", "report_export.unavailable_title",
 	}
-	for _, kind := range []string{"denied", "signed_out", "not_found", "invalid", "precondition", "unavailable", "deadline", "canceled", "exists", "exhausted", "other"} {
+	for _, kind := range []string{"denied", "signed_out", "not_found", "invalid", "precondition", "unavailable", "no_active_workflow_version", "deadline", "canceled", "exists", "exhausted", "other"} {
 		keys = append(keys, "journey.error_"+kind+"_title", "journey.error_"+kind+"_detail")
 	}
 	keys = append(keys,

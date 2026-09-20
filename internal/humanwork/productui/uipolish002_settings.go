@@ -113,7 +113,7 @@ func uipolish002SettingsStylesheet() string {
 			mediaRule(gwccss.MaxW(900), gwccss.Raw("grid-template-columns", "repeat(2,minmax(0,1fr))")),
 			mediaRule(gwccss.MaxW(600), gwccss.Raw("grid-template-columns", "minmax(0,1fr)")),
 		)
-		declareGlobal(".settings-preferences-group :is(.accessibility-group-contrast,.accessibility-group-links) .accessibility-options",
+		declareGlobal(".settings-preferences-group :is(.accessibility-group-contrast,.accessibility-group-links,.accessibility-group-density) .accessibility-options",
 			gwccss.Raw("grid-template-columns", "repeat(2,minmax(0,1fr))"),
 			mediaRule(gwccss.MaxW(760), gwccss.Raw("grid-template-columns", "minmax(0,1fr)")),
 		)

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/productclient"
 )
 
@@ -15,7 +18,18 @@ func keepResolvedPageDuringLoad(lastPage, requestedPage productui.PageID, active
 	if requestedPage != productui.PageJourneys {
 		return true
 	}
-	return activeJourney != "" && activeJourney == requestedJourney
+	if activeJourney != "" && activeJourney == requestedJourney {
+		return true
+	}
+	// UXLIVE-031: searching, filtering, sorting or regrouping the tracker is
+	// the same list, not a new subject, so the list stays on screen while the
+	// address settles instead of flashing a loading page per filter change.
+	return journeyListFragment(activeJourney) && journeyListFragment(requestedJourney)
+}
+
+func journeyListFragment(fragment string) bool {
+	return strings.HasPrefix(strings.TrimPrefix(strings.TrimSpace(fragment), "#"), "/journeys") &&
+		journeyclient.Parse(fragment).Kind == journeyclient.RouteList
 }
 
 // keepResolvedProductViewDuringLoad is the stronger form used by the product

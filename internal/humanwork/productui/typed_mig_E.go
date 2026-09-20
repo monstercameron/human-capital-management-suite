@@ -1152,7 +1152,10 @@ func declareJourneyIntegrationStyles() {
 		gwccss.BorderColor(gwccss.Var("accent")),
 		gwccss.Raw("box-shadow", "none"),
 	)
-	declareGlobal(".jn-embedded .jn-card:hover",
+	// Only a card that opens something takes the hover accent. An action
+	// card is a static form; highlighting it under a resting pointer made the
+	// first card on a journey look selected.
+	declareGlobal(".jn-embedded .jn-card:not(.jn-action):hover",
 		gwccss.BorderColor(gwccss.Var("accent")),
 	)
 	declareGlobal(".jn-embedded .jn-shell",

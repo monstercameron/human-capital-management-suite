@@ -121,6 +121,13 @@ type ListView struct {
 	// built before this field existed, or one whose projector never sets
 	// it, renders exactly as it always has.
 	Groups []JourneySubjectGroup
+	// Grouping is the reader's chosen grouping when it is not the default
+	// person grouping (UXLIVE-031): "status" renders the lifecycle groups,
+	// "none" one flat list. Empty keeps the existing behaviour.
+	Grouping string
+	// Filter is the tracker's search, filter, sort and grouping form and
+	// its result statement. Nil renders no filter, exactly as before.
+	Filter *JourneyFilterView
 	// Empty is shown instead of the list when there are no journeys.
 	Empty string
 	Form  ProposalForm
@@ -510,6 +517,11 @@ type DetailView struct {
 
 	// Notes is the journey's notes panel; nil renders no panel.
 	Notes *NotesView
+
+	// Review is REV-091-02's reporting-line and pay-range cards, already
+	// localized by the client from the server's authorized projection; nil
+	// renders no section.
+	Review *ReviewCards
 }
 
 // NotesView is the free-standing, append-only notes on one journey and, when
@@ -542,6 +554,10 @@ type NoteComposer struct {
 	Field    Field
 	MaxRunes int
 	Busy     bool
+	// Revision changes each time a note is recorded. The textarea is keyed
+	// by it: a browser keeps what was typed into a textarea regardless of
+	// its text content, so remounting it is what empties the box.
+	Revision int
 	// Status is a transient confirmation ("Note added"), announced politely.
 	Status   string
 	Action   string

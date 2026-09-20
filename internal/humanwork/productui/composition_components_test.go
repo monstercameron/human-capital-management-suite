@@ -51,11 +51,11 @@ func TestLabeledControlPreservesNativeControlsAndOptionalHelp(t *testing.T) {
 		want  []string
 	}{
 		{name: "text with help", props: LabeledControlProps{For: "workspace-name", Label: "Workspace name", Control: html.Input(html.Props{ID: "workspace-name", Name: "brand_name", Type: "text"}), Help: "Shown to employees"},
-			want: []string{`<label for="workspace-name">`, `<span>Workspace name</span>`, `id="workspace-name"`, `name="brand_name"`, `<small>Shown to employees</small>`}},
+			want: []string{`<label class="labeled-control" for="workspace-name">`, `<span>Workspace name</span>`, `id="workspace-name"`, `name="brand_name"`, `<small>Shown to employees</small>`}},
 		{name: "textarea without help", props: LabeledControlProps{For: "role-description", Label: "Description", Control: html.Textarea(html.Props{ID: "role-description", Name: "description"})},
-			want: []string{`<label for="role-description">`, `<span>Description</span>`, `<textarea`, `id="role-description"`}},
+			want: []string{`<label class="labeled-control" for="role-description">`, `<span>Description</span>`, `<textarea`, `id="role-description"`}},
 		{name: "select without help", props: LabeledControlProps{For: "separator", Label: "Separator", Control: html.Select(html.Props{ID: "separator"}, html.Option(html.Props{Value: "-"}, ui.Text("Dash")))},
-			want: []string{`<label for="separator">`, `<span>Separator</span>`, `<select`, `id="separator"`}},
+			want: []string{`<label class="labeled-control" for="separator">`, `<span>Separator</span>`, `<select`, `id="separator"`}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			markup, err := ui.RenderToString(ui.CreateElement(LabeledControl, test.props))

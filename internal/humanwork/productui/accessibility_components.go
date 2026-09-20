@@ -17,15 +17,23 @@ type AccessibilityPreferencesProps struct {
 	OnPreview  func(AccessibilityPreferences)
 	OnSave     func(AccessibilityPreferences)
 	OnReset    func()
+	// Density, when set, adds the person's own layout density (REV-092-01)
+	// as one more group of this form, saved by the same Save action.
+	Density *PersonalDensityProps
 }
 
 func AccessibilityPreferencesPanel(props AccessibilityPreferencesProps) ui.Node {
 	draft := NormalizeAccessibilityPreferences(props.Value)
+	density, savedDensity := "", ""
+	if props.Density != nil {
+		density = NormalizePersonalDensity(props.Density.Value)
+		savedDensity = density
+	}
 	return html.Section(html.Props{Class: "surface accessibility-preferences", Data: map[string]string{"hcm-setting-group": "accessibility"}, Raw: map[string]any{"aria-labelledby": "accessibility-title"}},
 		ui.CreateElement(SectionHeading, SectionHeadingProps{
 			ID: "accessibility-title", Title: props.Text("accessibility.title"), Description: props.Text("accessibility.description"), Level: 3,
 		}),
-		html.Form(html.Props{Class: "accessibility-form", OnSubmit: saveAccessibilityPreferences(props.OnSave, &draft)},
+		html.Form(html.Props{Class: "accessibility-form", OnSubmit: saveAccessibilityPreferences(props.OnSave, &draft, props.Density, &density, savedDensity)},
 			accessibilityChoices(props, "text-size", props.Text("accessibility.text_size"), props.Text("accessibility.text_size_help"), draft.TextSize, props.TextSizes, func(value string) {
 				draft.TextSize = value
 				previewAccessibilityPreferences(props.OnPreview, draft)
@@ -42,6 +50,7 @@ func AccessibilityPreferencesPanel(props AccessibilityPreferencesProps) ui.Node 
 				draft.Links = value
 				previewAccessibilityPreferences(props.OnPreview, draft)
 			}),
+			personalDensityFieldset(props.Density, &density),
 			html.Div(html.Props{Class: "accessibility-actions", Data: map[string]string{"hcm-sticky-actions": "true"}},
 				html.Button(html.Props{Class: "button primary", Type: "submit", Data: map[string]string{"hcm-action": "save-preferences"}}, ui.Text(props.Text("accessibility.save"))),
 				html.Button(accessibilityResetProps(props.OnReset), ui.Text(props.Text("accessibility.reset"))),
@@ -85,13 +94,25 @@ func accessibilityResetProps(reset func()) html.Props {
 	return props
 }
 
-func saveAccessibilityPreferences(save func(AccessibilityPreferences), draft *AccessibilityPreferences) ui.Handler {
-	if save == nil {
+// saveAccessibilityPreferences stores the form's accessibility choices and,
+// when the form carries the personal density group and that choice changed,
+// the density too, so one Save covers every preference on the form.
+func saveAccessibilityPreferences(save func(AccessibilityPreferences), draft *AccessibilityPreferences, density *PersonalDensityProps, densityDraft *string, savedDensity string) ui.Handler {
+	saveDensity := func(string) {}
+	if density != nil && density.OnSave != nil {
+		saveDensity = density.OnSave
+	}
+	if save == nil && (density == nil || density.OnSave == nil) {
 		return ui.Handler{}
 	}
 	return ui.UseEvent(func(event ui.FormEvent) {
 		event.PreventDefault()
-		save(NormalizeAccessibilityPreferences(*draft))
+		if save != nil {
+			save(NormalizeAccessibilityPreferences(*draft))
+		}
+		if next := NormalizePersonalDensity(*densityDraft); next != savedDensity {
+			saveDensity(next)
+		}
 	})
 }
 

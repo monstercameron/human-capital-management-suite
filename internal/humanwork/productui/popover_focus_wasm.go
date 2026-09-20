@@ -137,6 +137,12 @@ func useMobileNavigationDrawer(rootID, triggerID, backdropID string) {
 
 func bindMobileNavigationDrawer(rootID, triggerID, backdropID string) func() {
 	doc := js.Global().Get("document")
+	// Without a DOM that can resolve elements and media queries (a non-browser
+	// host, or a render fixture) there is nothing to enhance; keep the
+	// document-order baseline instead of panicking inside the effect.
+	if !doc.Truthy() || doc.Get("getElementById").Type() != js.TypeFunction || js.Global().Get("matchMedia").Type() != js.TypeFunction {
+		return nil
+	}
 	root := doc.Call("getElementById", rootID)
 	trigger := doc.Call("getElementById", triggerID)
 	backdrop := doc.Call("getElementById", backdropID)

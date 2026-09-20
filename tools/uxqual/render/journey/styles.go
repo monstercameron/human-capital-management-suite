@@ -205,5 +205,7 @@ func journeyTypedStylesheet() string {
 	out.WriteString(grow(declareJourneyForms))
 	out.WriteString(grow(declareJourneyNotes))
 	out.WriteString(grow(declareJourneyMotion))
+	out.WriteString(grow(declareJourneyTracker))
+	out.WriteString(grow(declareJourneyReview))
 	return out.String()
 }

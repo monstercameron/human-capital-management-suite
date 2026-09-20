@@ -17,11 +17,15 @@ type browserThemeController struct {
 	// the first Load it holds only DefaultCustomerTheme -- a placeholder, not
 	// a choice -- and the <html> attributes the server rendered from the
 	// stored theme are the better answer. See Reapply.
-	loaded    bool
-	tenant    string
-	save      func(productui.CustomerTheme, func(error))
-	logoLoad  js.Func
-	logoError js.Func
+	loaded bool
+	// personalDensity is the viewer's own density ("" inherits the
+	// organization's). It shapes what is applied to <html>, never the
+	// organization theme this controller saves (REV-092-01).
+	personalDensity string
+	tenant          string
+	save            func(productui.CustomerTheme, func(error))
+	logoLoad        js.Func
+	logoError       js.Func
 }
 
 func newBrowserThemeController(tenant string, save func(productui.CustomerTheme, func(error))) *browserThemeController {
@@ -41,7 +45,19 @@ func (c *browserThemeController) Load(theme productui.CustomerTheme) {
 	if c != nil {
 		c.saved = productui.NormalizeCustomerTheme(theme)
 		c.loaded = true
-		c.Apply(c.saved)
+		c.Apply(productui.EffectiveAppearance(c.saved, c.personalDensity))
+	}
+}
+
+// SetPersonalDensity records the viewer's own density and, once the
+// organization theme is known, applies the resulting effective appearance.
+func (c *browserThemeController) SetPersonalDensity(density string) {
+	if c == nil {
+		return
+	}
+	c.personalDensity = productui.NormalizePersonalDensity(density)
+	if c.loaded {
+		c.Apply(productui.EffectiveAppearance(c.saved, c.personalDensity))
 	}
 }
 
@@ -64,7 +80,7 @@ func (c *browserThemeController) Load(theme productui.CustomerTheme) {
 // newer. A client that knows nothing yet has no business replacing them.
 func (c *browserThemeController) Reapply() {
 	if c != nil && c.loaded {
-		c.Apply(c.saved)
+		c.Apply(productui.EffectiveAppearance(c.saved, c.personalDensity))
 	}
 }
 

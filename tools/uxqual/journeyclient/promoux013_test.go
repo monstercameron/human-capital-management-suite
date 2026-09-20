@@ -119,17 +119,23 @@ func TestTodo_PROMOUX_013_Accessibility(t *testing.T) {
 		}
 	})
 
-	t.Run("withdraw's disabled reason at an eligible-wait stage is a real, associated explanation", func(t *testing.T) {
-		reasonID := "action-withdraw-blocked"
-		tag := regexp.MustCompile(`(?s)<p[^>]*id="` + reasonID + `"[^>]*>.*?</p>`).FindString(out)
+	t.Run("withdraw is omitted at an eligible-wait stage, where Cancel applies", func(t *testing.T) {
+		if strings.Contains(out, `id="action-withdraw-blocked"`) || strings.Contains(out, interventionReasonText(reasonAlreadyStarted)) {
+			t.Fatalf("a refused Withdraw still renders beside the Cancel that applies:\n%s", out)
+		}
+	})
+
+	t.Run("a refusal with no alternative is a real, associated explanation", func(t *testing.T) {
+		committed := mustRender(t, DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED), nil, nil))
+		tag := regexp.MustCompile(`(?s)<p[^>]*id="[^"]*blocked"[^>]*>.*?</p>`).FindString(committed)
 		if tag == "" {
-			t.Fatalf("no disabled-reason paragraph for Withdraw:\n%s", out)
+			t.Fatalf("no disabled-reason paragraph once execution has committed:\n%s", committed)
 		}
 		if !strings.Contains(tag, `class="jn-blocked"`) {
 			t.Errorf("Withdraw's disabled reason lost the jn-blocked treatment every other blocked action uses: %s", tag)
 		}
-		if !strings.Contains(tag, interventionReasonText(reasonAlreadyStarted)) {
-			t.Errorf("Withdraw's disabled reason does not contain the expected already-started text: %s", tag)
+		if !strings.Contains(tag, interventionReasonText(reasonAlreadyStarted)) && !strings.Contains(tag, interventionReasonText(reasonAlreadyCommitted)) {
+			t.Errorf("the disabled reason does not state why the stop cannot apply: %s", tag)
 		}
 	})
 }

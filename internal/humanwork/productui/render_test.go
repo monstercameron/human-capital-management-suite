@@ -270,7 +270,7 @@ func TestWorkflowHistoryShowsOnlyTerminalRecordsAndPreservesFilters(t *testing.T
 	}
 	for _, want := range []string{
 		"Global workflow history", "Avery Patel", "DES2 G6 → DES3 G7", "Completed",
-		"Effective · 2026-08-01", "Closed · 4 Aug 2026 · 14:32 UTC",
+		"Effective · 1 Aug 2026", "Closed · 4 Aug 2026 · 14:32 UTC",
 		`href="/workspace/app/journeys?journey=intent-2"`, "Open record",
 		`name="history_q"`, `name="history_person"`, `name="outcome"`, `name="history_year"`, `name="nav"`,
 		"Employee", "Change", "Closed ↓", "Outcome", `aria-sort="descending"`,

@@ -166,6 +166,12 @@ type studioPageModuleRenderer struct{}
 
 func (studioPageModuleRenderer) Render(view View) ui.Node { return studioPage(view) }
 
+type workflowDesignerPageModuleRenderer struct{}
+
+func (workflowDesignerPageModuleRenderer) Render(view View) ui.Node {
+	return workflowDesignerPage(view)
+}
+
 type helpPageModuleRenderer struct{}
 
 func (helpPageModuleRenderer) Render(view View) ui.Node { return helpPage(view) }

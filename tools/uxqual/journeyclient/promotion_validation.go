@@ -38,74 +38,65 @@ type proposalCorrection struct {
 	payRange *proposalPayRange
 }
 
+// proposalCorrections decodes the typed wire violations and hands them to
+// productui's refusal mapper (REV-091-01). This file owns only the wire
+// decoding and the form's element ids; which message a refusal gets, and
+// which of several refusals on one field wins, is decided in one place.
 func proposalCorrections(err error) map[string]proposalCorrection {
-	out := map[string]proposalCorrection{}
+	var violations []productui.PromotionRefusalViolation
 	for _, raw := range status.Convert(err).Details() {
 		detail, ok := raw.(*commonv1.ErrorDetail)
 		if !ok {
 			continue
 		}
 		for _, violation := range detail.GetFieldViolations() {
-			fieldID, key := proposalFieldErrorKey(violation.GetFieldPath())
-			if fieldID == "" {
-				continue
+			typed := productui.PromotionRefusalViolation{FieldPath: violation.GetFieldPath(), RuleRef: violation.GetRuleRef()}
+			if permitted := violation.GetPermittedMoneyRange(); permitted != nil {
+				typed.Minimum, typed.Maximum, typed.Currency = permitted.GetMinimum(), permitted.GetMaximum(), permitted.GetCurrency()
 			}
-			correction := proposalCorrection{key: key}
-			if fieldID == FieldBase {
-				switch violation.GetRuleRef() {
-				case "promotion.base_pay.not_exact":
-					correction.key = "journey.field_base_exact_error"
-				case "promotion.ladder.base_increase_out_of_range":
-					if payRange := typedProposalPayRange(violation.GetPermittedMoneyRange()); payRange != nil {
-						correction.key = "journey.field_base_range_error"
-						correction.payRange = payRange
-					}
-				}
-			}
-			// A generic field refusal may precede the typed pay rule in a
-			// status. Prefer the correction with actionable exact bounds,
-			// independently of violation order, while retaining the first
-			// equally specific correction for a field.
-			if previous := out[fieldID]; proposalCorrectionRank(correction) > proposalCorrectionRank(previous) {
-				out[fieldID] = correction
-			}
+			violations = append(violations, typed)
 		}
 	}
-	if len(out) == 0 {
+	mapped := productui.MapPromotionWireRefusal(violations)
+	if len(mapped) == 0 {
 		return nil
+	}
+	out := make(map[string]proposalCorrection, len(mapped))
+	for field, correction := range mapped {
+		fieldID := proposalFormFieldID(field)
+		if fieldID == "" {
+			continue
+		}
+		mappedCorrection := proposalCorrection{key: correction.Key}
+		if correction.PayRange != nil {
+			mappedCorrection.payRange = &proposalPayRange{minimum: correction.PayRange.Minimum, maximum: correction.PayRange.Maximum}
+		}
+		out[fieldID] = mappedCorrection
 	}
 	return out
 }
 
-func proposalCorrectionRank(correction proposalCorrection) int {
-	if correction.payRange != nil {
-		return 3
+// proposalFormFieldID is this client's element id for a canonical proposal
+// form control.
+func proposalFormFieldID(field productui.PromotionFormField) string {
+	switch field {
+	case productui.PromotionFieldWorker:
+		return FieldWorker
+	case productui.PromotionFieldJobCode:
+		return FieldJobCode
+	case productui.PromotionFieldGrade:
+		return FieldGrade
+	case productui.PromotionFieldPosition:
+		return FieldPosition
+	case productui.PromotionFieldBase:
+		return FieldBase
+	case productui.PromotionFieldEffective:
+		return FieldEffective
+	case productui.PromotionFieldReason:
+		return FieldReason
+	default:
+		return ""
 	}
-	if correction.key == "journey.field_base_exact_error" {
-		return 2
-	}
-	if correction.key != "" {
-		return 1
-	}
-	return 0
-}
-
-// typedProposalPayRange accepts only exact, coherent bounds supplied by the
-// server's typed refusal. A cached worker/path projection is useful form help,
-// but must never be presented as the current server correction after rejection.
-func typedProposalPayRange(raw *commonv1.MoneyRange) *proposalPayRange {
-	if raw == nil {
-		return nil
-	}
-	minimum, err := values.NewMoney(raw.GetMinimum(), raw.GetCurrency(), 2, values.RoundingExactRequired)
-	if err != nil {
-		return nil
-	}
-	maximum, err := values.NewMoney(raw.GetMaximum(), raw.GetCurrency(), 2, values.RoundingExactRequired)
-	if err != nil || minimum.Amount().Sign() <= 0 || minimum.Amount().Cmp(maximum.Amount()) > 0 {
-		return nil
-	}
-	return &proposalPayRange{minimum: minimum, maximum: maximum}
 }
 
 func localizeProposalCorrections(corrections map[string]proposalCorrection, copy productui.LocaleContext) map[string]string {
@@ -121,6 +112,25 @@ func localizeProposalCorrections(corrections map[string]proposalCorrection, copy
 		}
 	}
 	return out
+}
+
+// refusalReasonRef returns the owned reason reference the server attached to
+// a refusal, or "". It is read only to select copy from the closed table in
+// [reasonCopyKey]; the string itself is never rendered.
+func refusalReasonRef(err error) string {
+	if err == nil {
+		return ""
+	}
+	for _, raw := range status.Convert(err).Details() {
+		detail, ok := raw.(*commonv1.ErrorDetail)
+		if !ok {
+			continue
+		}
+		if reason := detail.GetReasonRef(); reason != "" {
+			return reason
+		}
+	}
+	return ""
 }
 
 // supportReference accepts only the request/correlation token shapes the

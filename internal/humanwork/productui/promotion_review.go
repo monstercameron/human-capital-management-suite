@@ -41,6 +41,11 @@ type PromotionReviewProps struct {
 	// CycleSafe is promotion.ManagementImpact.CycleSafe, verbatim. It is
 	// meaningful only when HasTargetManager is true.
 	CycleSafe bool
+	// ManagerUnchanged says the promotion names no new manager, so the
+	// worker keeps their current reporting line (REV-091-02). With no
+	// evaluated manager it renders "keeps the current manager" rather than
+	// the "no target manager selected" copy, which would read as an omission.
+	ManagerUnchanged bool
 }
 
 // PromotionReviewPropsFrom adapts an already-resolved
@@ -71,6 +76,9 @@ func PromotionReviewPropsFrom(locale LocaleContext, target promotion.TargetPlace
 // impact is left for a reviewer to infer.
 func PromotionReview(locale LocaleContext, props PromotionReviewProps) ui.Node {
 	manager := locale.Text("promotion_review.no_target_manager")
+	if props.ManagerUnchanged {
+		manager = locale.Text("promotion_review.manager_unchanged")
+	}
 	if props.HasTargetManager {
 		manager = props.TargetManager
 	}
@@ -78,12 +86,16 @@ func PromotionReview(locale LocaleContext, props PromotionReviewProps) ui.Node {
 	if props.AffectedDirectReportsCount > 0 {
 		reports = locale.Plural("promotion_review.affected_direct_reports", int64(props.AffectedDirectReportsCount))
 	}
-	nodes := []ui.Node{
-		html.P(html.Props{Class: "promotion-review-manager"}, ui.Text(manager)),
-		html.P(html.Props{Class: "promotion-review-organization"}, ui.Text(props.Organization)),
-		html.P(html.Props{Class: "promotion-review-position"}, ui.Text(props.Position)),
-		html.P(html.Props{Class: "promotion-review-affected-reports"}, ui.Text(reports)),
+	// An organization or position the caller could not name is left out
+	// rather than rendered as an empty label or a raw identifier.
+	nodes := []ui.Node{html.P(html.Props{Class: "promotion-review-manager"}, ui.Text(manager))}
+	if props.Organization != "" {
+		nodes = append(nodes, html.P(html.Props{Class: "promotion-review-organization"}, ui.Text(props.Organization)))
 	}
+	if props.Position != "" {
+		nodes = append(nodes, html.P(html.Props{Class: "promotion-review-position"}, ui.Text(props.Position)))
+	}
+	nodes = append(nodes, html.P(html.Props{Class: "promotion-review-affected-reports"}, ui.Text(reports)))
 	if props.HasTargetManager {
 		tone := "promotion-review-cycle-safe"
 		cycle := locale.Text("promotion_review.cycle_safe")

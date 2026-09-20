@@ -226,20 +226,21 @@ func declareScrollRegionStyles() {
 		gwccss.Top(gwccss.Zero),
 		gwccss.ZIndex(5),
 	)
+	// The row holds a varying set of controls (the person and year selects
+	// render only when they can filter something), so fixed tracks sized for
+	// the full set squeezed a profile's year select to "Any effective". The
+	// search takes the free space; every other control sizes to its own
+	// widest option and shrinks only when the row genuinely runs out.
 	declareGlobal(".history-filter-controls",
-		mediaRule(gwccss.MinW(1200), gwccss.Display.Grid, gwccss.GridCols(
-			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(300)), gwccss.Fr(1.3)),
-			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(150)), gwccss.Fr(.7)),
-			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(145)), gwccss.Fr(.7)),
-			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(180)), gwccss.Fr(.8)),
-		)),
-		mediaRule(gwccss.MinW(1400), gwccss.GridCols(
-			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(300)), gwccss.Fr(1.3)),
-			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(150)), gwccss.Fr(.7)),
-			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(145)), gwccss.Fr(.7)),
-			gwccss.MinMax(gwccss.TrackLen(gwccss.Px(180)), gwccss.Fr(.8)),
-			gwccss.TrackLen(gwccss.RawLength("max-content")),
-		)),
+		mediaRule(gwccss.MinW(1200), gwccss.Display.Grid,
+			gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(240)), gwccss.Fr(1))),
+		),
+	)
+	declareGlobal(".history-filter-controls",
+		mediaRule(gwccss.MinW(1200),
+			gwccss.Raw("grid-auto-flow", "column"),
+			gwccss.Raw("grid-auto-columns", "minmax(0,max-content)"),
+		),
 	)
 	// The button takes the next free cell rather than a fixed column 4. The
 	// person and year selects render only when they can filter something, so

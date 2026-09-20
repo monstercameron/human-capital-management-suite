@@ -40,6 +40,7 @@ const (
 )
 
 func main() {
+	settleViewTransitions()
 	if err := start(); err != nil {
 		mountStartupFailure()
 	}
@@ -142,6 +143,7 @@ func mount(store *journey.Store) error {
 	}
 	bindActionableNoticeFocus(store)
 	bindConfirmationDialogs(store)
+	bindNoteComposerFocus(store)
 	return nil
 }
 
@@ -191,7 +193,11 @@ func bindActionableNoticeFocus(store *journey.Store) {
 // bounded render window and only while the same rejected attempt is current;
 // later typing or navigation must not steal focus back from the reader.
 func scheduleInvalidFieldFocus(store *journey.Store, revision uint64, frame int) {
-	if frame >= 8 {
+	// A refusal inside a modal review commits well after the store update
+	// (measured live: more than eight frames for the edit-proposal dialog),
+	// so the window is about two seconds at 60 Hz. The revision check below
+	// still stops it the moment the reader types or navigates (REV-095-01).
+	if frame >= invalidFieldFocusFrames {
 		return
 	}
 	var callback js.Func
@@ -210,6 +216,10 @@ func scheduleInvalidFieldFocus(store *journey.Store, revision uint64, frame int)
 	})
 	js.Global().Call("requestAnimationFrame", callback)
 }
+
+// invalidFieldFocusFrames bounds how long a refused submit waits for its
+// invalid fields to be committed before giving up on moving focus.
+const invalidFieldFocusFrames = 120
 
 func focusJourneyField(fieldID string) {
 	if fieldID == "" {

@@ -744,6 +744,74 @@ func acknowledgeParkedPromotion(t *testing.T, f promotionFullFixture, instanceID
 	return result
 }
 
+// confirmProviderWait receives the provider's confirmation against the run's
+// open 1.1.0 provider-confirmation wait on node and resumes the driver from
+// the matched receipt. The wait correlates on the proposal revision (the
+// outbox effect ids are payroll:<revision> and iam:<revision>) and accepts
+// only the provider's own source. The resumed wait always succeeds; the
+// observation after it judges the provider's outcome, which these fixture
+// ports report locally.
+func confirmProviderWait(t *testing.T, f promotionFullFixture, instanceID uuid.UUID, node, source string, at time.Time) execute.Result {
+	t.Helper()
+	ctx := context.Background()
+	var sub signals.OpenSubscription
+	var receipt signals.Receipt
+	inTenantTx(t, f.db, f.tenantID, func(tx dbport.Tx) error {
+		var err error
+		sub, err = (signals.Store{}).OpenSubscriptionForCorrelation(ctx, tx, f.tenantID, node, f.proposal.ProposalRevisionID)
+		if err != nil {
+			return fmt.Errorf("open %s wait: %w", node, err)
+		}
+		receipt, err = (signals.Store{}).Receive(ctx, tx, signals.ReceiveRequest{
+			Signal: stepSignal.Signal{
+				Tenant: values.TenantId(f.tenantID.String()), Source: source,
+				EventType: sub.EventType, SchemaRef: sub.ExpectedSchemaRef,
+				CorrelationKey: sub.CorrelationKey, CorrelationValue: sub.CorrelationValue,
+				IdempotencyKey: "test:" + node + ":" + f.key,
+				Payload:        []byte(`{"proposal_revision_id":"` + f.proposal.ProposalRevisionID + `"}`),
+				ReceivedAt:     values.NewInstant(at),
+			},
+			ReceivedAt: at,
+		}, acceptingSignalVerifier{})
+		return err
+	})
+	accepted := false
+	for _, disposition := range receipt.Dispositions {
+		if disposition.SubscriptionID == sub.ID && disposition.Status == stepSignal.StatusAccepted {
+			accepted = true
+		}
+	}
+	if !accepted {
+		t.Fatalf("%s receipt = %+v, want one ACCEPTED disposition for the open wait", node, receipt)
+	}
+	version, err := instanceVersionForPromotion(ctx, f.db, f.tenantID, instanceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := f.driver(t, at, nil).ResumeSignal(ctx, execute.ResumeSignalRequest{
+		Start: f.start, InstanceID: instanceID, ExpectedInstanceVersion: version,
+		SignalID: receipt.SignalID, SubscriptionID: sub.ID, RecordedAt: at,
+	})
+	if err != nil {
+		t.Fatalf("ResumeSignal(%s): %v", node, err)
+	}
+	return result
+}
+
+// confirmProviderWaits drives both 1.1.0 provider-confirmation waits in
+// order, payroll then identity, leaving the run parked on the next wait.
+func confirmProviderWaits(t *testing.T, f promotionFullFixture, instanceID uuid.UUID, at time.Time) {
+	t.Helper()
+	for _, wait := range []struct{ node, source string }{
+		{promotionexec.NodeAwaitPayrollConfirmation, "hcmnext.integrations.payroll"},
+		{promotionexec.NodeAwaitAccessConfirmation, "hcmnext.integrations.iam"},
+	} {
+		if result := confirmProviderWait(t, f, instanceID, wait.node, wait.source, at); result.Status != execute.StatusParked {
+			t.Fatalf("after confirming %s the run = %+v, want it parked on its next wait", wait.node, result)
+		}
+	}
+}
+
 // expireParkedPromotion sweeps the run's open acknowledgement gate past its
 // close and resumes the driver from the committed expiry, running the
 // instance to its terminal. It mirrors the served scheduler tick at the
@@ -818,6 +886,7 @@ func TestPromotionWorkflowCompletesEndToEnd(t *testing.T) {
 	}
 	// The effective-date dispatch parks the run on the acknowledgement
 	// gate; the received attestation runs it to its COMPLETE terminal.
+	confirmProviderWaits(t, f, parked.Start.InstanceID, f.fireAt)
 	acknowledgeParkedPromotion(t, f, parked.Start.InstanceID, f.fireAt)
 	assertPromotionRows(t, f, parked.Start.InstanceID, "COMPLETED", promotionexec.NodeEndComplete, 1)
 	var timerState, readyState string
@@ -847,6 +916,7 @@ func TestPromotionWorkflowWithinThresholdSkipsFinanceApproval(t *testing.T) {
 	}
 	// The run parks on the acknowledgement gate after the effective date;
 	// the received attestation runs it to its COMPLETE terminal.
+	confirmProviderWaits(t, f, parked.Start.InstanceID, f.fireAt)
 	acknowledgeParkedPromotion(t, f, parked.Start.InstanceID, f.fireAt)
 	assertPromotionRows(t, f, parked.Start.InstanceID, "COMPLETED", promotionexec.NodeEndComplete, 1)
 }
@@ -925,6 +995,7 @@ func TestPromotionWorkflowRevalidationRequiresReapprovalThenCompletes(t *testing
 	}
 	// The re-approved run parks on the acknowledgement gate after the
 	// effective date; the received attestation runs it to COMPLETE.
+	confirmProviderWaits(t, f, parked.Start.InstanceID, f.fireAt.Add(5*time.Hour))
 	acknowledgeParkedPromotion(t, f, parked.Start.InstanceID, f.fireAt.Add(5*time.Hour))
 	assertPromotionRows(t, f, parked.Start.InstanceID, "COMPLETED", promotionexec.NodeEndComplete, 1)
 }
@@ -950,6 +1021,11 @@ func TestPromotionWorkflowDegradedObservationEndsInRepairPlan(t *testing.T) {
 	if got, err := makePromotionScheduler(t, f, f.fireAt).Tick(context.Background()); err != nil || got.Completed != 1 {
 		t.Fatalf("scheduler Tick = %+v, err=%v", got, err)
 	}
+	// The committed run parks on the payroll provider's confirmation; the
+	// confirmation resumes it into the observation that reports FAIL.
+	if result := confirmProviderWait(t, f, parked.Start.InstanceID, promotionexec.NodeAwaitPayrollConfirmation, "hcmnext.integrations.payroll", f.fireAt); result.Status != execute.StatusComplete {
+		t.Fatalf("after the payroll confirmation the run = %+v, want it COMPLETE on RepairPlan", result)
+	}
 	assertPromotionRows(t, f, parked.Start.InstanceID, "REPAIR_REQUIRED", promotionexec.NodeEndRepairPlan, 1)
 	if n := countRows(t, f.db, `SELECT count(*) FROM effect_reconciliation_job WHERE tenant_id = $1`, f.tenantID); n != 1 {
 		t.Fatalf("repair jobs = %d, want 1", n)
@@ -968,6 +1044,7 @@ func TestPromotionWorkflowAcknowledgementTimeoutEndsInRepairPlan(t *testing.T) {
 	if got, err := makePromotionScheduler(t, f, f.fireAt).Tick(context.Background()); err != nil || got.Completed != 1 {
 		t.Fatalf("scheduler Tick = %+v, err=%v", got, err)
 	}
+	confirmProviderWaits(t, f, parked.Start.InstanceID, f.fireAt)
 	// Capture the wait's signal identity before the sweep so the late
 	// acknowledgement below addresses the expired wait itself.
 	var eventType, schemaRef, correlationKey, correlationValue string
@@ -1030,6 +1107,7 @@ func TestPromotionWorkflowSurvivesRestartDuringApprovalAndWait(t *testing.T) {
 	}
 	// The restarted run parks on the acknowledgement gate; the received
 	// attestation runs it to its COMPLETE terminal.
+	confirmProviderWaits(t, f, first.Start.InstanceID, f.fireAt)
 	acknowledgeParkedPromotion(t, f, first.Start.InstanceID, f.fireAt)
 	assertPromotionRows(t, f, first.Start.InstanceID, "COMPLETED", promotionexec.NodeEndComplete, 1)
 }
@@ -1045,6 +1123,7 @@ func TestPromotionWorkflowDuplicateTimerFireAndDuplicateResumeAreIdempotent(t *t
 	}
 	// Both ticks park on the acknowledgement gate; the received attestation
 	// runs the once-fired dispatch to its COMPLETE terminal.
+	confirmProviderWaits(t, f, parked.Start.InstanceID, f.fireAt.Add(time.Minute))
 	acknowledgeParkedPromotion(t, f, parked.Start.InstanceID, f.fireAt.Add(time.Minute))
 	assertPromotionRows(t, f, parked.Start.InstanceID, "COMPLETED", promotionexec.NodeEndComplete, 1)
 	if n := countRows(t, f.db, `SELECT count(*) FROM ledger_event WHERE tenant_id = $1`, f.tenantID); n != 1 {

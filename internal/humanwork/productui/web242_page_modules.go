@@ -29,6 +29,7 @@ const (
 	PageAudienceManager        PageAccessAudience = "manager"
 	PageAudienceManagerFinance PageAccessAudience = "manager_finance"
 	PageAudienceHRPartner      PageAccessAudience = "hr_partner"
+	PageAudienceWorkflowAuthor PageAccessAudience = "workflow_author"
 	PageAudienceDenied         PageAccessAudience = "denied"
 )
 
@@ -63,6 +64,7 @@ const (
 	RouteProfileOrgOutline   RouteProfile = "organization_outline"
 	RouteProfileRoles        RouteProfile = "roles"
 	RouteProfileStudio       RouteProfile = "studio"
+	RouteProfileWorkflow     RouteProfile = "workflow_designer"
 )
 
 // DataProfile identifies a reusable authorized dataset contract. It carries
@@ -107,7 +109,14 @@ type RouteStateProfile struct {
 	OrganizationOutline   bool
 	Roles                 bool
 	Studio                bool
+	WorkflowDesigner      bool
 	Person                bool
+	// CarriesDirectoryQuery declares that this page adopts the People
+	// directory's remembered search (the stored table filter) when its own
+	// address names none, and that the adopted search is written back into
+	// this page's own address so it can be shared, reloaded and reversed
+	// with Back (REV-095-04).
+	CarriesDirectoryQuery bool
 }
 
 var shellRouteStateKeys = []string{"locale", "nav", "menu_q", "favorites"}
@@ -122,7 +131,7 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.QueryKeys = []string{"workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}
 	case RouteProfileJourneys:
 		result.Journeys = true
-		result.QueryKeys = []string{"journey", "mode", "worker"}
+		result.QueryKeys = append([]string{"journey", "mode", "worker"}, JourneyListRouteKeys()...)
 	case RouteProfileWork:
 		result.Work = true
 		result.QueryKeys = []string{"filter", "selected"}
@@ -139,6 +148,7 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.QueryKeys = []string{"person", "q", "page", "page_size", "team", "location", "eligible", "sort", "dir", "workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}
 	case RouteProfileOrganization, RouteProfileOrgOutline:
 		result.Organization = true
+		result.CarriesDirectoryQuery = true
 		result.OrganizationOutline = profile == RouteProfileOrgOutline
 		result.QueryKeys = organizationRouteStateKeys
 	case RouteProfileRoles:
@@ -147,6 +157,9 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 	case RouteProfileStudio:
 		result.Studio = true
 		result.QueryKeys = []string{"mode"}
+	case RouteProfileWorkflow:
+		result.WorkflowDesigner = true
+		result.QueryKeys = []string{"workflow", "run", "draft", "node"}
 	}
 	result.QueryKeys = append(append([]string(nil), shellRouteStateKeys...), result.QueryKeys...)
 	return result
@@ -177,6 +190,9 @@ func (profile RouteProfile) ValidControlledValues(values url.Values) bool {
 	}
 	spec := profile.StateProfile()
 	if spec.Work && !oneOf("filter", "review", "blocked", "complete", "mine", "tracked") {
+		return false
+	}
+	if spec.Journeys && !ValidJourneyListValues(values) {
 		return false
 	}
 	if spec.Organization && !oneOf("org_view", "flat", "tree") {
@@ -226,6 +242,9 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 		setProfileValue(values, provided, "journey", request.JourneyID)
 		setProfileValue(values, provided, "mode", request.JourneyMode)
 		setProfileValue(values, provided, "worker", request.JourneyWorker)
+		// The tracker's narrowing state has one spelling: defaults and
+		// out-of-vocabulary values are dropped rather than echoed (UXLIVE-031).
+		request.JourneyList.SetValues(values)
 	}
 	if spec.Work {
 		setProfileValue(values, provided, "filter", request.WorkFilter)
@@ -277,6 +296,12 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 	if spec.Studio {
 		setProfileValue(values, provided, "mode", request.Mode)
 	}
+	if spec.WorkflowDesigner {
+		setProfileValue(values, provided, "workflow", request.WorkflowID)
+		setProfileValue(values, provided, "run", request.WorkflowRunID)
+		setProfileValue(values, provided, "draft", request.WorkflowDraftID)
+		setProfileValue(values, provided, "node", request.WorkflowNodeID)
+	}
 	return values
 }
 
@@ -294,6 +319,9 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 		}
 		if view.JourneyWorker != "" {
 			values.Set("worker", view.JourneyWorker)
+		}
+		if view.JourneyID == "" {
+			view.JourneyList.SetValues(values)
 		}
 	}
 	if spec.Work {
@@ -386,6 +414,20 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 	if spec.Studio && view.Mode != "" {
 		values.Set("mode", view.Mode)
 	}
+	if spec.WorkflowDesigner {
+		if view.SelectedWorkflowID != "" {
+			values.Set("workflow", view.SelectedWorkflowID)
+		}
+		if view.SelectedWorkflowRunID != "" {
+			values.Set("run", view.SelectedWorkflowRunID)
+		}
+		if view.SelectedWorkflowDraftID != "" {
+			values.Set("draft", view.SelectedWorkflowDraftID)
+		}
+		if view.SelectedWorkflowNodeID != "" {
+			values.Set("node", view.SelectedWorkflowNodeID)
+		}
+	}
 }
 
 // IdentityMatches reports whether warm content can remain visible while this
@@ -405,7 +447,35 @@ func (profile RouteProfile) IdentityMatches(view View, request PageRequest) bool
 	if spec.Organization && !trimmedEqual(view.SelectedPerson, request.SelectedPerson) {
 		return false
 	}
+	if spec.WorkflowDesigner && !workflowDesignerIdentityMatches(view, request) {
+		return false
+	}
 	return true
+}
+
+// workflowDesignerIdentityMatches compares the selector that owns the
+// designer's current subject. Draft and run reads also resolve a workflow id,
+// but that derived id is not a second route identity: requiring an absent
+// workflow query value to equal it turns an in-place draft save into a false
+// subject switch and replaces the editor with a page loading proxy.
+//
+// The selector precedence mirrors what the page renders: a draft supersedes a
+// live run, a run supersedes a publication, and an empty address selects the
+// server's default publication. Moving from a draft or run back to a
+// publication is therefore still fenced and cannot briefly paint the old
+// subject under the new address.
+func workflowDesignerIdentityMatches(view View, request PageRequest) bool {
+	trimmedEqual := func(a, b string) bool { return strings.TrimSpace(a) == strings.TrimSpace(b) }
+	if draftID := strings.TrimSpace(request.WorkflowDraftID); draftID != "" {
+		return trimmedEqual(view.SelectedWorkflowDraftID, draftID)
+	}
+	if runID := strings.TrimSpace(request.WorkflowRunID); runID != "" {
+		return strings.TrimSpace(view.SelectedWorkflowDraftID) == "" && trimmedEqual(view.SelectedWorkflowRunID, runID)
+	}
+	if workflowID := strings.TrimSpace(request.WorkflowID); workflowID != "" {
+		return strings.TrimSpace(view.SelectedWorkflowDraftID) == "" && strings.TrimSpace(view.SelectedWorkflowRunID) == "" && trimmedEqual(view.SelectedWorkflowID, workflowID)
+	}
+	return strings.TrimSpace(view.SelectedWorkflowDraftID) == "" && strings.TrimSpace(view.SelectedWorkflowRunID) == ""
 }
 
 // PageModule is the immutable registration contract for a product page. Its
@@ -446,6 +516,8 @@ func routeProfileFor(route string) RouteProfile {
 		return RouteProfileRoles
 	case "/workspace/app/studio":
 		return RouteProfileStudio
+	case "/workspace/app/admin/workflows":
+		return RouteProfileWorkflow
 	}
 	switch {
 	case strings.Contains(route, "/admin/"):
@@ -602,6 +674,11 @@ func pageModuleFor(id PageID) (PageModule, bool) {
 	return fixedPageRegistry.modules[fixedPageRegistry.ids[position].index], true
 }
 
+// pageVisibleForPolicy is the compatibility visibility answer used by
+// isolated previews and callers that have not received an authoritative
+// permission projection yet. Served requests replace this role-derived
+// projection with EffectivePermissions; this mapping does not override a
+// stored denial.
 func pageVisibleForPolicy(policy PageAccessPolicy, roles []string) bool {
 	switch policy.Audience {
 	case PageAudiencePublic, PageAudiencePortal:
@@ -624,7 +701,7 @@ func pageVisibleForPolicy(policy PageAccessPolicy, roles []string) bool {
 func validPageAccessAudience(audience PageAccessAudience) bool {
 	switch audience {
 	case PageAudiencePublic, PageAudiencePortal, PageAudienceWorker, PageAudienceWorkerFinance,
-		PageAudienceManager, PageAudienceManagerFinance, PageAudienceHRPartner, PageAudienceDenied:
+		PageAudienceManager, PageAudienceManagerFinance, PageAudienceHRPartner, PageAudienceWorkflowAuthor, PageAudienceDenied:
 		return true
 	default:
 		return false
@@ -652,7 +729,7 @@ func validRouteProfile(profile RouteProfile) bool {
 	case RouteProfileWorkspace, RouteProfileNested, RouteProfileSupport, RouteProfileAdmin, RouteProfilePublic,
 		RouteProfileHome, RouteProfileInsights, RouteProfileMyself, RouteProfileJourneys, RouteProfileWork,
 		RouteProfileHistory, RouteProfilePeople, RouteProfilePerson, RouteProfileOrganization, RouteProfileOrgOutline,
-		RouteProfileRoles, RouteProfileStudio:
+		RouteProfileRoles, RouteProfileStudio, RouteProfileWorkflow:
 		return true
 	default:
 		return false

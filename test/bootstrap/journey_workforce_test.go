@@ -77,8 +77,11 @@ func TestJourneyCreatedWorkerCompletesTheWholePromotion(t *testing.T) {
 			created.BasePay, created.Currency, created.BonusTarget)
 	}
 
-	// The list shows the created worker first, marked CREATED, beside the
-	// release's own corpus population.
+	// The list shows the created worker, marked CREATED -- and only this
+	// tenant's own population. The release's fixed corpus is a fallback for a
+	// tenant that has created nobody, not an addition to one that has: a
+	// corpus worker listed here would be somebody the product offers and no
+	// table of this tenant holds.
 	workers, options, err := h.engine.ListWorkers(ctx)
 	if err != nil {
 		t.Fatalf("ListWorkers: %v", err)
@@ -89,14 +92,10 @@ func TestJourneyCreatedWorkerCompletesTheWholePromotion(t *testing.T) {
 	if workers[0].Source != workspace.WorkerSourceCreated {
 		t.Errorf("listed source = %q, want CREATED", workers[0].Source)
 	}
-	corpusSeen := false
-	for _, w := range workers[1:] {
-		if w.Source == workspace.WorkerSourceCorpus && w.WorkerRef == "omar-reyes" {
-			corpusSeen = true
+	for _, w := range workers {
+		if w.Source == workspace.WorkerSourceCorpus {
+			t.Errorf("the directory of a tenant with its own population lists the corpus worker %q", w.WorkerRef)
 		}
-	}
-	if !corpusSeen {
-		t.Errorf("the corpus population disappeared from the list: %+v", workers)
 	}
 	if options.Currency != "USD" || len(options.JobCodes) == 0 {
 		t.Fatalf("options arrived unusable: %+v", options)

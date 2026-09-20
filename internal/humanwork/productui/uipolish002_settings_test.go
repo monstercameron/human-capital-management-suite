@@ -58,8 +58,8 @@ func TestTodo_UXAUDIT_023_Regression_SettingsCardsShareIntentionalGeometry(t *te
 		`.settings-preferences-group>.settings-group-content>.settings-task-card{`,
 		`.settings-preferences-group .locale-choice-list{grid-template-columns:repeat(3,minmax(0,1fr));`,
 		`@media (max-width:600px){.settings-preferences-group .locale-choice-list{grid-template-columns:minmax(0,1fr);}}`,
-		`.settings-preferences-group :is(.accessibility-group-contrast,.accessibility-group-links) .accessibility-options{grid-template-columns:repeat(2,minmax(0,1fr));`,
-		`@media (max-width:760px){.settings-preferences-group :is(.accessibility-group-contrast,.accessibility-group-links) .accessibility-options{grid-template-columns:minmax(0,1fr);}}`,
+		`.settings-preferences-group :is(.accessibility-group-contrast,.accessibility-group-links,.accessibility-group-density) .accessibility-options{grid-template-columns:repeat(2,minmax(0,1fr));`,
+		`@media (max-width:760px){.settings-preferences-group :is(.accessibility-group-contrast,.accessibility-group-links,.accessibility-group-density) .accessibility-options{grid-template-columns:minmax(0,1fr);}}`,
 		`min-height:44px`,
 	} {
 		if !strings.Contains(css, want) {

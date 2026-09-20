@@ -7,6 +7,10 @@ package productui
 // every header projects denied names identically and no
 // header invents its own rule.
 type WorkerIdentity struct {
+	// StatusLabel is the distinct lifecycle mark the header
+	// shows: the terminated, on-leave or contingent label, or
+	// empty for an active employee, who is the unmarked default.
+	StatusLabel        string
 	Name               string
 	WorkerNumber       string
 	Label              string
@@ -42,7 +46,8 @@ func ResolveWorkerIdentity(locale LocaleContext, person Person, verdicts map[str
 		label = workerNumber
 	}
 	return WorkerIdentity{
-		Name: name, WorkerNumber: workerNumber, Label: label, Role: role,
+		StatusLabel: lifecycleDisplayLabel(locale, ParseLifecycleStatus(person.LifecycleStatus), ParseWorkerType(person.WorkerType)),
+		Name:        name, WorkerNumber: workerNumber, Label: label, Role: role,
 		Initials: person.Initials, PhotoURL: person.PhotoURL,
 		NameStatus: nameStatus, WorkerNumberStatus: workerNumberStatus, RoleStatus: roleStatus,
 	}

@@ -52,7 +52,7 @@ func workflowHistoryPropsForTarget(view View, personID string, target PageID, ti
 		Title:     title, Description: description,
 		EmptyText: view.Locale.Text("history.empty_terminal"),
 		Items:     rows, FilteredCount: len(items), TotalCount: len(universe),
-		Density: historyDensityFromTheme(view.Appearance),
+		Density: historyDensityFromTheme(view.EffectiveAppearance()),
 	}
 	if len(universe) > 0 && len(items) == 0 {
 		props.EmptyText = view.Locale.Text("history.none_detail")
@@ -222,15 +222,12 @@ func historyOutcomeCategory(status string) string {
 // consume canonical service values, not locale-dependent labels.
 // historyEffectiveDateLabel renders a stored civil date for the viewer.
 //
-// The default locale deliberately keeps the stored ISO form: UIPOLISH-007
-// fixed that (uipolish007_history_localization_test.go asserts it), and the
-// en-US alternative this package's localizer produces is "12/01/2026", an
-// ambiguous form that would be a third date vocabulary rather than one
-// fewer. UXLIVE-016 unified the instants instead and left this row as it is.
+// Every locale prints the product's civil-date form ("1 Dec 2026" in
+// English). The default locale used to keep the stored ISO key because the
+// only English form on offer was the ambiguous "12/01/2026"; the product
+// formatter now writes English dates the way the rest of the product does,
+// so the ISO row was the last second vocabulary (UXLIVE-016).
 func historyEffectiveDateLabel(locale LocaleContext, value string) string {
-	if locale.normalized().Resolved == DefaultProductLocale {
-		return value
-	}
 	stamp, err := time.Parse("2006-01-02", strings.TrimSpace(value))
 	if err != nil {
 		return value

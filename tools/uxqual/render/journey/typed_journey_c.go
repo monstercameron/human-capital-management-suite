@@ -466,12 +466,17 @@ func declareJourneyMotion() {
 	// final action reachable (RED: "pushes the final action below the
 	// viewport") regardless of how tall the People and Journeys sections
 	// around it are.
+	// The narrow base case is a full-width bottom sheet; from about 481px (30.0625rem) up the
+	// panel is centred by inset and auto margins. Never by transform: the
+	// jn-slidein keyframes end at transform:none with fill-mode both, which
+	// silently replaced translate(-50%,-50%) and left the panel's top-left
+	// corner at the viewport centre, its fields and actions below the fold.
 	declareGlobal(`.jn-confirm-surface`,
 		gwccss.Position.Fixed,
-		gwccss.Top(gwccss.Percent(50)),
-		gwccss.Left(gwccss.Percent(50)),
-		gwccss.Raw("transform", "translate(-50%,-50%)"),
-		gwccss.Raw("width", "min(34rem,calc(100vw - 2rem))"),
+		gwccss.Raw("inset", "auto 0 0 0"),
+		gwccss.Raw("margin", "0"),
+		gwccss.Raw("height", "fit-content"),
+		gwccss.Raw("width", "100%"),
 		gwccss.Raw("max-height", "calc(100vh - 2rem)"),
 		gwccss.Raw("overflow-y", "auto"),
 		gwccss.Raw("overscroll-behavior", "contain"),
@@ -485,6 +490,36 @@ func declareJourneyMotion() {
 		gwccss.Keyframes("jn-slidein", jnSlideinFrames...),
 		gwccss.Animation(gwccss.RawDuration(".18s"), gwccss.Easing("var(--jn-ease)")),
 		gwccss.Raw("animation-fill-mode", "both"),
+	)
+	// Dynamic viewport units where supported (a browser without them drops
+	// the declaration and keeps the vh bound above), so mobile browser
+	// chrome cannot push the action bar out of reach.
+	declareGlobal(`:root .jn-confirm-surface`,
+		gwccss.Raw("max-height", "calc(100dvh - 2rem)"),
+	)
+	// Sticky insets are measured from the scroll container's content box, so
+	// with the panel's 1rem padding a bar pinned at bottom:0 left a 1rem strip
+	// where scrolled fields showed through beneath the actions. Pin the bar
+	// to the panel's inner edge and carry the padding inside it instead.
+	declareGlobal(`:root .jn-confirm-surface .jn-confirm-actionbar:where(*)`,
+		gwccss.Raw("bottom", "-1rem"),
+		gwccss.Raw("margin-bottom", "-1rem"),
+		gwccss.Raw("padding-bottom", "1.625rem"),
+	)
+	declareGlobal(`:root .jn-confirm-surface`,
+		mediaRule(gwccss.RawMedia("(min-width:30.0625rem)"),
+			gwccss.Raw("inset", "0"),
+			gwccss.Raw("margin", "auto"),
+			gwccss.Raw("width", "min(34rem,calc(100vw - 2rem))"),
+		),
+	)
+	// Inside the live overlay the body is the surface's child, not the
+	// in-flow reveal the rule above styles, so it fell back to display:block
+	// and every field, fact list and label ran together with no spacing.
+	declareGlobal(`.jn-confirm-surface>.jn-confirm-body`,
+		gwccss.Display.Flex,
+		gwccss.FlexDir.Col,
+		gwccss.Gap(gwccss.Rem(.875)),
 	)
 	declareGlobal(`.jn-confirm-backdrop`,
 		gwccss.Position.Fixed,

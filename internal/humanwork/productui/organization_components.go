@@ -200,16 +200,17 @@ func normalizeOrganizationDensity(value string) string {
 func organizationBrowseSummary(props OrganizationPageProps) ui.Node {
 	count := props.Text("organization.visible_workforce")
 	units := props.Text("organization.units")
-	scope := strings.TrimSpace(props.Summary.Scope)
-	if scope == "" {
-		scope = props.Text("common.not_reported")
+	facts := []ui.Node{
+		html.Span(html.Props{Class: "organization-summary-fact"}, html.Strong(html.Props{}, ui.Text(props.Locale.FormatNumber(strconv.Itoa(props.Summary.VisiblePeople), 0))), html.Small(html.Props{}, ui.Text(count))),
+		html.Span(html.Props{Class: "organization-summary-fact"}, html.Strong(html.Props{}, ui.Text(props.Locale.FormatNumber(strconv.Itoa(props.Summary.Units), 0))), html.Small(html.Props{}, ui.Text(units))),
+	}
+	// The access scope is shown only when the shell knows it; a fact that can
+	// only ever read "Not reported" is noise (UXLIVE-014).
+	if scope := strings.TrimSpace(props.Summary.Scope); scope != "" {
+		facts = append(facts, html.Span(html.Props{Class: "organization-summary-scope"}, html.Small(html.Props{}, ui.Text(props.Text("organization.access_scope"))), html.Span(html.Props{}, ui.Text(scope))))
 	}
 	return html.Div(html.Props{Class: "organization-browse-summary", Raw: map[string]any{"aria-label": props.Text("organization.structure_title"), "data-organization-summary": "true"}},
-		html.Div(html.Props{Class: "organization-summary-facts"},
-			html.Span(html.Props{Class: "organization-summary-fact"}, html.Strong(html.Props{}, ui.Text(props.Locale.FormatNumber(strconv.Itoa(props.Summary.VisiblePeople), 0))), html.Small(html.Props{}, ui.Text(count))),
-			html.Span(html.Props{Class: "organization-summary-fact"}, html.Strong(html.Props{}, ui.Text(props.Locale.FormatNumber(strconv.Itoa(props.Summary.Units), 0))), html.Small(html.Props{}, ui.Text(units))),
-			html.Span(html.Props{Class: "organization-summary-scope"}, html.Small(html.Props{}, ui.Text(props.Text("organization.access_scope"))), html.Span(html.Props{}, ui.Text(scope))),
-		),
+		html.Div(html.Props{Class: "organization-summary-facts"}, facts...),
 	)
 }
 

@@ -3,6 +3,8 @@ package journeyclient
 import (
 	"net/url"
 	"strings"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
 // The journey page has two views and one address bar. Routing lives in the
@@ -39,6 +41,10 @@ type Route struct {
 	// lives in the address rather than client state so either context
 	// survives a reload and can be linked to.
 	WorkerRef string
+	// Filter is the list's search, status, date range, sort and grouping
+	// (UXLIVE-031). It is set only for [RouteList] and is always normalized,
+	// so two addresses that mean the same list compare equal.
+	Filter productui.JourneyListFilter
 }
 
 // Route fragments. The list route is spelled out rather than left as the
@@ -85,7 +91,7 @@ func Parse(hash string) Route {
 			return Route{Kind: RouteDetail, IntentID: id}
 		}
 	}
-	return Route{Kind: RouteList, WorkerRef: workerParam(query)}
+	return Route{Kind: RouteList, WorkerRef: workerParam(query), Filter: listFilterParam(query)}
 }
 
 // workerParam reads ?worker=<ref> out of a fragment's query.
@@ -118,8 +124,13 @@ func Href(r Route) string {
 	if r.Kind == RouteDetail && r.IntentID != "" {
 		return routeDetailStem + r.IntentID
 	}
+	query := make([]string, 0, 7)
 	if r.WorkerRef != "" {
-		return routePrefix + "?" + routeWorkerKey + url.QueryEscape(r.WorkerRef)
+		query = append(query, routeWorkerKey+url.QueryEscape(r.WorkerRef))
+	}
+	query = append(query, listFilterQuery(r.Filter)...)
+	if len(query) > 0 {
+		return routePrefix + "?" + strings.Join(query, "&")
 	}
 	return routePrefix
 }

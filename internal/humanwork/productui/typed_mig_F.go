@@ -387,6 +387,17 @@ func declarepeopleDirectoryStyles() {
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
+	// The Organization search is the same directory filter as People's and
+	// takes the same control geometry; without it the field fell back to the
+	// browser's 1px padding and its text touched the border.
+	declareGlobal(".organization-search-control>input",
+		gwccss.MinHeight(gwccss.Px(44)),
+		gwccss.PaddingY(gwccss.Px(10)), gwccss.PaddingX(gwccss.Px(13)),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("control-border")),
+		gwccss.Rounded(gwccss.VarLength("radius")),
+		gwccss.Bg(gwccss.Var("surface")),
+		gwccss.TextColor(gwccss.Var("ink")),
+	)
 	declareGlobal(".people-filter-actions",
 		gwccss.Display.Flex,
 		gwccss.Gap(gwccss.Px(8)),

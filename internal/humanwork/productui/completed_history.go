@@ -22,3 +22,28 @@ func CompletedHistory(items []WorkItem) []CompletedEntry {
 	}
 	return history
 }
+
+// completedActivityProps maps one completed-work history to its
+// recent-activity rail rows, resolving each entry to its admitted
+// item by ID for the human label, localized status, link and tone.
+// Entries without an admitted item drop fail-closed, so the rail
+// can only show completion evidence CompletedHistory derived —
+// pages never hand-pick evidence per row again. The output keeps
+// history order; callers bound it to the rail limit.
+func completedActivityProps(view View, history []CompletedEntry, items []WorkItem) []ActivityProps {
+	byID := make(map[string]WorkItem, len(items))
+	for _, item := range items {
+		if _, seen := byID[item.ID]; !seen {
+			byID[item.ID] = item
+		}
+	}
+	activities := make([]ActivityProps, 0, len(history))
+	for _, entry := range history {
+		item, ok := byID[entry.ID]
+		if !ok {
+			continue
+		}
+		activities = append(activities, ActivityProps{Title: homeTaskLabel(view, item), Status: localizedWorkStatus(view.Locale, item), Href: item.Href, Navigate: view.Navigate, Tone: item.Tone})
+	}
+	return activities
+}

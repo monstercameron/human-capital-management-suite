@@ -148,7 +148,7 @@ func filteredPeople(view View) []Person {
 	query := strings.ToLower(strings.TrimSpace(view.Query))
 	team := strings.ToLower(strings.TrimSpace(view.PeopleTeam))
 	location := strings.ToLower(strings.TrimSpace(view.PeopleLocation))
-	population := admittedPeople(view)
+	population := matchingPeople(admittedPeople(view), PeopleQuery{Status: ParsePeopleStatusFilter(view.PeopleStatus)})
 	if query == "" && team == "" && location == "" && !view.PeopleEligibleOnly {
 		return population
 	}
