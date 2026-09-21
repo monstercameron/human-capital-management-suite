@@ -16,12 +16,14 @@ import (
 )
 
 type options struct {
-	root    string
-	config  string
-	changed bool
-	all     bool
-	pkgs    []string
-	timeout time.Duration
+	root       string
+	config     string
+	changed    bool
+	all        bool
+	pkgs       []string
+	timeout    time.Duration
+	shardIndex int
+	shardCount int
 }
 
 type pkgList []string
@@ -39,6 +41,8 @@ func parseArgs(args []string) (options, error) {
 	fs.BoolVar(&o.changed, "changed", false, "gate the packages holding staged Go files")
 	fs.BoolVar(&o.all, "all", false, "gate every package in the root module")
 	fs.DurationVar(&o.timeout, "timeout", 30*time.Minute, "go test timeout")
+	fs.IntVar(&o.shardIndex, "shard-index", 0, "zero-based shard index (only with -all)")
+	fs.IntVar(&o.shardCount, "shard-count", 1, "number of deterministic shards (only with -all)")
 	fs.Var(&pkgs, "pkg", "package pattern to gate (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return o, err
@@ -53,7 +57,26 @@ func parseArgs(args []string) (options, error) {
 	if modes != 1 {
 		return o, fmt.Errorf("choose exactly one of -changed, -all or -pkg")
 	}
+	if o.shardCount < 1 || o.shardIndex < 0 || o.shardIndex >= o.shardCount {
+		return o, fmt.Errorf("shard index %d must be in [0, %d)", o.shardIndex, o.shardCount)
+	}
+	if !o.all && (o.shardCount != 1 || o.shardIndex != 0) {
+		return o, fmt.Errorf("sharding is supported only with -all")
+	}
 	return o, nil
+}
+
+func shardPackages(pkgs []string, index, count int) []string {
+	if count == 1 {
+		return pkgs
+	}
+	shard := make([]string, 0, (len(pkgs)+count-1)/count)
+	for i, pkg := range pkgs {
+		if i%count == index {
+			shard = append(shard, pkg)
+		}
+	}
+	return shard
 }
 
 func run(args []string, stdout io.Writer) int {
@@ -68,6 +91,7 @@ func run(args []string, stdout io.Writer) int {
 		pkgs, err = covergate.StagedPackages(o.root)
 	case o.all:
 		pkgs, err = covergate.AllPackages(o.root)
+		pkgs = shardPackages(pkgs, o.shardIndex, o.shardCount)
 	}
 	if err != nil {
 		fmt.Fprintln(stdout, err)

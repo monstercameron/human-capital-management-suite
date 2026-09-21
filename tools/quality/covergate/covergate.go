@@ -150,8 +150,12 @@ func (c Config) Validate() error {
 var (
 	okLine      = regexp.MustCompile(`^ok\s+(\S+)\s+(.*)$`)
 	coverageTag = regexp.MustCompile(`coverage:\s+([0-9.]+)% of statements`)
-	noTestsLine = regexp.MustCompile(`^\?\s+(\S+)\s+\[no test files\]`)
-	failLine    = regexp.MustCompile(`^FAIL\s+(\S+)(?:\s+.*)?$`)
+	// Go 1.26 prints packages that contain statements but no tests as a bare
+	// coverage summary rather than the traditional "? ... [no test files]"
+	// line when -cover is enabled.
+	bareCoverageLine = regexp.MustCompile(`^\s*(\S+)\s+coverage:\s+([0-9.]+)% of statements\s*$`)
+	noTestsLine      = regexp.MustCompile(`^\?\s+(\S+)\s+\[no test files\]`)
+	failLine         = regexp.MustCompile(`^FAIL\s+(\S+)(?:\s+.*)?$`)
 	// failedTestLine is go test's per-test failure marker, printed before
 	// the package summary line it belongs to.
 	failedTestLine = regexp.MustCompile(`^\s*--- FAIL: (\S+)`)
@@ -187,6 +191,14 @@ func ParseGoTestOutput(out string) []Result {
 				}
 			}
 			results = append(results, r)
+			failed, logs = nil, nil
+			continue
+		}
+		if m := bareCoverageLine.FindStringSubmatch(line); m != nil {
+			coverage, err := strconv.ParseFloat(m[2], 64)
+			if err == nil {
+				results = append(results, Result{Package: m[1], Status: "ok", Coverage: coverage, HasCoverage: true, Line: line})
+			}
 			failed, logs = nil, nil
 			continue
 		}

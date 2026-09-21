@@ -21,6 +21,36 @@ func TestParseArgs_RequiresExactlyOneMode(t *testing.T) {
 	if _, err := parseArgs([]string{"-bogus"}); err == nil {
 		t.Fatal("unknown flag must be refused")
 	}
+	for _, args := range [][]string{
+		{"-all", "-shard-count", "0"},
+		{"-all", "-shard-count", "4", "-shard-index", "4"},
+		{"-pkg", "./x", "-shard-count", "4"},
+	} {
+		if _, err := parseArgs(args); err == nil {
+			t.Errorf("invalid shard args %v must be refused", args)
+		}
+	}
+	if o, err := parseArgs([]string{"-all", "-shard-count", "4", "-shard-index", "2"}); err != nil || o.shardCount != 4 || o.shardIndex != 2 {
+		t.Fatalf("valid shard args parsed as %+v, %v", o, err)
+	}
+}
+
+func TestShardPackages_PartitionsEveryPackageExactlyOnce(t *testing.T) {
+	pkgs := []string{"a", "b", "c", "d", "e", "f", "g"}
+	seen := map[string]int{}
+	for shard := 0; shard < 4; shard++ {
+		for _, pkg := range shardPackages(pkgs, shard, 4) {
+			seen[pkg]++
+		}
+	}
+	if len(seen) != len(pkgs) {
+		t.Fatalf("partition covered %d packages, want %d: %v", len(seen), len(pkgs), seen)
+	}
+	for _, pkg := range pkgs {
+		if seen[pkg] != 1 {
+			t.Fatalf("package %q assigned %d times, want once", pkg, seen[pkg])
+		}
+	}
 }
 
 func TestRun_ReportsUsageErrorsAndGatesARealPackage(t *testing.T) {

@@ -21,10 +21,15 @@ type workflowFile struct {
 		} `yaml:"push"`
 	} `yaml:"on"`
 	Jobs map[string]struct {
-		Name   string   `yaml:"name"`
-		Needs  []string `yaml:"needs"`
-		RunsOn string   `yaml:"runs-on"`
-		Steps  []struct {
+		Name     string   `yaml:"name"`
+		Needs    []string `yaml:"needs"`
+		RunsOn   string   `yaml:"runs-on"`
+		Strategy struct {
+			Matrix struct {
+				Shard []int `yaml:"shard"`
+			} `yaml:"matrix"`
+		} `yaml:"strategy"`
+		Steps []struct {
 			Name string `yaml:"name"`
 			Run  string `yaml:"run"`
 			Uses string `yaml:"uses"`
@@ -73,6 +78,18 @@ func TestTestsWorkflowYAMLIsValid(t *testing.T) {
 	coverage := findStep(t, wf, "go-core-coverage", "covergate")
 	if coverage == "" {
 		t.Fatal("go-core-coverage has no full coverage sweep")
+	}
+	for _, jobName := range []string{"go-core-race", "go-core-coverage"} {
+		shards := wf.Jobs[jobName].Strategy.Matrix.Shard
+		if len(shards) != 4 || shards[0] != 0 || shards[1] != 1 || shards[2] != 2 || shards[3] != 3 {
+			t.Errorf("job %q must cover deterministic shards [0 1 2 3], got %v", jobName, shards)
+		}
+	}
+	if !strings.Contains(race, "race-shard.txt") || !strings.Contains(race, "(NR - 1) % 4") {
+		t.Fatal("go-core-race does not partition the complete policy package list")
+	}
+	if !strings.Contains(coverage, "-shard-index") || !strings.Contains(coverage, "-shard-count 4") {
+		t.Fatal("go-core-coverage does not invoke all-package deterministic sharding")
 	}
 	root := wf.Jobs["go-core"]
 	if root.Name != "Go tests (root module)" {

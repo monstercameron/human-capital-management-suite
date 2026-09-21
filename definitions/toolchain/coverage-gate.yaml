@@ -985,12 +985,28 @@ exceptions:
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
     expiry: "2026-12-31"
+  - package: tools/gen/librarystrategy/cmd/generatelibrarystrategy
+    kind: below_floor
+    owner: backlog
+    reason: >-
+      0.0% of statements covered in the thin command wrapper on 2026-09-21;
+      the library implementation has its own qualification suite. Add direct
+      command tests or retire this exception.
+    expiry: "2026-12-31"
   - package: tools/gen/modelgen/cmd/modelgen
     kind: below_floor
     owner: backlog
     reason: >-
       50.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
+    expiry: "2026-12-31"
+  - package: tools/gen/schemaflux/cmd/modelgen
+    kind: below_floor
+    owner: backlog
+    reason: >-
+      0.0% of statements covered in the thin command wrapper on 2026-09-21;
+      SchemaFlux generation and source compilation have dedicated suites. Add
+      direct command tests or retire this exception.
     expiry: "2026-12-31"
   - package: tools/planning/cmd/featurecoverage
     kind: below_floor
@@ -1005,6 +1021,14 @@ exceptions:
     reason: >-
       58.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
+    expiry: "2026-12-31"
+  - package: tools/planning/cmd/pilotblueprint
+    kind: below_floor
+    owner: backlog
+    reason: >-
+      0.0% of statements covered in the command wrapper on 2026-09-21; the
+      blueprint validation, signature and instantiation libraries have
+      dedicated suites. Add direct command tests or retire this exception.
     expiry: "2026-12-31"
   - package: tools/planning/cmd/todoregistry
     kind: below_floor

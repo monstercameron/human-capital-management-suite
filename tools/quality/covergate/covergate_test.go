@@ -19,6 +19,7 @@ FAIL
 FAIL	github.com/monstercameron/human-capital-management-suite/internal/domains/access	1.203s
 FAIL	github.com/monstercameron/human-capital-management-suite/internal/broken	[build failed]
 ok  	github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes	0.100s	coverage: [no statements]
+	github.com/monstercameron/human-capital-management-suite/tools/gen/example/cmd/example		coverage: 0.0% of statements
 go: unlinkat C:\Users\x\AppData\Local\Temp\go-build1\b001\sod.test.exe: Access is denied.
 FAIL
 `
@@ -32,6 +33,7 @@ func TestParseGoTestOutput_ClassifiesEveryPackageLineAndIgnoresNoise(t *testing.
 		Module + "/internal/domains/access":         {Status: "fail"},
 		Module + "/internal/broken":                 {Status: "fail"},
 		Module + "/internal/engines/canonicalbytes": {Status: "ok", HasCoverage: false},
+		Module + "/tools/gen/example/cmd/example":   {Status: "ok", Coverage: 0, HasCoverage: true},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("parsed %d results, want %d: %+v", len(got), len(want), got)

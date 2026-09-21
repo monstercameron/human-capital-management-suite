@@ -171,16 +171,21 @@ jobs:
         if: always()
         run: docker rm --force "$HCMNEXT_PG_CONTAINER" || true
 
-  # Race and coverage answer different questions and each performs a complete,
-  # expensive test sweep. Give them isolated PostgreSQL instances and run them
-  # in parallel instead of serializing both behind the root quality gates.
+  # Race and coverage answer different questions and together sweep hundreds
+  # of packages. Give four deterministic shards their own runners and isolated
+  # PostgreSQL instances; the fan-in below requires every shard to succeed.
   go-core-race:
-    name: Go race detector (TOOL-012)
+    name: Go race detector (TOOL-012, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     env:
       HCMNEXT_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
-      HCMNEXT_PG_CONTAINER: hcmnext-pg-race
+      HCMNEXT_PG_CONTAINER: hcmnext-pg-race-${{ matrix.shard }}
+      HCMNEXT_CI_SHARD: ${{ matrix.shard }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -211,19 +216,25 @@ jobs:
         run: |
           mkdir -p .artifacts
           go run ./tools/policy/racepolicy/cmd/racepolicy -root . -list > .artifacts/race-packages.txt
-          echo "racing $(wc -l < .artifacts/race-packages.txt) concurrent package(s)"
-          xargs -a .artifacts/race-packages.txt go test -race -count=1 -p=2 -timeout=30m
+          awk -v shard="$HCMNEXT_CI_SHARD" '((NR - 1) % 4) == shard' .artifacts/race-packages.txt > .artifacts/race-shard.txt
+          echo "racing shard $HCMNEXT_CI_SHARD: $(wc -l < .artifacts/race-shard.txt) concurrent package(s)"
+          xargs -a .artifacts/race-shard.txt go test -race -count=1 -p=2 -timeout=30m
       - name: Stop PostgreSQL
         if: always()
         run: docker rm --force "$HCMNEXT_PG_CONTAINER" || true
 
   go-core-coverage:
-    name: Go coverage gate (70%)
+    name: Go coverage gate (70%, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     env:
       HCMNEXT_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
-      HCMNEXT_PG_CONTAINER: hcmnext-pg-coverage
+      HCMNEXT_PG_CONTAINER: hcmnext-pg-coverage-${{ matrix.shard }}
+      HCMNEXT_CI_SHARD: ${{ matrix.shard }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -251,7 +262,7 @@ jobs:
           go run ./tools/uxqual/cmd/journeywasm -out internal/humanwork/workspace/assets
           GOOS=js GOARCH=wasm go build -o internal/humanwork/workspace/assets/uxqual.wasm ./tools/uxqual/cmd/uxqualwasm
       - name: Unit-test and coverage floor gate (70%)
-        run: go run ./tools/quality/covergate/cmd/covergate -root . -all
+        run: go run ./tools/quality/covergate/cmd/covergate -root . -all -shard-index "$HCMNEXT_CI_SHARD" -shard-count 4
       - name: Stop PostgreSQL
         if: always()
         run: docker rm --force "$HCMNEXT_PG_CONTAINER" || true
