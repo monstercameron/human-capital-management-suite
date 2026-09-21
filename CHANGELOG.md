@@ -6,6 +6,7 @@
 - The authority-free external-process smoke now opts out of execution/scheduler roles explicitly, uses deterministic request bytes, and proves Create, exact idempotent replay, Get and deterministic zero-effect Simulate against the certified corpus.
 - Deferred leave preview relations now use preview-only names, preventing their generated schema and storage disposition from colliding with the live leave tables while preserving a pinned source digest.
 - Linux CI now uses portable fake executables in clean-checkout tests, runs shared-PostgreSQL race packages with bounded package concurrency, and measures UX wall-clock budgets only outside race instrumentation; functional, fault and security invalidation tests remain in the race set.
+- Topic branches now run one pull-request check set instead of duplicate push and pull-request workflows. Root quality/policy, race and coverage lanes run in parallel with isolated PostgreSQL containers, while the existing required `Go tests (root module)` check remains as a fail-closed fan-in for branch protection.
 - Controlled data-plane deletion is tenant-fenced behind explicit security-definer functions, replacing broad application-role table deletes for role assignments, conflict fences, job trace pruning and workflow-draft cleanup.
 
 ## 2026-09-19 (Workflow designer promotion parity)

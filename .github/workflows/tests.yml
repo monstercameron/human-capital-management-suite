@@ -3,7 +3,7 @@ name: Tests
 on:
   push:
     branches:
-      - "**"
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -55,35 +55,10 @@ jobs:
         working-directory: src/blocks/go
         run: go test ./...
 
-  go-core:
-    name: Go tests (root module)
+  go-core-quality:
+    name: Go root quality and policy gates
     runs-on: ubuntu-latest
-    # This job runs the root module's suite TWICE and has to budget for both:
-    # once under the race detector (narrowed to the concurrent packages, see
-    # the TOOL-012 step) and once in full under covergate, which shells out to
-    # `go test -count=1 -cover` over every measurable package to compute the
-    # 70% floor. They are separate sweeps because they answer separate
-    # questions, and neither can be dropped.
-    #
-    # Measured on run 34548568659 (ubuntu-latest, 4 cores): the unnarrowed
-    # `-race ./...` sweep burned 11,080 package-seconds over 530 of the 776
-    # packages in 55 minutes of wall clock before the 60-minute wall cancelled
-    # it with ~200 packages still unrun. internal/data alone was 6,803 of those
-    # seconds (101 PostgreSQL-backed packages), and internal/operations/
-    # reliability contributed 600 of them by hanging in an infinite directory
-    # walk until the per-package test timeout fired (fixed in
-    # reliability_test.go). Narrowing the race sweep to the 332 concurrent
-    # packages leaves ~6,700 package-seconds there, and the coverage sweep is
-    # ~7,900 without the detector, which is roughly 33 + 39 minutes of wall
-    # clock at the observed 3.4x package parallelism. 120 leaves real headroom
-    # over that ~80-minute budget; do not lower it without re-measuring.
-    #
-    # If this becomes too slow to live with, the next move is to split the
-    # coverage sweep into its own job so the two run in parallel. That needs a
-    # branch-protection change in the same breath, because "Tests / Go tests
-    # (root module)" is a required status check and a gate moved into a job
-    # that is not required stops being enforced.
-    timeout-minutes: 120
+    timeout-minutes: 45
 
     # PostgreSQL runs as an explicit step container rather than a
     # `services:` entry on purpose: service containers start before
@@ -93,7 +68,7 @@ jobs:
     # teardown in a visible, ordered sequence.
     env:
       HCMNEXT_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
-      HCMNEXT_PG_CONTAINER: hcmnext-pg
+      HCMNEXT_PG_CONTAINER: hcmnext-pg-quality
 
     steps:
       - name: Check out repository
@@ -169,52 +144,6 @@ jobs:
       - name: UI interaction latency gate
         run: go test -count=1 -run '^TestInteractionLatencyGate$' -v ./internal/humanwork/productui ./tools/uxqual/render/journey
 
-      # TOOL-012: the race class only runs for real on Linux CI; the local
-      # dev machine (windows/arm64) has no race detector support, so
-      # tools/quality's TestTodo_TOOL_012 skips itself there. This is that
-      # promised Linux run.
-      #
-      # The package set comes from tools/policy/racepolicy itself (-list),
-      # which is the same scan the policy step below audits: every package
-      # that imports sync/sync/atomic or starts a goroutine (transaction,
-      # workflow, queue, cache, connector, ...). Racing that set instead of
-      # ./... is not a narrowing of the TOOL-012 contract, it IS the contract
-      # written down -- and because both steps read one scan, a package that
-      # becomes concurrent starts being raced without anyone editing this
-      # file, while one that cannot be raced for want of a resolving test file
-      # still fails the policy step. The packages left out are not skipped:
-      # the coverage sweep below runs every measurable package, detector off.
-      #
-      # What this buys is time. `-race ./...` re-ran all 101 PostgreSQL-backed
-      # internal/data packages under the detector for no race-class signal,
-      # and that is most of what blew the old 60-minute wall.
-      #
-      # tools/quality's TestTodo_TOOL_012 keeps its RED/GREEN proof either
-      # way: it shells out to `go test -race` over
-      # tools/quality/testdata/racefixture in a subprocess, so it needs a
-      # race-capable platform (this one) rather than a race-instrumented
-      # parent, and the coverage sweep runs it here.
-      #
-      # xargs, not $(cat ...), so a future list too long for one argv becomes
-      # several `go test` invocations rather than a truncation; xargs still
-      # exits nonzero if any of them fails. Limit package concurrency because
-      # the selected packages share the job's PostgreSQL service; unbounded
-      # package fan-out creates database contention rather than useful race
-      # coverage. The longer per-package deadline accounts for detector
-      # instrumentation without relaxing the job's 120-minute outer bound.
-      - name: Run the race detector over every concurrent package (TOOL-012)
-        run: |
-          mkdir -p .artifacts
-          go run ./tools/policy/racepolicy/cmd/racepolicy -root . -list > .artifacts/race-packages.txt
-          echo "racing $(wc -l < .artifacts/race-packages.txt) concurrent package(s)"
-          xargs -a .artifacts/race-packages.txt go test -race -count=1 -p=2 -timeout=30m
-      # This is also the full-suite sweep with the detector off: covergate
-      # -all shells out to `go test -count=1 -cover` over every measurable
-      # package (everything except gen/, src/blocks/go, testdata and dot
-      # directories), so a package outside the concurrent set above still has
-      # to build and pass here.
-      - name: Unit-test and coverage floor gate (70%)
-        run: go run ./tools/quality/covergate/cmd/covergate -root . -all
       - name: Drift gate (MSRC-010)
         run: go run ./tools/policy/driftgate/cmd/driftgate -root .
       - name: API compatibility gate (PROTO-008)
@@ -241,6 +170,115 @@ jobs:
       - name: Stop PostgreSQL
         if: always()
         run: docker rm --force "$HCMNEXT_PG_CONTAINER" || true
+
+  # Race and coverage answer different questions and each performs a complete,
+  # expensive test sweep. Give them isolated PostgreSQL instances and run them
+  # in parallel instead of serializing both behind the root quality gates.
+  go-core-race:
+    name: Go race detector (TOOL-012)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      HCMNEXT_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+      HCMNEXT_PG_CONTAINER: hcmnext-pg-race
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --name "$HCMNEXT_PG_CONTAINER" -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=postgres -p 5432:5432 --shm-size=512m --health-cmd "pg_isready -U postgres -d postgres" --health-interval 10s --health-timeout 5s --health-retries 5 -v "${GITHUB_WORKSPACE}/.github/postgres:/docker-entrypoint-initdb.d:ro" postgres:16
+          for _ in $(seq 1 45); do
+            [ "$(docker inspect --format='{{.State.Health.Status}}' "$HCMNEXT_PG_CONTAINER")" = healthy ] && exit 0
+            sleep 2
+          done
+          docker logs "$HCMNEXT_PG_CONTAINER"
+          exit 1
+      - name: Set up buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.72.0
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build embedded frontend assets
+        run: |
+          go run ./tools/uxqual/cmd/journeywasm -out internal/humanwork/workspace/assets
+          GOOS=js GOARCH=wasm go build -o internal/humanwork/workspace/assets/uxqual.wasm ./tools/uxqual/cmd/uxqualwasm
+      - name: Run the race detector over every concurrent package (TOOL-012)
+        run: |
+          mkdir -p .artifacts
+          go run ./tools/policy/racepolicy/cmd/racepolicy -root . -list > .artifacts/race-packages.txt
+          echo "racing $(wc -l < .artifacts/race-packages.txt) concurrent package(s)"
+          xargs -a .artifacts/race-packages.txt go test -race -count=1 -p=2 -timeout=30m
+      - name: Stop PostgreSQL
+        if: always()
+        run: docker rm --force "$HCMNEXT_PG_CONTAINER" || true
+
+  go-core-coverage:
+    name: Go coverage gate (70%)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      HCMNEXT_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+      HCMNEXT_PG_CONTAINER: hcmnext-pg-coverage
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --name "$HCMNEXT_PG_CONTAINER" -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=postgres -p 5432:5432 --shm-size=512m --health-cmd "pg_isready -U postgres -d postgres" --health-interval 10s --health-timeout 5s --health-retries 5 -v "${GITHUB_WORKSPACE}/.github/postgres:/docker-entrypoint-initdb.d:ro" postgres:16
+          for _ in $(seq 1 45); do
+            [ "$(docker inspect --format='{{.State.Health.Status}}' "$HCMNEXT_PG_CONTAINER")" = healthy ] && exit 0
+            sleep 2
+          done
+          docker logs "$HCMNEXT_PG_CONTAINER"
+          exit 1
+      - name: Set up buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.72.0
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build embedded frontend assets
+        run: |
+          go run ./tools/uxqual/cmd/journeywasm -out internal/humanwork/workspace/assets
+          GOOS=js GOARCH=wasm go build -o internal/humanwork/workspace/assets/uxqual.wasm ./tools/uxqual/cmd/uxqualwasm
+      - name: Unit-test and coverage floor gate (70%)
+        run: go run ./tools/quality/covergate/cmd/covergate -root . -all
+      - name: Stop PostgreSQL
+        if: always()
+        run: docker rm --force "$HCMNEXT_PG_CONTAINER" || true
+
+  # Preserve the existing required check name. Branch protection continues to
+  # require "Tests / Go tests (root module)", which now passes only when all
+  # three independently required root-module lanes succeeded.
+  go-core:
+    name: Go tests (root module)
+    if: always()
+    needs:
+      - go-core-quality
+      - go-core-race
+      - go-core-coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every root-module lane
+        env:
+          QUALITY_RESULT: ${{ needs.go-core-quality.result }}
+          RACE_RESULT: ${{ needs.go-core-race.result }}
+          COVERAGE_RESULT: ${{ needs.go-core-coverage.result }}
+        run: |
+          printf 'quality=%s race=%s coverage=%s\n' "$QUALITY_RESULT" "$RACE_RESULT" "$COVERAGE_RESULT"
+          [ "$QUALITY_RESULT" = success ]
+          [ "$RACE_RESULT" = success ]
+          [ "$COVERAGE_RESULT" = success ]
 
   go-core-ephemeral-pg:
     name: Go tests (ephemeral embedded PostgreSQL, TOOL-014)
