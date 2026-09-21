@@ -64,6 +64,7 @@ type promoux015Harness struct {
 	t          *testing.T
 	cfg        ServeConfig
 	pool       *pgxadapter.Pool
+	poolLabel  string
 	composed   *App
 	client     journeyv1.JourneyServiceClient
 	tokens     map[string]string
@@ -90,7 +91,10 @@ func promoux015Compose(t *testing.T) *promoux015Harness {
 func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 	t.Helper()
 	db := pgtest.New(t)
-	pool, err := pgxadapter.NewPool(context.Background(), db.URL, map[string]string{"search_path": db.Schema})
+	poolLabel := "promoux015-" + db.Schema
+	pool, err := pgxadapter.NewPool(context.Background(), db.URL, map[string]string{
+		"search_path": db.Schema, "application_name": poolLabel,
+	})
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
 	}
@@ -137,7 +141,7 @@ func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 		t.Fatalf("verifier: %v", err)
 	}
 	h := &promoux015Harness{
-		t: t, cfg: cfg, pool: pool, composed: composed, verifier: verifier,
+		t: t, cfg: cfg, pool: pool, poolLabel: poolLabel, composed: composed, verifier: verifier,
 		tokens: map[string]string{}, principals: map[string]*trust.Principal{}, receipts: receipts,
 		effective: time.Now().UTC().AddDate(0, 1, 0).Format(time.DateOnly),
 	}

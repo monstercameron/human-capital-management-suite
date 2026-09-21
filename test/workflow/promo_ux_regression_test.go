@@ -233,12 +233,19 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 	if lastCursor == "" || lastSequence < 2 {
 		t.Fatalf("completed watch did not retain a resumable cursor: %q/%d", lastCursor, lastSequence)
 	}
+	// The live stream belongs to the proposer. The manager's detail is a
+	// different viewer projection and may have a different digest even at the
+	// same stage; reconnect with the proposer's current digest instead.
+	review := promoUXInspect(t, h, "proposer", proposed.GetIntentId())
+	if review.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED {
+		t.Fatalf("proposer's resumed detail stage = %s, want BLOCKED", review.GetJourney().GetStage())
+	}
 	// A reconnect carrying both the last detail digest and its cursor must not
 	// replay the terminal detail. The short deadline is the expected quiet
 	// stream result, not a server failure.
 	reconnectCtx, reconnectCancel := h.ctx(t, "proposer", 500*time.Millisecond)
 	reconnected, err := h.client.WatchJourney(reconnectCtx, &journeyv1.WatchJourneyRequest{
-		IntentId: proposed.GetIntentId(), SinceDigest: managerDetail.GetDetailDigest(), ResumeCursor: lastCursor,
+		IntentId: proposed.GetIntentId(), SinceDigest: review.GetDetailDigest(), ResumeCursor: lastCursor,
 	})
 	if err != nil {
 		reconnectCancel()
@@ -250,7 +257,6 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 		t.Fatalf("WatchJourney reconnect replay result = %v, want quiet deadline/EOF", err)
 	}
 
-	review := promoUXInspect(t, h, "proposer", proposed.GetIntentId())
 	if review.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED || review.GetLedger() == nil {
 		t.Fatalf("final review = stage %s ledger=%+v, want BLOCKED (WF-RUN-034: a corpus worker has no projected aggregates, position or pool, so the recorded approval denies) with ledger fact", review.GetJourney().GetStage(), review.GetLedger())
 	}

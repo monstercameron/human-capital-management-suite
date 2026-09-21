@@ -3,7 +3,7 @@ package application
 // WF-RUN-022: workflow recovery after a database and cell interruption, on
 // the production composition promoux015Compose builds. A promotion is driven
 // to its effective-date wait with a scheduler replica holding the queue lease;
-// every database backend is then terminated and the whole composed server is
+// every fixture-owned database backend is then terminated and the composed server is
 // stopped and recomposed from PostgreSQL alone. The restored runtime state
 // must be identical, the wait must resume under a new fence, the dead replica
 // must be refused, and the promotion must commit exactly once.
@@ -17,6 +17,7 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/schedule"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
@@ -98,14 +99,23 @@ func (h *promoux015Harness) replica(name string, clock func() time.Time) *schedu
 	return s
 }
 
-// terminateBackends kills every other client backend connected to the test
-// database, the pool's live connections included, and reports how many.
+// terminateBackends kills this fixture's pool sessions only. Other test
+// packages share the PostgreSQL database in CI, so a database-wide kill
+// would corrupt unrelated migrations and test results.
 func (h *promoux015Harness) terminateBackends() int {
 	h.t.Helper()
+	// Hold one session so the fault is non-vacuous even when the pool has no
+	// other idle connections. The terminating query uses a second session.
+	victim, err := h.pool.Begin(context.Background())
+	if err != nil {
+		h.t.Fatalf("open victim session: %v", err)
+	}
+	defer func() { _ = victim.Rollback(context.Background()) }()
 	var killed int
 	if err := h.pool.QueryRow(context.Background(), `SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity
-		WHERE datname = current_database() AND pid <> pg_backend_pid() AND backend_type = 'client backend'`).Scan(&killed); err != nil {
-		h.t.Fatalf("terminate database backends: %v", err)
+		WHERE datname = current_database() AND application_name = $1
+		AND pid <> pg_backend_pid() AND backend_type = 'client backend'`, h.poolLabel).Scan(&killed); err != nil {
+		h.t.Fatalf("terminate fixture backends: %v", err)
 	}
 	return killed
 }
@@ -287,19 +297,31 @@ func TestTodo_WF_RUN_022_Race(t *testing.T) {
 	}
 }
 
-// TestTodo_WF_RUN_022_Fault kills every connection while the composed server
-// is still running and proves the next operation recovers on fresh
-// connections without corrupting state: the in-flight pool reconnects, the
-// journey still reads back, and no durable row moved.
+// TestTodo_WF_RUN_022_Fault kills the composed server's pool connections
+// while a separate client's session in the same database survives. The pool
+// reconnects, the journey reads back, and no durable row moves.
 func TestTodo_WF_RUN_022_Fault(t *testing.T) {
 	h := promoux015Compose(t)
 	id, instance, _, _ := h.waitingWithLease()
 	stateBefore := h.wfrun022State(instance)
+	bystander, err := pgxadapter.NewPool(context.Background(), h.cfg.DatabaseURL,
+		map[string]string{"application_name": "wfrun022-bystander-" + h.poolLabel})
+	if err != nil {
+		t.Fatalf("open bystander pool: %v", err)
+	}
+	defer bystander.Close()
+	var bystanderPID int
+	if err := bystander.QueryRow(context.Background(), "SELECT pg_backend_pid()").Scan(&bystanderPID); err != nil {
+		t.Fatalf("read bystander PID: %v", err)
+	}
 	if killed := h.terminateBackends(); killed == 0 {
 		t.Fatal("no backend was terminated, so the fault was not injected")
 	}
+	var survivingPID int
+	if err := bystander.QueryRow(context.Background(), "SELECT pg_backend_pid()").Scan(&survivingPID); err != nil || survivingPID != bystanderPID {
+		t.Fatalf("bystander backend changed from %d to %d after fixture-only fault: %v", bystanderPID, survivingPID, err)
+	}
 	var detail *journeyv1.InspectJourneyResponse
-	var err error
 	for attempt := 0; attempt < 5; attempt++ {
 		detail, err = h.client.InspectJourney(h.rpc("admin"), &journeyv1.InspectJourneyRequest{IntentId: id})
 		if err == nil {

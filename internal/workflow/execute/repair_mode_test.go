@@ -195,8 +195,8 @@ func TestTodo_WF_RUN_016_Restart(t *testing.T) {
 
 // TestTodo_WF_RUN_016_Race releases eight concurrent operators at one repair
 // fence. Exactly one claim wins and exactly one redrive reaches the provider;
-// every other attempt is refused or replays the settled decision, and none of
-// them reports having executed anything it did not.
+// every other attempt is refused, reports the in-flight claim as unknown, or
+// replays the settled decision; none reports an effect it did not execute.
 func TestTodo_WF_RUN_016_Race(t *testing.T) {
 	const attempts = 8
 	effects := &repairEffectDouble{}
@@ -230,12 +230,15 @@ func TestTodo_WF_RUN_016_Race(t *testing.T) {
 			if !result.Executed {
 				t.Fatalf("attempt %d reported COMPLETED without a redrive: %+v", i, result)
 			}
-		case RepairBlocked:
+		case RepairBlocked, RepairIndeterminate:
 			if result.Executed {
 				t.Fatalf("attempt %d lost the claim yet reported a redrive: %+v", i, result)
 			}
+			if result.Status == RepairIndeterminate && result.ConsistencyState != "UNKNOWN" {
+				t.Fatalf("attempt %d observed an unsettled claim without UNKNOWN consistency: %+v", i, result)
+			}
 		default:
-			t.Fatalf("attempt %d status = %s, want COMPLETED or BLOCKED", i, result.Status)
+			t.Fatalf("attempt %d status = %s, want COMPLETED, BLOCKED or INDETERMINATE", i, result.Status)
 		}
 	}
 	if completed == 0 {
