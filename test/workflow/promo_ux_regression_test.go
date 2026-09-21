@@ -226,7 +226,7 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 	}
 	if managerDetail.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED {
 		watchCancel()
-		managerDetail = promoUXWaitForStage(t, h, "proposer", proposed.GetIntentId(), journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED)
+		promoUXWaitForStage(t, h, "proposer", proposed.GetIntentId(), journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED)
 	}
 	watchCancel()
 
