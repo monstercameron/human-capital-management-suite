@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,15 +27,30 @@ func (r egressResolver) LookupNetIP(_ context.Context, _ string, host string) ([
 }
 
 type roundTripper struct {
+	mu    sync.Mutex
 	calls int
 	last  *http.Request
 	fn    func(*http.Request) *http.Response
 }
 
 func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.mu.Lock()
 	r.calls++
 	r.last = req
+	r.mu.Unlock()
 	return r.fn(req), nil
+}
+
+func (r *roundTripper) callCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.calls
+}
+
+func (r *roundTripper) lastRequest() *http.Request {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.last
 }
 
 func egressGateway(t *testing.T, resolver Resolver, transport http.RoundTripper) *Gateway {
@@ -63,8 +79,8 @@ func TestTodo_EDGE_005(t *testing.T) {
 	transport := &roundTripper{fn: okResponse}
 	gateway := egressGateway(t, egressResolver{"api.example.test": {netip.MustParseAddr("192.0.2.10")}}, transport)
 	result, err := gateway.Do(context.Background(), Request{Method: http.MethodPost, Target: "https://api.example.test/v1", Purpose: "promotion.read", Principal: "worker/worker-1", Payload: []byte("safe"), DataClasses: []dlp.DataClass{dlp.ClassPublic}})
-	if err != nil || result.Response == nil || transport.calls != 1 {
-		t.Fatalf("allowed request failed: result=%+v calls=%d err=%v", result, transport.calls, err)
+	if err != nil || result.Response == nil || transport.callCount() != 1 {
+		t.Fatalf("allowed request failed: result=%+v calls=%d err=%v", result, transport.callCount(), err)
 	}
 	if len(result.Receipts) != 1 || result.Receipts[0].Decision != dlp.Allow {
 		t.Fatalf("missing allow receipt: %+v", result.Receipts)
@@ -89,8 +105,8 @@ func TestTodo_EDGE_005_Security(t *testing.T) {
 			t.Fatalf("unsafe target was allowed: %s", target)
 		}
 	}
-	if transport.calls != 0 {
-		t.Fatalf("unsafe targets sent bytes: %d calls", transport.calls)
+	if transport.callCount() != 0 {
+		t.Fatalf("unsafe targets sent bytes: %d calls", transport.callCount())
 	}
 	_, err := gateway.Do(context.Background(), Request{Method: http.MethodGet, Target: "https://api.example.test", Purpose: "promotion.read", Principal: "worker/worker-1", Headers: http.Header{"X-Forwarded-For": []string{"127.0.0.1"}}})
 	if !errors.Is(err, ErrProxyBypass) {
@@ -104,8 +120,8 @@ func TestTodo_EDGE_005_Security_RedirectRevalidation(t *testing.T) {
 	}}
 	gateway := egressGateway(t, egressResolver{"api.example.test": {netip.MustParseAddr("192.0.2.10")}, "metadata.example.test": {netip.MustParseAddr("169.254.169.254")}}, transport)
 	_, err := gateway.Do(context.Background(), Request{Method: http.MethodGet, Target: "https://api.example.test", Purpose: "promotion.read", Principal: "worker/worker-1"})
-	if !errors.Is(err, ErrUnsafeRedirect) || transport.calls != 1 {
-		t.Fatalf("unsafe redirect was not revalidated: calls=%d err=%v", transport.calls, err)
+	if !errors.Is(err, ErrUnsafeRedirect) || transport.callCount() != 1 {
+		t.Fatalf("unsafe redirect was not revalidated: calls=%d err=%v", transport.callCount(), err)
 	}
 }
 
@@ -113,8 +129,8 @@ func TestTodo_EDGE_005_Security_DLP(t *testing.T) {
 	transport := &roundTripper{fn: okResponse}
 	gateway := egressGateway(t, egressResolver{"api.example.test": {netip.MustParseAddr("192.0.2.10")}}, transport)
 	_, err := gateway.Do(context.Background(), Request{Method: http.MethodPost, Target: "https://api.example.test", Purpose: "promotion.read", Principal: "worker/worker-1", Payload: []byte("sensitive"), DataClasses: []dlp.DataClass{dlp.ClassPII}})
-	if !errors.Is(err, ErrDLPRefused) || transport.calls != 0 {
-		t.Fatalf("DLP refusal sent bytes: calls=%d err=%v", transport.calls, err)
+	if !errors.Is(err, ErrDLPRefused) || transport.callCount() != 0 {
+		t.Fatalf("DLP refusal sent bytes: calls=%d err=%v", transport.callCount(), err)
 	}
 }
 

@@ -73,8 +73,8 @@ func TestGateway_Do_HandlesRedirectLimitMalformedLocationAndPostDowngrade(t *tes
 		gateway := egressGateway(t, resolver, transport)
 		gateway.maxRedirects = 1
 		_, err := gateway.Do(context.Background(), Request{Method: http.MethodGet, Target: "https://api.example.test", Purpose: "promotion.read", Principal: "worker"})
-		if !errors.Is(err, ErrUnsafeRedirect) || transport.calls != 2 {
-			t.Fatalf("redirect limit result calls=%d err=%v", transport.calls, err)
+		if !errors.Is(err, ErrUnsafeRedirect) || transport.callCount() != 2 {
+			t.Fatalf("redirect limit result calls=%d err=%v", transport.callCount(), err)
 		}
 	})
 	t.Run("malformed location", func(t *testing.T) {
@@ -83,8 +83,8 @@ func TestGateway_Do_HandlesRedirectLimitMalformedLocationAndPostDowngrade(t *tes
 		}}
 		gateway := egressGateway(t, resolver, transport)
 		_, err := gateway.Do(context.Background(), Request{Method: http.MethodGet, Target: "https://api.example.test", Purpose: "promotion.read", Principal: "worker"})
-		if !errors.Is(err, ErrUnsafeRedirect) || transport.calls != 1 {
-			t.Fatalf("malformed location calls=%d err=%v", transport.calls, err)
+		if !errors.Is(err, ErrUnsafeRedirect) || transport.callCount() != 1 {
+			t.Fatalf("malformed location calls=%d err=%v", transport.callCount(), err)
 		}
 	})
 	t.Run("post becomes get", func(t *testing.T) {
@@ -98,8 +98,13 @@ func TestGateway_Do_HandlesRedirectLimitMalformedLocationAndPostDowngrade(t *tes
 		}}
 		gateway := egressGateway(t, resolver, transport)
 		result, err := gateway.Do(context.Background(), Request{Method: http.MethodPost, Target: "https://api.example.test", Purpose: "promotion.read", Principal: "worker", Payload: []byte("body")})
-		if err != nil || result.Response == nil || transport.calls != 2 || transport.last.Method != http.MethodGet {
-			t.Fatalf("post redirect result=%+v calls=%d last=%s err=%v", result, transport.calls, transport.last.Method, err)
+		last := transport.lastRequest()
+		if err != nil || result.Response == nil || transport.callCount() != 2 || last == nil || last.Method != http.MethodGet {
+			lastMethod := ""
+			if last != nil {
+				lastMethod = last.Method
+			}
+			t.Fatalf("post redirect result=%+v calls=%d last=%s err=%v", result, transport.callCount(), lastMethod, err)
 		}
 	})
 }

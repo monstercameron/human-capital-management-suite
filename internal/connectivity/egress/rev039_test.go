@@ -56,8 +56,8 @@ func TestTodo_REV_039_02(t *testing.T) {
 			t.Errorf("%s: refused request produced %d receipts", method, len(result.Receipts))
 		}
 	}
-	if transport.calls != 0 {
-		t.Fatalf("refused methods reached the transport %d times", transport.calls)
+	if transport.callCount() != 0 {
+		t.Fatalf("refused methods reached the transport %d times", transport.callCount())
 	}
 	if err := gateway.receipts.Verify(); err != nil {
 		t.Fatal(err)
@@ -72,8 +72,8 @@ func TestTodo_REV_039_02_Security(t *testing.T) {
 	if _, err := open.Do(context.Background(), rev039Request(http.MethodConnect)); err != nil {
 		t.Fatalf("opted-in CONNECT refused: %v", err)
 	}
-	if transport.calls != 1 {
-		t.Fatalf("opted-in CONNECT made %d transport calls, want 1", transport.calls)
+	if transport.callCount() != 1 {
+		t.Fatalf("opted-in CONNECT made %d transport calls, want 1", transport.callCount())
 	}
 	if _, err := open.Do(context.Background(), rev039Request(http.MethodTrace)); !errors.Is(err, ErrUnsafeMethod) {
 		t.Fatalf("TRACE with CONNECT opt-in err = %v, want ErrUnsafeMethod", err)
@@ -116,8 +116,8 @@ func TestTodo_REV_039_02_Race(t *testing.T) {
 			t.Errorf("worker %d GET err = %v", i, err)
 		}
 	}
-	if transport.calls != workers/2 {
-		t.Fatalf("transport calls = %d, want %d allowed GETs", transport.calls, workers/2)
+	if transport.callCount() != workers/2 {
+		t.Fatalf("transport calls = %d, want %d allowed GETs", transport.callCount(), workers/2)
 	}
 	if err := gateway.receipts.Verify(); err != nil {
 		t.Fatal(err)

@@ -321,6 +321,15 @@ func (s *UpdateService) Update(ctx context.Context, req UpdateRequest) (UpdateOu
 	expected := head.Revision
 	for _, link := range chain {
 		if err := s.store.PutEndpointRevision(ctx, req.Tenant, link, expected); err != nil {
+			// Concurrent writers can both observe an absent (or identical)
+			// head before one wins the append. Preserve the service's public
+			// conflict vocabulary instead of leaking a store error code.
+			if CodeOf(err) == StoreDuplicateCode {
+				if req.Op == OpAdd {
+					return UpdateOutcome{}, fmt.Errorf("contact: Update %s: %w", req.EndpointID, ErrDuplicateEndpoint)
+				}
+				return UpdateOutcome{}, fmt.Errorf("contact: Update %s: %w", req.EndpointID, ErrStaleRevision)
+			}
 			return UpdateOutcome{}, err
 		}
 		expected = link.Revision
