@@ -61,6 +61,14 @@ func (e *journeyEngine) AddNote(ctx context.Context, intentID string, in workspa
 	if err != nil {
 		return workspace.JourneyNote{}, workspace.JourneyDetail{}, err
 	}
+	if found {
+		// Release the read-only transaction before resolving the author's
+		// display name below. Concurrent retries must not hold every pool
+		// connection while that resolver acquires another one.
+		if err := tx.Rollback(ctx); err != nil {
+			return workspace.JourneyNote{}, workspace.JourneyDetail{}, fmt.Errorf("app: journey: release note read: %w", err)
+		}
+	}
 	if !found {
 		var count int
 		if err := tx.QueryRow(ctx,

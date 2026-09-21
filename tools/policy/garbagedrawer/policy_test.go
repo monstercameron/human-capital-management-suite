@@ -67,7 +67,7 @@ func TestTodo_ARCH_GO_017_Golden(t *testing.T) {
 // TestTodo_ARCH_GO_017_Integration proves the checked-in real package tree
 // currently has no unowned package names or catch-all API drawers.
 func TestTodo_ARCH_GO_017_Integration(t *testing.T) {
-	findings, err := Scan("../..\\..")
+	findings, err := Scan("../../..")
 	if err != nil {
 		t.Fatal(err)
 	}

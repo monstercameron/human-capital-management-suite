@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/designerpalette"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -68,7 +69,9 @@ type ApplyTemplateOverlayRequest struct {
 	Reason           string
 }
 
-func (s Service) UpdateNodeParameters(ctx context.Context, tenant values.TenantId, author string, request UpdateNodeParametersRequest) (Change, error) {
+func (s Service) UpdateNodeParameters(ctx context.Context, tenant values.TenantId, author string, request UpdateNodeParametersRequest) (_ Change, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.update_parameters", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	if request.ExpectedRevision == 0 || strings.TrimSpace(request.NodeID) == "" || len(request.Values) == 0 {
 		return Change{}, ErrInvalid
 	}
@@ -86,7 +89,9 @@ func (s Service) UpdateNodeParameters(ctx context.Context, tenant values.TenantI
 	return s.saveDefinition(ctx, tenant, draft, definition, "Update "+request.NodeID)
 }
 
-func (s Service) ApplyTemplateOverlay(ctx context.Context, tenant values.TenantId, author string, request ApplyTemplateOverlayRequest) (Change, error) {
+func (s Service) ApplyTemplateOverlay(ctx context.Context, tenant values.TenantId, author string, request ApplyTemplateOverlayRequest) (_ Change, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.apply_overlay", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	if request.ExpectedRevision == 0 {
 		return Change{}, ErrInvalid
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 const maxDraftDocumentBytes = 4 << 20
@@ -97,6 +98,8 @@ type Compiler struct {
 // CompileDocument decodes one bounded authoring document, invokes the
 // production compiler and maps all diagnostics back to graph identities.
 func (c Compiler) CompileDocument(ctx context.Context, tenant values.TenantId, document json.RawMessage) Result {
+	ctx, op := observe.Begin(ctx, "workflow.designer.compile", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.Done(op, nil) }()
 	definition, ok := decodeDefinition(document)
 	if !ok {
 		return invalidDocumentResult()

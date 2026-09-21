@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/designerpalette"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -107,7 +108,9 @@ type Change struct {
 	GroupID         string
 }
 
-func (s Service) Create(ctx context.Context, tenant values.TenantId, author string, request CreateRequest) (Change, error) {
+func (s Service) Create(ctx context.Context, tenant values.TenantId, author string, request CreateRequest) (_ Change, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.create", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	if s.Store == nil || s.Catalog == nil || s.NewID == nil || strings.TrimSpace(tenant.String()) == "" || strings.TrimSpace(author) == "" {
 		return Change{}, ErrInvalid
 	}
@@ -163,7 +166,9 @@ func (s Service) Create(ctx context.Context, tenant values.TenantId, author stri
 	return Change{Draft: view, InsertedNodeIDs: change.InsertedNodeIDs, GroupID: change.GroupID}, err
 }
 
-func (s Service) Get(ctx context.Context, tenant values.TenantId, author, draftID string) (View, error) {
+func (s Service) Get(ctx context.Context, tenant values.TenantId, author, draftID string) (_ View, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.get", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	draft, err := s.owned(ctx, tenant, author, draftID)
 	if err != nil {
 		return View{}, err
@@ -171,7 +176,9 @@ func (s Service) Get(ctx context.Context, tenant values.TenantId, author, draftI
 	return s.projectDraft(ctx, tenant, draft)
 }
 
-func (s Service) Insert(ctx context.Context, tenant values.TenantId, author string, request InsertRequest) (Change, error) {
+func (s Service) Insert(ctx context.Context, tenant values.TenantId, author string, request InsertRequest) (_ Change, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.insert", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	if request.ExpectedRevision == 0 || strings.TrimSpace(request.EntryID) == "" || request.EntryVersion == 0 {
 		return Change{}, ErrInvalid
 	}

@@ -55,13 +55,13 @@ func TestTodo_ARCH_GO_014_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := len(report.Files), 207; got != want {
+	if got, want := len(report.Files), 220; got != want {
 		t.Fatalf("classified file count = %d, want pinned count %d", got, want)
 	}
-	if got, want := report.Count(Authored), 155; got != want {
+	if got, want := report.Count(Authored), 166; got != want {
 		t.Fatalf("authored count = %d, want pinned count %d", got, want)
 	}
-	if got, want := report.Count(WireGenerated), 31; got != want {
+	if got, want := report.Count(WireGenerated), 33; got != want {
 		t.Fatalf("wire-generated count = %d, want pinned count %d", got, want)
 	}
 	if got, want := report.Count(InternalGenerated), 21; got != want {
@@ -158,8 +158,8 @@ func TestTodo_ARCH_GO_015_Golden(t *testing.T) {
 			definitions++
 		}
 	}
-	if definitions != 110 {
-		t.Fatalf("definitions YAML/JSON count = %d, want pinned count 110", definitions)
+	if definitions != 118 {
+		t.Fatalf("definitions YAML/JSON count = %d, want pinned count 118", definitions)
 	}
 	if !hasRule(report.Violations, "generated-definition-missing-generated_by") {
 		t.Fatal("real tree no longer reports the legacy generatedby definitions that need migration")

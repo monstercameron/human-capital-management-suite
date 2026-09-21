@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // MoveDirection is the closed set of relative ordering commands shared by
@@ -28,7 +29,9 @@ type MoveNodeRequest struct {
 // graph and the accessible outline call this command, so they cannot drift
 // into competing edit models. Boundary moves are idempotent and preserve the
 // optimistic revision.
-func (s Service) MoveNode(ctx context.Context, tenant values.TenantId, author string, request MoveNodeRequest) (Change, error) {
+func (s Service) MoveNode(ctx context.Context, tenant values.TenantId, author string, request MoveNodeRequest) (_ Change, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.move_node", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	if request.ExpectedRevision == 0 || strings.TrimSpace(request.NodeID) == "" ||
 		(request.Direction != MoveEarlier && request.Direction != MoveLater) {
 		return Change{}, ErrInvalid

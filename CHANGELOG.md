@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-21 (Promotion PR merge-gate repair)
+
+- Repaired the serve role's graceful cancellation so the external-process smoke can stop cleanly, and made the promotion invalidation integration wait for all authorized subscriptions rather than counting an unrelated viewer.
+- Bound safety revision writes to a transaction, moved admin ledger operations and workflow-draft reads behind application ports, and instrumented workflow designer operations with bounded telemetry.
+- Refreshed derived endpoint, coverage and architecture evidence against the current source, corrected stale platform-policy tests and repository links, and retained fail-closed checks for generated runtime scripts.
+- Reconciled the signed California-to-P1A-to-P1B selection chain, added indexes for referenced foreign keys, and restored the qualified x/text ownership boundary. New exact, expiring records track legacy skip and evidence-freshness debt without asserting missing proof.
+- Classified live P1A test evidence from exact structured Go events, preserving fail-closed behavior while distinguishing a Windows post-pass cleanup error from a failed test.
+- Released read-only journey-note retry transactions before resolving author display names, preventing pool starvation under concurrent idempotent submissions.
+
 ## 2026-09-20 (Promotion execution PR verification and CI reconciliation)
 
 - Reconciled the promotion/provider-integration topic branch with the repository-wide quality gates: static analysis, architecture and planning policy, transactional cleanup boundaries, Linux clean-checkout behavior, the external serve smoke and concurrent-package race execution.

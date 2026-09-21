@@ -31,8 +31,9 @@ func (o Orphan) String() string {
 }
 
 var (
-	tickRe = regexp.MustCompile("`([^`]*)`")
-	nameRe = regexp.MustCompile(`^(Test|Fuzz|Benchmark)[A-Za-z0-9_]*$`)
+	tickRe          = regexp.MustCompile("`([^`]*)`")
+	nameRe          = regexp.MustCompile(`^(Test|Fuzz|Benchmark)[A-Za-z0-9_]*$`)
+	matrixVariantRe = regexp.MustCompile(`^(TestTodo_.+_[0-9]+)_(Property|Golden|Fault|Security|Conformance|Recovery|Mutation|Race|Integration)$`)
 )
 
 // ExtractEvidenceTestNames extracts every Test/Fuzz/Benchmark function name
@@ -96,6 +97,13 @@ func ExtractEvidenceTestNames(evidence string) []string {
 
 			if nameRe.MatchString(part) {
 				names = append(names, part)
+				// Evidence may introduce a matrix with its first variant
+				// (`TestTodo_ID_Property`, `_Golden`, ...). Subsequent
+				// shorthand belongs to the todo root, not to Property.
+				if match := matrixVariantRe.FindStringSubmatch(part); match != nil {
+					lastBase = match[1]
+					continue
+				}
 				// Only a "Test..." name can become (or extend) the root
 				// that later "_suffix" shorthand tokens attach to - a
 				// sibling "FuzzTodo_..."/"BenchmarkTodo_..." entry never

@@ -684,55 +684,55 @@
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork",
       "repository_root": "internal/humanwork",
-      "layer": "connectivity",
+      "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/approverclass",
       "repository_root": "internal/humanwork",
-      "layer": "connectivity",
+      "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/journeyinvalidation",
       "repository_root": "internal/humanwork",
-      "layer": "connectivity",
+      "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui",
       "repository_root": "internal/humanwork",
-      "layer": "connectivity",
+      "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/reasontext",
       "repository_root": "internal/humanwork",
-      "layer": "connectivity",
+      "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents",
       "repository_root": "internal/humanwork",
-      "layer": "connectivity",
+      "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/workflowview",
       "repository_root": "internal/humanwork",
-      "layer": "connectivity",
+      "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem",
       "repository_root": "internal/humanwork",
-      "layer": "connectivity",
+      "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
       "path": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace",
       "repository_root": "internal/humanwork",
-      "layer": "connectivity",
+      "layer": "transport",
       "reason": "reachable production dependency of cmd/hcmnext; required by the Phase 1 composition closure"
     },
     {
@@ -4137,12 +4137,6 @@
     "github.com/monstercameron/human-capital-management-suite/internal/transport/clients/providerwrite"
   ],
   "live_gaps": [
-    {
-      "path_prefix": "github.com/monstercameron/human-capital-management-suite/internal/humanwork",
-      "gate": "ARCH-GO-022",
-      "owner_todo": "ARCH-GO-022",
-      "reason": "connectivity-owned root is labeled deferred in repository-layout.yaml but is reachable from the selected Phase 1 command"
-    },
     {
       "path_prefix": "github.com/monstercameron/human-capital-management-suite/internal/transaction",
       "gate": "TX-001",

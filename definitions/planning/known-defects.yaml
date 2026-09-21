@@ -28,6 +28,3438 @@ known_defects: []
 # these entries into real Evidence lines (exact command, environment,
 # toolchain, result, branch) and delete them as they do.
 known_evidence_freshness_gaps:
+  - id: WEDGE-015
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEDGE-015
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: TOOL-020
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: TOOL-020
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-008
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-008
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-008
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-008
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-009
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-009
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-009
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-009
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-028
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MODEL-028
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: INTENT-022
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: INTENT-022
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-COMP-006
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-COMP-006
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-COMP-006
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-003
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-003
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-003
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-011
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-011
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-011
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-011
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-012
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-012
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-012
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-012
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-013
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-013
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-013
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-013
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-015
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-015
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-015
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-015
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-000
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-003
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-003
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-003
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-005
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-005
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-005
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-006
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-006
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-006
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-007
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-007
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-008
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-008
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-009
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-009
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-010
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-010
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-010
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-013
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-013
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-013
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-015
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-015
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-015
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-016
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-016
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-019
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-019
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-019
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-020
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-020
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-021
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-021
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-001
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-001
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-002
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-002
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-003
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: FORM-003
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MSG-012
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MSG-012
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DATA-012
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DATA-012
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DATAOPS-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DATAOPS-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: TENANT-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: TENANT-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PRIV-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PRIV-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: RECOVERY-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: RECOVERY-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: RECOVERY-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: RECOVERY-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CONF-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CONF-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: LEDGER-014
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: LEDGER-014
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SVC-012
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SVC-012
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CP-010
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CP-010
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: IAC-010
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: IAC-010
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: IAC-011
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: IAC-011
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: IAC-012
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: IAC-012
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: EVENT-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: EVENT-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: TRUST-032
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: TRUST-032
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: OBS-008
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: OBS-008
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ONBOARD-005
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ONBOARD-005
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ONBOARD-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ONBOARD-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: OPS-009
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: OPS-009
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PERF-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PERF-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PERF-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PERF-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PERF-008
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PERF-008
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: POP-009
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: POP-009
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ELIG-008
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ELIG-008
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: BAL-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: BAL-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: BAL-006
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: LEAVE-012
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: LEAVE-012
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: LEAVE-013
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: LEAVE-013
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: LEAVE-015
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: LEAVE-015
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: QUAL-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: QUAL-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DEMAND-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DEMAND-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DEMAND-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DEMAND-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DEMAND-005
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DEMAND-005
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DEMAND-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DEMAND-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MATCH-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MATCH-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MATCH-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: MATCH-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SCENARIO-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SCENARIO-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SCENARIO-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SCENARIO-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ROLLOUT-008
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ROLLOUT-008
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-005
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-005
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-007
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PACK-007
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-DISC-012
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-DISC-012
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DB-EDGE-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DB-EDGE-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ARTIFACT-007
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ARTIFACT-007
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: EP-WF-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: EP-WF-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-001
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-001
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-002
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-002
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-003
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-003
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-004
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-004
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-005
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-005
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-005
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-005
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-006
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-006
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-007
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-007
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-007
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-007
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-008
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-008
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-008
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-008
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-009
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-009
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-009
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-009
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-010
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-010
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-010
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-010
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-011
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-011
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-011
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-011
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-012
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-012
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-012
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-012
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-013
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-013
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-013
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-013
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-014
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-014
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-014
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-014
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-015
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-015
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-015
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-015
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PHASE-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PHASE-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SELECT-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SELECT-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SELECT-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SELECT-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: THREAT-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: THREAT-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CUSTOMER-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CUSTOMER-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CUSTOMER-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CUSTOMER-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: COMMERCIAL-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: COMMERCIAL-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PILOT-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PILOT-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CLOSE-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CLOSE-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SOURCE-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SOURCE-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SOURCE-001
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SOURCE-001
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-016
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: SLICE-016
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: RECOVERY-005
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: RECOVERY-005
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CONN-RT-009
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: CONN-RT-009
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DATA-022
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DATA-022
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DATA-023
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: DATA-023
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PERF-009
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PERF-009
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: GATEB-EVID-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: GATEB-EVID-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-001
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-001
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-009
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: NEXT-009
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-241
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-241
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-241
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-241
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-241
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-242
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-242
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-242
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-243
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-243
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-243
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-244
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-244
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-244
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-244
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-244
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-245
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-245
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-245
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-245
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-245
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-246
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-246
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-246
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-246
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WEB-246
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-024
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-024
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-025
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-025
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-026
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-026
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-027
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-027
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-028
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-028
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-029
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-029
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-052
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-052
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-053
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-053
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-054
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-054
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-055
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: ALIGN-055
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXAUDIT-005
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXAUDIT-005
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXAUDIT-005
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXAUDIT-017
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXAUDIT-017
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-008
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-008
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-009
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-009
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-010
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-010
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-012
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-012
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-013
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-013
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-014
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-014
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-015
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-015
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-016
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-016
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-017
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMOUX-017
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UIPOLISH-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UIPOLISH-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UIPOLISH-011
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UIPOLISH-011
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UIPOLISH-011
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UIPOLISH-011
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXSCAN-011
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXSCAN-011
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXSCAN-011
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-034
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-035
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-035
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-035
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-036
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-036
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-037
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-037
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-038
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-038
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-038
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-039
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-039
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-039
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-040
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-RUN-040
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-018
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-018
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-018
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-STEP-018
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-COMP-007
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-COMP-007
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-COMP-007
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMO-EXEC-001
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMO-EXEC-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMO-EXEC-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMO-EXEC-006
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: PROMO-EXEC-006
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-001
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-001
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-002
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-002
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-003
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-003
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-004
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-004
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-005
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-005
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-006
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-006
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-007
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-007
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-008
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-008
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-009
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-009
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-010
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-010
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-011
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-011
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-011
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-012
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-012
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-013
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-013
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-013
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-013
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-014
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-014
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-015
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-015
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-016
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-017
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-017
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-018
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-018
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-019
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-019
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-020
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-020
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-021
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-021
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-022
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-022
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-023
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-023
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-024
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-024
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-025
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-025
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-026
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-026
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-027
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-027
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-027
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-027
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-028
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-028
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-028
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-028
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-029
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-029
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-029
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-029
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-030
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-030
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-030
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-030
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-031
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-031
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-031
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-031
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-032
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-032
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-032
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-032
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-033
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-033
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-033
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: UXLIVE-033
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: HIPERF-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: HIPERF-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: HIPERF-001
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: HIPERF-001
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-001
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-001
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-001
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-001
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-002
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-002
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-002
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-002
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-002
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-003
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-003
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-003
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-003
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-004
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-004
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-004
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-004
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-005
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-005
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-005
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-005
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-005
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-006
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-006
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-006
+    issue: missing command
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-006
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-006
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-007
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-007
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-007
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-007
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-009
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-009
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-009
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: WF-UI-009
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-093-01
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-093-01
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-093-01
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-093-01
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-01
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-01
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-01
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-01
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-02
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-02
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-02
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-02
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-03
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-03
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-03
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-03
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-04
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-04
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-04
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-04
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-05
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-05
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-05
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-095-05
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-090-01
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-090-01
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-090-01
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-090-01
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-090-02
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-090-02
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-090-02
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-090-02
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-01
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-01
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-01
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-01
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-02
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-02
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-02
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-02
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-03
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-03
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-03
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-091-03
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-096-01
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-096-01
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-096-01
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-096-01
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-092-01
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-092-01
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-092-01
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: REV-092-01
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: INTAPI-008
+    issue: missing toolchain version
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: INTAPI-008
+    issue: missing environment
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: INTAPI-008
+    issue: missing result
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
+  - id: INTAPI-008
+    issue: missing commit/branch identity
+    owner: backlog
+    expiry: "2026-12-31"
+    reason: >-
+      Evidence needs fresh commit-bound verification before claiming closure.
   - id: ADMIN-004
     issue: missing commit/branch identity
     owner: backlog

@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/draftcompile"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Kind distinguishes a single insertable node from a reusable fragment or a
@@ -79,6 +80,8 @@ type Catalog struct {
 // capability and every extension that depends on one; kernel blocks remain
 // visible because they execute no tenant-specific capability.
 func (c Catalog) List(ctx context.Context, tenant values.TenantId) []Entry {
+	ctx, op := observe.Begin(ctx, "workflow.designer.palette", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.Done(op, nil) }()
 	entries := kernelEntries()
 	for _, record := range c.CapabilitiesList() {
 		key := record.Definition.Key()

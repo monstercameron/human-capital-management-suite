@@ -14201,7 +14201,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **RED:** a promotion path targets an unknown or mutable profile revision, calls a lower/equal rank an upward move, crosses families without an explicit exception, uses floating-point salary rules, or directly changes benefit elections.
   - **GREEN:** one immutable path pins source and target profiles, validates its ladder shape, carries exact minimum/maximum base-increase guardrails, references versioned compensation and benefit-eligibility rules, and produces a deterministic digest.
   - **REFACTOR:** promotion approval thresholds remain owned by the versioned promotion rule pack; benefits reevaluate eligibility through `BEN-003` and never become job-architecture-owned election state.
-  - **Refs:** [job architecture](specs/job-architecture.md), [compensation](specs/compensation.md), [Phase 1 depth matrix](plan.md#phase-1-implementation-depth-matrix).
+  - **Refs:** [job architecture](../internal/domains/jobarch/promotion_path.go), [compensation](specs/compensation-domain.md), [Phase 1 depth matrix](plan.md#phase-1-implementation-depth-matrix).
 
 - [x] `PERSIST-JOBARCH-002` **[PHASE_3][SOL_HIGH] Persist promotion paths and pin assignment job-profile revisions.**
   - **Evidence (2026-09-17):** `TestPromotionPathStorePinsProfileRevisionsAndRefusesOverlappingPublishedEdges` plus PROPERTY/GOLDEN/INTEGRATION/FAULT/SECURITY/MUTATION matrix in `internal/domains/jobarch` (`pathstore.go` promotion-path persistence with pinned profile revisions); `go test -count=1 ./internal/domains/jobarch/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
@@ -14212,7 +14212,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **RED:** assignment stores only free-text job code/grade, a path is edited in place, overlapping published edges are ambiguous, or a proposal can change which profile revision it means between simulation and commit.
   - **GREEN:** tenant-scoped append-only path rows carry effective/known coordinates and RLS; assignment and proposal snapshots pin source/target job-profile revisions while denormalized job code/grade are checked projections.
   - **REFACTOR:** keep path and pin persistence in one tenant-scoped store package under internal/data with RLS and append-only rows; the domain package stays the sole owner of path meaning and validation.
-  - **Refs:** [job architecture](specs/job-architecture.md), [storage disposition](../definitions/storage/storage-disposition.yaml), [Phase 1 depth matrix](plan.md#phase-1-implementation-depth-matrix).
+  - **Refs:** [job architecture](../internal/domains/jobarch/promotion_path.go), [storage disposition](../definitions/storage/storage-disposition.yaml), [Phase 1 depth matrix](plan.md#phase-1-implementation-depth-matrix).
 
 - [x] `UX-JOBARCH-001` **[PHASE_4][TERRA] Add an authorized Job Architecture admin workspace.**
   - **Evidence (2026-09-17):** `TestTodo_UX_JOBARCH_001_*` GOLDEN/SECURITY matrix in `internal/domains/jobarch`; `go test -count=1 ./internal/domains/jobarch/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.
@@ -14223,7 +14223,7 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **RED:** admin UI edits published architecture in place, offers unsupported job/grade combinations, exposes salary or benefit rules without authority, or saves browser-only configuration.
   - **GREEN:** responsive reusable components show the family/level/profile graph, exact pay-band and increase rules, benefit impacts and publish status; all writes use server-side governed workflows and role/page/action authorization.
   - **REFACTOR:** the workspace renders only authorized, server-resolved architecture state through the journey transport; every publish goes through the governed workflow, never a direct store write.
-  - **Refs:** [job architecture](specs/job-architecture.md), [product UI](specs/product-ui.md), [Phase 1 depth matrix](plan.md#phase-1-implementation-depth-matrix).
+  - **Refs:** [job architecture](../internal/domains/jobarch/promotion_path.go), [product UI](specs/production-frontend-and-page-composition.md), [Phase 1 depth matrix](plan.md#phase-1-implementation-depth-matrix).
 
 ## 58. BusinessIntent-to-workflow design convergence
 
@@ -19277,7 +19277,7 @@ Measured hot spots from the 2026-09-07 baseline (`.artifacts/coverage/bench_base
   - **RED:** the strict JSON middleware in `internal/transport/edge` runs `transport.PreAdmit` and the connect admission interceptor runs `transport.Admit`, so the credential verifier and request-id resolution execute twice per HTTP request; a counting verifier in the test observes two Verify calls for one request.
   - **GREEN:** the middleware's admission result is carried to the interceptor in the request context and reused only when the metadata it was derived from is unchanged; the counting verifier observes one Verify call, a request that bypasses the middleware (non-JSON, unknown path) still authenticates in the interceptor, and a tampered Authorization header between the two stages is refused.
   - **REFACTOR:** the carrier type is unexported, immutable, and set only by the middleware; no handler can read or forge it.
-  - **Refs:** [SLOs](specs/slo-sli-error-budget.md), [trusted request boundary](specs/trusted-request-boundary.md).
+  - **Refs:** [SLOs](specs/slo-sli-error-budget.md), [trusted request boundary](specs/http-grpc-endpoint-contract.md).
 
 - [x] `PERFOPT-003` **[GATE_B][SOL_LOW] Compile regular expressions once and repair the reservation benchmark.**
   - **Evidence (2026-09-07):** `TestTodo_PERFOPT_003`, `TestScan_FixtureCatchesIndentedCompile`, `TestScan_MarkerExemptsOnlyItsOwnLine` in `tools/policy/regexhoist`, `TestTodo_PERFOPT_003_Golden`, `BenchmarkTodo_PERFOPT_003` in `internal/governance/legal/extract`, `TestCompileQualityPatternReusesCompiledPatterns`, `TestCompileQualityPatternCacheIsBounded` in `internal/intent/model` (the AST checker reports regexp compiles inside function bodies and package-level compiler aliases, exempting only lines marked `regexhoist:dynamic`; the real per-call sites were the DLP bank-detail pattern, two evidence annotation patterns and the quality FORMAT rule, now package-level or served from a bounded 512-entry cache; the remaining marked sites compile runtime schema or configuration input once per construction; the extractor golden digest is unchanged; `BenchmarkTodo_RESERVE_001` keys are now `strconv.Itoa` and it passes at any benchtime, 3,232 ns/op); `go test -count=1 ./tools/policy/regexhoist/ ./internal/governance/legal/extract/ ./internal/intent/model/ ./internal/trust/dlp/ ./internal/data/partition/ ./internal/domains/paymethod/ ./internal/customobject/ ./internal/domains/dataops/importing/ ./internal/resource/reservation/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
@@ -20734,7 +20734,7 @@ These findings come from a task-oriented Codex-browser review of the live promot
   - **RED:** the picker shows a human title, but journey comparison renders only UUIDs such as `70ae5423-59a9-55ba-abf3-00f495284b09`; `UXLIVE-003` removed the encoded revision token but its evidence explicitly records that the position title is still not carried by the proposal.
   - **GREEN:** the governed proposal binds the exact position revision and an immutable display snapshot sufficient to identify what the user chose; picker, review, journey comparison, history and exported evidence show the same authorized title plus stable short code/id; rename or later vacancy change does not rewrite the historical decision; unresolved or withheld identities render explicit safe states and never fall back to raw revision tokens outside diagnostics.
   - **REFACTOR:** define one position-identity value and authorized resolver at the workforce boundary; display snapshots support audit history while current live facts remain separately labelled.
-  - **Refs:** [position domain](specs/position-domain.md), [promotion proposal](reference-workflows/promote-into-management.md), `internal/humanwork/productui`, `internal/intent/app`, `tools/uxqual/journeyclient`.
+  - **Refs:** [position domain](specs/position-and-headcount-domain.md), [promotion proposal](reference-workflows/promote-into-management.md), `internal/humanwork/productui`, `internal/intent/app`, `tools/uxqual/journeyclient`.
 
 - [ ] `UXLIVE-045` **[PHASE_3][TERRA] Use outcome-specific journey-card actions and progressive technical detail.**
   - **Depends:** `UXLIVE-031`, `UXLIVE-032`, `UXLIVE-041`.
@@ -22733,7 +22733,7 @@ Checked TOOL-001 through TOOL-020 and TOOL-026 (lines 769-1005 of `planning/todo
   - **RED:** GAP against `TOOL-020` (ticked, evidence 2026-09-15): `grep -rln "platform/schemaupgrade" --include=*.go .` returns zero non-test files -- `internal/platform/schemaupgrade` is imported by no `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, `cmd/scheduler`, or `cmd/migrate` code (`go list -deps` of all four confirms none reach the package). TOOL-020's own GREEN text ("old/new binaries interoperate through the declared window; rollback restores service without history mutation or duplicate effect") is unproven against any durable journal or running binary; its latest evidence concedes this ("adapters persist the journal and multi-binary deployment interop remains an adapter-conformance concern") but no todo item owns that follow-up work.
   - **GREEN:** at least one adapter (e.g. `cmd/migrate` or a worker-side upgrade coordinator) persists the schemaupgrade journal durably and drives a real version transition end to end, with the recovery/fault suites exercising process-kill-and-resume against that adapter rather than only the in-memory protocol type.
   - **REFACTOR:** keep the pure protocol package side-effect-free; put persistence and process wiring in a new adapter package under `internal/platform` or `internal/data`.
-  - **Refs:** `internal/platform/schemaupgrade`, [rolling upgrade](plan.md#gate-b-acceptance--limited-write-authority), `planning/todos.md#L994-L1005`.
+  - **Refs:** `internal/platform/schemaupgrade`, [rolling upgrade](execution-plan.md#gate-b-acceptance--limited-write-authority), `planning/todos.md#L994-L1005`.
 
 ### R004. §3 Canonical values, schemas, registries and model coverage
 
@@ -24059,7 +24059,7 @@ Reviewed all 29 items (PAYRUN-001..009, PAYGL-001..006, SETTLE-001..007, GARN-00
   - **RED:** NEW: `internal/domains/payroll/release.go`'s release effects carry only a `StatementsDigest string` (an opaque reference) with no reference to the per-state `pay-statement-fields` registry that `internal/governance/legal/payrules` (LEGAL-TOOL-005, `planning/todos.md:6146`) already resolves (mandatory/not-mandated, required field set, delivery medium); `grep -n "PAYSTMT\|PayStatement\|wage.statement" internal/domains/payroll/*.go internal/domains/payroll/**/*.go` (excluding tests) returns nothing, so a release with a statement missing California's nine §226 fields or Alaska's eight fields is indistinguishable from a compliant one at release time.
   - **GREEN:** Before a PAYRUN-007 release finalizes, the statement content bound into `StatementsDigest` is checked against the resolved `pay-statement-fields` requirement for the worker's jurisdiction; a statement missing a mandatory field, or lacking required delivery-medium consent, blocks release with a named field/jurisdiction rather than releasing on a bare digest match.
   - **REFACTOR:** none.
-  - **Refs:** `internal/domains/payroll/release.go`, [payrules](internal/governance/legal/payrules), [Rewards/payroll models](data/models/rewards-payroll-workforce.md).
+  - **Refs:** `internal/domains/payroll/release.go`, [payrules](../internal/governance/legal/payrules/payrules.go), [Rewards/payroll models](data/models/rewards-payroll-workforce.md).
 
 ### R045. §44 Benefits, time, attendance, scheduling and labor-cost engines
 
@@ -24283,7 +24283,7 @@ Checked all sixteen ticked items (`RECRUIT-001`–`004`, `ACCESS-001`–`004`, `
   - **RED:** NEW: `internal/domains/recruiting` records every candidacy stage transition and decision (`stage.go`) but computes no selection-rate or four-fifths comparison over that history; `grep -in "adverse\|disparate\|four.fifth\|selection.rate" internal/domains/recruiting/*.go` returns nothing, and the only adverse-impact analysis in the plan, `WF-CAP-009`, is scoped to reduction-in-force selection, not hiring-stage advancement, so no HCM area covers applicant-flow adverse impact.
   - **GREEN:** a pure analysis over a pinned set of candidacy-stage outcomes and declared applicant demographic-group facts returns per-transition selection rates by group, flags a four-fifths-rule violation with the comparison groups and counts, and returns `UNKNOWN` rather than a rate when a group's sample size is too small to be meaningful; the analysis writes no candidacy, stage or offer state and never stores raw demographic data outside its declared purpose.
   - **REFACTOR:** none.
-  - **Refs:** `internal/domains/recruiting/stage.go`, [WF-CAP-009 adverse impact precedent](planning/todos.md), [recruit workflow](workflows/lifecycle/recruit-hire-onboard.md).
+  - **Refs:** `internal/domains/recruiting/stage.go`, [WF-CAP-009 adverse impact precedent](todos.md), [recruit workflow](workflows/lifecycle/recruit-hire-onboard.md).
 
 ### R057. §62 Product-decision and implementation convergence
 

@@ -92,7 +92,7 @@ func (s *Subscription) deliver(ctx context.Context, record Committed) ([]byte, b
 	if err != nil {
 		return nil, false, nil
 	}
-	message, ok, err := s.sequencer.EmitForSubscriber(s.key, s.region, productquery.InvalidationRequest{
+	message, ok, err := EmitForSubscriber(s.sequencer, s.key, s.region, productquery.InvalidationRequest{
 		Principal:   s.principal,
 		EffectiveAt: instant,
 		// SourceSequence and Watermark satisfy EmitInvalidation's own

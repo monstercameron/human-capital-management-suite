@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/journeyinvalidation"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/productquery"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -279,18 +280,18 @@ func TestTodo_PROMOUX_011(t *testing.T) {
 		sequencer := promotion.NewSubscriberSequencer()
 		const subscriberKey = "session:promoux011-viewer"
 
-		fixedA, deliveredA, err := sequencer.EmitForSubscriber(subscriberKey, promotion.RegionDetail, reqA)
+		fixedA, deliveredA, err := journeyinvalidation.EmitForSubscriber(sequencer, subscriberKey, promotion.RegionDetail, reqA)
 		if err != nil || !deliveredA {
 			t.Fatalf("subscriber emit A: delivered=%v err=%v", deliveredA, err)
 		}
-		_, deliveredB, err := sequencer.EmitForSubscriber(subscriberKey, promotion.RegionDetail, reqB)
+		_, deliveredB, err := journeyinvalidation.EmitForSubscriber(sequencer, subscriberKey, promotion.RegionDetail, reqB)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if deliveredB {
 			t.Fatal("denied transition B was delivered to the subscriber")
 		}
-		fixedC, deliveredC, err := sequencer.EmitForSubscriber(subscriberKey, promotion.RegionDetail, reqC)
+		fixedC, deliveredC, err := journeyinvalidation.EmitForSubscriber(sequencer, subscriberKey, promotion.RegionDetail, reqC)
 		if err != nil || !deliveredC {
 			t.Fatalf("subscriber emit C: delivered=%v err=%v", deliveredC, err)
 		}
@@ -320,7 +321,7 @@ func TestTodo_PROMOUX_011(t *testing.T) {
 		denied := promoux011Subject(values.TenantId("other-tenant"), "00000000-0000-4000-8000-00000000c001")
 		for i := 0; i < 5; i++ {
 			req := promoux011Request(viewer, uint64(i+1), productquery.InvalidationTarget{Subject: denied, Revision: 1})
-			_, delivered, err := sequencer.EmitForSubscriber(subscriberKey, promotion.RegionDetail, req)
+			_, delivered, err := journeyinvalidation.EmitForSubscriber(sequencer, subscriberKey, promotion.RegionDetail, req)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -355,7 +356,7 @@ func TestTodo_PROMOUX_011(t *testing.T) {
 		req := promoux011Request(viewer, 1, productquery.InvalidationTarget{
 			Subject: workerX, Revision: 1, Decision: promoux011Decision(t, viewer, workerX),
 		})
-		message, delivered, err := sequencer.EmitForSubscriber("session:regions", promotion.RegionDetail, req)
+		message, delivered, err := journeyinvalidation.EmitForSubscriber(sequencer, "session:regions", promotion.RegionDetail, req)
 		if err != nil || !delivered {
 			t.Fatalf("emit for worker X detail: delivered=%v err=%v", delivered, err)
 		}

@@ -27,6 +27,11 @@ func TestRequirementTraceabilityRejectsOrphans(t *testing.T) {
 		assertNames(t, got, []string{"TestTodo_ID", "TestTodo_ID_Golden", "TestTodo_ID_Race", "FuzzTodo_ID"})
 	})
 
+	t.Run("first matrix variant establishes the todo root", func(t *testing.T) {
+		got := ExtractEvidenceTestNames("`TestP1BAuthority`, `TestTodo_NEXT_006_Property`, `_Golden`, `_Security`")
+		assertNames(t, got, []string{"TestP1BAuthority", "TestTodo_NEXT_006_Property", "TestTodo_NEXT_006_Golden", "TestTodo_NEXT_006_Security"})
+	})
+
 	t.Run("shorthand suffix rebases on the root even after a compound plain name", func(t *testing.T) {
 		// Real corpus shape: `TestTodo_DATA_005`, `TestTodo_DATA_005_Property`,
 		// `_Property_MonotonicKnowledge`, `_Security` - the last two must

@@ -23,8 +23,12 @@ type Package struct {
 // concatenated JSON object stream `go list` prints (one object per
 // package, no enclosing array or separators).
 func ListPackages(root string) ([]Package, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return nil, fmt.Errorf("resolve repository root: %w", err)
+	}
 	cmd := exec.Command("go", "list", "-json", "./...")
-	cmd.Dir = root
+	cmd.Dir = absRoot
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -40,7 +44,7 @@ func ListPackages(root string) ([]Package, error) {
 		if err := decoder.Decode(&pkg); err != nil {
 			return nil, fmt.Errorf("decoding go list output: %w", err)
 		}
-		if !isRepositoryPackageDir(root, pkg.Dir) {
+		if !isRepositoryPackageDir(absRoot, pkg.Dir) {
 			continue
 		}
 		packages = append(packages, pkg)

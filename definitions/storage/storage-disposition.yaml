@@ -4854,7 +4854,7 @@ tables:
       Registered from 00181_worker_id_policy.sql: mutable control row for organization worker id policy.
   - table: worker_id_reservation
     migration: 00181_worker_id_policy.sql
-    owner_package: internal/data/workerstore
+    owner_package: internal/data/workeridstore
     plane: DATA
     data_role: LEDGER
     tenant_scoping_column: tenant_id

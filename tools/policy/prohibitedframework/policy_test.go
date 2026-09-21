@@ -1,6 +1,7 @@
 package prohibitedframework
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -9,6 +10,20 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/internal/repopath"
 )
+
+func TestToolchainWasmBridgeAdmitsOnlyExactGeneratedShim(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "wasm_exec.js")
+	if err := os.WriteFile(path, []byte("customer rule"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if isToolchainWasmBridge(path, "internal/humanwork/workspace/assets/wasm_exec.js") {
+		t.Fatal("arbitrary script at generated path was admitted")
+	}
+	if isToolchainWasmBridge(path, "internal/humanwork/workspace/assets/other.js") {
+		t.Fatal("arbitrary script path was admitted")
+	}
+}
 
 func testPolicy() Policy {
 	return Policy{

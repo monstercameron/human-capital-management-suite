@@ -498,20 +498,57 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	workloads := []bootstrap.Workload{
 		{
 			Name: workloadNameGRPC,
-			Run: func(context.Context) error {
-				if err := grpcServer.Serve(grpcListener); err != nil && !errors.Is(err, net.ErrClosed) {
-					return err
+			Run: func(ctx context.Context) error {
+				finished := make(chan error, 1)
+				go func() { finished <- grpcServer.Serve(grpcListener) }()
+				select {
+				case err := <-finished:
+					if err != nil && !errors.Is(err, net.ErrClosed) {
+						return err
+					}
+					return nil
+				case <-ctx.Done():
+					// Bootstrap drains workloads before running its ordered
+					// shutdown steps. Serve ignores context, so quiesce the
+					// listener here; the later step remains an idempotent guard.
+					stopped := make(chan struct{})
+					go func() { grpcServer.GracefulStop(); close(stopped) }()
+					select {
+					case <-stopped:
+					case <-time.After(ShutdownGrace / 2):
+						grpcServer.Stop()
+						<-stopped
+					}
+					if err := <-finished; err != nil && !errors.Is(err, net.ErrClosed) {
+						return err
+					}
+					return nil
 				}
-				return nil
 			},
 		},
 		{
 			Name: workloadNameHTTP,
-			Run: func(context.Context) error {
-				if err := httpServer.Serve(httpListener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					return err
+			Run: func(ctx context.Context) error {
+				finished := make(chan error, 1)
+				go func() { finished <- httpServer.Serve(httpListener) }()
+				select {
+				case err := <-finished:
+					if err != nil && !errors.Is(err, http.ErrServerClosed) {
+						return err
+					}
+					return nil
+				case <-ctx.Done():
+					shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), ShutdownGrace/2)
+					defer cancel()
+					if err := httpServer.Shutdown(shutdownCtx); err != nil {
+						_ = httpServer.Close()
+						return err
+					}
+					if err := <-finished; err != nil && !errors.Is(err, http.ErrServerClosed) {
+						return err
+					}
+					return nil
 				}
-				return nil
 			},
 		},
 	}

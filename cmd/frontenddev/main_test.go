@@ -87,7 +87,7 @@ func TestFrontendDevPreservesPublicOriginForBrowserPolicy(t *testing.T) {
 	}
 }
 
-func TestFrontendDevAdmitsOpaqueCodexOriginOnlyOnLocalDevLoopback(t *testing.T) {
+func TestFrontendDevPreservesOpaqueOriginPolicyAcrossProfiles(t *testing.T) {
 	upstream := httptest.NewServer(edge.BrowserPolicy(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}), edge.BrowserPolicyOptions{}))
@@ -97,10 +97,12 @@ func TestFrontendDevAdmitsOpaqueCodexOriginOnlyOnLocalDevLoopback(t *testing.T) 
 	for _, tc := range []struct {
 		name       string
 		localDev   bool
+		crossSite  bool
 		wantStatus int
 	}{
 		{name: "local dev loopback", localDev: true, wantStatus: http.StatusNoContent},
-		{name: "standard profile", localDev: false, wantStatus: http.StatusForbidden},
+		{name: "standard profile with CSRF cookie", localDev: false, wantStatus: http.StatusNoContent},
+		{name: "standard profile cross-site", localDev: false, crossSite: true, wantStatus: http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			gateway := httptest.NewServer(frontendHandler(target, "", tc.localDev))
@@ -118,6 +120,9 @@ func TestFrontendDevAdmitsOpaqueCodexOriginOnlyOnLocalDevLoopback(t *testing.T) 
 			}
 			post.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			post.Header.Set("Origin", "null")
+			if tc.crossSite {
+				post.Header.Set("Sec-Fetch-Site", "cross-site")
+			}
 			postResponse, err := client.Do(post)
 			if err != nil {
 				t.Fatal(err)

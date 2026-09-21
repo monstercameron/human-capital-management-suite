@@ -100,7 +100,6 @@ func TestTodo_REV_091_03_Integration(t *testing.T) {
 	person := rev09103Open(t, h, "compAdmin", promotion.RegionPerson)
 	detail := rev09103Open(t, h, "compAdmin", promotion.RegionDetail)
 	work := rev09103Open(t, h, "financePartner", promotion.RegionMyWork)
-	outsider := rev09103Open(t, h, "hana", promotion.RegionShellCount)
 	deadline := time.Now().Add(30 * time.Second)
 	for hub.Subscribers(tenant) < 4 {
 		if time.Now().After(deadline) {
@@ -108,6 +107,10 @@ func TestTodo_REV_091_03_Integration(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+	// A viewer without the journey may still own an idle stream. Open it only
+	// after all four authorized streams are registered, so its subscription
+	// cannot satisfy the readiness count in place of a legitimate viewer.
+	outsider := rev09103Open(t, h, "hana", promotion.RegionShellCount)
 
 	if _, err := h.journey.DecideJourney(h.rpc("financePartner"), &journeyv1.DecideJourneyRequest{
 		IntentId: h.intentID, Approve: true, Reason: "rev09103: finance approves",

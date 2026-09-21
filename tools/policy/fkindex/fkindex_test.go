@@ -46,7 +46,10 @@ func TestTodo_PERFOPT_005(t *testing.T) {
 	}
 	snapshot := readGolden(t)
 	wantUnreferenced := make(map[string]bool)
-	for _, fk := range snapshot.Before {
+	// The before snapshot belongs to migration 00261. New migrations are
+	// allowed to cover its old unreferenced keys and introduce new ones;
+	// pin current intentional omissions against the after snapshot.
+	for _, fk := range snapshot.After {
 		if !fk.Covered && len(fk.References) == 0 {
 			wantUnreferenced[fkKey(fk.ForeignKey)] = true
 		}

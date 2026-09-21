@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
+
 	"google.golang.org/grpc"
 
 	adminv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
@@ -11,12 +13,11 @@ import (
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/onboarding"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/ledger/hashchain"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	adminpolicy "github.com/monstercameron/human-capital-management-suite/internal/operations/admin"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/explorer"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/onboardingruns"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/config/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
@@ -106,15 +107,10 @@ type Dependencies struct {
 	// OnboardingCutoverSigner signs approved cutover epochs for
 	// ExecuteOnboardingCutover. Nil leaves that RPC UNAVAILABLE.
 	OnboardingCutoverSigner onboarding.CutoverSigner
-	// LedgerQuerier backs ListLedgerEvents: the ledger read handle the
-	// explorer lists streams through. Nil leaves the RPC UNAVAILABLE.
-	LedgerQuerier ledger.Querier
-	// ChainQuerier backs GetChainVerification: the hash-chain read handle.
-	// Nil leaves the RPC UNAVAILABLE.
-	ChainQuerier hashchain.Querier
-	// ChainDigester backs GetChainVerification: the chain replay engine.
-	// Nil leaves the RPC UNAVAILABLE.
-	ChainDigester *hashchain.Digester
+	// The composition root supplies read-only explorer operations, keeping
+	// storage adapters and hash-chain mechanics outside transport.
+	ListLedgerStream  func(context.Context, uuid.UUID, string) (explorer.StreamListingView, error)
+	VerifyLedgerChain func(context.Context, uuid.UUID, string) (explorer.ChainView, error)
 	// ConfigPromotions backs the connector/config operations center
 	// (REV-037-02): the promotion registry inspect/test/redrive/reconcile/
 	// diff/simulate/promote/rollback run against. Nil leaves those RPCs

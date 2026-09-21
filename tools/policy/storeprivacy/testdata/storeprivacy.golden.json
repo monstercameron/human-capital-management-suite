@@ -2,7 +2,7 @@
   "version": 1,
   "permanent_tables": 276,
   "fields": 3285,
-  "digest": "sha256:ee1994b1b0a654a9f2e9360464506fdfede4c72ac39b9f27fe7555b3f1fc71d2",
+  "digest": "sha256:7dd7807a9b37356e2b3a01f9fee56554e8ac245451a858fd8441f8009626a54f",
   "roster": [
     {
       "table": "accessreview_review_record",
@@ -1217,7 +1217,7 @@
       "field": "worker_number",
       "location": "column",
       "code": "PERSONAL_INLINE",
-      "owner": "internal/data/workerstore",
+      "owner": "internal/data/workeridstore",
       "detail": "personal column: worker record; stored inline, no payload-vault reference"
     },
     {

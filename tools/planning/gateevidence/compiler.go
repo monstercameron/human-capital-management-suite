@@ -1,9 +1,11 @@
 package gateevidence
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -223,29 +225,58 @@ func compileOne(manifest P1AManifest, entry EvidenceEntry, resultsByTest map[str
 	return f
 }
 
-// DefaultRunGoTest runs `go test -count=1 -run ^name$ pkg` in repoRoot and
+// DefaultRunGoTest runs `go test -json -count=1 -run ^name$ pkg` in repoRoot and
 // reports PASS/FAIL. It never runs unless CompileOptions.Live is true.
 func DefaultRunGoTest(repoRoot, pkg, name string, now time.Time) (ResultRecord, error) {
 	pattern := "^" + name + "$"
-	cmd := exec.Command("go", "test", "-count=1", "-run", pattern, pkg)
+	cmd := exec.Command("go", "test", "-json", "-count=1", "-run", pattern, pkg)
 	cmd.Dir = repoRoot
 	output, runErr := cmd.CombinedOutput()
-
-	result := "PASS"
-	if runErr != nil {
-		result = "FAIL"
-	}
-	if !strings.Contains(string(output), "ok") && !strings.Contains(string(output), "PASS") && runErr == nil {
-		// go test with no matching tests still exits 0; treat that as a
-		// missing test rather than a false PASS.
-		result = "FAIL"
-	}
+	result := classifyGoTestRun(string(output), runErr == nil, name, runtime.GOOS == "windows")
 
 	return ResultRecord{
 		Test:      name,
 		Package:   pkg,
 		Result:    result,
 		Timestamp: now.UTC().Format(dateLayout),
-		Command:   fmt.Sprintf("go test -count=1 -run %s %s", pattern, pkg),
+		Command:   fmt.Sprintf("go test -json -count=1 -run %s %s", pattern, pkg),
 	}, nil
+}
+
+// classifyGoTestRun requires the named test and its package to pass. An
+// unrelated PASS token or a successful process with no matching tests does
+// not constitute evidence. Windows may fail to unlink a passing test binary
+// after the package result; accept only that exact post-result diagnostic.
+func classifyGoTestRun(output string, cleanExit bool, name string, windows bool) string {
+	var testPassed, packagePassed, failed, cleanup bool
+	for line := range strings.SplitSeq(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var event struct {
+			Action string `json:"Action"`
+			Test   string `json:"Test"`
+		}
+		if json.Unmarshal([]byte(line), &event) == nil {
+			if event.Test == name {
+				testPassed = event.Action == "pass" || testPassed
+				failed = event.Action == "fail" || failed
+			}
+			if event.Test == "" {
+				packagePassed = event.Action == "pass" || packagePassed
+				failed = event.Action == "fail" || failed
+			}
+			continue
+		}
+		if windows && strings.HasPrefix(line, "go: unlinkat ") && strings.Contains(line, "go-build") && strings.HasSuffix(strings.ToLower(line), ".test.exe: access is denied.") {
+			cleanup = true
+			continue
+		}
+		failed = true
+	}
+	if testPassed && packagePassed && !failed && (cleanExit || (windows && cleanup)) {
+		return "PASS"
+	}
+	return "FAIL"
 }

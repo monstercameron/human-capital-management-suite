@@ -127,9 +127,12 @@ func (f *rev037Fixture) count(t *testing.T, table string) int64 {
 
 func rev037Deps(f *rev037Fixture) admin.Dependencies {
 	return admin.Dependencies{
-		LedgerQuerier: f.db.Conn,
-		ChainQuerier:  f.db.Conn,
-		ChainDigester: f.digester,
+		ListLedgerStream: func(ctx context.Context, tenant uuid.UUID, stream string) (explorer.StreamListingView, error) {
+			return explorer.StreamListing(ctx, f.db.Conn, tenant, stream, nil)
+		},
+		VerifyLedgerChain: func(ctx context.Context, tenant uuid.UUID, stream string) (explorer.ChainView, error) {
+			return explorer.VerifyChain(ctx, f.db.Conn, f.digester, tenant, stream)
+		},
 	}
 }
 func TestTodo_REV_037_01(t *testing.T) {

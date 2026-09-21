@@ -168,6 +168,7 @@ migrationfiles:
   - 00317_promotion_path_edge.sql
   - 00318_workflow_designer_history.sql
   - 00319_controlled_data_plane_deletion.sql
+  - 00320_referenced_foreign_key_indexes.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

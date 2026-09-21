@@ -17,7 +17,16 @@
         "hcmnext.rewards.simulate_compensation"
       ],
       "intent_behavior": "CONSUMES",
-      "accepted_intent_definition_refs": null,
+      "accepted_intent_definition_refs": [
+        "hcmnext.intelligence.explain_transaction/v1",
+        "hcmnext.operations.create_repair_plan/v1",
+        "hcmnext.operations.detect_drift/v1",
+        "hcmnext.operations.simulate_repair/v1",
+        "hcmnext.people.explain_worker_state/v1",
+        "hcmnext.people.promote_worker/v1",
+        "hcmnext.rewards.evaluate_pay_band_position/v1",
+        "hcmnext.rewards.simulate_compensation/v1"
+      ],
       "request_type": "hcmnext.intents.v1.CancelIntentRequest",
       "response_type": "hcmnext.intents.v1.CancelIntentResponse",
       "error_codes": [
@@ -36,8 +45,8 @@
       "http_method": "POST",
       "http_path_template": "/v1/intents/{intent}:cancel",
       "http_body_binding": "*",
-      "disposition": "REFUSED_P1A",
-      "disposition_reason": "exists in the compiled service descriptor so the P1B write path needs no breaking wire change, but every invocation is refused for the duration of P1A (planning/next-steps.md: \"must persist zero worker, employment, assignment, organization, position, compensation or budget mutations\")",
+      "disposition": "SERVED",
+      "disposition_reason": "a governed intent-lifecycle write served from Gate B onward (EP-INTENT-003): the request binds an exact revision, is deduplicated by idempotency key, and reports its outcome truthfully rather than refusing",
       "authn_assurance": "SUBSTANTIAL",
       "authz_action": "hcmnext.intents.cancel",
       "purpose_policy_ref": "purpose.scope_context_check/v1",
@@ -536,7 +545,16 @@
         "hcmnext.rewards.simulate_compensation"
       ],
       "intent_behavior": "CONSUMES",
-      "accepted_intent_definition_refs": null,
+      "accepted_intent_definition_refs": [
+        "hcmnext.intelligence.explain_transaction/v1",
+        "hcmnext.operations.create_repair_plan/v1",
+        "hcmnext.operations.detect_drift/v1",
+        "hcmnext.operations.simulate_repair/v1",
+        "hcmnext.people.explain_worker_state/v1",
+        "hcmnext.people.promote_worker/v1",
+        "hcmnext.rewards.evaluate_pay_band_position/v1",
+        "hcmnext.rewards.simulate_compensation/v1"
+      ],
       "request_type": "hcmnext.intents.v1.SubmitIntentRequest",
       "response_type": "hcmnext.intents.v1.SubmitIntentResponse",
       "error_codes": [
@@ -555,8 +573,8 @@
       "http_method": "POST",
       "http_path_template": "/v1/intents/{intent}:submit",
       "http_body_binding": "*",
-      "disposition": "REFUSED_P1A",
-      "disposition_reason": "exists in the compiled service descriptor so the P1B write path needs no breaking wire change, but every invocation is refused for the duration of P1A (planning/next-steps.md: \"must persist zero worker, employment, assignment, organization, position, compensation or budget mutations\")",
+      "disposition": "SERVED",
+      "disposition_reason": "a governed intent-lifecycle write served from Gate B onward (EP-INTENT-003): the request binds an exact revision, is deduplicated by idempotency key, and reports its outcome truthfully rather than refusing",
       "authn_assurance": "SUBSTANTIAL",
       "authz_action": "hcmnext.intents.submit",
       "purpose_policy_ref": "purpose.scope_context_check/v1",
@@ -593,7 +611,16 @@
         "hcmnext.rewards.simulate_compensation"
       ],
       "intent_behavior": "EMITS",
-      "accepted_intent_definition_refs": null,
+      "accepted_intent_definition_refs": [
+        "hcmnext.intelligence.explain_transaction/v1",
+        "hcmnext.operations.create_repair_plan/v1",
+        "hcmnext.operations.detect_drift/v1",
+        "hcmnext.operations.simulate_repair/v1",
+        "hcmnext.people.explain_worker_state/v1",
+        "hcmnext.people.promote_worker/v1",
+        "hcmnext.rewards.evaluate_pay_band_position/v1",
+        "hcmnext.rewards.simulate_compensation/v1"
+      ],
       "request_type": "hcmnext.intents.v1.SupersedeIntentRequest",
       "response_type": "hcmnext.intents.v1.SupersedeIntentResponse",
       "error_codes": [
@@ -612,8 +639,8 @@
       "http_method": "POST",
       "http_path_template": "/v1/intents/{intent}:supersede",
       "http_body_binding": "*",
-      "disposition": "REFUSED_P1A",
-      "disposition_reason": "exists in the compiled service descriptor so the P1B write path needs no breaking wire change, but every invocation is refused for the duration of P1A (planning/next-steps.md: \"must persist zero worker, employment, assignment, organization, position, compensation or budget mutations\")",
+      "disposition": "SERVED",
+      "disposition_reason": "a governed intent-lifecycle write served from Gate B onward (EP-INTENT-003): the request binds an exact revision, is deduplicated by idempotency key, and reports its outcome truthfully rather than refusing",
       "authn_assurance": "SUBSTANTIAL",
       "authz_action": "hcmnext.intents.supersede",
       "purpose_policy_ref": "purpose.scope_context_check/v1",

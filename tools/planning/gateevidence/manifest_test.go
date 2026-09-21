@@ -252,8 +252,10 @@ func TestP1AManifestMigrationChecksumsMatchEmbeddedMigrationsFS(t *testing.T) {
 		liveByVersion[f.Version] = f
 	}
 
-	if len(p1a.Migrations.Files) != len(live) {
-		t.Fatalf("manifest declares %d migration files, embedded FS has %d", len(p1a.Migrations.Files), len(live))
+	// This signed release manifest records the migrations admitted to P1A.
+	// Later releases append migrations without rewriting its historical scope.
+	if len(p1a.Migrations.Files) > len(live) {
+		t.Fatalf("manifest declares %d migration files, embedded FS has only %d", len(p1a.Migrations.Files), len(live))
 	}
 
 	for _, declared := range p1a.Migrations.Files {

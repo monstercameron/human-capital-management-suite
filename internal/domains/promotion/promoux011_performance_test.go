@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/journeyinvalidation"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/productquery"
 )
@@ -42,7 +43,7 @@ func TestTodo_PROMOUX_011_Performance(t *testing.T) {
 		}
 		req := promoux011Request(viewer, uint64(i+1), target)
 		for _, region := range regions {
-			_, ok, err := sequencer.EmitForSubscriber(subscriberKey, region, req)
+			_, ok, err := journeyinvalidation.EmitForSubscriber(sequencer, subscriberKey, region, req)
 			if err != nil {
 				t.Fatalf("transition %d region %q: %v", i, region, err)
 			}

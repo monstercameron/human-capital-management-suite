@@ -112,6 +112,9 @@ func TestPlaneBoundaries(t *testing.T) {
 		// "transport -> transaction": composition-root wiring now lives in
 		// internal/platform, which package-dependency-policy.yaml does not
 		// rank as a business layer at all, exactly like cmd/* itself.
+		// The data -> capabilities edge is evidencestore's implementation
+		// of capability.EvidenceSink; it persists invocation evidence and
+		// grants no capability decision authority to the data layer.
 		edges := LayerGraph(graph, policy)
 		got := RenderGolden(edges)
 

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/localize"
-	"golang.org/x/text/language"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 const (
@@ -49,8 +49,8 @@ func (p I18nProps) Text(key string, vars ...map[string]string) string {
 func ResolveProductLocale(requested string) LocaleContext {
 	requested = strings.ReplaceAll(strings.TrimSpace(requested), "_", "-")
 	if requested != "" {
-		if tag, err := language.Parse(requested); err == nil && tag != language.Und {
-			requested = tag.String()
+		if tag, ok := values.CanonicalLanguageTag(requested); ok && tag != "und" {
+			requested = tag
 		}
 	}
 	locale := canonicalProductLocale(requested)

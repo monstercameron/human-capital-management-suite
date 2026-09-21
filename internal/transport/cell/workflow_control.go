@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/uuid"
-
-	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowdraftstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
@@ -24,7 +21,7 @@ func workflowDependencies(c *app.Cell, instances app.WorkflowInstanceReader, cur
 			deps.Definitions = catalog
 		}
 		if c.WorkflowDrafts != nil {
-			deps.Drafts = workflowDraftReader{store: c.WorkflowDrafts}
+			deps.Drafts = workflowDraftReader{cell: c}
 		}
 		if c.WorkflowDraftCompiler != nil {
 			deps.DraftCompiler = c.WorkflowDraftCompiler
@@ -63,23 +60,19 @@ func workflowDependencies(c *app.Cell, instances app.WorkflowInstanceReader, cur
 }
 
 type workflowDraftReader struct {
-	store *workflowdraftstore.Store
+	cell *app.Cell
 }
 
 func (r workflowDraftReader) ReadWorkflowDraft(ctx context.Context, tenant values.TenantId, draftID string) (transportworkflow.Draft, error) {
-	id, err := uuid.Parse(draftID)
-	if err != nil || r.store == nil {
-		return transportworkflow.Draft{}, transportworkflow.ErrNotFound
-	}
-	draft, err := r.store.Load(ctx, tenant, id)
-	if errors.Is(err, workflowdraftstore.ErrInvalid) || errors.Is(err, workflowdraftstore.ErrNotFound) {
+	draft, err := r.cell.ReadWorkflowDraftRecord(ctx, tenant, draftID)
+	if errors.Is(err, app.ErrWorkflowDraftNotFound) {
 		return transportworkflow.Draft{}, transportworkflow.ErrNotFound
 	}
 	if err != nil {
 		return transportworkflow.Draft{}, err
 	}
 	return transportworkflow.Draft{
-		DraftID: draft.DraftID.String(), AuthorRef: draft.AuthorRef,
+		DraftID: draft.DraftID, AuthorRef: draft.AuthorRef,
 		Revision: draft.Revision, Document: draft.Document,
 	}, nil
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/text/language"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 var (
@@ -82,13 +82,13 @@ func NewLocaleContext(locale string, supported []string, fallbacks map[string][]
 	return LocaleContext{Locale: primary.String(), Supported: ordered, Fallbacks: copyFallbacks}, nil
 }
 
-func parseLocale(raw string) (language.Tag, error) {
+func parseLocale(raw string) (values.LanguageTag, error) {
 	if strings.TrimSpace(raw) == "" {
-		return language.Und, fmt.Errorf("%w: empty locale", ErrInvalidLocale)
+		return "", fmt.Errorf("%w: empty locale", ErrInvalidLocale)
 	}
-	tag, err := language.Parse(strings.TrimSpace(raw))
-	if err != nil || tag == language.Und {
-		return language.Und, fmt.Errorf("%w: %q", ErrInvalidLocale, raw)
+	tag, ok := values.ParseLanguageTag(strings.TrimSpace(raw))
+	if !ok || tag == "und" {
+		return "", fmt.Errorf("%w: %q", ErrInvalidLocale, raw)
 	}
 	return tag, nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 type SetOutcomeRequest struct {
@@ -44,7 +45,9 @@ type BindingView struct {
 // SetOutcome connects one declared outcome port to an existing node. Normal
 // outcomes replace their one continuation; a declared fan-out outcome adds a
 // distinct target. The edit remains a draft and is compiled separately.
-func (s Service) SetOutcome(ctx context.Context, tenant values.TenantId, author string, request SetOutcomeRequest) (Change, error) {
+func (s Service) SetOutcome(ctx context.Context, tenant values.TenantId, author string, request SetOutcomeRequest) (_ Change, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.set_outcome", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	if request.ExpectedRevision == 0 {
 		return Change{}, ErrInvalid
 	}
@@ -97,7 +100,9 @@ func (s Service) SetOutcome(ctx context.Context, tenant values.TenantId, author 
 
 // BindInput binds a target input only to a candidate returned by the
 // compiler-owned dominance and assignability query.
-func (s Service) BindInput(ctx context.Context, tenant values.TenantId, author string, request BindInputRequest) (Change, error) {
+func (s Service) BindInput(ctx context.Context, tenant values.TenantId, author string, request BindInputRequest) (_ Change, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.bind_input", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	if request.ExpectedRevision == 0 {
 		return Change{}, ErrInvalid
 	}

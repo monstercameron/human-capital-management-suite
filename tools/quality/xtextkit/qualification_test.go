@@ -371,7 +371,15 @@ func TestTodo_LIB_020_Conformance(t *testing.T) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+		if entry.IsDir() {
+			// Local test/build worktrees are not part of this repository's
+			// production package graph, even when they contain Go sources.
+			if path != root && strings.HasPrefix(entry.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
 			return nil
 		}
 		parsed, parseErr := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)

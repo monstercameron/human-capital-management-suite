@@ -10,7 +10,6 @@ import (
 	adminv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/authzsim"
-	"github.com/monstercameron/human-capital-management-suite/internal/operations/explorer"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 )
@@ -23,7 +22,7 @@ func (s *server) ListLedgerEvents(ctx context.Context, req *adminv1.ListLedgerEv
 	if opErr != nil {
 		return nil, opErr
 	}
-	if s.deps.LedgerQuerier == nil {
+	if s.deps.ListLedgerStream == nil {
 		return nil, envelope.New(envelope.CodeUnavailable,
 			"admin.ledger_querier_unconfigured",
 			"the ledger read port is not configured").
@@ -38,7 +37,7 @@ func (s *server) ListLedgerEvents(ctx context.Context, req *adminv1.ListLedgerEv
 			WithCorrelation(inv.RequestID()).
 			WithEvidence(envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"})
 	}
-	view, err := explorer.StreamListing(ctx, s.deps.LedgerQuerier, tenant, req.GetStreamKey(), nil)
+	view, err := s.deps.ListLedgerStream(ctx, tenant, req.GetStreamKey())
 	if err != nil {
 		return nil, envelope.Coerce(err)
 	}
@@ -78,7 +77,7 @@ func (s *server) GetChainVerification(ctx context.Context, req *adminv1.GetChain
 	if opErr != nil {
 		return nil, opErr
 	}
-	if s.deps.ChainQuerier == nil || s.deps.ChainDigester == nil {
+	if s.deps.VerifyLedgerChain == nil {
 		return nil, envelope.New(envelope.CodeUnavailable,
 			"admin.chain_verifier_unconfigured",
 			"the chain verification port is not configured").
@@ -93,7 +92,7 @@ func (s *server) GetChainVerification(ctx context.Context, req *adminv1.GetChain
 			WithCorrelation(inv.RequestID()).
 			WithEvidence(envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"})
 	}
-	view, err := explorer.VerifyChain(ctx, s.deps.ChainQuerier, s.deps.ChainDigester, tenant, req.GetStreamKey())
+	view, err := s.deps.VerifyLedgerChain(ctx, tenant, req.GetStreamKey())
 	if err != nil {
 		return nil, envelope.Coerce(err)
 	}

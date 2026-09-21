@@ -10,6 +10,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -90,7 +91,9 @@ type ImportRequest struct {
 // Import creates an author-owned draft from a canonical definition that has
 // no presentation coordinates. The product projection applies AUTO layout in
 // exactly the same way as it does for human-created drafts.
-func (s Service) Import(ctx context.Context, tenant values.TenantId, author string, request ImportRequest) (Change, error) {
+func (s Service) Import(ctx context.Context, tenant values.TenantId, author string, request ImportRequest) (_ Change, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.import", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	if s.Store == nil || s.NewID == nil || strings.TrimSpace(tenant.String()) == "" || strings.TrimSpace(author) == "" || strings.TrimSpace(request.Definition.WorkflowID) == "" {
 		return Change{}, ErrInvalid
 	}
@@ -125,7 +128,9 @@ func (s Service) Import(ctx context.Context, tenant values.TenantId, author stri
 // NavigateHistory performs durable undo or redo. Restoring a snapshot always
 // advances Draft.Revision, so an in-flight command can never become valid
 // again after time travel.
-func (s Service) NavigateHistory(ctx context.Context, tenant values.TenantId, author string, request NavigateRequest) (Change, error) {
+func (s Service) NavigateHistory(ctx context.Context, tenant values.TenantId, author string, request NavigateRequest) (_ Change, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.navigate_history", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
 	if request.ExpectedRevision == 0 || (request.Direction != HistoryUndo && request.Direction != HistoryRedo) {
 		return Change{}, ErrInvalid
 	}

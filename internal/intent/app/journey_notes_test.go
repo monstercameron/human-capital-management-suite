@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 )
@@ -80,7 +81,9 @@ func TestJourneyNoteRetriesConvergeAndReusedKeysAreRefused(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			note, _, err := notes.AddNote(author, proposed.IntentID, workspace.JourneyNoteInput{
+			ctx, cancel := context.WithTimeout(author, 45*time.Second)
+			defer cancel()
+			note, _, err := notes.AddNote(ctx, proposed.IntentID, workspace.JourneyNoteInput{
 				Body: "Same note, submitted twice.", IdempotencyKey: "retry-key"})
 			ids[i], errs[i] = note.NoteID, err
 		}(i)

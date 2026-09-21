@@ -23,6 +23,7 @@
   "internal/forms": "transport:experience-and-transport",
   "internal/generated": "platform:platform-foundation",
   "internal/governance": "governance:governance-and-trust",
+  "internal/humanwork": "transport:experience-and-transport",
   "internal/i18n": "transport:experience-and-transport",
   "internal/intent": "intent:intent-and-capability",
   "internal/kernel": "kernel:platform-foundation",

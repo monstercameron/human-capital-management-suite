@@ -46,7 +46,7 @@ func (r Report) Error() error {
 // CheckRepository applies the checked-in MSRC-010 baseline.
 func CheckRepository(root string) Report {
 	return Check(Config{Root: root, GeneratedPath: "internal/generated/schemaflux/models_generated.go", Documents: []Document{
-		{Path: "planning/data/models/README.md", Digest: "sha256:58b89cc9a9bbfa262028b3035dfc03359fc47ed822f8bd16b037572766c5d70d"},
+		{Path: "planning/data/models/README.md", Digest: "sha256:ea093186a267084088a4b1c2f2601d3ef442f6e3a12350402fb885596d46ac5e"},
 		{Path: "planning/data/models/registry-and-coverage-contracts.md", Digest: "sha256:53873ce31851b2ae00d1ee489cb86025cff3be82d52584b8bbb894f949b39257"},
 		{Path: "planning/specs/business-intent-catalog.md", Digest: "sha256:ade5585b510b2dd474d1caa463f2865f79bd092b7e90503342a524dd1d4b6999"},
 	}})
