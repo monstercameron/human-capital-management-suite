@@ -29287,7 +29287,7 @@
   },
   {
     "id": "PROMO-EXEC-001",
-    "phase": "GATE_B",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Run promotions through the execution engine by default in the standard serve profile",
     "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
@@ -29310,7 +29310,7 @@
   },
   {
     "id": "PROMO-EXEC-002",
-    "phase": "GATE_B",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Prove the promotion execute chain over the served tunnel surface",
     "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
@@ -29333,7 +29333,7 @@
   },
   {
     "id": "PROMO-EXEC-003",
-    "phase": "GATE_B",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Pin the workflow inspectors and ADMIN-008 to a live promotion execution",
     "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
@@ -29356,7 +29356,7 @@
   },
   {
     "id": "PROMO-EXEC-004",
-    "phase": "GATE_B",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Drive the work queue over a live promotion approval and prove the control branches",
     "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
@@ -29380,7 +29380,7 @@
   },
   {
     "id": "PROMO-EXEC-005",
-    "phase": "GATE_B",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Cover the async engine paths on a real promotion: sweep, START retry and the composed scheduler loop",
     "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
@@ -29403,7 +29403,7 @@
   },
   {
     "id": "PROMO-EXEC-006",
-    "phase": "GATE_B",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Give position-less proposals the catalog vacancy on every propose path",
     "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
@@ -29425,7 +29425,7 @@
   },
   {
     "id": "PROMO-EXEC-007",
-    "phase": "GATE_B",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Land the commit: drive a staffed-worker's promotion through execute_promotion to end_complete",
     "section": "73. Workflow engine plan-vs-implementation gaps (2026-09-14)",
@@ -29446,7 +29446,7 @@
   },
   {
     "id": "PROMOUX-001",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Resolve promotion eligibility consistently across the seeded workforce",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29474,7 +29474,7 @@
   },
   {
     "id": "PROMOUX-002",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Prevent overlapping active promotions and route users to the existing journey",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29503,7 +29503,7 @@
   },
   {
     "id": "PROMOUX-003",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Enforce and explain separation of duties across promotion approvals",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29531,7 +29531,7 @@
   },
   {
     "id": "PROMOUX-004",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Replace free-text target positions with authorized vacancy selection and reservation evidence",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29559,7 +29559,7 @@
   },
   {
     "id": "PROMOUX-005",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Include reporting-line and organization impact in management promotions",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29589,7 +29589,7 @@
   },
   {
     "id": "PROMOUX-006",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Show the authorized compensation baseline and exact entry guardrail before submit",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29618,7 +29618,7 @@
   },
   {
     "id": "PROMOUX-007",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Present promotion validation as field-linked recoverable guidance",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29646,7 +29646,7 @@
   },
   {
     "id": "PROMOUX-008",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Put promotion machinery behind an authorized diagnostics disclosure",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29675,7 +29675,7 @@
   },
   {
     "id": "PROMOUX-009",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Canonicalize and deduplicate promotion simulation findings",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29702,7 +29702,7 @@
   },
   {
     "id": "PROMOUX-010",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Keep promotion review confirmations compact, visible and keyboard-stable",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29729,7 +29729,7 @@
   },
   {
     "id": "PROMOUX-011",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Invalidate promotion counts and timestamps after every durable transition",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29758,7 +29758,7 @@
   },
   {
     "id": "PROMOUX-012",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Distinguish actionable approvals, tracked promotions and passive waits",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29788,7 +29788,7 @@
   },
   {
     "id": "PROMOUX-013",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Add governed edit, supersede, withdraw and cancel paths",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29817,7 +29817,7 @@
   },
   {
     "id": "PROMOUX-014",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Explain effective-date waits and provide a bounded local-dev completion path",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29845,7 +29845,7 @@
   },
   {
     "id": "PROMOUX-015",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Gate promotion presentation and execution with one multi-persona regression journey",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29889,7 +29889,7 @@
   },
   {
     "id": "PROMOUX-016",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Wire the approved promotion outcome to authoritative successor facts",
     "section": "70. Promotion workflow live-audit remediation",
@@ -29918,7 +29918,7 @@
   },
   {
     "id": "PROMOUX-017",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Make promotion admission and intent creation one recoverable operation",
     "section": "70. Promotion workflow live-audit remediation",
@@ -42683,7 +42683,7 @@
   },
   {
     "id": "UIPOLISH-001",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Establish a disciplined responsive typography hierarchy",
     "section": "71. Live visual-design and interaction polish",
@@ -42711,7 +42711,7 @@
   },
   {
     "id": "UIPOLISH-002",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Normalize page spacing, alignment and responsive rhythm",
     "section": "71. Live visual-design and interaction polish",
@@ -42738,7 +42738,7 @@
   },
   {
     "id": "UIPOLISH-003",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Unify shape, border, surface and elevation semantics",
     "section": "71. Live visual-design and interaction polish",
@@ -42764,7 +42764,7 @@
   },
   {
     "id": "UIPOLISH-004",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Give each page and component an explicit scroll owner",
     "section": "71. Live visual-design and interaction polish",
@@ -42792,7 +42792,7 @@
   },
   {
     "id": "UIPOLISH-005",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Qualify semantic color across light, dark and customer themes",
     "section": "71. Live visual-design and interaction polish",
@@ -42820,7 +42820,7 @@
   },
   {
     "id": "UIPOLISH-006",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Standardize control geometry and every interactive state",
     "section": "71. Live visual-design and interaction polish",
@@ -42848,7 +42848,7 @@
   },
   {
     "id": "UIPOLISH-007",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Apply a concise task-oriented product voice",
     "section": "71. Live visual-design and interaction polish",
@@ -42876,7 +42876,7 @@
   },
   {
     "id": "UIPOLISH-008",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Balance information density across tables, forms and object pages",
     "section": "71. Live visual-design and interaction polish",
@@ -42906,7 +42906,7 @@
   },
   {
     "id": "UIPOLISH-009",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make loading, empty, error and success states visually stable and actionable",
     "section": "71. Live visual-design and interaction polish",
@@ -42934,7 +42934,7 @@
   },
   {
     "id": "UIPOLISH-010",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Unify iconography, glyph meaning and brand substitution",
     "section": "71. Live visual-design and interaction polish",
@@ -42962,7 +42962,7 @@
   },
   {
     "id": "UIPOLISH-011",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Apply restrained motion to navigation, overlays and async updates",
     "section": "71. Live visual-design and interaction polish",
@@ -42989,7 +42989,7 @@
   },
   {
     "id": "UIPOLISH-012",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Gate every production page against the visual-design system",
     "section": "71. Live visual-design and interaction polish",
@@ -43326,7 +43326,7 @@
   },
   {
     "id": "UXAUDIT-001",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Replace the mobile sidebar with a viewport-safe application shell",
     "section": "69. Live product UX audit remediation",
@@ -43353,7 +43353,7 @@
   },
   {
     "id": "UXAUDIT-002",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Guarantee one discoverable, authorized promotion path from person to completion",
     "section": "69. Live product UX audit remediation",
@@ -43399,7 +43399,7 @@
   },
   {
     "id": "UXAUDIT-003",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make the global launcher perform actions rather than duplicate navigation",
     "section": "69. Live product UX audit remediation",
@@ -43426,7 +43426,7 @@
   },
   {
     "id": "UXAUDIT-004",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Render reporting lines as a coherent, navigable ownership tree",
     "section": "69. Live product UX audit remediation",
@@ -43454,7 +43454,7 @@
   },
   {
     "id": "UXAUDIT-005",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Align top-level information architecture with shipped capabilities",
     "section": "69. Live product UX audit remediation",
@@ -43481,7 +43481,7 @@
   },
   {
     "id": "UXAUDIT-006",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Replace implementation vocabulary with task-oriented product language",
     "section": "69. Live product UX audit remediation",
@@ -43508,7 +43508,7 @@
   },
   {
     "id": "UXAUDIT-007",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Scope acting-context notices to situations that change user authority",
     "section": "69. Live product UX audit remediation",
@@ -43534,7 +43534,7 @@
   },
   {
     "id": "UXAUDIT-008",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Give the People directory one stable, high-density table viewport",
     "section": "69. Live product UX audit remediation",
@@ -43562,7 +43562,7 @@
   },
   {
     "id": "UXAUDIT-009",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Scale role assignment and access administration beyond a full-workforce accordion",
     "section": "69. Live product UX audit remediation",
@@ -43590,7 +43590,7 @@
   },
   {
     "id": "UXAUDIT-010",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Turn organization visibility configuration into a previewable role policy editor",
     "section": "69. Live product UX audit remediation",
@@ -43618,7 +43618,7 @@
   },
   {
     "id": "UXAUDIT-011",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Remove unavailable Experience Studio from primary navigation",
     "section": "69. Live product UX audit remediation",
@@ -43644,7 +43644,7 @@
   },
   {
     "id": "UXAUDIT-012",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Eliminate layout shifts during server-backed loading and navigation",
     "section": "69. Live product UX audit remediation",
@@ -43673,7 +43673,7 @@
   },
   {
     "id": "UXAUDIT-013",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make Help a searchable support destination",
     "section": "69. Live product UX audit remediation",
@@ -43700,7 +43700,7 @@
   },
   {
     "id": "UXAUDIT-014",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Keep login persona promises consistent with usable capabilities",
     "section": "69. Live product UX audit remediation",
@@ -43727,7 +43727,7 @@
   },
   {
     "id": "UXAUDIT-015",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Redesign Home around prioritized work and continuity",
     "section": "69. Live product UX audit remediation",
@@ -43755,7 +43755,7 @@
   },
   {
     "id": "UXAUDIT-016",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Give the worker profile a specific identity and useful missing-data treatment",
     "section": "69. Live product UX audit remediation",
@@ -43785,7 +43785,7 @@
   },
   {
     "id": "UXAUDIT-017",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Differentiate Journeys from My Work by user task",
     "section": "69. Live product UX audit remediation",
@@ -43816,7 +43816,7 @@
   },
   {
     "id": "UXAUDIT-018",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Replace the zero-state Insights facade with an honest useful summary",
     "section": "69. Live product UX audit remediation",
@@ -43846,7 +43846,7 @@
   },
   {
     "id": "UXAUDIT-019",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make workflow History inspectable, sortable and compact",
     "section": "69. Live product UX audit remediation",
@@ -43874,7 +43874,7 @@
   },
   {
     "id": "UXAUDIT-020",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Refine flat organization browsing for scan, search and progressive disclosure",
     "section": "69. Live product UX audit remediation",
@@ -43901,7 +43901,7 @@
   },
   {
     "id": "UXAUDIT-021",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Give long admin forms grouped sections and persistent actions",
     "section": "69. Live product UX audit remediation",
@@ -43927,7 +43927,7 @@
   },
   {
     "id": "UXAUDIT-022",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Replace appearance asset paths with a governed brand asset picker",
     "section": "69. Live product UX audit remediation",
@@ -43955,7 +43955,7 @@
   },
   {
     "id": "UXAUDIT-023",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Organize personal Settings around user tasks and account safety",
     "section": "69. Live product UX audit remediation",
@@ -43984,7 +43984,7 @@
   },
   {
     "id": "UXAUDIT-024",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Clarify navigation identity, hierarchy and search responsibilities",
     "section": "69. Live product UX audit remediation",
@@ -44013,7 +44013,7 @@
   },
   {
     "id": "UXAUDIT-025",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Gate the live frontend on the blind-audit critical journeys",
     "section": "69. Live product UX audit remediation",
@@ -44415,7 +44415,7 @@
   },
   {
     "id": "UXLIVE-001",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Name a promotion outcome by the outcome that was actually recorded",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44440,7 +44440,7 @@
   },
   {
     "id": "UXLIVE-002",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Make the stage tracker agree with the run's own history",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44467,7 +44467,7 @@
   },
   {
     "id": "UXLIVE-003",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Show a position as a position, not as its revision token",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44492,7 +44492,7 @@
   },
   {
     "id": "UXLIVE-004",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Prefill the edit-proposal dialog with values rather than rendered sentences",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44518,7 +44518,7 @@
   },
   {
     "id": "UXLIVE-005",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Offer a retry where a page reports that its live data is unavailable",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44542,7 +44542,7 @@
   },
   {
     "id": "UXLIVE-006",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Offer the repair the journey names as its next step",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44567,7 +44567,7 @@
   },
   {
     "id": "UXLIVE-007",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Stop the directory search from redefining the organization's facts",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44593,7 +44593,7 @@
   },
   {
     "id": "UXLIVE-008",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make the brand form describe the header it controls",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44618,7 +44618,7 @@
   },
   {
     "id": "UXLIVE-009",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Keep machine identifiers out of user-authored content fields",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44642,7 +44642,7 @@
   },
   {
     "id": "UXLIVE-010",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make a list of near-identical requests navigable",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44667,7 +44667,7 @@
   },
   {
     "id": "UXLIVE-011",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Remove the free-text target position from the served propose form",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44691,7 +44691,7 @@
   },
   {
     "id": "UXLIVE-012",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Do not promise pay guidance the page cannot give",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44714,7 +44714,7 @@
   },
   {
     "id": "UXLIVE-013",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Stop re-downloading the whole UI bundle on every navigation",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44741,7 +44741,7 @@
   },
   {
     "id": "UXLIVE-014",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Remove controls and metadata rows that cannot do anything",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44765,7 +44765,7 @@
   },
   {
     "id": "UXLIVE-015",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "State the Insights limitation once and make the page worth opening",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44788,7 +44788,7 @@
   },
   {
     "id": "UXLIVE-016",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Use one date and time vocabulary across the product",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44812,7 +44812,7 @@
   },
   {
     "id": "UXLIVE-017",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "State an unavailable-action reason once per section",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44835,7 +44835,7 @@
   },
   {
     "id": "UXLIVE-018",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make the work filter strip consistent and countable",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44859,7 +44859,7 @@
   },
   {
     "id": "UXLIVE-019",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Give each stage a visible state, not only a colour",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44883,7 +44883,7 @@
   },
   {
     "id": "UXLIVE-020",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Return focus to the control that opened an overlay",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44907,7 +44907,7 @@
   },
   {
     "id": "UXLIVE-021",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Let only one row menu stand open at a time",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44931,7 +44931,7 @@
   },
   {
     "id": "UXLIVE-022",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make a journey link open that journey on a cold load",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44955,7 +44955,7 @@
   },
   {
     "id": "UXLIVE-023",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Stop the person page repeating itself and contradicting itself",
     "section": "74. September 17 live UI and UX audit findings",
@@ -44980,7 +44980,7 @@
   },
   {
     "id": "UXLIVE-024",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Let the organization tree use the width it was given",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45004,7 +45004,7 @@
   },
   {
     "id": "UXLIVE-025",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_LOW",
     "title": "Keep the application shell exactly one viewport tall",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45028,7 +45028,7 @@
   },
   {
     "id": "UXLIVE-026",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Decide intervention availability from the run, not from the assumption that blocked means unstarted",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45054,7 +45054,7 @@
   },
   {
     "id": "UXLIVE-027",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Make Journeys, Insights and Home agree on the authorized workflow population",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45081,7 +45081,7 @@
   },
   {
     "id": "UXLIVE-028",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Apply deliberate scroll restoration to software-routed page changes",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45107,7 +45107,7 @@
   },
   {
     "id": "UXLIVE-029",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Preserve every global-search keystroke across debounced asynchronous results",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45134,7 +45134,7 @@
   },
   {
     "id": "UXLIVE-030",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Give a populated Home an operational summary rather than an empty canvas",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45162,7 +45162,7 @@
   },
   {
     "id": "UXLIVE-031",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Finish the Journeys tracker's filtering, sorting and grouping contract",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45190,7 +45190,7 @@
   },
   {
     "id": "UXLIVE-032",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Separate a journey's person, request reference and status in the card hierarchy",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45218,7 +45218,7 @@
   },
   {
     "id": "UXLIVE-033",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Present the People row's real workflow state instead of a blanket Unavailable control",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45247,7 +45247,7 @@
   },
   {
     "id": "UXLIVE-034",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "RESEARCH — Select an error-prevention and confirmation pattern for material promotion proposals",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45274,7 +45274,7 @@
   },
   {
     "id": "UXLIVE-035",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "RESEARCH — Establish the journey detail's status, progress and intervention hierarchy",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45301,7 +45301,7 @@
   },
   {
     "id": "UXLIVE-036",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Stop invalid promotion proposals before review and expose accessible field errors",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45329,7 +45329,7 @@
   },
   {
     "id": "UXLIVE-037",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Make the promotion review a complete, decision-grade transaction summary",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45358,7 +45358,7 @@
   },
   {
     "id": "UXLIVE-038",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make target-position choices distinguishable and decisionable",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45386,7 +45386,7 @@
   },
   {
     "id": "UXLIVE-039",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Replace the zero-money default with safe exact-compensation entry",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45415,7 +45415,7 @@
   },
   {
     "id": "UXLIVE-040",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Preserve promotion intent when choosing an employee",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45442,7 +45442,7 @@
   },
   {
     "id": "UXLIVE-041",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Explain blocked, rejected and failed promotions from authoritative outcome evidence",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45472,7 +45472,7 @@
   },
   {
     "id": "UXLIVE-042",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Make downstream-effect progress truthful, observable and time-bounded",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45501,7 +45501,7 @@
   },
   {
     "id": "UXLIVE-043",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Implement the researched status-first journey detail composition",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45529,7 +45529,7 @@
   },
   {
     "id": "UXLIVE-044",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Carry a human position identity from selection through review and history",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45557,7 +45557,7 @@
   },
   {
     "id": "UXLIVE-045",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Use outcome-specific journey-card actions and progressive technical detail",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45584,7 +45584,7 @@
   },
   {
     "id": "UXLIVE-046",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Gate release on the complete promotion experience across success and recovery states",
     "section": "74. September 17 live UI and UX audit findings",
@@ -45625,7 +45625,7 @@
   },
   {
     "id": "UXSCAN-001",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Disambiguate employee identity everywhere a person can be chosen or acted on",
     "section": "72. September 14 live-UI regression findings",
@@ -45651,7 +45651,7 @@
   },
   {
     "id": "UXSCAN-002",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Keep the action launcher focused on executable, scannable actions",
     "section": "72. September 14 live-UI regression findings",
@@ -45677,7 +45677,7 @@
   },
   {
     "id": "UXSCAN-003",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make the global Promotion search result's destination truthful",
     "section": "72. September 14 live-UI regression findings",
@@ -45703,7 +45703,7 @@
   },
   {
     "id": "UXSCAN-004",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Compress Home's all-empty state around the next useful action",
     "section": "72. September 14 live-UI regression findings",
@@ -45729,7 +45729,7 @@
   },
   {
     "id": "UXSCAN-005",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Remove cramped desktop table and filter layouts",
     "section": "72. September 14 live-UI regression findings",
@@ -45755,7 +45755,7 @@
   },
   {
     "id": "UXSCAN-006",
-    "phase": "P0",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Correct contrast in the dark appearance preview",
     "section": "72. September 14 live-UI regression findings",
@@ -45780,7 +45780,7 @@
   },
   {
     "id": "UXSCAN-007",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Make zero-data Insights useful without inventing metrics",
     "section": "72. September 14 live-UI regression findings",
@@ -45807,7 +45807,7 @@
   },
   {
     "id": "UXSCAN-008",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "SOL_HIGH",
     "title": "Explain effective access before an administrator changes role visibility",
     "section": "72. September 14 live-UI regression findings",
@@ -45835,7 +45835,7 @@
   },
   {
     "id": "UXSCAN-009",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Correct misleading labels and settings hierarchy",
     "section": "72. September 14 live-UI regression findings",
@@ -45862,7 +45862,7 @@
   },
   {
     "id": "UXSCAN-010",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Keep the expanded sidebar's scrollbar unobtrusive and destinations reachable",
     "section": "72. September 14 live-UI regression findings",
@@ -45888,7 +45888,7 @@
   },
   {
     "id": "UXSCAN-011",
-    "phase": "GATE_C",
+    "phase": "PHASE_3",
     "model": "TERRA",
     "title": "Keep Appearance's edit context and save action visible during long-form work",
     "section": "72. September 14 live-UI regression findings",

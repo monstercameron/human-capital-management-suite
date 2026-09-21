@@ -40,6 +40,13 @@ func TestTodoTestMatrixApplicability(t *testing.T) {
 		requireFinding(t, findings, "FX-019", "GOV-018", CodeMeaninglessTestClass)
 	})
 
+	t.Run("ArchitectureIsADeclaredClass", func(t *testing.T) {
+		records := parseApplicabilityFixture(t, applicabilityFixture("FX-019A", "PHASE_2", "Package boundary", "DOMAIN_SUPPORT", "PRIMARY=TestFX019A; ARCHITECTURE=TestArchitecture"))
+		if findings := ValidateTestMatrixApplicability(records); len(findings) != 0 {
+			t.Fatalf("architecture fixture findings = %v", findings)
+		}
+	})
+
 	t.Run("UnitOnlyNeedsEvaluatedReason", func(t *testing.T) {
 		records := parseApplicabilityFixture(t, applicabilityFixture("FX-020", "PHASE_2", "Plain note", "DOMAIN_SUPPORT", "PRIMARY=TestFX020; UNIT_ONLY"))
 		findings := ValidateTestMatrixApplicability(records)

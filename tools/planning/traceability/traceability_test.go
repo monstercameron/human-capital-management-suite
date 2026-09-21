@@ -101,6 +101,14 @@ func TestRequirementTraceabilityRejectsOrphans(t *testing.T) {
 		}
 	})
 
+	t.Run("one real top-level test resolves shorthand subtest labels", func(t *testing.T) {
+		todos := []todoregistry.Todo{{ID: "X-001A", Done: true, Evidence: "`TestReal`, `_Golden`, `_Race` in `tools/x`"}}
+		existing := map[string]bool{"TestReal": true}
+		if orphans := CheckTraceability(todos, existing); len(orphans) != 0 {
+			t.Errorf("expected the real top-level test to resolve the evidence, got %v", orphans)
+		}
+	})
+
 	t.Run("done todo citing a nonexistent test is an orphan", func(t *testing.T) {
 		todos := []todoregistry.Todo{{ID: "X-002", Done: true, Evidence: "`TestDoesNotExist` in `tools/x`"}}
 		existing := map[string]bool{"TestReal": true}
@@ -175,7 +183,7 @@ func TestTodo_GOV_003_Golden(t *testing.T) {
 	if len(orphans) != 1 {
 		t.Fatalf("expected exactly one orphan, got %d: %v", len(orphans), orphans)
 	}
-	const want = "GOLDEN-001: Evidence names TestGoldenMissing, which does not exist in the repository"
+	const want = "GOLDEN-001: Evidence names no repository test; first unresolved name is TestGoldenMissing"
 	if got := orphans[0].String(); got != want {
 		t.Errorf("orphan message changed:\n got:  %s\n want: %s", got, want)
 	}

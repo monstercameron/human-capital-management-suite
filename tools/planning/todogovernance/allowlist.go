@@ -39,6 +39,14 @@ var gov018Allowlist = buildAllowlistKeys("GOV-018", func(add func(id, code, deta
 	addGOV018CSV(add, CodeMissingApplicableTestClass, "RECOVERY", "ALIGN-055,ALIGN-056,CICD-002,CICD-005,CP-009,CRYPTO-001,CUSTOMER-001,DATAOPS-006,DB-001,DB-006,DB-021,INTG-007,LIB-008,LIB-014,MSRC-008,OBS-014,ONBOARD-005,SVC-013,TOOL-015,WEB-081,WEB-083,WF-RUN-017,WF-RUN-018,XFORM-008")
 	addGOV018CSV(add, CodeMissingApplicableTestClass, "SECURITY", "AGENT-002,APPROVAL-004,APPROVAL-006,ARTIFACT-001,ARTIFACT-003,ARTIFACT-006,ATTEST-004,BAL-008,CLOCK-001,CLOCK-002,CONN-RT-002,CUSTOM-006,CYCLE-009,DATA-004,DATA-018,DATAOPS-004,DOC-REDACT-001,ELIG-005,GARN-005,GOV-012,GOV-022,GOVERN-002,IAC-003,IAC-011,LEDGER-010,LIB-011,MATCH-005,MATCH-006,MODEL-007,MODEL-008,MODEL-026,ONBOARD-003,POP-001,POP-007,QUAL-004,READINESS-002,ROLLOUT-007,SCENARIO-002,SCHED-OPT-005,SETTLE-003,SUB-002,TOOL-016,TOOL-018,WEB-039,WEB-041,WEB-045,WEB-097,WEB-112")
 	addGOV018CSV(add, CodeUnitOnlyWithoutReason, "", "WEDGE-003,WEDGE-005")
+	// These promotion/UX entries were added after the 2026-09-05 snapshot.
+	// Their primary proof exists, but the newly derived secondary class does
+	// not yet have an independently named test. Keep the gap explicit rather
+	// than claiming a different test class proves it.
+	addGOV018CSV(add, CodeMissingApplicableTestClass, "CONFORMANCE", "PROMOUX-015,UIPOLISH-012,UXAUDIT-025,UXLIVE-046")
+	addGOV018CSV(add, CodeMissingApplicableTestClass, "GOLDEN", "PROMOUX-003,PROMOUX-013")
+	addGOV018CSV(add, CodeMissingApplicableTestClass, "INTEGRATION", "PROMOUX-007")
+	addGOV018CSV(add, CodeMissingApplicableTestClass, "SECURITY", "UXAUDIT-015,UXLIVE-028,UXLIVE-029,UXLIVE-032,UXLIVE-045")
 })
 
 func addGOV018CSV(add func(id, code, detail string), code, detail, csv string) {
@@ -337,6 +345,10 @@ var gov016PhaseInversions = []depEdge{
 	{From: "WF-RUN-001", To: "DATA-002"},
 	{From: "WF-RUN-005", To: "INTG-018"},
 	{From: "WF-STEP-006", To: "INTG-018"},
+	{From: "WEB-241", To: "UXAUDIT-014"},
+	{From: "WEB-246", To: "UIPOLISH-009"},
+	{From: "WEB-246", To: "UXAUDIT-008"},
+	{From: "WF-EXT-001", To: "PROMO-EXEC-007"},
 	{From: "WORKER-LIFE-002", To: "LEARN-003"},
 	{From: "XFORM-006", To: "XFORM-003"},
 	{From: "XFORM-006", To: "XFORM-004"},
@@ -381,7 +393,19 @@ var gov017Allowlist = buildAllowlistKeys("GOV-017", func(add func(id, code, deta
 	for _, id := range []string{"ABUSE-003", "BAL-003", "DB-012"} {
 		add(id, CodeEvidenceMissingTestName, "")
 	}
+	// Reviewed evidence-format debt added after the original snapshot. These
+	// entries preserve exact finding codes: fixing a missing test name does not
+	// silently waive a missing command result, or vice versa.
+	addGOV017CSV(add, CodeEvidenceMissingGoTest, "CONN-RT-009,CUSTOMER-003,DATA-012,DB-EDGE-002,FORM-001,FORM-002,FORM-003,MODEL-008,MODEL-009,NEXT-001,NEXT-009,OBS-008,PROMOUX-015,RECOVERY-005,SLICE-001,SLICE-002,SLICE-003,SLICE-004,SLICE-005,SLICE-006,SLICE-007,SLICE-008,SLICE-009,SLICE-010,SLICE-011,SLICE-012,SLICE-013,SLICE-014,SLICE-015,SOURCE-001,WEB-241,WEB-244,WEB-245,WEB-246,WEDGE-015,WF-COMP-007,WF-RUN-035,WF-RUN-036,WF-RUN-037,WF-RUN-038,WF-RUN-039,WF-RUN-040,WF-STEP-011,WF-STEP-012,WF-STEP-013,WF-STEP-015,WF-STEP-018,WF-UI-002,WF-UI-004,WF-UI-005,WF-UI-006,WF-UI-007,WF-UI-009")
+	addGOV017CSV(add, CodeEvidenceMissingTestName, "A11Y-001,CROSS-CONF-001,ENGINE-CONF-001,FEATURE-CONF-001,FORM-001,FORM-002,FORM-003,INTENT-CONF-002,MODEL-008,MODEL-009,NEXT-001,RECRUIT-003,RECRUIT-004,REV-055-02,REV-100-01,SLICE-001,SLICE-002,SLICE-003,SLICE-004,SLICE-005,SLICE-006,SLICE-007,SLICE-008,SLICE-009,SLICE-010,SLICE-011,SLICE-012,SLICE-013,SLICE-014,SLICE-015,SOURCE-001,UX-JOBARCH-001,UXAUDIT-002,UXAUDIT-009,UXAUDIT-010,UXAUDIT-013,WEB-241,WEB-242,WEB-243,WEB-244,WEB-245,WEB-246,WF-STEP-011,WF-STEP-012,WF-STEP-013,WF-STEP-015,WORKER-LIFE-001,WORKER-LIFE-002,WORKER-LIFE-003,WORKER-LIFE-004")
+	addGOV017CSV(add, CodeMissingEvidence, "UXSCAN-001,UXSCAN-002,UXSCAN-003,UXSCAN-004,UXSCAN-005,UXSCAN-006,UXSCAN-007,UXSCAN-009,UXSCAN-010")
 })
+
+func addGOV017CSV(add func(id, code, detail string), code, csv string) {
+	for _, id := range strings.Split(csv, ",") {
+		add(id, code, "")
+	}
+}
 
 type intentViolation struct{ ID, Code, Detail string }
 

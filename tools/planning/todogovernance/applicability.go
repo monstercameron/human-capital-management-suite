@@ -18,9 +18,9 @@ const (
 // planning/todos.md. PRIMARY is deliberately absent: it is the primary test,
 // not a secondary applicability class.
 var TestClasses = []string{
-	"BENCHMARK", "BROWSER", "CONFORMANCE", "FAULT", "FUZZ", "GOLDEN",
-	"INTEGRATION", "MODEL_BASED", "MUTATION", "PROPERTY", "RACE", "RECOVERY",
-	"SECURITY",
+	"ACCESSIBILITY", "ARCHITECTURE", "BENCHMARK", "BROWSER", "CONFORMANCE", "FAULT", "FUZZ",
+	"GOLDEN", "I18N", "INTEGRATION", "MODEL_BASED", "MUTATION", "PERFORMANCE",
+	"PROPERTY", "RACE", "RECOVERY", "REGRESSION", "SECURITY",
 }
 
 // RiskRule is one row in the GOV-018 derivation table. Marker is a stable
