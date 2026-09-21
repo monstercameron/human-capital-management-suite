@@ -305,8 +305,10 @@ func TestTodo_WF_RUN_025(t *testing.T) {
 
 // TestTodo_WF_RUN_025_Race drives the SAME advancement of the SAME node
 // concurrently from independent connections and transactions: exactly one
-// commits, and every loser is refused with [runtime.CodeStaleInstance] rather
-// than partially applying.
+// commits, and every loser is refused rather than partially applying. A loser
+// that reconstructs the winner's committed node state can be refused by the
+// pure frontier layer as [frontier.CodeNodeNotActive]; a loser whose compare
+// and set observes the version first is refused as [runtime.CodeStaleInstance].
 func TestTodo_WF_RUN_025_Race(t *testing.T) {
 	db := pgtest.New(t)
 	setupConn := appConn(t, db)
@@ -371,7 +373,8 @@ func TestTodo_WF_RUN_025_Race(t *testing.T) {
 			winnerDigest = res.receipt.Digest()
 		case res.err == nil && res.receipt.Replay:
 			replayed++
-		case runtime.CodeOf(res.err) == runtime.CodeStaleInstance:
+		case runtime.CodeOf(res.err) == runtime.CodeStaleInstance,
+			frontier.CodeOf(res.err) == frontier.CodeNodeNotActive:
 			conflicts++
 		default:
 			t.Fatalf("unexpected error: %v", res.err)
