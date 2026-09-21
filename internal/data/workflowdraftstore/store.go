@@ -286,8 +286,7 @@ func (parseStore *Store) PurgeExpired(parseContext context.Context, parseTenant 
 	}
 	var parseRemoved int64
 	parseErr := parseStore.withTenant(parseContext, parseTenant, func(parseTx dbport.Tx, parseTenantID uuid.UUID) error {
-		var parseDeleteErr error
-		parseDeleteErr = parseTx.QueryRow(parseContext,
+		parseDeleteErr := parseTx.QueryRow(parseContext,
 			`SELECT hcmnext_purge_expired_workflow_drafts($1,$2)`,
 			parseTenantID, parseAt.UTC()).Scan(&parseRemoved)
 		if parseDeleteErr != nil {
