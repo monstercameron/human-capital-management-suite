@@ -117,6 +117,9 @@ func TestTodo_REV_091_03_Integration(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("DecideJourney as the finance partner: %v", err)
 	}
+	if hub.Published() == 0 {
+		t.Fatal("the committed decision did not publish a transition hint")
+	}
 
 	journeyRef := journeyinvalidation.JourneyRef(tenant, h.intentID)
 	got := rev09103Receive(t, "comp admin shell", shell)

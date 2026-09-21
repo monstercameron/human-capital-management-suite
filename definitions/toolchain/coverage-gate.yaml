@@ -1015,6 +1015,14 @@ exceptions:
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
     expiry: "2026-12-31"
+  - package: tools/planning/cmd/plancheck
+    kind: below_floor
+    owner: backlog
+    reason: >-
+      38.8% of statements covered on 2026-09-21. Repository-facing adapter
+      tests cover the active checks; many command branches and error paths
+      remain untested. Add synthetic command cases and retire this exception.
+    expiry: "2026-12-31"
   - package: tools/planning/cmd/productslice
     kind: below_floor
     owner: backlog

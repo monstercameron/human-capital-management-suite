@@ -219,6 +219,9 @@ jobs:
           awk -v shard="$HCMNEXT_CI_SHARD" '((NR - 1) % 4) == shard' .artifacts/race-packages.txt > .artifacts/race-shard.txt
           echo "racing shard $HCMNEXT_CI_SHARD: $(wc -l < .artifacts/race-shard.txt) concurrent package(s)"
           xargs -a .artifacts/race-shard.txt go test -race -count=1 -p=2 -timeout=30m
+      - name: PostgreSQL diagnostics on race failure
+        if: failure()
+        run: docker logs --tail 200 "$HCMNEXT_PG_CONTAINER" || true
       - name: Stop PostgreSQL
         if: always()
         run: docker rm --force "$HCMNEXT_PG_CONTAINER" || true
@@ -263,6 +266,9 @@ jobs:
           GOOS=js GOARCH=wasm go build -o internal/humanwork/workspace/assets/uxqual.wasm ./tools/uxqual/cmd/uxqualwasm
       - name: Unit-test and coverage floor gate (70%)
         run: go run ./tools/quality/covergate/cmd/covergate -root . -all -shard-index "$HCMNEXT_CI_SHARD" -shard-count 4
+      - name: PostgreSQL diagnostics on coverage failure
+        if: failure()
+        run: docker logs --tail 200 "$HCMNEXT_PG_CONTAINER" || true
       - name: Stop PostgreSQL
         if: always()
         run: docker rm --force "$HCMNEXT_PG_CONTAINER" || true
