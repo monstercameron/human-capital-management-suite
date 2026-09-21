@@ -268,7 +268,7 @@ func excludedDir(rel string) bool {
 		return rel != "" && rel != "."
 	}
 	for _, part := range strings.Split(rel, "/") {
-		if part == "testdata" || part == "node_modules" || strings.HasPrefix(part, ".") {
+		if part == "generated" || part == "testdata" || part == "node_modules" || strings.HasPrefix(part, ".") {
 			return true
 		}
 	}
