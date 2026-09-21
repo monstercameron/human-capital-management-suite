@@ -123,6 +123,22 @@ func TestVersionAndExplainContract(t *testing.T) {
 	}
 }
 
+func TestCompileAndEvaluateContract(t *testing.T) {
+	r := requirement(t, readiness.EvidenceAuthorization)
+	r.CanonicalDigest = ""
+	compiled, err := readiness.Compile(r)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	if compiled.CanonicalDigest == "" {
+		t.Fatal("Compile returned no canonical digest")
+	}
+	resolution := resolveForEvaluation(t, compiled, descriptor(t, readiness.EvidenceSatisfied))
+	if _, err := readiness.Evaluate(compiled, resolution); err != nil {
+		t.Fatalf("Evaluate(compiled): %v", err)
+	}
+}
+
 func TestTodo_READINESS_CONF_001(t *testing.T) {
 	report, err := readiness.ProveConformance(readiness.DefaultConformanceProfiles())
 	if err != nil {

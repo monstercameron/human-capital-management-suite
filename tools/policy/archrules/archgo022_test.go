@@ -167,23 +167,26 @@ func TestTodo_ARCH_GO_022_Integration(t *testing.T) {
 		messagingToForms    int
 	)
 
-	// Allowlisted workflow->humanwork edges (count: 11)
+	// Allowlisted workflow->humanwork edges (count: 14)
 	// These represent existing coupling where workflow packages (execute, inspect, prototype,
 	// simulate, and step specializations like approval and task) depend on humanwork/workitem.
 	// This is under review for refactoring to reduce coupling; see ARCH-GO-022 GREEN for
 	// target separation.
 	allowlistedWorkflowToHumanwork := map[string]bool{
-		"internal/workflow/execute->internal/humanwork/workitem":           true, // execute needs to access work items
-		"internal/workflow/execute/effects->internal/humanwork/workitem":   true, // effects need to update work item state
-		"internal/workflow/inspect->internal/humanwork/workitem":           true, // inspection needs work item visibility
-		"internal/workflow/prototype->internal/humanwork":                  true, // prototyping accesses humanwork package
-		"internal/workflow/simulate->internal/humanwork":                   true, // simulation accesses humanwork package
-		"internal/workflow/steps/approval->internal/humanwork":             true, // approval step accesses humanwork
-		"internal/workflow/steps/approval->internal/humanwork/workitem":    true, // approval step accesses work items
-		"internal/workflow/steps/task->internal/humanwork":                 true, // task step accesses humanwork
-		"internal/workflow/steps/task->internal/humanwork/workitem":        true, // task step accesses work items
-		"internal/workflow/migrate/artifacts->internal/humanwork/workitem": true, // WF-RUN-026 version-migration artifacts re-home open work items
-		"internal/workflow/promotionexec->internal/humanwork":              true, // promotion execute requirement names the human-work step contract
+		"internal/workflow/execute->internal/humanwork/workitem":            true, // execute needs to access work items
+		"internal/workflow/execute/effects->internal/humanwork/workitem":    true, // effects need to update work item state
+		"internal/workflow/inspect->internal/humanwork/workitem":            true, // inspection needs work item visibility
+		"internal/workflow/prototype->internal/humanwork":                   true, // prototyping accesses humanwork package
+		"internal/workflow/simulate->internal/humanwork":                    true, // simulation accesses humanwork package
+		"internal/workflow/steps/approval->internal/humanwork":              true, // approval step accesses humanwork
+		"internal/workflow/steps/approval->internal/humanwork/workitem":     true, // approval step accesses work items
+		"internal/workflow/steps/task->internal/humanwork":                  true, // task step accesses humanwork
+		"internal/workflow/steps/task->internal/humanwork/workitem":         true, // task step accesses work items
+		"internal/workflow/migrate/artifacts->internal/humanwork/workitem":  true, // WF-RUN-026 version-migration artifacts re-home open work items
+		"internal/workflow/promotionexec->internal/humanwork":               true, // promotion execute requirement names the human-work step contract
+		"internal/workflow/cancellation->internal/humanwork/workitem":       true, // WF-RUN-015 cancellation closes governed open work items
+		"internal/workflow/execute->internal/humanwork":                     true, // WF-RUN-023 execution consumes the human-work service port
+		"internal/workflow/promotionexec->internal/humanwork/approverclass": true, // PROMOUX-003 binds approval nodes to authority classes
 	}
 
 	// Allowlisted workflow->messaging edges (count: 1). The execute message
@@ -246,7 +249,7 @@ func TestTodo_ARCH_GO_022_Integration(t *testing.T) {
 		}
 	}
 
-	t.Logf("ARCH-GO-022: %d workflow->humanwork, %d workflow->messaging, %d humanwork->runtime, %d humanwork->execute, %d forms->messaging, %d messaging->forms violations (+ 11 allowlisted workflow->humanwork edges, 1 workflow->messaging)",
+	t.Logf("ARCH-GO-022: %d workflow->humanwork, %d workflow->messaging, %d humanwork->runtime, %d humanwork->execute, %d forms->messaging, %d messaging->forms violations (+ 14 allowlisted workflow->humanwork edges, 1 workflow->messaging)",
 		workflowToHumanwork, workflowToMessaging, humanworkToRuntime, humanworkToExecute, formsToMessaging, messagingToForms)
 }
 

@@ -22,7 +22,7 @@ type accessPreviewScheduler interface {
 // role replaces the older one. It returns nil when the connected service
 // has no preview call, which leaves the editor's unavailable notice in place.
 func roleAccessPreviewRequest(ctx context.Context, tasks accessPreviewScheduler, service journeyclient.Service) productui.RoleAccessPreviewRequest {
-	previews, ok := service.(journeyclient.AccessPreviewService)
+	previews, ok := service.(productclient.AccessPreviewService)
 	if !ok || previews == nil || tasks == nil {
 		return nil
 	}

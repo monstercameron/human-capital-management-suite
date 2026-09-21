@@ -15,7 +15,7 @@ import (
 // the server, not the browser, authorizes and resolves every preview.
 func TestTodo_REV_093_01_PreviewRoleAccessClient(t *testing.T) {
 	conn := &recordingConn{}
-	svc, ok := NewGRPCService(conn, "tok_preview").(AccessPreviewService)
+	svc, ok := NewGRPCService(conn, "tok_preview").(*grpcService)
 	if !ok {
 		t.Fatal("production client does not implement AccessPreviewService")
 	}
@@ -30,7 +30,7 @@ func TestTodo_REV_093_01_PreviewRoleAccessClient(t *testing.T) {
 		t.Fatalf("authorization = %v, want the configured bearer", got)
 	}
 
-	anonymous := NewGRPCService(&recordingConn{}, "").(AccessPreviewService)
+	anonymous := NewGRPCService(&recordingConn{}, "").(*grpcService)
 	if _, err := anonymous.PreviewRoleAccess(context.Background(), &journeyv1.PreviewRoleAccessRequest{}); status.Code(err) != codes.Unauthenticated {
 		t.Fatalf("anonymous preview code = %v, want UNAUTHENTICATED", status.Code(err))
 	}

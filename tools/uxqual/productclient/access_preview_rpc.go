@@ -9,11 +9,17 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 )
 
 // ErrAccessPreviewUnavailable reports that no preview service is connected.
 var ErrAccessPreviewUnavailable = errors.New("productclient: access preview service unavailable")
+
+// AccessPreviewService is the consumer-owned read seam used by the role
+// visibility preview. The production journey client satisfies it without
+// owning a second one-method interface beside its adapter.
+type AccessPreviewService interface {
+	PreviewRoleAccess(context.Context, *journeyv1.PreviewRoleAccessRequest) (*journeyv1.PreviewRoleAccessResponse, error)
+}
 
 // AccessPreviewFromResponse qualifies a PreviewRoleAccess answer through the
 // AccessPreview contract before anything renders it (REV-093-01). The
@@ -109,7 +115,7 @@ func RoleAccessPreviewView(response *journeyv1.PreviewRoleAccessResponse) produc
 // PreviewRoleAccess asks the server to resolve what policy would reveal and
 // returns it only after the AccessPreview contract accepts it. The browser
 // supplies the draft; the server decides every unit in the answer.
-func PreviewRoleAccess(ctx context.Context, service journeyclient.AccessPreviewService, policy productui.OrganizationVisibilityPolicy) (productui.RoleAccessPreview, error) {
+func PreviewRoleAccess(ctx context.Context, service AccessPreviewService, policy productui.OrganizationVisibilityPolicy) (productui.RoleAccessPreview, error) {
 	if service == nil {
 		return productui.RoleAccessPreview{}, ErrAccessPreviewUnavailable
 	}
